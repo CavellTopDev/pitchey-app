@@ -137,7 +137,7 @@ export default function CreatorDashboard() {
                 <Coins className="w-5 h-5 text-purple-600" />
                 <div className="text-sm">
                   <div className="font-semibold text-purple-900">
-                    {credits?.balance || 0} Credits
+                    {credits?.balance?.credits || 0} Credits
                   </div>
                   <div className="text-xs text-purple-600 group-hover:text-purple-700">
                     Click to manage
