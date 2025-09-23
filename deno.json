@@ -22,7 +22,9 @@
   },
   "compilerOptions": {
     "allowJs": true,
-    "lib": ["deno.window"],
+    "lib": [
+      "deno.window"
+    ],
     "strict": true
   },
   "fmt": {
@@ -32,7 +34,21 @@
     "semiColons": true,
     "singleQuote": false,
     "proseWrap": "preserve",
-    "include": ["src/", "*.ts"],
-    "exclude": ["node_modules/", "dist/"]
+    "include": [
+      "src/",
+      "*.ts"
+    ],
+    "exclude": [
+      "node_modules/",
+      "dist/"
+    ]
+  },
+  "deploy": {
+    "project": "3041a504-7ecb-4753-ac3b-4c64560d9a00",
+    "exclude": [
+      "**/node_modules"
+    ],
+    "include": [],
+    "entrypoint": "frontend-server.ts"
   }
 }
