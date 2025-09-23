@@ -1,0 +1,74 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+      
+      - name: Create .env
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:password@localhost:5432/pitchey" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+          echo "JWT_SECRET=test-secret" >> .env
+      
+      - name: Run migrations
+        run: deno task db:push
+      
+      - name: Run tests
+        run: deno task test
+      
+      - name: Check formatting
+        run: deno fmt --check
+      
+      - name: Run linter
+        run: deno lint
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: pitchey
+          entrypoint: main.ts
+          import-map: deno.json

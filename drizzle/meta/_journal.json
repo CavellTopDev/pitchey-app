@@ -1,0 +1,27 @@
+{
+  "version": "5",
+  "dialect": "pg",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1758300343584,
+      "tag": "0000_shallow_medusa",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1758384972219,
+      "tag": "0001_cute_punisher",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1758387246234,
+      "tag": "0002_calm_dragon_lord",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# Backend Dockerfile for Fly.io
+FROM denoland/deno:alpine
+
+WORKDIR /app
+
+# Copy all backend files
+COPY . .
+
+# Create data directories
+RUN mkdir -p /app/data /app/static/uploads
+
+# Cache dependencies
+RUN deno cache multi-portal-server.ts || true
+
+# Cache migration and setup scripts
+RUN deno cache run-migration.ts || true
+RUN deno cache setup-demo-users.ts || true
+
+# Expose port (matching fly.backend.toml internal_port)
+EXPOSE 8000
+
+# Start server on port 8000 (init database once, then server)
+CMD sh -c "deno run --allow-all init-production-db.ts || true; deno run --allow-all working-server.ts"

@@ -1,0 +1,44 @@
+# Fly.io optimized Dockerfile for Pitchey Platform
+FROM denoland/deno:alpine-1.46.3
+
+# Install required dependencies
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    postgresql-client
+
+WORKDIR /app
+
+# Copy package files if they exist (for any Node dependencies)
+COPY package*.json ./
+RUN if [ -f package.json ]; then npm ci --only=production; fi
+
+# Copy deno config files
+COPY deno.json* deno.lock* ./
+
+# Copy all application files
+COPY . .
+
+# Cache Deno dependencies
+RUN deno cache multi-portal-server.ts || true
+RUN deno cache main.ts || true
+
+# Create uploads directory for file storage
+RUN mkdir -p /app/static/uploads /app/data
+
+# Create a non-root user
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S -u 1001 -G appuser appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+# Expose the port (Fly.io uses internal port 8080 by default)
+EXPOSE 8000
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD deno eval "try { const res = await fetch('http://localhost:8000/health'); if (!res.ok) Deno.exit(1); } catch { Deno.exit(1); }"
+
+# Start the multi-portal server
+CMD ["deno", "run", "--allow-all", "multi-portal-server.ts"]

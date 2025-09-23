@@ -1,0 +1,38 @@
+{
+  "imports": {
+    "stripe": "npm:stripe@^14.0.0",
+    "@std/http": "https://deno.land/std@0.208.0/http/",
+    "@std/crypto": "https://deno.land/std@0.208.0/crypto/",
+    "djwt": "https://deno.land/x/djwt@v2.8/mod.ts",
+    "bcrypt": "https://deno.land/x/bcrypt@v0.4.1/mod.ts",
+    "drizzle-orm": "npm:drizzle-orm@^0.29.0",
+    "drizzle-orm/": "npm:drizzle-orm@^0.29.0/",
+    "@neondatabase/serverless": "npm:@neondatabase/serverless@^0.6.0",
+    "postgres": "npm:postgres@^3.4.0"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --allow-read --watch working-server.ts",
+    "start": "deno run --allow-net --allow-env --allow-read working-server.ts",
+    "init-db": "deno run --allow-net --allow-env --allow-read init-neon-db.ts",
+    "start:secure": "deno run --allow-net --allow-read --allow-env --allow-write secure-server.ts",
+    "dev:secure": "deno run --watch --allow-net --allow-read --allow-env --allow-write secure-server.ts",
+    "start:old": "deno run --allow-net --allow-read --allow-env --allow-write multi-portal-server.ts",
+    "test:security": "deno test --allow-all tests/security.test.ts",
+    "migrate": "deno run --allow-read --allow-write --allow-env migrate-to-secure.ts"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "proseWrap": "preserve",
+    "include": ["src/", "*.ts"],
+    "exclude": ["node_modules/", "dist/"]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "follows": [
+    {
+      "id": 2,
+      "userId": 1002,
+      "targetId": 1001,
+      "type": "creator",
+      "followedAt": "2025-09-20T20:14:37.579Z"
+    },
+    {
+      "id": 3,
+      "userId": 1003,
+      "targetId": 1,
+      "type": "pitch",
+      "followedAt": "2025-09-20T20:17:35.577Z"
+    }
+  ],
+  "nextId": 4
+}
