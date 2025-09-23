@@ -568,4 +568,42 @@ Term: 3 years from signing date.`;
       nda
     };
   }
+
+  // Alias methods for compatibility with Oak server
+  static async requestNDA(data: any) {
+    return await this.createRequest(data.requesterId, data);
+  }
+
+  static async approveNDARequest(requestId: number, ownerId: number) {
+    return await this.respondToRequest(ownerId, {
+      requestId,
+      status: "approved",
+      rejectionReason: undefined
+    });
+  }
+
+  static async rejectNDARequest(requestId: number, ownerId: number, reason?: string) {
+    return await this.respondToRequest(ownerId, {
+      requestId,
+      status: "rejected",
+      rejectionReason: reason
+    });
+  }
+
+  static async signNDA(ndaId: number, signerId: number, signatureData?: any) {
+    // For now, use the basic NDA signing - this could be extended
+    // to handle custom NDAs based on the ndaId
+    const nda = await db.query.ndas.findFirst({
+      where: eq(ndas.id, ndaId),
+      with: {
+        pitch: true
+      }
+    });
+
+    if (!nda) {
+      throw new Error("NDA not found");
+    }
+
+    return await this.signBasicNDA(nda.pitchId, signerId);
+  }
 }

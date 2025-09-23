@@ -357,4 +357,131 @@ export class PitchService {
     
     return { success: true };
   }
+
+  static async getCreatorDashboard(userId: number) {
+    try {
+      const userPitchesData = await this.getUserPitches(userId, true);
+      
+      // Get recent activity (simplified for demo)
+      const recentActivity = [
+        {
+          id: 1,
+          type: "view",
+          message: "Your pitch was viewed by an investor",
+          timestamp: new Date(Date.now() - 3600000).toISOString()
+        },
+        {
+          id: 2,
+          type: "nda",
+          message: "NDA request received for your project",
+          timestamp: new Date(Date.now() - 7200000).toISOString()
+        }
+      ];
+
+      return {
+        stats: userPitchesData.stats || {
+          totalPitches: 0,
+          totalViews: 0,
+          totalLikes: 0,
+          activeNDAs: 0
+        },
+        pitches: userPitchesData.pitches || [],
+        recentActivity,
+        socialStats: {
+          followers: 0,
+          following: 0,
+          connections: 0
+        },
+        credits: {
+          remaining: 100,
+          total: 100
+        }
+      };
+    } catch (error) {
+      console.error("Error getting creator dashboard:", error);
+      throw error;
+    }
+  }
+
+  static async createPitch(data: any) {
+    return await this.create(data.userId, data);
+  }
+
+  static async getAllPitches(filters: any = {}, viewerId?: number) {
+    try {
+      const limit = filters.limit || 20;
+      const offset = filters.offset || 0;
+      
+      let conditions = [eq(pitches.status, "published")];
+      
+      if (filters.genre) {
+        conditions.push(eq(pitches.genre, filters.genre));
+      }
+      
+      if (filters.format) {
+        conditions.push(eq(pitches.format, filters.format));
+      }
+
+      const allPitches = await db.query.pitches.findMany({
+        where: and(...conditions),
+        limit,
+        offset,
+        orderBy: [desc(pitches.createdAt)],
+        with: {
+          creator: {
+            columns: {
+              id: true,
+              username: true,
+              companyName: true,
+              userType: true
+            }
+          }
+        }
+      });
+
+      return allPitches;
+    } catch (error) {
+      console.error("Error getting all pitches:", error);
+      return [];
+    }
+  }
+
+  static async getPitchesByUser(userId: number) {
+    return await this.getUserPitches(userId);
+  }
+
+  static async updatePitch(pitchId: number, data: any, userId: number) {
+    // Check ownership
+    const pitch = await db.query.pitches.findFirst({
+      where: and(
+        eq(pitches.id, pitchId),
+        eq(pitches.userId, userId)
+      )
+    });
+
+    if (!pitch) {
+      throw new Error("Pitch not found or unauthorized");
+    }
+
+    // Prepare update data
+    const updateData = {
+      ...data,
+      estimatedBudget: data.estimatedBudget ? data.estimatedBudget.toString() : undefined,
+      updatedAt: new Date()
+    };
+
+    // Remove undefined fields
+    Object.keys(updateData).forEach((key: string) => {
+      if ((updateData as any)[key] === undefined) {
+        delete (updateData as any)[key];
+      }
+    });
+
+    const [updatedPitch] = await db.update(pitches)
+      .set(updateData)
+      .where(eq(pitches.id, pitchId))
+      .returning();
+
+    return updatedPitch;
+  }
 }

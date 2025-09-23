@@ -520,4 +520,89 @@ export class StripeService {
         return "free";
     }
   }
+
+  static async getUserCredits(userId: number) {
+    try {
+      const userCredit = await db.query.userCredits.findFirst({
+        where: eq(userCredits.userId, userId)
+      });
+
+      return {
+        credits: userCredit?.balance || 0,
+        tier: "free"
+      };
+    } catch (error) {
+      console.error("Error getting user credits:", error);
+      return {
+        credits: 0,
+        tier: "free"
+      };
+    }
+  }
+
+  static async getSubscriptionStatus(userId: number) {
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId)
+      });
+
+      return {
+        status: "active",
+        tier: user?.subscriptionTier || "free",
+        creditsRemaining: 100
+      };
+    } catch (error) {
+      console.error("Error getting subscription status:", error);
+      return {
+        status: "inactive",
+        tier: "free",
+        creditsRemaining: 0
+      };
+    }
+  }
+
+  static async createPaymentIntent(data: {
+    userId: number;
+    amount: number;
+    currency: string;
+    type: string;
+  }) {
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, data.userId)
+      });
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Create payment intent with Stripe
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(data.amount * 100), // Convert to cents
+        currency: data.currency.toLowerCase(),
+        metadata: {
+          userId: data.userId.toString(),
+          type: data.type
+        }
+      });
+
+      // Store payment record
+      await db.insert(payments).values({
+        userId: data.userId,
+        type: data.type as any,
+        amount: data.amount.toString(),
+        currency: data.currency,
+        stripePaymentIntentId: paymentIntent.id,
+        status: "pending"
+      });
+
+      return {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      };
+    } catch (error) {
+      console.error("Error creating payment intent:", error);
+      throw error;
+    }
+  }
 }

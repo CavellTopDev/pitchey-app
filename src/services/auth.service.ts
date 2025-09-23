@@ -99,10 +99,17 @@ export class AuthService {
     return { user, session };
   }
   
-  static async createSession(userId: number) {
+  static async createSession(userId: number | string) {
+    // Ensure userId is a number
+    const numericUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    
+    if (isNaN(numericUserId)) {
+      throw new Error("Invalid userId provided to createSession");
+    }
+    
     const sessionId = crypto.randomUUID();
     const token = await create({ alg: "HS256", typ: "JWT" }, {
-      userId,
+      userId: numericUserId,
       sessionId,
       exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days in seconds
     }, key);
@@ -111,7 +118,7 @@ export class AuthService {
       const [session] = await db.insert(sessions)
         .values({
           id: sessionId,
-          userId,
+          userId: numericUserId,
           token,
           expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
         })
@@ -123,7 +130,7 @@ export class AuthService {
       console.error("Session creation error (continuing anyway):", error);
       return {
         id: sessionId,
-        userId,
+        userId: numericUserId,
         token,
         expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
       };
