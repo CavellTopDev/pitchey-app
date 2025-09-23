@@ -533,7 +533,7 @@ export default function ProductionDashboard() {
                 <Coins className="w-4 h-4 text-purple-600" />
                 <div className="text-sm">
                   <span className="font-medium text-purple-900">
-                    {credits?.balance || 0} Credits
+                    {credits?.balance?.credits || 0} Credits
                   </span>
                 </div>
               </button>

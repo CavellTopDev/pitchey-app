@@ -176,7 +176,7 @@ export default function InvestorDashboard() {
                 <Coins className="w-4 h-4 text-blue-600" />
                 <div className="text-sm">
                   <span className="font-medium text-blue-900">
-                    {credits?.balance || 0} Credits
+                    {credits?.balance?.credits || 0} Credits
                   </span>
                 </div>
               </button>
@@ -508,7 +508,7 @@ export default function InvestorDashboard() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Credits</span>
                     <span className="text-sm font-medium text-blue-600">
-                      {credits?.balance || 0}
+                      {credits?.balance?.credits || 0}
                     </span>
                   </div>
                 </div>
