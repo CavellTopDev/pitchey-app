@@ -11,8 +11,10 @@
     "postgres": "npm:postgres@^3.4.0"
   },
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --watch working-server.ts",
-    "start": "deno run --allow-net --allow-env --allow-read working-server.ts",
+    "dev": "deno run --allow-net --allow-env --allow-read --watch oak-server.ts",
+    "start": "deno run --allow-net --allow-env --allow-read oak-server.ts",
+    "dev:old": "deno run --allow-net --allow-env --allow-read --watch working-server.ts",
+    "start:old": "deno run --allow-net --allow-env --allow-read working-server.ts",
     "init-db": "deno run --allow-net --allow-env --allow-read init-neon-db.ts",
     "start:secure": "deno run --allow-net --allow-read --allow-env --allow-write secure-server.ts",
     "dev:secure": "deno run --watch --allow-net --allow-read --allow-env --allow-write secure-server.ts",

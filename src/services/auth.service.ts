@@ -104,7 +104,7 @@ export class AuthService {
     const token = await create({ alg: "HS256", typ: "JWT" }, {
       userId,
       sessionId,
-      exp: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days in seconds
     }, key);
     
     try {
