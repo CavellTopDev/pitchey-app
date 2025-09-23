@@ -116,12 +116,12 @@ async function authMiddleware(ctx: Context, next: () => Promise<unknown>) {
   }
 }
 
-// Generate JWT token
+// Generate JWT token (matching old format for compatibility)
 async function generateToken(userId: number, email: string, userType: string) {
   const token = await create({ alg: "HS256", typ: "JWT" }, {
     userId,
     email,
-    userType,
+    role: userType, // Keep 'role' for compatibility
     exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days
   }, key);
   
