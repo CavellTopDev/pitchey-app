@@ -653,6 +653,96 @@ router.get("/api/production/dashboard", authMiddleware, async (ctx) => {
 
 // ===== PITCH ROUTES =====
 
+// Public endpoint for browsing pitches without authentication
+router.get("/api/public/pitches", async (ctx) => {
+  try {
+    const url = new URL(ctx.request.url);
+    const searchParams = url.searchParams;
+    
+    // Parse query parameters
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const offset = parseInt(searchParams.get("offset") || "0");
+    
+    // For now, return sample pitches
+    const samplePitches = [
+      {
+        id: 1,
+        title: "Quantum Hearts",
+        logline: "A quantum physicist falls in love across parallel dimensions",
+        genre: "Sci-Fi Romance",
+        format: "Feature Film",
+        budget: "$5M-$10M",
+        thumbnail: "https://images.unsplash.com/photo-1614728263952-84ea256f9679?w=400&h=300&fit=crop",
+        creator: {
+          id: 1001,
+          name: "Alex Filmmaker",
+          username: "alexcreator",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex"
+        },
+        views: 1250,
+        likes: 89,
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 2,
+        title: "The Last Comedian",
+        logline: "In a world where humor is illegal, one comedian fights back",
+        genre: "Dystopian Comedy",
+        format: "TV Series",
+        budget: "$2M-$5M",
+        thumbnail: "https://images.unsplash.com/photo-1509909756405-be0199881695?w=400&h=300&fit=crop",
+        creator: {
+          id: 1001,
+          name: "Alex Filmmaker",
+          username: "alexcreator",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex"
+        },
+        views: 856,
+        likes: 67,
+        createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 3,
+        title: "Echo Valley",
+        logline: "A small town's dark secrets echo through generations",
+        genre: "Mystery Thriller",
+        format: "Limited Series",
+        budget: "$10M-$20M",
+        thumbnail: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=300&fit=crop",
+        creator: {
+          id: 1001,
+          name: "Alex Filmmaker",
+          username: "alexcreator",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex"
+        },
+        views: 2341,
+        likes: 145,
+        createdAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    ];
+    
+    // Paginate results
+    const paginatedPitches = samplePitches.slice(offset, offset + limit);
+    
+    ctx.response.body = {
+      success: true,
+      pitches: paginatedPitches,
+      total: samplePitches.length,
+      limit,
+      offset
+    };
+  } catch (error) {
+    console.error("Error fetching public pitches:", error);
+    ctx.response.body = {
+      success: true,
+      pitches: [],
+      total: 0,
+      limit: 20,
+      offset: 0
+    };
+  }
+});
+
 router.get("/api/pitches", optionalAuthMiddleware, async (ctx) => {
   try {
     const user = ctx.state.user;
@@ -762,6 +852,100 @@ router.delete("/api/pitches/:id", authMiddleware, async (ctx) => {
   } catch (error) {
     ctx.response.status = Status.BadRequest;
     ctx.response.body = { error: error instanceof Error ? error.message : "An error occurred" };
+  }
+});
+
+// Public endpoint for browsing pitches (no auth required)
+router.get("/api/public/pitches", async (ctx) => {
+  try {
+    const url = new URL(ctx.request.url);
+    const searchParams = url.searchParams;
+    
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const offset = (page - 1) * limit;
+    
+    // Sample public pitches for marketplace
+    const samplePitches = [
+      {
+        id: 1,
+        title: "Quantum Hearts",
+        logline: "A quantum physicist falls in love across parallel dimensions, risking the fabric of reality for a chance at true love.",
+        genre: "Sci-Fi Romance",
+        budget: 5000000,
+        stage: "Pre-Production",
+        visibility: "public",
+        created_at: "2024-01-15T10:00:00Z",
+        creator: {
+          id: 1,
+          name: "Alex Rivera",
+          company: "Quantum Films",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex"
+        },
+        stats: {
+          views: 1250,
+          likes: 89,
+          nda_requests: 12
+        }
+      },
+      {
+        id: 2,
+        title: "The Last Bookshop",
+        logline: "In a digital future, the owner of Earth's last physical bookshop discovers books that predict the future.",
+        genre: "Mystery Thriller",
+        budget: 3000000,
+        stage: "Script Development",
+        visibility: "public",
+        created_at: "2024-01-20T14:30:00Z",
+        creator: {
+          id: 2,
+          name: "Morgan Chen",
+          company: "Narrative Studios",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=morgan"
+        },
+        stats: {
+          views: 890,
+          likes: 67,
+          nda_requests: 8
+        }
+      },
+      {
+        id: 3,
+        title: "Echoes of Tomorrow",
+        logline: "A sound engineer discovers they can hear conversations from the future through vintage recording equipment.",
+        genre: "Supernatural Thriller",
+        budget: 8000000,
+        stage: "Funding",
+        visibility: "public",
+        created_at: "2024-01-22T09:15:00Z",
+        creator: {
+          id: 3,
+          name: "Jamie Wilson",
+          company: "Echo Productions",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=jamie"
+        },
+        stats: {
+          views: 2100,
+          likes: 156,
+          nda_requests: 23
+        }
+      }
+    ];
+    
+    // Apply pagination
+    const paginatedPitches = samplePitches.slice(offset, offset + limit);
+    
+    ctx.response.body = {
+      success: true,
+      pitches: paginatedPitches,
+      total: samplePitches.length,
+      page,
+      limit
+    };
+  } catch (error) {
+    console.error("Error fetching public pitches:", error);
+    ctx.response.status = Status.InternalServerError;
+    ctx.response.body = { error: "Failed to fetch pitches" };
   }
 });
 
