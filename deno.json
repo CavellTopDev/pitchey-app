@@ -1,8 +1,8 @@
 {
   "imports": {
     "stripe": "npm:stripe@^14.0.0",
-    "@std/http": "https://deno.land/std@0.208.0/http/",
-    "@std/crypto": "https://deno.land/std@0.208.0/crypto/",
+    "@std/http": "https://deno.land/std@0.224.0/http/",
+    "@std/crypto": "https://deno.land/std@0.224.0/crypto/",
     "djwt": "https://deno.land/x/djwt@v2.8/mod.ts",
     "bcrypt": "https://deno.land/x/bcrypt@v0.4.1/mod.ts",
     "drizzle-orm": "npm:drizzle-orm@^0.29.0",
