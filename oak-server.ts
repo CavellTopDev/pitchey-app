@@ -139,6 +139,14 @@ router.get("/", (ctx) => {
   };
 });
 
+router.get("/health", (ctx) => {
+  ctx.response.body = { 
+    success: true, 
+    status: "healthy",
+    timestamp: new Date().toISOString()
+  };
+});
+
 // Authentication routes
 router.post("/api/auth/creator/login", async (ctx) => {
   const body = await ctx.request.body({ type: "json" }).value;
@@ -350,7 +358,7 @@ router.get("/api/creator/dashboard", authMiddleware, async (ctx) => {
   
   ctx.response.body = {
     success: true,
-    dashboard: {
+    data: {
       stats: {
         totalPitches: 3,
         totalViews: 1250,
@@ -371,7 +379,16 @@ router.get("/api/creator/dashboard", authMiddleware, async (ctx) => {
           timestamp: new Date(Date.now() - 7200000).toISOString()
         }
       ],
-      pitches: []
+      pitches: [],
+      socialStats: {
+        followers: 124,
+        following: 89,
+        connections: 42
+      },
+      credits: {
+        remaining: 100,
+        total: 100
+      }
     }
   };
 });
@@ -387,14 +404,16 @@ router.get("/api/investor/dashboard", authMiddleware, async (ctx) => {
   
   ctx.response.body = {
     success: true,
-    dashboard: {
+    data: {
       stats: {
         pitchesViewed: 45,
         ndasSigned: 12,
         savedPitches: 8,
         messagesReceived: 23
       },
-      recommendations: []
+      recommendations: [],
+      recentActivity: [],
+      pitches: []
     }
   };
 });
@@ -410,14 +429,16 @@ router.get("/api/production/dashboard", authMiddleware, async (ctx) => {
   
   ctx.response.body = {
     success: true,
-    dashboard: {
+    data: {
       stats: {
         projectsInDevelopment: 5,
         pitchesUnderReview: 12,
         signedNDAs: 18,
         activeCollaborations: 3
       },
-      projects: []
+      projects: [],
+      recentActivity: [],
+      pitches: []
     }
   };
 });
