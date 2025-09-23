@@ -20,7 +20,8 @@ export const LoginSchema = z.object({
   password: z.string(),
 });
 
-const JWT_SECRET = Deno.env.get("JWT_SECRET")!;
+const JWT_SECRET = Deno.env.get("JWT_SECRET") || 
+  "super-secret-jwt-key-for-production-change-this-to-something-secure-at-least-32-chars";
 const key = await crypto.subtle.importKey(
   "raw",
   new TextEncoder().encode(JWT_SECRET),
