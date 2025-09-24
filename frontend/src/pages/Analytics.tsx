@@ -90,6 +90,34 @@ export default function Analytics() {
     );
   }
 
+  // Show empty state if no analytics data
+  if (!analyticsData || !analyticsData.overview) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => navigate(-1)} 
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
+            </div>
+          </div>
+        </header>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+            <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No analytics data available yet</p>
+            <p className="text-sm text-gray-400 mt-2">Start creating pitches to see your analytics</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
       {/* Header */}
@@ -195,9 +223,9 @@ export default function Analytics() {
               
               {/* Interactive chart with numbers */}
               <div className="h-64 flex items-end justify-between gap-2">
-                {analyticsData.viewsOverTime.slice(-15).map((data, index) => {
-                  const maxViews = Math.max(...analyticsData.viewsOverTime.map(d => d.views));
-                  const maxLikes = Math.max(...analyticsData.viewsOverTime.map(d => d.likes));
+                {(analyticsData.viewsOverTime || []).slice(-15).map((data, index) => {
+                  const maxViews = Math.max(...(analyticsData.viewsOverTime || []).map(d => d.views || 0));
+                  const maxLikes = Math.max(...(analyticsData.viewsOverTime || []).map(d => d.likes || 0));
                   const viewHeight = Math.max(10, (data.views / maxViews) * 180);
                   const likeHeight = Math.max(5, (data.likes / maxLikes) * 90);
                   
@@ -251,26 +279,26 @@ export default function Analytics() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">
-                      {analyticsData.viewsOverTime.reduce((sum, day) => sum + day.views, 0).toLocaleString()}
+                      {(analyticsData.viewsOverTime || []).reduce((sum, day) => sum + (day.views || 0), 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-500">Total Views</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
-                      {analyticsData.viewsOverTime.reduce((sum, day) => sum + day.likes, 0).toLocaleString()}
+                      {(analyticsData.viewsOverTime || []).reduce((sum, day) => sum + (day.likes || 0), 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-500">Total Likes</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
-                      {Math.round(analyticsData.viewsOverTime.reduce((sum, day) => sum + day.views, 0) / analyticsData.viewsOverTime.length)}
+                      {Math.round((analyticsData.viewsOverTime || []).reduce((sum, day) => sum + (day.views || 0), 0) / ((analyticsData.viewsOverTime || []).length || 1))}
                     </div>
                     <div className="text-xs text-gray-500">Avg Views/Day</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
-                      {((analyticsData.viewsOverTime.reduce((sum, day) => sum + day.likes, 0) / 
-                         analyticsData.viewsOverTime.reduce((sum, day) => sum + day.views, 0)) * 100).toFixed(1)}%
+                      {(((analyticsData.viewsOverTime || []).reduce((sum, day) => sum + (day.likes || 0), 0) / 
+                         Math.max(1, (analyticsData.viewsOverTime || []).reduce((sum, day) => sum + (day.views || 0), 0))) * 100).toFixed(1)}%
                     </div>
                     <div className="text-xs text-gray-500">Like Rate</div>
                   </div>
@@ -283,7 +311,7 @@ export default function Analytics() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Top Performing Pitches</h2>
                 <div className="space-y-4">
-                  {analyticsData.pitchPerformance.slice(0, 5).map((pitch, index) => (
+                  {(analyticsData.pitchPerformance || []).slice(0, 5).map((pitch, index) => (
                     <div key={pitch.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold">
@@ -322,7 +350,7 @@ export default function Analytics() {
                 <div className="mb-6">
                   <h3 className="font-medium text-gray-900 mb-3">Top Genres</h3>
                   <div className="space-y-2">
-                    {analyticsData.audienceInsights.topGenres.slice(0, 5).map((genre, index) => (
+                    {(analyticsData.audienceInsights?.topGenres || []).slice(0, 5).map((genre, index) => (
                       <div key={index} className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">{genre.genre}</span>
                         <div className="flex items-center gap-2">
@@ -342,7 +370,7 @@ export default function Analytics() {
                 <div className="mb-6">
                   <h3 className="font-medium text-gray-900 mb-3">User Types</h3>
                   <div className="space-y-2">
-                    {analyticsData.audienceInsights.userTypes.map((userType, index) => (
+                    {(analyticsData.audienceInsights?.userTypes || []).map((userType, index) => (
                       <div key={index} className="flex items-center justify-between">
                         <span className="text-sm text-gray-600 capitalize">{userType.type}</span>
                         <span className="text-sm font-medium text-gray-900">{userType.count}</span>
@@ -354,7 +382,7 @@ export default function Analytics() {
                 <div>
                   <h3 className="font-medium text-gray-900 mb-3">Top Regions</h3>
                   <div className="space-y-2">
-                    {analyticsData.audienceInsights.topRegions.slice(0, 5).map((region, index) => (
+                    {(analyticsData.audienceInsights?.topRegions || []).slice(0, 5).map((region, index) => (
                       <div key={index} className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">{region.region}</span>
                         <span className="text-sm font-medium text-gray-900">{region.count}</span>

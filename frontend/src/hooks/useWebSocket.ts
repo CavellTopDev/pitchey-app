@@ -35,6 +35,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       return;
     }
 
+    // Skip WebSocket connection in demo mode or if explicitly disabled
+    const isDemoMode = localStorage.getItem('demoMode') === 'true';
+    if (isDemoMode) {
+      console.log('Demo mode active, skipping WebSocket connection');
+      return;
+    }
+
     try {
       // Connect to the main server WebSocket endpoint
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -138,12 +145,18 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        // Only log WebSocket errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.error('WebSocket error:', error);
+        }
       };
 
       wsRef.current = ws;
     } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
+      // Only log connection errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to connect WebSocket:', error);
+      }
     }
   }, [onMessage, onConnect, onDisconnect, reconnectInterval]);
 

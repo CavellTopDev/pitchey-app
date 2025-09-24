@@ -6,7 +6,6 @@ import type { Pitch } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import BackButton from '../components/BackButton';
 import NDAModal from '../components/NDAModal';
-import FollowButton from '../components/FollowButton';
 
 export default function PitchDetail() {
   const navigate = useNavigate();
@@ -171,22 +170,6 @@ export default function PitchDetail() {
                 </button>
               ) : (
                 <>
-                  {user?.id !== pitch.creator?.id && (
-                    <div className="flex gap-2">
-                      <FollowButton 
-                        pitchId={pitch.id}
-                        variant="default"
-                        className="px-4 py-2"
-                      />
-                      <FollowButton 
-                        creatorId={pitch.creator?.id || ''}
-                        variant="default"
-                        className="px-4 py-2"
-                        showFollowingText={false}
-                      />
-                    </div>
-                  )}
-                  
                   {!hasSignedNDA && user?.userType !== 'creator' && (
                     <button
                       onClick={() => setShowNDAModal(true)}

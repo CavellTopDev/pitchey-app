@@ -40,15 +40,23 @@ export class NotificationService {
   }
 
   private loadSounds() {
-    // Load notification sounds
-    this.sounds.message = new Audio('/sounds/message.mp3');
-    this.sounds.mention = new Audio('/sounds/mention.mp3');
-    this.sounds.call = new Audio('/sounds/call.mp3');
-    
-    // Set volume
-    Object.values(this.sounds).forEach(audio => {
-      audio.volume = 0.5;
-    });
+    // Load notification sounds with error handling
+    // Temporarily disabled until sound files are available
+    try {
+      // Commented out until sound files are added
+      // this.sounds.message = new Audio('/sounds/message.mp3');
+      // this.sounds.mention = new Audio('/sounds/mention.mp3');
+      // this.sounds.call = new Audio('/sounds/call.mp3');
+      
+      // Set volume if sounds are loaded
+      Object.values(this.sounds).forEach(audio => {
+        if (audio) {
+          audio.volume = 0.5;
+        }
+      });
+    } catch (error) {
+      console.log('Sound files not available, running in silent mode');
+    }
   }
 
   async requestPermission(): Promise<NotificationPermission> {
