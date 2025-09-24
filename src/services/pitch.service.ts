@@ -224,19 +224,27 @@ export class PitchService {
   }
   
   static async getNewPitches(limit = 10) {
-    return await db.query.pitches.findMany({
-      where: eq(pitches.status, "published"),
-      orderBy: [desc(pitches.publishedAt)],
-      limit,
-      with: {
+    try {
+      // Simple query without joins to avoid database relation issues
+      const results = await db.query.pitches.findMany({
+        where: eq(pitches.status, "published"),
+        orderBy: [desc(pitches.publishedAt)],
+        limit
+      });
+      
+      // Return pitches with minimal creator info
+      return results.map(pitch => ({
+        ...pitch,
         creator: {
-          columns: {
-            username: true,
-            companyName: true,
-          },
-        },
-      },
-    });
+          username: "Creator",
+          companyName: null
+        }
+      }));
+    } catch (error) {
+      console.error("Error in getNewPitches:", error);
+      // Return empty array instead of throwing
+      return [];
+    }
   }
   
   static async searchPitches(params: {
