@@ -51,6 +51,6 @@
       "**/node_modules"
     ],
     "include": [],
-    "entrypoint": "frontend-server.ts"
+    "entrypoint": "working-server.ts"
   }
 }
