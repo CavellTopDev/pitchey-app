@@ -3112,23 +3112,35 @@ const handler = async (request: Request): Promise<Response> => {
 
       let isFollowing = false;
       if (creatorId) {
-        const result = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(follows)
-          .where(and(
-            eq(follows.followerId, parseInt(userId)),
-            eq(follows.creatorId, parseInt(creatorId))
-          ));
-        isFollowing = result[0].count > 0;
+        // For demo accounts, always return false (they can't be followed in db)
+        if (creatorId === 'creator-demo-id' || creatorId.includes('demo')) {
+          isFollowing = false;
+        } else {
+          // Handle both numeric and string creator IDs
+          const creatorIdNum = parseInt(creatorId.replace('creator-', ''));
+          if (!isNaN(creatorIdNum)) {
+            const result = await db
+              .select({ count: sql<number>`count(*)` })
+              .from(follows)
+              .where(and(
+                eq(follows.followerId, parseInt(userId)),
+                eq(follows.creatorId, creatorIdNum)
+              ));
+            isFollowing = result && result[0] && result[0].count > 0;
+          }
+        }
       } else if (pitchId) {
-        const result = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(follows)
-          .where(and(
-            eq(follows.followerId, parseInt(userId)),
-            eq(follows.pitchId, parseInt(pitchId))
-          ));
-        isFollowing = result[0].count > 0;
+        const pitchIdNum = parseInt(pitchId);
+        if (!isNaN(pitchIdNum)) {
+          const result = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(follows)
+            .where(and(
+              eq(follows.followerId, parseInt(userId)),
+              eq(follows.pitchId, pitchIdNum)
+            ));
+          isFollowing = result && result[0] && result[0].count > 0;
+        }
       }
 
       return jsonResponse({
@@ -3159,17 +3171,29 @@ const handler = async (request: Request): Promise<Response> => {
         }
 
         if (type === "creator") {
-          await db.insert(follows).values({
-            followerId: parseInt(userId),
-            creatorId: parseInt(targetId),
-            followedAt: new Date()
-          }).onConflictDoNothing();
+          // Handle both numeric and string creator IDs
+          const creatorIdNum = typeof targetId === 'string' ? 
+            parseInt(targetId.replace('creator-', '')) : targetId;
+          if (!isNaN(creatorIdNum)) {
+            await db.insert(follows).values({
+              followerId: parseInt(userId),
+              creatorId: creatorIdNum,
+              followedAt: new Date()
+            }).onConflictDoNothing();
+          } else {
+            return errorResponse("Invalid creator ID", 400);
+          }
         } else if (type === "pitch") {
-          await db.insert(follows).values({
-            followerId: parseInt(userId),
-            pitchId: parseInt(targetId),
-            followedAt: new Date()
-          }).onConflictDoNothing();
+          const pitchIdNum = parseInt(targetId);
+          if (!isNaN(pitchIdNum)) {
+            await db.insert(follows).values({
+              followerId: parseInt(userId),
+              pitchId: pitchIdNum,
+              followedAt: new Date()
+            }).onConflictDoNothing();
+          } else {
+            return errorResponse("Invalid pitch ID", 400);
+          }
         } else {
           return errorResponse("Invalid follow type", 400);
         }
@@ -3189,15 +3213,22 @@ const handler = async (request: Request): Promise<Response> => {
         }
 
         if (creatorId) {
-          await db.delete(follows).where(and(
-            eq(follows.followerId, parseInt(userId)),
-            eq(follows.creatorId, parseInt(creatorId))
-          ));
+          // Handle both numeric and string creator IDs
+          const creatorIdNum = parseInt(creatorId.replace('creator-', ''));
+          if (!isNaN(creatorIdNum)) {
+            await db.delete(follows).where(and(
+              eq(follows.followerId, parseInt(userId)),
+              eq(follows.creatorId, creatorIdNum)
+            ));
+          }
         } else if (pitchId) {
-          await db.delete(follows).where(and(
-            eq(follows.followerId, parseInt(userId)),
-            eq(follows.pitchId, parseInt(pitchId))
-          ));
+          const pitchIdNum = parseInt(pitchId);
+          if (!isNaN(pitchIdNum)) {
+            await db.delete(follows).where(and(
+              eq(follows.followerId, parseInt(userId)),
+              eq(follows.pitchId, pitchIdNum)
+            ));
+          }
         }
 
         return jsonResponse({

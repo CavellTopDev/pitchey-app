@@ -64,6 +64,7 @@ const UserPortfolio = lazy(() => import('./pages/UserPortfolio'));
 
 // Info Pages
 const HowItWorks = lazy(() => import('./pages/HowItWorks'));
+const About = lazy(() => import('./pages/About'));
 
 // Error Pages
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -124,6 +125,7 @@ function App() {
           
           {/* Info Pages */}
           <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/about" element={<About />} />
           
           {/* Portal Selection */}
           <Route path="/portals" element={<PortalSelect />} />

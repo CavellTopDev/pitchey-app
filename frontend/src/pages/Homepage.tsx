@@ -83,8 +83,11 @@ export default function Homepage() {
                 >
                   How It Works
                 </button>
-                <button className="text-gray-300 hover:text-white transition">
-                  Success Stories
+                <button 
+                  onClick={() => navigate('/about')}
+                  className="text-gray-600 hover:text-purple-600 transition"
+                >
+                  About
                 </button>
               </nav>
             </div>
@@ -151,11 +154,11 @@ export default function Homepage() {
           <div className="text-center">
             <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 mb-6">
               Where Stories
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600"> Find Life</span>
+              <span className="text-purple-600 bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600"> Find Life</span>
             </h1>
             <p className="text-xl lg:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto">
-              The premier marketplace connecting visionary creators with investors and production companies. 
-              Pitch your next blockbuster, discover untold stories, or fund the future of entertainment.
+              The premier marketplace where pitching meets opportunity. 
+              Share your vision, discover original stories, and connect with producers and investors shaping the future of film, television, and new media.
             </p>
             
             {/* Search Bar */}
@@ -193,29 +196,6 @@ export default function Homepage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 bg-gray-50 border-y border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-purple-600 mb-2">500+</div>
-              <div className="text-gray-600">Active Pitches</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-pink-600 mb-2">$2.5M</div>
-              <div className="text-gray-600">Funded Projects</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 mb-2">150+</div>
-              <div className="text-gray-600">Production Companies</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-green-600 mb-2">89%</div>
-              <div className="text-gray-600">Success Rate</div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Trending Pitches */}
       <section className="py-16 bg-white">
@@ -360,34 +340,11 @@ export default function Homepage() {
         </div>
       </section>
 
-      {/* Featured Categories */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Explore by Category</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {genres.slice(1).map((genre) => (
-              <button
-                key={genre}
-                onClick={() => {
-                  setSelectedGenre(genre);
-                  navigate('/marketplace');
-                }}
-                className="p-6 bg-white rounded-xl border border-gray-200 hover:border-purple-400 hover:shadow-lg transition text-center group"
-              >
-                <div className="text-xl font-semibold text-gray-900 group-hover:text-purple-600 transition">
-                  {genre}
-                </div>
-                <div className="text-sm text-gray-500 mt-1">24 pitches</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Call to Action */}
       <section className="py-20 bg-gradient-to-r from-purple-50 to-pink-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">Ready to Make Your Mark?</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-6">Ready For Your Close Up?</h2>
           <p className="text-xl text-gray-700 mb-8">
             Join thousands of creators, investors, and production companies shaping the future of entertainment.
           </p>
@@ -418,14 +375,13 @@ export default function Homepage() {
                 <span className="text-xl font-bold text-gray-900">Pitchey</span>
               </div>
               <p className="text-gray-600 text-sm">
-                Connecting stories with opportunities since 2024.
+                Connecting stories with opportunities since 2025.
               </p>
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-4">For Creators</h3>
               <ul className="space-y-2 text-gray-600 text-sm">
                 <li><button onClick={() => navigate('/portals')} className="hover:text-purple-600 transition">Submit Pitch</button></li>
-                <li><button className="hover:text-purple-600 transition">Success Stories</button></li>
                 <li><button className="hover:text-purple-600 transition">Pricing</button></li>
               </ul>
             </div>
@@ -440,7 +396,7 @@ export default function Homepage() {
             <div>
               <h3 className="text-gray-900 font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-gray-600 text-sm">
-                <li><button className="hover:text-purple-600 transition">About</button></li>
+                <li><button onClick={() => navigate('/about')} className="hover:text-purple-600 transition">About</button></li>
                 <li><button className="hover:text-purple-600 transition">Contact</button></li>
                 <li><button className="hover:text-purple-600 transition">Terms & Privacy</button></li>
               </ul>
