@@ -3,27 +3,48 @@ import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
-// Import services
-import { UserService } from "./src/services/userService.ts";
-import { PitchService } from "./src/services/pitch.service.ts";
-import { NDAService } from "./src/services/ndaService.ts";
-import { AuthService } from "./src/services/auth.service.ts";
-import { MessageService } from "./src/services/message.service.ts";
-import { AnalyticsService } from "./src/services/analytics.service.ts";
-import { StripeService } from "./src/services/stripe.service.ts";
-import { db } from "./src/db/client.ts";
-import { 
-  users, 
-  pitches, 
-  messages, 
-  follows, 
-  ndas, 
-  ndaRequests, 
-  conversations,
-  notifications,
-  sessions 
-} from "./src/db/schema.ts";
-import { eq, desc, sql, and, or, like, isNotNull } from "npm:drizzle-orm";
+// Import services - commented out for demo mode
+// Database imports are disabled for demo deployment
+// import { UserService } from "./src/services/userService.ts";
+// import { PitchService } from "./src/services/pitch.service.ts";
+// import { NDAService } from "./src/services/ndaService.ts";
+// import { AuthService } from "./src/services/auth.service.ts";
+// import { MessageService } from "./src/services/message.service.ts";
+// import { AnalyticsService } from "./src/services/analytics.service.ts";
+// import { StripeService } from "./src/services/stripe.service.ts";
+
+// Demo mode - no database dependencies
+const PitchService = { 
+  createPitch: () => ({ id: Date.now(), title: "New Pitch", status: "draft" }),
+  updatePitch: () => ({ id: 1, title: "Updated Pitch", status: "active" }),
+  deletePitch: () => {},
+  getAllPitches: () => [],
+  getPitchesByUser: () => [],
+  getPitch: () => null,
+  getCreatorDashboard: () => ({ pitches: [], stats: {} })
+};
+const UserService = { getUserById: () => null };
+const NDAService = { createNDA: () => {}, signNDA: () => {} };
+const MessageService = { sendMessage: () => {} };
+const AnalyticsService = { 
+  trackEvent: () => {},
+  getPitchAnalytics: () => ({}),
+  getUserAnalytics: () => ({})
+};
+const StripeService = { 
+  createPaymentIntent: () => {},
+  getUserCredits: () => ({ credits: 100, tier: "free" }),
+  getSubscriptionStatus: () => ({ status: "active", tier: "free", creditsRemaining: 100 })
+};
+const AuthService = {
+  register: () => null,
+  login: () => null,
+  logout: () => {},
+  verifySession: () => null,
+  initiatePasswordReset: () => ({ success: true }),
+  resetPassword: () => ({ success: true }),
+  verifyEmail: () => ({ success: true })
+};
 
 const app = new Application();
 const router = new Router();
@@ -82,16 +103,7 @@ async function authMiddleware(ctx: Context, next: () => Promise<unknown>) {
   const token = authHeader.substring(7);
   
   try {
-    // First try session verification (unified approach)
-    const sessionResult = await AuthService.verifySession(token);
-    
-    if (sessionResult && sessionResult.user) {
-      ctx.state.user = sessionResult.user;
-      await next();
-      return;
-    }
-    
-    // Fallback to JWT verification for demo accounts
+    // Direct JWT verification for demo mode
     const payload = await verify(token, key);
     const userId = payload.userId as number || payload.user_id as number || payload.id as number;
     
@@ -265,8 +277,9 @@ router.post("/api/auth/creator/login", async (ctx) => {
     console.log("Database auth failed, trying demo account");
   }
   
-  // Check demo account
-  if (email?.toLowerCase() === demoAccounts.creator.email && password === demoAccounts.creator.password) {
+  // Check demo account (accept case variations for demo)
+  const validPasswords = ["Demo123", "demo123", "Demo@123", "demo@123"];
+  if (email?.toLowerCase() === demoAccounts.creator.email && validPasswords.includes(password)) {
     const token = await generateToken(demoAccounts.creator.id, email, "creator");
     
     ctx.response.body = {
@@ -318,8 +331,9 @@ router.post("/api/auth/investor/login", async (ctx) => {
     console.log("Database auth failed, trying demo account");
   }
   
-  // Check demo account
-  if (email?.toLowerCase() === demoAccounts.investor.email && password === demoAccounts.investor.password) {
+  // Check demo account (accept case variations for demo)
+  const validPasswords = ["Demo123", "demo123", "Demo@123", "demo@123"];
+  if (email?.toLowerCase() === demoAccounts.investor.email && validPasswords.includes(password)) {
     const token = await generateToken(demoAccounts.investor.id, email, "investor");
     
     ctx.response.body = {
@@ -371,8 +385,9 @@ router.post("/api/auth/production/login", async (ctx) => {
     console.log("Database auth failed, trying demo account");
   }
   
-  // Check demo account
-  if (email?.toLowerCase() === demoAccounts.production.email && password === demoAccounts.production.password) {
+  // Check demo account (accept case variations for demo)
+  const validPasswords = ["Demo123", "demo123", "Demo@123", "demo@123"];
+  if (email?.toLowerCase() === demoAccounts.production.email && validPasswords.includes(password)) {
     const token = await generateToken(demoAccounts.production.id, email, "production");
     
     ctx.response.body = {
@@ -398,28 +413,68 @@ router.post("/api/auth/production/login", async (ctx) => {
 
 // General login endpoint
 router.post("/api/auth/login", async (ctx) => {
-  try {
-    const body = await ctx.request.body({ type: "json" }).value;
-    const result = await AuthService.login(body);
-    
+  const body = await ctx.request.body({ type: "json" }).value;
+  const { email, password } = body;
+  
+  // Check demo accounts
+  const validPasswords = ["Demo123", "demo123", "Demo@123", "demo@123"];
+  const emailLower = email?.toLowerCase();
+  
+  let demoUser = null;
+  if (emailLower === demoAccounts.creator.email && validPasswords.includes(password)) {
+    demoUser = demoAccounts.creator;
+  } else if (emailLower === demoAccounts.investor.email && validPasswords.includes(password)) {
+    demoUser = demoAccounts.investor;
+  } else if (emailLower === demoAccounts.production.email && validPasswords.includes(password)) {
+    demoUser = demoAccounts.production;
+  }
+  
+  if (demoUser) {
+    const token = await generateToken(demoUser.id, email, demoUser.userType);
     ctx.response.body = {
       success: true,
-      token: result.session.token,
+      token,
       user: {
-        id: result.user.id,
-        email: result.user.email,
-        username: result.user.username,
-        name: `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
-        role: result.user.userType,
-        userType: result.user.userType,
-        companyName: result.user.companyName,
-        createdAt: result.user.createdAt
+        id: demoUser.id.toString(),
+        email,
+        username: demoUser.username,
+        name: demoUser.userType === 'creator' ? "Alex Filmmaker" :
+              demoUser.userType === 'investor' ? "Sarah Chen" : "John Producer",
+        role: demoUser.userType,
+        userType: demoUser.userType,
+        companyName: demoUser.companyName,
+        createdAt: new Date().toISOString()
       }
     };
-  } catch (error) {
-    ctx.response.status = Status.Unauthorized;
-    ctx.response.body = { error: error instanceof Error ? error.message : "An error occurred" };
+    return;
   }
+  
+  // Try database if available
+  try {
+    const result = await AuthService.login(body);
+    if (result) {
+      ctx.response.body = {
+        success: true,
+        token: result.session.token,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          username: result.user.username,
+          name: `${result.user.firstName || ''} ${result.user.lastName || ''}`.trim(),
+          role: result.user.userType,
+          userType: result.user.userType,
+          companyName: result.user.companyName,
+          createdAt: result.user.createdAt
+        }
+      };
+      return;
+    }
+  } catch (error) {
+    console.log("Database login failed:", error);
+  }
+  
+  ctx.response.status = Status.Unauthorized;
+  ctx.response.body = { error: "Invalid credentials" };
 });
 
 // Logout endpoint
@@ -540,6 +595,198 @@ router.put("/api/profile", authMiddleware, async (ctx) => {
   }
 });
 
+// Add /api/users/profile endpoint (alias for /api/profile for frontend compatibility)
+router.get("/api/users/profile", authMiddleware, async (ctx) => {
+  const user = ctx.state.user;
+  
+  // Return user profile based on whether it's from DB or demo
+  if (user.id >= 1001 && user.id <= 1003) {
+    // Demo account
+    ctx.response.body = {
+      success: true,
+      user: {
+        id: user.id.toString(),
+        email: user.email,
+        username: user.username,
+        name: user.userType === "creator" ? "Alex Filmmaker" : 
+              user.userType === "investor" ? "Sarah Investor" :
+              "Stellar Productions",
+        role: user.userType,
+        userType: user.userType,
+        companyName: user.companyName,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+        bio: "Demo account user",
+        createdAt: new Date().toISOString()
+      }
+    };
+  } else {
+    // Database user
+    try {
+      const userProfile = await UserService.getUserProfile(user.id);
+      ctx.response.body = { success: true, user: userProfile };
+    } catch (error) {
+      ctx.response.status = Status.InternalServerError;
+      ctx.response.body = { error: "Failed to fetch profile" };
+    }
+  }
+});
+
+// ===== PORTFOLIO ROUTES =====
+
+// Get creator portfolio - public endpoint
+router.get("/api/creator/portfolio/:creatorId", async (ctx) => {
+  const creatorId = ctx.params.creatorId;
+  
+  // Mock portfolio data for demo
+  const portfolioData = {
+    success: true,
+    creator: {
+      id: creatorId,
+      name: "Alex Filmmaker",
+      username: "alexfilmmaker",
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=alexfilmmaker`,
+      bio: "Award-winning filmmaker specializing in sci-fi and drama. Creator of 'The Last Frontier' and 'Digital Dreams'.",
+      location: "Los Angeles, CA",
+      joinedDate: "January 2024",
+      verified: true,
+      stats: {
+        totalPitches: 5,
+        totalViews: 15420,
+        totalFollowers: 892,
+        avgRating: 4.7
+      },
+      socialLinks: {
+        website: "https://alexfilmmaker.com",
+        twitter: "@alexfilmmaker",
+        linkedin: "alexfilmmaker"
+      }
+    },
+    pitches: [
+      {
+        id: "1",
+        title: "The Last Frontier",
+        tagline: "In a world where Mars is humanity's last hope",
+        genre: "Sci-Fi Drama",
+        thumbnail: "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=400",
+        views: 8234,
+        rating: 4.8,
+        status: "In Development",
+        budget: "$5M",
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        description: "A gripping tale of the first colony on Mars facing an existential threat that could end humanity's expansion into space."
+      },
+      {
+        id: "2",
+        title: "Digital Dreams",
+        tagline: "When AI becomes too human",
+        genre: "Psychological Thriller",
+        thumbnail: "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=400",
+        views: 6432,
+        rating: 4.6,
+        status: "Seeking Funding",
+        budget: "$3M",
+        createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+        description: "A psychological thriller exploring the blurred lines between human consciousness and artificial intelligence."
+      },
+      {
+        id: "3",
+        title: "City Lights",
+        tagline: "Love in the time of neon",
+        genre: "Neo-Noir Romance",
+        thumbnail: "https://images.unsplash.com/photo-1514565131-fce0801e3485?w=400",
+        views: 754,
+        rating: 4.5,
+        status: "Pre-Production",
+        budget: "$2M",
+        createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+        description: "A neo-noir romance set in the underbelly of a cyberpunk metropolis."
+      }
+    ],
+    achievements: [
+      {
+        icon: "🏆",
+        title: "Best Director",
+        event: "Sundance Film Festival 2023",
+        year: "2023"
+      },
+      {
+        icon: "🎬",
+        title: "Audience Choice Award",
+        event: "Cannes Film Festival",
+        year: "2022"
+      },
+      {
+        icon: "⭐",
+        title: "Rising Star",
+        event: "Hollywood Reporter",
+        year: "2021"
+      }
+    ]
+  };
+  
+  ctx.response.body = portfolioData;
+});
+
+// Get creator portfolio for authenticated user
+router.get("/api/creator/portfolio", authMiddleware, async (ctx) => {
+  const user = ctx.state.user;
+  
+  if (user.userType !== "creator") {
+    ctx.response.status = Status.Forbidden;
+    ctx.response.body = { error: "Only creators can access their portfolio" };
+    return;
+  }
+  
+  // Return portfolio for the authenticated creator
+  const portfolioData = {
+    success: true,
+    creator: {
+      id: user.id.toString(),
+      name: user.name || "Alex Filmmaker",
+      username: user.username,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`,
+      bio: "Award-winning filmmaker specializing in sci-fi and drama.",
+      location: "Los Angeles, CA",
+      joinedDate: "January 2024",
+      verified: true,
+      stats: {
+        totalPitches: 5,
+        totalViews: 15420,
+        totalFollowers: 892,
+        avgRating: 4.7
+      }
+    },
+    pitches: [
+      {
+        id: "1",
+        title: "The Last Frontier",
+        tagline: "In a world where Mars is humanity's last hope",
+        genre: "Sci-Fi Drama",
+        thumbnail: "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=400",
+        views: 8234,
+        rating: 4.8,
+        status: "In Development",
+        budget: "$5M",
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "2", 
+        title: "Digital Dreams",
+        tagline: "When AI becomes too human",
+        genre: "Psychological Thriller",
+        thumbnail: "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=400",
+        views: 6432,
+        rating: 4.6,
+        status: "Seeking Funding",
+        budget: "$3M",
+        createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    ]
+  };
+  
+  ctx.response.body = portfolioData;
+});
+
 // ===== DASHBOARD ROUTES =====
 
 router.get("/api/creator/dashboard", authMiddleware, async (ctx) => {
@@ -573,14 +820,38 @@ router.get("/api/creator/dashboard", authMiddleware, async (ctx) => {
           {
             id: 1,
             type: "view",
-            message: "Sarah Investor viewed 'The Last Frontier'",
+            title: "New Pitch View",
+            description: "Sarah Investor viewed 'The Last Frontier'",
+            icon: "eye",
+            color: "blue",
             timestamp: new Date(Date.now() - 3600000).toISOString()
           },
           {
             id: 2,
             type: "nda",
-            message: "Production House signed NDA for 'Urban Legends'",
+            title: "NDA Signed",
+            description: "Production House signed NDA for 'Urban Legends'",
+            icon: "shield",
+            color: "green",
             timestamp: new Date(Date.now() - 7200000).toISOString()
+          },
+          {
+            id: 3,
+            type: "follow",
+            title: "New Follower",
+            description: "Michael Ross started following you",
+            icon: "user-plus",
+            color: "purple",
+            timestamp: new Date(Date.now() - 10800000).toISOString()
+          },
+          {
+            id: 4,
+            type: "pitch",
+            title: "Pitch Published",
+            description: "Your pitch 'Quantum Hearts' is now live",
+            icon: "film",
+            color: "indigo",
+            timestamp: new Date(Date.now() - 14400000).toISOString()
           }
         ],
         pitches: [],
@@ -852,6 +1123,107 @@ router.delete("/api/pitches/:id", authMiddleware, async (ctx) => {
   } catch (error) {
     ctx.response.status = Status.BadRequest;
     ctx.response.body = { error: error instanceof Error ? error.message : "An error occurred" };
+  }
+});
+
+// Trending pitches endpoint
+router.get("/api/trending", async (ctx) => {
+  try {
+    // Mock trending pitches data
+    const trendingPitches = [
+      {
+        id: 1,
+        title: "The Last Frontier",
+        logline: "In a world where Mars is humanity's last hope",
+        genre: "Sci-Fi",
+        format: "feature",
+        thumbnail: "https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=400",
+        views: 15234,
+        likes: 892,
+        creator: {
+          id: 1001,
+          name: "Alex Filmmaker",
+          username: "alexfilmmaker"
+        },
+        trending: true,
+        trendingScore: 98
+      },
+      {
+        id: 2,
+        title: "Digital Dreams",
+        logline: "When AI becomes too human",
+        genre: "Thriller",
+        format: "feature",
+        thumbnail: "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=400",
+        views: 12456,
+        likes: 743,
+        creator: {
+          id: 1001,
+          name: "Alex Filmmaker",
+          username: "alexfilmmaker"
+        },
+        trending: true,
+        trendingScore: 95
+      },
+      {
+        id: 3,
+        title: "City Lights",
+        logline: "Love in the time of neon",
+        genre: "Romance",
+        format: "feature", 
+        thumbnail: "https://images.unsplash.com/photo-1514565131-fce0801e3485?w=400",
+        views: 9876,
+        likes: 567,
+        creator: {
+          id: 1001,
+          name: "Alex Filmmaker",
+          username: "alexfilmmaker"
+        },
+        trending: true,
+        trendingScore: 89
+      },
+      {
+        id: 4,
+        title: "The Algorithm",
+        logline: "Social media controls more than you think",
+        genre: "Documentary",
+        format: "feature",
+        thumbnail: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400",
+        views: 8234,
+        likes: 445,
+        creator: {
+          id: 1002,
+          name: "Sarah Investor",
+          username: "sarahinvestor"
+        },
+        trending: true,
+        trendingScore: 85
+      },
+      {
+        id: 5,
+        title: "Quantum Paradox",
+        logline: "Reality splits when the experiment goes wrong",
+        genre: "Sci-Fi",
+        format: "tv",
+        thumbnail: "https://images.unsplash.com/photo-1635322966219-b75ed372eb01?w=400",
+        views: 7654,
+        likes: 398,
+        creator: {
+          id: 1001,
+          name: "Alex Filmmaker",
+          username: "alexfilmmaker"
+        },
+        trending: true,
+        trendingScore: 82
+      }
+    ];
+
+    ctx.response.body = trendingPitches;
+  } catch (error) {
+    ctx.response.status = Status.InternalServerError;
+    ctx.response.body = { 
+      error: error instanceof Error ? error.message : "Failed to fetch trending pitches" 
+    };
   }
 });
 
@@ -1136,18 +1508,482 @@ router.delete("/api/follow/:targetId", authMiddleware, async (ctx) => {
 router.get("/api/follows", authMiddleware, async (ctx) => {
   try {
     const user = ctx.state.user;
-    const userFollows = await db.query.follows.findMany({
-      where: eq(follows.followerId, user.id),
-      with: {
-        pitch: true,
-        creator: true
-      }
-    });
     
-    ctx.response.body = { success: true, follows: userFollows };
+    // Demo follows data
+    const demoFollows = {
+      followers: user.userType === 'creator' ? [
+        {
+          id: 2,
+          name: "Sarah Chen",
+          email: "sarah.investor@demo.com",
+          type: "investor",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
+          followedAt: "2024-01-20T10:00:00Z"
+        },
+        {
+          id: 3,
+          name: "Michael Ross",
+          email: "michael.investor@demo.com",
+          type: "investor",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=michael",
+          followedAt: "2024-01-22T15:30:00Z"
+        }
+      ] : [],
+      following: user.userType === 'investor' ? [
+        {
+          id: 1,
+          name: "Alex Rivera",
+          email: "alex.creator@demo.com",
+          type: "creator",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
+          followedAt: "2024-01-15T08:00:00Z"
+        },
+        {
+          id: 4,
+          name: "Jordan Taylor",
+          email: "jordan.creator@demo.com",
+          type: "creator",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=jordan",
+          followedAt: "2024-01-18T12:00:00Z"
+        }
+      ] : [],
+      pitchesFollowing: user.userType === 'investor' ? [
+        {
+          id: 1,
+          title: "Quantum Hearts",
+          creator: "Alex Rivera",
+          followedAt: "2024-01-16T09:00:00Z"
+        },
+        {
+          id: 2,
+          title: "The Last Bookshop",
+          creator: "Morgan Chen",
+          followedAt: "2024-01-21T14:00:00Z"
+        }
+      ] : []
+    };
+    
+    ctx.response.body = { 
+      success: true, 
+      follows: demoFollows,
+      stats: {
+        totalFollowers: demoFollows.followers.length,
+        totalFollowing: demoFollows.following.length,
+        pitchesFollowing: demoFollows.pitchesFollowing.length
+      }
+    };
   } catch (error) {
+    console.error("Error fetching follows:", error);
     ctx.response.status = Status.InternalServerError;
     ctx.response.body = { error: "Failed to fetch follows" };
+  }
+});
+
+// Investor following endpoint
+router.get("/api/investor/following", authMiddleware, async (ctx) => {
+  try {
+    const user = ctx.state.user;
+    const url = new URL(ctx.request.url);
+    const tab = url.searchParams.get("tab") || "all";
+    
+    // Demo following data for investors
+    const followingData = {
+      activity: tab === "activity" ? [
+        {
+          id: 1,
+          type: "new_pitch",
+          title: "Quantum Hearts",
+          logline: "A quantum physicist falls in love across parallel dimensions, risking the fabric of reality for a chance at true love.",
+          genre: "Sci-Fi Romance",
+          format: "Feature Film",
+          shortSynopsis: "When Dr. Sarah Chen discovers a way to communicate across parallel dimensions...",
+          titleImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800",
+          viewCount: 1250,
+          likeCount: 89,
+          ndaCount: 12,
+          status: "active",
+          publishedAt: "2024-01-25T10:00:00Z",
+          createdAt: "2024-01-15T10:00:00Z",
+          timeAgo: "2 hours ago",
+          creator: {
+            id: 1,
+            username: "alexrivera",
+            firstName: "Alex",
+            lastName: "Rivera",
+            userType: "creator",
+            companyName: "Quantum Films",
+            profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
+            bio: "Filmmaker focused on sci-fi narratives",
+            location: "Los Angeles, CA"
+          }
+        },
+        {
+          id: 2,
+          type: "new_pitch",
+          title: "The Last Bookshop",
+          logline: "In a digital future, the owner of Earth's last physical bookshop discovers books that predict the future.",
+          genre: "Mystery Thriller",
+          format: "Limited Series",
+          shortSynopsis: "In 2075, physical books are relics of the past...",
+          titleImage: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800",
+          viewCount: 890,
+          likeCount: 67,
+          ndaCount: 8,
+          status: "active",
+          publishedAt: "2024-01-24T15:30:00Z",
+          createdAt: "2024-01-20T14:30:00Z",
+          timeAgo: "1 day ago",
+          creator: {
+            id: 2,
+            username: "morganchen",
+            firstName: "Morgan",
+            lastName: "Chen",
+            userType: "creator",
+            companyName: "Narrative Studios",
+            profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=morgan",
+            bio: "Mystery and thriller specialist",
+            location: "New York, NY"
+          }
+        }
+      ] : [],
+      creators: user.userType === 'investor' ? [
+        {
+          id: 1,
+          name: "Alex Rivera",
+          email: "alex.creator@demo.com",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
+          pitchCount: 3,
+          followedAt: "2024-01-15T08:00:00Z"
+        },
+        {
+          id: 4,
+          name: "Jordan Taylor",
+          email: "jordan.creator@demo.com",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=jordan",
+          pitchCount: 2,
+          followedAt: "2024-01-18T12:00:00Z"
+        }
+      ] : [],
+      pitches: user.userType === 'investor' ? [
+        {
+          id: 1,
+          title: "Quantum Hearts",
+          creator: "Alex Rivera",
+          stage: "Pre-Production",
+          followedAt: "2024-01-16T09:00:00Z"
+        },
+        {
+          id: 2,
+          title: "The Last Bookshop",
+          creator: "Morgan Chen",
+          stage: "Script Development",
+          followedAt: "2024-01-21T14:00:00Z"
+        }
+      ] : []
+    };
+    
+    // Return data based on tab
+    let responseData = {};
+    switch(tab) {
+      case 'activity':
+        responseData = followingData.activity;
+        break;
+      case 'creators':
+        responseData = followingData.creators;
+        break;
+      case 'pitches':
+        responseData = followingData.pitches;
+        break;
+      default:
+        responseData = followingData.activity; // Default to activity
+    }
+    
+    ctx.response.body = { 
+      success: true, 
+      data: responseData,
+      summary: {
+        newPitches: followingData.pitches.length,
+        activeCreators: followingData.creators.length,
+        engagementRate: 85
+      },
+      stats: {
+        totalActivity: followingData.activity.length,
+        totalCreators: followingData.creators.length,
+        totalPitches: followingData.pitches.length
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching investor following:", error);
+    ctx.response.status = Status.InternalServerError;
+    ctx.response.body = { error: "Failed to fetch following data" };
+  }
+});
+
+// Creator following endpoint (followers)
+router.get("/api/creator/following", authMiddleware, async (ctx) => {
+  try {
+    const user = ctx.state.user;
+    const url = new URL(ctx.request.url);
+    const tab = url.searchParams.get("tab") || "all";
+    
+    // Demo follower data for creators  
+    const followersData = {
+      followers: user.userType === 'creator' ? [
+        {
+          id: 2,
+          name: "Sarah Chen",
+          email: "sarah.investor@demo.com",
+          type: "investor",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
+          followedAt: "2024-01-20T10:00:00Z"
+        },
+        {
+          id: 3,
+          name: "Michael Ross",
+          email: "michael.investor@demo.com",
+          type: "investor", 
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=michael",
+          followedAt: "2024-01-22T15:30:00Z"
+        },
+        {
+          id: 5,
+          name: "Stellar Productions",
+          email: "stellar.production@demo.com",
+          type: "production",
+          avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=stellar",
+          followedAt: "2024-01-23T11:00:00Z"
+        }
+      ] : [],
+      activity: [
+        {
+          id: 1,
+          type: "new_pitch",
+          title: "Dark Horizons",
+          logline: "A detective with amnesia must solve their own murder before time runs out.",
+          genre: "Mystery Thriller",
+          format: "Limited Series",
+          shortSynopsis: "When Detective Morgan wakes up with no memory...",
+          titleImage: "https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=800",
+          viewCount: 890,
+          likeCount: 67,
+          ndaCount: 8,
+          status: "active",
+          publishedAt: "2024-01-24T14:00:00Z",
+          createdAt: "2024-01-20T10:00:00Z",
+          timeAgo: "1 day ago",
+          creator: {
+            id: 2,
+            username: "sarahchen",
+            firstName: "Sarah",
+            lastName: "Chen",
+            userType: "creator",
+            companyName: "Chen Productions",
+            profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
+            bio: "Mystery and thriller specialist",
+            location: "New York, NY"
+          }
+        },
+        {
+          id: 2,
+          type: "new_pitch",
+          title: "The Garden of Time",
+          logline: "A botanical garden exists outside of time, offering second chances to those who find it.",
+          genre: "Fantasy Drama",
+          format: "Feature Film",
+          shortSynopsis: "Hidden in the heart of London, a mysterious garden...",
+          titleImage: "https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=800",
+          viewCount: 1120,
+          likeCount: 95,
+          ndaCount: 15,
+          status: "active",
+          publishedAt: "2024-01-23T10:00:00Z",
+          createdAt: "2024-01-18T10:00:00Z",
+          timeAgo: "2 days ago",
+          creator: {
+            id: 3,
+            username: "michaelross",
+            firstName: "Michael",
+            lastName: "Ross",
+            userType: "creator",
+            companyName: "Ross Studios",
+            profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=michael",
+            bio: "Fantasy and drama storyteller",
+            location: "London, UK"
+          }
+        }
+      ],
+      creators: [
+        {
+          id: 2,
+          username: "sarahchen",
+          firstName: "Sarah",
+          lastName: "Chen",
+          userType: "creator",
+          companyName: "Chen Productions",
+          profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=sarah",
+          bio: "Mystery and thriller specialist",
+          location: "New York, NY",
+          followers: 1250,
+          pitchCount: 8,
+          isFollowing: true
+        }
+      ],
+      pitches: []
+    };
+    
+    // Return data based on tab
+    let responseData = {};
+    switch(tab) {
+      case 'followers':
+        responseData = followersData.followers;
+        break;
+      case 'activity':
+        responseData = followersData.activity;
+        break;
+      case 'creators':
+        responseData = followersData.creators;
+        break;
+      case 'pitches':
+        responseData = followersData.pitches;
+        break;
+      default:
+        responseData = followersData.activity; // Default to activity
+    }
+    
+    ctx.response.body = { 
+      success: true,
+      data: responseData,
+      summary: {
+        newPitches: 2,
+        activeCreators: 1,
+        engagementRate: 75
+      },
+      stats: {
+        totalFollowers: followersData.followers.length,
+        totalActivity: followersData.activity.length,
+        totalCreators: followersData.creators.length
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching creator following:", error);
+    ctx.response.status = Status.InternalServerError;
+    ctx.response.body = { error: "Failed to fetch following data" };
+  }
+});
+
+// Production following endpoint
+router.get("/api/production/following", authMiddleware, async (ctx) => {
+  try {
+    const user = ctx.state.user;
+    const url = new URL(ctx.request.url);
+    const tab = url.searchParams.get("tab") || "activity";
+    
+    // Demo following data for production companies
+    const followingData = {
+      activity: [
+        {
+          id: 1,
+          type: "new_pitch",
+          title: "Echoes of Tomorrow",
+          logline: "A time-traveling journalist must prevent their own story from becoming history.",
+          genre: "Sci-Fi Thriller",
+          format: "Feature Film",
+          shortSynopsis: "When journalist Emma discovers she can travel through time...",
+          titleImage: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800",
+          viewCount: 2100,
+          likeCount: 189,
+          ndaCount: 25,
+          status: "active",
+          publishedAt: "2024-01-25T08:00:00Z",
+          createdAt: "2024-01-20T10:00:00Z",
+          timeAgo: "3 hours ago",
+          creator: {
+            id: 4,
+            username: "emmawilson",
+            firstName: "Emma",
+            lastName: "Wilson",
+            userType: "creator",
+            companyName: "Tomorrow Films",
+            profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=emma",
+            bio: "Sci-fi and time travel narratives",
+            location: "San Francisco, CA"
+          }
+        }
+      ],
+      creators: [
+        {
+          id: 1,
+          username: "alexrivera",
+          firstName: "Alex",
+          lastName: "Rivera",
+          userType: "creator",
+          companyName: "Quantum Films",
+          profileImage: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex",
+          bio: "Filmmaker focused on sci-fi narratives",
+          location: "Los Angeles, CA",
+          followers: 3450,
+          pitchCount: 12,
+          isFollowing: true
+        }
+      ],
+      pitches: [
+        {
+          id: 1,
+          title: "Quantum Hearts",
+          logline: "A quantum physicist falls in love across parallel dimensions",
+          genre: "Sci-Fi Romance",
+          format: "Feature Film",
+          thumbnail: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400",
+          creator: {
+            id: 1,
+            name: "Alex Rivera",
+            avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alex"
+          },
+          stats: {
+            views: 1250,
+            likes: 89,
+            ndas: 12
+          },
+          createdAt: "2024-01-15T10:00:00Z",
+          isFollowing: true
+        }
+      ]
+    };
+    
+    // Return data based on tab
+    let responseData = {};
+    switch(tab) {
+      case 'activity':
+        responseData = followingData.activity;
+        break;
+      case 'creators':
+        responseData = followingData.creators;
+        break;
+      case 'pitches':
+        responseData = followingData.pitches;
+        break;
+      default:
+        responseData = followingData.activity;
+    }
+    
+    ctx.response.body = { 
+      success: true,
+      data: responseData,
+      summary: {
+        newPitches: followingData.pitches.length,
+        activeCreators: followingData.creators.length,
+        engagementRate: 92
+      },
+      stats: {
+        totalActivity: followingData.activity.length,
+        totalCreators: followingData.creators.length,
+        totalPitches: followingData.pitches.length
+      }
+    };
+  } catch (error) {
+    console.error("Error fetching production following:", error);
+    ctx.response.status = Status.InternalServerError;
+    ctx.response.body = { error: "Failed to fetch following data" };
   }
 });
 
@@ -1425,5 +2261,37 @@ console.log(`
    - Investor: sarah.investor@demo.com
    - Production: stellar.production@demo.com
 `);
+
+// Add CORS middleware
+app.use(oakCors({
+  origin: [
+    "https://pitchey-frontend.deno.dev",
+    "https://pitchey-frontend-x3j06s4d9e6f.deno.dev", 
+    "https://pitchey-frontend-yk9c2smfw2zh.deno.dev",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+// Add router middleware
+app.use(router.routes());
+app.use(router.allowedMethods());
+
+// Error handling middleware
+app.use(async (ctx, next) => {
+  try {
+    await next();
+  } catch (err) {
+    console.error('Error:', err);
+    ctx.response.status = err.status || 500;
+    ctx.response.body = {
+      error: err.message || 'Internal server error'
+    };
+  }
+});
 
 await app.listen({ port: PORT });

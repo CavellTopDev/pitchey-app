@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pitchey Platform Test</title>
+    <style>
+        body { font-family: system-ui; max-width: 800px; margin: 40px auto; padding: 20px; }
+        .test { margin: 20px 0; padding: 15px; border-left: 4px solid #ccc; }
+        .pass { border-color: #4caf50; background: #f1f8f4; }
+        .fail { border-color: #f44336; background: #fef1f0; }
+        .pending { border-color: #ff9800; background: #fff8f1; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+        .results { margin-top: 20px; }
+        pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🎬 Pitchey Platform Test Suite</h1>
+    
+    <div class="test-buttons">
+        <button onclick="testAll()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="results" class="results"></div>
+
+    <script>
+        const BACKEND_URL = 'https://pitchey-backend.deno.dev';
+        const FRONTEND_URL = 'https://pitchey-frontend.deno.dev';
+        
+        const tests = [
+            {
+                name: 'Backend Health Check',
+                async test() {
+                    const res = await fetch(`${BACKEND_URL}/`);
+                    const data = await res.json();
+                    return res.ok && data.success;
+                }
+            },
+            {
+                name: 'Public Pitches Endpoint',
+                async test() {
+                    const res = await fetch(`${BACKEND_URL}/api/public/pitches`);
+                    const data = await res.json();
+                    return res.ok && data.success && Array.isArray(data.pitches);
+                }
+            },
+            {
+                name: 'Creator Login',
+                async test() {
+                    const res = await fetch(`${BACKEND_URL}/api/auth/creator/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'alex.creator@demo.com',
+                            password: 'Demo123'
+                        })
+                    });
+                    const data = await res.json();
+                    return res.ok && data.success && data.token;
+                }
+            },
+            {
+                name: 'Investor Login',
+                async test() {
+                    const res = await fetch(`${BACKEND_URL}/api/auth/investor/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'sarah.investor@demo.com',
+                            password: 'Demo123'
+                        })
+                    });
+                    const data = await res.json();
+                    return res.ok && data.success && data.token;
+                }
+            },
+            {
+                name: 'Production Login',
+                async test() {
+                    const res = await fetch(`${BACKEND_URL}/api/auth/production/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'stellar.production@demo.com',
+                            password: 'Demo123'
+                        })
+                    });
+                    const data = await res.json();
+                    return res.ok && data.success && data.token;
+                }
+            },
+            {
+                name: 'Creator Dashboard (with auth)',
+                async test() {
+                    // First login
+                    const loginRes = await fetch(`${BACKEND_URL}/api/auth/creator/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: 'alex.creator@demo.com',
+                            password: 'Demo123'
+                        })
+                    });
+                    const loginData = await loginRes.json();
+                    
+                    // Then access dashboard
+                    const dashRes = await fetch(`${BACKEND_URL}/api/creator/dashboard`, {
+                        headers: { 
+                            'Authorization': `Bearer ${loginData.token}`
+                        }
+                    });
+                    const dashData = await dashRes.json();
+                    return dashRes.ok && dashData.success;
+                }
+            },
+            {
+                name: 'Frontend Loads',
+                async test() {
+                    const res = await fetch(`${FRONTEND_URL}/`);
+                    return res.ok && res.headers.get('content-type').includes('text/html');
+                }
+            }
+        ];
+        
+        async function runTest(test) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'test pending';
+            resultDiv.innerHTML = `<strong>${test.name}</strong>: Testing...`;
+            document.getElementById('results').appendChild(resultDiv);
+            
+            try {
+                const passed = await test.test();
+                resultDiv.className = `test ${passed ? 'pass' : 'fail'}`;
+                resultDiv.innerHTML = `<strong>${test.name}</strong>: ${passed ? '✅ PASSED' : '❌ FAILED'}`;
+            } catch (error) {
+                resultDiv.className = 'test fail';
+                resultDiv.innerHTML = `<strong>${test.name}</strong>: ❌ ERROR - ${error.message}`;
+            }
+        }
+        
+        async function testAll() {
+            clearResults();
+            for (const test of tests) {
+                await runTest(test);
+                await new Promise(r => setTimeout(r, 500)); // Small delay between tests
+            }
+            
+            // Summary
+            const summary = document.createElement('div');
+            summary.style.marginTop = '30px';
+            summary.style.padding = '20px';
+            summary.style.background = '#f0f0f0';
+            summary.style.borderRadius = '8px';
+            
+            const passed = document.querySelectorAll('.test.pass').length;
+            const total = tests.length;
+            const allPassed = passed === total;
+            
+            summary.innerHTML = `
+                <h2>${allPassed ? '🎉' : '⚠️'} Test Summary</h2>
+                <p><strong>${passed}/${total}</strong> tests passed</p>
+                <p>Status: <strong style="color: ${allPassed ? 'green' : 'orange'}">${allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}</strong></p>
+                ${allPassed ? '<p>✨ The Pitchey platform is fully operational!</p>' : '<p>Please check the failed tests above.</p>'}
+            `;
+            
+            document.getElementById('results').appendChild(summary);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

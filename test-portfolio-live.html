@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitchey Portfolio Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status { 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            font-weight: bold;
+        }
+        
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info { 
+            background: #d1ecf1; 
+            color: #0c5460; 
+            border: 1px solid #bee5eb;
+        }
+        
+        .pitch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .pitch-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f8f9fa;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .pitch-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .pitch-logline {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+        
+        .pitch-meta {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .meta-tag {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #495057;
+        }
+        
+        .pitch-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .links {
+            margin-top: 30px;
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 500;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Pitchey Portfolio Live Test</h1>
+        
+        <div id="status"></div>
+        
+        <div id="auth-status" class="status info">
+            🔑 Authenticating...
+        </div>
+        
+        <div id="portfolio-content">
+            <div class="loading">📡 Loading portfolio data...</div>
+        </div>
+
+        <div class="links">
+            <a href="http://localhost:5175/creator/portfolio" target="_blank">📱 View Frontend Portfolio</a>
+            <a href="http://localhost:5175/auth/creator/login" target="_blank">🔐 Creator Login</a>
+            <a href="http://localhost:8000/api/creator/pitches" target="_blank">🔗 API Endpoint</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const DEMO_USER = {
+            email: 'alex.creator@demo.com',
+            password: 'Demo123'
+        };
+
+        let authToken = null;
+
+        async function authenticate() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/creator/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(DEMO_USER)
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    document.getElementById('auth-status').innerHTML = 
+                        `✅ Authenticated as ${data.user.username} (${data.user.userType})`;
+                    document.getElementById('auth-status').className = 'status success';
+                    return true;
+                } else {
+                    throw new Error(data.error || 'Authentication failed');
+                }
+            } catch (error) {
+                document.getElementById('auth-status').innerHTML = 
+                    `❌ Authentication failed: ${error.message}`;
+                document.getElementById('auth-status').className = 'status error';
+                return false;
+            }
+        }
+
+        async function loadPortfolio() {
+            if (!authToken) {
+                document.getElementById('portfolio-content').innerHTML = 
+                    '<div class="status error">❌ No authentication token available</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/creator/pitches`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    displayPortfolio(data.data, data.stats);
+                } else {
+                    throw new Error(data.error || 'Failed to load portfolio');
+                }
+            } catch (error) {
+                document.getElementById('portfolio-content').innerHTML = 
+                    `<div class="status error">❌ Portfolio loading failed: ${error.message}</div>`;
+            }
+        }
+
+        function displayPortfolio(pitches, stats) {
+            const statsHtml = stats ? `
+                <div class="status info">
+                    📊 Portfolio Stats: ${stats.totalPitches} pitches, ${stats.totalViews} views, ${stats.totalLikes} likes, ${stats.totalNDAs} NDAs
+                </div>
+            ` : '';
+
+            const pitchesHtml = pitches.map(pitch => `
+                <div class="pitch-card">
+                    <div class="pitch-title">${pitch.title}</div>
+                    <div class="pitch-logline">"${pitch.logline}"</div>
+                    <div class="pitch-meta">
+                        <span class="meta-tag">📽️ ${pitch.format}</span>
+                        <span class="meta-tag">🎭 ${pitch.genre}</span>
+                        <span class="meta-tag">💰 ${pitch.budgetBracket}</span>
+                        <span class="meta-tag">📅 ${pitch.status}</span>
+                    </div>
+                    <div class="pitch-stats">
+                        <span>👁️ ${pitch.viewCount} views</span>
+                        <span>❤️ ${pitch.likeCount} likes</span>
+                        <span>📄 ${pitch.ndaCount} NDAs</span>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('portfolio-content').innerHTML = `
+                ${statsHtml}
+                <div class="status success">✅ Successfully loaded ${pitches.length} pitches!</div>
+                <div class="pitch-grid">
+                    ${pitchesHtml}
+                </div>
+            `;
+        }
+
+        async function runTest() {
+            // Step 1: Authenticate
+            const authSuccess = await authenticate();
+            if (!authSuccess) return;
+
+            // Step 2: Load portfolio
+            await loadPortfolio();
+        }
+
+        // Run the test when page loads
+        document.addEventListener('DOMContentLoaded', runTest);
+    </script>
+</body>
+</html>

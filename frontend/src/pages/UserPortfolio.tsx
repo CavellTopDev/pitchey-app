@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import CreatorHeader from '../components/portfolio/CreatorHeader';
+import ProfileHeader from '../components/portfolio/ProfileHeader';
 import AchievementsSection from '../components/portfolio/AchievementsSection';
-import PortfolioGrid from '../components/portfolio/PortfolioGrid';
+import WorksGrid from '../components/portfolio/WorksGrid';
 import LoadingState from '../components/portfolio/LoadingState';
 import ErrorState from '../components/portfolio/ErrorState';
 
-interface Creator {
+interface UserProfile {
   id: string;
   name: string;
   username: string;
@@ -16,26 +16,38 @@ interface Creator {
   location: string;
   joinedDate: string;
   verified?: boolean;
+  userType: 'creator' | 'production' | 'investor';
+  companyName?: string; // For production companies
   stats: {
-    totalPitches: number;
+    totalWorks: number; // Pitches for creators, Projects for production
     totalViews: number;
     totalFollowers: number;
-    avgRating: number;
+    avgRating?: number; // For creators
+    successRate?: number; // For production companies
+  };
+  socialLinks?: {
+    website?: string;
+    twitter?: string;
+    linkedin?: string;
   };
 }
 
-interface Pitch {
+interface Work {
   id: string;
   title: string;
   tagline: string;
-  genre: string;
+  category: string; // genre for creators, type for production
   thumbnail: string;
   views: number;
-  rating: number;
+  rating?: number;
   status: string;
   budget: string;
   createdAt: string;
   description?: string;
+  // Production-specific fields
+  releaseDate?: string;
+  boxOffice?: string;
+  productionStage?: string;
 }
 
 interface Achievement {
@@ -47,22 +59,21 @@ interface Achievement {
 
 interface PortfolioData {
   success: boolean;
-  creator: Creator;
-  pitches: Pitch[];
+  profile: UserProfile;
+  works: Work[];
   achievements: Achievement[];
 }
 
-const CreatorPortfolio: React.FC = () => {
-  const { creatorId } = useParams<{ creatorId: string }>();
+const UserPortfolio: React.FC = () => {
+  const { userId } = useParams<{ userId: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const navigate = useNavigate();
 
-
-  // Get effective creator ID
-  const getCreatorId = () => {
-    if (creatorId) return creatorId;
+  // Get effective user ID
+  const getEffectiveUserId = () => {
+    if (userId) return userId;
     
     // Try to get user ID from localStorage
     const userData = localStorage.getItem('user');
@@ -71,12 +82,13 @@ const CreatorPortfolio: React.FC = () => {
         const user = JSON.parse(userData);
         return user.id || '1001';
       } catch (e) {
+        console.error('Error parsing user data:', e);
       }
     }
     return '1001'; // Default fallback
   };
 
-  const effectiveCreatorId = getCreatorId();
+  const effectiveUserId = getEffectiveUserId();
 
   // Check if this is the user's own profile
   const isOwnProfile = () => {
@@ -84,16 +96,35 @@ const CreatorPortfolio: React.FC = () => {
       const userData = localStorage.getItem('user');
       if (userData) {
         const user = JSON.parse(userData);
-        return user.id?.toString() === effectiveCreatorId?.toString();
+        return user.id?.toString() === effectiveUserId?.toString();
       }
     } catch (e) {
+      console.error('Error checking profile ownership:', e);
     }
     return false;
   };
 
+  // Get user type from localStorage or portfolio data
+  const getUserType = (): string => {
+    if (portfolio?.profile?.userType) {
+      return portfolio.profile.userType;
+    }
+    
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        return user.userType || user.type || 'creator';
+      } catch (e) {
+        console.error('Error getting user type:', e);
+      }
+    }
+    return 'creator';
+  };
+
   useEffect(() => {
     fetchPortfolio();
-  }, [effectiveCreatorId]);
+  }, [effectiveUserId]);
 
   const fetchPortfolio = async () => {
     setLoading(true);
@@ -102,9 +133,33 @@ const CreatorPortfolio: React.FC = () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend-62414fc1npma.deno.dev';
       
-      const response = await fetch(`${apiUrl}/api/creator/portfolio/${effectiveCreatorId}`);
+      // Use a unified endpoint that works for all user types
+      const response = await fetch(`${apiUrl}/api/portfolio/${effectiveUserId}`);
       
       if (!response.ok) {
+        // Fallback to creator endpoint for backward compatibility
+        const creatorResponse = await fetch(`${apiUrl}/api/creator/portfolio/${effectiveUserId}`);
+        if (creatorResponse.ok) {
+          const creatorData = await creatorResponse.json();
+          // Transform creator data to unified format
+          const unifiedData: PortfolioData = {
+            success: creatorData.success,
+            profile: {
+              ...creatorData.creator,
+              userType: 'creator',
+              stats: {
+                totalWorks: creatorData.creator.stats.totalPitches,
+                totalViews: creatorData.creator.stats.totalViews,
+                totalFollowers: creatorData.creator.stats.totalFollowers,
+                avgRating: creatorData.creator.stats.avgRating
+              }
+            },
+            works: creatorData.pitches,
+            achievements: creatorData.achievements
+          };
+          setPortfolio(unifiedData);
+          return;
+        }
         throw new Error(`Failed to fetch portfolio (${response.status})`);
       }
 
@@ -131,9 +186,19 @@ const CreatorPortfolio: React.FC = () => {
   };
 
   const handleBackToDashboard = () => {
-    navigate('/creator/dashboard');
+    const userType = getUserType();
+    // Navigate to appropriate dashboard based on user type
+    switch (userType) {
+      case 'production':
+        navigate('/production/dashboard');
+        break;
+      case 'investor':
+        navigate('/investor/dashboard');
+        break;
+      default:
+        navigate('/creator/dashboard');
+    }
   };
-
 
   if (loading) {
     return <LoadingState />;
@@ -164,7 +229,7 @@ const CreatorPortfolio: React.FC = () => {
     );
   }
 
-  const { creator, pitches, achievements } = portfolio;
+  const { profile, works, achievements } = portfolio;
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #f3e7ff, #ffffff, #ffe0f7)', padding: '20px' }}>
@@ -206,15 +271,16 @@ const CreatorPortfolio: React.FC = () => {
       </div>
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', paddingTop: '60px' }}>
-        <CreatorHeader 
-          creator={creator} 
+        <ProfileHeader 
+          profile={profile} 
           isOwnProfile={isOwnProfile()} 
         />
         
         <AchievementsSection achievements={achievements} />
         
-        <PortfolioGrid 
-          pitches={pitches} 
+        <WorksGrid 
+          works={works}
+          userType={profile.userType}
           isOwnProfile={isOwnProfile()} 
         />
       </div>
@@ -222,4 +288,4 @@ const CreatorPortfolio: React.FC = () => {
   );
 };
 
-export default CreatorPortfolio;
+export default UserPortfolio;

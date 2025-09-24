@@ -128,14 +128,14 @@ export const pitches = pgTable("pitches", {
   // Budget & Production
   budgetBracket: varchar("budget_bracket", { length: 50 }),
   estimatedBudget: decimal("estimated_budget", { precision: 12, scale: 2 }),
-  productionTimeline: text("production_timeline"),
+  // productionTimeline: text("production_timeline"), // Removed - column doesn't exist in DB
   
   // Media
-  titleImage: text("title_image_url"),
-  lookbookUrl: text("lookbook_url"),
-  pitchDeckUrl: text("pitch_deck_url"),
-  scriptUrl: text("script_url"),
-  trailerUrl: text("trailer_url"),
+  // titleImage: text("title_image_url"), // Removed - column doesn't exist in DB
+  // lookbookUrl: text("lookbook_url"), // Column doesn't exist
+  // pitchDeckUrl: text("pitch_deck_url"), // Column doesn't exist 
+  // scriptUrl: text("script_url"), // Column doesn't exist
+  // trailerUrl: text("trailer_url"), // Column doesn't exist
   additionalMedia: jsonb("additional_media").$type<Array<{
     type: 'lookbook' | 'script' | 'trailer' | 'pitch_deck' | 'budget_breakdown' | 'production_timeline' | 'other';
     url: string;

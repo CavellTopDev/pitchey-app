@@ -366,4 +366,80 @@ export class AnalyticsService {
       console.error("Error ending session:", error);
     }
   }
+
+  // Toggle like/unlike for a pitch
+  static async toggleLike(pitchId: number, userId: number) {
+    try {
+      // Check if user already liked this pitch
+      const existingLike = await db.query.analyticsEvents.findFirst({
+        where: and(
+          eq(analyticsEvents.pitchId, pitchId),
+          eq(analyticsEvents.userId, userId),
+          eq(analyticsEvents.eventType, "like")
+        ),
+        orderBy: desc(analyticsEvents.timestamp)
+      });
+
+      let isLiked = false;
+
+      if (existingLike) {
+        // User has liked before, now unlike
+        await this.trackEvent({
+          eventType: "unlike",
+          userId,
+          pitchId,
+          eventData: { previousLikeId: existingLike.id }
+        });
+        
+        // Update pitch like count (decrement)
+        await db.update(pitches)
+          .set({ 
+            likeCount: sql`GREATEST(${pitches.likeCount} - 1, 0)` 
+          })
+          .where(eq(pitches.id, pitchId));
+          
+        isLiked = false;
+      } else {
+        // User hasn't liked, now like
+        await this.trackEvent({
+          eventType: "like",
+          userId,
+          pitchId,
+          eventData: {}
+        });
+        
+        // Update pitch like count (increment)
+        await db.update(pitches)
+          .set({ 
+            likeCount: sql`${pitches.likeCount} + 1` 
+          })
+          .where(eq(pitches.id, pitchId));
+          
+        isLiked = true;
+      }
+
+      return { success: true, isLiked };
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Check if user has liked a pitch
+  static async hasUserLikedPitch(pitchId: number, userId: number) {
+    try {
+      const like = await db.query.analyticsEvents.findFirst({
+        where: and(
+          eq(analyticsEvents.pitchId, pitchId),
+          eq(analyticsEvents.userId, userId),
+          eq(analyticsEvents.eventType, "like")
+        )
+      });
+      
+      return !!like;
+    } catch (error) {
+      console.error("Error checking like status:", error);
+      return false;
+    }
+  }
 }

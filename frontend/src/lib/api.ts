@@ -168,6 +168,9 @@ export const authAPI = {
     if (response.data.token) {
       localStorage.setItem('authToken', response.data.token);
     }
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
     return { user: response.data.user };
   },
 
@@ -178,6 +181,9 @@ export const authAPI = {
     );
     if (response.data.token) {
       localStorage.setItem('authToken', response.data.token);
+    }
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return { user: response.data.user };
   },
@@ -190,11 +196,16 @@ export const authAPI = {
     if (response.data.token) {
       localStorage.setItem('authToken', response.data.token);
     }
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
     return { user: response.data.user };
   },
 
   async logout() {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userType');
   },
 
   async getProfile() {

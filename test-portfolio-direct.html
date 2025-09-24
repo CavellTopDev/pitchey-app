@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Creator Portfolio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(to br, #f3e7ff, #fff, #ffe0f7);
+            min-height: 100vh;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .portfolio-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .creator-header {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .pitches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .pitch-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .pitch-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .pitch-thumbnail {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .pitch-content {
+            padding: 15px;
+        }
+        .pitch-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .pitch-tagline {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .pitch-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+        .genre-badge {
+            background: #6c63ff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        .achievements {
+            margin: 30px 0;
+        }
+        .achievement-list {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .achievement {
+            background: linear-gradient(to right, #fffbf0, #fff5e6);
+            padding: 15px 20px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .achievement-icon {
+            font-size: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Creator Portfolio Test</h1>
+    
+    <div class="status loading" id="status">Loading portfolio...</div>
+    
+    <div id="portfolio-container" style="display: none;"></div>
+    
+    <script>
+        const API_URL = 'https://pitchey-backend-rx095sy3rywk.deno.dev';
+        const CREATOR_ID = '1001'; // Demo creator ID
+        
+        async function loadPortfolio() {
+            const statusEl = document.getElementById('status');
+            const containerEl = document.getElementById('portfolio-container');
+            
+            try {
+                statusEl.textContent = `Fetching portfolio from: ${API_URL}/api/creator/portfolio/${CREATOR_ID}`;
+                
+                const response = await fetch(`${API_URL}/api/creator/portfolio/${CREATOR_ID}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+                
+                statusEl.className = 'status success';
+                statusEl.textContent = 'Portfolio loaded successfully!';
+                
+                // Display portfolio
+                containerEl.style.display = 'block';
+                containerEl.innerHTML = renderPortfolio(data);
+                
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = `Error: ${error.message}`;
+                console.error('Portfolio fetch error:', error);
+            }
+        }
+        
+        function renderPortfolio(data) {
+            const { creator, pitches, achievements } = data;
+            
+            return `
+                <div class="portfolio-container">
+                    <div class="creator-header">
+                        <img src="${creator.avatar}" alt="${creator.name}" class="avatar">
+                        <div>
+                            <h2>${creator.name}</h2>
+                            <p>@${creator.username}</p>
+                            <p>${creator.bio}</p>
+                            <p>📍 ${creator.location} • Joined ${creator.joinedDate}</p>
+                            ${creator.socialLinks ? `
+                                <div style="margin-top: 10px;">
+                                    ${creator.socialLinks.website ? `<a href="${creator.socialLinks.website}" target="_blank">🌐 Website</a> ` : ''}
+                                    ${creator.socialLinks.twitter ? `<a href="https://twitter.com/${creator.socialLinks.twitter.replace('@','')}" target="_blank">🐦 Twitter</a> ` : ''}
+                                    ${creator.socialLinks.linkedin ? `<a href="https://linkedin.com/in/${creator.socialLinks.linkedin}" target="_blank">💼 LinkedIn</a>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value">${creator.stats.totalPitches}</div>
+                            <div class="stat-label">Pitches</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${formatNumber(creator.stats.totalViews)}</div>
+                            <div class="stat-label">Total Views</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${formatNumber(creator.stats.totalFollowers)}</div>
+                            <div class="stat-label">Followers</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${creator.stats.avgRating.toFixed(1)}</div>
+                            <div class="stat-label">Avg Rating</div>
+                        </div>
+                    </div>
+                    
+                    ${achievements && achievements.length > 0 ? `
+                        <div class="achievements">
+                            <h3>Achievements</h3>
+                            <div class="achievement-list">
+                                ${achievements.map(a => `
+                                    <div class="achievement">
+                                        <div class="achievement-icon">${a.icon}</div>
+                                        <div>
+                                            <strong>${a.title}</strong><br>
+                                            <small>${a.event} • ${a.year}</small>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <h3>Portfolio Pitches</h3>
+                    <div class="pitches-grid">
+                        ${pitches.map(pitch => `
+                            <div class="pitch-card">
+                                <img src="${pitch.thumbnail}" alt="${pitch.title}" class="pitch-thumbnail">
+                                <div class="pitch-content">
+                                    <div class="pitch-title">${pitch.title}</div>
+                                    <div class="pitch-tagline">${pitch.tagline}</div>
+                                    ${pitch.description ? `<p style="font-size: 14px; color: #777;">${pitch.description}</p>` : ''}
+                                    <div class="pitch-meta">
+                                        <span class="genre-badge">${pitch.genre}</span>
+                                        <span>${pitch.budget}</span>
+                                    </div>
+                                    <div style="margin-top: 10px; font-size: 14px; color: #666;">
+                                        👁️ ${formatNumber(pitch.views)} views • ⭐ ${pitch.rating.toFixed(1)} rating
+                                    </div>
+                                    <div style="margin-top: 5px; font-size: 12px; color: #999;">
+                                        Status: ${pitch.status}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+        
+        // Load portfolio on page load
+        loadPortfolio();
+    </script>
+</body>
+</html>

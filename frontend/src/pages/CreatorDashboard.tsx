@@ -6,7 +6,7 @@ import { paymentsAPI, apiClient } from '../lib/apiServices';
 
 export default function CreatorDashboard() {
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
+  const { logout, user: authUser } = useAuthStore();
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -15,29 +15,90 @@ export default function CreatorDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [socialStats, setSocialStats] = useState<any>(null);
+  const [avgRating, setAvgRating] = useState<number>(0);
+  const [totalViews, setTotalViews] = useState<number>(0);
+  const [followers, setFollowers] = useState<number>(0);
 
   useEffect(() => {
+    // Load user data immediately on mount
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        console.log('User data loaded from localStorage:', parsedUser);
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+    } else if (authUser) {
+      // Fallback to auth store user if localStorage doesn't have it
+      setUser(authUser);
+      console.log('User data loaded from auth store:', authUser);
+    } else {
+      console.log('No user data found in localStorage or auth store');
+    }
+    
     fetchDashboardData();
-  }, []);
+  }, [authUser]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('authToken');
+      const userId = user?.id || authUser?.id;
       
-      // Fetch dashboard data and billing info in parallel
-      const [dashboardResponse, creditsData, subscriptionData] = await Promise.all([
+      // Fetch dashboard data, billing info and follows in parallel
+      const [dashboardResponse, creditsData, subscriptionData, followersResponse, followingResponse] = await Promise.all([
         apiClient.get('/api/creator/dashboard'),
         paymentsAPI.getCreditBalance(),
-        paymentsAPI.getSubscriptionStatus()
+        paymentsAPI.getSubscriptionStatus(),
+        userId ? apiClient.get(`/api/follows/followers?creatorId=${userId}`) : Promise.resolve({ success: false }),
+        userId ? apiClient.get('/api/follows/following') : Promise.resolve({ success: false })
       ]);
       
       if (dashboardResponse.success) {
         const data = dashboardResponse.data;
-        setStats(data.stats);
-        setRecentActivity(data.recentActivity);
-        setSocialStats(data.socialStats);
+        
+        // Calculate actual stats from backend data
+        const actualTotalViews = data.stats?.views || 0;
+        const actualTotalPitches = data.stats?.totalPitches || 0;
+        const actualActivePitches = data.stats?.activePitches || 0;
+        const actualTotalInterest = data.stats?.investors || 0;
+        
+        // Calculate average rating from pitches if available
+        let calculatedAvgRating = 0;
+        if (data.pitches && data.pitches.length > 0) {
+          const ratingsSum = data.pitches.reduce((sum: number, pitch: any) => {
+            return sum + (pitch.rating || 0);
+          }, 0);
+          calculatedAvgRating = data.pitches.length > 0 ? (ratingsSum / data.pitches.length) : 0;
+        }
+        
+        setStats({
+          totalPitches: actualTotalPitches,
+          activePitches: actualActivePitches,
+          totalViews: actualTotalViews,
+          totalInterest: actualTotalInterest,
+          avgRating: calculatedAvgRating
+        });
+        
+        setTotalViews(actualTotalViews);
+        setAvgRating(calculatedAvgRating);
+        setRecentActivity(data.recentActivity || []);
+        
+        // Get actual followers count
+        const followersCount = followersResponse.success ? 
+          (followersResponse.data?.followers?.length || 0) : 0;
+        const followingCount = followingResponse.success ? 
+          (followingResponse.data?.following?.length || 0) : 0;
+        
+        setFollowers(followersCount);
+        setSocialStats({
+          followers: followersCount,
+          following: followingCount
+        });
+        
         // Use billing API credits if available, otherwise use dashboard credits
         setCredits(creditsData || data.credits);
       } else {
@@ -55,15 +116,12 @@ export default function CreatorDashboard() {
           following: 0
         });
         setRecentActivity([]);
+        setTotalViews(0);
+        setAvgRating(0);
+        setFollowers(0);
       }
       
       setSubscription(subscriptionData);
-      
-      // Get user data from localStorage
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
-      }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       setError('Failed to load dashboard data. Please try refreshing the page.');
@@ -159,7 +217,7 @@ export default function CreatorDashboard() {
               </button>
               
               <Link
-                to="/following"
+                to="/creator/following"
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -222,39 +280,176 @@ export default function CreatorDashboard() {
               <span className="text-gray-500 text-sm">Total Views</span>
               <Eye className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats?.totalViews || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">This month</p>
+            <p className="text-2xl font-bold text-gray-900">{totalViews}</p>
+            <p className="text-xs text-gray-500 mt-1">All time</p>
           </div>
           
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-500 text-sm">Interest Shown</span>
-              <MessageSquare className="w-5 h-5 text-orange-500" />
+              <span className="text-gray-500 text-sm">Avg Rating</span>
+              <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats?.totalInterest || 0}</p>
-            <p className="text-xs text-orange-500 mt-1">+5 this week</p>
+            <p className="text-2xl font-bold text-gray-900">{avgRating.toFixed(1)}</p>
+            <p className="text-xs text-gray-500 mt-1">Out of 5.0</p>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate(`/creator/${user?.id}`)}>
+          <div className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/creator/portfolio')}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-500 text-sm">Followers</span>
               <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{socialStats?.followers || 0}</p>
+            <p className="text-2xl font-bold text-gray-900">{followers}</p>
             <p className="text-xs text-blue-500 mt-1 hover:underline">View portfolio →</p>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/following')}>
+          <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-500 text-sm">Following</span>
-              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m3 5.197H9m3 0a3 3 0 01-3-3V9a5 5 0 1110 0v6.5a3 3 0 01-3 3z" />
-              </svg>
+              <span className="text-gray-500 text-sm">Engagement Rate</span>
+              <TrendingUp className="w-5 h-5 text-purple-500" />
             </div>
-            <p className="text-2xl font-bold text-gray-900">{socialStats?.following || 0}</p>
-            <p className="text-xs text-green-500 mt-1 hover:underline">Manage following →</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {stats?.totalPitches > 0 ? 
+                Math.round(((stats?.totalInterest || 0) / stats.totalPitches) * 100) : 0}%
+            </p>
+            <p className="text-xs text-purple-500 mt-1">Interest per pitch</p>
+          </div>
+        </div>
+
+        {/* Creator Milestones Section */}
+        <div className="bg-white rounded-xl shadow-sm mb-8">
+          <div className="px-6 py-4 border-b">
+            <h2 className="text-lg font-semibold text-gray-900">Creator Milestones</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* First Pitch Milestone */}
+              <div className={`p-4 rounded-lg border-2 ${
+                stats?.totalPitches > 0 ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <Film className={`w-8 h-8 ${
+                    stats?.totalPitches > 0 ? 'text-green-600' : 'text-gray-400'
+                  }`} />
+                  {stats?.totalPitches > 0 && (
+                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="font-semibold text-sm mb-1">First Pitch</h3>
+                <p className="text-xs text-gray-600">
+                  {stats?.totalPitches > 0 ? 'Completed' : 'Upload your first pitch'}
+                </p>
+              </div>
+              
+              {/* 100 Views Milestone */}
+              <div className={`p-4 rounded-lg border-2 ${
+                totalViews >= 100 ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <Eye className={`w-8 h-8 ${
+                    totalViews >= 100 ? 'text-blue-600' : 'text-gray-400'
+                  }`} />
+                  {totalViews >= 100 && (
+                    <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="font-semibold text-sm mb-1">100 Views</h3>
+                <p className="text-xs text-gray-600">
+                  {totalViews >= 100 ? `${totalViews} views reached!` : `${totalViews}/100 views`}
+                </p>
+              </div>
+              
+              {/* 10 Followers Milestone */}
+              <div className={`p-4 rounded-lg border-2 ${
+                followers >= 10 ? 'border-purple-500 bg-purple-50' : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <svg className={`w-8 h-8 ${
+                    followers >= 10 ? 'text-purple-600' : 'text-gray-400'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  {followers >= 10 && (
+                    <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="font-semibold text-sm mb-1">Community Builder</h3>
+                <p className="text-xs text-gray-600">
+                  {followers >= 10 ? `${followers} followers!` : `${followers}/10 followers`}
+                </p>
+              </div>
+              
+              {/* High Rating Milestone */}
+              <div className={`p-4 rounded-lg border-2 ${
+                avgRating >= 4.0 ? 'border-yellow-500 bg-yellow-50' : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <svg className={`w-8 h-8 ${
+                    avgRating >= 4.0 ? 'text-yellow-600' : 'text-gray-400'
+                  }`} fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  {avgRating >= 4.0 && (
+                    <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="font-semibold text-sm mb-1">Top Rated</h3>
+                <p className="text-xs text-gray-600">
+                  {avgRating >= 4.0 ? `${avgRating.toFixed(1)} ★ rating!` : `${avgRating.toFixed(1)}/4.0 ★`}
+                </p>
+              </div>
+            </div>
+            
+            {/* Progress to next milestone */}
+            <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Your Next Goals</h4>
+              <div className="space-y-2">
+                {totalViews < 1000 && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((totalViews / 1000) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-600">{totalViews}/1000 views</span>
+                  </div>
+                )}
+                {followers < 50 && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-purple-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((followers / 50) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-600">{followers}/50 followers</span>
+                  </div>
+                )}
+                {stats?.totalPitches < 5 && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-green-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((stats?.totalPitches / 5) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-600">{stats?.totalPitches}/5 pitches</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -344,7 +539,7 @@ export default function CreatorDashboard() {
                   </button>
                   
                   <button
-                    onClick={() => navigate(`/creator/${user?.id}`)}
+                    onClick={() => navigate('/creator/portfolio')}
                     className="w-full flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
                   >
                     <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,7 +549,7 @@ export default function CreatorDashboard() {
                   </button>
                   
                   <button
-                    onClick={() => navigate('/following')}
+                    onClick={() => navigate('/creator/following')}
                     className="w-full flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg transition"
                   >
                     <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

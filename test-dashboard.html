@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Test</title>
+</head>
+<body>
+    <h1>Testing Dashboard Credits Display</h1>
+    <button onclick="testDashboard()">Test Creator Dashboard</button>
+    <pre id="result"></pre>
+    
+    <script>
+        async function testDashboard() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                // First login
+                const loginRes = await fetch('https://pitchey-backend.deno.dev/api/auth/creator/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'alex.creator@demo.com',
+                        password: 'Demo123'
+                    })
+                });
+                const loginData = await loginRes.json();
+                
+                // Get dashboard
+                const dashRes = await fetch('https://pitchey-backend.deno.dev/api/creator/dashboard', {
+                    headers: { 'Authorization': `Bearer ${loginData.token}` }
+                });
+                const dashData = await dashRes.json();
+                
+                // Get credits
+                const creditsRes = await fetch('https://pitchey-backend.deno.dev/api/payments/credits/balance', {
+                    headers: { 'Authorization': `Bearer ${loginData.token}` }
+                });
+                const creditsData = await creditsRes.json();
+                
+                resultEl.textContent = JSON.stringify({
+                    loginSuccess: loginData.success,
+                    dashboardSuccess: dashData.success,
+                    creditsStructure: creditsData,
+                    expectedCreditsPath: 'credits.balance.credits should be a number'
+                }, null, 2);
+            } catch (error) {
+                resultEl.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

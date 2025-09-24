@@ -556,7 +556,7 @@ export default function ProductionDashboard() {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
               <Link
-                to="/following"
+                to="/production/following"
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
               >
                 <Users className="w-5 h-5" />
@@ -1130,7 +1130,7 @@ export default function ProductionDashboard() {
               <h2 className="text-xl font-semibold text-gray-900">Following Activity</h2>
               <div className="flex gap-3">
                 <Link
-                  to="/following"
+                  to="/production/following"
                   className="text-purple-600 hover:text-purple-700"
                 >
                   View All Following
@@ -1159,7 +1159,7 @@ export default function ProductionDashboard() {
                     Browse Marketplace
                   </button>
                   <Link
-                    to="/following"
+                    to="/production/following"
                     className="px-6 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50"
                   >
                     Explore Following
@@ -1299,7 +1299,7 @@ export default function ProductionDashboard() {
                   {Array.isArray(followingPitches) && followingPitches.length > 5 && (
                     <div className="mt-4 text-center">
                       <Link
-                        to="/following"
+                        to="/production/following"
                         className="text-purple-600 hover:text-purple-700 text-sm"
                       >
                         View all activity →

@@ -60,8 +60,8 @@ export class AuthService {
       })
       .returning();
     
-    // Send verification email
-    await this.sendVerificationEmail(newUser.email, newUser.emailVerificationToken!);
+    // Send verification email (disabled for local testing)
+    // await this.sendVerificationEmail(newUser.email, newUser.emailVerificationToken!);
     
     // Create session
     const session = await this.createSession(newUser.id);

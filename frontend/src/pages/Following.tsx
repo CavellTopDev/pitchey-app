@@ -83,6 +83,7 @@ const Following: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState('7d');
   const navigate = useNavigate();
+  const userType = localStorage.getItem('userType');
 
   useEffect(() => {
     fetchFollowingData();
@@ -99,7 +100,13 @@ const Following: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/investor/following?tab=${activeTab}`, {
+      // Use the correct endpoint based on user type
+      const endpoint = userType === 'creator' ? '/api/creator/following' :
+                      userType === 'investor' ? '/api/investor/following' :
+                      userType === 'production' ? '/api/production/following' :
+                      '/api/investor/following'; // default
+      
+      const response = await fetch(`${API_URL}${endpoint}?tab=${activeTab}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -111,8 +118,11 @@ const Following: React.FC = () => {
       }
 
       const result = await response.json();
+      console.log('Following API response:', result);
+      console.log('Active tab:', activeTab);
       
       if (result.success) {
+        console.log('Setting data:', result.data);
         setData(result.data || []);
         if (result.summary) {
           setSummary(result.summary);
@@ -139,15 +149,20 @@ const Following: React.FC = () => {
   };
 
   const getDisplayName = (creator: any) => {
+    if (!creator) return 'Unknown';
     if (creator.companyName) return creator.companyName;
     if (creator.firstName) {
       return `${creator.firstName} ${creator.lastName || ''}`.trim();
     }
-    return creator.username;
+    if (creator.username) return creator.username;
+    if (creator.name) return creator.name;
+    if (creator.email) return creator.email.split('@')[0];
+    return 'Unknown';
   };
 
   const renderActivityTab = () => {
     const activities = data as ActivityUpdate[];
+    console.log('Rendering activity tab with activities:', activities);
     
     return (
       <div className="space-y-6">
@@ -209,7 +224,7 @@ const Following: React.FC = () => {
                     ) : (
                       <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                         <span className="text-gray-600 font-medium">
-                          {getDisplayName(update.creator).charAt(0).toUpperCase()}
+                          {(getDisplayName(update.creator) || 'U').charAt(0).toUpperCase()}
                         </span>
                       </div>
                     )}
@@ -301,7 +316,7 @@ const Following: React.FC = () => {
                   ) : (
                     <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
                       <span className="text-gray-600 font-medium text-lg">
-                        {getDisplayName(creator).charAt(0).toUpperCase()}
+                        {(getDisplayName(creator) || 'U').charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}
@@ -390,7 +405,7 @@ const Following: React.FC = () => {
                   ) : (
                     <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center">
                       <span className="text-gray-600 font-medium">
-                        {pitch.title.charAt(0).toUpperCase()}
+                        {(pitch.title || 'P').charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}
@@ -477,7 +492,13 @@ const Following: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => navigate('/investor/dashboard')}
+                onClick={() => {
+                  const dashboardRoute = userType === 'creator' ? '/creator/dashboard' :
+                                       userType === 'investor' ? '/investor/dashboard' :
+                                       userType === 'production' ? '/production/dashboard' :
+                                       '/';
+                  navigate(dashboardRoute);
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition"
               >
                 <ArrowLeft className="w-5 h-5" />

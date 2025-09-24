@@ -1,5 +1,5 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from './store/authStore';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -39,10 +39,12 @@ const PitchDetail = lazy(() => import('./pages/PitchDetail'));
 const PitchEdit = lazy(() => import('./pages/PitchEdit'));
 const PitchAnalytics = lazy(() => import('./pages/PitchAnalytics'));
 const CreatorNDAManagement = lazy(() => import('./pages/CreatorNDAManagement'));
+const CreatorPitchView = lazy(() => import('./pages/creator/CreatorPitchView'));
 
 // Production Pages
 const ProductionPitchCreate = lazy(() => import('./pages/ProductionPitchCreate'));
 const ProductionPitchDetail = lazy(() => import('./pages/ProductionPitchDetail'));
+const ProductionPitchView = lazy(() => import('./pages/production/ProductionPitchView'));
 
 // Common Pages
 const Profile = lazy(() => import('./pages/Profile'));
@@ -50,6 +52,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 
 // Investor Pages
 const InvestorBrowse = lazy(() => import('./pages/InvestorBrowse'));
+const InvestorPitchView = lazy(() => import('./pages/investor/InvestorPitchView'));
 
 // Billing Page
 const Billing = lazy(() => import('./pages/Billing'));
@@ -57,6 +60,7 @@ const Billing = lazy(() => import('./pages/Billing'));
 // Following/Portfolio Pages
 const Following = lazy(() => import('./pages/Following'));
 const CreatorPortfolio = lazy(() => import('./pages/CreatorPortfolio'));
+const UserPortfolio = lazy(() => import('./pages/UserPortfolio'));
 
 // Info Pages
 const HowItWorks = lazy(() => import('./pages/HowItWorks'));
@@ -65,6 +69,28 @@ const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
+
+// Component to handle pitch routing based on user type
+function PitchRouter() {
+  const { id } = useParams();
+  const { isAuthenticated } = useAuthStore();
+  const userType = localStorage.getItem('userType');
+
+  if (!isAuthenticated) {
+    return <PublicPitchView />;
+  }
+
+  switch (userType) {
+    case 'creator':
+      return <Navigate to={`/creator/pitch/${id}`} replace />;
+    case 'investor':
+      return <Navigate to={`/investor/pitch/${id}`} replace />;
+    case 'production':
+      return <Navigate to={`/production/pitch/${id}`} replace />;
+    default:
+      return <PublicPitchView />;
+  }
+}
 
 function App() {
   const { isAuthenticated, fetchProfile } = useAuthStore();
@@ -154,6 +180,11 @@ function App() {
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/creator" />
           } />
+          <Route path="/creator/pitch/:id" element={
+            isAuthenticated && userType === 'creator' ? <CreatorPitchView /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/creator" />
+          } />
           <Route path="/creator/pitches/:id" element={
             isAuthenticated && userType === 'creator' ? <PitchDetail /> : 
             isAuthenticated ? <Navigate to="/" /> :
@@ -174,6 +205,11 @@ function App() {
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/creator" />
           } />
+          <Route path="/creator/following" element={
+            isAuthenticated && userType === 'creator' ? <Following /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/creator" />
+          } />
           <Route path="/investor/dashboard" element={
             isAuthenticated && userType === 'investor' ? <InvestorDashboard /> : 
             isAuthenticated ? <Navigate to="/" /> :
@@ -189,13 +225,23 @@ function App() {
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/investor" />
           } />
+          <Route path="/investor/pitch/:id" element={
+            isAuthenticated && userType === 'investor' ? <InvestorPitchView /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/investor" />
+          } />
           <Route path="/production/dashboard" element={
             isAuthenticated && userType === 'production' ? <ProductionDashboard /> : 
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/production" />
           } />
+          <Route path="/production/following" element={
+            isAuthenticated && userType === 'production' ? <Following /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/production" />
+          } />
           <Route path="/production/pitch/:id" element={
-            isAuthenticated && userType === 'production' ? <ProductionPitchDetail /> : 
+            isAuthenticated && userType === 'production' ? <ProductionPitchView /> : 
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/production" />
           } />
@@ -221,11 +267,20 @@ function App() {
           } />
           
           {/* Public pitch detail route */}
-          <Route path="/pitch/:id" element={<PublicPitchView />} />
+          <Route path="/pitch/:id" element={<PitchRouter />} />
           
-          {/* Following/Portfolio Routes - Available to all authenticated users */}
-          <Route path="/following" element={isAuthenticated ? <Following /> : <Navigate to="/portals" />} />
+          {/* Legacy Portfolio Routes (for backward compatibility) */}
+          <Route path="/creator/portfolio" element={<CreatorPortfolio />} />
+          <Route path="/creator/portfolio-auth" element={
+            isAuthenticated && userType === 'creator' ? <CreatorPortfolio /> : 
+            <Navigate to="/login/creator" />
+          } />
           <Route path="/creator/:creatorId" element={<CreatorPortfolio />} />
+          
+          {/* New Unified Portfolio Routes */}
+          <Route path="/portfolio" element={<UserPortfolio />} />
+          <Route path="/portfolio/:userId" element={<UserPortfolio />} />
+          <Route path="/user/:userId" element={<UserPortfolio />} />
           
           {/* Common Protected Routes - Available to all user types */}
           <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/portals" />} />

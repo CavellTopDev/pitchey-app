@@ -5,7 +5,11 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-export default function Layout() {
+interface LayoutProps {
+  children?: React.ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -153,7 +157,7 @@ export default function Layout() {
 
       {/* Main content */}
       <main>
-        <Outlet />
+        {children || <Outlet />}
       </main>
     </div>
   );
