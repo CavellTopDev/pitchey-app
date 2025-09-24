@@ -463,7 +463,7 @@ const mockCrewData = [
 async function generateToken(userId: string, email: string, role: string) {
   // For demo accounts, generate a simple JWT token
   const numericUserId = parseInt(userId);
-  if (!isNaN(numericUserId) && numericUserId >= 1001 && numericUserId <= 1003) {
+  if (!isNaN(numericUserId) && numericUserId >= 1 && numericUserId <= 3) {
     // Generate JWT for demo account
     const key = await crypto.subtle.importKey(
       "raw",
@@ -1118,7 +1118,7 @@ const handler = async (request: Request): Promise<Response> => {
       console.error("Database error fetching creator pitches, using demo pitches:", error.message);
       
       // Return demo pitches for creator demo account
-      if (payload.userId === "1001" || payload.userId === 1001) {
+      if (payload.userId === "1" || payload.userId === 1) {
         const stats = {
           totalPitches: demoPitches.length,
           publishedPitches: demoPitches.filter(p => p.status === "published").length,
@@ -5069,7 +5069,7 @@ const handler = async (request: Request): Promise<Response> => {
 // Demo accounts for immediate authentication
 const demoAccounts = {
   creator: {
-    id: 1001,
+    id: 1,
     email: "alex.creator@demo.com",
     username: "alexcreator",
     password: "Demo123",
@@ -5077,7 +5077,7 @@ const demoAccounts = {
     companyName: "Independent Films"
   },
   investor: {
-    id: 1002,
+    id: 2,
     email: "sarah.investor@demo.com",
     username: "sarahinvestor",
     password: "Demo123",
@@ -5085,7 +5085,7 @@ const demoAccounts = {
     companyName: "Venture Capital Films"
   },
   production: {
-    id: 1003,
+    id: 3,
     email: "stellar.production@demo.com",
     username: "stellarprod",
     password: "Demo123",
@@ -5098,7 +5098,7 @@ const demoAccounts = {
 const demoPitches = [
   {
     id: 2001,
-    userId: 1001,
+    userId: 1,
     title: "The Last Frontier",
     logline: "A gripping sci-fi thriller about humanity's final stand on Mars.",
     genre: "scifi",
@@ -5117,7 +5117,7 @@ const demoPitches = [
   },
   {
     id: 2002,
-    userId: 1001,
+    userId: 1,
     title: "Echoes of Tomorrow",
     logline: "A time-travel drama exploring the consequences of changing the past.",
     genre: "drama",
@@ -5136,7 +5136,7 @@ const demoPitches = [
   },
   {
     id: 2003,
-    userId: 1001,
+    userId: 1,
     title: "City of Dreams",
     logline: "A documentary exploring the lives of street artists in New York City.",
     genre: "documentary",
@@ -5155,7 +5155,7 @@ const demoPitches = [
   },
   {
     id: 2004,
-    userId: 1001,
+    userId: 1,
     title: "The Memory Keeper",
     logline: "A psychological thriller about a woman who can steal and manipulate memories.",
     genre: "thriller",
@@ -5174,7 +5174,7 @@ const demoPitches = [
   },
   {
     id: 2005,
-    userId: 1001,
+    userId: 1,
     title: "The Art of Silence",
     logline: "A deaf artist's journey to recognition in the competitive world of contemporary art.",
     genre: "drama",
@@ -5193,7 +5193,7 @@ const demoPitches = [
   },
   {
     id: 2006,
-    userId: 1001,
+    userId: 1,
     title: "Neon Nights",
     logline: "A cyberpunk thriller set in a dystopian future where memories are currency.",
     genre: "thriller",
