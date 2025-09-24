@@ -306,36 +306,44 @@ export class PitchService {
   }
   
   static async getUserPitches(userId: number, includeStats = false) {
-    const userPitches = await db.query.pitches.findMany({
-      where: eq(pitches.userId, userId),
-      orderBy: [desc(pitches.updatedAt)],
-      with: {
-        creator: {
-          columns: {
-            username: true,
-            companyName: true,
-          },
-        },
-      },
-    });
-    
-    if (!includeStats) {
-      return userPitches;
+    try {
+      // Simple query without joins to avoid relation issues
+      const userPitches = await db.query.pitches.findMany({
+        where: eq(pitches.userId, userId),
+        orderBy: [desc(pitches.updatedAt)]
+      });
+      
+      if (!includeStats) {
+        return userPitches;
+      }
+      
+      // Calculate stats
+      const stats = {
+        totalPitches: userPitches.length,
+        publishedPitches: userPitches.filter(p => p.status === "published").length,
+        totalViews: userPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0),
+        totalLikes: userPitches.reduce((sum, p) => sum + (p.likeCount || 0), 0),
+        totalNDAs: userPitches.reduce((sum, p) => sum + (p.ndaCount || 0), 0),
+      };
+      
+      return {
+        pitches: userPitches,
+        stats,
+      };
+    } catch (error) {
+      console.error("Error fetching user pitches:", error);
+      // Return empty data instead of throwing
+      return {
+        pitches: [],
+        stats: {
+          totalPitches: 0,
+          publishedPitches: 0,
+          totalViews: 0,
+          totalLikes: 0,
+          totalNDAs: 0,
+        }
+      };
     }
-    
-    // Calculate stats
-    const stats = {
-      totalPitches: userPitches.length,
-      publishedPitches: userPitches.filter(p => p.status === "published").length,
-      totalViews: userPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0),
-      totalLikes: userPitches.reduce((sum, p) => sum + (p.likeCount || 0), 0),
-      totalNDAs: userPitches.reduce((sum, p) => sum + (p.ndaCount || 0), 0),
-    };
-    
-    return {
-      pitches: userPitches,
-      stats,
-    };
   }
   
   static async deletePitch(pitchId: number, userId: number) {

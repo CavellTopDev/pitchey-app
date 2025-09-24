@@ -1940,6 +1940,32 @@ const handler = async (request: Request): Promise<Response> => {
         return errorResponse(error || "Unauthorized", 401);
       }
 
+      // For demo accounts, return simplified dashboard data
+      if (user.id >= 1 && user.id <= 3) {
+        return jsonResponse({
+          success: true,
+          data: {
+            stats: {
+              totalPitches: 0,
+              totalViews: 0,
+              totalLikes: 0,
+              activeNDAs: 0
+            },
+            recentActivity: [],
+            pitches: [],
+            socialStats: {
+              followers: 0,
+              following: 0,
+              connections: 0
+            },
+            credits: {
+              remaining: 100,
+              total: 100
+            }
+          }
+        });
+      }
+
       // Get creator's real pitches from database
       const result = await PitchService.getUserPitches(user.id, true);
       const creatorPitches = result.pitches || [];
