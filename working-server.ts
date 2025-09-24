@@ -51,6 +51,35 @@ async function authenticate(request: Request): Promise<{ user: any; error?: stri
   }
 
   const token = authHeader.substring(7);
+  
+  // First try to validate as JWT for demo accounts
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(JWT_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+    
+    const payload = await verify(token, key);
+    
+    // Check if it's a demo account (IDs 1, 2, or 3)
+    if (payload && payload.userId >= 1 && payload.userId <= 3) {
+      // Return demo user data
+      const demoUser = {
+        id: payload.userId,
+        email: payload.email,
+        role: payload.role || payload.userType,
+        userType: payload.userType || payload.role
+      };
+      return { user: demoUser };
+    }
+  } catch (jwtError) {
+    // Not a valid JWT, continue to session check
+  }
+  
+  // Try database session for regular users
   try {
     const session = await AuthService.verifySession(token);
     if (!session) {
@@ -3539,8 +3568,8 @@ const handler = async (request: Request): Promise<Response> => {
       const { email, password } = await request.json();
       
       // Check demo credentials
-      if (email === demoAccounts.production.email && password === demoAccounts.production.password) {
-        const userId = "production-demo-id";
+      if (email?.toLowerCase() === demoAccounts.production.email.toLowerCase() && password === demoAccounts.production.password) {
+        const userId = demoAccounts.production.id.toString();
         const token = await generateToken(userId, email, "production");
         
         return new Response(JSON.stringify({
@@ -3549,9 +3578,11 @@ const handler = async (request: Request): Promise<Response> => {
           user: {
             id: userId,
             email,
+            username: demoAccounts.production.username,
             name: "Stellar Productions",
             role: "production",
-            userType: "production", // Add userType field
+            userType: "production",
+            companyName: demoAccounts.production.companyName,
             createdAt: new Date().toISOString()
           }
         }), {
