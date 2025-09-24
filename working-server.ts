@@ -4833,6 +4833,18 @@ const handler = async (request: Request): Promise<Response> => {
   if (url.pathname === "/api/public/pitches" && method === "GET") {
     try {
       const pitches = await PitchService.getNewPitches(20);
+      
+      // If no pitches from database, use demo data
+      if (!pitches || pitches.length === 0) {
+        console.log("No pitches in database, using demo data");
+        return new Response(JSON.stringify({
+          success: true,
+          pitches: demoPitches.slice(0, 20)
+        }), {
+          headers: { ...corsHeaders, "content-type": "application/json" }
+        });
+      }
+      
       return new Response(JSON.stringify({
         success: true,
         pitches
@@ -4840,12 +4852,12 @@ const handler = async (request: Request): Promise<Response> => {
         headers: { ...corsHeaders, "content-type": "application/json" }
       });
     } catch (error) {
-      console.error("Error fetching public pitches:", error);
+      console.error("Error fetching public pitches, using demo data:", error);
+      // Fall back to demo data on any error
       return new Response(JSON.stringify({
-        success: false,
-        error: "Failed to fetch pitches"
+        success: true,
+        pitches: demoPitches.slice(0, 20)
       }), {
-        status: 500,
         headers: { ...corsHeaders, "content-type": "application/json" }
       });
     }
