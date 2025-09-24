@@ -4839,7 +4839,7 @@ const handler = async (request: Request): Promise<Response> => {
         console.log("No pitches in database, using demo data");
         return new Response(JSON.stringify({
           success: true,
-          pitches: demoPitches.slice(0, 20)
+          pitches: mockPitchesData.slice(0, 20)
         }), {
           headers: { ...corsHeaders, "content-type": "application/json" }
         });
@@ -4856,7 +4856,7 @@ const handler = async (request: Request): Promise<Response> => {
       // Fall back to demo data on any error
       return new Response(JSON.stringify({
         success: true,
-        pitches: demoPitches.slice(0, 20)
+        pitches: mockPitchesData.slice(0, 20)
       }), {
         headers: { ...corsHeaders, "content-type": "application/json" }
       });
