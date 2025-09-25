@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pitchey Frontend API Test</title>
+</head>
+<body>
+    <h1>Testing Pitchey Frontend API Connection</h1>
+    <div id="results"></div>
+    
+    <script>
+        const API_URL = 'https://pitchey-backend.deno.dev';
+        const resultsDiv = document.getElementById('results');
+        
+        async function testAPI() {
+            resultsDiv.innerHTML = '<h2>Testing API Endpoints...</h2>';
+            
+            // Test 1: Fetch pitch without auth
+            try {
+                const response = await fetch(`${API_URL}/api/pitches/1`);
+                const data = await response.json();
+                resultsDiv.innerHTML += `
+                    <div style="border: 1px solid green; padding: 10px; margin: 10px;">
+                        <h3>✅ Pitch #1 Loaded Successfully</h3>
+                        <p><strong>Title:</strong> ${data.pitch?.title || 'N/A'}</p>
+                        <p><strong>Creator:</strong> ${data.pitch?.creator?.username || 'N/A'}</p>
+                        <p><strong>Status:</strong> ${data.pitch?.status || 'N/A'}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <div style="border: 1px solid red; padding: 10px; margin: 10px;">
+                        <h3>❌ Failed to load pitch</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            // Test 2: Check CORS
+            try {
+                const response = await fetch(`${API_URL}/api/pitches/2`);
+                if (response.ok) {
+                    resultsDiv.innerHTML += `
+                        <div style="border: 1px solid green; padding: 10px; margin: 10px;">
+                            <h3>✅ CORS Working</h3>
+                            <p>API is accessible from browser</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <div style="border: 1px solid red; padding: 10px; margin: 10px;">
+                        <h3>❌ CORS Issue</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            // Test 3: Check if frontend is using correct API
+            resultsDiv.innerHTML += `
+                <div style="border: 1px solid blue; padding: 10px; margin: 10px;">
+                    <h3>📊 Configuration</h3>
+                    <p><strong>API URL:</strong> ${API_URL}</p>
+                    <p><strong>Frontend URL:</strong> ${window.location.origin}</p>
+                </div>
+            `;
+        }
+        
+        // Run tests on load
+        testAPI();
+    </script>
+</body>
+</html>

@@ -293,6 +293,8 @@ export class PitchService {
   
   static async getNewPitches(limit = 10) {
     try {
+      console.log("getNewPitches v2.1: Starting query with userType fix...");
+      
       // Query with joins to include proper creator info
       const results = await db
         .select({
@@ -324,8 +326,10 @@ export class PitchService {
         .orderBy(desc(pitches.publishedAt))
         .limit(limit);
       
+      console.log(`getNewPitches: Found ${results.length} pitches`);
+      
       // Transform to expected format with proper creator info
-      return results.map(p => ({
+      const formatted = results.map(p => ({
         id: p.id,
         title: p.title,
         logline: p.logline,
@@ -347,8 +351,16 @@ export class PitchService {
           username: p.creatorUsername,
           companyName: p.creatorCompanyName,
           userType: p.creatorUserType
-        } : null
+        } : {
+          id: p.userId,
+          username: "Unknown Creator",
+          companyName: null,
+          userType: "creator"
+        }
       }));
+      
+      console.log("getNewPitches: Sample creator object:", JSON.stringify(formatted[0]?.creator, null, 2));
+      return formatted;
     } catch (error) {
       console.error("Error in getNewPitches:", error);
       // Return empty array instead of throwing
@@ -380,8 +392,10 @@ export class PitchService {
         .select({
           pitch: pitches,
           creator: {
+            id: users.id,
             username: users.username,
             companyName: users.companyName,
+            userType: users.userType,
           },
         })
         .from(pitches)

@@ -1073,6 +1073,92 @@ const handler = async (request: Request): Promise<Response> => {
     });
   }
 
+  // Debug endpoint to check user types
+  if (url.pathname === "/api/debug/user-types" && method === "GET") {
+    try {
+      // Get sample users of each type
+      const creatorUsers = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          companyName: users.companyName,
+          userType: users.userType,
+          email: users.email
+        })
+        .from(users)
+        .where(eq(users.userType, 'creator'))
+        .limit(3);
+      
+      const productionUsers = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          companyName: users.companyName,
+          userType: users.userType,
+          email: users.email
+        })
+        .from(users)
+        .where(eq(users.userType, 'production'))
+        .limit(3);
+      
+      const investorUsers = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          companyName: users.companyName,
+          userType: users.userType,
+          email: users.email
+        })
+        .from(users)
+        .where(eq(users.userType, 'investor'))
+        .limit(3);
+      
+      // Get pitches with full creator info
+      const recentPitches = await db
+        .select({
+          id: pitches.id,
+          title: pitches.title,
+          userId: pitches.userId,
+          creatorId: users.id,
+          creatorUsername: users.username,
+          creatorCompanyName: users.companyName,
+          creatorUserType: users.userType
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(eq(pitches.status, 'published'))
+        .orderBy(desc(pitches.createdAt))
+        .limit(10);
+      
+      return jsonResponse({
+        success: true,
+        debug: {
+          creators: creatorUsers,
+          productionCompanies: productionUsers,
+          investors: investorUsers,
+          recentPitches: recentPitches.map(p => ({
+            pitchId: p.id,
+            title: p.title,
+            creator: {
+              id: p.creatorId,
+              username: p.creatorUsername,
+              companyName: p.creatorCompanyName,
+              userType: p.creatorUserType
+            }
+          })),
+          summary: {
+            totalCreators: creatorUsers.length,
+            totalProduction: productionUsers.length,
+            totalInvestors: investorUsers.length
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Debug error:", error);
+      return errorResponse("Failed to fetch debug info", 500);
+    }
+  }
+
   // Profile endpoint - returns user profile based on auth token
   if (url.pathname === "/api/profile" && method === "GET") {
     try {

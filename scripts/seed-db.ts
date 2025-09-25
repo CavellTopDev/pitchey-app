@@ -1,183 +1,172 @@
 #!/usr/bin/env -S deno run --allow-env --allow-net --allow-read
 
+// Script to add production and investor accounts with pitches
+
 import { db } from "../src/db/client.ts";
 import { users, pitches } from "../src/db/schema.ts";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { hash } from "bcrypt";
 
 async function seedDatabase() {
+  console.log("🎬 Seeding Production and Investor Accounts");
+  console.log("==========================================\n");
+
   try {
-    console.log("🌱 Starting database seeding...");
-    
-    // Create demo users
-    const passwordHash = await bcrypt.hash("password123");
-    
-    // Creator users
-    const [creator1] = await db.insert(users)
-      .values({
-        email: "john@filmstudio.com",
-        username: "john_filmmaker",
-        passwordHash,
-        userType: "creator",
-        firstName: "John",
-        lastName: "Smith",
-        companyName: "Indie Film Studio",
-        bio: "Award-winning filmmaker with 10+ years of experience",
-        emailVerified: true,
-      })
-      .returning();
-    
-    const [creator2] = await db.insert(users)
-      .values({
-        email: "sarah@productions.com",
-        username: "sarah_creator",
-        passwordHash,
-        userType: "creator",
+    // Hash password for all accounts
+    const hashedPassword = await hash("Demo123!", 10);
+
+    // Create Production Company accounts
+    const productionAccounts = [
+      {
+        email: "warner@pitchey.com",
+        username: "warnerbros",
+        password: hashedPassword,
+        userType: "production" as const,
+        companyName: "Warner Bros. Pictures",
         firstName: "Sarah",
         lastName: "Johnson",
-        companyName: "Creative Productions",
-        bio: "Passionate storyteller specializing in documentaries",
-        emailVerified: true,
-      })
-      .returning();
-    
-    // Investor user
-    const [investor1] = await db.insert(users)
-      .values({
-        email: "investor@venture.com",
-        username: "venture_investor",
-        passwordHash,
-        userType: "investor",
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        email: "universal@pitchey.com", 
+        username: "universal",
+        password: hashedPassword,
+        userType: "production" as const,
+        companyName: "Universal Pictures",
         firstName: "Michael",
         lastName: "Chen",
-        companyName: "Venture Films Capital",
-        bio: "Film investor focusing on innovative content",
-        emailVerified: true,
-      })
-      .returning();
-    
-    // Production company user
-    const [production1] = await db.insert(users)
-      .values({
-        email: "contact@bigpicture.com",
-        username: "bigpicture_prod",
-        passwordHash,
-        userType: "production",
-        firstName: "Emily",
-        lastName: "Davis",
-        companyName: "Big Picture Productions",
-        bio: "Full-service production company",
-        emailVerified: true,
-      })
-      .returning();
-    
-    console.log("✅ Created demo users");
-    
-    // Create demo pitches
-    await db.insert(pitches)
-      .values([
-        {
-          userId: creator1.id,
-          title: "The Last Frontier",
-          logline: "A gripping sci-fi thriller about humanity's final stand on Mars.",
-          genre: "scifi",
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        email: "a24@pitchey.com",
+        username: "a24films",
+        password: hashedPassword,
+        userType: "production" as const,
+        companyName: "A24 Films",
+        firstName: "Alex",
+        lastName: "Rivera",
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    // Create Investor accounts
+    const investorAccounts = [
+      {
+        email: "techventures@pitchey.com",
+        username: "techventures",
+        password: hashedPassword,
+        userType: "investor" as const,
+        companyName: "Tech Ventures Capital",
+        firstName: "David",
+        lastName: "Morgan",
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        email: "filmfund@pitchey.com",
+        username: "globalfilm",
+        password: hashedPassword,
+        userType: "investor" as const,
+        companyName: "Global Film Fund",
+        firstName: "Rebecca",
+        lastName: "Stone",
+        isVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    // Insert production companies
+    console.log("📽️ Creating production companies...");
+    for (const account of productionAccounts) {
+      try {
+        const [user] = await db.insert(users).values(account).returning();
+        console.log(`✅ Created: ${account.companyName} (ID: ${user.id})`);
+        
+        // Create a pitch for this production company
+        const pitch = {
+          userId: user.id,
+          userType: "production" as const,
+          title: `${account.companyName} - Exclusive Slate 2025`,
+          logline: `An exclusive look at our upcoming production slate featuring blockbusters and award contenders.`,
+          genre: account.username === "a24films" ? "drama" : "action",
           format: "feature",
-          status: "published",
-          shortSynopsis: "In 2089, Earth's last colony on Mars faces an unprecedented threat when mysterious signals from deep space trigger a series of catastrophic events. As resources dwindle and communication with Earth is severed, colony commander Sarah Chen must unite the fractured survivors to uncover an ancient Martian secret that could either save humanity or doom it forever.",
-          themes: ["survival", "humanity", "discovery", "sacrifice"],
-          budgetBracket: "$5M-$10M",
-          estimatedBudget: 7500000,
-          viewCount: 156,
-          likeCount: 23,
-          ndaCount: 5,
-          publishedAt: new Date(),
-        },
-        {
-          userId: creator1.id,
-          title: "Echoes of Tomorrow",
-          logline: "A time-travel drama exploring the consequences of changing the past.",
-          genre: "drama",
-          format: "tv",
-          status: "published",
-          shortSynopsis: "When brilliant physicist Dr. Alex Rivera accidentally discovers time travel, they must navigate the moral implications of altering history while being pursued by a shadowy organization that wants to weaponize the technology.",
-          themes: ["time", "consequences", "ethics", "family"],
-          budgetBracket: "$2M-$5M",
-          estimatedBudget: 3500000,
-          viewCount: 89,
-          likeCount: 15,
-          ndaCount: 3,
-          publishedAt: new Date(),
-        },
-        {
-          userId: creator2.id,
-          title: "City of Dreams",
-          logline: "A documentary exploring the lives of street artists in New York City.",
+          budget: "$150M+",
+          budgetAmount: 150000000,
+          status: "published" as const,
+          stage: "production",
+          synopsis: `Our studio is proud to present our 2025 slate.`,
+          targetAudience: "18-54, Film enthusiasts, General audiences",
+          comparableTitles: "Top Gun: Maverick, Everything Everywhere All at Once, Dune",
+          visibility: "public" as const,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        const [createdPitch] = await db.insert(pitches).values(pitch).returning();
+        console.log(`  📋 Created pitch: ${createdPitch.title}`);
+        
+      } catch (err) {
+        console.error(`  ❌ Error creating ${account.companyName}:`, err.message);
+      }
+    }
+
+    // Insert investors
+    console.log("\n💰 Creating investor accounts...");
+    for (const account of investorAccounts) {
+      try {
+        const [user] = await db.insert(users).values(account).returning();
+        console.log(`✅ Created: ${account.companyName} (ID: ${user.id})`);
+        
+        // Create a pitch for this investor
+        const pitch = {
+          userId: user.id,
+          userType: "investor" as const,
+          title: `Investment Opportunity: ${account.companyName} Media Fund`,
+          logline: `Join us in financing the next generation of breakthrough entertainment.`,
           genre: "documentary",
-          format: "feature",
-          status: "published",
-          shortSynopsis: "This intimate documentary follows five street artists over the course of a year as they navigate the challenges of creating art in public spaces while fighting for recognition and dealing with city regulations.",
-          themes: ["art", "expression", "urban life", "creativity"],
-          budgetBracket: "$500K-$1M",
-          estimatedBudget: 750000,
-          viewCount: 234,
-          likeCount: 45,
-          ndaCount: 8,
-          publishedAt: new Date(),
-        },
-        {
-          userId: creator2.id,
-          title: "The Memory Keeper",
-          logline: "A psychological thriller about a woman who can steal and manipulate memories.",
-          genre: "thriller",
-          format: "feature",
-          status: "published",
-          shortSynopsis: "Lila possesses an extraordinary gift - she can extract and alter human memories. When she's hired to help a wealthy family recover a lost inheritance, she uncovers dark secrets that put her own life in danger.",
-          themes: ["memory", "identity", "truth", "power"],
-          budgetBracket: "$10M-$20M",
-          estimatedBudget: 15000000,
-          viewCount: 312,
-          likeCount: 67,
-          ndaCount: 12,
-          publishedAt: new Date(),
-        },
-        {
-          userId: creator1.id,
-          title: "The Art of Silence",
-          logline: "A deaf artist's journey to recognition in the competitive world of contemporary art.",
-          genre: "drama",
-          format: "feature",
-          status: "published",
-          shortSynopsis: "Maya, a talented deaf artist, struggles to make her voice heard in the visual art world. Through innovative use of technology and determination, she challenges perceptions about disability and artistic expression.",
-          themes: ["art", "disability", "perseverance", "innovation"],
-          budgetBracket: "$1M-$2M",
-          estimatedBudget: 1500000,
-          viewCount: 178,
-          likeCount: 34,
-          ndaCount: 6,
-          publishedAt: new Date(),
-        },
-      ]);
-    
-    console.log("✅ Created demo pitches");
-    
-    console.log("\n🎉 Database seeding completed successfully!");
-    console.log("\nDemo accounts created:");
-    console.log("------------------------");
-    console.log("Creators:");
-    console.log("  Email: john@filmstudio.com | Password: password123");
-    console.log("  Email: sarah@productions.com | Password: password123");
-    console.log("\nInvestor:");
-    console.log("  Email: investor@venture.com | Password: password123");
-    console.log("\nProduction:");
-    console.log("  Email: contact@bigpicture.com | Password: password123");
-    
+          format: "series",
+          budget: "$10M-$50M",
+          budgetAmount: 25000000,
+          status: "published" as const,
+          stage: "development",
+          synopsis: `${account.companyName} is launching a new media investment fund.`,
+          targetAudience: "Accredited investors, Production companies",
+          comparableTitles: "The Social Network, The Big Short",
+          visibility: "public" as const,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        const [createdPitch] = await db.insert(pitches).values(pitch).returning();
+        console.log(`  📋 Created pitch: ${createdPitch.title}`);
+        
+      } catch (err) {
+        console.error(`  ❌ Error creating ${account.companyName}:`, err.message);
+      }
+    }
+
+    console.log("\n✨ Seeding complete!");
+    console.log("\n📌 Test Accounts (password: Demo123!):");
+    console.log("Production Companies:");
+    console.log("  - warner@pitchey.com");
+    console.log("  - universal@pitchey.com");
+    console.log("  - a24@pitchey.com");
+    console.log("\nInvestors:");
+    console.log("  - techventures@pitchey.com");
+    console.log("  - filmfund@pitchey.com");
+
   } catch (error) {
-    console.error("❌ Error seeding database:", error);
-    throw error;
-  } finally {
-    // Close database connection
-    process.exit(0);
+    console.error("❌ Seeding failed:", error);
   }
+
+  Deno.exit(0);
 }
 
-// Run the seeding
-await seedDatabase();
+seedDatabase();
