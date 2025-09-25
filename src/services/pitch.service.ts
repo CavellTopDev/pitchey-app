@@ -291,6 +291,83 @@ export class PitchService {
     }));
   }
   
+  // NEW METHOD - bypass any caching issues
+  static async getPublicPitchesWithUserType(limit = 10) {
+    console.log("🚀 FORCE NEW METHOD v4.0: Getting pitches with proper userTypes");
+    
+    try {
+      const results = await db
+        .select({
+          id: pitches.id,
+          title: pitches.title,
+          logline: pitches.logline,
+          genre: pitches.genre,
+          format: pitches.format,
+          budget: pitches.budget,
+          budgetAmount: pitches.budgetAmount,
+          status: pitches.status,
+          stage: pitches.stage,
+          coverImage: pitches.coverImage,
+          visibility: pitches.visibility,
+          userId: pitches.userId,
+          userType: pitches.userType,
+          createdAt: pitches.createdAt,
+          updatedAt: pitches.updatedAt,
+          publishedAt: pitches.publishedAt,
+          // User join for proper creator info
+          creatorId: users.id,
+          creatorUsername: users.username,
+          creatorCompanyName: users.companyName,
+          creatorUserType: users.userType
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(eq(pitches.status, "published"))
+        .orderBy(desc(pitches.publishedAt))
+        .limit(limit);
+
+      console.log(`Found ${results.length} pitches for public view`);
+      
+      const formatted = results.map(p => ({
+        id: p.id,
+        title: p.title,
+        logline: p.logline,
+        genre: p.genre,
+        format: p.format,
+        budget: p.budget,
+        budgetAmount: p.budgetAmount,
+        status: p.status,
+        stage: p.stage,
+        coverImage: p.coverImage,
+        visibility: p.visibility,
+        userId: p.userId,
+        userType: p.userType,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        publishedAt: p.publishedAt,
+        creator: {
+          id: p.creatorId,
+          username: p.creatorUsername,
+          companyName: p.creatorCompanyName,
+          userType: p.creatorUserType // This is the key for PURPLE glow!
+        }
+      }));
+      
+      // Debug logging
+      if (formatted.length > 0) {
+        console.log("First pitch creator:", JSON.stringify(formatted[0].creator, null, 2));
+        const productionCount = formatted.filter(p => p.creator.userType === "production").length;
+        const creatorCount = formatted.filter(p => p.creator.userType === "creator").length;
+        console.log(`Production pitches (PURPLE): ${productionCount}, Creator pitches (BLUE): ${creatorCount}`);
+      }
+      
+      return formatted;
+    } catch (error) {
+      console.error("Error in getPublicPitchesWithUserType:", error);
+      return [];
+    }
+  }
+
   static async getNewPitches(limit = 10) {
     try {
       console.log("getNewPitches v2.1: Starting query with userType fix...");

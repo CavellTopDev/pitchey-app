@@ -5012,8 +5012,8 @@ const handler = async (request: Request): Promise<Response> => {
   // Public pitches endpoint - no auth required
   if (url.pathname === "/api/public/pitches" && method === "GET") {
     try {
-      console.log("FORCE DEPLOY v3.0: Getting public pitches with userType fix");
-      const pitches = await PitchService.getNewPitches(20);
+      console.log("🚀 DEPLOY v4.0: Using NEW METHOD to bypass cache");
+      const pitches = await PitchService.getPublicPitchesWithUserType(20);
       console.log(`Retrieved ${pitches.length} pitches from getNewPitches`);
       
       // Debug: Log first pitch creator info
@@ -5036,9 +5036,10 @@ const handler = async (request: Request): Promise<Response> => {
         success: true,
         pitches,
         debug: {
-          version: "v3.0-force-usertype-fix",
+          version: "v4.0-NEW-METHOD-bypass-cache",
           timestamp: new Date().toISOString(),
-          pitchCount: pitches.length
+          pitchCount: pitches.length,
+          method: "getPublicPitchesWithUserType"
         }
       }), {
         headers: { ...corsHeaders, "content-type": "application/json" }
