@@ -5210,6 +5210,10 @@ const handler = async (request: Request): Promise<Response> => {
       });
     } catch (error) {
       console.error("Error creating NDA request:", error);
+      // Return more detailed error for debugging
+      if (error instanceof Error) {
+        return errorResponse(error.message, 400);
+      }
       return errorResponse("Failed to send NDA request", 500);
     }
   }

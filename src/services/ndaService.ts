@@ -26,49 +26,56 @@ export class NDAService {
   static async createRequest(requesterId: number, data: z.infer<typeof CreateNDARequestSchema>) {
     const validated = CreateNDARequestSchema.parse(data);
     
-    // Get pitch and owner info
-    const pitch = await db.query.pitches.findFirst({
-      where: eq(pitches.id, validated.pitchId),
-      with: {
-        creator: {
-          columns: {
-            id: true,
-            email: true,
-            username: true,
-          },
-        },
-      },
-    });
+    // Get pitch and owner info - use simple select instead of relations
+    const pitchResult = await db
+      .select({
+        pitch: pitches,
+        creator: users
+      })
+      .from(pitches)
+      .leftJoin(users, eq(pitches.userId, users.id))
+      .where(eq(pitches.id, validated.pitchId));
     
-    if (!pitch) {
+    if (!pitchResult.length || !pitchResult[0].pitch) {
       throw new Error("Pitch not found");
     }
     
-    if (pitch.creator.id === requesterId) {
+    const pitch = pitchResult[0].pitch;
+    const creator = pitchResult[0].creator;
+    
+    if (!creator) {
+      throw new Error("Pitch creator not found");
+    }
+    
+    if (creator.id === requesterId) {
       throw new Error("Cannot request NDA for your own pitch");
     }
     
-    // Check if request already exists
-    const existingRequest = await db.query.ndaRequests.findFirst({
-      where: and(
+    // Check if request already exists - use simple select
+    const existingRequestResult = await db
+      .select()
+      .from(ndaRequests)
+      .where(and(
         eq(ndaRequests.pitchId, validated.pitchId),
         eq(ndaRequests.requesterId, requesterId)
-      ),
-    });
+      ))
+      .limit(1);
     
-    if (existingRequest && existingRequest.status === "pending") {
+    if (existingRequestResult.length > 0 && existingRequestResult[0].status === "pending") {
       throw new Error("NDA request already pending");
     }
     
-    // Check if user already has signed NDA
-    const existingNDA = await db.query.ndas.findFirst({
-      where: and(
+    // Check if user already has signed NDA - use simple select
+    const existingNDAResult = await db
+      .select()
+      .from(ndas)
+      .where(and(
         eq(ndas.pitchId, validated.pitchId),
         eq(ndas.signerId, requesterId)
-      ),
-    });
+      ))
+      .limit(1);
     
-    if (existingNDA && existingNDA.accessGranted) {
+    if (existingNDAResult.length > 0 && existingNDAResult[0].accessGranted) {
       throw new Error("NDA already signed");
     }
     
@@ -77,7 +84,7 @@ export class NDAService {
       .values({
         pitchId: validated.pitchId,
         requesterId,
-        ownerId: pitch.creator.id,
+        ownerId: creator.id,
         requestMessage: validated.requestMessage,
         companyInfo: validated.companyInfo,
         status: "pending",
@@ -87,7 +94,7 @@ export class NDAService {
     
     // Create notification for pitch owner
     await db.insert(notifications).values({
-      userId: pitch.creator.id,
+      userId: creator.id,
       type: "nda_request",
       title: "New NDA Request",
       message: `Someone requested access to your pitch "${pitch.title}"`,

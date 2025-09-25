@@ -29,12 +29,23 @@ const FollowButton: React.FC<FollowButtonProps> = ({
   }, [creatorId, pitchId]);
 
   const checkFollowStatus = async () => {
-    if (!creatorId && !pitchId) return;
+    if (!creatorId && !pitchId) {
+      setChecking(false);
+      return;
+    }
 
     setChecking(true);
+    
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setChecking(false);
+      setIsFollowing(false);
+    }, 3000); // 3 second timeout
+
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
+        clearTimeout(timeoutId);
         setChecking(false);
         return;
       }
@@ -49,8 +60,16 @@ const FollowButton: React.FC<FollowButtonProps> = ({
         // Ignore parse error
       }
 
+      // If no user ID, just set to not following
+      if (!userId) {
+        clearTimeout(timeoutId);
+        setIsFollowing(false);
+        setChecking(false);
+        return;
+      }
+
       const params = new URLSearchParams();
-      if (userId) params.append('userId', userId.toString());
+      params.append('userId', userId.toString());
       if (creatorId) params.append('creatorId', creatorId.toString());
       if (pitchId) params.append('pitchId', pitchId.toString());
 
@@ -58,14 +77,23 @@ const FollowButton: React.FC<FollowButtonProps> = ({
         headers: {
           'Authorization': `Bearer ${token}`,
         },
+        signal: AbortSignal.timeout(2500) // 2.5 second fetch timeout
       });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
-        setIsFollowing(data.isFollowing);
+        setIsFollowing(data.isFollowing || false);
+      } else {
+        // If endpoint fails, default to not following
+        setIsFollowing(false);
       }
     } catch (error) {
       console.error('Error checking follow status:', error);
+      // On error, default to not following and don't get stuck
+      clearTimeout(timeoutId);
+      setIsFollowing(false);
     } finally {
       setChecking(false);
     }
@@ -118,13 +146,29 @@ const FollowButton: React.FC<FollowButtonProps> = ({
           throw new Error('Failed to unfollow');
         }
       } else {
-        // Follow
-        const body: any = {
-          userId: userId
+        // Follow - ensure we have valid targetId
+        let targetId = null;
+        let targetType = null;
+        
+        if (pitchId && pitchId !== '') {
+          targetId = pitchId;
+          targetType = 'pitch';
+        } else if (creatorId && creatorId !== '' && creatorId !== 0) {
+          targetId = creatorId;
+          targetType = 'creator';
+        }
+        
+        if (!targetId || !targetType) {
+          console.error('No valid target ID for follow action');
+          setLoading(false);
+          return;
+        }
+        
+        const body = {
+          userId: userId.toString(),
+          targetId: targetId.toString(),
+          type: targetType
         };
-        if (creatorId) body.targetId = creatorId;
-        if (pitchId) body.targetId = pitchId;
-        body.type = pitchId ? 'pitch' : 'creator';
 
         const response = await fetch(`${API_URL}/api/follows/follow`, {
           method: 'POST',
@@ -207,6 +251,16 @@ const FollowButton: React.FC<FollowButtonProps> = ({
 
   // Don't render if we're still checking and no token
   if (checking && !localStorage.getItem('authToken')) {
+    return null;
+  }
+  
+  // Don't render if no valid target ID
+  if (!creatorId && !pitchId) {
+    return null;
+  }
+  
+  // Don't render if creator ID is empty string or 0
+  if (!pitchId && (!creatorId || creatorId === '' || creatorId === 0)) {
     return null;
   }
 
