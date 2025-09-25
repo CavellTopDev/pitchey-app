@@ -1,5 +1,5 @@
 import { db } from "../db/client.ts";
-import { pitches, ndas, pitchViews, follows } from "../db/schema.ts";
+import { pitches, ndas, pitchViews, follows, users } from "../db/schema.ts";
 import { eq, and, desc, sql } from "npm:drizzle-orm";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -468,24 +468,63 @@ export class PitchService {
         conditions.push(eq(pitches.format, filters.format));
       }
 
-      const allPitches = await db.query.pitches.findMany({
-        where: and(...conditions),
-        limit,
-        offset,
-        orderBy: [desc(pitches.createdAt)],
-        with: {
-          creator: {
-            columns: {
-              id: true,
-              username: true,
-              companyName: true,
-              userType: true
-            }
-          }
-        }
-      });
+      // Simplified query without relations to avoid issues
+      const allPitches = await db
+        .select({
+          id: pitches.id,
+          title: pitches.title,
+          logline: pitches.logline,
+          genre: pitches.genre,
+          format: pitches.format,
+          budget: pitches.budget,
+          budgetAmount: pitches.budgetAmount,
+          status: pitches.status,
+          stage: pitches.stage,
+          coverImage: pitches.coverImage,
+          visibility: pitches.visibility,
+          userId: pitches.userId,
+          userType: pitches.userType,
+          createdAt: pitches.createdAt,
+          updatedAt: pitches.updatedAt,
+          // Add user info
+          creatorId: users.id,
+          creatorUsername: users.username,
+          creatorCompanyName: users.companyName,
+          creatorUserType: users.userType
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(and(...conditions))
+        .orderBy(desc(pitches.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-      return allPitches;
+      // Transform to expected format
+      const formattedPitches = allPitches.map(p => ({
+        id: p.id,
+        title: p.title,
+        logline: p.logline,
+        genre: p.genre,
+        format: p.format,
+        budget: p.budget,
+        budgetAmount: p.budgetAmount,
+        status: p.status,
+        stage: p.stage,
+        coverImage: p.coverImage,
+        visibility: p.visibility,
+        userId: p.userId,
+        userType: p.userType,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        creator: p.creatorId ? {
+          id: p.creatorId,
+          username: p.creatorUsername,
+          companyName: p.creatorCompanyName,
+          userType: p.creatorUserType
+        } : null
+      }));
+
+      return formattedPitches;
     } catch (error) {
       console.error("Error getting all pitches:", error);
       return [];
