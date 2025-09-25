@@ -5012,7 +5012,14 @@ const handler = async (request: Request): Promise<Response> => {
   // Public pitches endpoint - no auth required
   if (url.pathname === "/api/public/pitches" && method === "GET") {
     try {
+      console.log("FORCE DEPLOY v3.0: Getting public pitches with userType fix");
       const pitches = await PitchService.getNewPitches(20);
+      console.log(`Retrieved ${pitches.length} pitches from getNewPitches`);
+      
+      // Debug: Log first pitch creator info
+      if (pitches.length > 0) {
+        console.log("First pitch creator:", JSON.stringify(pitches[0].creator, null, 2));
+      }
       
       // If no pitches from database, use demo data
       if (!pitches || pitches.length === 0) {
@@ -5027,7 +5034,12 @@ const handler = async (request: Request): Promise<Response> => {
       
       return new Response(JSON.stringify({
         success: true,
-        pitches
+        pitches,
+        debug: {
+          version: "v3.0-force-usertype-fix",
+          timestamp: new Date().toISOString(),
+          pitchCount: pitches.length
+        }
       }), {
         headers: { ...corsHeaders, "content-type": "application/json" }
       });
