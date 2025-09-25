@@ -71,26 +71,11 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
 
-// Component to handle pitch routing based on user type
+// Component to handle pitch routing - now always shows public view
 function PitchRouter() {
-  const { id } = useParams();
-  const { isAuthenticated } = useAuthStore();
-  const userType = localStorage.getItem('userType');
-
-  if (!isAuthenticated) {
-    return <PublicPitchView />;
-  }
-
-  switch (userType) {
-    case 'creator':
-      return <Navigate to={`/creator/pitch/${id}`} replace />;
-    case 'investor':
-      return <Navigate to={`/investor/pitch/${id}`} replace />;
-    case 'production':
-      return <Navigate to={`/production/pitch/${id}`} replace />;
-    default:
-      return <PublicPitchView />;
-  }
+  // Always show the public pitch view when accessing /pitch/:id
+  // Users can navigate to their portal-specific views if needed
+  return <PublicPitchView />;
 }
 
 function App() {
