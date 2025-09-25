@@ -2150,15 +2150,12 @@ const handler = async (request: Request): Promise<Response> => {
       if (status) filters.status = status;
       if (budget) filters.budget = budget;
 
-      const result = await PitchService.getAllPitches(filters);
+      const pitches = await PitchService.getAllPitches(filters);
       
-      if (!result.success) {
-        return errorResponse(result.error || "Failed to fetch pitches", 500);
-      }
-
+      // getAllPitches returns an array directly
       return jsonResponse({
         success: true,
-        pitches: result.pitches
+        pitches: pitches || []
       });
     } catch (error) {
       console.error("Error fetching pitches:", error);
