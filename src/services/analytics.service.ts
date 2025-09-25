@@ -200,29 +200,34 @@ export class AnalyticsService {
       });
 
       // Get recent views on user's pitches
-      const recentViews = await db.query.pitchViews.findMany({
-        where: and(
-          sql`${pitchViews.pitchId} IN (SELECT id FROM pitches WHERE user_id = ${userId})`,
-          gte(pitchViews.viewedAt, sevenDaysAgo)
-        ),
-        with: {
+      const recentViewsResult = await db
+        .select({
+          view: pitchViews,
           pitch: {
-            columns: {
-              id: true,
-              title: true
-            }
+            id: pitches.id,
+            title: pitches.title,
           },
           viewer: {
-            columns: {
-              id: true,
-              username: true,
-              userType: true
-            }
-          }
-        },
-        orderBy: desc(pitchViews.viewedAt),
-        limit: 20
-      });
+            id: users.id,
+            username: users.username,
+            userType: users.userType,
+          },
+        })
+        .from(pitchViews)
+        .leftJoin(pitches, eq(pitchViews.pitchId, pitches.id))
+        .leftJoin(users, eq(pitchViews.viewerId, users.id))
+        .where(and(
+          sql`${pitchViews.pitchId} IN (SELECT id FROM pitches WHERE user_id = ${userId})`,
+          gte(pitchViews.viewedAt, sevenDaysAgo)
+        ))
+        .orderBy(desc(pitchViews.viewedAt))
+        .limit(20);
+
+      const recentViews = recentViewsResult.map(row => ({
+        ...row.view,
+        pitch: row.pitch,
+        viewer: row.viewer,
+      }));
 
       return {
         summary: {

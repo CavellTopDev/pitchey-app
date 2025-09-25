@@ -46,22 +46,28 @@ export class ProductionService {
   static async createProduction(data: CreateProductionData) {
     try {
       // Verify the pitch exists and is ready for production
-      const pitch = await db.query.pitches.findFirst({
-        where: eq(pitches.id, data.pitchId),
-        with: {
+      const pitchResult = await db
+        .select({
+          pitch: pitches,
           creator: {
-            columns: {
-              id: true,
-              username: true,
-              email: true,
-            },
+            id: users.id,
+            username: users.username,
+            email: users.email,
           },
-        },
-      });
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(eq(pitches.id, data.pitchId))
+        .limit(1);
 
-      if (!pitch) {
+      if (!pitchResult.length || !pitchResult[0].pitch) {
         return { success: false, error: "Pitch not found" };
       }
+
+      const pitch = {
+        ...pitchResult[0].pitch,
+        creator: pitchResult[0].creator,
+      };
 
       // For now, simulate production creation
       const production: Production = {
