@@ -57,12 +57,16 @@ export class PitchService {
   
   static async update(pitchId: number, userId: number, data: Partial<z.infer<typeof CreatePitchSchema>>) {
     // Check ownership
-    const pitch = await db.query.pitches.findFirst({
-      where: and(
+    const pitchResult = await db
+      .select()
+      .from(pitches)
+      .where(and(
         eq(pitches.id, pitchId),
         eq(pitches.userId, userId)
-      ),
-    });
+      ))
+      .limit(1);
+    
+    const pitch = pitchResult[0];
     
     if (!pitch) {
       throw new Error("Pitch not found or unauthorized");
@@ -111,31 +115,56 @@ export class PitchService {
       // First try to get pitch with relations
       let pitch;
       try {
-        pitch = await db.query.pitches.findFirst({
-          where: eq(pitches.id, pitchId),
-          with: {
+        const pitchResults = await db
+          .select({
+            pitch: pitches,
             creator: {
-              columns: {
-                id: true,
-                username: true,
-                firstName: true,
-                lastName: true,
-                companyName: true,
-                userType: true,
-                profileImage: true,
-              },
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              companyName: users.companyName,
+              userType: users.userType,
+              profileImage: users.profileImage,
             },
-            ndas: viewerId ? {
-              where: eq(ndas.signerId, viewerId),
-            } : undefined,
-          },
-        });
+          })
+          .from(pitches)
+          .leftJoin(users, eq(pitches.userId, users.id))
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (pitchResults.length > 0) {
+          const result = pitchResults[0];
+          pitch = {
+            ...result.pitch,
+            creator: result.creator,
+          };
+          
+          // Get NDAs separately if viewerId provided
+          if (viewerId) {
+            const ndaResults = await db
+              .select()
+              .from(ndas)
+              .where(and(
+                eq(ndas.pitchId, pitchId),
+                eq(ndas.signerId, viewerId)
+              ));
+            
+            pitch.ndas = ndaResults;
+          } else {
+            pitch.ndas = [];
+          }
+        }
       } catch (relationError) {
         console.log("Relations not available, fetching pitch without relations");
         // Fallback: get pitch without relations
-        pitch = await db.query.pitches.findFirst({
-          where: eq(pitches.id, pitchId),
-        });
+        const fallbackResults = await db
+          .select()
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        pitch = fallbackResults[0];
         
         if (pitch) {
           // Add minimal creator info from the pitch itself
@@ -207,12 +236,16 @@ export class PitchService {
   
   static async signNda(pitchId: number, signerId: number, ndaType: "basic" | "enhanced" = "basic") {
     // Check if already signed
-    const existing = await db.query.ndas.findFirst({
-      where: and(
+    const existingResult = await db
+      .select()
+      .from(ndas)
+      .where(and(
         eq(ndas.pitchId, pitchId),
         eq(ndas.signerId, signerId)
-      ),
-    });
+      ))
+      .limit(1);
+    
+    const existing = existingResult[0];
     
     if (existing) {
       return existing;
@@ -238,29 +271,35 @@ export class PitchService {
   }
   
   static async getTopPitches(limit = 10) {
-    return await db.query.pitches.findMany({
-      where: eq(pitches.status, "published"),
-      orderBy: [desc(pitches.likeCount), desc(pitches.viewCount)],
-      limit,
-      with: {
+    const results = await db
+      .select({
+        pitch: pitches,
         creator: {
-          columns: {
-            username: true,
-            companyName: true,
-          },
+          username: users.username,
+          companyName: users.companyName,
         },
-      },
-    });
+      })
+      .from(pitches)
+      .leftJoin(users, eq(pitches.userId, users.id))
+      .where(eq(pitches.status, "published"))
+      .orderBy(desc(pitches.likeCount), desc(pitches.viewCount))
+      .limit(limit);
+    
+    return results.map(row => ({
+      ...row.pitch,
+      creator: row.creator,
+    }));
   }
   
   static async getNewPitches(limit = 10) {
     try {
       // Simple query without joins to avoid database relation issues
-      const results = await db.query.pitches.findMany({
-        where: eq(pitches.status, "published"),
-        orderBy: [desc(pitches.publishedAt)],
-        limit
-      });
+      const results = await db
+        .select()
+        .from(pitches)
+        .where(eq(pitches.status, "published"))
+        .orderBy(desc(pitches.publishedAt))
+        .limit(limit);
       
       // Return pitches with minimal creator info
       return results.map(pitch => ({
@@ -297,20 +336,24 @@ export class PitchService {
     // TODO: Add full-text search for query parameter
     
     const [searchResults, totalCount] = await Promise.all([
-      db.query.pitches.findMany({
-        where: and(...conditions),
-        limit: params.limit || 20,
-        offset: params.offset || 0,
-        orderBy: [desc(pitches.publishedAt)],
-        with: {
+      db
+        .select({
+          pitch: pitches,
           creator: {
-            columns: {
-              username: true,
-              companyName: true,
-            },
+            username: users.username,
+            companyName: users.companyName,
           },
-        },
-      }),
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(and(...conditions))
+        .limit(params.limit || 20)
+        .offset(params.offset || 0)
+        .orderBy(desc(pitches.publishedAt))
+        .then(results => results.map(row => ({
+          ...row.pitch,
+          creator: row.creator,
+        }))),
       db.select({ count: sql<number>`count(*)` })
         .from(pitches)
         .where(and(...conditions))
@@ -346,10 +389,11 @@ export class PitchService {
   static async getUserPitches(userId: number, includeStats = false) {
     try {
       // Simple query without joins to avoid relation issues
-      const userPitches = await db.query.pitches.findMany({
-        where: eq(pitches.userId, userId),
-        orderBy: [desc(pitches.updatedAt)]
-      });
+      const userPitches = await db
+        .select()
+        .from(pitches)
+        .where(eq(pitches.userId, userId))
+        .orderBy(desc(pitches.updatedAt));
       
       if (!includeStats) {
         return userPitches;
@@ -386,12 +430,16 @@ export class PitchService {
   
   static async deletePitch(pitchId: number, userId: number) {
     // Check ownership
-    const pitch = await db.query.pitches.findFirst({
-      where: and(
+    const pitchResult = await db
+      .select()
+      .from(pitches)
+      .where(and(
         eq(pitches.id, pitchId),
         eq(pitches.userId, userId)
-      ),
-    });
+      ))
+      .limit(1);
+    
+    const pitch = pitchResult[0];
     
     if (!pitch) {
       throw new Error("Pitch not found or unauthorized");
@@ -537,12 +585,16 @@ export class PitchService {
 
   static async updatePitch(pitchId: number, data: any, userId: number) {
     // Check ownership
-    const pitch = await db.query.pitches.findFirst({
-      where: and(
+    const pitchResult = await db
+      .select()
+      .from(pitches)
+      .where(and(
         eq(pitches.id, pitchId),
         eq(pitches.userId, userId)
-      )
-    });
+      ))
+      .limit(1);
+    
+    const pitch = pitchResult[0];
 
     if (!pitch) {
       throw new Error("Pitch not found or unauthorized");

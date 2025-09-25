@@ -182,34 +182,41 @@ export class UserService {
     
     if (user.userType === "creator") {
       // Get recent pitches
-      const recentPitches = await db.query.pitches.findMany({
-        where: eq(pitches.userId, userId),
-        orderBy: [desc(pitches.updatedAt)],
-        limit: 5,
-      });
+      const recentPitches = await db
+        .select()
+        .from(pitches)
+        .where(eq(pitches.userId, userId))
+        .orderBy(desc(pitches.updatedAt))
+        .limit(5);
       
       dashboardData.recentPitches = recentPitches;
     } else if (user.userType === "investor") {
       // Get followed pitches
-      const followedPitches = await db.query.follows.findMany({
-        where: eq(follows.followerId, userId),
-        orderBy: [desc(follows.followedAt)],
-        limit: 5,
-        with: {
-          pitch: {
-            with: {
-              creator: {
-                columns: {
-                  username: true,
-                  companyName: true,
-                },
-              },
-            },
+      const followedPitches = await db
+        .select({
+          follow: follows,
+          pitch: pitches,
+          creator: {
+            username: users.username,
+            companyName: users.companyName,
           },
-        },
-      });
+        })
+        .from(follows)
+        .leftJoin(pitches, eq(follows.pitchId, pitches.id))
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(eq(follows.followerId, userId))
+        .orderBy(desc(follows.followedAt))
+        .limit(5);
       
-      dashboardData.followedPitches = followedPitches;
+      const formattedFollowedPitches = followedPitches.map(row => ({
+        ...row.follow,
+        pitch: {
+          ...row.pitch,
+          creator: row.creator,
+        },
+      }));
+      
+      dashboardData.followedPitches = formattedFollowedPitches;
     }
     
     return dashboardData;
@@ -236,25 +243,31 @@ export class UserService {
   }
   
   static async getFollowedPitches(userId: number, limit = 20, offset = 0) {
-    return await db.query.follows.findMany({
-      where: eq(follows.followerId, userId),
-      orderBy: [desc(follows.followedAt)],
-      limit,
-      offset,
-      with: {
-        pitch: {
-          with: {
-            creator: {
-              columns: {
-                username: true,
-                companyName: true,
-                profileImage: true,
-              },
-            },
-          },
+    const results = await db
+      .select({
+        follow: follows,
+        pitch: pitches,
+        creator: {
+          username: users.username,
+          companyName: users.companyName,
+          profileImage: users.profileImage,
         },
+      })
+      .from(follows)
+      .leftJoin(pitches, eq(follows.pitchId, pitches.id))
+      .leftJoin(users, eq(pitches.userId, users.id))
+      .where(eq(follows.followerId, userId))
+      .orderBy(desc(follows.followedAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return results.map(row => ({
+      ...row.follow,
+      pitch: {
+        ...row.pitch,
+        creator: row.creator,
       },
-    });
+    }));
   }
   
   static async deactivateAccount(userId: number) {

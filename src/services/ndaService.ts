@@ -109,27 +109,32 @@ export class NDAService {
   
   static async getRequestsForOwner(ownerId: number) {
     try {
-      return await db.query.ndaRequests.findMany({
-        where: eq(ndaRequests.ownerId, ownerId),
-        orderBy: [desc(ndaRequests.requestedAt)],
-        with: {
+      const results = await db
+        .select({
+          request: ndaRequests,
           pitch: {
-            columns: {
-              id: true,
-              title: true,
-            },
+            id: pitches.id,
+            title: pitches.title,
           },
           requester: {
-            columns: {
-              id: true,
-              username: true,
-              email: true,
-              companyName: true,
-              userType: true,
-            },
+            id: users.id,
+            username: users.username,
+            email: users.email,
+            companyName: users.companyName,
+            userType: users.userType,
           },
-        },
-      });
+        })
+        .from(ndaRequests)
+        .leftJoin(pitches, eq(ndaRequests.pitchId, pitches.id))
+        .leftJoin(users, eq(ndaRequests.requesterId, users.id))
+        .where(eq(ndaRequests.ownerId, ownerId))
+        .orderBy(desc(ndaRequests.requestedAt));
+      
+      return results.map(row => ({
+        ...row.request,
+        pitch: row.pitch,
+        requester: row.requester,
+      }));
     } catch (error) {
       console.log("NDA requests table not available or error:", error);
       // Return empty array as fallback
@@ -138,41 +143,60 @@ export class NDAService {
   }
   
   static async getRequestsForRequester(requesterId: number) {
-    return await db.query.ndaRequests.findMany({
-      where: eq(ndaRequests.requesterId, requesterId),
-      orderBy: [desc(ndaRequests.requestedAt)],
-      with: {
+    const results = await db
+      .select({
+        request: ndaRequests,
         pitch: {
-          columns: {
-            id: true,
-            title: true,
-          },
+          id: pitches.id,
+          title: pitches.title,
         },
         owner: {
-          columns: {
-            id: true,
-            username: true,
-            companyName: true,
-          },
+          id: users.id,
+          username: users.username,
+          companyName: users.companyName,
         },
-      },
-    });
+      })
+      .from(ndaRequests)
+      .leftJoin(pitches, eq(ndaRequests.pitchId, pitches.id))
+      .leftJoin(users, eq(ndaRequests.ownerId, users.id))
+      .where(eq(ndaRequests.requesterId, requesterId))
+      .orderBy(desc(ndaRequests.requestedAt));
+    
+    return results.map(row => ({
+      ...row.request,
+      pitch: row.pitch,
+      owner: row.owner,
+    }));
   }
   
   static async respondToRequest(ownerId: number, data: z.infer<typeof RespondToNDARequestSchema>) {
     const validated = RespondToNDARequestSchema.parse(data);
     
-    // Get the request
-    const request = await db.query.ndaRequests.findFirst({
-      where: and(
+    // Get the request with joined data
+    const requestResults = await db
+      .select({
+        request: ndaRequests,
+        pitch: pitches,
+        requester: users,
+      })
+      .from(ndaRequests)
+      .leftJoin(pitches, eq(ndaRequests.pitchId, pitches.id))
+      .leftJoin(users, eq(ndaRequests.requesterId, users.id))
+      .where(and(
         eq(ndaRequests.id, validated.requestId),
         eq(ndaRequests.ownerId, ownerId)
-      ),
-      with: {
-        pitch: true,
-        requester: true,
-      },
-    });
+      ))
+      .limit(1);
+    
+    if (!requestResults.length) {
+      throw new Error("NDA request not found or unauthorized");
+    }
+    
+    const request = {
+      ...requestResults[0].request,
+      pitch: requestResults[0].pitch,
+      requester: requestResults[0].requester,
+    };
     
     if (!request) {
       throw new Error("NDA request not found or unauthorized");
@@ -228,27 +252,32 @@ export class NDAService {
   
   static async getUserNDAs(userId: number) {
     try {
-      return await db.query.ndas.findMany({
-        where: eq(ndas.signerId, userId),
-        orderBy: [desc(ndas.signedAt)],
-        with: {
+      const results = await db
+        .select({
+          nda: ndas,
           pitch: {
-            columns: {
-              id: true,
-              title: true,
-              status: true,
-            },
-            with: {
-              creator: {
-                columns: {
-                  username: true,
-                  companyName: true,
-                },
-              },
-            },
+            id: pitches.id,
+            title: pitches.title,
+            status: pitches.status,
           },
+          creator: {
+            username: users.username,
+            companyName: users.companyName,
+          },
+        })
+        .from(ndas)
+        .leftJoin(pitches, eq(ndas.pitchId, pitches.id))
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(eq(ndas.signerId, userId))
+        .orderBy(desc(ndas.signedAt));
+      
+      return results.map(row => ({
+        ...row.nda,
+        pitch: {
+          ...row.pitch,
+          creator: row.creator,
         },
-      });
+      }));
     } catch (error) {
       console.log("NDAs table not available or error:", error);
       // Return empty array as fallback
@@ -258,29 +287,34 @@ export class NDAService {
   
   static async checkNDAAccess(pitchId: number, userId: number) {
     // Check if user is the pitch owner
-    const pitch = await db.query.pitches.findFirst({
-      where: eq(pitches.id, pitchId),
-      columns: {
-        userId: true,
-      },
-    });
+    const pitchResult = await db
+      .select({ userId: pitches.userId })
+      .from(pitches)
+      .where(eq(pitches.id, pitchId))
+      .limit(1);
     
-    if (!pitch) {
+    if (!pitchResult.length) {
       return { hasAccess: false, reason: "Pitch not found" };
     }
+    
+    const pitch = pitchResult[0];
     
     if (pitch.userId === userId) {
       return { hasAccess: true, reason: "Owner" };
     }
     
     // Check for valid NDA
-    const nda = await db.query.ndas.findFirst({
-      where: and(
+    const ndaResult = await db
+      .select()
+      .from(ndas)
+      .where(and(
         eq(ndas.pitchId, pitchId),
         eq(ndas.signerId, userId),
         eq(ndas.accessGranted, true)
-      ),
-    });
+      ))
+      .limit(1);
+    
+    const nda = ndaResult[0];
     
     if (!nda) {
       return { hasAccess: false, reason: "No NDA signed" };
@@ -295,12 +329,16 @@ export class NDAService {
   
   static async signBasicNDA(pitchId: number, signerId: number) {
     // Check if NDA already exists
-    const existing = await db.query.ndas.findFirst({
-      where: and(
+    const existingResult = await db
+      .select()
+      .from(ndas)
+      .where(and(
         eq(ndas.pitchId, pitchId),
         eq(ndas.signerId, signerId)
-      ),
-    });
+      ))
+      .limit(1);
+    
+    const existing = existingResult[0];
     
     if (existing) {
       return existing;
@@ -329,12 +367,16 @@ export class NDAService {
   
   static async revokeAccess(pitchId: number, signerId: number, ownerId: number) {
     // Verify ownership
-    const pitch = await db.query.pitches.findFirst({
-      where: and(
+    const pitchResult = await db
+      .select()
+      .from(pitches)
+      .where(and(
         eq(pitches.id, pitchId),
         eq(pitches.userId, ownerId)
-      ),
-    });
+      ))
+      .limit(1);
+    
+    const pitch = pitchResult[0];
     
     if (!pitch) {
       throw new Error("Pitch not found or unauthorized");
@@ -368,17 +410,47 @@ export class NDAService {
   }
 
   static async generateNDAPDF(ndaId: number) {
-    const nda = await db.query.ndas.findFirst({
-      where: eq(ndas.id, ndaId),
-      with: {
-        pitch: {
-          with: {
-            creator: true,
-          },
+    const ndaResults = await db
+      .select({
+        nda: ndas,
+        pitch: pitches,
+        creator: {
+          id: users.id,
+          username: users.username,
+          email: users.email,
         },
-        signer: true,
+      })
+      .from(ndas)
+      .leftJoin(pitches, eq(ndas.pitchId, pitches.id))
+      .leftJoin(users, eq(pitches.userId, users.id))
+      .where(eq(ndas.id, ndaId))
+      .limit(1);
+
+    if (!ndaResults.length) {
+      throw new Error("NDA not found");
+    }
+    
+    const result = ndaResults[0];
+    
+    // Get signer info separately
+    const signerResults = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+      })
+      .from(users)
+      .where(eq(users.id, result.nda.signerId))
+      .limit(1);
+    
+    const nda = {
+      ...result.nda,
+      pitch: {
+        ...result.pitch,
+        creator: result.creator,
       },
-    });
+      signer: signerResults[0] || { id: result.nda.signerId, username: 'Unknown', email: '' },
+    };
 
     if (!nda) {
       throw new Error("NDA not found");
@@ -463,27 +535,32 @@ Term: 3 years from signing date.`;
   }
 
   static async getExpiredNDAs() {
-    return await db.query.ndas.findMany({
-      where: and(
-        eq(ndas.accessGranted, true),
-        lt(ndas.expiresAt, new Date())
-      ),
-      with: {
+    const results = await db
+      .select({
+        nda: ndas,
         pitch: {
-          columns: {
-            id: true,
-            title: true,
-          },
+          id: pitches.id,
+          title: pitches.title,
         },
         signer: {
-          columns: {
-            id: true,
-            username: true,
-            email: true,
-          },
+          id: users.id,
+          username: users.username,
+          email: users.email,
         },
-      },
-    });
+      })
+      .from(ndas)
+      .leftJoin(pitches, eq(ndas.pitchId, pitches.id))
+      .leftJoin(users, eq(ndas.signerId, users.id))
+      .where(and(
+        eq(ndas.accessGranted, true),
+        lt(ndas.expiresAt, new Date())
+      ));
+    
+    return results.map(row => ({
+      ...row.nda,
+      pitch: row.pitch,
+      signer: row.signer,
+    }));
   }
 
   static async revokeExpiredNDAs() {
@@ -571,13 +648,17 @@ Term: 3 years from signing date.`;
     }
 
     // Get NDA type to determine access level
-    const nda = await db.query.ndas.findFirst({
-      where: and(
+    const ndaResult = await db
+      .select()
+      .from(ndas)
+      .where(and(
         eq(ndas.pitchId, pitchId),
         eq(ndas.signerId, userId),
         eq(ndas.accessGranted, true)
-      ),
-    });
+      ))
+      .limit(1);
+    
+    const nda = ndaResult[0];
 
     const accessLevel = nda?.ndaType || 'basic';
     let protectedFields: string[] = [];
@@ -622,16 +703,24 @@ Term: 3 years from signing date.`;
   static async signNDA(ndaId: number, signerId: number, signatureData?: any) {
     // For now, use the basic NDA signing - this could be extended
     // to handle custom NDAs based on the ndaId
-    const nda = await db.query.ndas.findFirst({
-      where: eq(ndas.id, ndaId),
-      with: {
-        pitch: true
-      }
-    });
+    const ndaResults = await db
+      .select({
+        nda: ndas,
+        pitch: pitches,
+      })
+      .from(ndas)
+      .leftJoin(pitches, eq(ndas.pitchId, pitches.id))
+      .where(eq(ndas.id, ndaId))
+      .limit(1);
 
-    if (!nda) {
+    if (!ndaResults.length) {
       throw new Error("NDA not found");
     }
+    
+    const nda = {
+      ...ndaResults[0].nda,
+      pitch: ndaResults[0].pitch,
+    };
 
     return await this.signBasicNDA(nda.pitchId, signerId);
   }
