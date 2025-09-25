@@ -338,7 +338,7 @@ export default function InvestorDashboard() {
                           </div>
                           <div 
                             className="cursor-pointer group"
-                            onClick={() => navigate(`/pitch/${pitch.id}`)}
+                            onClick={() => navigate(`/investor/pitch/${pitch.id}`)}
                           >
                             <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 mb-1">
                               {pitch.title}
@@ -407,7 +407,7 @@ export default function InvestorDashboard() {
                         </div>
                         <div className="flex items-center gap-4 mt-3">
                           <button 
-                            onClick={() => navigate(`/pitch/${item.id || 1}`)}
+                            onClick={() => navigate(`/investor/pitch/${item.id || 1}`)}
                             className="text-sm text-blue-600 hover:text-blue-700"
                           >
                             View Details
@@ -464,7 +464,7 @@ export default function InvestorDashboard() {
                         </div>
                         <p className="text-sm text-gray-500 mb-2">{rec.genre}</p>
                         <button 
-                          onClick={() => navigate(`/pitch/${rec.id || 1}`)}
+                          onClick={() => navigate(`/investor/pitch/${rec.id || 1}`)}
                           className="text-sm text-blue-600 hover:text-blue-700"
                         >
                           View Pitch

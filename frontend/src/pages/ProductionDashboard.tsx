@@ -1216,7 +1216,7 @@ export default function ProductionDashboard() {
                           </div>
                           <div 
                             className="cursor-pointer group"
-                            onClick={() => navigate(`/pitch/${pitch.id}`)}
+                            onClick={() => navigate(`/production/pitch/${pitch.id}`)}
                           >
                             <h4 className="font-semibold text-gray-900 group-hover:text-purple-600 mb-1">
                               {pitch.title}
@@ -1406,7 +1406,7 @@ export default function ProductionDashboard() {
                           </Link>
                           {pitch.ndaStatus === 'signed' ? (
                             <button
-                              onClick={() => navigate(`/pitch/${pitch.id}/full`)}
+                              onClick={() => navigate(`/production/pitch/${pitch.id}`)}
                               className="flex-1 text-center py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center justify-center gap-2"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -1544,7 +1544,7 @@ export default function ProductionDashboard() {
                 title="Your Signed NDAs"
                 description="Pitches you've signed NDAs to access"
                 emptyMessage="You haven't signed any NDAs yet"
-                onViewPitch={(pitchId) => navigate(`/pitch/${pitchId}`)}
+                onViewPitch={(pitchId) => navigate(`/production/pitch/${pitchId}`)}
                 onDownloadNDA={(nda) => console.log('Download NDA:', nda)}
               />
 
@@ -1566,7 +1566,7 @@ export default function ProductionDashboard() {
                 title="Your Pending Requests"
                 description="Your requests to access others' pitches"
                 emptyMessage="No pending requests at this time"
-                onViewPitch={(pitchId) => navigate(`/pitch/${pitchId}`)}
+                onViewPitch={(pitchId) => navigate(`/production/pitch/${pitchId}`)}
               />
             </div>
 
