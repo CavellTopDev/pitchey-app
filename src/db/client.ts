@@ -1,5 +1,5 @@
 import { drizzle } from "npm:drizzle-orm/postgres-js";
-import { drizzle as drizzleNeon } from "npm:drizzle-orm/neon-serverless";
+import { drizzle as drizzleNeon } from "npm:drizzle-orm/neon-http";
 import { neon, neonConfig } from "npm:@neondatabase/serverless";
 import postgres from "npm:postgres";
 import * as schema from "./schema.ts";
@@ -27,10 +27,12 @@ export const db = isLocalDb
 export type Database = typeof db;
 
 // For compatibility with existing code - provide a safe wrapper
-export const migrationClient = {
-  query: client,
-  end: isLocalDb ? (client as any).end : async () => {
-    // Neon serverless doesn't need explicit connection closing
-    return Promise.resolve();
-  }
-};
+export const migrationClient = isLocalDb 
+  ? client // postgres-js client has the methods the migrator expects
+  : {
+      // Neon serverless adapter - provide minimal interface for migration cleanup only
+      end: async () => {
+        // Neon serverless doesn't need explicit connection closing
+        return Promise.resolve();
+      }
+    };
