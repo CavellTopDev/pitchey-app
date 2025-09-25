@@ -293,21 +293,61 @@ export class PitchService {
   
   static async getNewPitches(limit = 10) {
     try {
-      // Simple query without joins to avoid database relation issues
+      // Query with joins to include proper creator info
       const results = await db
-        .select()
+        .select({
+          id: pitches.id,
+          title: pitches.title,
+          logline: pitches.logline,
+          genre: pitches.genre,
+          format: pitches.format,
+          budget: pitches.budget,
+          budgetAmount: pitches.budgetAmount,
+          status: pitches.status,
+          stage: pitches.stage,
+          coverImage: pitches.coverImage,
+          visibility: pitches.visibility,
+          userId: pitches.userId,
+          userType: pitches.userType,
+          createdAt: pitches.createdAt,
+          updatedAt: pitches.updatedAt,
+          publishedAt: pitches.publishedAt,
+          // Add user info
+          creatorId: users.id,
+          creatorUsername: users.username,
+          creatorCompanyName: users.companyName,
+          creatorUserType: users.userType
+        })
         .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
         .where(eq(pitches.status, "published"))
         .orderBy(desc(pitches.publishedAt))
         .limit(limit);
       
-      // Return pitches with minimal creator info
-      return results.map(pitch => ({
-        ...pitch,
-        creator: {
-          username: "Creator",
-          companyName: null
-        }
+      // Transform to expected format with proper creator info
+      return results.map(p => ({
+        id: p.id,
+        title: p.title,
+        logline: p.logline,
+        genre: p.genre,
+        format: p.format,
+        budget: p.budget,
+        budgetAmount: p.budgetAmount,
+        status: p.status,
+        stage: p.stage,
+        coverImage: p.coverImage,
+        visibility: p.visibility,
+        userId: p.userId,
+        userType: p.userType,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        publishedAt: p.publishedAt,
+        creator: p.creatorId ? {
+          id: p.creatorId,
+          username: p.creatorUsername,
+          companyName: p.creatorCompanyName,
+          userType: p.creatorUserType
+        } : null
       }));
     } catch (error) {
       console.error("Error in getNewPitches:", error);
