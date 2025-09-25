@@ -188,24 +188,29 @@ export class InvestmentService {
   static async getInvestmentOpportunities(investorId: number, preferences?: any) {
     try {
       // Get pitches that match investor preferences
-      const opportunities = await db.query.pitches.findMany({
-        where: eq(pitches.status, "published"),
-        orderBy: [
-          desc(pitches.ratingAverage),
-          desc(pitches.viewCount),
-        ],
-        limit: 10,
-        with: {
+      const opportunitiesResult = await db
+        .select({
+          pitch: pitches,
           creator: {
-            columns: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-            },
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
           },
-        },
-      });
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(eq(pitches.status, "published"))
+        .orderBy(
+          desc(pitches.ratingAverage),
+          desc(pitches.viewCount)
+        )
+        .limit(10);
+
+      const opportunities = opportunitiesResult.map(row => ({
+        ...row.pitch,
+        creator: row.creator,
+      }));
 
       return {
         success: true,

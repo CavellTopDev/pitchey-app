@@ -69,23 +69,37 @@ export class SessionService {
   }
   
   static async getSessionWithUser(token: string) {
-    const session = await db.query.sessions.findFirst({
-      where: eq(sessions.token, token),
-      with: {
-        user: {
-          columns: {
-            passwordHash: false,
-            emailVerificationToken: false,
-          },
-        },
-      },
-    });
+    const sessionResult = await db
+      .select({
+        session: sessions,
+        user: users,
+      })
+      .from(sessions)
+      .leftJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.token, token))
+      .limit(1);
     
-    if (!session || session.expiresAt < new Date()) {
+    if (!sessionResult.length || !sessionResult[0].session) {
       return null;
     }
     
-    return session;
+    const session = sessionResult[0].session;
+    
+    if (session.expiresAt < new Date()) {
+      return null;
+    }
+    
+    // Remove sensitive fields from user
+    const user = sessionResult[0].user;
+    if (user) {
+      delete user.passwordHash;
+      delete user.emailVerificationToken;
+    }
+    
+    return {
+      ...session,
+      user,
+    };
   }
   
   static async updateSessionActivity(sessionId: string) {
