@@ -134,7 +134,13 @@ export default function PublicPitchView() {
                       <span className="text-sm font-medium text-gray-700">Creator Portal</span>
                     </>
                   )}
-                  <span className="text-xs text-gray-500">• {user.companyName || user.username}</span>
+                  {user.userType === 'production' && (
+                    <>
+                      <Building2 className="w-4 h-4 text-purple-600" />
+                      <span className="text-sm font-medium text-gray-700">Production Portal</span>
+                    </>
+                  )}
+                  {user.userType && <span className="text-xs text-gray-500">• {user.companyName || user.username}</span>}
                 </div>
 
                 {/* Dashboard Link */}

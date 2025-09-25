@@ -101,27 +101,33 @@ export class NDAService {
   }
   
   static async getRequestsForOwner(ownerId: number) {
-    return await db.query.ndaRequests.findMany({
-      where: eq(ndaRequests.ownerId, ownerId),
-      orderBy: [desc(ndaRequests.requestedAt)],
-      with: {
-        pitch: {
-          columns: {
-            id: true,
-            title: true,
+    try {
+      return await db.query.ndaRequests.findMany({
+        where: eq(ndaRequests.ownerId, ownerId),
+        orderBy: [desc(ndaRequests.requestedAt)],
+        with: {
+          pitch: {
+            columns: {
+              id: true,
+              title: true,
+            },
+          },
+          requester: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+              companyName: true,
+              userType: true,
+            },
           },
         },
-        requester: {
-          columns: {
-            id: true,
-            username: true,
-            email: true,
-            companyName: true,
-            userType: true,
-          },
-        },
-      },
-    });
+      });
+    } catch (error) {
+      console.log("NDA requests table not available or error:", error);
+      // Return empty array as fallback
+      return [];
+    }
   }
   
   static async getRequestsForRequester(requesterId: number) {
@@ -214,27 +220,33 @@ export class NDAService {
   }
   
   static async getUserNDAs(userId: number) {
-    return await db.query.ndas.findMany({
-      where: eq(ndas.signerId, userId),
-      orderBy: [desc(ndas.signedAt)],
-      with: {
-        pitch: {
-          columns: {
-            id: true,
-            title: true,
-            status: true,
-          },
-          with: {
-            creator: {
-              columns: {
-                username: true,
-                companyName: true,
+    try {
+      return await db.query.ndas.findMany({
+        where: eq(ndas.signerId, userId),
+        orderBy: [desc(ndas.signedAt)],
+        with: {
+          pitch: {
+            columns: {
+              id: true,
+              title: true,
+              status: true,
+            },
+            with: {
+              creator: {
+                columns: {
+                  username: true,
+                  companyName: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      console.log("NDAs table not available or error:", error);
+      // Return empty array as fallback
+      return [];
+    }
   }
   
   static async checkNDAAccess(pitchId: number, userId: number) {
@@ -492,34 +504,44 @@ Term: 3 years from signing date.`;
   }
 
   static async getNDAStats(userId: number) {
-    // Get stats for pitch owner
-    const requestCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(ndaRequests)
-      .where(eq(ndaRequests.ownerId, userId));
-    
-    const signedCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(ndas)
-      .innerJoin(pitches, eq(ndas.pitchId, pitches.id))
-      .where(and(
-        eq(pitches.userId, userId),
-        eq(ndas.accessGranted, true)
-      ));
-    
-    const pendingCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(ndaRequests)
-      .where(and(
-        eq(ndaRequests.ownerId, userId),
-        eq(ndaRequests.status, "pending")
-      ));
-    
-    return {
-      totalRequests: requestCount[0]?.count || 0,
-      totalSigned: signedCount[0]?.count || 0,
-      pendingRequests: pendingCount[0]?.count || 0,
-    };
+    try {
+      // Get stats for pitch owner
+      const requestCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(ndaRequests)
+        .where(eq(ndaRequests.ownerId, userId));
+      
+      const signedCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(ndas)
+        .innerJoin(pitches, eq(ndas.pitchId, pitches.id))
+        .where(and(
+          eq(pitches.userId, userId),
+          eq(ndas.accessGranted, true)
+        ));
+      
+      const pendingCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(ndaRequests)
+        .where(and(
+          eq(ndaRequests.ownerId, userId),
+          eq(ndaRequests.status, "pending")
+        ));
+      
+      return {
+        totalRequests: requestCount[0]?.count || 0,
+        totalSigned: signedCount[0]?.count || 0,
+        pendingRequests: pendingCount[0]?.count || 0,
+      };
+    } catch (error) {
+      console.log("NDA stats error:", error);
+      // Return default stats if tables don't exist
+      return {
+        totalRequests: 0,
+        totalSigned: 0,
+        pendingRequests: 0,
+      };
+    }
   }
 
   static async getProtectedContentAccess(pitchId: number, userId: number) {
