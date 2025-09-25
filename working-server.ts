@@ -5181,14 +5181,29 @@ const handler = async (request: Request): Promise<Response> => {
 
     try {
       const body = await request.json();
-      const { message, requestType = "full_access" } = body;
+      // Handle both old and new request formats
+      const { 
+        message, 
+        requestType = "full_access",
+        ndaType,
+        requestMessage,
+        companyInfo,
+        customNdaUrl
+      } = body;
 
-      // Use existing NDA service
-      const ndaRequest = await NDAService.createNDARequest({
+      // Use requestMessage if provided (new format), otherwise fall back to message
+      const finalMessage = requestMessage || message || `Request for full access to pitch materials`;
+      
+      // Map ndaType to requestType if provided
+      const finalRequestType = ndaType === 'custom' ? 'custom_nda' : requestType;
+
+      // Use existing NDA service - createRequest takes requesterId as first param
+      const ndaRequest = await NDAService.createRequest(user.id, {
         pitchId,
-        investorId: user.id,
-        message: message || `Request for full access to pitch materials`,
-        requestType
+        ndaType: ndaType === 'standard' ? 'basic' : ndaType || 'basic',
+        requestMessage: finalMessage,
+        companyInfo: companyInfo || undefined,
+        customNdaUrl: customNdaUrl || undefined
       });
 
       return jsonResponse({
