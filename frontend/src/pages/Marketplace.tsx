@@ -159,11 +159,17 @@ export default function Marketplace() {
   const loadPitches = async () => {
     try {
       setLoading(true);
+      console.log('Loading pitches from API...');
       const data = await pitchAPI.getPublic();
-      setPitches(data);
+      console.log('Loaded pitches:', data);
+      
+      setPitches(data || []);
     } catch (err) {
       console.error('Failed to load pitches:', err);
-      error('Failed to load pitches', 'Unable to connect to the server. Please try again later.');
+      // Don't show error toast, just log it
+      // Use empty array as fallback
+      setPitches([]);
+      console.log('Using empty array as fallback');
     } finally {
       setLoading(false);
     }
@@ -172,6 +178,7 @@ export default function Marketplace() {
   const loadTrendingPitches = async () => {
     try {
       const data = await pitchAPI.getPublic();
+      
       // Sort by view count for trending
       const trending = [...data].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
       setTrendingPitches(trending.slice(0, 5));
@@ -385,15 +392,22 @@ export default function Marketplace() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
               {trendingPitches.map((pitch) => {
+                const isProduction = pitch.creator?.userType === 'production';
+                const isInvestor = pitch.creator?.userType === 'investor';
                 const borderColor = 
-                  pitch.creator?.userType === 'production' ? 'border-purple-500' :
-                  pitch.creator?.userType === 'investor' ? 'border-green-500' :
-                  'border-gray-200';
+                  isProduction ? 'border-purple-500' :
+                  isInvestor ? 'border-green-500' :
+                  'border-blue-300';
                   
                 return (
                 <div
                   key={pitch.id}
-                  className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden border ${borderColor}`}
+                  className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden border-2 ${borderColor}`}
+                  style={{
+                    boxShadow: isProduction ? '0 0 15px rgba(168, 85, 247, 0.25)' :
+                               isInvestor ? '0 0 15px rgba(34, 197, 94, 0.25)' :
+                               '0 0 15px rgba(59, 130, 246, 0.15)'
+                  }}
                 >
                   <div 
                     onClick={() => navigate(`/pitch/${pitch.id}`)}
@@ -413,8 +427,17 @@ export default function Marketplace() {
                     <h3 className="font-semibold text-gray-900 mb-1 truncate">
                       {pitch.title}
                     </h3>
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className="text-sm text-gray-600 mb-1">
                       {pitch.genre}
+                    </p>
+                    <p className={`text-xs font-medium mb-2 ${
+                      isProduction ? 'text-purple-600' :
+                      isInvestor ? 'text-green-600' :
+                      'text-blue-600'
+                    }`}>
+                      {isProduction ? '🏢' : isInvestor ? '💰' : '👤'} 
+                      {' '}
+                      {pitch.creator?.companyName || pitch.creator?.username || 'Unknown'}
                     </p>
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span className="flex items-center space-x-1">
@@ -499,9 +522,9 @@ export default function Marketplace() {
               const isInvestor = pitch.creator?.userType === 'investor';
               
               const borderColor = 
-                isProduction ? 'border-purple-500' :
-                isInvestor ? 'border-green-500' :
-                'border-gray-200';
+                isProduction ? 'border-purple-500 shadow-purple-300' :
+                isInvestor ? 'border-green-500 shadow-green-300' :
+                'border-blue-300 shadow-blue-200';
               
               const bgGradient = 
                 isProduction ? 'from-purple-400 to-purple-600' :
@@ -511,7 +534,12 @@ export default function Marketplace() {
               return (
               <div
                 key={pitch.id}
-                className={`bg-white rounded-lg shadow-md hover:shadow-xl transition-all cursor-pointer overflow-hidden border-2 ${borderColor} relative group`}
+                className={`bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all cursor-pointer overflow-hidden border-2 ${borderColor} relative group`}
+                style={{
+                  boxShadow: isProduction ? '0 0 20px rgba(168, 85, 247, 0.3)' :
+                             isInvestor ? '0 0 20px rgba(34, 197, 94, 0.3)' :
+                             '0 0 20px rgba(59, 130, 246, 0.2)'
+                }}
               >
                 {/* Enhanced badge for production companies */}
                 {isProduction && (
@@ -570,31 +598,48 @@ export default function Marketplace() {
                       {pitch.genre}
                     </span>
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        {isProduction && pitch.creator?.companyName ? (
+                      <div className={`flex items-center gap-1 font-medium ${
+                        isProduction ? 'text-purple-600' :
+                        isInvestor ? 'text-green-600' :
+                        'text-blue-600'
+                      }`}>
+                        {isProduction ? (
                           <>
                             <Building2 className="w-3 h-3" />
                             <span 
-                              className="font-medium hover:text-purple-600 cursor-pointer"
+                              className="hover:underline cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/creator/${pitch.creator?.id}`);
                               }}
                             >
-                              {pitch.creator?.companyName}
+                              {pitch.creator?.companyName || pitch.creator?.username || 'Production'}
+                            </span>
+                          </>
+                        ) : isInvestor ? (
+                          <>
+                            <Wallet className="w-3 h-3" />
+                            <span 
+                              className="hover:underline cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/creator/${pitch.creator?.id}`);
+                              }}
+                            >
+                              {pitch.creator?.companyName || pitch.creator?.username || 'Investor'}
                             </span>
                           </>
                         ) : (
                           <>
                             <User className="w-3 h-3" />
                             <span 
-                              className="hover:text-purple-600 cursor-pointer"
+                              className="hover:underline cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/creator/${pitch.creator?.id}`);
                               }}
                             >
-                              {pitch.creator?.username || 'Unknown Creator'}
+                              {pitch.creator?.username || 'Creator'}
                             </span>
                           </>
                         )}

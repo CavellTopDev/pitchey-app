@@ -33,24 +33,36 @@ export default function Homepage() {
 
   const fetchPitches = async () => {
     try {
+      console.log('Fetching pitches from:', `${API_URL}/api/public/pitches`);
       // Fetch from public endpoint (no auth required)
       const response = await fetch(`${API_URL}/api/public/pitches`);
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Received data:', data);
         const pitches = data.pitches || [];
         
         // Sort by views for trending - top 4 most viewed
-        const trending = [...pitches].sort((a, b) => b.viewCount - a.viewCount).slice(0, 4);
+        const trending = [...pitches].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0)).slice(0, 4);
         setTrendingPitches(trending);
         
         // Sort by creation date for new releases - 4 most recent
         const newOnes = [...pitches].sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
         ).slice(0, 4);
         setNewReleases(newOnes);
+      } else {
+        console.error('Response not OK:', response.status, response.statusText);
+        // Use fallback data if API fails
+        setTrendingPitches([]);
+        setNewReleases([]);
       }
     } catch (error) {
       console.error('Failed to fetch pitches:', error);
+      // Use empty arrays as fallback
+      setTrendingPitches([]);
+      setNewReleases([]);
     } finally {
       setLoading(false);
     }

@@ -52,17 +52,31 @@ export default function NDAModal({
       };
 
       const backendUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) {
+        throw new Error('Please sign in to request NDA access');
+      }
+
       const response = await fetch(`${backendUrl}/api/pitches/${pitchId}/request-nda`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify(requestData)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit NDA request');
+        const errorData = await response.json().catch(() => null);
+        
+        // Handle specific error cases with user-friendly messages
+        if (errorData?.error?.includes('already pending')) {
+          alert('You have already requested NDA access for this pitch. The creator will review your request soon.');
+          onClose();
+          return;
+        }
+        
+        throw new Error(errorData?.error || `Failed to submit NDA request (${response.status})`);
       }
 
       const result = await response.json();

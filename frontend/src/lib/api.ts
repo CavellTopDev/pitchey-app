@@ -25,7 +25,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to login for 401 errors on protected routes
+    // Don't redirect for public endpoints
+    const isPublicEndpoint = error.config?.url?.includes('/public/');
+    if (error.response?.status === 401 && !isPublicEndpoint) {
       localStorage.removeItem('authToken');
       window.location.href = '/login';
     }
