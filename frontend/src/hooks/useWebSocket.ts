@@ -44,10 +44,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     try {
       // Connect to the main server WebSocket endpoint
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.hostname;
-      const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '8000');
-      const ws = new WebSocket(`${protocol}//${host}:${port}/api/messages/ws?token=${token}`);
+      const wsUrl = import.meta.env.VITE_WS_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'ws://localhost:8000');
+      const ws = new WebSocket(`${wsUrl}/api/messages/ws?token=${token}`);
       
       ws.onopen = () => {
         console.log('WebSocket connected');
