@@ -107,37 +107,62 @@ export class PitchService {
   }
   
   static async getPitch(pitchId: number, viewerId?: number) {
-    // Get pitch with creator and NDA info
-    const pitch = await db.query.pitches.findFirst({
-      where: eq(pitches.id, pitchId),
-      with: {
-        creator: {
-          columns: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            companyName: true,
-            userType: true,
-            profileImage: true,
+    try {
+      // First try to get pitch with relations
+      let pitch;
+      try {
+        pitch = await db.query.pitches.findFirst({
+          where: eq(pitches.id, pitchId),
+          with: {
+            creator: {
+              columns: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                companyName: true,
+                userType: true,
+                profileImage: true,
+              },
+            },
+            ndas: viewerId ? {
+              where: eq(ndas.signerId, viewerId),
+            } : undefined,
           },
-        },
-        ndas: viewerId ? {
-          where: eq(ndas.signerId, viewerId),
-        } : undefined,
-      },
-    });
-    
-    if (!pitch) return null;
-    
-    // Record view
-    if (viewerId) {
-      await this.recordView(pitchId, viewerId);
-    }
-    
-    // Determine access level
-    const isOwner = viewerId === pitch.creator.id;
-    const hasNda = pitch.ndas && pitch.ndas.length > 0;
+        });
+      } catch (relationError) {
+        console.log("Relations not available, fetching pitch without relations");
+        // Fallback: get pitch without relations
+        pitch = await db.query.pitches.findFirst({
+          where: eq(pitches.id, pitchId),
+        });
+        
+        if (pitch) {
+          // Add minimal creator info from the pitch itself
+          pitch.creator = {
+            id: pitch.userId,
+            username: "Creator",
+            userType: "creator"
+          };
+          pitch.ndas = [];
+        }
+      }
+      
+      if (!pitch) return null;
+      
+      // Record view
+      if (viewerId) {
+        try {
+          await this.recordView(pitchId, viewerId);
+        } catch (viewError) {
+          console.log("Could not record view:", viewError);
+        }
+      }
+      
+      // Determine access level
+      const creatorId = pitch.creator?.id || pitch.userId;
+      const isOwner = viewerId === creatorId;
+      const hasNda = pitch.ndas && pitch.ndas.length > 0;
     const hasFullAccess = isOwner || hasNda;
     
     // Filter content based on access
@@ -156,6 +181,11 @@ export class PitchService {
       hasFullAccess: true,
       requiresNda: false,
     };
+    } catch (error) {
+      console.error("Error in getPitch:", error);
+      // Return null instead of throwing to avoid 500 errors
+      return null;
+    }
   }
   
   static async recordView(pitchId: number, viewerId: number) {

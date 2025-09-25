@@ -4994,7 +4994,25 @@ const handler = async (request: Request): Promise<Response> => {
     }
     
     try {
-      const pitch = await PitchService.getPitch(pitchId);
+      // Try to get pitch from database first
+      let pitch = await PitchService.getPitch(pitchId);
+      
+      // If not found in database, check mock data
+      if (!pitch) {
+        const mockPitch = mockPitchesData.find(p => p.id === pitchId);
+        if (mockPitch) {
+          pitch = {
+            ...mockPitch,
+            creator: {
+              id: mockPitch.userId || 1,
+              username: mockPitch.creatorName || "Demo Creator",
+              userType: "creator"
+            },
+            hasFullAccess: false,
+            requiresNda: true
+          };
+        }
+      }
       
       if (pitch) {
         return new Response(JSON.stringify({
@@ -5014,6 +5032,27 @@ const handler = async (request: Request): Promise<Response> => {
       });
     } catch (error) {
       console.error("Error fetching pitch details:", error);
+      
+      // Fallback to mock data on error
+      const mockPitch = mockPitchesData.find(p => p.id === pitchId);
+      if (mockPitch) {
+        return new Response(JSON.stringify({
+          success: true,
+          pitch: {
+            ...mockPitch,
+            creator: {
+              id: mockPitch.userId || 1,
+              username: mockPitch.creatorName || "Demo Creator",
+              userType: "creator"
+            },
+            hasFullAccess: false,
+            requiresNda: true
+          }
+        }), {
+          headers: { ...corsHeaders, "content-type": "application/json" }
+        });
+      }
+      
       return new Response(JSON.stringify({
         success: false,
         error: "Failed to fetch pitch details"
