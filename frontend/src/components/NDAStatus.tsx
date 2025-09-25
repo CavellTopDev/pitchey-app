@@ -84,9 +84,10 @@ export default function NDAStatus({
     if (!ndaStatus?.protectedContent.nda) return;
     
     try {
-      const response = await fetch(`/api/nda/${ndaStatus.protectedContent.nda.id}/document`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const response = await fetch(`${apiUrl}/api/nda/${ndaStatus.protectedContent.nda.id}/document`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
       });
       

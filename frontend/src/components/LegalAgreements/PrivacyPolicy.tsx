@@ -17,7 +17,8 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onAccept, onReject }) => 
     // Fetch privacy policy content
     const fetchPolicy = async () => {
       try {
-        const response = await fetch('/legal/privacy-policy.md');
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+        const response = await fetch(`${apiUrl}/legal/privacy-policy.md`);
         const content = await response.text();
         setPolicyContent(content);
       } catch (error) {
@@ -41,7 +42,8 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onAccept, onReject }) => 
       };
 
       // Send acceptance to backend
-      fetch('/api/legal/privacy-acceptance', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      fetch(`${apiUrl}/api/legal/privacy-acceptance`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

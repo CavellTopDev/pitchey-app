@@ -19,7 +19,8 @@ const NonDisclosureAgreement: React.FC<NDAAgreementProps> = ({ onAccept, onRejec
     // Fetch NDA content based on selected type
     const fetchNDA = async () => {
       try {
-        const response = await fetch('/legal/nda-templates.md');
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+        const response = await fetch(`${apiUrl}/legal/nda-templates.md`);
         const content = await response.text();
         setNdaContent(content);
       } catch (error) {
@@ -43,7 +44,8 @@ const NonDisclosureAgreement: React.FC<NDAAgreementProps> = ({ onAccept, onRejec
       };
 
       // Send acceptance to backend
-      fetch('/api/legal/nda-acceptance', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      fetch(`${apiUrl}/api/legal/nda-acceptance`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

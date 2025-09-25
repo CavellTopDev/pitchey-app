@@ -82,7 +82,8 @@ export default function Profile() {
       const token = localStorage.getItem('authToken');
       if (!token || !user?.id) return;
 
-      const response = await fetch(`/api/follows/followers?creatorId=${user.id}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const response = await fetch(`${apiUrl}/api/follows/followers?creatorId=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -93,7 +94,7 @@ export default function Profile() {
         const followers = data.followerCount || 0;
         
         // Get following count
-        const followingResponse = await fetch('/api/follows/following?type=creators&limit=1', {
+        const followingResponse = await fetch(`${apiUrl}/api/follows/following?type=creators&limit=1`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

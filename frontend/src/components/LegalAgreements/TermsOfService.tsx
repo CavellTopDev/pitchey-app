@@ -17,7 +17,8 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onAccept, onReject }) =
     // Fetch terms of service content
     const fetchTerms = async () => {
       try {
-        const response = await fetch('/legal/terms-of-service.md');
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+        const response = await fetch(`${apiUrl}/legal/terms-of-service.md`);
         const content = await response.text();
         setTermsContent(content);
       } catch (error) {
@@ -39,7 +40,8 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onAccept, onReject }) =
       };
 
       // Send acceptance to backend
-      fetch('/api/legal/terms-acceptance', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      fetch(`${apiUrl}/api/legal/terms-acceptance`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

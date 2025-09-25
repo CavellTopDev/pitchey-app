@@ -104,9 +104,10 @@ export default function InvestorNDAHistory() {
 
   const downloadNDA = async (ndaId: number) => {
     try {
-      const response = await fetch(`/api/nda/${ndaId}/document`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const response = await fetch(`${apiUrl}/api/nda/${ndaId}/document`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
       });
       

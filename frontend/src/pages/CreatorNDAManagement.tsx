@@ -67,12 +67,13 @@ export default function CreatorNDAManagement() {
       // Fetch incoming NDA requests using the new endpoint
       const incomingResponse = await apiClient.get('/api/creator/nda-requests');
       if (incomingResponse && incomingResponse.success) {
-        setIncomingRequests(incomingResponse.requests || []);
+        const requests = incomingResponse.requests || [];
+        setIncomingRequests(requests);
         
         // Calculate stats
-        const pending = incomingResponse.requests.filter((r: any) => r.status === 'pending').length;
-        const approved = incomingResponse.requests.filter((r: any) => r.status === 'approved').length;
-        const rejected = incomingResponse.requests.filter((r: any) => r.status === 'rejected').length;
+        const pending = requests.filter((r: any) => r.status === 'pending').length;
+        const approved = requests.filter((r: any) => r.status === 'approved').length;
+        const rejected = requests.filter((r: any) => r.status === 'rejected').length;
         
         setStats(prev => ({
           ...prev,
