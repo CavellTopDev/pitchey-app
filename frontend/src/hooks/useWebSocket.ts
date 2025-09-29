@@ -29,22 +29,25 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const pingIntervalRef = useRef<NodeJS.Timeout>();
 
   const connect = useCallback(() => {
+    // Check if already connected or connecting
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
+      return;
+    }
+
     const token = localStorage.getItem('authToken');
     if (!token) {
-      console.log('No auth token, skipping WebSocket connection');
       return;
     }
 
     // Skip WebSocket connection in demo mode or if explicitly disabled
     const isDemoMode = localStorage.getItem('demoMode') === 'true';
     if (isDemoMode) {
-      console.log('Demo mode active, skipping WebSocket connection');
       return;
     }
 
     try {
       // Connect to the main server WebSocket endpoint
-      const wsUrl = import.meta.env.VITE_WS_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'ws://localhost:8000');
+      const wsUrl = import.meta.env.VITE_WS_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'ws://localhost:8001');
       const ws = new WebSocket(`${wsUrl}/api/messages/ws?token=${token}`);
       
       ws.onopen = () => {
@@ -124,7 +127,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         console.log('WebSocket disconnected');
         setIsConnected(false);
         onDisconnect?.();
@@ -135,11 +138,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           clearInterval(pingIntervalRef.current);
         }
         
-        // Schedule reconnect
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('Attempting to reconnect...');
-          connect();
-        }, reconnectInterval);
+        // Only attempt reconnect if it was an unexpected disconnect (not a client-initiated close)
+        // and we have a valid token
+        if (event.code !== 1000 && event.code !== 1001 && localStorage.getItem('authToken')) {
+          // Schedule reconnect with exponential backoff
+          const delay = Math.min(reconnectInterval * (reconnectTimeoutRef.current ? 2 : 1), 30000);
+          reconnectTimeoutRef.current = setTimeout(() => {
+            console.log('Attempting to reconnect...');
+            connect();
+          }, delay);
+        }
       };
 
       ws.onerror = (error) => {
@@ -179,9 +187,19 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   useEffect(() => {
     connect();
     return () => {
-      disconnect();
+      // Cleanup on unmount
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
-  }, [connect, disconnect]);
+  }, []); // Empty dependency array - only connect on mount
 
   return {
     isConnected,

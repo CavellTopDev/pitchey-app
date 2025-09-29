@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Upload, FileText, Shield, AlertCircle } from 'lucide-react';
-import { pitchAPI } from '../lib/api';
+import { ndaService } from '../services/nda.service';
 import { useAuthStore } from '../store/authStore';
 
 interface NDAModalProps {
@@ -39,56 +39,31 @@ export default function NDAModal({
     setError('');
 
     try {
-      // Submit NDA request - will go through approval workflow
-      const requestData = {
-        ndaType: ndaType === 'standard' ? 'basic' : 'custom',
-        requestMessage: customTerms || `Requesting access to enhanced information for ${pitchTitle}`,
-        companyInfo: user.companyName ? {
-          companyName: user.companyName,
-          position: user.userType,
-          intendedUse: 'Investment evaluation and due diligence'
-        } : undefined,
-        customNdaUrl: uploadedFile ? 'pending-upload' : undefined
-      };
-
-      const backendUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
-      const authToken = localStorage.getItem('authToken');
-      if (!authToken) {
-        throw new Error('Please sign in to request NDA access');
-      }
-
-      const response = await fetch(`${backendUrl}/api/pitches/${pitchId}/request-nda`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        
-        // Handle specific error cases with user-friendly messages
-        if (errorData?.error?.includes('already pending')) {
-          alert('You have already requested NDA access for this pitch. The creator will review your request soon.');
-          onClose();
-          return;
-        }
-        
-        throw new Error(errorData?.error || `Failed to submit NDA request (${response.status})`);
-      }
-
-      const result = await response.json();
+      // Check if we can request NDA first
+      const canRequestResult = await ndaService.canRequestNDA(pitchId);
       
-      if (result.success) {
-        // Show success message
-        alert('NDA request submitted successfully! The creator will review your request and respond shortly.');
+      if (!canRequestResult.canRequest) {
+        if (canRequestResult.existingNDA) {
+          alert('You have already requested NDA access for this pitch. The creator will review your request soon.');
+        } else {
+          alert(canRequestResult.reason || 'Cannot request NDA at this time.');
+        }
         onClose();
-        // Don't call onNDASigned here since the NDA isn't signed yet
-      } else {
-        throw new Error(result.error || 'Failed to submit NDA request');
+        return;
       }
+
+      // Submit NDA request
+      const nda = await ndaService.requestNDA({
+        pitchId,
+        message: customTerms || `Requesting access to enhanced information for ${pitchTitle}`,
+        templateId: ndaType === 'standard' ? undefined : 1, // Use custom template if not standard
+        expiryDays: 90 // Default to 90 days expiry
+      });
+      
+      // Show success message
+      alert('NDA request submitted successfully! The creator will review your request and respond shortly.');
+      onClose();
+      // Don't call onNDASigned here since the NDA isn't signed yet
     } catch (err) {
       console.error('NDA request error:', err);
       setError(err instanceof Error ? err.message : 'Failed to submit NDA request. Please try again.');

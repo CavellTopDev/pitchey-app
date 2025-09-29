@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DollarSign, TrendingUp, BarChart3 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import BackButton from '../components/BackButton';
-import { API_URL } from '../config/api.config';
+import { authService } from '../services/auth.service';
 
 export default function InvestorLogin() {
   const [email, setEmail] = useState('');
@@ -18,37 +18,19 @@ export default function InvestorLogin() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/investor/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const data = await authService.investorLogin({ email, password });
+      
+      // Update auth store state
+      useAuthStore.setState({ 
+        user: data.user, 
+        isAuthenticated: true, 
+        loading: false 
       });
-
-      const data = await response.json();
-
-      if (response.ok && data.success && data.user && data.user.userType === 'investor') {
-        // Store token and user data for the auth system
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('authToken', data.token); // For auth store compatibility
-        localStorage.setItem('userType', 'investor');
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Update auth store state
-        useAuthStore.setState({ 
-          user: data.user, 
-          isAuthenticated: true, 
-          loading: false 
-        });
-        
-        // Navigate to investor dashboard with delay to ensure state updates
-        setTimeout(() => {
-          navigate('/investor/dashboard');
-        }, 100);
-      } else {
-        setError('Invalid investor credentials or account type');
-      }
+      
+      // Navigate to investor dashboard
+      navigate('/investor/dashboard');
     } catch (err) {
-      setError('Failed to connect to server');
+      setError(err instanceof Error ? err.message : 'Invalid investor credentials');
     } finally {
       setLoading(false);
     }

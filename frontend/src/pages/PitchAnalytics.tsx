@@ -1,31 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, Heart, MessageSquare, Share2, TrendingUp, Calendar, Users, Download } from 'lucide-react';
-import { API_URL } from '../config/api.config';
+import { analyticsService, type PitchAnalytics } from '../services/analytics.service';
+import { pitchService } from '../services/pitch.service';
 
-interface AnalyticsData {
-  pitchId: number;
-  pitchTitle: string;
-  totalViews: number;
-  totalLikes: number;
-  totalMessages: number;
-  totalShares: number;
-  viewsThisWeek: number;
-  viewsThisMonth: number;
-  viewsByDay: Array<{ date: string; views: number }>;
-  viewerTypes: Array<{ type: string; count: number }>;
-  topReferrers: Array<{ source: string; views: number }>;
-  engagement: {
-    averageViewTime: number;
-    clickThroughRate: number;
-    returnVisitors: number;
-  };
-}
 
 export default function PitchAnalytics() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [analytics, setAnalytics] = useState<PitchAnalytics | null>(null);
+  const [pitchTitle, setPitchTitle] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
@@ -38,37 +22,86 @@ export default function PitchAnalytics() {
 
   const fetchAnalytics = async (pitchId: number) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/pitches/${pitchId}/analytics?range=${timeRange}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data.analytics);
+      // Fetch both pitch details and analytics in parallel
+      const [pitchDetails, analyticsData] = await Promise.all([
+        pitchService.getById(pitchId).catch(() => null),
+        analyticsService.getPitchAnalytics(
+          pitchId, 
+          {
+            preset: timeRange === '7d' ? 'week' : 
+                    timeRange === '30d' ? 'month' : 'quarter'
+          }
+        )
+      ]);
+
+      // Set the pitch title
+      if (pitchDetails) {
+        setPitchTitle(pitchDetails.title || `Pitch #${pitchId}`);
       } else {
-        setError('Analytics not found');
+        setPitchTitle(`Pitch #${pitchId}`);
       }
+      
+      // Map backend response to expected format
+      // Calculate views this week and month from viewsByDate
+      const last7Days = analyticsData.viewsByDate?.slice(-7) || [];
+      const viewsThisWeek = last7Days.reduce((sum: number, day: any) => sum + (day.views || 0), 0);
+      const viewsThisMonth = (analyticsData.viewsByDate || []).reduce((sum: number, day: any) => sum + (day.views || 0), 0);
+      
+      const mappedData: any = {
+        ...analyticsData,
+        pitchId: pitchId,
+        title: pitchDetails?.title || `Pitch #${pitchId}`,
+        totalViews: analyticsData.views || pitchDetails?.viewCount || 0,
+        totalLikes: analyticsData.likes || pitchDetails?.likeCount || 0,
+        totalMessages: analyticsData.messages || analyticsData.ndaRequests || 0,
+        totalShares: analyticsData.shares || 0,
+        viewsThisWeek: viewsThisWeek,
+        viewsThisMonth: viewsThisMonth,
+        viewsByDay: analyticsData.viewsByDate || [],
+        viewerTypes: analyticsData.demographics ? 
+          Object.entries(analyticsData.demographics).map(([type, count]) => {
+            // Backend returns percentages as the count values (e.g., 65, 20, 15)
+            // These are already percentages, not raw counts
+            const percentage = count as number;
+            // Calculate approximate count based on total views
+            const estimatedCount = Math.round((percentage / 100) * (analyticsData.views || 100));
+            return { 
+              type, 
+              count: estimatedCount,
+              percentage: percentage
+            };
+          }) : [],
+        engagement: {
+          clickThroughRate: analyticsData.views > 0 ? (analyticsData.likes / analyticsData.views) : 0
+        }
+      };
+      
+      setAnalytics(mappedData);
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
-      setError('Failed to load analytics');
+      setError(error instanceof Error ? error.message : 'Failed to load analytics');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatNumber = (num: number) => {
+  const formatNumber = (num: number | undefined | null) => {
+    // Extra defensive checks
+    if (num === undefined || num === null || !num || isNaN(num)) {
+      return '0';
+    }
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     } else if (num >= 1000) {
       return (num / 1000).toFixed(1) + 'K';
     }
-    return num.toString();
+    return Math.floor(num).toString();
   };
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number | undefined | null) => {
+    if (!seconds || seconds === undefined || seconds === null || isNaN(seconds)) {
+      return '0:00';
+    }
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -119,14 +152,14 @@ export default function PitchAnalytics() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate(`/creator/pitches/${id}`)}
+                onClick={() => navigate('/creator/pitches')}
                 className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-                <p className="text-sm text-gray-500">{analytics.pitchTitle}</p>
+                <p className="text-sm text-gray-500">{pitchTitle || analytics?.title || 'Loading...'}</p>
               </div>
             </div>
             
@@ -157,10 +190,10 @@ export default function PitchAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Views</p>
-                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics.totalViews)}</p>
+                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics?.totalViews)}</p>
                 <p className="text-sm text-green-600 mt-1">
                   <TrendingUp className="w-4 h-4 inline mr-1" />
-                  +{analytics.viewsThisWeek} this week
+                  +{analytics?.viewsThisWeek || 0} this week
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -173,9 +206,9 @@ export default function PitchAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Likes</p>
-                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics.totalLikes)}</p>
+                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics?.totalLikes)}</p>
                 <p className="text-sm text-gray-500 mt-1">
-                  {((analytics.totalLikes / analytics.totalViews) * 100).toFixed(1)}% of views
+                  {(analytics?.totalViews && analytics.totalViews > 0) ? (((analytics?.totalLikes || 0) / analytics.totalViews) * 100).toFixed(1) : '0'}% of views
                 </p>
               </div>
               <div className="p-3 bg-pink-100 rounded-lg">
@@ -188,7 +221,7 @@ export default function PitchAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Messages</p>
-                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics.totalMessages)}</p>
+                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics?.totalMessages)}</p>
                 <p className="text-sm text-gray-500 mt-1">Investor inquiries</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -201,7 +234,7 @@ export default function PitchAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Shares</p>
-                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics.totalShares)}</p>
+                <p className="text-3xl font-bold text-gray-900">{formatNumber(analytics?.totalShares)}</p>
                 <p className="text-sm text-gray-500 mt-1">External shares</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -216,7 +249,7 @@ export default function PitchAnalytics() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Views Over Time</h3>
             <div className="space-y-3">
-              {analytics.viewsByDay.slice(-7).map((day, index) => (
+              {(analytics?.viewsByDay || []).slice(-7).map((day, index) => (
                 <div key={day.date} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">
                     {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -225,10 +258,10 @@ export default function PitchAnalytics() {
                     <div className="flex-1 bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-purple-600 h-2 rounded-full" 
-                        style={{ width: `${Math.max(5, (day.views / Math.max(...analytics.viewsByDay.map(d => d.views))) * 100)}%` }}
+                        style={{ width: `${Math.max(5, ((day.views || 0) / Math.max(...(analytics?.viewsByDay || []).map(d => d.views || d.count || 0), 1)) * 100)}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm font-medium text-gray-900 min-w-[40px] text-right">{day.views}</span>
+                    <span className="text-sm font-medium text-gray-900 min-w-[40px] text-right">{day.views || day.count || 0}</span>
                   </div>
                 </div>
               ))}
@@ -239,7 +272,7 @@ export default function PitchAnalytics() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Viewer Types</h3>
             <div className="space-y-4">
-              {analytics.viewerTypes.map((viewer, index) => (
+              {(analytics?.viewerTypes || []).map((viewer, index) => (
                 <div key={viewer.type} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${
@@ -250,9 +283,8 @@ export default function PitchAnalytics() {
                     <span className="text-sm text-gray-700 capitalize">{viewer.type}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">{viewer.count}</span>
-                    <span className="text-xs text-gray-500">
-                      ({((viewer.count / analytics.totalViews) * 100).toFixed(1)}%)
+                    <span className="text-sm font-medium text-gray-900">
+                      {viewer.percentage.toFixed(0)}%
                     </span>
                   </div>
                 </div>
@@ -267,19 +299,19 @@ export default function PitchAnalytics() {
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <span className="text-sm text-gray-600">Average View Time</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {formatTime(analytics.engagement.averageViewTime)}
+                  {formatTime(analytics?.engagement?.averageViewTime || 0)}
                 </span>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-gray-100">
                 <span className="text-sm text-gray-600">Click-through Rate</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {(analytics.engagement.clickThroughRate * 100).toFixed(1)}%
+                  {((analytics?.engagement?.clickThroughRate || 0) * 100).toFixed(1)}%
                 </span>
               </div>
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-gray-600">Return Visitors</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {analytics.engagement.returnVisitors}
+                  {analytics?.engagement?.returnVisitors || 0}
                 </span>
               </div>
             </div>
@@ -289,7 +321,7 @@ export default function PitchAnalytics() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Referrers</h3>
             <div className="space-y-3">
-              {analytics.topReferrers.map((referrer, index) => (
+              {(analytics?.topReferrers || []).map((referrer, index) => (
                 <div key={referrer.source} className="flex items-center justify-between py-2">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium text-gray-700">#{index + 1}</span>
@@ -308,19 +340,24 @@ export default function PitchAnalytics() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600 mb-1">
-                {analytics.viewsThisMonth > analytics.viewsThisWeek * 4 ? 'Strong' : 'Growing'}
+                {analytics.viewsThisMonth > 0 ? 
+                  (analytics.viewsThisMonth > analytics.viewsThisWeek * 4 ? 'Strong' : 'Growing') : 
+                  'New'}
               </div>
               <div className="text-sm text-gray-600">Monthly Performance</div>
             </div>
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600 mb-1">
-                {analytics.engagement.clickThroughRate > 0.1 ? 'High' : 'Moderate'}
+                {(analytics?.engagement?.clickThroughRate || 0) > 0.1 ? 'High' : 
+                 (analytics?.engagement?.clickThroughRate || 0) > 0 ? 'Moderate' : 'Building'}
               </div>
               <div className="text-sm text-gray-600">Engagement Level</div>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <div className="text-2xl font-bold text-purple-600 mb-1">
-                {(analytics.totalMessages / analytics.totalViews * 100).toFixed(1)}%
+                {analytics.totalViews > 0 ? 
+                  `${(analytics.totalMessages / analytics.totalViews * 100).toFixed(1)}%` : 
+                  'N/A'}
               </div>
               <div className="text-sm text-gray-600">Conversion Rate</div>
             </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, Lock, CheckCircle, Clock, AlertCircle, Download } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { apiClient } from '../lib/api-client';
+import { ndaService } from '../services/nda.service';
 
 interface NDAStatusProps {
   pitchId: number;
@@ -42,13 +42,17 @@ export default function NDAStatus({
 
   const fetchNDAStatus = async () => {
     try {
-      const response = await apiClient.get(`/api/pitches/${pitchId}/nda-status`);
-      if (response.success) {
-        setNDAStatus({
-          hasAccess: response.hasAccess,
-          reason: response.reason,
-          protectedContent: response.protectedContent
-        });
+      const response = await ndaService.getNDAStatus(pitchId);
+      setNDAStatus({
+        hasAccess: response.canAccess,
+        reason: response.nda?.status || 'pending',
+        protectedContent: {
+          hasAccess: response.canAccess,
+          accessLevel: response.nda?.status,
+          protectedFields: [],
+          nda: response.nda
+        }
+      });
       }
     } catch (error) {
       console.error('Failed to fetch NDA status:', error);
@@ -84,24 +88,15 @@ export default function NDAStatus({
     if (!ndaStatus?.protectedContent.nda) return;
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
-      const response = await fetch(`${apiUrl}/api/nda/${ndaStatus.protectedContent.nda.id}/document`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `NDA-${ndaStatus.protectedContent.nda.id}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
+      const blob = await ndaService.downloadNDA(ndaStatus.protectedContent.nda.id, true);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `NDA-${ndaStatus.protectedContent.nda.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Failed to download NDA:', error);
     }

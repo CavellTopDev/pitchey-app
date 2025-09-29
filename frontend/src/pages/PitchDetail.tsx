@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign } from 'lucide-react';
-import { pitchAPI } from '../lib/api';
-import type { Pitch } from '../lib/api';
+import { pitchService } from '../services/pitch.service';
+import type { Pitch } from '../services/pitch.service';
 import { useAuthStore } from '../store/authStore';
 import BackButton from '../components/BackButton';
 import NDAModal from '../components/NDAModal';
@@ -10,7 +10,7 @@ import NDAModal from '../components/NDAModal';
 export default function PitchDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +18,26 @@ export default function PitchDetail() {
   const [isLiking, setIsLiking] = useState(false);
   const [showNDAModal, setShowNDAModal] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
-  const { user } = useAuthStore();
+  
+  // Check if current user owns this pitch
+  // First check the isOwner flag from backend, then fallback to comparing IDs
+  const isOwner = pitch?.isOwner || 
+                  (pitch?.userId && user?.id && Number(pitch.userId) === Number(user.id)) ||
+                  (pitch?.creator?.id && user?.id && Number(pitch.creator.id) === Number(user.id));
+  
+  // Debug logging to see what's being compared
+  useEffect(() => {
+    console.log('=== OWNER CHECK DEBUG ===');
+    console.log('Pitch:', pitch);
+    console.log('User:', user);
+    if (pitch && user) {
+      console.log('Pitch Creator ID:', pitch.creator?.id, 'Type:', typeof pitch.creator?.id);
+      console.log('Current User ID:', user.id, 'Type:', typeof user.id);
+      console.log('Number comparison:', Number(pitch.creator?.id), '===', Number(user.id));
+      console.log('Is Owner?', isOwner);
+      console.log('=========================');
+    }
+  }, [pitch, user, isOwner]);
 
   useEffect(() => {
     if (id) {
@@ -28,18 +47,14 @@ export default function PitchDetail() {
 
   const fetchPitch = async (pitchId: number) => {
     try {
-      const pitch = await pitchAPI.getById(pitchId);
+      const pitch = await pitchService.getById(pitchId);
       setPitch(pitch);
-      setHasSignedNDA(pitch.hasSignedNDA || false);
+      setHasSignedNDA(pitch.hasNDA || false);
+      setIsLiked(pitch.isLiked || false);
       
-      // Record view if authenticated
-      if (isAuthenticated) {
-        try {
-          await pitchAPI.recordView(pitchId);
-        } catch (error) {
-          // Silently fail view recording
-          console.log('Failed to record view:', error);
-        }
+      // Track view for analytics (only if not the owner)
+      if (!pitch.isOwner) {
+        await pitchService.trackView(pitchId);
       }
     } catch (error) {
       console.error('Failed to fetch pitch:', error);
@@ -61,11 +76,11 @@ export default function PitchDetail() {
       if (isLiked) {
         setPitch(prev => prev ? { ...prev, likeCount: prev.likeCount - 1 } : null);
         setIsLiked(false);
-        await pitchAPI.unlike(pitch.id);
+        await pitchService.unlikePitch(pitch.id);
       } else {
         setPitch(prev => prev ? { ...prev, likeCount: prev.likeCount + 1 } : null);
         setIsLiked(true);
-        await pitchAPI.like(pitch.id);
+        await pitchService.likePitch(pitch.id);
       }
     } catch (error) {
       console.error('Error toggling like:', error);
@@ -149,7 +164,7 @@ export default function PitchDetail() {
                     className="hover:text-purple-600 cursor-pointer font-medium"
                     onClick={() => navigate(`/creator/${pitch.creator?.id}`)}
                   >
-                    {pitch.creator?.username || 'Unknown Creator'}
+                    {pitch.creator?.name || pitch.creator?.username || 'Unknown Creator'}
                   </span>
                   <span>•</span>
                   <span>{pitch.genre}</span>
@@ -170,7 +185,7 @@ export default function PitchDetail() {
                 </button>
               ) : (
                 <>
-                  {!hasSignedNDA && user?.userType !== 'creator' && (
+                  {!hasSignedNDA && !isOwner && (
                     <button
                       onClick={() => setShowNDAModal(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
@@ -238,7 +253,7 @@ export default function PitchDetail() {
             </div>
 
             {/* Enhanced Information - NDA Protected */}
-            {!hasSignedNDA && user?.userType !== 'creator' ? (
+            {!hasSignedNDA && !isOwner ? (
               <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl shadow-sm p-6 border-2 border-blue-200">
                 <div className="flex items-start space-x-3">
                   <Lock className="w-6 h-6 text-blue-600 mt-1" />
@@ -435,7 +450,7 @@ export default function PitchDetail() {
                   <User className="w-4 h-4 text-gray-400" />
                   <div>
                     <div className="font-medium">Creator</div>
-                    <div className="text-gray-500">{pitch.creator?.username || 'Unknown'}</div>
+                    <div className="text-gray-500">{pitch.creator?.name || pitch.creator?.username || 'Unknown'}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
@@ -454,18 +469,46 @@ export default function PitchDetail() {
               <div className="space-y-3">
                 {isAuthenticated ? (
                   <>
-                    <button
-                      onClick={() => setShowNDAModal(true)}
-                      disabled={hasSignedNDA}
-                      className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                        hasSignedNDA 
-                          ? 'bg-green-100 text-green-700 cursor-not-allowed' 
-                          : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                      }`}
-                    >
-                      <FileText className="w-4 h-4" />
-                      {hasSignedNDA ? 'NDA Signed' : 'Sign NDA'}
-                    </button>
+                    {isOwner ? (
+                      // Owner-specific actions
+                      <>
+                        <button
+                          onClick={() => navigate(`/creator/pitches/${id}/edit`)}
+                          className="w-full flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                          </svg>
+                          Edit Pitch
+                        </button>
+                        <button
+                          onClick={() => navigate(`/creator/pitches/${id}/analytics`)}
+                          className="w-full flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="20" x2="12" y2="10"/>
+                            <line x1="18" y1="20" x2="18" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="16"/>
+                          </svg>
+                          View Analytics
+                        </button>
+                      </>
+                    ) : (
+                      // Viewer actions (non-owner)
+                      <button
+                        onClick={() => setShowNDAModal(true)}
+                        disabled={hasSignedNDA}
+                        className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                          hasSignedNDA 
+                            ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                        }`}
+                      >
+                        <FileText className="w-4 h-4" />
+                        {hasSignedNDA ? 'NDA Signed' : 'Sign NDA'}
+                      </button>
+                    )}
                     <button className="w-full flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
                       <Share2 className="w-4 h-4" />
                       Share Pitch

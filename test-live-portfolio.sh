@@ -43,7 +43,7 @@ echo "────────────────────────�
 FRONTEND_HTML=$(curl -s "$FRONTEND" | head -500)
 if echo "$FRONTEND_HTML" | grep -q "pitchey-backend.deno.dev"; then
     echo -e "${GREEN}✓${NC} Frontend is configured to use production backend"
-elif echo "$FRONTEND_HTML" | grep -q "localhost:8000"; then
+elif echo "$FRONTEND_HTML" | grep -q "localhost:8001"; then
     echo -e "${RED}✗${NC} Frontend is still configured for localhost!"
 else
     echo -e "${YELLOW}⚠${NC} Could not determine backend configuration"

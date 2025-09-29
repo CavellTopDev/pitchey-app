@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, Users, Film, Calendar, MapPin, Eye, Heart, Shield, AlertCircle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Users, Film, Calendar, MapPin, Eye, Heart, AlertCircle } from 'lucide-react';
 import { API_URL } from '../config/api.config';
 
 interface Creator {
@@ -19,61 +19,30 @@ interface Creator {
   pitchCount: number;
 }
 
-interface Pitch {
-  id: number;
-  type: 'pitch';
-  title: string;
-  logline: string;
-  genre: string;
-  format: string;
-  shortSynopsis?: string;
-  titleImage?: string;
-  viewCount: number;
-  likeCount: number;
-  ndaCount: number;
-  status: string;
-  createdAt: string;
-  publishedAt?: string;
-  followedAt: string;
-  creator: {
-    id: number;
-    username: string;
-    userType: string;
-    companyName?: string;
-    profileImage?: string;
-  };
-}
 
 interface ActivityUpdate {
   id: number;
-  type: 'new_pitch';
-  title: string;
-  logline: string;
-  genre: string;
-  format: string;
-  shortSynopsis?: string;
-  titleImage?: string;
-  viewCount: number;
-  likeCount: number;
-  ndaCount: number;
-  status: string;
-  publishedAt: string;
-  createdAt: string;
-  timeAgo: string;
+  type: 'pitch_created' | 'pitch_updated' | 'new_follower';
   creator: {
     id: number;
     username: string;
-    firstName?: string;
-    lastName?: string;
-    userType: string;
     companyName?: string;
     profileImage?: string;
+    userType: string;
   };
+  action: string;
+  pitch?: {
+    id: number;
+    title: string;
+    genre: string;
+    logline: string;
+  };
+  createdAt: string;
 }
 
 const Following: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'activity' | 'creators' | 'pitches'>('activity');
-  const [data, setData] = useState<(Creator[] | Pitch[] | ActivityUpdate[])>([]);
+  const [activeTab, setActiveTab] = useState<'activity' | 'followers' | 'following'>('activity');
+  const [data, setData] = useState<(Creator[] | ActivityUpdate[])>([]);
   const [summary, setSummary] = useState({
     newPitches: 0,
     activeCreators: 0,
@@ -100,13 +69,24 @@ const Following: React.FC = () => {
         return;
       }
 
-      // Use the correct endpoint based on user type
-      const endpoint = userType === 'creator' ? '/api/creator/following' :
-                      userType === 'investor' ? '/api/investor/following' :
-                      userType === 'production' ? '/api/production/following' :
-                      '/api/investor/following'; // default
+      let endpoint: string;
       
-      const response = await fetch(`${API_URL}${endpoint}?tab=${activeTab}`, {
+      // Use different endpoints based on the active tab
+      if (activeTab === 'activity') {
+        endpoint = userType === 'creator' ? '/api/creator/following' :
+                   userType === 'investor' ? '/api/investor/following' :
+                   userType === 'production' ? '/api/production/following' :
+                   '/api/investor/following'; // default
+        endpoint += '?tab=activity';
+      } else if (activeTab === 'followers') {
+        endpoint = '/api/follows/followers';
+      } else if (activeTab === 'following') {
+        endpoint = '/api/follows/following';
+      } else {
+        endpoint = '/api/follows/following'; // default
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -123,7 +103,17 @@ const Following: React.FC = () => {
       
       if (result.success) {
         console.log('Setting data:', result.data);
-        setData(result.data || []);
+        // Handle different response formats based on the tab
+        if (activeTab === 'activity') {
+          setData(result.data.activities || result.activities || []);
+        } else if (activeTab === 'followers') {
+          setData(result.data.followers || result.followers || result.data || []);
+        } else if (activeTab === 'following') {
+          setData(result.data.following || result.following || result.data || []);
+        } else {
+          // Fallback to data directly if it's an array
+          setData(Array.isArray(result.data) ? result.data : []);
+        }
         if (result.summary) {
           setSummary(result.summary);
         }
@@ -235,48 +225,32 @@ const Following: React.FC = () => {
                       <span className="font-medium text-gray-900">
                         {getDisplayName(update.creator)}
                       </span>
-                      <span className="text-gray-500">published a new pitch</span>
-                      <span className="text-gray-400 text-sm">• {update.timeAgo}</span>
+                      <span className="text-gray-500">{update.action}</span>
+                      <span className="text-gray-400 text-sm">
+                        • {new Date(update.createdAt).toLocaleDateString()}
+                      </span>
                     </div>
 
-                    <div 
-                      className="cursor-pointer group"
-                      onClick={() => navigate(`/pitch/${update.id}`)}
-                    >
-                      <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 mb-1">
-                        {update.title}
-                      </h4>
-                      <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                        {update.logline}
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        <span className="px-2 py-1 bg-gray-100 rounded-full">
-                          {update.genre}
-                        </span>
-                        <span className="px-2 py-1 bg-gray-100 rounded-full">
-                          {update.format}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
-                          {update.viewCount}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-3 h-3" />
-                          {update.likeCount}
-                        </span>
+                    {update.pitch && (
+                      <div 
+                        className="cursor-pointer group"
+                        onClick={() => navigate(`/pitch/${update.pitch!.id}`)}
+                      >
+                        <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 mb-1">
+                          {update.pitch.title}
+                        </h4>
+                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                          {update.pitch.logline}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <span className="px-2 py-1 bg-gray-100 rounded-full">
+                            {update.pitch.genre}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  {update.titleImage && (
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={update.titleImage} 
-                        alt={update.title}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             ))
@@ -286,15 +260,101 @@ const Following: React.FC = () => {
     );
   };
 
-  const renderCreatorsTab = () => {
-    const creators = data as Creator[];
+  const renderFollowersTab = () => {
+    const followers = data as Creator[];
     
     return (
       <div className="space-y-4">
-        {creators.length === 0 ? (
+        {followers.length === 0 ? (
           <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 mb-4">You're not following any creators yet</p>
+            <p className="text-gray-500 mb-4">You don't have any followers yet</p>
+            <button 
+              onClick={() => navigate('/marketplace')}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Create Great Content
+            </button>
+          </div>
+        ) : (
+          followers.map((follower) => (
+            <div key={follower.id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  {follower.profileImage ? (
+                    <img 
+                      src={follower.profileImage} 
+                      alt={getDisplayName(follower)}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
+                      <span className="text-gray-600 font-medium text-lg">
+                        {(getDisplayName(follower) || 'U').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <h3 className="font-semibold text-gray-900">
+                      {getDisplayName(follower)}
+                    </h3>
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      {follower.userType}
+                    </span>
+                  </div>
+                  
+                  {follower.bio && (
+                    <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                      {follower.bio}
+                    </p>
+                  )}
+                  
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Film className="w-3 h-3" />
+                      {follower.pitchCount || 0} pitches
+                    </span>
+                    {follower.location && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {follower.location}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Followed you {formatDate(follower.followedAt)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex-shrink-0 space-x-2">
+                  <button 
+                    onClick={() => navigate(`/creator/${follower.id}`)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    View Profile
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  };
+
+  const renderFollowingTab = () => {
+    const following = data as Creator[];
+    
+    return (
+      <div className="space-y-4">
+        {following.length === 0 ? (
+          <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 mb-4">You're not following anyone yet</p>
             <button 
               onClick={() => navigate('/marketplace')}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
@@ -303,7 +363,7 @@ const Following: React.FC = () => {
             </button>
           </div>
         ) : (
-          creators.map((creator) => (
+          following.map((creator) => (
             <div key={creator.id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
               <div className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
@@ -341,7 +401,7 @@ const Following: React.FC = () => {
                   <div className="flex items-center space-x-4 text-sm text-gray-500">
                     <span className="flex items-center gap-1">
                       <Film className="w-3 h-3" />
-                      {creator.pitchCount} pitches
+                      {creator.pitchCount || 0} pitches
                     </span>
                     {creator.location && (
                       <span className="flex items-center gap-1">
@@ -375,94 +435,6 @@ const Following: React.FC = () => {
     );
   };
 
-  const renderPitchesTab = () => {
-    const pitches = data as Pitch[];
-    
-    return (
-      <div className="space-y-4">
-        {pitches.length === 0 ? (
-          <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
-            <Film className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 mb-4">You're not following any pitches yet</p>
-            <button 
-              onClick={() => navigate('/marketplace')}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Browse Pitches
-            </button>
-          </div>
-        ) : (
-          pitches.map((pitch) => (
-            <div key={pitch.id} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
-                  {pitch.titleImage ? (
-                    <img 
-                      src={pitch.titleImage} 
-                      alt={pitch.title}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center">
-                      <span className="text-gray-600 font-medium">
-                        {(pitch.title || 'P').charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <h3 
-                      className="font-semibold text-gray-900 hover:text-blue-600 cursor-pointer"
-                      onClick={() => navigate(`/pitch/${pitch.id}`)}
-                    >
-                      {pitch.title}
-                    </h3>
-                  </div>
-                  
-                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                    {pitch.logline}
-                  </p>
-                  
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                      {pitch.genre}
-                    </span>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                      {pitch.format}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <span>by {getDisplayName(pitch.creator)}</span>
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-3 h-3" />
-                      {pitch.viewCount}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-3 h-3" />
-                      {pitch.likeCount}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Shield className="w-3 h-3" />
-                      {pitch.ndaCount} NDAs
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex-shrink-0">
-                  <button className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
-                    Unfollow
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    );
-  };
 
   if (loading) {
     return (
@@ -543,29 +515,29 @@ const Following: React.FC = () => {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab('creators')}
+              onClick={() => setActiveTab('followers')}
               className={`flex-1 py-4 px-6 text-center font-medium transition ${
-                activeTab === 'creators'
+                activeTab === 'followers'
                   ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
                 <Users className="w-4 h-4" />
-                Creators
+                Followers
               </div>
             </button>
             <button
-              onClick={() => setActiveTab('pitches')}
+              onClick={() => setActiveTab('following')}
               className={`flex-1 py-4 px-6 text-center font-medium transition ${
-                activeTab === 'pitches'
+                activeTab === 'following'
                   ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
-                <Film className="w-4 h-4" />
-                Pitches
+                <Users className="w-4 h-4" />
+                Following
               </div>
             </button>
           </div>
@@ -573,8 +545,8 @@ const Following: React.FC = () => {
 
         {/* Tab Content */}
         {activeTab === 'activity' && renderActivityTab()}
-        {activeTab === 'creators' && renderCreatorsTab()}
-        {activeTab === 'pitches' && renderPitchesTab()}
+        {activeTab === 'followers' && renderFollowersTab()}
+        {activeTab === 'following' && renderFollowingTab()}
       </div>
     </div>
   );

@@ -1,21 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, Shield } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useToast } from '../components/Toast/ToastProvider';
 import LoadingSpinner from '../components/Loading/LoadingSpinner';
-import { API_URL } from '../config/api.config';
-
-const GENRES = [
-  'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 
-  'Documentary', 'Drama', 'Family', 'Fantasy', 'Horror', 'Mystery', 
-  'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'
-];
-
-const FORMATS = [
-  'Feature Film', 'Short Film', 'TV Series', 'TV Movie', 'Mini-Series', 
-  'Web Series', 'Documentary Series', 'Reality Show'
-];
+import { pitchService } from '../services/pitch.service';
+import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
 
 interface PitchFormData {
   title: string;
@@ -26,6 +16,7 @@ interface PitchFormData {
   image: File | null;
   pdf: File | null;
   video: File | null;
+  requireNDA: boolean;
 }
 
 export default function CreatePitch() {
@@ -33,6 +24,8 @@ export default function CreatePitch() {
   const { } = useAuthStore();
   const { success, error } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [genres, setGenres] = useState<string[]>(getGenresSync() || []);
+  const [formats, setFormats] = useState<string[]>(getFormatsSync() || []);
   const [formData, setFormData] = useState<PitchFormData>({
     title: '',
     genre: '',
@@ -41,8 +34,28 @@ export default function CreatePitch() {
     shortSynopsis: '',
     image: null,
     pdf: null,
-    video: null
+    video: null,
+    requireNDA: false
   });
+
+  // Load configuration from API on component mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const { getGenres, getFormats } = await import('../constants/pitchConstants');
+        const [genresData, formatsData] = await Promise.all([
+          getGenres(),
+          getFormats()
+        ]);
+        setGenres(genresData);
+        setFormats(formatsData);
+      } catch (err) {
+        console.warn('Failed to load configuration, using fallback:', err);
+        // Already using sync fallback values
+      }
+    };
+    loadConfig();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -117,56 +130,30 @@ export default function CreatePitch() {
     setIsSubmitting(true);
 
     try {
-      const submitFormData = new FormData();
-      submitFormData.append('title', formData.title);
-      submitFormData.append('genre', formData.genre);
-      submitFormData.append('format', formData.format);
-      submitFormData.append('logline', formData.logline);
-      submitFormData.append('shortSynopsis', formData.shortSynopsis);
-      
-      if (formData.image) {
-        submitFormData.append('image', formData.image);
-      }
-      if (formData.pdf) {
-        submitFormData.append('pdf', formData.pdf);
-      }
-      if (formData.video) {
-        submitFormData.append('video', formData.video);
-      }
-
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/pitches`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: submitFormData
+      // Use the new pitch service
+      const pitch = await pitchService.create({
+        title: formData.title,
+        genre: formData.genre,
+        format: formData.format,
+        logline: formData.logline,
+        shortSynopsis: formData.shortSynopsis,
+        requireNDA: formData.requireNDA,
+        budgetBracket: 'Medium',
+        estimatedBudget: 1000000,
+        productionTimeline: '6-12 months',
+        themes: [],
+        characters: [],
+        aiUsed: false
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Pitch created successfully:', result);
-        success('Pitch created successfully!', 'Your pitch has been created and is ready for review.');
-        navigate('/creator/pitches');
-      } else {
-        let errorMessage = 'Failed to create pitch';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (e) {
-          // If response isn't JSON, it might be HTML (404 page)
-          if (response.status === 404) {
-            errorMessage = 'API endpoint not found. Please check if the backend server is running.';
-          } else {
-            errorMessage = `Server error (${response.status}): ${response.statusText}`;
-          }
-        }
-        console.error('Server response error:', response.status, response.statusText);
-        error('Failed to create pitch', errorMessage);
-      }
-    } catch (err) {
+      console.log('Pitch created successfully:', pitch);
+      success('Pitch created successfully!', 'Your pitch has been created and is ready for review.');
+      
+      // Navigate to manage pitches or the created pitch
+      navigate('/creator/pitches');
+    } catch (err: any) {
       console.error('Error creating pitch:', err);
-      error('Network error', 'Unable to connect to the server. Please check if the backend is running.');
+      error('Failed to create pitch', err.message || 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
@@ -229,9 +216,20 @@ export default function CreatePitch() {
                   required
                 >
                   <option value="">Select a genre</option>
-                  {GENRES.map(genre => (
-                    <option key={genre} value={genre}>{genre}</option>
-                  ))}
+                  {genres && genres.length > 0 ? (
+                    genres.map(genre => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Action">Action</option>
+                      <option value="Comedy">Comedy</option>
+                      <option value="Drama">Drama</option>
+                      <option value="Horror">Horror</option>
+                      <option value="Sci-Fi">Sci-Fi</option>
+                      <option value="Thriller">Thriller</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -248,9 +246,18 @@ export default function CreatePitch() {
                   required
                 >
                   <option value="">Select a format</option>
-                  {FORMATS.map(format => (
-                    <option key={format} value={format}>{format}</option>
-                  ))}
+                  {formats && formats.length > 0 ? (
+                    formats.map(format => (
+                      <option key={format} value={format}>{format}</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Feature Film">Feature Film</option>
+                      <option value="Short Film">Short Film</option>
+                      <option value="TV Series">TV Series</option>
+                      <option value="Web Series">Web Series</option>
+                    </>
+                  )}
                 </select>
               </div>
             </div>
@@ -291,6 +298,24 @@ export default function CreatePitch() {
               <p className="text-xs text-gray-500 mt-1">
                 {formData.shortSynopsis.length}/500 characters recommended
               </p>
+            </div>
+          </div>
+
+          {/* NDA Requirement */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Privacy & Protection</h2>
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="requireNDA"
+                checked={formData.requireNDA}
+                onChange={(e) => setFormData(prev => ({ ...prev, requireNDA: e.target.checked }))}
+                className="mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+              />
+              <label htmlFor="requireNDA" className="text-sm text-gray-700">
+                <span className="font-medium block">Require NDA Agreement</span>
+                <span className="text-gray-500">Viewers must sign a Non-Disclosure Agreement before accessing your full pitch content. This helps protect your intellectual property.</span>
+              </label>
             </div>
           </div>
 

@@ -320,4 +320,19 @@ export class UserService {
       updatedAt: new Date(),
     };
   }
+
+  static async createUser(data: any) {
+    try {
+      const result = await AuthService.register(data);
+      return {
+        success: true,
+        user: result.user
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 }

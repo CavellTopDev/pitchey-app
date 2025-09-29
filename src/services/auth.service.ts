@@ -286,4 +286,20 @@ export class AuthService {
     
     return { success: true };
   }
+
+  static async authenticate(email: string, password: string) {
+    try {
+      const result = await this.login({ email, password });
+      return {
+        success: true,
+        user: result.user,
+        token: result.session.token
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 }

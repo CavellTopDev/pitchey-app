@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Film, Video, Camera } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import BackButton from '../components/BackButton';
+import { authService } from '../services/auth.service';
 
 export default function CreatorLogin() {
   const [email, setEmail] = useState('');
@@ -18,19 +19,25 @@ export default function CreatorLogin() {
     setError('');
 
     try {
-      await loginCreator(email, password);
+      // Use authService directly for better Drizzle integration
+      const data = await authService.creatorLogin({ email, password });
+      
+      // Update auth store state
+      useAuthStore.setState({ 
+        user: data.user, 
+        isAuthenticated: true, 
+        loading: false 
+      });
       
       // Store userType for routing
       localStorage.setItem('userType', 'creator');
       
       console.log('Login successful, navigating to dashboard...'); // Debug navigation
-      // Force a small delay to ensure state updates have propagated
-      setTimeout(() => {
-        navigate('/creator/dashboard');
-      }, 100);
+      // Navigate to creator dashboard
+      navigate('/creator/dashboard');
     } catch (err: any) {
       console.error('Login failed:', err);
-      setError(err.response?.data?.error || err.message || 'Invalid creator credentials');
+      setError(err.message || 'Invalid creator credentials');
     } finally {
       setLoading(false);
     }

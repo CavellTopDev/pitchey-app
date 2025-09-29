@@ -66,8 +66,24 @@ export default function CreatorNDAManagement() {
       
       // Fetch incoming NDA requests using the new endpoint
       const incomingResponse = await apiClient.get('/api/creator/nda-requests');
-      if (incomingResponse && incomingResponse.success) {
-        const requests = incomingResponse.requests || [];
+      if (incomingResponse && incomingResponse.success && incomingResponse.data?.data) {
+        const rawData = incomingResponse.data.data || [];
+        
+        // Transform the nested data structure to flat structure expected by UI
+        const requests = rawData.map((item: any) => ({
+          id: item.request?.id || item.id,
+          pitchId: item.request?.pitchId || item.pitchId,
+          pitchTitle: item.pitch?.title || item.pitchTitle || 'Unknown Pitch',
+          ndaType: item.request?.ndaType || item.ndaType || 'basic',
+          requesterName: item.requester?.firstName + ' ' + item.requester?.lastName || item.request?.requesterName || 'Unknown',
+          requesterEmail: item.requester?.email || item.request?.requesterEmail || '',
+          requesterCompany: item.requester?.companyName || item.request?.companyInfo?.companyName || '',
+          companyInfo: item.request?.companyInfo || {},
+          status: item.request?.status || item.status || 'pending',
+          createdAt: item.request?.requestedAt || item.request?.createdAt || item.createdAt,
+          requestMessage: item.request?.requestMessage || ''
+        }));
+        
         setIncomingRequests(requests);
         
         // Calculate stats
@@ -87,17 +103,17 @@ export default function CreatorNDAManagement() {
       
       // Fetch NDA statistics
       const statsResponse = await apiClient.get('/api/nda/stats');
-      if (statsResponse && statsResponse.success) {
+      if (statsResponse && statsResponse.success && statsResponse.data?.stats) {
         setStats(prev => ({
           ...prev,
-          totalSigned: statsResponse.stats.totalSigned || 0,
+          totalSigned: statsResponse.data.stats.totalSigned || 0,
         }));
       }
       
       // Fetch signed NDAs (where others signed for your pitches)
       const signedResponse = await apiClient.get('/api/nda/signed');
-      if (signedResponse && signedResponse.success) {
-        setSignedNDAs(signedResponse.ndas || []);
+      if (signedResponse && signedResponse.success && signedResponse.data?.data) {
+        setSignedNDAs(signedResponse.data.data || []);
       } else {
         console.error('Failed to fetch signed NDAs:', signedResponse?.error);
       }
@@ -306,8 +322,8 @@ export default function CreatorNDAManagement() {
                           <div className="flex items-center gap-3 mb-2">
                             {getStatusIcon(request.status)}
                             <h3 className="font-semibold text-gray-900">{request.pitchTitle}</h3>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getNDATypeColor(request.ndaType)}`}>
-                              {request.ndaType.toUpperCase()} NDA
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getNDATypeColor(request.ndaType || 'standard')}`}>
+                              {(request.ndaType || 'standard').toUpperCase()} NDA
                             </span>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -379,8 +395,8 @@ export default function CreatorNDAManagement() {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="font-semibold text-gray-900">{nda.pitchTitle}</h3>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getNDATypeColor(nda.ndaType)}`}>
-                              {nda.ndaType.toUpperCase()} NDA
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getNDATypeColor(nda.ndaType || 'standard')}`}>
+                              {(nda.ndaType || 'standard').toUpperCase()} NDA
                             </span>
                             {nda.isExpired && (
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">

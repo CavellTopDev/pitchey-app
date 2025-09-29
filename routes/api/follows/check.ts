@@ -8,12 +8,21 @@ export const handler: Handlers = {
   async GET(req) {
     try {
       const url = new URL(req.url);
-      const creatorId = url.searchParams.get("creatorId");
-      const pitchId = url.searchParams.get("pitchId");
+      const targetId = url.searchParams.get("targetId");
+      const type = url.searchParams.get("type");
 
-      if (!creatorId && !pitchId) {
+      if (!targetId || !type) {
         return new Response(JSON.stringify({ 
-          error: "Either creatorId or pitchId must be provided" 
+          error: "targetId and type are required" 
+        }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (!["user", "pitch"].includes(type)) {
+        return new Response(JSON.stringify({ 
+          error: "type must be 'user' or 'pitch'" 
         }), {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -24,6 +33,7 @@ export const handler: Handlers = {
       const token = req.headers.get("authorization")?.replace("Bearer ", "");
       if (!token) {
         return new Response(JSON.stringify({ 
+          success: true,
           isFollowing: false,
           isAuthenticated: false 
         }), {
@@ -35,6 +45,7 @@ export const handler: Handlers = {
       const userId = await verifyToken(token);
       if (!userId) {
         return new Response(JSON.stringify({ 
+          success: true,
           isFollowing: false,
           isAuthenticated: false 
         }), {
@@ -45,17 +56,17 @@ export const handler: Handlers = {
 
       // Build the where condition based on what we're checking
       let whereCondition;
-      if (pitchId) {
+      if (type === "pitch") {
         // Check if following a specific pitch
         whereCondition = and(
           eq(follows.followerId, userId),
-          eq(follows.pitchId, parseInt(pitchId))
+          eq(follows.pitchId, parseInt(targetId))
         );
       } else {
         // Check if following a creator directly (not through their pitches)
         whereCondition = and(
           eq(follows.followerId, userId),
-          eq(follows.creatorId, parseInt(creatorId)),
+          eq(follows.creatorId, parseInt(targetId)),
           isNull(follows.pitchId)
         );
       }
@@ -66,24 +77,11 @@ export const handler: Handlers = {
 
       const isFollowing = follow.length > 0;
 
-      // If checking a creator, also check if following any of their pitches
-      let followingPitchCount = 0;
-      if (creatorId && !pitchId) {
-        const pitchFollows = await db.select()
-          .from(follows)
-          .where(and(
-            eq(follows.followerId, userId),
-            eq(follows.creatorId, parseInt(creatorId))
-          ));
-        
-        followingPitchCount = pitchFollows.length;
-      }
-
       return new Response(JSON.stringify({
+        success: true,
         isFollowing,
         isAuthenticated: true,
-        followType: pitchId ? "pitch" : "creator",
-        ...(creatorId && !pitchId && { followingPitchCount }),
+        followType: type,
         followedAt: isFollowing ? follow[0].followedAt : null,
       }), {
         status: 200,

@@ -15,7 +15,7 @@ import {
   time,
   date,
 } from "npm:drizzle-orm/pg-core";
-import { relations } from "npm:drizzle-orm";
+import { relations, sql } from "npm:drizzle-orm";
 
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["creator", "production", "investor", "viewer"]);
@@ -131,11 +131,12 @@ export const pitches = pgTable("pitches", {
   // productionTimeline: text("production_timeline"), // Removed - column doesn't exist in DB
   
   // Media
-  // titleImage: text("title_image_url"), // Removed - column doesn't exist in DB
-  // lookbookUrl: text("lookbook_url"), // Column doesn't exist
-  // pitchDeckUrl: text("pitch_deck_url"), // Column doesn't exist 
-  // scriptUrl: text("script_url"), // Column doesn't exist
-  // trailerUrl: text("trailer_url"), // Column doesn't exist
+  titleImage: text("title_image"),
+  lookbookUrl: text("lookbook_url"),
+  pitchDeckUrl: text("pitch_deck_url"),
+  scriptUrl: text("script_url"),
+  trailerUrl: text("trailer_url"),
+  productionTimeline: text("production_timeline"),
   additionalMedia: jsonb("additional_media").$type<Array<{
     type: 'lookbook' | 'script' | 'trailer' | 'pitch_deck' | 'budget_breakdown' | 'production_timeline' | 'other';
     url: string;
@@ -166,6 +167,9 @@ export const pitches = pgTable("pitches", {
   
   // AI Detection
   aiUsed: boolean("ai_used").default(false),
+  
+  // NDA Requirement
+  requireNDA: boolean("require_nda").default(false),
   
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1946,6 +1950,103 @@ export const searchClickTrackingRelations = relations(searchClickTracking, ({ on
   }),
   pitch: one(pitches, {
     fields: [searchClickTracking.pitchId],
+    references: [pitches.id],
+  }),
+}));
+
+// ============================================
+// INVESTOR WATCHLIST & PORTFOLIO TABLES
+// ============================================
+
+// Watchlist for investors to track interesting pitches
+export const watchlist = pgTable("watchlist", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  pitchId: integer("pitch_id")
+    .notNull()
+    .references(() => pitches.id, { onDelete: "cascade" }),
+  notes: text("notes"),
+  priority: text("priority").default("normal"), // high, normal, low
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+}, (table) => ({
+  uniqueUserPitch: unique("unique_user_pitch").on(table.userId, table.pitchId),
+  userIdIdx: index("idx_watchlist_user_id").on(table.userId),
+  pitchIdIdx: index("idx_watchlist_pitch_id").on(table.pitchId),
+}));
+
+// Analytics table for tracking pitch performance
+export const analytics = pgTable("analytics", {
+  id: serial("id").primaryKey(),
+  pitchId: integer("pitch_id").notNull().references(() => pitches.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  eventType: text("event_type").notNull(), // view, like, share, nda_request, etc.
+  eventData: jsonb("event_data"), // Additional event-specific data
+  sessionId: text("session_id"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  timestamp: timestamp("timestamp", { withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+}, (table) => ({
+  pitchIdIdx: index("idx_analytics_pitch_id").on(table.pitchId),
+  userIdIdx: index("idx_analytics_user_id").on(table.userId),
+  eventTypeIdx: index("idx_analytics_event_type").on(table.eventType),
+  timestampIdx: index("idx_analytics_timestamp").on(table.timestamp),
+}));
+
+// Portfolio for tracking investor's investments
+export const portfolio = pgTable("portfolio", {
+  id: serial("id").primaryKey(),
+  investorId: integer("investor_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  pitchId: integer("pitch_id")
+    .notNull()
+    .references(() => pitches.id, { onDelete: "restrict" }),
+  amountInvested: decimal("amount_invested", { precision: 15, scale: 2 }),
+  ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }),
+  status: text("status").default("active"), // active, exited, pending
+  investedAt: timestamp("invested_at", { withTimezone: true })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  exitedAt: timestamp("exited_at", { withTimezone: true }),
+  returns: decimal("returns", { precision: 15, scale: 2 }),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+}, (table) => ({
+  investorIdIdx: index("idx_portfolio_investor_id").on(table.investorId),
+  pitchIdIdx: index("idx_portfolio_pitch_id").on(table.pitchId),
+  statusIdx: index("idx_portfolio_status").on(table.status),
+}));
+
+// Watchlist Relations
+export const watchlistRelations = relations(watchlist, ({ one }) => ({
+  user: one(users, {
+    fields: [watchlist.userId],
+    references: [users.id],
+  }),
+  pitch: one(pitches, {
+    fields: [watchlist.pitchId],
+    references: [pitches.id],
+  }),
+}));
+
+// Portfolio Relations
+export const portfolioRelations = relations(portfolio, ({ one }) => ({
+  investor: one(users, {
+    fields: [portfolio.investorId],
+    references: [users.id],
+  }),
+  pitch: one(pitches, {
+    fields: [portfolio.pitchId],
     references: [pitches.id],
   }),
 }));

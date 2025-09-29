@@ -1,0 +1,11 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-read --allow-env frontend-server.ts"
+  },
+  "deploy": {
+    "project": "pitchey-frontend",
+    "exclude": ["node_modules", "src", "*.config.*", "package*.json"],
+    "include": ["dist/**", "frontend-server.ts"],
+    "entrypoint": "frontend-server.ts"
+  }
+}

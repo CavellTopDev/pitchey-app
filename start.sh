@@ -3,7 +3,7 @@
 # Fly.io startup script for Pitchey
 
 # Set environment defaults
-export PORT=${PORT:-8000}
+export PORT=${PORT:-8001}
 export NODE_ENV=${NODE_ENV:-production}
 
 # Ensure data directories exist

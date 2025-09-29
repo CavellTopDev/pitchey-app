@@ -2,19 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, TrendingUp, Search, Play, Star, Eye, Heart, Calendar, ArrowRight, Sparkles, User, Building2, Wallet } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { API_URL } from '../config/api.config';
+import { pitchService } from '../services/pitch.service';
+import type { Pitch } from '../services/pitch.service';
+import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
 
-interface Pitch {
-  id: number;
-  title: string;
-  genre: string;
-  format: string;
-  logline: string;
-  viewCount: number;
-  likeCount: number;
-  status: string;
-  createdAt: string;
-}
 
 export default function Homepage() {
   const navigate = useNavigate();
@@ -33,15 +24,19 @@ export default function Homepage() {
 
   const fetchPitches = async () => {
     try {
-      console.log('Fetching pitches from:', `${API_URL}/api/public/pitches`);
-      // Fetch from public endpoint (no auth required)
-      const response = await fetch(`${API_URL}/api/public/pitches`);
-      console.log('Response status:', response.status);
+      // Fetch trending and new releases from dedicated endpoints
+      const [trending, newReleases] = await Promise.all([
+        pitchService.getTrendingPitches(4),
+        pitchService.getNewReleases(4)
+      ]);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Received data:', data);
-        const pitches = data.pitches || [];
+      setTrendingPitches(trending);
+      setNewReleases(newReleases);
+    } catch (error) {
+      console.error('Failed to fetch from dedicated endpoints, using fallback:', error);
+      // Fallback to public endpoint if dedicated endpoints fail
+      try {
+        const { pitches } = await pitchService.getPublicPitches();
         
         // Sort by views for trending - top 4 most viewed
         const trending = [...pitches].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0)).slice(0, 4);
@@ -52,24 +47,18 @@ export default function Homepage() {
           new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
         ).slice(0, 4);
         setNewReleases(newOnes);
-      } else {
-        console.error('Response not OK:', response.status, response.statusText);
-        // Use fallback data if API fails
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
         setTrendingPitches([]);
         setNewReleases([]);
       }
-    } catch (error) {
-      console.error('Failed to fetch pitches:', error);
-      // Use empty arrays as fallback
-      setTrendingPitches([]);
-      setNewReleases([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const genres = ['All', 'Action', 'Comedy', 'Drama', 'Sci-Fi', 'Thriller', 'Horror', 'Romance'];
-  const formats = ['All', 'Feature Film', 'TV Series', 'Short Film', 'Web Series', 'Documentary'];
+  const genres = ['All', ...getGenresSync()];
+  const formats = ['All', ...getFormatsSync()];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-purple-50 to-white">
@@ -78,10 +67,7 @@ export default function Homepage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2">
-                <img src="/pitcheylogo.png" alt="Pitchey Logo" className="h-8 w-auto object-contain" />
-                <span className="text-2xl font-bold text-gray-900">Pitchey</span>
-              </div>
+              <a href="/" className="text-2xl font-bold text-purple-600">Pitchey</a>
               <nav className="hidden md:flex items-center gap-6">
                 <button 
                   onClick={() => navigate('/marketplace')}
@@ -398,19 +384,19 @@ export default function Homepage() {
               </ul>
             </div>
             <div>
-              <h3 className="text-gray-900 font-semibold mb-4">For Investors</h3>
+              <h3 className="text-gray-900 font-semibold mb-4">Browse</h3>
               <ul className="space-y-2 text-gray-600 text-sm">
                 <li><button onClick={() => navigate('/marketplace')} className="hover:text-purple-600 transition">Browse Pitches</button></li>
-                <li><button className="hover:text-purple-600 transition">Investment Guide</button></li>
-                <li><button className="hover:text-purple-600 transition">Portfolio</button></li>
+                <li><button className="hover:text-purple-600 transition">Format</button></li>
               </ul>
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-gray-600 text-sm">
                 <li><button onClick={() => navigate('/about')} className="hover:text-purple-600 transition">About</button></li>
-                <li><button className="hover:text-purple-600 transition">Contact</button></li>
-                <li><button className="hover:text-purple-600 transition">Terms & Privacy</button></li>
+                <li><button onClick={() => navigate('/contact')} className="hover:text-purple-600 transition">Contact</button></li>
+                <li><button onClick={() => navigate('/terms')} className="hover:text-purple-600 transition">Terms</button></li>
+                <li><button onClick={() => navigate('/privacy')} className="hover:text-purple-600 transition">Privacy</button></li>
               </ul>
             </div>
           </div>

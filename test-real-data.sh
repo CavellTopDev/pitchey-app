@@ -6,7 +6,7 @@ echo "================================================"
 echo "Testing Real Data Implementation"
 echo "================================================"
 
-API_BASE="http://localhost:8000"
+API_BASE="http://localhost:8001"
 
 # Demo login credentials - use alice who is a creator
 TEST_EMAIL="alice@example.com"

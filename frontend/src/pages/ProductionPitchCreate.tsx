@@ -8,22 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { usePitchStore } from '../store/pitchStore';
-
-const GENRES = [
-  'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 
-  'Documentary', 'Drama', 'Family', 'Fantasy', 'Horror', 'Mystery', 
-  'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'
-];
-
-const FORMATS = [
-  'Feature Film', 'Short Film', 'TV Series', 'TV Movie', 'Mini-Series', 
-  'Web Series', 'Documentary Series', 'Reality Show'
-];
-
-const BUDGET_BRACKETS = [
-  'Under $1M', '$1M-$5M', '$5M-$15M', '$15M-$30M', 
-  '$30M-$50M', '$50M-$100M', 'Over $100M'
-];
+import { getGenresSync, getFormatsSync, getBudgetRangesSync } from '../constants/pitchConstants';
 
 interface MediaFile {
   id: string;
@@ -51,6 +36,9 @@ export default function ProductionPitchCreate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [genres, setGenres] = useState<string[]>(getGenresSync());
+  const [formats, setFormats] = useState<string[]>(getFormatsSync());
+  const [budgetBrackets, setBudgetBrackets] = useState<string[]>(getBudgetRangesSync());
   
   // Form Data State
   const [formData, setFormData] = useState({
@@ -97,6 +85,27 @@ export default function ProductionPitchCreate() {
   const [newTheme, setNewTheme] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pitchId, setPitchId] = useState<number | null>(null);
+
+  // Load configuration from API on component mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const { getGenres, getFormats, getBudgetRanges } = await import('../constants/pitchConstants');
+        const [genresData, formatsData, budgetRangesData] = await Promise.all([
+          getGenres(),
+          getFormats(),
+          getBudgetRanges()
+        ]);
+        setGenres(genresData);
+        setFormats(formatsData);
+        setBudgetBrackets(budgetRangesData);
+      } catch (err) {
+        console.warn('Failed to load configuration, using fallback:', err);
+        // Already using sync fallback values
+      }
+    };
+    loadConfig();
+  }, []);
 
   // Load draft if editing
   useEffect(() => {
@@ -563,7 +572,7 @@ export default function ProductionPitchCreate() {
                     }`}
                   >
                     <option value="">Select Genre</option>
-                    {GENRES.map(genre => (
+                    {genres.map(genre => (
                       <option key={genre} value={genre.toLowerCase()}>{genre}</option>
                     ))}
                   </select>
@@ -585,7 +594,7 @@ export default function ProductionPitchCreate() {
                     }`}
                   >
                     <option value="">Select Format</option>
-                    {FORMATS.map(format => (
+                    {formats.map(format => (
                       <option key={format} value={format.toLowerCase().replace(' ', '_')}>{format}</option>
                     ))}
                   </select>
@@ -872,7 +881,7 @@ export default function ProductionPitchCreate() {
                     }`}
                   >
                     <option value="">Select Budget Range</option>
-                    {BUDGET_BRACKETS.map(bracket => (
+                    {budgetBrackets.map(bracket => (
                       <option key={bracket} value={bracket}>{bracket}</option>
                     ))}
                   </select>

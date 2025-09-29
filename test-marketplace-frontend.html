@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Marketplace Frontend API Call</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .success { color: green; font-weight: bold; }
+        .failure { color: red; font-weight: bold; }
+        pre { background: #f4f4f4; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Testing Frontend Marketplace API Call</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testMarketplaceAPI() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Simulate the exact call from pitch.service.ts
+                const response = await fetch('http://localhost:8001/api/pitches/public', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                results.innerHTML += `<h2>Raw API Response:</h2>`;
+                results.innerHTML += `<p>Status: ${response.status}</p>`;
+                results.innerHTML += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                
+                // Check for Stellar pitches specifically
+                const stellarPitches = data.pitches ? 
+                    data.pitches.filter(p => p.creator?.username === 'stellarproduction') : [];
+                
+                results.innerHTML += `<h2>Stellar Pitches Found:</h2>`;
+                results.innerHTML += `<p>Count: ${stellarPitches.length}</p>`;
+                
+                if (stellarPitches.length > 0) {
+                    results.innerHTML += `<div class="success">✅ Stellar pitches are in API response</div>`;
+                    stellarPitches.forEach(pitch => {
+                        results.innerHTML += `<p>- ${pitch.title} (ID: ${pitch.id})</p>`;
+                    });
+                } else {
+                    results.innerHTML += `<div class="failure">❌ No Stellar pitches found in API response</div>`;
+                }
+                
+                // Check the structure the frontend expects
+                results.innerHTML += `<h2>Frontend Processing Simulation:</h2>`;
+                const frontendPitches = data?.pitches || [];
+                results.innerHTML += `<p>Frontend would receive ${frontendPitches.length} pitches</p>`;
+                
+            } catch (error) {
+                results.innerHTML += `<div class="failure">❌ Error: ${error.message}</div>`;
+                console.error('Test failed:', error);
+            }
+        }
+        
+        testMarketplaceAPI();
+    </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -84,6 +84,8 @@ export interface Pitch {
     username: string;
     userType: 'creator' | 'production' | 'investor';
     companyName?: string;
+    name?: string;
+    profileImage?: string;
   };
   viewCount: number;
   likeCount: number;
@@ -228,13 +230,13 @@ export const authAPI = {
 // Pitch API
 export const pitchAPI = {
   async getPublic() {
-    const response = await api.get<{ pitches: Pitch[] }>('/api/public/pitches');
-    return response.data.pitches || [];
+    const response = await api.get<{ success: boolean; data: { pitches: Pitch[] } }>('/api/pitches/public');
+    return response.data.data.pitches || [];
   },
 
   async getPublicById(id: number) {
-    const response = await api.get<{ success: boolean; pitch: Pitch }>(`/api/public/pitch/${id}`);
-    return response.data.pitch;
+    const response = await api.get<{ success: boolean; data: { pitch: Pitch } }>(`/api/pitches/public/${id}`);
+    return response.data.data.pitch;
   },
 
   async getAll(params?: {
@@ -261,8 +263,8 @@ export const pitchAPI = {
     shortSynopsis?: string;
     longSynopsis?: string;
   }) {
-    const response = await api.post<Pitch>('/api/pitches', data);
-    return response.data;
+    const response = await api.post<{ success: boolean; data: { data: Pitch } }>('/api/creator/pitches', data);
+    return response.data.data.data;
   },
 
   async update(id: number, data: Partial<Pitch>) {

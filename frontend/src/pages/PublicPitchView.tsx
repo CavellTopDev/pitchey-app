@@ -5,6 +5,7 @@ import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { ndaAPI } from '../lib/apiServices';
+import { ndaService } from '../services/nda.service';
 import NDAModal from '../components/NDAModal';
 
 export default function PublicPitchView() {
@@ -16,12 +17,16 @@ export default function PublicPitchView() {
   const [error, setError] = useState<string | null>(null);
   const [showNDAModal, setShowNDAModal] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
+  const [ndaRequestStatus, setNdaRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
 
   useEffect(() => {
     if (id) {
       fetchPitch(parseInt(id));
+      if (isAuthenticated && user) {
+        checkNDAStatus(parseInt(id));
+      }
     }
-  }, [id]);
+  }, [id, isAuthenticated, user]);
 
   const fetchPitch = async (pitchId: number) => {
     try {
@@ -46,12 +51,23 @@ export default function PublicPitchView() {
     }
   };
 
-  const handleNDASigned = async () => {
-    setHasSignedNDA(true);
-    // Refresh pitch data to get enhanced information
-    if (id) {
-      await fetchPitch(parseInt(id));
+  const checkNDAStatus = async (pitchId: number) => {
+    try {
+      const response = await ndaService.getNDAStatus(pitchId);
+      if (response.hasNDA && response.nda) {
+        setNdaRequestStatus(response.nda.status);
+        if (response.nda.status === 'approved') {
+          setHasSignedNDA(true);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check NDA status:', error);
     }
+  };
+
+  const handleNDASigned = async () => {
+    setNdaRequestStatus('pending');
+    // Don't set hasSignedNDA immediately since NDA needs approval first
   };
 
   const handleNDARequest = async (pitchId: number, requestData: any) => {
@@ -386,16 +402,38 @@ export default function PublicPitchView() {
                             </div>
                             <button
                               onClick={() => setShowNDAModal(true)}
-                              disabled={hasSignedNDA || user?.userType === 'creator'}
+                              disabled={hasSignedNDA || ndaRequestStatus === 'pending' || ndaRequestStatus === 'rejected' || user?.userType === 'creator'}
                               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition ${
                                 hasSignedNDA 
                                   ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                                  : ndaRequestStatus === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700 cursor-not-allowed'
+                                  : ndaRequestStatus === 'rejected'
+                                  ? 'bg-red-100 text-red-700 cursor-not-allowed'
                                   : 'bg-purple-600 text-white hover:bg-purple-700'
                               }`}
                             >
                               <Shield className="w-5 h-5" />
-                              {hasSignedNDA ? 'NDA Signed - Full Access Granted' : 'Request Access'}
+                              {hasSignedNDA 
+                                ? 'Access Granted - View Enhanced Info Above' 
+                                : ndaRequestStatus === 'pending'
+                                ? 'NDA Request Pending Review'
+                                : ndaRequestStatus === 'rejected'
+                                ? 'NDA Request Rejected'
+                                : 'Request NDA Access'}
                             </button>
+                            
+                            {/* Additional status messages */}
+                            {ndaRequestStatus === 'pending' && (
+                              <div className="mt-2 text-sm text-yellow-700 bg-yellow-50 p-2 rounded-lg">
+                                Your NDA request is being reviewed by the creator. You'll be notified once approved.
+                              </div>
+                            )}
+                            {ndaRequestStatus === 'rejected' && (
+                              <div className="mt-2 text-sm text-red-700 bg-red-50 p-2 rounded-lg">
+                                Your NDA request was not approved. You may contact the creator for more information.
+                              </div>
+                            )}
                           </>
                         )}
                       </div>

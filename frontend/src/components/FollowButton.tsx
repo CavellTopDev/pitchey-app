@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_URL } from '../config/api.config';
+import { socialService } from '../services/social.service';
 
 interface FollowButtonProps {
   creatorId?: number;
@@ -35,64 +35,33 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     }
 
     setChecking(true);
-    
-    // Set a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      setChecking(false);
-      setIsFollowing(false);
-    }, 3000); // 3 second timeout
 
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
-        clearTimeout(timeoutId);
         setChecking(false);
         return;
       }
 
-      // Get userId from localStorage
-      const userStr = localStorage.getItem('user');
-      let userId = null;
-      try {
-        const user = userStr ? JSON.parse(userStr) : null;
-        userId = user?.id;
-      } catch {
-        // Ignore parse error
-      }
-
-      // If no user ID, just set to not following
-      if (!userId) {
-        clearTimeout(timeoutId);
-        setIsFollowing(false);
-        setChecking(false);
-        return;
-      }
-
-      const params = new URLSearchParams();
-      params.append('userId', userId.toString());
-      if (creatorId) params.append('creatorId', creatorId.toString());
-      if (pitchId) params.append('pitchId', pitchId.toString());
-
-      const response = await fetch(`${API_URL}/api/follows/check?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        signal: AbortSignal.timeout(2500) // 2.5 second fetch timeout
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        setIsFollowing(data.isFollowing || false);
+      let targetId: number;
+      let type: 'user' | 'pitch';
+      
+      if (pitchId) {
+        targetId = pitchId;
+        type = 'pitch';
+      } else if (creatorId) {
+        targetId = creatorId;
+        type = 'user';
       } else {
-        // If endpoint fails, default to not following
         setIsFollowing(false);
+        setChecking(false);
+        return;
       }
+
+      const status = await socialService.checkFollowStatus(targetId, type);
+      setIsFollowing(status);
     } catch (error) {
       console.error('Error checking follow status:', error);
-      // On error, default to not following and don't get stuck
-      clearTimeout(timeoutId);
       setIsFollowing(false);
     } finally {
       setChecking(false);
@@ -108,84 +77,25 @@ const FollowButton: React.FC<FollowButtonProps> = ({
 
     setLoading(true);
 
-    // Get userId from localStorage
-    const userStr = localStorage.getItem('user');
-    let userId = null;
-    try {
-      const user = userStr ? JSON.parse(userStr) : null;
-      userId = user?.id;
-    } catch {
-      // Ignore parse error
-    }
-
-    if (!userId) {
-      console.error('User ID not found');
-      setLoading(false);
-      return;
-    }
-
     try {
       if (isFollowing) {
         // Unfollow
-        const params = new URLSearchParams();
-        params.append('userId', userId.toString());
-        if (creatorId) params.append('creatorId', creatorId.toString());
-        if (pitchId) params.append('pitchId', pitchId.toString());
-
-        const response = await fetch(`${API_URL}/api/follows/follow?${params}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          setIsFollowing(false);
-          onFollowChange?.(false);
-        } else {
-          throw new Error('Failed to unfollow');
+        if (pitchId) {
+          await socialService.unfollowPitch(pitchId);
+        } else if (creatorId) {
+          await socialService.unfollowUser(creatorId);
         }
+        setIsFollowing(false);
+        onFollowChange?.(false);
       } else {
-        // Follow - ensure we have valid targetId
-        let targetId = null;
-        let targetType = null;
-        
-        if (pitchId && pitchId !== '') {
-          targetId = pitchId;
-          targetType = 'pitch';
-        } else if (creatorId && creatorId !== '' && creatorId !== 0) {
-          targetId = creatorId;
-          targetType = 'creator';
+        // Follow
+        if (pitchId) {
+          await socialService.followPitch(pitchId);
+        } else if (creatorId) {
+          await socialService.followUser(creatorId);
         }
-        
-        if (!targetId || !targetType) {
-          console.error('No valid target ID for follow action');
-          setLoading(false);
-          return;
-        }
-        
-        const body = {
-          userId: userId.toString(),
-          targetId: targetId.toString(),
-          type: targetType
-        };
-
-        const response = await fetch(`${API_URL}/api/follows/follow`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (response.ok) {
-          setIsFollowing(true);
-          onFollowChange?.(true);
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to follow');
-        }
+        setIsFollowing(true);
+        onFollowChange?.(true);
       }
     } catch (error) {
       console.error('Error updating follow status:', error);

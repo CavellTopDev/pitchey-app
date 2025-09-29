@@ -71,56 +71,7 @@ interface PitchStore {
 export const usePitchStore = create<PitchStore>()(
   persist(
     (set, get) => ({
-      pitches: [
-        // Initial mock data - production pitches
-        {
-          id: 1,
-          title: "The Last Horizon",
-          logline: "A space exploration thriller about humanity's final mission to find a new home.",
-          genre: "Sci-Fi",
-          format: "Feature Film",
-          shortSynopsis: "In 2157, Earth's resources are depleted. The starship Horizon carries humanity's last hope.",
-          budget: "$45M",
-          estimatedBudget: 45000000,
-          productionTimeline: "15 months from greenlight to delivery",
-          viewCount: 456,
-          likeCount: 89,
-          ndaCount: 12,
-          followersCount: 234,
-          status: 'published',
-          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          publishedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
-          mediaFiles: [
-            { type: 'lookbook', count: 1, uploaded: true },
-            { type: 'script', count: 1, uploaded: true },
-            { type: 'pitch_deck', count: 1, uploaded: true },
-            { type: 'budget_breakdown', count: 1, uploaded: true },
-            { type: 'trailer', count: 1, uploaded: true },
-            { type: 'production_timeline', count: 1, uploaded: true }
-          ]
-        },
-        {
-          id: 2,
-          title: "Urban Legends",
-          logline: "An anthology series exploring modern urban myths in major cities.",
-          genre: "Horror",
-          format: "TV Series",
-          shortSynopsis: "Each episode explores a different urban legend brought to life in terrifying detail.",
-          budget: "$2M per episode",
-          viewCount: 321,
-          likeCount: 67,
-          ndaCount: 8,
-          followersCount: 156,
-          status: 'published',
-          createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-          publishedAt: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000).toISOString(),
-          mediaFiles: [
-            { type: 'script', count: 3, uploaded: true },
-            { type: 'pitch_deck', count: 1, uploaded: true },
-            { type: 'budget_breakdown', count: 1, uploaded: true }
-          ]
-        }
-      ],
+      pitches: [],
       drafts: [],
       currentDraft: null,
 

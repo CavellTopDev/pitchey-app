@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Briefcase, Users } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import BackButton from '../components/BackButton';
-import { API_URL } from '../config/api.config';
+import { authService } from '../services/auth.service';
 
 export default function ProductionLogin() {
   const [email, setEmail] = useState('');
@@ -18,37 +18,19 @@ export default function ProductionLogin() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/production/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const data = await authService.productionLogin({ email, password });
+      
+      // Update auth store state
+      useAuthStore.setState({ 
+        user: data.user, 
+        isAuthenticated: true, 
+        loading: false 
       });
-
-      const data = await response.json();
-
-      if (response.ok && data.user.userType === 'production') {
-        // Store token and user data for the auth system
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('authToken', data.token); // For auth store compatibility
-        localStorage.setItem('userType', 'production');
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Update auth store state
-        useAuthStore.setState({ 
-          user: data.user, 
-          isAuthenticated: true, 
-          loading: false 
-        });
-        
-        // Navigate to production dashboard with delay to ensure state updates
-        setTimeout(() => {
-          navigate('/production/dashboard');
-        }, 100);
-      } else {
-        setError('Invalid production company credentials or account type');
-      }
+      
+      // Navigate to production dashboard
+      navigate('/production/dashboard');
     } catch (err) {
-      setError('Failed to connect to server');
+      setError(err instanceof Error ? err.message : 'Invalid production company credentials');
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import { useAuthStore } from './store/authStore';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
+import { configService } from './services/config.service';
 
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
@@ -27,6 +28,7 @@ const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
 
 // Public Pages
 const Marketplace = lazy(() => import('./pages/Marketplace'));
+const TestMarketplace = lazy(() => import('./pages/TestMarketplace'));
 const PublicPitchView = lazy(() => import('./pages/PublicPitchView'));
 
 // Creator Pages
@@ -65,6 +67,9 @@ const UserPortfolio = lazy(() => import('./pages/UserPortfolio'));
 // Info Pages
 const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const About = lazy(() => import('./pages/About'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 
 // Error Pages
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -81,6 +86,22 @@ function PitchRouter() {
 function App() {
   const { isAuthenticated, fetchProfile } = useAuthStore();
   const [profileFetched, setProfileFetched] = useState(false);
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  // Load configuration on app startup
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        await configService.getConfiguration();
+        console.log('Configuration loaded successfully');
+      } catch (error) {
+        console.warn('Failed to load configuration, using fallback:', error);
+      } finally {
+        setConfigLoaded(true);
+      }
+    };
+    loadConfig();
+  }, []);
 
   useEffect(() => {
     // Only fetch profile once when authenticated and not yet fetched
@@ -107,10 +128,14 @@ function App() {
           
           {/* Marketplace */}
           <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/test-marketplace" element={<TestMarketplace />} />
           
           {/* Info Pages */}
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           
           {/* Portal Selection */}
           <Route path="/portals" element={<PortalSelect />} />
@@ -183,6 +208,11 @@ function App() {
             <Navigate to="/login/creator" />
           } />
           <Route path="/creator/pitches/:id/analytics" element={
+            isAuthenticated && userType === 'creator' ? <PitchAnalytics /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/creator" />
+          } />
+          <Route path="/creator/pitches/:id/:slug/analytics" element={
             isAuthenticated && userType === 'creator' ? <PitchAnalytics /> : 
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/creator" />

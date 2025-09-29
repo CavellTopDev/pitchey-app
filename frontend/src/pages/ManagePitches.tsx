@@ -1,20 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Eye, Edit3, Trash2, BarChart3, Search, Filter, RefreshCw } from 'lucide-react';
-import { API_URL } from '../config/api.config';
+import { ArrowLeft, Plus, Eye, Edit3, Trash2, BarChart3, Search, Filter, RefreshCw, Shield } from 'lucide-react';
+import { pitchService, type Pitch } from '../services/pitch.service';
 
-interface Pitch {
-  id: number;
-  title: string;
-  genre: string;
-  format: string;
-  logline: string;
-  status: 'draft' | 'published' | 'under_review';
-  viewCount: number;
-  likeCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// Using Pitch type from pitch.service.ts which matches Drizzle schema
 
 export default function ManagePitches() {
   const navigate = useNavigate();
@@ -76,26 +65,17 @@ export default function ManagePitches() {
     }
     
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/pitches`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const pitches = await pitchService.getMyPitches();
+      setPitches(pitches);
+      setLastUpdated(new Date());
       
-      if (response.ok) {
-        const data = await response.json();
-        setPitches(data.pitches || []);
-        setLastUpdated(new Date());
-        
-        if (silent) {
-          addNotification('Data refreshed automatically', 'success');
-        }
+      if (silent) {
+        addNotification('Data refreshed automatically', 'success');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch pitches:', error);
       if (!silent) {
-        addNotification('Failed to refresh data', 'error');
+        addNotification(error.message || 'Failed to refresh data', 'error');
       }
     } finally {
       setLoading(false);
@@ -115,24 +95,12 @@ export default function ManagePitches() {
     setLoadingState(pitchId, 'deleting');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/pitches/${pitchId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        setPitches(prev => prev.filter(pitch => pitch.id !== pitchId));
-        addNotification('Pitch deleted successfully', 'success');
-      } else {
-        const errorData = await response.json();
-        addNotification(errorData.error || 'Failed to delete pitch', 'error');
-      }
-    } catch (error) {
+      await pitchService.delete(pitchId);
+      setPitches(prev => prev.filter(pitch => pitch.id !== pitchId));
+      addNotification('Pitch deleted successfully', 'success');
+    } catch (error: any) {
       console.error('Failed to delete pitch:', error);
-      addNotification('Network error: Failed to delete pitch', 'error');
+      addNotification(error.message || 'Failed to delete pitch', 'error');
     } finally {
       clearLoadingState(pitchId);
     }
@@ -140,33 +108,25 @@ export default function ManagePitches() {
 
   const toggleStatus = async (pitchId: number, currentStatus: string) => {
     const newStatus = currentStatus === 'published' ? 'draft' : 'published';
-    const actionText = newStatus === 'published' ? 'publishing' : 'unpublishing';
+    const actionText = newStatus === 'published' ? 'publishing' : 'archiving';
     
     setLoadingState(pitchId, actionText);
     
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/pitches/${pitchId}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      
-      if (response.ok) {
-        setPitches(prev => prev.map(pitch => 
-          pitch.id === pitchId ? { ...pitch, status: newStatus as any, updatedAt: new Date().toISOString() } : pitch
-        ));
-        addNotification(`Pitch ${newStatus === 'published' ? 'published' : 'unpublished'} successfully`, 'success');
+      let updatedPitch;
+      if (newStatus === 'published') {
+        updatedPitch = await pitchService.publish(pitchId);
       } else {
-        const errorData = await response.json();
-        addNotification(errorData.error || 'Failed to update pitch status', 'error');
+        updatedPitch = await pitchService.archive(pitchId);
       }
-    } catch (error) {
+      
+      setPitches(prev => prev.map(pitch => 
+        pitch.id === pitchId ? updatedPitch : pitch
+      ));
+      addNotification(`Pitch ${newStatus === 'published' ? 'published' : 'archived'} successfully`, 'success');
+    } catch (error: any) {
       console.error('Failed to update pitch status:', error);
-      addNotification('Network error: Failed to update pitch status', 'error');
+      addNotification(error.message || 'Failed to update pitch status', 'error');
     } finally {
       clearLoadingState(pitchId);
     }
@@ -423,7 +383,10 @@ export default function ManagePitches() {
                     </button>
                     
                     <button
-                      onClick={() => navigate(`/creator/pitches/${pitch.id}/analytics`)}
+                      onClick={() => {
+                        const slug = pitch.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                        navigate(`/creator/pitches/${pitch.id}/${slug}/analytics`);
+                      }}
                       className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition text-sm"
                       title="View analytics"
                     >

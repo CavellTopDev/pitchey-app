@@ -227,6 +227,14 @@ export default function CreatorDashboard() {
               </Link>
               
               <button
+                onClick={() => navigate('/marketplace')}
+                className="flex items-center gap-2 px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition"
+              >
+                <Eye className="w-4 h-4" />
+                Browse Marketplace
+              </button>
+              
+              <button
                 onClick={() => navigate('/creator/pitch/new')}
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition"
               >

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { pitchAPI } from '../lib/api';
-import type { Pitch } from '../lib/api';
+import { pitchService } from '../services/pitch.service';
+import type { Pitch } from '../services/pitch.service';
 import { useAuthStore } from '../store/authStore';
 import FollowButton from '../components/FollowButton';
 import { PitchCardSkeleton } from '../components/Loading/Skeleton';
@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast/ToastProvider';
 import Pagination from '../components/Pagination';
 import { useSearch } from '../hooks/useSearch';
 import { useResponsive } from '../hooks/useResponsive';
+import { configService } from '../services/config.service';
 import { 
   Search, 
   Filter, 
@@ -54,15 +55,42 @@ export default function Marketplace() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
+  const [config, setConfig] = useState<any>(null);
 
-  const genres = [
-    'Drama', 'Comedy', 'Action', 'Thriller', 'Horror', 'Romance', 
-    'Sci-Fi', 'Fantasy', 'Documentary', 'Animation', 'Mystery'
+  // Use config values or fallback
+  const genres = config?.genres || [
+    'Action',
+    'Animation', 
+    'Comedy',
+    'Documentary',
+    'Drama',
+    'Fantasy',
+    'Horror',
+    'Mystery',
+    'Romance',
+    'Sci-Fi',
+    'Thriller'
   ];
 
-  const formats = [
-    'Feature Film', 'Short Film', 'TV Series', 'Web Series'
+  const formats = config?.formats || [
+    'Feature Film',
+    'Short Film', 
+    'TV Series',
+    'Web Series'
   ];
+
+  // Load configuration on mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const configData = await configService.getConfiguration();
+        setConfig(configData);
+      } catch (error) {
+        console.error('Failed to load configuration:', error);
+      }
+    };
+    loadConfig();
+  }, []);
 
   // Handle hash changes for different views
   useEffect(() => {
@@ -89,8 +117,7 @@ export default function Marketplace() {
       filtered = filtered.filter(p => 
         p.title?.toLowerCase().includes(query) ||
         p.logline?.toLowerCase().includes(query) ||
-        p.genre?.toLowerCase().includes(query) ||
-        p.creator?.username?.toLowerCase().includes(query)
+        p.genre?.toLowerCase().includes(query)
       );
     }
     
@@ -125,13 +152,6 @@ export default function Marketplace() {
         // Sort by like count (most liked)
         filtered = filtered.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0));
         break;
-      case 'featured':
-        // Staff picks - filter for high quality (high like ratio)
-        filtered = filtered.filter(p => {
-          const ratio = (p.likeCount || 0) / Math.max(1, p.viewCount || 1);
-          return ratio > 0.15; // 15% like rate or higher
-        }).sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0));
-        break;
       case 'hot':
         // Most discussed - simulate by combining views and likes
         filtered = filtered.sort((a, b) => {
@@ -159,17 +179,13 @@ export default function Marketplace() {
   const loadPitches = async () => {
     try {
       setLoading(true);
-      console.log('Loading pitches from API...');
-      const data = await pitchAPI.getPublic();
-      console.log('Loaded pitches:', data);
-      
-      setPitches(data || []);
+      const { pitches: pitchesData } = await pitchService.getPublicPitches();
+      setPitches(Array.isArray(pitchesData) ? pitchesData : []);
     } catch (err) {
       console.error('Failed to load pitches:', err);
       // Don't show error toast, just log it
       // Use empty array as fallback
       setPitches([]);
-      console.log('Using empty array as fallback');
     } finally {
       setLoading(false);
     }
@@ -177,13 +193,21 @@ export default function Marketplace() {
 
   const loadTrendingPitches = async () => {
     try {
-      const data = await pitchAPI.getPublic();
-      
-      // Sort by view count for trending
-      const trending = [...data].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-      setTrendingPitches(trending.slice(0, 5));
+      // Use the dedicated trending endpoint
+      const trending = await pitchService.getTrendingPitches(4);
+      setTrendingPitches(trending);
     } catch (err) {
       console.error('Failed to load trending pitches:', err);
+      // Fallback to manual sorting if endpoint fails
+      try {
+        const { pitches: pitchesData } = await pitchService.getPublicPitches();
+        if (Array.isArray(pitchesData)) {
+          const trending = [...pitchesData].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+          setTrendingPitches(trending.slice(0, 4));
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback also failed:', fallbackErr);
+      }
     }
   };
 
@@ -260,15 +284,6 @@ export default function Marketplace() {
                 >
                   <Star className="w-4 h-4" />
                   Top Rated
-                </a>
-                <a 
-                  href="#featured" 
-                  className={`flex items-center gap-1 font-medium transition ${
-                    currentView === 'featured' ? 'text-purple-600' : 'text-gray-700 hover:text-purple-600'
-                  }`}
-                >
-                  <Award className="w-4 h-4" />
-                  Staff Picks
                 </a>
                 <a 
                   href="#hot" 
@@ -390,7 +405,7 @@ export default function Marketplace() {
               <TrendingUp className="w-6 h-6 text-orange-500" />
               <h2 className="text-2xl font-bold text-gray-900">Trending Now</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {trendingPitches.map((pitch) => {
                 const isProduction = pitch.creator?.userType === 'production';
                 const isInvestor = pitch.creator?.userType === 'investor';
@@ -435,9 +450,7 @@ export default function Marketplace() {
                       isInvestor ? 'text-green-600' :
                       'text-blue-600'
                     }`}>
-                      {isProduction ? '🏢' : isInvestor ? '💰' : '👤'} 
-                      {' '}
-                      {pitch.creator?.companyName || pitch.creator?.username || 'Unknown'}
+                      {isProduction ? '🏢 Production' : isInvestor ? '💰 Investor' : '👤 Creator'}
                     </p>
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span className="flex items-center space-x-1">
@@ -463,7 +476,6 @@ export default function Marketplace() {
             {currentView === 'trending' && 'Trending Pitches'}
             {currentView === 'new' && 'New Releases'}
             {currentView === 'top-rated' && 'Top Rated'}
-            {currentView === 'featured' && 'Staff Picks'}
             {currentView === 'hot' && 'Hot & Discussed'}
             {currentView === 'genres' && 'Browse by Genre'}
             {currentView === 'all' && 'All Pitches'}
@@ -606,48 +618,24 @@ export default function Marketplace() {
                         {isProduction ? (
                           <>
                             <Building2 className="w-3 h-3" />
-                            <span 
-                              className="hover:underline cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/creator/${pitch.creator?.id}`);
-                              }}
-                            >
-                              {pitch.creator?.companyName || pitch.creator?.username || 'Production'}
-                            </span>
+                            <span>Production</span>
                           </>
                         ) : isInvestor ? (
                           <>
                             <Wallet className="w-3 h-3" />
-                            <span 
-                              className="hover:underline cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/creator/${pitch.creator?.id}`);
-                              }}
-                            >
-                              {pitch.creator?.companyName || pitch.creator?.username || 'Investor'}
-                            </span>
+                            <span>Investor</span>
                           </>
                         ) : (
                           <>
                             <User className="w-3 h-3" />
-                            <span 
-                              className="hover:underline cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/creator/${pitch.creator?.id}`);
-                              }}
-                            >
-                              {pitch.creator?.username || 'Creator'}
-                            </span>
+                            <span>Creator</span>
                           </>
                         )}
                       </div>
-                      {isAuthenticated && (
+                      {isAuthenticated && pitch.creator?.id && (
                         <div onClick={(e) => e.stopPropagation()}>
                           <FollowButton 
-                            creatorId={pitch.creator?.id || ''}
+                            creatorId={pitch.creator.id}
                             variant="small" 
                             className="text-xs px-2 py-1"
                             showFollowingText={false}
@@ -655,6 +643,18 @@ export default function Marketplace() {
                         </div>
                       )}
                     </div>
+                  </div>
+                  
+                  {/* Creator name display */}
+                  <div className="mb-3 text-sm">
+                    <span className="text-gray-500">by </span>
+                    <span className={`font-medium ${
+                      isProduction ? 'text-purple-700' :
+                      isInvestor ? 'text-green-700' :
+                      'text-gray-700'
+                    }`}>
+                      {pitch.creator?.companyName || pitch.creator?.username || 'Anonymous'}
+                    </span>
                   </div>
                   
                   {/* NDA indicator for production/investor pitches */}
@@ -692,17 +692,6 @@ export default function Marketplace() {
                   
                   {/* Action buttons for all pitches */}
                   <div className="mt-4 pt-4 border-t flex gap-2">
-                    {isAuthenticated && (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <FollowButton 
-                          pitchId={pitch.id}
-                          creatorId={pitch.creator.id}
-                          variant="small" 
-                          className="flex-1 min-w-[80px]"
-                        />
-                      </div>
-                    )}
-                    
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();

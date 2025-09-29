@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Filter, Eye, Heart, DollarSign, Calendar, Shield, Star, Film, TrendingUp, Building2, User } from 'lucide-react';
 import { pitchAPI } from '../lib/api';
 import { API_URL } from '../config/api.config';
+import { configService } from '../services/config.service';
 
 interface Pitch {
   id: number;
@@ -45,9 +46,22 @@ export default function InvestorBrowse() {
   });
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'budget' | 'roi'>('latest');
   const [showFilters, setShowFilters] = useState(false);
+  const [config, setConfig] = useState<any>(null);
 
   useEffect(() => {
-    fetchPitches();
+    // Load configuration and pitches in parallel
+    const loadData = async () => {
+      try {
+        const [configData] = await Promise.all([
+          configService.getConfiguration(),
+          fetchPitches()
+        ]);
+        setConfig(configData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -255,13 +269,17 @@ export default function InvestorBrowse() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Genres</option>
-                  <option value="Action">Action</option>
-                  <option value="Horror">Horror</option>
-                  <option value="Sci-Fi">Sci-Fi</option>
-                  <option value="Thriller">Thriller</option>
-                  <option value="Documentary">Documentary</option>
-                  <option value="Drama">Drama</option>
-                  <option value="Comedy">Comedy</option>
+                  {config?.genres?.map((genre: string) => (
+                    <option key={genre} value={genre}>{genre}</option>
+                  )) || [
+                    <option key="Action" value="Action">Action</option>,
+                    <option key="Horror" value="Horror">Horror</option>,
+                    <option key="Sci-Fi" value="Sci-Fi">Sci-Fi</option>,
+                    <option key="Thriller" value="Thriller">Thriller</option>,
+                    <option key="Documentary" value="Documentary">Documentary</option>,
+                    <option key="Drama" value="Drama">Drama</option>,
+                    <option key="Comedy" value="Comedy">Comedy</option>
+                  ]}
                 </select>
               </div>
               
@@ -273,10 +291,14 @@ export default function InvestorBrowse() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Formats</option>
-                  <option value="Feature Film">Feature Film</option>
-                  <option value="Limited Series">Limited Series</option>
-                  <option value="TV Series">TV Series</option>
-                  <option value="Short Film">Short Film</option>
+                  {config?.formats?.map((format: string) => (
+                    <option key={format} value={format}>{format}</option>
+                  )) || [
+                    <option key="Feature Film" value="Feature Film">Feature Film</option>,
+                    <option key="Limited Series" value="Limited Series">Limited Series</option>,
+                    <option key="TV Series" value="TV Series">TV Series</option>,
+                    <option key="Short Film" value="Short Film">Short Film</option>
+                  ]}
                 </select>
               </div>
               
@@ -288,10 +310,14 @@ export default function InvestorBrowse() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Budgets</option>
-                  <option value="under-5m">Under $5M</option>
-                  <option value="5m-15m">$5M - $15M</option>
-                  <option value="15m-50m">$15M - $50M</option>
-                  <option value="over-50m">Over $50M</option>
+                  {config?.budgetRanges?.map((range: {value: string, label: string}) => (
+                    <option key={range.value} value={range.value}>{range.label}</option>
+                  )) || [
+                    <option key="under-5m" value="under-5m">Under $5M</option>,
+                    <option key="5m-15m" value="5m-15m">$5M - $15M</option>,
+                    <option key="15m-50m" value="15m-50m">$15M - $50M</option>,
+                    <option key="over-50m" value="over-50m">Over $50M</option>
+                  ]}
                 </select>
               </div>
               
@@ -303,9 +329,13 @@ export default function InvestorBrowse() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Risk Levels</option>
-                  <option value="low">Low Risk</option>
-                  <option value="medium">Medium Risk</option>
-                  <option value="high">High Risk</option>
+                  {config?.riskLevels?.map((level: {value: string, label: string}) => (
+                    <option key={level.value} value={level.value}>{level.label}</option>
+                  )) || [
+                    <option key="low" value="low">Low Risk</option>,
+                    <option key="medium" value="medium">Medium Risk</option>,
+                    <option key="high" value="high">High Risk</option>
+                  ]}
                 </select>
               </div>
               
@@ -317,10 +347,14 @@ export default function InvestorBrowse() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Stages</option>
-                  <option value="Development">Development</option>
-                  <option value="Pre-Production">Pre-Production</option>
-                  <option value="Financing">Financing</option>
-                  <option value="Post-Production">Post-Production</option>
+                  {config?.productionStages?.map((stage: string) => (
+                    <option key={stage} value={stage}>{stage}</option>
+                  )) || [
+                    <option key="Development" value="Development">Development</option>,
+                    <option key="Pre-Production" value="Pre-Production">Pre-Production</option>,
+                    <option key="Financing" value="Financing">Financing</option>,
+                    <option key="Post-Production" value="Post-Production">Post-Production</option>
+                  ]}
                 </select>
               </div>
             </div>

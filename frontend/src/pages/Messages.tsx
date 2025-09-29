@@ -3,16 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Search, Filter, MessageSquare, Paperclip, MoreVertical, RefreshCw, Users, Circle } from 'lucide-react';
 import { useMessaging } from '../hooks/useWebSocket';
 import { getUserId } from '../lib/apiServices';
-import { API_URL } from '../config/api.config';
+import { messagingService, type Message as ServiceMessage, type Conversation as ServiceConversation } from '../services/messaging.service';
 
-interface Message {
-  id: number;
-  senderId: number;
+// Map service types to component's expected format
+interface Message extends Omit<ServiceMessage, 'content' | 'createdAt'> {
   senderName: string;
   senderType: 'investor' | 'production' | 'creator';
-  subject: string;
+  subject?: string;
   message: string;
-  pitchId?: number;
   pitchTitle?: string;
   timestamp: string;
   isRead: boolean;
@@ -20,14 +18,11 @@ interface Message {
   priority: 'normal' | 'high';
 }
 
-interface Conversation {
-  id: number;
+interface Conversation extends ServiceConversation {
   participantName: string;
   participantType: 'investor' | 'production' | 'creator';
-  lastMessage: string;
+  lastMessageText?: string;
   timestamp: string;
-  unreadCount: number;
-  pitchTitle?: string;
 }
 
 export default function Messages() {
@@ -97,29 +92,31 @@ export default function Messages() {
     }
     
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/messages/conversations`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const { conversations } = await messagingService.getConversations();
       
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data.conversations || []);
-        setLastUpdated(new Date());
-        
-        if (silent) {
-          const unreadCount = data.conversations?.reduce((sum: number, conv: Conversation) => sum + conv.unreadCount, 0) || 0;
-          if (unreadCount > 0) {
-            addNotification(`${unreadCount} new message${unreadCount > 1 ? 's' : ''}`, 'success');
-          }
+      // Map service conversations to component format
+      const mappedConversations = conversations.map(conv => ({
+        ...conv,
+        participantName: conv.participantDetails?.[0]?.name || conv.participantDetails?.[0]?.companyName || conv.participantDetails?.[0]?.username || 'Unknown',
+        participantType: (conv.participantDetails?.[0]?.userType || 'creator') as 'investor' | 'production' | 'creator',
+        lastMessageText: conv.lastMessage?.content || '',
+        timestamp: conv.lastMessage?.createdAt || conv.updatedAt,
+        unreadCount: conv.unreadCount || 0
+      }));
+      
+      setConversations(mappedConversations);
+      setLastUpdated(new Date());
+      
+      if (silent) {
+        const unreadCount = mappedConversations.reduce((sum: number, conv: Conversation) => sum + (conv.unreadCount || 0), 0);
+        if (unreadCount > 0) {
+          addNotification(`${unreadCount} new message${unreadCount > 1 ? 's' : ''}`, 'success');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch conversations:', error);
       if (!silent) {
-        addNotification('Failed to refresh conversations', 'error');
+        addNotification(error.message || 'Failed to refresh conversations', 'error');
       }
     } finally {
       setLoading(false);
@@ -133,35 +130,39 @@ export default function Messages() {
 
   const fetchMessages = async (conversationId: number, silent = false) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/messages/${conversationId}/messages`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const { messages } = await messagingService.getMessages({ conversationId });
       
-      if (response.ok) {
-        const data = await response.json();
-        const newMessages = data.messages || [];
-        
-        // Check for new messages
-        if (silent && currentMessages.length > 0 && newMessages.length > currentMessages.length) {
-          const newCount = newMessages.length - currentMessages.length;
-          addNotification(`${newCount} new message${newCount > 1 ? 's' : ''} received`, 'success');
-        }
-        
-        setCurrentMessages(newMessages);
-        
-        // Mark unread messages as read via WebSocket
-        if (!silent) {
-          const currentUserId = getUserId();
-          newMessages
-            .filter(msg => !msg.isRead && msg.receiverId === currentUserId)
-            .forEach(msg => markMessageAsRead(msg.id));
-        }
+      // Map service messages to component format
+      const mappedMessages = messages.map(msg => ({
+        ...msg,
+        senderName: msg.sender?.name || msg.sender?.companyName || msg.sender?.username || 'Unknown',
+        senderType: (msg.sender?.userType || 'creator') as 'investor' | 'production' | 'creator',
+        message: msg.content,
+        timestamp: msg.createdAt,
+        isRead: !!msg.readAt,
+        hasAttachment: msg.attachments && msg.attachments.length > 0,
+        priority: 'normal' as 'normal' | 'high',
+        pitchTitle: undefined // Will be set from conversation if needed
+      }));
+      
+      // Check for new messages
+      if (silent && currentMessages.length > 0 && mappedMessages.length > currentMessages.length) {
+        const newCount = mappedMessages.length - currentMessages.length;
+        addNotification(`${newCount} new message${newCount > 1 ? 's' : ''} received`, 'success');
       }
-    } catch (error) {
+        
+      setCurrentMessages(mappedMessages);
+        
+      // Mark unread messages as read via WebSocket
+      if (!silent) {
+        const currentUserId = getUserId();
+        mappedMessages
+          .filter(msg => !msg.isRead && msg.recipientId === currentUserId)
+          .forEach(msg => markMessageAsRead(msg.id));
+      }
+    } catch (error: any) {
       console.error('Failed to fetch messages:', error);
+      addNotification(error.message || 'Failed to fetch messages', 'error');
     }
   };
 
@@ -169,20 +170,15 @@ export default function Messages() {
 
   const markAsRead = async (conversationId: number) => {
     try {
-      const token = localStorage.getItem('authToken');
-      await fetch(`${API_URL}/api/creator/conversations/${conversationId}/read`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      await messagingService.markConversationAsRead(conversationId);
       
       // Update local state
       setConversations(prev => prev.map(conv => 
         conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
       ));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to mark as read:', error);
+      addNotification(error.message || 'Failed to mark as read', 'error');
     }
   };
 
@@ -202,48 +198,39 @@ export default function Messages() {
         // Stop typing indicator
         stopTyping(selectedConversation);
       } else {
-        // Fallback to HTTP API if WebSocket is not connected
-        const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_URL}/api/messages/send`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            conversationId: selectedConversation,
-            content: newMessage.trim()
-          })
+        // Fallback to messaging service
+        const message = await messagingService.sendMessage({
+          conversationId: selectedConversation,
+          content: newMessage.trim()
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          
-          // Add message to current view
-          setCurrentMessages(prev => [...prev, {
-            ...data.message,
-            timestamp: data.message.sentAt,
-            sender: data.message.senderName,
-          }]);
-          
-          setNewMessage('');
-          addNotification('Message sent successfully', 'success');
-          
-          // Stop typing indicator
-          if (selectedConversation) {
-            stopTyping(selectedConversation);
-          }
-          
-          // Update conversation list
-          fetchConversations(true);
-        } else {
-          const errorData = await response.json();
-          addNotification(errorData.error || 'Failed to send message', 'error');
+        // Map and add message to current view
+        const mappedMessage: Message = {
+          ...message,
+          senderName: message.sender?.name || message.sender?.companyName || message.sender?.username || 'You',
+          senderType: (message.sender?.userType || 'creator') as 'investor' | 'production' | 'creator',
+          message: message.content,
+          timestamp: message.createdAt,
+          isRead: !!message.readAt,
+          hasAttachment: message.attachments && message.attachments.length > 0,
+          priority: 'normal' as 'normal' | 'high'
+        };
+        
+        setCurrentMessages(prev => [...prev, mappedMessage]);
+        setNewMessage('');
+        addNotification('Message sent successfully', 'success');
+        
+        // Stop typing indicator
+        if (selectedConversation) {
+          stopTyping(selectedConversation);
         }
+        
+        // Update conversation list
+        fetchConversations(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
-      addNotification('Network error: Failed to send message', 'error');
+      addNotification(error.message || 'Failed to send message', 'error');
     } finally {
       setSendingMessage(false);
     }
@@ -424,7 +411,7 @@ export default function Messages() {
                 ) : (
                   filteredConversations.map((conversation) => {
                     const unreadCount = unreadCounts[conversation.id] || conversation.unreadCount || 0;
-                    const participant = conversation.participants?.[0];
+                    const participant = conversation.participantDetails?.[0];
                     const isParticipantOnline = participant && onlineUsers[participant.id];
                     
                     return (
@@ -439,15 +426,15 @@ export default function Messages() {
                           <div className="flex items-center gap-2">
                             <div className="relative">
                               <h3 className="font-medium text-gray-900 text-sm">
-                                {participant?.name || 'Unknown User'}
+                                {conversation.participantName || participant?.name || participant?.companyName || 'Unknown User'}
                               </h3>
                               {isParticipantOnline && (
                                 <Circle className="w-2 h-2 fill-green-500 text-green-500 absolute -top-1 -right-1" />
                               )}
                             </div>
-                            {participant?.userType && (
-                              <span className={`px-2 py-1 text-xs rounded-full ${getParticipantBadgeColor(participant.userType)}`}>
-                                {participant.userType}
+                            {conversation.participantType && (
+                              <span className={`px-2 py-1 text-xs rounded-full ${getParticipantBadgeColor(conversation.participantType)}`}>
+                                {conversation.participantType}
                               </span>
                             )}
                           </div>

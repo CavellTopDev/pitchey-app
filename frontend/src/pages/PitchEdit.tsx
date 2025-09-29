@@ -1,18 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Upload, FileText, Video, Image as ImageIcon } from 'lucide-react';
-import { API_URL } from '../config/api.config';
-
-const GENRES = [
-  'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 
-  'Documentary', 'Drama', 'Family', 'Fantasy', 'Horror', 'Mystery', 
-  'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'
-];
-
-const FORMATS = [
-  'Feature Film', 'Short Film', 'TV Series', 'TV Movie', 'Mini-Series', 
-  'Web Series', 'Documentary Series', 'Reality Show'
-];
+import { pitchService } from '../services/pitch.service';
+import type { Pitch, UpdatePitchInput } from '../services/pitch.service';
+import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
 
 interface PitchFormData {
   title: string;
@@ -31,6 +22,8 @@ export default function PitchEdit() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [genres] = useState<string[]>(getGenresSync());
+  const [formats] = useState<string[]>(getFormatsSync());
   const [formData, setFormData] = useState<PitchFormData>({
     title: '',
     genre: '',
@@ -50,29 +43,17 @@ export default function PitchEdit() {
 
   const fetchPitch = async (pitchId: number) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/pitches/${pitchId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const pitch = await pitchService.getById(pitchId);
+      setFormData({
+        title: pitch.title || '',
+        genre: pitch.genre || '',
+        format: pitch.format || '',
+        logline: pitch.logline || '',
+        shortSynopsis: pitch.shortSynopsis || '',
+        image: null,
+        pdf: null,
+        video: null
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const pitch = data.pitch;
-        setFormData({
-          title: pitch.title || '',
-          genre: pitch.genre || '',
-          format: pitch.format || '',
-          logline: pitch.logline || '',
-          shortSynopsis: pitch.shortSynopsis || '',
-          image: null,
-          pdf: null,
-          video: null
-        });
-      } else {
-        setError('Pitch not found');
-      }
     } catch (error) {
       console.error('Failed to fetch pitch:', error);
       setError('Failed to load pitch');
@@ -120,54 +101,47 @@ export default function PitchEdit() {
     setIsSubmitting(true);
 
     try {
-      const submitFormData = new FormData();
-      submitFormData.append('title', formData.title);
-      submitFormData.append('genre', formData.genre);
-      submitFormData.append('format', formData.format);
-      submitFormData.append('logline', formData.logline);
-      submitFormData.append('shortSynopsis', formData.shortSynopsis);
-      
-      if (formData.image) {
-        submitFormData.append('image', formData.image);
-      }
-      if (formData.pdf) {
-        submitFormData.append('pdf', formData.pdf);
-      }
-      if (formData.video) {
-        submitFormData.append('video', formData.video);
-      }
+      const updateData: UpdatePitchInput = {
+        title: formData.title,
+        genre: formData.genre,
+        format: formData.format,
+        logline: formData.logline,
+        shortSynopsis: formData.shortSynopsis
+      };
 
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/pitches/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: submitFormData
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Pitch updated successfully:', result);
-        navigate(`/creator/pitches/${id}`);
-      } else {
-        let errorMessage = 'Failed to update pitch';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (e) {
-          if (response.status === 404) {
-            errorMessage = 'Pitch not found';
-          } else {
-            errorMessage = `Server error (${response.status}): ${response.statusText}`;
-          }
+      // Skip file uploads for now - media upload endpoint not yet implemented
+      // TODO: Implement media upload endpoint in backend
+      if (formData.image || formData.pdf || formData.video) {
+        console.log('Media files selected but upload not yet implemented');
+        // Comment out media upload to prevent errors
+        /*
+        const media: string[] = [];
+        
+        if (formData.image) {
+          const imageUrl = await pitchService.uploadMedia(parseInt(id!), formData.image, 'image');
+          media.push(imageUrl);
         }
-        console.error('Server response error:', response.status, response.statusText);
-        alert(errorMessage);
+        if (formData.pdf) {
+          const pdfUrl = await pitchService.uploadMedia(parseInt(id!), formData.pdf, 'document');
+          media.push(pdfUrl);
+        }
+        if (formData.video) {
+          const videoUrl = await pitchService.uploadMedia(parseInt(id!), formData.video, 'video');
+          media.push(videoUrl);
+        }
+        
+        if (media.length > 0) {
+          updateData.additionalMedia = media;
+        }
+        */
       }
+
+      await pitchService.update(parseInt(id!), updateData);
+      console.log('Pitch updated successfully');
+      navigate('/creator/pitches');
     } catch (error) {
       console.error('Error updating pitch:', error);
-      alert('Network error: Unable to connect to the server');
+      alert(error instanceof Error ? error.message : 'Failed to update pitch');
     } finally {
       setIsSubmitting(false);
     }
@@ -217,7 +191,7 @@ export default function PitchEdit() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate(`/creator/pitches/${id}`)}
+              onClick={() => navigate('/creator/pitches')}
               className="p-2 text-gray-500 hover:text-gray-700 transition rounded-lg hover:bg-gray-100"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -267,7 +241,7 @@ export default function PitchEdit() {
                   required
                 >
                   <option value="">Select a genre</option>
-                  {GENRES.map(genre => (
+                  {genres.map(genre => (
                     <option key={genre} value={genre}>{genre}</option>
                   ))}
                 </select>
@@ -286,7 +260,7 @@ export default function PitchEdit() {
                   required
                 >
                   <option value="">Select a format</option>
-                  {FORMATS.map(format => (
+                  {formats.map(format => (
                     <option key={format} value={format}>{format}</option>
                   ))}
                 </select>
@@ -336,6 +310,14 @@ export default function PitchEdit() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Media & Assets</h2>
             
+            {/* Temporary Notice */}
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> Media upload is temporarily disabled while we upgrade our storage infrastructure. 
+                You can still update your pitch text and details.
+              </p>
+            </div>
+            
             {/* Image Upload */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -362,6 +344,7 @@ export default function PitchEdit() {
                     <p className="text-sm text-gray-600 mb-2">Upload a new cover image (optional)</p>
                     <input
                       type="file"
+                      disabled
                       accept="image/*"
                       onChange={(e) => handleFileChange(e, 'image')}
                       className="hidden"
@@ -369,7 +352,7 @@ export default function PitchEdit() {
                     />
                     <label
                       htmlFor="image-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer transition"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed opacity-50"
                     >
                       <Upload className="w-4 h-4" />
                       Choose Image
@@ -405,6 +388,7 @@ export default function PitchEdit() {
                     <p className="text-sm text-gray-600 mb-2">Upload a new script or treatment (optional)</p>
                     <input
                       type="file"
+                      disabled
                       accept=".pdf"
                       onChange={(e) => handleFileChange(e, 'pdf')}
                       className="hidden"
@@ -412,7 +396,7 @@ export default function PitchEdit() {
                     />
                     <label
                       htmlFor="pdf-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 cursor-pointer transition"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed opacity-50"
                     >
                       <Upload className="w-4 h-4" />
                       Choose PDF
@@ -448,6 +432,7 @@ export default function PitchEdit() {
                     <p className="text-sm text-gray-600 mb-2">Upload a new pitch video (optional)</p>
                     <input
                       type="file"
+                      disabled
                       accept="video/*"
                       onChange={(e) => handleFileChange(e, 'video')}
                       className="hidden"
@@ -455,7 +440,7 @@ export default function PitchEdit() {
                     />
                     <label
                       htmlFor="video-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 cursor-pointer transition"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed opacity-50"
                     >
                       <Upload className="w-4 h-4" />
                       Choose Video
@@ -470,7 +455,7 @@ export default function PitchEdit() {
           <div className="flex justify-end gap-4">
             <button
               type="button"
-              onClick={() => navigate(`/creator/pitches/${id}`)}
+              onClick={() => navigate('/creator/pitches')}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
             >
               Cancel

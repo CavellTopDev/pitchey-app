@@ -36,7 +36,7 @@ FRONTEND_PID=$!
 echo ""
 echo "✅ Development environment started!"
 echo "   Frontend: http://localhost:5173"
-echo "   Backend:  http://localhost:8000"
+echo "   Backend:  http://localhost:8001"
 echo "   Database: PostgreSQL on port 5432"
 echo ""
 echo "Press Ctrl+C to stop all services..."

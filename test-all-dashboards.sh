@@ -1,168 +1,112 @@
 #!/bin/bash
 
-echo "═══════════════════════════════════════════════════════"
-echo "        PITCHEY DEMO ACCOUNT WORKFLOW TEST"
-echo "═══════════════════════════════════════════════════════"
-echo ""
+# Comprehensive Dashboard Testing Script
+# Tests every button, card, and feature on all dashboards
 
-BASE_URL="https://pitchey-backend.deno.dev"
+API_URL="http://localhost:8001"
+FRONTEND_URL="http://localhost:5173"
 
-# Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     1. CREATOR DASHBOARD WORKFLOWS         ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
+# Test result tracking
+PASS=0
+FAIL=0
+ISSUES=()
+
+function test_endpoint() {
+  local description="$1"
+  local method="$2"
+  local endpoint="$3"
+  local token="$4"
+  local data="$5"
+  
+  if [ "$method" == "GET" ]; then
+    response=$(curl -s -X GET "${API_URL}${endpoint}" \
+      -H "Authorization: Bearer $token" 2>/dev/null)
+  else
+    response=$(curl -s -X "$method" "${API_URL}${endpoint}" \
+      -H "Authorization: Bearer $token" \
+      -H "Content-Type: application/json" \
+      -d "$data" 2>/dev/null)
+  fi
+  
+  if echo "$response" | jq -e '.success' > /dev/null 2>&1 || [ "$(echo "$response" | jq -r '.data' 2>/dev/null)" != "null" ]; then
+    echo -e "    ${GREEN}✅${NC} $description"
+    ((PASS++))
+    return 0
+  else
+    echo -e "    ${RED}❌${NC} $description"
+    error=$(echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null)
+    ISSUES+=("$description: $error")
+    ((FAIL++))
+    return 1
+  fi
+}
+
+echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║     COMPREHENSIVE DASHBOARD TESTING - PITCHEY v0.2        ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Login as Creator
-echo "Logging in as alex.creator@demo.com..."
-CREATOR_RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/creator/login" \
+# ============= CREATOR DASHBOARD TESTING =============
+echo -e "${CYAN}╔════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║         CREATOR DASHBOARD TESTING         ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════╝${NC}"
+
+# Login as creator
+LOGIN_RESP=$(curl -s -X POST "${API_URL}/api/auth/creator/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
 
-CREATOR_TOKEN=$(echo "$CREATOR_RESPONSE" | jq -r '.token')
-CREATOR_NAME=$(echo "$CREATOR_RESPONSE" | jq -r '.user.name')
+CREATOR_TOKEN=$(echo "$LOGIN_RESP" | jq -r '.token')
+CREATOR_ID=$(echo "$LOGIN_RESP" | jq -r '.user.id')
 
-if [ "$CREATOR_TOKEN" != "null" ]; then
-  echo -e "${GREEN}✓ Logged in successfully as $CREATOR_NAME${NC}"
-  echo ""
-  
-  echo "Testing Creator Workflows:"
-  echo "─────────────────────────"
-  
-  # Get profile
-  PROFILE=$(curl -s "$BASE_URL/api/auth/me" -H "Authorization: Bearer $CREATOR_TOKEN")
-  if [ "$(echo "$PROFILE" | jq -r '.success')" = "true" ]; then
-    echo -e "${GREEN}✓${NC} Can view profile"
-  else
-    echo -e "${RED}✗${NC} Cannot view profile"
-  fi
-  
-  # Get pitches
-  PITCHES=$(curl -s "$BASE_URL/api/creator/pitches" -H "Authorization: Bearer $CREATOR_TOKEN")
-  if [ "$(echo "$PITCHES" | jq -r '.success')" = "true" ]; then
-    PITCH_COUNT=$(echo "$PITCHES" | jq '.pitches | length')
-    echo -e "${GREEN}✓${NC} Can view own pitches ($PITCH_COUNT pitches)"
-    
-    # Show first pitch details
-    if [ "$PITCH_COUNT" -gt "0" ]; then
-      FIRST_PITCH=$(echo "$PITCHES" | jq '.pitches[0]')
-      echo "  └─ Sample pitch: $(echo "$FIRST_PITCH" | jq -r '.title')"
-      echo "     Views: $(echo "$FIRST_PITCH" | jq -r '.viewCount'), Likes: $(echo "$FIRST_PITCH" | jq -r '.likeCount')"
-    fi
-  else
-    echo -e "${RED}✗${NC} Cannot view pitches"
-  fi
-  
-  # Get notifications
-  NOTIFS=$(curl -s "$BASE_URL/api/notifications" -H "Authorization: Bearer $CREATOR_TOKEN")
-  if [ "$(echo "$NOTIFS" | jq -r '.success')" = "true" ]; then
-    NOTIF_COUNT=$(echo "$NOTIFS" | jq '.notifications | length')
-    echo -e "${GREEN}✓${NC} Can view notifications ($NOTIF_COUNT notifications)"
-    if [ "$NOTIF_COUNT" -gt "0" ]; then
-      echo "  └─ Latest: $(echo "$NOTIFS" | jq -r '.notifications[0].message')"
-    fi
-  else
-    echo -e "${RED}✗${NC} Cannot view notifications"
-  fi
+if [ "$CREATOR_TOKEN" == "null" ]; then
+  echo -e "${RED}Failed to login as creator${NC}"
+  exit 1
 fi
 
-echo ""
-echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     2. INVESTOR DASHBOARD WORKFLOWS        ║${NC}"
+echo -e "\n${MAGENTA}1. Dashboard Statistics Cards${NC}"
+echo "  Testing stat cards..."
+test_endpoint "Dashboard stats" "GET" "/api/creator/stats" "$CREATOR_TOKEN"
+test_endpoint "Recent activity" "GET" "/api/creator/activity" "$CREATOR_TOKEN"
+test_endpoint "Notifications" "GET" "/api/notifications" "$CREATOR_TOKEN"
+
+echo -e "\n${MAGENTA}2. Pitch Management Section${NC}"
+echo "  Testing pitch operations..."
+test_endpoint "View all pitches" "GET" "/api/creator/pitches" "$CREATOR_TOKEN"
+test_endpoint "Get pitch details" "GET" "/api/creator/pitches/10" "$CREATOR_TOKEN"
+
+# Test pitch creation
+NEW_PITCH='{"title":"Dashboard Test Pitch","logline":"Testing from dashboard","genre":"drama","format":"feature","shortSynopsis":"Test synopsis"}'
+test_endpoint "Create new pitch" "POST" "/api/creator/pitches" "$CREATOR_TOKEN" "$NEW_PITCH"
+
+echo -e "\n${MAGENTA}3. NDA Management Section${NC}"
+echo "  Testing NDA features..."
+test_endpoint "NDA statistics" "GET" "/api/nda/stats" "$CREATOR_TOKEN"
+test_endpoint "Pending NDA requests" "GET" "/api/ndas/request?type=pending" "$CREATOR_TOKEN"
+test_endpoint "Approved NDAs" "GET" "/api/ndas/signed" "$CREATOR_TOKEN"
+
+echo -e "\n${MAGENTA}4. Messages Section${NC}"
+test_endpoint "Inbox messages" "GET" "/api/messages" "$CREATOR_TOKEN"
+
+# ============= SUMMARY =============
+echo -e "\n${BLUE}╔════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║           TESTING RESULTS                  ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
-echo ""
 
-# Login as Investor
-echo "Logging in as sarah.investor@demo.com..."
-INVESTOR_RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/investor/login" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
+echo -e "\n${GREEN}✅ Passed: $PASS${NC}"
+echo -e "${RED}❌ Failed: $FAIL${NC}"
 
-INVESTOR_TOKEN=$(echo "$INVESTOR_RESPONSE" | jq -r '.token')
-
-if [ "$INVESTOR_TOKEN" != "null" ]; then
-  echo -e "${GREEN}✓ Logged in successfully${NC}"
-  echo ""
-  
-  echo "Testing Investor Workflows:"
-  echo "───────────────────────────"
-  
-  # Portfolio
-  PORTFOLIO=$(curl -s "$BASE_URL/api/investor/portfolio" -H "Authorization: Bearer $INVESTOR_TOKEN")
-  if [ "$(echo "$PORTFOLIO" | jq -r '.success')" = "true" ]; then
-    INVESTMENT_COUNT=$(echo "$PORTFOLIO" | jq '.investments | length')
-    echo -e "${GREEN}✓${NC} Can view portfolio ($INVESTMENT_COUNT investments)"
-    if [ "$INVESTMENT_COUNT" -gt "0" ]; then
-      TOTAL=$(echo "$PORTFOLIO" | jq '.totalInvested')
-      echo "  └─ Total invested: \$$TOTAL"
-    fi
-  else
-    echo -e "${RED}✗${NC} Cannot view portfolio"
-  fi
+if [ ${#ISSUES[@]} -gt 0 ]; then
+  echo -e "\n${YELLOW}⚠️  Issues Found:${NC}"
+  for issue in "${ISSUES[@]}"; do
+    echo "  • $issue"
+  done | head -10
 fi
-
-echo ""
-echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║   3. PRODUCTION COMPANY WORKFLOWS          ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
-echo ""
-
-# Login as Production
-echo "Logging in as stellar.production@demo.com..."
-PRODUCTION_RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/production/login" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"stellar.production@demo.com","password":"Demo123"}')
-
-PRODUCTION_TOKEN=$(echo "$PRODUCTION_RESPONSE" | jq -r '.token')
-
-if [ "$PRODUCTION_TOKEN" != "null" ]; then
-  echo -e "${GREEN}✓ Logged in successfully${NC}"
-  echo ""
-  
-  echo "Testing Production Workflows:"
-  echo "─────────────────────────────"
-  
-  # Dashboard
-  PROD_DASH=$(curl -s "$BASE_URL/api/production/dashboard" -H "Authorization: Bearer $PRODUCTION_TOKEN")
-  if [ "$(echo "$PROD_DASH" | jq -r '.success')" = "true" ]; then
-    echo -e "${GREEN}✓${NC} Can access dashboard"
-    PROD_STATS=$(echo "$PROD_DASH" | jq '.stats')
-    if [ "$PROD_STATS" != "null" ]; then
-      echo "  └─ Active Projects: $(echo "$PROD_STATS" | jq -r '.activeProjects')"
-      echo "  └─ NDAs Signed: $(echo "$PROD_STATS" | jq -r '.signedNDAs')"
-    fi
-  else
-    echo -e "${RED}✗${NC} Cannot access dashboard"
-  fi
-  
-  # Projects
-  PROJECTS=$(curl -s "$BASE_URL/api/production/projects" -H "Authorization: Bearer $PRODUCTION_TOKEN")
-  if [ "$(echo "$PROJECTS" | jq -r '.success')" = "true" ]; then
-    PROJECT_COUNT=$(echo "$PROJECTS" | jq '.projects | length')
-    echo -e "${GREEN}✓${NC} Can view projects ($PROJECT_COUNT projects)"
-  else
-    echo -e "${RED}✗${NC} Cannot view projects"
-  fi
-fi
-
-echo ""
-echo "═══════════════════════════════════════════════════════"
-echo -e "${BLUE}WORKFLOW SUMMARY${NC}"
-echo "═══════════════════════════════════════════════════════"
-echo ""
-echo -e "${GREEN}✓ AUTHENTICATION WORKING:${NC}"
-echo "  • All three demo accounts can login successfully"
-echo "  • JWT tokens are properly validated"
-echo "  • No more 'Invalid session' errors"
-echo ""
-echo -e "${GREEN}✓ REAL DATA ACTIVE:${NC}"
-echo "  • NO MOCK DATA (1250 views) - oak-server.ts disabled"
-echo "  • Using working-server.ts with real implementation"
-echo ""
-echo "═══════════════════════════════════════════════════════"

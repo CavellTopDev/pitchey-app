@@ -10,6 +10,8 @@ export default function InvestorDashboard() {
   const { logout } = useAuthStore();
   const [user, setUser] = useState<any>(null);
   const [portfolio, setPortfolio] = useState<any>(null);
+  const [portfolioPerformance, setPortfolioPerformance] = useState<any>(null);
+  const [investmentPreferences, setInvestmentPreferences] = useState<any>(null);
   const [watchlist, setWatchlist] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [followingPitches, setFollowingPitches] = useState<any[]>([]);
@@ -28,19 +30,46 @@ export default function InvestorDashboard() {
       setError(null);
       const token = localStorage.getItem('authToken');
       
-      // Fetch dashboard data and billing info in parallel
-      const [dashboardResponse, creditsData, subscriptionData, followingData] = await Promise.all([
+      // Fetch dashboard data, portfolio data, and billing info in parallel
+      const [
+        dashboardResponse, 
+        portfolioSummaryResponse,
+        portfolioPerformanceResponse,
+        investmentPreferencesResponse,
+        creditsData, 
+        subscriptionData, 
+        followingData
+      ] = await Promise.all([
         apiClient.get('/api/investor/dashboard'),
+        apiClient.get('/api/investor/portfolio/summary'),
+        apiClient.get('/api/investor/portfolio/performance'),
+        apiClient.get('/api/investor/preferences'),
         paymentsAPI.getCreditBalance(),
         paymentsAPI.getSubscriptionStatus(),
         pitchServicesAPI.getFollowingPitches()
       ]);
       
+      // Set portfolio data from new endpoints
+      if (portfolioSummaryResponse.success) {
+        setPortfolio(portfolioSummaryResponse.data);
+      }
+      
+      if (portfolioPerformanceResponse.success) {
+        setPortfolioPerformance(portfolioPerformanceResponse.data);
+      }
+      
+      if (investmentPreferencesResponse.success) {
+        setInvestmentPreferences(investmentPreferencesResponse.data);
+      }
+      
       if (dashboardResponse.success) {
         const data = dashboardResponse.data;
-        setPortfolio(data.portfolio);
-        setWatchlist(data.watchlist);
-        setRecommendations(data.recommendations);
+        // Use portfolio data from the dedicated endpoint if available, otherwise use dashboard data
+        if (!portfolioSummaryResponse.success && data.portfolio) {
+          setPortfolio(data.portfolio);
+        }
+        setWatchlist(data.watchlist || []);
+        setRecommendations(data.recommendations || []);
       } else {
         // Try to fetch AI recommendations separately
         try {
@@ -53,16 +82,20 @@ export default function InvestorDashboard() {
           setRecommendations([]);
         }
         
-        // Set default empty states
-        console.error('Failed to fetch dashboard data:', dashboardResponse.error?.message);
-        setPortfolio({
-          totalInvestments: 0,
-          activeDeals: 0,
-          totalInvested: 0,
-          averageReturn: 0,
-          pendingOpportunities: 0
-        });
-        setWatchlist([]);
+        // Set default empty states if all portfolio endpoints failed
+        if (!portfolioSummaryResponse.success) {
+          console.error('Failed to fetch dashboard data:', dashboardResponse.error?.message);
+          setPortfolio({
+            totalInvestments: 0,
+            activeDeals: 0,
+            totalInvested: 0,
+            averageReturn: 0,
+            pendingOpportunities: 0
+          });
+        }
+        if (!dashboardResponse.success) {
+          setWatchlist([]);
+        }
       }
       
       setCredits(creditsData);
@@ -519,7 +552,11 @@ export default function InvestorDashboard() {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-sm p-6 mt-6">
               <h3 className="text-white font-semibold mb-2">Investment Preferences</h3>
               <p className="text-blue-100 text-sm mb-4">
-                Your profile is optimized for Action, Thriller, and Sci-Fi projects with budgets $5M-$20M
+                {investmentPreferences?.investmentCriteria ? (
+                  `Your profile is optimized for ${investmentPreferences.investmentCriteria.preferredGenres?.join(', ')} projects with budgets ${investmentPreferences.investmentCriteria.budgetRange?.label || '$5M-$20M'}`
+                ) : (
+                  'Your profile is optimized for Action, Thriller, and Sci-Fi projects with budgets $5M-$20M'
+                )}
               </p>
               <button 
                 onClick={() => alert('Coming Soon: Investment criteria customization. This will allow you to set your preferred genres, budget ranges, and investment parameters.')}
@@ -535,15 +572,21 @@ export default function InvestorDashboard() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">This Month</span>
-                  <span className="text-sm font-semibold text-green-600">+12.5%</span>
+                  <span className="text-sm font-semibold text-green-600">
+                    +{portfolio?.monthlyGrowth || 12.5}%
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">This Quarter</span>
-                  <span className="text-sm font-semibold text-green-600">+28.3%</span>
+                  <span className="text-sm font-semibold text-green-600">
+                    +{portfolio?.quarterlyGrowth || 28.3}%
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">YTD Returns</span>
-                  <span className="text-sm font-semibold text-green-600">+45.7%</span>
+                  <span className="text-sm font-semibold text-green-600">
+                    +{portfolio?.ytdGrowth || 45.7}%
+                  </span>
                 </div>
               </div>
             </div>

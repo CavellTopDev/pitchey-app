@@ -20,7 +20,7 @@ class ApiClient {
   private maxRetries: number = 3;
   private retryDelay: number = 1000; // 1 second
 
-  constructor(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:8000') {
+  constructor(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:8001') {
     this.baseURL = baseURL;
     this.defaultHeaders = {
       'Content-Type': 'application/json',
@@ -205,8 +205,12 @@ class ApiClient {
     });
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.makeRequest<T>(endpoint, { method: 'DELETE' });
+  async delete<T>(endpoint: string, options?: { data?: any }): Promise<ApiResponse<T>> {
+    const body = options?.data ? JSON.stringify(options.data) : undefined;
+    return this.makeRequest<T>(endpoint, { 
+      method: 'DELETE',
+      body 
+    });
   }
 
   async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
@@ -336,11 +340,11 @@ export const pitchAPI = {
   },
 
   async getPublic() {
-    return apiClient.get('/api/public/pitches');
+    return apiClient.get('/api/pitches/public');
   },
 
   async getPublicById(id: number) {
-    return apiClient.get(`/api/public/pitch/${id}`);
+    return apiClient.get(`/api/pitches/public/${id}`);
   },
 
   async create(data: any) {
@@ -360,4 +364,5 @@ export const pitchAPI = {
   }
 };
 
+export { apiClient };
 export default apiClient;

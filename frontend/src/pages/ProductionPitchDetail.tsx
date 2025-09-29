@@ -75,176 +75,30 @@ export default function ProductionPitchDetail() {
     try {
       setLoading(true);
       
-      // Fetch from real API first
-      try {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_URL}/api/pitches/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setPitch(data);
-          return;
-        }
-      } catch (apiError) {
-        console.error('Failed to fetch from API:', apiError);
+      if (!id) {
+        console.error('No pitch ID provided');
+        return;
       }
       
-      // Fallback mock data for demonstration
-      const mockPitch: PitchDetails = {
-        id: parseInt(id || '1'),
-        title: "The Last Horizon",
-        logline: "A space exploration thriller about humanity's final mission to find a new home.",
-        genre: "Sci-Fi",
-        format: "Feature Film",
-        shortSynopsis: "In 2157, Earth's resources are depleted. The starship Horizon carries humanity's last hope - a crew of scientists searching for a habitable planet. When they discover a world that seems perfect, they must confront an ancient alien presence that challenges everything they believe about survival and sacrifice.",
-        longSynopsis: "The year is 2157. Earth is dying. Climate collapse, resource depletion, and endless wars have reduced humanity to scattered settlements struggling to survive. The United Earth Coalition pools its remaining resources for one final mission: The Horizon Project.\n\nCaptain Sarah Chen leads a crew of Earth's brightest minds on the starship Horizon, humanity's most advanced vessel. Their mission: find a new home before Earth becomes uninhabitable. After three years of searching, they discover Kepler-442b, a planet that seems perfect - breathable atmosphere, water, and no signs of intelligent life.\n\nBut as they begin establishing a colony, strange things occur. Equipment malfunctions in specific patterns. Crew members experience shared dreams. Ancient structures emerge from beneath the planet's surface. They realize they're not alone.\n\nThe planet is home to an ancient consciousness - not quite alive, not quite artificial intelligence. It has waited millennia for visitors, and now it presents humanity with a choice: merge with it to achieve a form of immortality, or remain human and eventually face extinction.\n\nAs the crew divides into factions, Captain Chen must make an impossible decision that will determine not just humanity's survival, but its very nature. The film explores themes of identity, sacrifice, and what it truly means to be human when survival demands evolution.",
-        budget: "$45M",
-        estimatedBudget: 45000000,
-        productionTimeline: "Pre-production: 3 months, Principal Photography: 4 months, Post-production: 8 months, Total: 15 months",
-        targetReleaseDate: "2025-12-25",
-        targetAudience: "Primary: Sci-fi enthusiasts aged 18-45, Secondary: General thriller and action audiences. International appeal with focus on North America, Europe, and Asia-Pacific markets.",
-        comparableTitles: "Interstellar ($677M worldwide), The Martian ($630M worldwide), Arrival ($203M worldwide), Ad Astra ($127M worldwide)",
-        characters: [
-          {
-            name: "Captain Sarah Chen",
-            description: "A brilliant astronaut and leader haunted by leaving her daughter on Earth. Must balance crew survival with humanity's future.",
-            age: "42",
-            gender: "Female",
-            actor: "Consideration: Sandra Oh, Gemma Chan"
-          },
-          {
-            name: "Dr. Marcus Williams",
-            description: "Chief scientist who becomes obsessed with understanding the alien consciousness. His curiosity threatens the mission.",
-            age: "38",
-            gender: "Male",
-            actor: "Consideration: John Boyega, Oscar Isaac"
-          },
-          {
-            name: "The Consciousness",
-            description: "An ancient entity that exists as pure information, manifesting through the planet's ecosystem. Neither benevolent nor malevolent.",
-            age: "Unknown",
-            gender: "Non-binary",
-            actor: "Voice: Tilda Swinton (in talks)"
-          }
-        ],
-        themes: ["Survival", "Identity", "Evolution", "Sacrifice", "Hope", "Isolation", "First Contact"],
-        viewCount: 456,
-        likeCount: 89,
-        ndaCount: 12,
-        followersCount: 234,
-        status: "published",
-        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        publishedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
-        titleImage: "https://via.placeholder.com/1920x1080/4F46E5/ffffff?text=The+Last+Horizon",
-        mediaFiles: [
-          {
-            id: "1",
-            type: "lookbook",
-            url: "/lookbook-last-horizon.pdf",
-            title: "Visual Style Guide & Concept Art",
-            description: "120-page comprehensive visual guide including concept art, location designs, creature designs, and cinematography references",
-            uploadedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "45.3 MB",
-            requiresNDA: false
-          },
-          {
-            id: "2",
-            type: "script",
-            url: "/script-last-horizon.pdf",
-            title: "Full Screenplay - Draft 3.2",
-            description: "Complete 118-page screenplay with director's notes and alternate ending",
-            uploadedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "2.8 MB",
-            requiresNDA: true
-          },
-          {
-            id: "3",
-            type: "trailer",
-            url: "/trailers/last-horizon-trailer.mp4",
-            title: "Concept Trailer / Sizzle Reel",
-            description: "3-minute concept trailer with VFX previsualization and mood references",
-            uploadedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "Video",
-            requiresNDA: false
-          },
-          {
-            id: "4",
-            type: "pitch_deck",
-            url: "/pitch-deck-last-horizon.pdf",
-            title: "Investor Pitch Presentation",
-            description: "35-slide comprehensive pitch deck with market analysis, financial projections, and distribution strategy",
-            uploadedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "12.7 MB",
-            requiresNDA: false
-          },
-          {
-            id: "5",
-            type: "budget_breakdown",
-            url: "/budget-last-horizon.xlsx",
-            title: "Detailed Budget Breakdown",
-            description: "Complete line-item budget with contingencies, tax incentives, and financing structure",
-            uploadedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "1.4 MB",
-            requiresNDA: true
-          },
-          {
-            id: "6",
-            type: "production_timeline",
-            url: "/timeline-last-horizon.pdf",
-            title: "Production Schedule & Milestones",
-            description: "Gantt chart with key milestones, department schedules, and delivery timeline",
-            uploadedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "3.2 MB",
-            requiresNDA: true
-          },
-          {
-            id: "7",
-            type: "other",
-            url: "/music-samples.zip",
-            title: "Composer's Music Samples",
-            description: "Sample tracks and themes from attached composer",
-            uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "28.5 MB",
-            requiresNDA: false
-          },
-          {
-            id: "8",
-            type: "other",
-            url: "/vfx-breakdown.pdf",
-            title: "VFX Breakdown & Budget",
-            description: "Detailed VFX shot list with complexity ratings and cost estimates",
-            uploadedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-            size: "8.9 MB",
-            requiresNDA: true
-          }
-        ],
-        analytics: {
-          dailyViews: [
-            { date: '2024-01-15', views: 45 },
-            { date: '2024-01-16', views: 67 },
-            { date: '2024-01-17', views: 89 },
-            { date: '2024-01-18', views: 72 },
-            { date: '2024-01-19', views: 93 },
-            { date: '2024-01-20', views: 58 },
-            { date: '2024-01-21', views: 32 }
-          ],
-          topViewers: [
-            { name: 'Netflix', company: 'Netflix Studios', type: 'production' },
-            { name: 'Warner Bros', company: 'Warner Bros Pictures', type: 'production' },
-            { name: 'A24', company: 'A24 Films', type: 'production' },
-            { name: 'Silver Screen Ventures', company: 'SSV', type: 'investor' }
-          ],
-          engagementRate: 18.5
-        }
-      };
+      // Fetch from API using public endpoint
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_URL}/api/pitches/public/${id}`, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {}
+      });
       
-      setPitch(mockPitch);
+      if (response.ok) {
+        const data = await response.json();
+        setPitch(data);
+      } else {
+        console.error('Failed to fetch pitch:', response.status, response.statusText);
+        // Don't set any fallback data - let the "not found" state show
+        setPitch(null);
+      }
     } catch (error) {
       console.error('Failed to fetch pitch details:', error);
+      setPitch(null);
     } finally {
       setLoading(false);
     }

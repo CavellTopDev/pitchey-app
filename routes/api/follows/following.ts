@@ -1,146 +1,138 @@
 import { Handlers } from "$fresh/server.ts";
 import { db } from "../../../src/db/client.ts";
 import { follows, pitches, users } from "../../../src/db/schema.ts";
-import { eq, desc, isNull, isNotNull, sql } from "drizzle-orm";
+import { eq, desc, isNull, isNotNull, sql, or } from "drizzle-orm";
 import { verifyToken } from "../../../utils/auth.ts";
 
 export const handler: Handlers = {
   async GET(req) {
     try {
-      const token = req.headers.get("authorization")?.replace("Bearer ", "");
-      if (!token) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-
-      const userId = await verifyToken(token);
-      if (!userId) {
-        return new Response(JSON.stringify({ error: "Invalid token" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-
       const url = new URL(req.url);
-      const type = url.searchParams.get("type") || "all"; // all, creators, pitches
+      const userId = url.searchParams.get("userId");
+      const type = url.searchParams.get("type") || "all"; // all, user, pitch
       const limit = parseInt(url.searchParams.get("limit") || "50");
       const offset = parseInt(url.searchParams.get("offset") || "0");
 
-      // Get followed creators (where pitchId is null)
-      let followedCreators = [];
-      if (type === "all" || type === "creators") {
-        followedCreators = await db.select({
-          id: users.id,
-          type: sql<string>`'creator'`.as("type"),
-          username: users.username,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          userType: users.userType,
-          companyName: users.companyName,
-          profileImage: users.profileImage,
-          bio: users.bio,
-          location: users.location,
-          followedAt: follows.followedAt,
-          createdAt: users.createdAt,
-          // Count their pitches
-          pitchCount: sql<number>`(
-            SELECT COUNT(*)::int 
-            FROM pitches p 
-            WHERE p.user_id = ${users.id} 
-            AND p.status = 'published'
-          )`.as("pitch_count"),
-        })
-        .from(follows)
-        .innerJoin(users, eq(follows.creatorId, users.id))
-        .where(eq(follows.followerId, userId))
-        .where(isNull(follows.pitchId))
-        .orderBy(desc(follows.followedAt))
-        .limit(limit)
-        .offset(offset);
+      // If no userId provided, get the authenticated user's following
+      let targetUserId;
+      if (userId) {
+        targetUserId = parseInt(userId);
+      } else {
+        const token = req.headers.get("authorization")?.replace("Bearer ", "");
+        if (!token) {
+          return new Response(JSON.stringify({ 
+            error: "Authentication required when userId not provided" 
+          }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        targetUserId = await verifyToken(token);
+        if (!targetUserId) {
+          return new Response(JSON.stringify({ error: "Invalid token" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
       }
 
-      // Get followed pitches (where pitchId is not null)
-      let followedPitches = [];
-      if (type === "all" || type === "pitches") {
-        followedPitches = await db.select({
-          id: pitches.id,
-          type: sql<string>`'pitch'`.as("type"),
-          title: pitches.title,
-          logline: pitches.logline,
-          genre: pitches.genre,
-          format: pitches.format,
-          shortSynopsis: pitches.shortSynopsis,
-          titleImage: pitches.titleImage,
-          viewCount: pitches.viewCount,
-          likeCount: pitches.likeCount,
-          ndaCount: pitches.ndaCount,
-          status: pitches.status,
-          createdAt: pitches.createdAt,
-          publishedAt: pitches.publishedAt,
-          followedAt: follows.followedAt,
-          creator: {
+      // Verify user exists
+      const user = await db.select().from(users)
+        .where(eq(users.id, targetUserId))
+        .limit(1);
+
+      if (!user.length) {
+        return new Response(JSON.stringify({ error: "User not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      let following = [];
+      let totalCount = 0;
+
+      if (type === "all" || type === "user") {
+        // Get followed users (creators)
+        const followedUsers = await db.select({
+          id: follows.id,
+          followerId: follows.followerId,
+          followingId: follows.creatorId,
+          followType: sql<string>`'user'`.as("followType"),
+          createdAt: follows.followedAt,
+          following: {
             id: users.id,
             username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
             userType: users.userType,
             companyName: users.companyName,
             profileImage: users.profileImage,
-          },
+            bio: users.bio,
+            location: users.location,
+            createdAt: users.createdAt,
+          }
+        })
+        .from(follows)
+        .innerJoin(users, eq(follows.creatorId, users.id))
+        .where(eq(follows.followerId, targetUserId))
+        .where(isNull(follows.pitchId))
+        .orderBy(desc(follows.followedAt))
+        .limit(type === "user" ? limit : Math.floor(limit / 2))
+        .offset(offset);
+
+        following.push(...followedUsers);
+      }
+
+      if (type === "all" || type === "pitch") {
+        // Get followed pitches
+        const followedPitches = await db.select({
+          id: follows.id,
+          followerId: follows.followerId,
+          followingId: follows.pitchId,
+          followType: sql<string>`'pitch'`.as("followType"),
+          createdAt: follows.followedAt,
+          following: {
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            titleImage: pitches.titleImage,
+            status: pitches.status,
+            userId: pitches.userId,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            createdAt: pitches.createdAt,
+          }
         })
         .from(follows)
         .innerJoin(pitches, eq(follows.pitchId, pitches.id))
-        .innerJoin(users, eq(pitches.userId, users.id))
-        .where(eq(follows.followerId, userId))
+        .where(eq(follows.followerId, targetUserId))
         .where(isNotNull(follows.pitchId))
         .orderBy(desc(follows.followedAt))
-        .limit(limit)
+        .limit(type === "pitch" ? limit : Math.floor(limit / 2))
         .offset(offset);
+
+        following.push(...followedPitches);
       }
 
-      // Get total counts for pagination
-      const totalCounts = await db.select({
-        totalCreators: sql<number>`COUNT(CASE WHEN pitch_id IS NULL THEN 1 END)::int`.as("total_creators"),
-        totalPitches: sql<number>`COUNT(CASE WHEN pitch_id IS NOT NULL THEN 1 END)::int`.as("total_pitches"),
-        totalAll: sql<number>`COUNT(*)::int`.as("total_all"),
+      // Get total count
+      const totalResult = await db.select({
+        count: sql<number>`COUNT(*)::int`.as("count"),
       })
       .from(follows)
-      .where(eq(follows.followerId, userId));
+      .where(eq(follows.followerId, targetUserId));
 
-      const counts = totalCounts[0] || { totalCreators: 0, totalPitches: 0, totalAll: 0 };
+      totalCount = totalResult[0]?.count || 0;
 
-      // Combine and sort by followedAt if type is "all"
-      let combinedResults = [];
-      if (type === "all") {
-        combinedResults = [...followedCreators, ...followedPitches]
-          .sort((a, b) => new Date(b.followedAt).getTime() - new Date(a.followedAt).getTime())
-          .slice(0, limit);
-      } else if (type === "creators") {
-        combinedResults = followedCreators;
-      } else if (type === "pitches") {
-        combinedResults = followedPitches;
-      }
+      // Sort combined results by followed date
+      following.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       return new Response(JSON.stringify({
         success: true,
-        following: combinedResults,
-        pagination: {
-          limit,
-          offset,
-          totalCreators: counts.totalCreators,
-          totalPitches: counts.totalPitches,
-          totalAll: counts.totalAll,
-          hasMore: type === "all" 
-            ? (offset + limit) < counts.totalAll
-            : type === "creators" 
-              ? (offset + limit) < counts.totalCreators
-              : (offset + limit) < counts.totalPitches,
-        },
-        counts: {
-          creators: counts.totalCreators,
-          pitches: counts.totalPitches,
-          total: counts.totalAll,
-        },
+        following: following,
+        total: totalCount,
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },

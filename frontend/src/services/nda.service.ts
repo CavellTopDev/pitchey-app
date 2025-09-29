@@ -1,0 +1,446 @@
+// NDA Service - Complete NDA management with Drizzle integration
+import { apiClient } from '../lib/api-client';
+import type { User } from './user.service';
+import type { Pitch } from './pitch.service';
+
+// Types matching Drizzle schema
+export interface NDA {
+  id: number;
+  pitchId: number;
+  requesterId: number;
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'revoked';
+  documentUrl?: string;
+  signedDocumentUrl?: string;
+  signedAt?: string;
+  expiresAt?: string;
+  revokedAt?: string;
+  rejectionReason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  requester?: User;
+  pitch?: Pitch;
+}
+
+export interface NDATemplate {
+  id: number;
+  name: string;
+  description?: string;
+  content: string;
+  variables?: string[];
+  isDefault?: boolean;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NDARequest {
+  pitchId: number;
+  message?: string;
+  templateId?: number;
+  expiryDays?: number;
+}
+
+export interface NDASignature {
+  ndaId: number;
+  signature: string;
+  fullName: string;
+  title?: string;
+  company?: string;
+  acceptTerms: boolean;
+}
+
+export interface NDAFilters {
+  status?: 'pending' | 'approved' | 'rejected' | 'expired' | 'revoked';
+  pitchId?: number;
+  requesterId?: number;
+  creatorId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface NDAStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  expired: number;
+  revoked: number;
+  avgResponseTime?: number;
+  approvalRate?: number;
+}
+
+export class NDAService {
+  // Request NDA for a pitch
+  static async requestNDA(request: NDARequest): Promise<NDA> {
+    const response = await apiClient.post<{ success: boolean; data: any }>(
+      '/api/ndas/request',
+      request
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || 'Failed to request NDA');
+    }
+
+    // Return the request data as NDA object
+    return response.data;
+  }
+
+  // Sign NDA
+  static async signNDA(signature: NDASignature): Promise<NDA> {
+    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+      `/api/ndas/${signature.ndaId}/sign`,
+      signature
+    );
+
+    if (!response.success || !response.data?.nda) {
+      throw new Error(response.error?.message || 'Failed to sign NDA');
+    }
+
+    return response.data.nda;
+  }
+
+  // Approve NDA request (for creators)
+  static async approveNDA(ndaId: number, notes?: string): Promise<NDA> {
+    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+      `/api/ndas/${ndaId}/approve`,
+      { notes }
+    );
+
+    if (!response.success || !response.data?.nda) {
+      throw new Error(response.error?.message || 'Failed to approve NDA');
+    }
+
+    return response.data.nda;
+  }
+
+  // Reject NDA request (for creators)
+  static async rejectNDA(ndaId: number, reason: string): Promise<NDA> {
+    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+      `/api/ndas/${ndaId}/reject`,
+      { reason }
+    );
+
+    if (!response.success || !response.data?.nda) {
+      throw new Error(response.error?.message || 'Failed to reject NDA');
+    }
+
+    return response.data.nda;
+  }
+
+  // Revoke NDA (for creators)
+  static async revokeNDA(ndaId: number, reason?: string): Promise<NDA> {
+    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+      `/api/ndas/${ndaId}/revoke`,
+      { reason }
+    );
+
+    if (!response.success || !response.data?.nda) {
+      throw new Error(response.error?.message || 'Failed to revoke NDA');
+    }
+
+    return response.data.nda;
+  }
+
+  // Get NDA by ID
+  static async getNDAById(ndaId: number): Promise<NDA> {
+    const response = await apiClient.get<{ success: boolean; nda: NDA }>(
+      `/api/ndas/${ndaId}`
+    );
+
+    if (!response.success || !response.data?.nda) {
+      throw new Error(response.error?.message || 'NDA not found');
+    }
+
+    return response.data.nda;
+  }
+
+  // Get NDAs with filters
+  static async getNDAs(filters?: NDAFilters): Promise<{ ndas: NDA[]; total: number }> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.pitchId) params.append('pitchId', filters.pitchId.toString());
+    if (filters?.requesterId) params.append('requesterId', filters.requesterId.toString());
+    if (filters?.creatorId) params.append('creatorId', filters.creatorId.toString());
+    if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.append('dateTo', filters.dateTo);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+
+    const response = await apiClient.get<{ 
+      success: boolean; 
+      ndas: NDA[]; 
+      total: number 
+    }>(`/api/ndas?${params}`);
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch NDAs');
+    }
+
+    return {
+      ndas: response.data?.ndas || [],
+      total: response.data?.total || 0
+    };
+  }
+
+  // Get NDA status for a pitch
+  static async getNDAStatus(pitchId: number): Promise<{
+    hasNDA: boolean;
+    nda?: NDA;
+    canAccess: boolean;
+  }> {
+    const response = await apiClient.get<{ 
+      success: boolean; 
+      hasNDA: boolean;
+      nda?: NDA;
+      canAccess: boolean;
+    }>(`/api/ndas/pitch/${pitchId}/status`);
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch NDA status');
+    }
+
+    return {
+      hasNDA: response.data?.hasNDA || false,
+      nda: response.data?.nda,
+      canAccess: response.data?.canAccess || false
+    };
+  }
+
+  // Get NDA history for user
+  static async getNDAHistory(userId?: number): Promise<NDA[]> {
+    const endpoint = userId ? `/api/ndas/history/${userId}` : '/api/ndas/history';
+    const response = await apiClient.get<{ success: boolean; ndas: NDA[] }>(endpoint);
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch NDA history');
+    }
+
+    return response.data?.ndas || [];
+  }
+
+  // Download NDA document
+  static async downloadNDA(ndaId: number, signed: boolean = false): Promise<Blob> {
+    const endpoint = signed ? 
+      `/api/ndas/${ndaId}/download-signed` : 
+      `/api/ndas/${ndaId}/download`;
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}${endpoint}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to download NDA document');
+    }
+
+    return response.blob();
+  }
+
+  // Generate NDA preview
+  static async generatePreview(pitchId: number, templateId?: number): Promise<string> {
+    const response = await apiClient.post<{ success: boolean; preview: string }>(
+      '/api/ndas/preview',
+      { pitchId, templateId }
+    );
+
+    if (!response.success || !response.data?.preview) {
+      throw new Error(response.error?.message || 'Failed to generate NDA preview');
+    }
+
+    return response.data.preview;
+  }
+
+  // Get NDA templates
+  static async getTemplates(): Promise<NDATemplate[]> {
+    const response = await apiClient.get<{ success: boolean; templates: NDATemplate[] }>(
+      '/api/ndas/templates'
+    );
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch NDA templates');
+    }
+
+    return response.data?.templates || [];
+  }
+
+  // Get NDA template by ID
+  static async getTemplateById(templateId: number): Promise<NDATemplate> {
+    const response = await apiClient.get<{ success: boolean; template: NDATemplate }>(
+      `/api/ndas/templates/${templateId}`
+    );
+
+    if (!response.success || !response.data?.template) {
+      throw new Error(response.error?.message || 'Template not found');
+    }
+
+    return response.data.template;
+  }
+
+  // Create NDA template (for admins/creators)
+  static async createTemplate(template: Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<NDATemplate> {
+    const response = await apiClient.post<{ success: boolean; template: NDATemplate }>(
+      '/api/ndas/templates',
+      template
+    );
+
+    if (!response.success || !response.data?.template) {
+      throw new Error(response.error?.message || 'Failed to create NDA template');
+    }
+
+    return response.data.template;
+  }
+
+  // Update NDA template
+  static async updateTemplate(
+    templateId: number, 
+    updates: Partial<Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
+  ): Promise<NDATemplate> {
+    const response = await apiClient.put<{ success: boolean; template: NDATemplate }>(
+      `/api/ndas/templates/${templateId}`,
+      updates
+    );
+
+    if (!response.success || !response.data?.template) {
+      throw new Error(response.error?.message || 'Failed to update NDA template');
+    }
+
+    return response.data.template;
+  }
+
+  // Delete NDA template
+  static async deleteTemplate(templateId: number): Promise<void> {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/ndas/templates/${templateId}`
+    );
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to delete NDA template');
+    }
+  }
+
+  // Get NDA statistics
+  static async getNDAStats(pitchId?: number): Promise<NDAStats> {
+    const endpoint = pitchId ? `/api/ndas/stats/${pitchId}` : '/api/ndas/stats';
+    const response = await apiClient.get<{ success: boolean; stats: NDAStats }>(endpoint);
+
+    if (!response.success || !response.data?.stats) {
+      throw new Error(response.error?.message || 'Failed to fetch NDA statistics');
+    }
+
+    return response.data.stats;
+  }
+
+  // Check if user can request NDA for pitch
+  static async canRequestNDA(pitchId: number): Promise<{
+    canRequest: boolean;
+    reason?: string;
+    existingNDA?: NDA;
+  }> {
+    const response = await apiClient.get<{ 
+      success: boolean; 
+      canRequest: boolean;
+      reason?: string;
+      existingNDA?: NDA;
+    }>(`/api/ndas/pitch/${pitchId}/can-request`);
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to check NDA request status');
+    }
+
+    return {
+      canRequest: response.data?.canRequest || false,
+      reason: response.data?.reason,
+      existingNDA: response.data?.existingNDA
+    };
+  }
+
+  // Bulk approve NDAs (for creators)
+  static async bulkApprove(ndaIds: number[]): Promise<{ 
+    successful: number[]; 
+    failed: { id: number; error: string }[] 
+  }> {
+    const response = await apiClient.post<{ 
+      success: boolean; 
+      successful: number[]; 
+      failed: { id: number; error: string }[] 
+    }>('/api/ndas/bulk-approve', { ndaIds });
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to bulk approve NDAs');
+    }
+
+    return {
+      successful: response.data?.successful || [],
+      failed: response.data?.failed || []
+    };
+  }
+
+  // Bulk reject NDAs (for creators)
+  static async bulkReject(ndaIds: number[], reason: string): Promise<{ 
+    successful: number[]; 
+    failed: { id: number; error: string }[] 
+  }> {
+    const response = await apiClient.post<{ 
+      success: boolean; 
+      successful: number[]; 
+      failed: { id: number; error: string }[] 
+    }>('/api/ndas/bulk-reject', { ndaIds, reason });
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to bulk reject NDAs');
+    }
+
+    return {
+      successful: response.data?.successful || [],
+      failed: response.data?.failed || []
+    };
+  }
+
+  // Send NDA reminder
+  static async sendReminder(ndaId: number): Promise<void> {
+    const response = await apiClient.post<{ success: boolean }>(
+      `/api/ndas/${ndaId}/remind`,
+      {}
+    );
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to send NDA reminder');
+    }
+  }
+
+  // Verify NDA signature
+  static async verifySignature(ndaId: number): Promise<{
+    valid: boolean;
+    signedBy?: User;
+    signedAt?: string;
+  }> {
+    const response = await apiClient.get<{ 
+      success: boolean; 
+      valid: boolean;
+      signedBy?: User;
+      signedAt?: string;
+    }>(`/api/ndas/${ndaId}/verify`);
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to verify NDA signature');
+    }
+
+    return {
+      valid: response.data?.valid || false,
+      signedBy: response.data?.signedBy,
+      signedAt: response.data?.signedAt
+    };
+  }
+}
+
+// Export singleton instance
+export const ndaService = NDAService;

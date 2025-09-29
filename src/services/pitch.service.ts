@@ -5,7 +5,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 export const CreatePitchSchema = z.object({
   title: z.string().min(1).max(200),
-  logline: z.string().min(10).max(500),
+  logline: z.string().min(1).max(500),
   genre: z.enum(["drama", "comedy", "thriller", "horror", "scifi", "fantasy", "documentary", "animation", "action", "romance", "other"]),
   format: z.enum(["feature", "tv", "short", "webseries", "other"]),
   shortSynopsis: z.string().optional(),
@@ -34,18 +34,36 @@ export const CreatePitchSchema = z.object({
     uploadedAt: z.string(),
   })).optional(),
   aiUsed: z.boolean().optional(),
+  requireNDA: z.boolean().optional(),
 });
 
 export class PitchService {
   static async create(userId: number, data: z.infer<typeof CreatePitchSchema>) {
     const validated = CreatePitchSchema.parse(data);
     
-    // Convert number to string for decimal fields
+    // Build insert data with all fields
     const insertData = {
       userId,
-      ...validated,
-      status: "draft" as const,
+      title: validated.title,
+      logline: validated.logline,
+      genre: validated.genre,
+      format: validated.format,
+      shortSynopsis: validated.shortSynopsis,
+      longSynopsis: validated.longSynopsis,
+      characters: validated.characters,
+      themes: validated.themes,
+      budgetBracket: validated.budgetBracket,
       estimatedBudget: validated.estimatedBudget ? validated.estimatedBudget.toString() : undefined,
+      productionTimeline: validated.productionTimeline,
+      titleImage: validated.titleImage,
+      lookbookUrl: validated.lookbookUrl,
+      pitchDeckUrl: validated.pitchDeckUrl,
+      scriptUrl: validated.scriptUrl,
+      trailerUrl: validated.trailerUrl,
+      additionalMedia: validated.additionalMedia,
+      aiUsed: validated.aiUsed,
+      requireNDA: validated.requireNDA,
+      status: "draft" as const,
     };
     
     const [pitch] = await db.insert(pitches)
@@ -108,6 +126,20 @@ export class PitchService {
       .returning();
     
     return published;
+  }
+
+  static async getPitchById(pitchId: number, userId: number) {
+    // Get pitch if user owns it
+    const result = await db
+      .select()
+      .from(pitches)
+      .where(and(
+        eq(pitches.id, pitchId),
+        eq(pitches.userId, userId)
+      ))
+      .limit(1);
+    
+    return result[0] || null;
   }
   
   static async getPitch(pitchId: number, viewerId?: number) {
@@ -291,6 +323,60 @@ export class PitchService {
     }));
   }
   
+  // Get individual public pitch by ID
+  static async getPublicPitchById(pitchId: number) {
+    try {
+      const [pitch] = await db
+        .select({
+          id: pitches.id,
+          title: pitches.title,
+          logline: pitches.logline,
+          genre: pitches.genre,
+          format: pitches.format,
+          budgetBracket: pitches.budgetBracket,
+          estimatedBudget: pitches.estimatedBudget,
+          status: pitches.status,
+          userId: pitches.userId,
+          viewCount: pitches.viewCount,
+          likeCount: pitches.likeCount,
+          ndaCount: pitches.ndaCount,
+          shortSynopsis: pitches.shortSynopsis,
+          longSynopsis: pitches.longSynopsis,
+          requireNDA: pitches.requireNDA,
+          createdAt: pitches.createdAt,
+          updatedAt: pitches.updatedAt,
+          publishedAt: pitches.publishedAt,
+          targetAudience: pitches.targetAudience,
+          characters: pitches.characters,
+          themes: pitches.themes,
+          productionTimeline: pitches.productionTimeline,
+          titleImage: pitches.titleImage,
+          lookbookUrl: pitches.lookbookUrl,
+          pitchDeckUrl: pitches.pitchDeckUrl,
+          scriptUrl: pitches.scriptUrl,
+          trailerUrl: pitches.trailerUrl,
+          creator: {
+            id: users.id,
+            username: users.username,
+            companyName: users.companyName,
+            userType: users.userType,
+          },
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(and(
+          eq(pitches.id, pitchId),
+          eq(pitches.status, "published")
+        ))
+        .limit(1);
+
+      return pitch || null;
+    } catch (error) {
+      console.error("Error fetching public pitch:", error);
+      throw error;
+    }
+  }
+
   // NEW METHOD - bypass any caching issues
   static async getPublicPitchesWithUserType(limit = 10) {
     console.log("🚀 FORCE NEW METHOD v4.0: Getting pitches with proper userTypes");
@@ -303,14 +389,15 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
-          budget: pitches.budget,
-          budgetAmount: pitches.budgetAmount,
+          budgetBracket: pitches.budgetBracket,
+          estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
-          stage: pitches.stage,
-          coverImage: pitches.coverImage,
-          visibility: pitches.visibility,
           userId: pitches.userId,
-          userType: pitches.userType,
+          viewCount: pitches.viewCount,
+          likeCount: pitches.likeCount,
+          ndaCount: pitches.ndaCount,
+          shortSynopsis: pitches.shortSynopsis,
+          requireNDA: pitches.requireNDA,
           createdAt: pitches.createdAt,
           updatedAt: pitches.updatedAt,
           publishedAt: pitches.publishedAt,
@@ -334,14 +421,15 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
-        budget: p.budget,
-        budgetAmount: p.budgetAmount,
+        budgetBracket: p.budgetBracket,
+        estimatedBudget: p.estimatedBudget,
         status: p.status,
-        stage: p.stage,
-        coverImage: p.coverImage,
-        visibility: p.visibility,
         userId: p.userId,
-        userType: p.userType,
+        viewCount: p.viewCount || 0,
+        likeCount: p.likeCount || 0,
+        ndaCount: p.ndaCount || 0,
+        shortSynopsis: p.shortSynopsis,
+        requireNDA: p.requireNDA || false,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
         publishedAt: p.publishedAt,
@@ -380,14 +468,15 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
-          budget: pitches.budget,
-          budgetAmount: pitches.budgetAmount,
+          budgetBracket: pitches.budgetBracket,
+          estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
-          stage: pitches.stage,
-          coverImage: pitches.coverImage,
-          visibility: pitches.visibility,
+          titleImage: pitches.titleImage,
+          shortSynopsis: pitches.shortSynopsis,
+          viewCount: pitches.viewCount,
+          likeCount: pitches.likeCount,
+          ndaCount: pitches.ndaCount,
           userId: pitches.userId,
-          userType: pitches.userType,
           createdAt: pitches.createdAt,
           updatedAt: pitches.updatedAt,
           publishedAt: pitches.publishedAt,
@@ -412,14 +501,15 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
-        budget: p.budget,
-        budgetAmount: p.budgetAmount,
+        budgetBracket: p.budgetBracket,
+        estimatedBudget: p.estimatedBudget ? parseFloat(p.estimatedBudget) : null,
         status: p.status,
-        stage: p.stage,
-        coverImage: p.coverImage,
-        visibility: p.visibility,
+        titleImage: p.titleImage,
+        shortSynopsis: p.shortSynopsis,
+        viewCount: p.viewCount || 0,
+        likeCount: p.likeCount || 0,
+        ndaCount: p.ndaCount || 0,
         userId: p.userId,
-        userType: p.userType,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
         publishedAt: p.publishedAt,
@@ -655,14 +745,15 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
-          budget: pitches.budget,
-          budgetAmount: pitches.budgetAmount,
+          budgetBracket: pitches.budgetBracket,
+          estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
-          stage: pitches.stage,
-          coverImage: pitches.coverImage,
-          visibility: pitches.visibility,
+          titleImage: pitches.titleImage,
+          shortSynopsis: pitches.shortSynopsis,
+          viewCount: pitches.viewCount,
+          likeCount: pitches.likeCount,
+          ndaCount: pitches.ndaCount,
           userId: pitches.userId,
-          userType: pitches.userType,
           createdAt: pitches.createdAt,
           updatedAt: pitches.updatedAt,
           // Add user info
@@ -685,14 +776,15 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
-        budget: p.budget,
-        budgetAmount: p.budgetAmount,
+        budgetBracket: p.budgetBracket,
+        estimatedBudget: p.estimatedBudget ? parseFloat(p.estimatedBudget) : null,
         status: p.status,
-        stage: p.stage,
-        coverImage: p.coverImage,
-        visibility: p.visibility,
+        titleImage: p.titleImage,
+        shortSynopsis: p.shortSynopsis,
+        viewCount: p.viewCount || 0,
+        likeCount: p.likeCount || 0,
+        ndaCount: p.ndaCount || 0,
         userId: p.userId,
-        userType: p.userType,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
         creator: p.creatorId ? {

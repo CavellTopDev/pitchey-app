@@ -5,7 +5,7 @@ echo "================================"
 
 # Test with the demo investor account
 echo -e "\n1️⃣ Logging in as investor..."
-LOGIN_RESPONSE=$(curl -s -X POST https://pitchey-backend.deno.dev/api/auth/login \
+LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "sarah.investor@demo.com",
@@ -24,8 +24,8 @@ echo "✅ Logged in successfully"
 
 # Get a production company pitch ID
 echo -e "\n2️⃣ Getting a production company pitch..."
-PITCHES=$(curl -s https://pitchey-backend.deno.dev/api/public/pitches)
-PITCH=$(echo "$PITCHES" | jq '.pitches[] | select(.title == "Silicon Dreams") | {id, title}')
+PITCHES=$(curl -s http://localhost:8001/api/pitches/public)
+PITCH=$(echo "$PITCHES" | jq '.pitches[0] | {id, title}')
 PITCH_ID=$(echo "$PITCH" | jq -r '.id')
 
 if [ -z "$PITCH_ID" ] || [ "$PITCH_ID" == "null" ]; then
@@ -33,17 +33,19 @@ if [ -z "$PITCH_ID" ] || [ "$PITCH_ID" == "null" ]; then
   exit 1
 fi
 
-echo "✅ Found pitch: Silicon Dreams (ID: $PITCH_ID)"
+PITCH_TITLE=$(echo "$PITCH" | jq -r '.title')
+echo "✅ Found pitch: $PITCH_TITLE (ID: $PITCH_ID)"
 
 # Request NDA
 echo -e "\n3️⃣ Requesting NDA access..."
-NDA_RESPONSE=$(curl -s -X POST "https://pitchey-backend.deno.dev/api/pitches/$PITCH_ID/request-nda" \
+NDA_RESPONSE=$(curl -s -X POST "http://localhost:8001/api/ndas/request" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "message": "I am interested in this project and would like to review the full details.",
-    "requestType": "basic"
-  }')
+  -d "{
+    \"pitchId\": $PITCH_ID,
+    \"message\": \"I am interested in this project and would like to review the full details.\",
+    \"requestType\": \"basic\"
+  }")
 
 SUCCESS=$(echo "$NDA_RESPONSE" | jq -r '.success')
 

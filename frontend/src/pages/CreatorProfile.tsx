@@ -61,67 +61,59 @@ const CreatorProfile = () => {
   }, [creatorId]);
 
   const fetchCreatorData = async () => {
-    // In production, this should fetch real data from API based on creatorId from URL params
-    // For now using mock data - remove hardcoded fallback ID
     if (!creatorId) {
       console.error('No creator ID provided');
       setLoading(false);
       return;
     }
     
-    // Mock data - in production, fetch from API
-    setCreator({
-      id: parseInt(creatorId),
-      username: 'alexchen',
-      firstName: 'Alex',
-      lastName: 'Chen',
-      companyName: 'Visionary Films',
-      email: 'alex.chen@visionaryfilms.com',
-      phone: '+1 (555) 123-4567',
-      bio: 'Award-winning filmmaker and producer with over 15 years of experience in creating compelling narratives that resonate with global audiences. Specializing in sci-fi and drama genres.',
-      location: 'Los Angeles, CA',
-      website: 'https://visionaryfilms.com',
-      userType: 'creator',
-      joinedDate: '2023-01-15',
-      followers: 1247,
-      following: 89,
-      pitchesCount: 12,
-      viewsCount: 45678,
-      verified: true,
-      specialties: ['Feature Films', 'TV Series', 'Documentaries', 'Sci-Fi', 'Drama'],
-      awards: ['Sundance Film Festival 2022', 'Cannes Selection 2021', 'Emmy Nominee 2020']
-    });
-    setLoading(false);
+    try {
+      // Fetch creator profile from API
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`http://localhost:8001/api/users/profile/${creatorId}`, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {}
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCreator(data);
+      } else {
+        console.error('Failed to fetch creator:', response.status, response.statusText);
+        setCreator(null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch creator data:', error);
+      setCreator(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchCreatorPitches = async () => {
-    // Mock data - in production, fetch from API
-    setPitches([
-      {
-        id: 1,
-        title: 'Quantum Leap',
-        logline: 'A scientist discovers a way to travel through time but gets stuck jumping between different versions of his life.',
-        genre: 'Sci-Fi',
-        format: 'Feature Film',
-        status: 'published',
-        viewCount: 1234,
-        likeCount: 89,
-        createdAt: '2024-01-15',
-        ndaRequired: true
-      },
-      {
-        id: 2,
-        title: 'The Last Garden',
-        logline: 'In a world where nature has been extinct for decades, a young botanist discovers the last hidden garden on Earth.',
-        genre: 'Drama',
-        format: 'Limited Series',
-        status: 'published',
-        viewCount: 987,
-        likeCount: 76,
-        createdAt: '2024-02-20',
-        ndaRequired: false
+    if (!creatorId) return;
+    
+    try {
+      // Fetch creator's pitches from API
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`http://localhost:8001/api/users/${creatorId}/pitches`, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {}
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPitches(Array.isArray(data.pitches) ? data.pitches : []);
+      } else {
+        console.error('Failed to fetch creator pitches:', response.status, response.statusText);
+        setPitches([]);
       }
-    ]);
+    } catch (error) {
+      console.error('Failed to fetch creator pitches:', error);
+      setPitches([]);
+    }
   };
 
   const handleFollowToggle = () => {
