@@ -39,8 +39,40 @@ export default function Analytics() {
   const [timeRange, setTimeRange] = useState('30d');
 
   useEffect(() => {
-    fetchAnalytics();
+    // Check for auth token
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.log('No auth token found. Please login first.');
+      // For debugging - auto-login if no token
+      quickLogin();
+    } else {
+      fetchAnalytics();
+    }
   }, [timeRange]);
+
+  const quickLogin = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/creator/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'alex.creator@demo.com',
+          password: 'Demo123'
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success && data.token) {
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        console.log('Auto-login successful, fetching analytics...');
+        fetchAnalytics();
+      }
+    } catch (err) {
+      console.error('Auto-login failed:', err);
+      setLoading(false);
+    }
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -52,7 +84,12 @@ export default function Analytics() {
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        console.log('Analytics response:', result);
+        
+        // Handle both direct data and wrapped data structures
+        const data = result.data || result;
+        
         console.log('Analytics data received:', data);
         console.log('Pitch performance:', data.pitchPerformance);
         console.log('Top genres:', data.audienceInsights?.topGenres);

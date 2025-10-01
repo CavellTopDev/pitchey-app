@@ -6,6 +6,8 @@ import AchievementsSection from '../components/portfolio/AchievementsSection';
 import PortfolioGrid from '../components/portfolio/PortfolioGrid';
 import LoadingState from '../components/portfolio/LoadingState';
 import ErrorState from '../components/portfolio/ErrorState';
+import { apiClient } from '../lib/api-client';
+import '../utils/debug-auth.js';
 
 interface Creator {
   id: string;
@@ -100,17 +102,15 @@ const CreatorPortfolio: React.FC = () => {
     setError(null);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend-62414fc1npma.deno.dev';
+      const response = await apiClient.get(`/api/creator/portfolio/${effectiveCreatorId}`);
       
-      const response = await fetch(`${apiUrl}/api/creator/portfolio/${effectiveCreatorId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch portfolio (${response.status})`);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to fetch portfolio');
       }
 
-      const data: PortfolioData = await response.json();
+      const data = response.data;
       
-      if (!data.success) {
+      if (!data || !data.success) {
         throw new Error('Portfolio data indicates failure');
       }
       

@@ -3,6 +3,7 @@ import { users, pitches, follows } from "../db/schema.ts";
 import { eq, and, sql, desc } from "npm:drizzle-orm";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { AuthService } from "./auth.service.ts";
+import { CacheService } from "./cache.service.ts";
 
 export const UpdateProfileSchema = z.object({
   firstName: z.string().optional(),
@@ -76,6 +77,13 @@ export class UserService {
         subscriptionTier: users.subscriptionTier,
         updatedAt: users.updatedAt,
       });
+    
+    // Invalidate user session cache after profile update
+    try {
+      await CacheService.invalidateUserSession(userId);
+    } catch (error) {
+      console.warn("Failed to invalidate user session cache:", error);
+    }
     
     return updatedUser;
   }

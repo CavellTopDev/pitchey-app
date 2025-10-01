@@ -1,171 +1,167 @@
-# Pitchey Deno Deploy - Deployment Checklist
+# 🚀 Production Deployment Checklist
 
-## ✅ Pre-Deployment Checklist
+## Pre-Deployment (Local)
 
-### 1. Code Preparation
-- [x] Updated database client to use Neon serverless driver
-- [x] Created deno.json configuration
-- [x] Updated imports for Deno Deploy compatibility
-- [x] Created Neon database initialization script
-- [x] Tested locally - all authentication endpoints working
+### Code Preparation
+- [ ] All tests passing
+- [ ] No console.log() statements in production code
+- [ ] Environment variables documented
+- [ ] Sensitive data removed from codebase
+- [ ] Dependencies up to date
+- [ ] Build successful locally
 
-### 2. Accounts Setup
-- [ ] **Neon Database Account**
-  - Sign up at https://neon.tech
-  - Create new project: "pitchey-production"
-  - Copy connection string
-- [ ] **Deno Deploy Account**
-  - Sign up at https://deno.com/deploy
-  - Connect GitHub account
-- [ ] **GitHub Repository**
-  - Code committed and pushed
-  - Repository accessible to Deno Deploy
+### Security Review
+- [ ] JWT_SECRET is strong (32+ characters)
+- [ ] CORS configured for production domain only
+- [ ] Rate limiting enabled
+- [ ] SQL injection protection verified
+- [ ] XSS protection headers set
+- [ ] File upload restrictions in place
 
-### 3. Environment Variables Preparation
-- [ ] **DATABASE_URL**: `postgresql://user:pass@host/db?sslmode=require`
-- [ ] **JWT_SECRET**: Generated secure random string (32+ chars)
-- [ ] **FRONTEND_URL**: `https://pitchey-frontend.fly.dev`
-- [ ] **NODE_ENV**: `production`
-- [ ] **STRIPE_SECRET_KEY**: (optional for testing)
+### Database Setup
+- [ ] Neon account created
+- [ ] Database provisioned
+- [ ] Connection string obtained
+- [ ] Demo data seeded
+- [ ] Backup strategy planned
 
-## 🚀 Deployment Steps
+## Deployment Steps
 
-### Step 1: Create Neon Database
-1. [ ] Go to https://neon.tech
-2. [ ] Create account and new project
-3. [ ] Note down connection string
-4. [ ] Test connection (optional)
+### 1. Backend (Deno Deploy)
+- [ ] Create Deno Deploy project
+- [ ] Set environment variables:
+  - [ ] DATABASE_URL
+  - [ ] JWT_SECRET
+  - [ ] FRONTEND_URL
+  - [ ] UPSTASH_REDIS_REST_URL (optional)
+  - [ ] UPSTASH_REDIS_REST_TOKEN (optional)
+- [ ] Deploy with deployctl
+- [ ] Verify health endpoint
+- [ ] Test authentication endpoints
 
-### Step 2: Deploy to Deno Deploy
-1. [ ] Go to https://dash.deno.com/projects
-2. [ ] Click "New Project"
-3. [ ] Connect GitHub repository
-4. [ ] Set entry point: `working-server.ts`
-5. [ ] Add environment variables (see list above)
-6. [ ] Deploy
+### 2. Frontend (Vercel)
+- [ ] Build production bundle
+- [ ] Set VITE_API_URL to backend URL
+- [ ] Deploy with Vercel CLI
+- [ ] Configure custom domain (optional)
+- [ ] Test all pages load
 
-### Step 3: Initialize Database
-1. [ ] Wait for deployment to complete
-2. [ ] Set DATABASE_URL environment variable locally
-3. [ ] Run: `deno task init-db`
-4. [ ] Verify demo users created
+### 3. Cache Setup (Optional)
+- [ ] Create Upstash account
+- [ ] Create Redis database
+- [ ] Copy REST credentials
+- [ ] Add to Deno Deploy env vars
+- [ ] Verify cache status in health check
 
-### Step 4: Test Deployment
-1. [ ] Test health endpoint: `curl https://your-project.deno.dev/api/health`
-2. [ ] Test creator login with demo credentials
-3. [ ] Test investor login with demo credentials
-4. [ ] Test production login with demo credentials
-5. [ ] Run full test suite: `./test-deployment.sh https://your-project.deno.dev`
+## Post-Deployment Verification
 
-### Step 5: Update Frontend
-1. [ ] Update frontend API configuration
-2. [ ] Test frontend connection to new backend
-3. [ ] Verify all authentication flows work
-4. [ ] Test core functionality
+### Functionality Tests
+- [ ] Homepage loads
+- [ ] User registration works
+- [ ] User login works (all 3 portals)
+- [ ] Create pitch works
+- [ ] View pitch works
+- [ ] Search works
+- [ ] Messages work
+- [ ] NDA flow works
 
-## 📋 Demo Credentials
+### Performance Checks
+- [ ] Page load time < 3 seconds
+- [ ] API response time < 500ms
+- [ ] Cache hit rate > 50%
+- [ ] No memory leaks
+- [ ] No error logs
 
-After successful deployment, these credentials should work:
+### Monitoring Setup
+- [ ] Deno Deploy metrics enabled
+- [ ] Vercel analytics enabled
+- [ ] Uptime monitoring configured
+- [ ] Error alerts set up
+- [ ] Daily backup verified
 
-| User Type | Email | Password |
-|-----------|-------|----------|
-| Creator | alex.creator@demo.com | Demo123 |
-| Investor | sarah.investor@demo.com | Demo123 |
-| Production | stellar.production@demo.com | Demo123 |
+## Production URLs
 
-## 🔧 Environment Variables Reference
+Record your production URLs here:
 
-Copy these to your Deno Deploy project settings:
-
-```env
-DATABASE_URL=postgresql://username:password@hostname/database?sslmode=require
-JWT_SECRET=your-super-secure-jwt-secret-at-least-32-characters-long
-FRONTEND_URL=https://pitchey-frontend.fly.dev
-NODE_ENV=production
-STRIPE_SECRET_KEY=sk_test_your_stripe_key
-STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_key
+```yaml
+Backend API: https://pitchey-backend.deno.dev
+Frontend: https://your-app.vercel.app
+Database: neon.tech/console
+Cache Monitor: console.upstash.com
 ```
 
-## 🧪 Testing Commands
+## Daily Monitoring
 
-### Local Testing
-```bash
-# Test locally
-./test-deployment.sh
+### Check These Metrics Daily (First Week)
+- [ ] Request count vs free tier limit
+- [ ] Database storage used
+- [ ] Cache hit/miss ratio
+- [ ] Error rate
+- [ ] User signups
+- [ ] Active users
 
-# Or test specific endpoint
-curl http://localhost:8000/api/health
-```
+### Weekly Tasks
+- [ ] Review error logs
+- [ ] Check database performance
+- [ ] Review cache effectiveness
+- [ ] Update dependencies
+- [ ] Backup database
 
-### Remote Testing
-```bash
-# Test deployed version
-./test-deployment.sh https://your-project.deno.dev
+## Scaling Triggers
 
-# Test specific endpoints
-curl https://your-project.deno.dev/api/health
-curl -X POST https://your-project.deno.dev/api/auth/creator/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "alex.creator@demo.com", "password": "Demo123"}'
-```
+Consider upgrading when you hit:
 
-## 🚨 Troubleshooting
+### Deno Deploy
+- 80,000+ requests/day → Upgrade to Pro ($20/month)
+- Response time > 1 second → Add caching
 
-### Common Issues
+### Database (Neon)
+- 400MB storage used → Upgrade to Pro ($19/month)
+- 2.5GB compute used → Optimize queries
 
-1. **Database Connection Failed**
-   - Check DATABASE_URL format
-   - Ensure Neon database is active
-   - Verify SSL mode is required
+### Cache (Upstash)
+- 8,000+ commands/day → Pay-as-you-go (~$0.20/100k)
+- Cache misses > 50% → Review cache strategy
 
-2. **Authentication Errors**
-   - Check JWT_SECRET is set
-   - Verify demo users were created
-   - Test locally first
+### Frontend (Vercel)
+- 80GB bandwidth used → Upgrade to Pro ($20/month)
+- Build time > 10 minutes → Optimize build
 
-3. **CORS Errors**
-   - Verify FRONTEND_URL is correct
-   - Check origin in frontend requests
+## Rollback Plan
 
-4. **502/503 Errors**
-   - Check Deno Deploy logs
-   - Verify all imports are working
-   - Test locally with same environment
+If something goes wrong:
 
-### Getting Help
+1. **Backend Rollback**
+   ```bash
+   deployctl deploy --project=pitchey-backend --production=false working-server.backup.ts
+   ```
 
-- **Deno Deploy Logs**: Check project dashboard
-- **Local Testing**: Run `deno task dev` and check console
-- **Database Issues**: Check Neon dashboard
-- **Code Issues**: Review error logs in deployment
+2. **Frontend Rollback**
+   ```bash
+   vercel rollback
+   ```
 
-## ✨ Post-Deployment
+3. **Database Rollback**
+   - Use Neon's point-in-time recovery
+   - Restore from daily backup
 
-### Immediate Tasks
-- [ ] Test all authentication endpoints
-- [ ] Verify frontend can connect
-- [ ] Check all demo credentials work
-- [ ] Monitor deployment logs
+## Support Contacts
 
-### Optional Enhancements
-- [ ] Set up custom domain
-- [ ] Configure monitoring/alerting
-- [ ] Set up staging environment
-- [ ] Implement rate limiting
-- [ ] Add performance monitoring
+- **Deno Deploy**: https://discord.gg/deno
+- **Vercel**: support@vercel.com
+- **Neon**: https://neon.tech/support
+- **Upstash**: https://upstash.com/support
 
-## 🎉 Success Criteria
+## Cost Tracking
 
-Deployment is successful when:
-- ✅ Health endpoint returns 200 OK
-- ✅ All three demo users can log in
-- ✅ Profile endpoint works with authentication
-- ✅ Creator dashboard loads successfully
-- ✅ Frontend can connect to deployed backend
-- ✅ No 502/503 errors in logs
+| Service | Free Tier | Current Usage | Cost |
+|---------|-----------|---------------|------|
+| Deno Deploy | 100k req/day | 0 | $0 |
+| Vercel | 100GB/month | 0 | $0 |
+| Neon | 0.5GB storage | 0 | $0 |
+| Upstash | 10k cmd/day | 0 | $0 |
+| **TOTAL** | | | **$0** |
 
 ---
 
-**Your Deno Deploy URL**: `https://your-project.deno.dev`
-
-**Frontend Update Required**: Update `config/api.config.ts` to point to new backend URL
+✅ **Ready to deploy?** Run `./deploy-mvp-free.sh`

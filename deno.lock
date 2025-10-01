@@ -1331,7 +1331,8 @@
         "npm:drizzle-orm@0.29",
         "npm:jsonwebtoken@^9.0.2",
         "npm:jspdf@^3.0.3",
-        "npm:postgres@^3.4.0"
+        "npm:postgres@^3.4.0",
+        "npm:redis@^5.8.2"
       ]
     }
   }

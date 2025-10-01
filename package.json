@@ -18,7 +18,8 @@
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.3",
     "postgres": "^3.4.0",
-    "@types/bcrypt": "^5.0.0"
+    "@types/bcrypt": "^5.0.0",
+    "redis": "^5.8.2"
   },
   "devDependencies": {
     "drizzle-kit": "^0.20.0",

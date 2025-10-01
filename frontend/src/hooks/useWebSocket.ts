@@ -151,10 +151,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       ws.onerror = (error) => {
-        // Only log WebSocket errors in development
-        if (process.env.NODE_ENV === 'development') {
-          console.error('WebSocket error:', error);
-        }
+        // Suppress error logging to reduce console spam
+        // Errors are handled in onclose
       };
 
       wsRef.current = ws;
@@ -178,11 +176,24 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
+      try {
+        wsRef.current.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('Failed to send WebSocket message:', error);
+        // Try to reconnect if send fails
+        connect();
+      }
     } else {
-      console.warn('WebSocket not connected, message not sent:', message);
+      // Only log detailed warnings in development
+      if (process.env.NODE_ENV === 'development' && message.type !== 'typing_start' && message.type !== 'typing_stop') {
+        console.warn('WebSocket not connected, message not sent:', message);
+        // Log the stack trace to help debug where this is being called from
+        console.warn('Stack:', new Error().stack?.split('\n')[2]);
+      }
+      // Try to reconnect
+      connect();
     }
-  }, []);
+  }, [connect]);
 
   useEffect(() => {
     connect();
@@ -381,6 +392,28 @@ export function useMessaging() {
 
         case 'user_offline':
           setOnlineUsers(prev => ({ ...prev, [message.userId]: false }));
+          break;
+          
+        case 'message_sent':
+          // Update the temporary message with the confirmed ID and mark as delivered
+          if (message.messageId && message.conversationId) {
+            setCurrentMessages(prev => prev.map(msg => {
+              // Find the temporary message (has timestamp close to the confirmed one)
+              const msgTime = new Date(msg.timestamp).getTime();
+              const confirmTime = new Date(message.timestamp).getTime();
+              const timeDiff = Math.abs(msgTime - confirmTime);
+              
+              // If within 5 seconds and same conversation, it's likely our message
+              if (msg.conversationId === message.conversationId && timeDiff < 5000 && !msg.delivered) {
+                return {
+                  ...msg,
+                  id: message.messageId,
+                  delivered: true,
+                };
+              }
+              return msg;
+            }));
+          }
           break;
       }
     },

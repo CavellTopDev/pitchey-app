@@ -1,0 +1,17 @@
+FROM denoland/deno:alpine
+
+WORKDIR /app
+
+# Copy dependencies first
+COPY deno.json deno.lock ./
+RUN deno cache --reload deno.json
+
+# Copy source code
+COPY . .
+
+# Pre-cache the main module
+RUN deno cache working-server.ts
+
+EXPOSE 8001
+
+CMD ["run", "--allow-all", "working-server.ts"]

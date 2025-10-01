@@ -182,7 +182,9 @@ export const analyticsAPI = {
   async getDashboardAnalytics() {
     const response = await apiClient.get('/api/analytics/dashboard');
     if (response.success) {
-      return { success: true, analytics: response.data };
+      // Handle nested response structure
+      const analytics = response.data?.analytics || response.data;
+      return { success: true, analytics };
     }
     return { success: false, error: response.error?.message };
   },

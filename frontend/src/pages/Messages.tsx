@@ -11,11 +11,13 @@ interface Message extends Omit<ServiceMessage, 'content' | 'createdAt'> {
   senderType: 'investor' | 'production' | 'creator';
   subject?: string;
   message: string;
+  content?: string; // Add content field for compatibility
   pitchTitle?: string;
   timestamp: string;
   isRead: boolean;
   hasAttachment: boolean;
   priority: 'normal' | 'high';
+  delivered?: boolean;
 }
 
 interface Conversation extends ServiceConversation {
@@ -64,10 +66,13 @@ export default function Messages() {
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
-      joinConversation(selectedConversation);
+      // Only join conversation if WebSocket is connected
+      if (isConnected) {
+        joinConversation(selectedConversation);
+      }
       markConversationAsRead(selectedConversation);
     }
-  }, [selectedConversation]);
+  }, [selectedConversation, isConnected]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -190,8 +195,28 @@ export default function Messages() {
     try {
       if (isConnected) {
         // Send via WebSocket if connected
-        sendChatMessage(selectedConversation, newMessage.trim());
+        const messageContent = newMessage.trim();
+        sendChatMessage(selectedConversation, messageContent);
         
+        // Immediately add the message to the UI (optimistic update)
+        const currentUserId = getUserId();
+        const tempMessage: Message = {
+          id: Date.now(), // Temporary ID
+          conversationId: selectedConversation,
+          senderId: parseInt(currentUserId || '0'),
+          recipientId: 0, // Will be updated when confirmed
+          senderName: 'You',
+          senderType: 'creator' as 'investor' | 'production' | 'creator',
+          message: messageContent,
+          content: messageContent, // Add content field as well for compatibility
+          timestamp: new Date().toISOString(),
+          isRead: false,
+          hasAttachment: false,
+          priority: 'normal' as 'normal' | 'high',
+          delivered: false // Mark as pending until confirmed
+        };
+        
+        setCurrentMessages(prev => [...prev, tempMessage]);
         setNewMessage('');
         addNotification('Message sent successfully', 'success');
         
@@ -238,7 +263,7 @@ export default function Messages() {
 
   // Handle typing indicators
   const handleTyping = () => {
-    if (selectedConversation) {
+    if (selectedConversation && isConnected) {
       startTyping(selectedConversation);
       
       // Clear previous timeout
@@ -519,7 +544,7 @@ export default function Messages() {
                               {message.subject && (
                                 <p className="font-medium text-sm mb-1">{message.subject}</p>
                               )}
-                              <p className="text-sm">{message.content}</p>
+                              <p className="text-sm">{message.content || message.message}</p>
                               {message.attachments && message.attachments.length > 0 && (
                                 <div className="flex items-center gap-1 mt-2 text-xs opacity-75">
                                   <Paperclip className="w-3 h-3" />

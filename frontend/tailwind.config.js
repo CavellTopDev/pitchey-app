@@ -20,6 +20,27 @@ export default {
           900: '#4c1d95',
         },
       },
+      fontFamily: {
+        system: [
+          '-apple-system',
+          'BlinkMacSystemFont', 
+          '"Segoe UI"',
+          'Roboto',
+          'Oxygen',
+          'Ubuntu',
+          'Cantarell',
+          '"Fira Sans"',
+          '"Droid Sans"',
+          '"Helvetica Neue"',
+          'sans-serif'
+        ],
+      },
+      letterSpacing: {
+        'tight': '-0.02em',
+      },
+      maxWidth: {
+        'readable': '75ch',
+      },
     },
   },
   plugins: [],

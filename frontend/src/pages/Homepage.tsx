@@ -71,19 +71,19 @@ export default function Homepage() {
               <nav className="hidden md:flex items-center gap-6">
                 <button 
                   onClick={() => navigate('/marketplace')}
-                  className="text-gray-600 hover:text-purple-600 transition"
+                  className="text-nav-link hover:text-purple-600 transition"
                 >
                   Browse Pitches
                 </button>
                 <button 
                   onClick={() => navigate('/how-it-works')}
-                  className="text-gray-600 hover:text-purple-600 transition"
+                  className="text-nav-link hover:text-purple-600 transition"
                 >
                   How It Works
                 </button>
                 <button 
                   onClick={() => navigate('/about')}
-                  className="text-gray-600 hover:text-purple-600 transition"
+                  className="text-nav-link hover:text-purple-600 transition"
                 >
                   About
                 </button>
@@ -119,7 +119,7 @@ export default function Homepage() {
                   {/* Dashboard Button */}
                   <button
                     onClick={() => navigate(`/${userType}/dashboard`)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    className="text-button px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >
                     Dashboard
                   </button>
@@ -128,13 +128,13 @@ export default function Homepage() {
                 <>
                   <button
                     onClick={() => navigate('/portals')}
-                    className="px-4 py-2 text-purple-600 hover:text-purple-700 transition"
+                    className="text-button px-4 py-2 text-purple-600 hover:text-purple-700 transition"
                   >
                     Sign In
                   </button>
                   <button
                     onClick={() => navigate('/portals')}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    className="text-button px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                   >
                     Get Started
                   </button>
@@ -150,11 +150,11 @@ export default function Homepage() {
         <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 to-pink-100/30"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
-            <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 mb-6">
+            <h1 className="text-hero-main mb-6">
               Where Stories
               <span className="text-purple-600 bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600"> Find Life</span>
             </h1>
-            <p className="text-xl lg:text-2xl text-gray-600 mb-12 max-w-3xl mx-auto">
+            <p className="text-hero-sub mb-12 max-w-3xl mx-auto">
               The premier marketplace where pitching meets opportunity. 
               Share your vision, discover original stories, and connect with producers and investors shaping the future of film, television, and new media.
             </p>
@@ -177,14 +177,14 @@ export default function Homepage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => navigate('/portals')}
-                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-lg font-semibold rounded-xl hover:shadow-2xl hover:shadow-purple-500/30 transition transform hover:scale-105"
+                className="text-button px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-2xl hover:shadow-purple-500/30 transition transform hover:scale-105"
               >
                 <Sparkles className="inline w-5 h-5 mr-2" />
                 Start Your Journey
               </button>
               <button
                 onClick={() => navigate('/marketplace')}
-                className="px-8 py-4 bg-white border-2 border-purple-600 text-purple-600 text-lg font-semibold rounded-xl hover:bg-purple-50 transition"
+                className="text-button px-8 py-4 bg-white border-2 border-purple-600 text-purple-600 rounded-xl hover:bg-purple-50 transition"
               >
                 <Play className="inline w-5 h-5 mr-2" />
                 Watch Demo
@@ -200,15 +200,15 @@ export default function Homepage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              <h2 className="text-section-title mb-2">
                 <TrendingUp className="inline w-8 h-8 text-purple-600 mr-2" />
                 Trending Now
               </h2>
-              <p className="text-gray-600">The hottest pitches gaining momentum</p>
+              <p className="text-body">The hottest pitches gaining momentum</p>
             </div>
             <button
               onClick={() => navigate('/marketplace')}
-              className="text-purple-600 hover:text-purple-700 transition flex items-center gap-2"
+              className="text-nav-link text-purple-600 hover:text-purple-700 transition flex items-center gap-2"
             >
               View All
               <ArrowRight className="w-4 h-4" />
@@ -236,12 +236,12 @@ export default function Homepage() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-purple-600 transition">
+                    <h3 className="text-card-title mb-1 group-hover:text-purple-600 transition">
                       {pitch.title}
                     </h3>
-                    <p className="text-sm text-purple-600 mb-2">{pitch.genre}</p>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{pitch.logline}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <p className="text-metadata text-purple-600 mb-2">{pitch.genre}</p>
+                    <p className="text-metadata mb-3 line-clamp-2">{pitch.logline}</p>
+                    <div className="flex items-center justify-between text-metadata">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <Eye className="w-3 h-3" />
@@ -270,15 +270,15 @@ export default function Homepage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              <h2 className="text-section-title mb-2">
                 <Sparkles className="inline w-8 h-8 text-yellow-600 mr-2" />
                 New Releases
               </h2>
-              <p className="text-gray-600">Fresh content just added to the platform</p>
+              <p className="text-body">Fresh content just added to the platform</p>
             </div>
             <button
               onClick={() => navigate('/marketplace')}
-              className="text-purple-600 hover:text-purple-700 transition flex items-center gap-2"
+              className="text-nav-link text-purple-600 hover:text-purple-700 transition flex items-center gap-2"
             >
               View All
               <ArrowRight className="w-4 h-4" />
@@ -309,12 +309,12 @@ export default function Homepage() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold text-white mb-1 group-hover:text-yellow-400 transition">
+                    <h3 className="text-card-title text-white mb-1 group-hover:text-yellow-400 transition">
                       {pitch.title}
                     </h3>
-                    <p className="text-sm text-yellow-400 mb-2">{pitch.genre}</p>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{pitch.logline}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <p className="text-metadata text-yellow-400 mb-2">{pitch.genre}</p>
+                    <p className="text-metadata text-gray-300 mb-3 line-clamp-2">{pitch.logline}</p>
+                    <div className="flex items-center justify-between text-metadata text-gray-400">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <Eye className="w-3 h-3" />
@@ -342,20 +342,20 @@ export default function Homepage() {
       {/* Call to Action */}
       <section className="py-20 bg-gradient-to-r from-purple-50 to-pink-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">Ready For Your Close Up?</h2>
-          <p className="text-xl text-gray-700 mb-8">
+          <h2 className="text-section-title mb-6">Ready For Your Close Up?</h2>
+          <p className="text-body mb-8 mx-auto">
             Join thousands of creators, investors, and production companies shaping the future of entertainment.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/portals')}
-              className="px-8 py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition"
+              className="text-button px-8 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition"
             >
               Create Your First Pitch
             </button>
             <button
               onClick={() => navigate('/marketplace')}
-              className="px-8 py-4 bg-transparent border-2 border-purple-600 text-purple-600 font-semibold rounded-xl hover:bg-purple-50 transition"
+              className="text-button px-8 py-4 bg-transparent border-2 border-purple-600 text-purple-600 rounded-xl hover:bg-purple-50 transition"
             >
               Browse Marketplace
             </button>
@@ -372,36 +372,36 @@ export default function Homepage() {
                 <Film className="w-6 h-6 text-purple-600" />
                 <span className="text-xl font-bold text-gray-900">Pitchey</span>
               </div>
-              <p className="text-gray-600 text-sm">
+              <p className="text-metadata">
                 Connecting stories with opportunities since 2025.
               </p>
             </div>
             <div>
-              <h3 className="text-gray-900 font-semibold mb-4">For Creators</h3>
-              <ul className="space-y-2 text-gray-600 text-sm">
-                <li><button onClick={() => navigate('/portals')} className="hover:text-purple-600 transition">Submit Pitch</button></li>
-                <li><button className="hover:text-purple-600 transition">Pricing</button></li>
+              <h3 className="text-card-title mb-4">For Creators</h3>
+              <ul className="space-y-2">
+                <li><button onClick={() => navigate('/portals')} className="text-metadata hover:text-purple-600 transition">Submit Pitch</button></li>
+                <li><button className="text-metadata hover:text-purple-600 transition">Pricing</button></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-gray-900 font-semibold mb-4">Browse</h3>
-              <ul className="space-y-2 text-gray-600 text-sm">
-                <li><button onClick={() => navigate('/marketplace')} className="hover:text-purple-600 transition">Browse Pitches</button></li>
-                <li><button className="hover:text-purple-600 transition">Format</button></li>
+              <h3 className="text-card-title mb-4">Browse</h3>
+              <ul className="space-y-2">
+                <li><button onClick={() => navigate('/marketplace')} className="text-metadata hover:text-purple-600 transition">Browse Pitches</button></li>
+                <li><button className="text-metadata hover:text-purple-600 transition">Format</button></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-gray-900 font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-gray-600 text-sm">
-                <li><button onClick={() => navigate('/about')} className="hover:text-purple-600 transition">About</button></li>
-                <li><button onClick={() => navigate('/contact')} className="hover:text-purple-600 transition">Contact</button></li>
-                <li><button onClick={() => navigate('/terms')} className="hover:text-purple-600 transition">Terms</button></li>
-                <li><button onClick={() => navigate('/privacy')} className="hover:text-purple-600 transition">Privacy</button></li>
+              <h3 className="text-card-title mb-4">Company</h3>
+              <ul className="space-y-2">
+                <li><button onClick={() => navigate('/about')} className="text-metadata hover:text-purple-600 transition">About</button></li>
+                <li><button onClick={() => navigate('/contact')} className="text-metadata hover:text-purple-600 transition">Contact</button></li>
+                <li><button onClick={() => navigate('/terms')} className="text-metadata hover:text-purple-600 transition">Terms</button></li>
+                <li><button onClick={() => navigate('/privacy')} className="text-metadata hover:text-purple-600 transition">Privacy</button></li>
               </ul>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t border-gray-200 text-center text-gray-600 text-sm">
-            © 2024 Pitchey. All rights reserved.
+          <div className="mt-8 pt-8 border-t border-gray-200 text-center">
+            <p className="text-metadata">© 2024 Pitchey. All rights reserved.</p>
           </div>
         </div>
       </footer>

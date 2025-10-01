@@ -2,6 +2,7 @@ import { db } from "../db/client.ts";
 import { pitches, ndas, pitchViews, follows, users } from "../db/schema.ts";
 import { eq, and, desc, sql } from "npm:drizzle-orm";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { CacheService } from "./cache.service.ts";
 
 export const CreatePitchSchema = z.object({
   title: z.string().min(1).max(200),
@@ -70,6 +71,13 @@ export class PitchService {
       .values(insertData)
       .returning();
     
+    // Clear homepage cache when new pitch is created
+    try {
+      await CacheService.invalidateHomepage();
+    } catch (error) {
+      console.warn("Failed to clear homepage cache:", error);
+    }
+    
     return pitch;
   }
   
@@ -109,6 +117,13 @@ export class PitchService {
       .where(eq(pitches.id, pitchId))
       .returning();
     
+    // Invalidate pitch cache after update
+    try {
+      await CacheService.invalidatePitch(pitchId);
+    } catch (error) {
+      console.warn("Failed to invalidate pitch cache:", error);
+    }
+    
     return updated;
   }
   
@@ -124,6 +139,14 @@ export class PitchService {
         eq(pitches.userId, userId)
       ))
       .returning();
+    
+    // Invalidate pitch cache and homepage cache when pitch is published
+    try {
+      await CacheService.invalidatePitch(pitchId);
+      await CacheService.invalidateHomepage();
+    } catch (error) {
+      console.warn("Failed to invalidate cache:", error);
+    }
     
     return published;
   }
