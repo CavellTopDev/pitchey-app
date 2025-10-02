@@ -3,6 +3,7 @@ import { pitches, ndas, pitchViews, follows, users } from "../db/schema.ts";
 import { eq, and, desc, sql } from "npm:drizzle-orm";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { CacheService } from "./cache.service.ts";
+import { neon } from "npm:@neondatabase/serverless";
 
 export const CreatePitchSchema = z.object({
   title: z.string().min(1).max(200),
@@ -44,8 +45,15 @@ export class PitchService {
     const validated = data;
     
     try {
-      // Use raw SQL to bypass Drizzle schema issues
-      const result = await db.execute(sql`
+      // Try using Neon directly to bypass any Drizzle issues
+      const DATABASE_URL = Deno.env.get("DATABASE_URL");
+      if (!DATABASE_URL) {
+        throw new Error("DATABASE_URL not configured");
+      }
+      
+      const neonSql = neon(DATABASE_URL);
+      
+      const result = await neonSql`
         INSERT INTO pitches (
           user_id,
           title,
@@ -77,9 +85,9 @@ export class PitchService {
           NOW(),
           NOW()
         ) RETURNING *
-      `);
+      `;
       
-      const pitch = result.rows[0];
+      const pitch = result[0];
       
       // Clear homepage cache when new pitch is created
       try {
