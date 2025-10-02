@@ -52,7 +52,7 @@ export class AuthService {
       .values({
         email: validated.email,
         username: validated.username,
-        passwordHash,
+        password: passwordHash, // Database column is named 'password'
         userType: validated.userType as any,
         companyName: validated.companyName,
         companyNumber: validated.companyNumber,
@@ -82,7 +82,7 @@ export class AuthService {
     }
     
     // Verify password
-    const validPassword = await bcrypt.compare(validated.password, user.passwordHash);
+    const validPassword = await bcrypt.compare(validated.password, user.password);
     
     if (!validPassword) {
       throw new Error("Invalid credentials");
@@ -282,7 +282,7 @@ export class AuthService {
     // Update password and clear reset token
     await db.update(users)
       .set({
-        passwordHash,
+        password: passwordHash, // Database column is named 'password'
         emailVerificationToken: null,
         updatedAt: new Date(),
       })
