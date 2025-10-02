@@ -98,78 +98,55 @@ export const pitches = pgTable("pitches", {
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   
   // Basic Information
-  title: varchar("title", { length: 200 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
   logline: text("logline").notNull(),
-  genre: genreEnum("genre").notNull(),
-  format: formatEnum("format").notNull(),
+  genre: varchar("genre", { length: 100 }),
+  format: varchar("format", { length: 100 }),
   
   // Content
   shortSynopsis: text("short_synopsis"),
   longSynopsis: text("long_synopsis"),
-  opener: text("opener"),
-  premise: text("premise"),
-  targetAudience: text("target_audience"),
+  // Fields that don't exist in production DB:
+  // opener: text("opener"),
+  // premise: text("premise"),
+  // targetAudience: text("target_audience"),
   
-  // Structured Data
-  characters: jsonb("characters").$type<Array<{
-    name: string;
-    description: string;
-    age?: string;
-    gender?: string;
-    actor?: string;
-  }>>(),
-  themes: jsonb("themes").$type<string[]>(),
-  episodeBreakdown: jsonb("episode_breakdown").$type<Array<{
-    episodeNumber: number;
-    title: string;
-    synopsis: string;
-  }>>(),
+  // Structured Data - NOT IN PRODUCTION DB
+  // characters: jsonb("characters"),
+  // themes: jsonb("themes"),
+  // episodeBreakdown: jsonb("episode_breakdown"),
   
   // Budget & Production
-  budgetBracket: varchar("budget_bracket", { length: 50 }),
-  estimatedBudget: decimal("estimated_budget", { precision: 12, scale: 2 }),
-  // productionTimeline: text("production_timeline"), // Removed - column doesn't exist in DB
+  budget: varchar("budget", { length: 100 }),
+  // Fields not in production:
+  // budgetBracket: varchar("budget_bracket", { length: 50 }),
+  // estimatedBudget: decimal("estimated_budget", { precision: 12, scale: 2 }),
   
   // Media
-  titleImage: text("title_image"),
-  lookbookUrl: text("lookbook_url"),
-  pitchDeckUrl: text("pitch_deck_url"),
-  scriptUrl: text("script_url"),
-  trailerUrl: text("trailer_url"),
-  productionTimeline: text("production_timeline"),
-  additionalMedia: jsonb("additional_media").$type<Array<{
-    type: 'lookbook' | 'script' | 'trailer' | 'pitch_deck' | 'budget_breakdown' | 'production_timeline' | 'other';
-    url: string;
-    title: string;
-    description?: string;
-    uploadedAt: string;
-  }>>(),
+  thumbnailUrl: varchar("thumbnail_url", { length: 500 }),
+  lookbookUrl: varchar("lookbook_url", { length: 500 }),
+  pitchDeckUrl: varchar("pitch_deck_url", { length: 500 }),
+  scriptUrl: varchar("script_url", { length: 500 }),
+  trailerUrl: varchar("trailer_url", { length: 500 }),
+  // Not in production:
+  // titleImage: text("title_image"),
+  // productionTimeline: text("production_timeline"),
+  // additionalMedia: jsonb("additional_media"),
   
-  // Visibility Settings
-  visibilitySettings: jsonb("visibility_settings").$type<{
-    showShortSynopsis: boolean;
-    showCharacters: boolean;
-    showBudget: boolean;
-    showMedia: boolean;
-  }>().default({
-    showShortSynopsis: true,
-    showCharacters: false,
-    showBudget: false,
-    showMedia: false,
-  }),
+  // Visibility Settings - NOT IN PRODUCTION
+  // visibilitySettings: jsonb("visibility_settings"),
   
   // Status & Metrics
-  status: pitchStatusEnum("status").default("draft").notNull(),
+  status: varchar("status", { length: 50 }).default("draft"),
   publishedAt: timestamp("published_at"),
   viewCount: integer("view_count").default(0),
   likeCount: integer("like_count").default(0),
   ndaCount: integer("nda_count").default(0),
   
-  // AI Detection
-  aiUsed: boolean("ai_used").default(false),
-  
   // NDA Requirement
-  requireNDA: boolean("require_nda").default(false),
+  requireNda: boolean("require_nda").default(false),
+  // Not in production:
+  // aiUsed: boolean("ai_used").default(false),
   
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
