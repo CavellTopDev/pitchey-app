@@ -2,6 +2,7 @@
 import { apiClient } from '../lib/api-client';
 import type { User } from './user.service';
 import type { Pitch } from './pitch.service';
+import { config } from '../config';
 
 // Types matching Drizzle schema
 export interface NDA {
@@ -230,7 +231,7 @@ export class NDAService {
       `/api/ndas/${ndaId}/download`;
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}${endpoint}`,
+      `${config.API_URL}${endpoint}`,
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`

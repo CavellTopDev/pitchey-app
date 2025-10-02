@@ -1,11 +1,54 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  
+# Functions configuration (if needed in the future)
+[functions]
+  directory = "netlify/functions"
 
+# Build plugins
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+
+# Environment variables
+[build.environment]
+  VITE_API_URL = "https://pitchey-backend-fresh.deno.dev"
+  NODE_VERSION = "18"
+
+# Redirects for SPA routing
+[[redirects]]
+  from = "/api/*"
+  to = "https://pitchey-backend-fresh.deno.dev/api/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# SPA fallback - must be last
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-[build.environment]
-  VITE_API_URL = "https://pitchey-backend-fresh.deno.dev"
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

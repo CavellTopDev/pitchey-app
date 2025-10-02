@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Camera, Mail, Phone, MapPin, Building2, Calendar, Edit3, Save, X } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { API_URL } from '../config/api.config';
+import { config } from '../config';
 
 interface UserProfile {
   id: number;
@@ -82,7 +83,7 @@ export default function Profile() {
       const token = localStorage.getItem('authToken');
       if (!token || !user?.id) return;
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const apiUrl = config.API_URL;
       const response = await fetch(`${apiUrl}/api/follows/followers?creatorId=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`

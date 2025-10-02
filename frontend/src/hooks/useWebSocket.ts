@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { notificationService } from '../services/notification.service';
 import { getUserId } from '../lib/apiServices';
+import { config } from '../config';
 
 interface WebSocketMessage {
   type: string;
@@ -47,7 +48,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     try {
       // Connect to the main server WebSocket endpoint
-      const wsUrl = import.meta.env.VITE_WS_URL || (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('https://', 'wss://').replace('http://', 'ws://') : 'ws://localhost:8001');
+      const wsUrl = config.WS_URL;
       const ws = new WebSocket(`${wsUrl}/api/messages/ws?token=${token}`);
       
       ws.onopen = () => {
@@ -158,7 +159,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       wsRef.current = ws;
     } catch (error) {
       // Only log connection errors in development
-      if (process.env.NODE_ENV === 'development') {
+      if (config.IS_DEVELOPMENT) {
         console.error('Failed to connect WebSocket:', error);
       }
     }
@@ -185,7 +186,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       }
     } else {
       // Only log detailed warnings in development
-      if (process.env.NODE_ENV === 'development' && message.type !== 'typing_start' && message.type !== 'typing_stop') {
+      if (config.IS_DEVELOPMENT && message.type !== 'typing_start' && message.type !== 'typing_stop') {
         console.warn('WebSocket not connected, message not sent:', message);
         // Log the stack trace to help debug where this is being called from
         console.warn('Stack:', new Error().stack?.split('\n')[2]);

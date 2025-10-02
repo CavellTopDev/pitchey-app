@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { config } from '../config';
 import ProfileHeader from '../components/portfolio/ProfileHeader';
 import AchievementsSection from '../components/portfolio/AchievementsSection';
 import WorksGrid from '../components/portfolio/WorksGrid';
@@ -131,7 +132,7 @@ const UserPortfolio: React.FC = () => {
     setError(null);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend-62414fc1npma.deno.dev';
+      const apiUrl = config.API_URL;
       
       // Use a unified endpoint that works for all user types
       const response = await fetch(`${apiUrl}/api/portfolio/${effectiveUserId}`);

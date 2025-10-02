@@ -2,6 +2,7 @@
 import { apiClient } from '../lib/api-client';
 import type { Pitch } from './pitch.service';
 import type { User } from './user.service';
+import { config } from '../config';
 
 // Types for investor dashboard data
 export interface InvestorStats {
@@ -387,7 +388,7 @@ export class InvestorService {
   // Download investment report
   static async downloadReport(investmentId: number, format: 'pdf' | 'excel'): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/investor/investments/${investmentId}/report?format=${format}`,
+      `${config.API_URL}/api/investor/investments/${investmentId}/report?format=${format}`,
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`

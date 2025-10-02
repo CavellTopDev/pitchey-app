@@ -1,6 +1,7 @@
 import apiClient, { ndaAPI as newNdaAPI, authAPI, pitchAPI as newPitchAPI } from './api-client';
+import { config } from '../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = config.API_URL;
 
 // Helper function to get auth headers (for backwards compatibility)
 const getAuthHeaders = () => {

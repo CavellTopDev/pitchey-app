@@ -1,5 +1,6 @@
 // Analytics Service - Complete analytics and reporting with Drizzle integration
 import { apiClient } from '../lib/api-client';
+import { config } from '../config';
 
 // Types for analytics data
 export interface TimeRange {
@@ -234,7 +235,7 @@ export class AnalyticsService {
   // Export analytics data
   static async exportAnalytics(options: ExportOptions): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/analytics/export`,
+      `${config.API_URL}/api/analytics/export`,
       {
         method: 'POST',
         headers: {

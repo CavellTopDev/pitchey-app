@@ -28,7 +28,9 @@ import {
   paginatedResponse,
   corsPreflightResponse,
   jsonResponse,
-  corsHeaders
+  corsHeaders,
+  setRequestOrigin,
+  getCorsHeaders
 } from "./src/utils/response.ts";
 
 // Import database client and schema
@@ -189,11 +191,15 @@ const handler = async (request: Request): Promise<Response> => {
   const startTime = Date.now();
   const url = new URL(request.url);
   const method = request.method;
+  const origin = request.headers.get("origin");
+  
+  // Set the current request origin for CORS handling
+  setRequestOrigin(origin);
   
   try {
     // Handle CORS preflight
     if (method === "OPTIONS") {
-      return corsPreflightResponse();
+      return corsPreflightResponse(origin);
     }
 
     // WebSocket upgrade for real-time messaging
@@ -201,7 +207,7 @@ const handler = async (request: Request): Promise<Response> => {
       const token = url.searchParams.get("token");
       
       if (!token) {
-        return new Response("Missing authentication token", { status: 401 });
+        return authErrorResponse("Missing authentication token");
       }
 
       try {
@@ -216,7 +222,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         const payload = await verify(token, key);
         if (!payload) {
-          return new Response("Invalid authentication token", { status: 401 });
+          return authErrorResponse("Invalid authentication token");
         }
 
         // For demo accounts
@@ -231,7 +237,7 @@ const handler = async (request: Request): Promise<Response> => {
         } else {
           user = await UserService.getUserById(payload.userId);
           if (!user) {
-            return new Response("User not found", { status: 401 });
+            return authErrorResponse("User not found");
           }
         }
 
@@ -285,7 +291,7 @@ const handler = async (request: Request): Promise<Response> => {
         return response;
       } catch (error) {
         console.error("WebSocket auth error:", error);
-        return new Response("Authentication failed", { status: 401 });
+        return authErrorResponse("Authentication failed");
       }
     }
 
@@ -1898,6 +1904,11 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const pitchId = parseInt(url.pathname.split('/')[4]);
         
+        // Validate pitch ID
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+        
         // Fetch actual pitch from database - get ANY pitch by ID, not just owned ones
         const [pitch] = await db
           .select()
@@ -1909,15 +1920,26 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Pitch not found", 404);
         }
         
+        // Additional safety check for pitch data integrity
+        if (!pitch.userId || !pitch.title) {
+          console.error(`Pitch ${pitchId} has corrupted data:`, { userId: pitch.userId, title: pitch.title });
+          return errorResponse("Pitch data is corrupted", 500);
+        }
+        
         // Track the view (will skip if creator is viewing their own pitch)
-        const { ViewTrackingServiceSimple } = await import("./src/services/view-tracking-simple.service.ts");
-        const trackResult = await ViewTrackingServiceSimple.trackView(
-          pitchId, 
-          user.id,
-          user.userType,
-          'full'
-        );
-        console.log(`View tracking for pitch ${pitchId}:`, trackResult.message);
+        try {
+          const { ViewTrackingServiceSimple } = await import("./src/services/view-tracking-simple.service.ts");
+          const trackResult = await ViewTrackingServiceSimple.trackView(
+            pitchId, 
+            user.id,
+            user.userType,
+            'full'
+          );
+          console.log(`View tracking for pitch ${pitchId}:`, trackResult.message);
+        } catch (viewError) {
+          console.warn(`Failed to track view for pitch ${pitchId}:`, viewError);
+          // Don't fail the request if view tracking fails
+        }
         
         // Fetch the actual pitch creator from database
         const [pitchCreator] = await db
@@ -1926,15 +1948,15 @@ const handler = async (request: Request): Promise<Response> => {
           .where(eq(users.id, pitch.userId))
           .limit(1);
         
-        // Add creator information to the pitch
+        // Add creator information to the pitch with additional safety checks
         const pitchWithCreator = {
           ...pitch,
           creator: pitchCreator ? {
             id: pitchCreator.id,
             username: pitchCreator.username || "unknown",
-            name: `${pitchCreator.firstName || ''} ${pitchCreator.lastName || ''}`.trim() || pitchCreator.username,
-            email: pitchCreator.email,
-            userType: pitchCreator.userType,
+            name: `${pitchCreator.firstName || ''} ${pitchCreator.lastName || ''}`.trim() || pitchCreator.username || "Unknown",
+            email: pitchCreator.email || "",
+            userType: pitchCreator.userType || "creator",
             companyName: pitchCreator.companyName || null,
             profileImage: pitchCreator.profileImageUrl || null
           } : {
@@ -1955,6 +1977,11 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Error fetching pitch:", error);
+        console.error("Error details:", {
+          message: error.message,
+          stack: error.stack,
+          pitchId: url.pathname.split('/')[4]
+        });
         return serverErrorResponse("Failed to fetch pitch");
       }
     }
@@ -2809,13 +2836,23 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname.startsWith("/api/pitches/") && method === "GET") {
       try {
         const pitchId = parseInt(url.pathname.split('/')[3]);
-        if (isNaN(pitchId)) {
+        if (isNaN(pitchId) || pitchId <= 0) {
           return errorResponse("Invalid pitch ID", 400);
         }
 
         const pitch = await PitchService.getPitchById(pitchId, user.id);
         if (!pitch) {
-          return errorResponse("Pitch not found", 404);
+          return errorResponse("Pitch not found or access denied", 404);
+        }
+
+        // Additional safety checks for pitch data integrity
+        if (!pitch.userId || !pitch.title) {
+          console.error(`Pitch ${pitchId} has corrupted data:`, { 
+            userId: pitch.userId, 
+            title: pitch.title,
+            pitchData: pitch 
+          });
+          return errorResponse("Pitch data is corrupted", 500);
         }
 
         // Add isOwner flag to indicate if the current user owns this pitch
@@ -2829,6 +2866,13 @@ const handler = async (request: Request): Promise<Response> => {
           message: "Pitch retrieved successfully"
         });
       } catch (error) {
+        console.error("Error fetching pitch:", error);
+        console.error("Error details:", {
+          message: error.message,
+          stack: error.stack,
+          pitchId: url.pathname.split('/')[3],
+          userId: user?.id
+        });
         return serverErrorResponse("Failed to fetch pitch");
       }
     }
@@ -3721,11 +3765,25 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const pitchId = parseInt(url.pathname.split('/')[4]);
         
+        // Validate pitch ID
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+        
         // Fetch real pitch data from database
         const pitch = await PitchService.getPitchById(pitchId, user.id);
         
         if (!pitch) {
-          return notFoundResponse("Pitch not found");
+          return notFoundResponse("Pitch not found or access denied");
+        }
+        
+        // Additional safety checks for pitch data integrity
+        if (!pitch.userId || !pitch.title) {
+          console.error(`Pitch ${pitchId} has corrupted data for analytics:`, { 
+            userId: pitch.userId, 
+            title: pitch.title 
+          });
+          return errorResponse("Pitch data is corrupted", 500);
         }
         
         // Import ViewTrackingServiceSimple dynamically
@@ -3760,6 +3818,13 @@ const handler = async (request: Request): Promise<Response> => {
           message: "Pitch analytics retrieved successfully"
         });
       } catch (error) {
+        console.error("Error fetching pitch analytics:", error);
+        console.error("Error details:", {
+          message: error.message,
+          stack: error.stack,
+          pitchId: url.pathname.split('/')[4],
+          userId: user?.id
+        });
         return serverErrorResponse("Failed to fetch pitch analytics");
       }
     }
@@ -3983,7 +4048,7 @@ const handler = async (request: Request): Promise<Response> => {
           const csv = convertToCSV(analyticsData);
           return new Response(csv, {
             headers: {
-              ...corsHeaders,
+              ...getCorsHeaders(origin),
               'content-type': 'text/csv',
               'content-disposition': 'attachment; filename="analytics.csv"'
             }

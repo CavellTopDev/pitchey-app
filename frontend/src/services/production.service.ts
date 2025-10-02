@@ -2,6 +2,7 @@
 import { apiClient } from '../lib/api-client';
 import type { Pitch } from './pitch.service';
 import type { User } from './user.service';
+import { config } from '../config';
 
 // Types for production dashboard data
 export interface ProductionStats {
@@ -394,7 +395,7 @@ export class ProductionService {
   // Generate contract
   static async generateContract(dealId: number, template?: string): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/production/deals/${dealId}/contract?template=${template || 'standard'}`,
+      `${config.API_URL}/api/production/deals/${dealId}/contract?template=${template || 'standard'}`,
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
@@ -433,7 +434,7 @@ export class ProductionService {
   // Export project data
   static async exportProjectData(projectId: number, format: 'pdf' | 'excel'): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/production/projects/${projectId}/export?format=${format}`,
+      `${config.API_URL}/api/production/projects/${projectId}/export?format=${format}`,
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`

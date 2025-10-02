@@ -2,6 +2,7 @@
 import { apiClient } from '../lib/api-client';
 import type { Pitch } from './pitch.service';
 import type { User } from './user.service';
+import { config } from '../config';
 
 // Types for creator dashboard data
 export interface CreatorStats {
@@ -299,7 +300,7 @@ export class CreatorService {
   // Export data for creator
   static async exportData(format: 'csv' | 'json' | 'pdf'): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/creator/export?format=${format}`,
+      `${config.API_URL}/api/creator/export?format=${format}`,
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
@@ -320,7 +321,7 @@ export class CreatorService {
     formData.append('image', file);
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/creator/profile/image`,
+      `${config.API_URL}/api/creator/profile/image`,
       {
         method: 'POST',
         headers: {

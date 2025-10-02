@@ -27,13 +27,44 @@ export interface ErrorDetails {
   details?: any;
 }
 
-// CORS headers - centralized
-export const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Max-Age": "86400",
-};
+// CORS configuration - centralized
+const ALLOWED_ORIGINS = [
+  'https://pitchey.netlify.app',
+  'https://pitchey.com',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+// Global context to store the current request origin
+let currentRequestOrigin: string | null = null;
+
+/**
+ * Set the current request origin for CORS handling
+ * This should be called at the start of each request
+ */
+export function setRequestOrigin(origin: string | null) {
+  currentRequestOrigin = origin;
+}
+
+/**
+ * Get CORS headers for a specific origin
+ */
+export function getCorsHeaders(origin?: string): Record<string, string> {
+  // Use provided origin, or fall back to current request origin, or default
+  const requestOrigin = origin || currentRequestOrigin;
+  const isAllowedOrigin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin);
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowedOrigin ? requestOrigin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
+  };
+}
+
+// Legacy CORS headers for backward compatibility
+export const corsHeaders = getCorsHeaders();
 
 /**
  * Success response wrapper
@@ -41,7 +72,8 @@ export const corsHeaders = {
 export function successResponse<T>(
   data: T,
   message?: string,
-  metadata?: StandardResponse["metadata"]
+  metadata?: StandardResponse["metadata"],
+  origin?: string
 ): Response {
   const response: StandardResponse<T> = {
     success: true,
@@ -55,7 +87,7 @@ export function successResponse<T>(
 
   return new Response(JSON.stringify(response), {
     status: 200,
-    headers: { ...corsHeaders, "content-type": "application/json" },
+    headers: { ...getCorsHeaders(origin), "content-type": "application/json" },
   });
 }
 
@@ -65,7 +97,8 @@ export function successResponse<T>(
 export function errorResponse(
   error: string,
   status = 400,
-  details?: ErrorDetails
+  details?: ErrorDetails,
+  origin?: string
 ): Response {
   const response: StandardResponse = {
     success: false,
@@ -81,7 +114,7 @@ export function errorResponse(
 
   return new Response(JSON.stringify(response), {
     status,
-    headers: { ...corsHeaders, "content-type": "application/json" },
+    headers: { ...getCorsHeaders(origin), "content-type": "application/json" },
   });
 }
 
@@ -89,41 +122,50 @@ export function errorResponse(
  * Validation error response
  */
 export function validationErrorResponse(
-  field: string,
-  message: string
+  fieldOrMessage: string,
+  message?: string,
+  origin?: string
 ): Response {
+  // If only one parameter is provided, treat it as a general validation message
+  if (message === undefined) {
+    return errorResponse(fieldOrMessage, 422, {
+      code: "VALIDATION_ERROR",
+    }, origin);
+  }
+  
+  // If two parameters provided, treat first as field and second as message
   return errorResponse("Validation failed", 422, {
     code: "VALIDATION_ERROR",
-    field,
+    field: fieldOrMessage,
     details: message,
-  });
+  }, origin);
 }
 
 /**
  * Authentication error response
  */
-export function authErrorResponse(message = "Authentication required"): Response {
+export function authErrorResponse(message = "Authentication required", origin?: string): Response {
   return errorResponse(message, 401, {
     code: "AUTH_REQUIRED",
-  });
+  }, origin);
 }
 
 /**
  * Authorization error response
  */
-export function forbiddenResponse(message = "Access denied"): Response {
+export function forbiddenResponse(message = "Access denied", origin?: string): Response {
   return errorResponse(message, 403, {
     code: "ACCESS_DENIED",
-  });
+  }, origin);
 }
 
 /**
  * Not found error response
  */
-export function notFoundResponse(resource = "Resource"): Response {
+export function notFoundResponse(resource = "Resource", origin?: string): Response {
   return errorResponse(`${resource} not found`, 404, {
     code: "NOT_FOUND",
-  });
+  }, origin);
 }
 
 /**
@@ -131,7 +173,8 @@ export function notFoundResponse(resource = "Resource"): Response {
  */
 export function rateLimitResponse(
   retryAfter: number = 60,
-  limit: number = 100
+  limit: number = 100,
+  origin?: string
 ): Response {
   const response = errorResponse("Rate limit exceeded", 429, {
     code: "RATE_LIMIT_EXCEEDED",
@@ -139,7 +182,7 @@ export function rateLimitResponse(
       retryAfter,
       limit,
     },
-  });
+  }, origin);
 
   // Add rate limit headers
   response.headers.set("X-RateLimit-Limit", limit.toString());
@@ -155,14 +198,15 @@ export function rateLimitResponse(
  */
 export function serverErrorResponse(
   message = "Internal server error",
-  requestId?: string
+  requestId?: string,
+  origin?: string
 ): Response {
   console.error("Server Error:", message, requestId ? `[${requestId}]` : '');
   
   return errorResponse(message, 500, {
     code: "INTERNAL_ERROR",
     details: requestId ? { requestId } : undefined,
-  });
+  }, origin);
 }
 
 /**
@@ -175,7 +219,8 @@ export function paginatedResponse<T>(
     limit: number;
     total: number;
   },
-  message?: string
+  message?: string,
+  origin?: string
 ): Response {
   const { page, limit, total } = pagination;
   const hasNext = page * limit < total;
@@ -189,31 +234,31 @@ export function paginatedResponse<T>(
       hasNext,
       hasPrev,
     },
-  });
+  }, origin);
 }
 
 /**
  * Handle CORS preflight requests
  */
-export function corsPreflightResponse(): Response {
+export function corsPreflightResponse(origin?: string): Response {
   return new Response(null, { 
     status: 204,
-    headers: corsHeaders 
+    headers: getCorsHeaders(origin)
   });
 }
 
 /**
  * Standardized JSON response helper (legacy compatibility)
  */
-export function jsonResponse(data: any, status = 200): Response {
+export function jsonResponse(data: any, status = 200, origin?: string): Response {
   // If data is already in standard format, use it directly
   if (data && typeof data === 'object' && 'success' in data) {
     return new Response(JSON.stringify(data), {
       status,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+      headers: { ...getCorsHeaders(origin), "content-type": "application/json" },
     });
   }
 
   // Wrap legacy responses in standard format
-  return successResponse(data);
+  return successResponse(data, undefined, undefined, origin);
 }

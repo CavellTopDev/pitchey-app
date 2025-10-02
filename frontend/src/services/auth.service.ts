@@ -1,6 +1,7 @@
 // Auth Service - Consolidated authentication for all user types with Drizzle integration
 import { apiClient } from '../lib/api-client';
 import type { User } from './user.service';
+import { config } from '../config';
 
 // Types matching Drizzle schema
 export interface LoginCredentials {
@@ -361,11 +362,11 @@ export class AuthService {
 
   // OAuth providers
   static async loginWithGoogle(): Promise<void> {
-    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/auth/google`;
+    window.location.href = `${config.API_URL}/api/auth/google`;
   }
 
   static async loginWithLinkedIn(): Promise<void> {
-    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/auth/linkedin`;
+    window.location.href = `${config.API_URL}/api/auth/linkedin`;
   }
 
   static async handleOAuthCallback(): Promise<void> {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Typography, Checkbox } from 'antd';
+import { config } from '../../config';
 
 const { Title, Paragraph } = Typography;
 
@@ -17,7 +18,7 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onAccept, onReject }) =
     // Fetch terms of service content
     const fetchTerms = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+        const apiUrl = config.API_URL;
         const response = await fetch(`${apiUrl}/legal/terms-of-service.md`);
         const content = await response.text();
         setTermsContent(content);
@@ -40,7 +41,7 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onAccept, onReject }) =
       };
 
       // Send acceptance to backend
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const apiUrl = config.API_URL;
       fetch(`${apiUrl}/api/legal/terms-acceptance`, {
         method: 'POST',
         headers: {

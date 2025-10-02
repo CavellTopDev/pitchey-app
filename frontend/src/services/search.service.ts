@@ -2,6 +2,7 @@
 import { apiClient } from '../lib/api-client';
 import type { Pitch } from './pitch.service';
 import type { User } from './user.service';
+import { config } from '../config';
 
 // Search result types
 export interface SearchResult<T> {
@@ -355,7 +356,7 @@ export class SearchService {
     format: 'csv' | 'pdf' | 'excel'
   ): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/search/export`,
+      `${config.API_URL}/api/search/export`,
       {
         method: 'POST',
         headers: {

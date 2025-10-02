@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Typography, Checkbox } from 'antd';
+import { config } from '../../config';
 
 const { Title, Paragraph } = Typography;
 
@@ -17,7 +18,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onAccept, onReject }) => 
     // Fetch privacy policy content
     const fetchPolicy = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+        const apiUrl = config.API_URL;
         const response = await fetch(`${apiUrl}/legal/privacy-policy.md`);
         const content = await response.text();
         setPolicyContent(content);
@@ -42,7 +43,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onAccept, onReject }) => 
       };
 
       // Send acceptance to backend
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const apiUrl = config.API_URL;
       fetch(`${apiUrl}/api/legal/privacy-acceptance`, {
         method: 'POST',
         headers: {

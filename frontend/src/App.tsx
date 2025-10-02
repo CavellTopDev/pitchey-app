@@ -6,14 +6,15 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
 import { configService } from './services/config.service';
+import { config } from './config';
 
 // Log environment on app load
 console.log('🚀 Pitchey App Environment:', {
   PROD: import.meta.env.PROD,
   DEV: import.meta.env.DEV,
   MODE: import.meta.env.MODE,
-  API_URL: import.meta.env.VITE_API_URL,
-  NODE_ENV: process.env.NODE_ENV
+  API_URL: config.API_URL,
+  NODE_ENV: config.NODE_ENV
 });
 
 // Immediately needed components (not lazy loaded)

@@ -1,5 +1,6 @@
 // User Service - Complete user management with Drizzle integration
 import { apiClient } from '../lib/api-client';
+import { config } from '../config';
 
 // Types matching Drizzle schema
 export interface User {
@@ -197,7 +198,7 @@ export class UserService {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/user/profile-image`, {
+    const response = await fetch(`${config.API_URL}/api/user/profile-image`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`
@@ -218,7 +219,7 @@ export class UserService {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/user/cover-image`, {
+    const response = await fetch(`${config.API_URL}/api/user/cover-image`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`
@@ -370,7 +371,7 @@ export class UserService {
       formData.append(`document_${index}`, doc);
     });
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/user/verify-company`, {
+    const response = await fetch(`${config.API_URL}/api/user/verify-company`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`

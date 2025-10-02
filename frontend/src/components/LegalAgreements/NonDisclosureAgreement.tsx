@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Typography, Checkbox, Select } from 'antd';
+import { config } from '../../config';
 
 const { Title, Paragraph } = Typography;
 const { Option } = Select;
@@ -19,7 +20,7 @@ const NonDisclosureAgreement: React.FC<NDAAgreementProps> = ({ onAccept, onRejec
     // Fetch NDA content based on selected type
     const fetchNDA = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+        const apiUrl = config.API_URL;
         const response = await fetch(`${apiUrl}/legal/nda-templates.md`);
         const content = await response.text();
         setNdaContent(content);
@@ -44,7 +45,7 @@ const NonDisclosureAgreement: React.FC<NDAAgreementProps> = ({ onAccept, onRejec
       };
 
       // Send acceptance to backend
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const apiUrl = config.API_URL;
       fetch(`${apiUrl}/api/legal/nda-acceptance`, {
         method: 'POST',
         headers: {

@@ -1,6 +1,8 @@
 // Global API URL fix for all components
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+import { config } from '../config';
+
+const API_URL = config.API_URL;
+const WS_URL = config.WS_URL;
 
 // Override fetch globally to replace localhost with ngrok URL
 const originalFetch = window.fetch;

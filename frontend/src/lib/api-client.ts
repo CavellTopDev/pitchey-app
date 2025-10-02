@@ -1,6 +1,8 @@
 // Robust API client with comprehensive error handling for Pitchey v0.2
 // Prevents frontend crashes from malformed JSON responses
 
+import { config } from '../config';
+
 interface ApiError {
   message: string;
   status?: number;
@@ -20,7 +22,7 @@ class ApiClient {
   private maxRetries: number = 3;
   private retryDelay: number = 1000; // 1 second
 
-  constructor(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:8001') {
+  constructor(baseURL: string = config.API_URL) {
     this.baseURL = baseURL;
     this.defaultHeaders = {
       'Content-Type': 'application/json',

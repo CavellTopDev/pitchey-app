@@ -175,17 +175,43 @@ export class PitchService {
   }
 
   static async getPitchById(pitchId: number, userId: number) {
-    // Get pitch if user owns it
-    const result = await db
-      .select()
-      .from(pitches)
-      .where(and(
-        eq(pitches.id, pitchId),
-        eq(pitches.userId, userId)
-      ))
-      .limit(1);
-    
-    return result[0] || null;
+    try {
+      // Validate inputs
+      if (!pitchId || isNaN(pitchId) || pitchId <= 0) {
+        return null;
+      }
+      
+      if (!userId || isNaN(userId) || userId <= 0) {
+        return null;
+      }
+      
+      // Get pitch if user owns it
+      const result = await db
+        .select()
+        .from(pitches)
+        .where(and(
+          eq(pitches.id, pitchId),
+          eq(pitches.userId, userId)
+        ))
+        .limit(1);
+      
+      const pitch = result[0] || null;
+      
+      // Additional validation of returned data
+      if (pitch && (!pitch.id || !pitch.userId || !pitch.title)) {
+        console.error(`Pitch ${pitchId} has corrupted data:`, {
+          id: pitch.id,
+          userId: pitch.userId,
+          title: pitch.title
+        });
+        return null;
+      }
+      
+      return pitch;
+    } catch (error) {
+      console.error(`Error fetching pitch ${pitchId} for user ${userId}:`, error);
+      return null;
+    }
   }
   
   static async getPitch(pitchId: number, viewerId?: number) {
@@ -372,6 +398,11 @@ export class PitchService {
   // Get individual public pitch by ID
   static async getPublicPitchById(pitchId: number) {
     try {
+      // Validate inputs
+      if (!pitchId || isNaN(pitchId) || pitchId <= 0) {
+        return null;
+      }
+      
       const [pitch] = await db
         .select({
           id: pitches.id,
@@ -416,10 +447,21 @@ export class PitchService {
         ))
         .limit(1);
 
+      // Additional validation of returned data
+      if (pitch && (!pitch.id || !pitch.userId || !pitch.title)) {
+        console.error(`Public pitch ${pitchId} has corrupted data:`, {
+          id: pitch.id,
+          userId: pitch.userId,
+          title: pitch.title
+        });
+        return null;
+      }
+
       return pitch || null;
     } catch (error) {
       console.error("Error fetching public pitch:", error);
-      throw error;
+      // Return null instead of throwing to prevent 500 errors
+      return null;
     }
   }
 

@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { config } from '../config';
 
 interface Props {
   children: ReactNode;
@@ -65,7 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {/* Show error details in development */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {config.IS_DEVELOPMENT && this.state.error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-left">
                 <p className="text-xs font-medium text-red-800 mb-1">Error Details:</p>
                 <p className="text-xs text-red-700 font-mono break-all">

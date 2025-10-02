@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../lib/api-client';
 import { useAuthStore } from '../store/authStore';
+import { config } from '../config';
 
 interface NDARequest {
   id: number;
@@ -104,7 +105,7 @@ export default function InvestorNDAHistory() {
 
   const downloadNDA = async (ndaId: number) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-backend.deno.dev';
+      const apiUrl = config.API_URL;
       const response = await fetch(`${apiUrl}/api/nda/${ndaId}/document`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`

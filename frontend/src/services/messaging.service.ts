@@ -1,6 +1,7 @@
 // Messaging Service - Complete messaging system with Drizzle integration
 import { apiClient } from '../lib/api-client';
 import type { User } from './user.service';
+import { config } from '../config';
 
 // Types matching Drizzle schema
 export interface Message {
@@ -197,7 +198,7 @@ export class MessagingService {
     });
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/messages/attachments`,
+      `${config.API_URL}/api/messages/attachments`,
       {
         method: 'POST',
         headers: {
@@ -369,7 +370,7 @@ export class MessagingService {
       return;
     }
 
-    const wsUrl = `${(import.meta.env.VITE_API_URL || 'http://localhost:8001').replace(/^http/, 'ws')}/ws/messages?token=${token}`;
+    const wsUrl = `${config.WS_URL}/ws/messages?token=${token}`;
     
     this.ws = new WebSocket(wsUrl);
 
