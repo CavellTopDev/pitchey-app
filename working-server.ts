@@ -34,9 +34,11 @@ import {
 // Import database client and schema
 import { db } from "./src/db/client.ts";
 import { 
-  messages, conversations, messageReadReceipts, conversationParticipants, 
-  typingIndicators, follows, users, pitches, analyticsEvents, notifications, 
-  watchlist, portfolio, analytics, ndaRequests, securityEvents, ndas 
+  messages, follows, users, pitches, analyticsEvents, notifications, 
+  portfolio, ndas, pitchViews, sessions, watchlist,
+  analyticsAggregates, userSessions, searchAnalytics, searchSuggestions,
+  conversations, conversationParticipants, messageReadReceipts, typingIndicators,
+  analytics, ndaRequests, securityEvents
 } from "./src/db/schema.ts";
 import { eq, and, desc, sql, inArray, isNotNull, or, gte, ilike } from "drizzle-orm";
 

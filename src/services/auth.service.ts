@@ -1,5 +1,5 @@
 import { db } from "../db/client.ts";
-import { users } from "../db/schema.ts";
+import { users, sessions } from "../db/schema.ts";
 import { eq } from "npm:drizzle-orm";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
@@ -114,13 +114,27 @@ export class AuthService {
       exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days in seconds
     }, key);
     
-    // Return session data without database (using JWT only)
-    return {
-      id: sessionId,
-      userId: numericUserId,
-      token,
-      expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
-    };
+    // Store session in database
+    try {
+      const [session] = await db.insert(sessions)
+        .values({
+          id: sessionId,
+          userId: numericUserId,
+          token,
+          expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
+        })
+        .returning();
+      return session;
+    } catch (error) {
+      console.error("Session storage error:", error);
+      // Return session data even if DB fails
+      return {
+        id: sessionId,
+        userId: numericUserId,
+        token,
+        expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
+      };
+    }
   }
   
   static async verifySession(token: string) {
@@ -153,7 +167,11 @@ export class AuthService {
   }
   
   static async logout(token: string) {
-    // JWT tokens can't be invalidated, just remove from client
+    try {
+      await db.delete(sessions).where(eq(sessions.token, token));
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
     return { success: true };
   }
   
