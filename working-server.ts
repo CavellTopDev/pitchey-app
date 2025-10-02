@@ -1868,21 +1868,17 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const body = await request.json();
         
-        // Insert pitch into database
-        const [newPitch] = await db.insert(pitches).values({
+        // Use the PitchService for consistency
+        const newPitch = await PitchService.createPitch(user.id, {
           title: body.title || "New Pitch",
           logline: body.logline || "A compelling story",
           genre: body.genre || "Drama",
           format: body.format || "Feature Film",
           shortSynopsis: body.shortSynopsis || "Brief description",
+          longSynopsis: body.longSynopsis || "Detailed description",
           budget: body.estimatedBudget?.toString() || "1000000",
-          status: body.status || "draft",
-          userId: user.id,
-          viewCount: 0,
-          likeCount: 0,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }).returning();
+          ...body
+        });
         
         return successResponse({
           pitch: newPitch,
@@ -2788,6 +2784,7 @@ const handler = async (request: Request): Promise<Response> => {
           message: "Pitch created successfully"
         });
       } catch (error) {
+        console.error("Failed to create pitch:", error);
         return serverErrorResponse("Failed to create pitch");
       }
     }
@@ -5153,7 +5150,7 @@ const handler = async (request: Request): Promise<Response> => {
       if (url.pathname === "/api/production/pitches" && method === "POST") {
         try {
           const body = await request.json();
-          const pitch = await PitchService.createProductionPitch(user.id, body);
+          const pitch = await PitchService.createPitch(user.id, body);
           return successResponse({
             pitch,
             message: "Production pitch created successfully"

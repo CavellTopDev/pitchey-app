@@ -741,8 +741,8 @@ export class PitchService {
     }
   }
 
-  static async createPitch(data: any) {
-    return await this.create(data.userId, data);
+  static async createPitch(userId: number, data: any) {
+    return await this.create(userId, data);
   }
 
   static async getAllPitches(filters: any = {}, viewerId?: number) {
