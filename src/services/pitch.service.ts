@@ -75,18 +75,24 @@ export class PitchService {
       }
     });
     
-    const [pitch] = await db.insert(pitches)
-      .values(insertData)
-      .returning();
-    
-    // Clear homepage cache when new pitch is created
     try {
-      await CacheService.invalidateHomepage();
-    } catch (error) {
-      console.warn("Failed to clear homepage cache:", error);
-    }
+      const [pitch] = await db.insert(pitches)
+        .values(insertData)
+        .returning();
     
-    return pitch;
+      // Clear homepage cache when new pitch is created
+      try {
+        await CacheService.invalidateHomepage();
+      } catch (error) {
+        console.warn("Failed to clear homepage cache:", error);
+      }
+      
+      return pitch;
+    } catch (error) {
+      console.error("Database insert error:", error);
+      console.error("Insert data was:", insertData);
+      throw error;
+    }
   }
   
   static async update(pitchId: number, userId: number, data: Partial<z.infer<typeof CreatePitchSchema>>) {
