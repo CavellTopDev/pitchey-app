@@ -40,46 +40,47 @@ export const CreatePitchSchema = z.object({
 
 export class PitchService {
   static async create(userId: number, data: z.infer<typeof CreatePitchSchema>) {
-    // For now, skip validation since schema doesn't match database
-    // const validated = CreatePitchSchema.parse(data);
+    // Skip validation since schema doesn't match database
     const validated = data;
     
-    // Build insert data ONLY with fields that exist in our database
-    const insertData: any = {
-      userId,
-      title: validated.title || "New Pitch",
-      logline: validated.logline || "A compelling story",
-      genre: validated.genre || "drama",
-      format: validated.format || "feature",
-      shortSynopsis: validated.shortSynopsis,
-      longSynopsis: validated.longSynopsis,
-      budget: validated.budget || validated.budgetBracket || validated.estimatedBudget?.toString(),
-      thumbnailUrl: validated.thumbnailUrl || validated.titleImage,
-      lookbookUrl: validated.lookbookUrl,
-      pitchDeckUrl: validated.pitchDeckUrl,
-      scriptUrl: validated.scriptUrl,
-      trailerUrl: validated.trailerUrl,
-      requireNda: validated.requireNDA || false,
-      status: "draft" as const,
-      viewCount: 0,
-      likeCount: 0,
-      ndaCount: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    // Remove undefined values
-    Object.keys(insertData).forEach(key => {
-      if (insertData[key] === undefined) {
-        delete insertData[key];
-      }
-    });
-    
     try {
-      const [pitch] = await db.insert(pitches)
-        .values(insertData)
-        .returning();
-    
+      // Use raw SQL to bypass Drizzle schema issues
+      const result = await db.execute(sql`
+        INSERT INTO pitches (
+          user_id,
+          title,
+          logline,
+          genre,
+          format,
+          short_synopsis,
+          long_synopsis,
+          budget,
+          status,
+          view_count,
+          like_count,
+          nda_count,
+          created_at,
+          updated_at
+        ) VALUES (
+          ${userId},
+          ${validated.title || "New Pitch"},
+          ${validated.logline || "A compelling story"},
+          ${validated.genre || "Drama"},
+          ${validated.format || "Feature Film"},
+          ${validated.shortSynopsis || null},
+          ${validated.longSynopsis || null},
+          ${validated.budget || validated.estimatedBudget?.toString() || null},
+          'draft',
+          0,
+          0,
+          0,
+          NOW(),
+          NOW()
+        ) RETURNING *
+      `);
+      
+      const pitch = result.rows[0];
+      
       // Clear homepage cache when new pitch is created
       try {
         await CacheService.invalidateHomepage();
@@ -90,7 +91,7 @@ export class PitchService {
       return pitch;
     } catch (error) {
       console.error("Database insert error:", error);
-      console.error("Insert data was:", insertData);
+      console.error("Data was:", validated);
       throw error;
     }
   }
