@@ -299,8 +299,8 @@ const handler = async (request: Request): Promise<Response> => {
         status: "healthy",
         message: "Complete Pitchey API is running",
         timestamp: new Date().toISOString(),
-        version: "3.2-auth-fixed",
-        deployedAt: "2025-10-02T22:12:00Z",
+        version: "3.3-neon-fixed",
+        deployedAt: new Date().toISOString(),
         coverage: "29/29 tests",
         cache: cacheHealth,
         environment: Deno.env.get("DENO_ENV") || "development"
