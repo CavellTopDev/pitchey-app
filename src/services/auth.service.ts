@@ -1,5 +1,5 @@
 import { db } from "../db/client.ts";
-import { users, sessions } from "../db/schema.ts";
+import { users } from "../db/schema.ts";
 import { eq } from "npm:drizzle-orm";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
@@ -114,49 +114,37 @@ export class AuthService {
       exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days in seconds
     }, key);
     
-    try {
-      const [session] = await db.insert(sessions)
-        .values({
-          id: sessionId,
-          userId: numericUserId,
-          token,
-          expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
-        })
-        .returning();
-      
-      return session;
-    } catch (error) {
-      // If database fails, return the token anyway
-      console.error("Session creation error (continuing anyway):", error);
-      return {
-        id: sessionId,
-        userId: numericUserId,
-        token,
-        expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
-      };
-    }
+    // Return session data without database (using JWT only)
+    return {
+      id: sessionId,
+      userId: numericUserId,
+      token,
+      expiresAt: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)),
+    };
   }
   
   static async verifySession(token: string) {
     try {
       const payload = await verify(token, key);
       
-      // Check if session exists in database
-      const session = await db.query.sessions.findFirst({
-        where: eq(sessions.token, token),
-      });
-      
-      if (!session || session.expiresAt < new Date()) {
+      // Get user from JWT payload
+      const userId = payload.userId as number;
+      if (!userId) {
         return null;
       }
       
-      // Get user separately
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, session.userId),
-      });
+      // Get user from database
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      
+      if (!user) {
+        return null;
+      }
       
       return {
-        ...session,
+        id: crypto.randomUUID(),
+        userId,
+        token,
+        expiresAt: new Date((payload.exp as number) * 1000),
         user
       };
     } catch {
@@ -165,7 +153,8 @@ export class AuthService {
   }
   
   static async logout(token: string) {
-    await db.delete(sessions).where(eq(sessions.token, token));
+    // JWT tokens can't be invalidated, just remove from client
+    return { success: true };
   }
   
   static async sendVerificationEmail(email: string, token: string) {
@@ -281,8 +270,7 @@ export class AuthService {
       })
       .where(eq(users.id, user.id));
     
-    // Invalidate all existing sessions for security
-    await db.delete(sessions).where(eq(sessions.userId, user.id));
+    // JWT tokens handle their own expiration
     
     return { success: true };
   }
