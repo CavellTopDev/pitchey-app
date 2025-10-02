@@ -5,7 +5,7 @@ import postgres from "npm:postgres";
 import * as schema from "./schema.ts";
 
 // Configure Neon for Edge/Serverless environments
-neonConfig.fetchConnectionCache = true;
+// fetchConnectionCache is now always true in newer versions
 
 // Get connection string with fallback for deployment
 const connectionString = Deno.env.get("DATABASE_URL") || 

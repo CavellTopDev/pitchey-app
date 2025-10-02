@@ -7,7 +7,7 @@
     "bcrypt": "https://deno.land/x/bcrypt@v0.4.1/mod.ts",
     "drizzle-orm": "npm:drizzle-orm@^0.29.0",
     "drizzle-orm/": "npm:drizzle-orm@^0.29.0/",
-    "@neondatabase/serverless": "npm:@neondatabase/serverless@^0.6.0",
+    "@neondatabase/serverless": "npm:@neondatabase/serverless@0.7.2",
     "postgres": "npm:postgres@^3.4.0"
   },
   "tasks": {

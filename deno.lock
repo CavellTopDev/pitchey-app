@@ -258,7 +258,7 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:@neondatabase/serverless@0.6",
+      "npm:@neondatabase/serverless@0.7.2",
       "npm:drizzle-orm@0.29",
       "npm:postgres@^3.4.0",
       "npm:stripe@14"
