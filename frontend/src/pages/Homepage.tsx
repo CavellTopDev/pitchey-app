@@ -146,48 +146,87 @@ export default function Homepage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative py-20 lg:py-32 overflow-hidden bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 to-pink-100/30"></div>
+      <section className="relative py-20 lg:py-32 overflow-hidden bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 text-white">
+        {/* Enhanced Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-violet-900/40 via-purple-800/30 to-fuchsia-900/40"></div>
+        
+        {/* Animated Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hero-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                <circle cx="50" cy="50" r="1" fill="white" className="animate-pulse" />
+                <circle cx="25" cy="25" r="0.5" fill="white" className="animate-pulse-slow" />
+                <circle cx="75" cy="75" r="0.5" fill="white" className="animate-pulse-slow" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hero-pattern)" />
+          </svg>
+        </div>
+
+        {/* Film Reel Decorations */}
+        <div className="absolute top-10 left-10 opacity-20 animate-float">
+          <Film className="w-24 h-24 text-white" />
+        </div>
+        <div className="absolute bottom-10 right-10 opacity-20 animate-float-delayed">
+          <Film className="w-32 h-32 text-white" />
+        </div>
+        <div className="absolute top-1/2 left-20 opacity-15 animate-float-slow">
+          <Sparkles className="w-16 h-16 text-white" />
+        </div>
+        <div className="absolute top-1/3 right-20 opacity-15 animate-float-slow-delayed">
+          <Star className="w-20 h-20 text-white" />
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
-            <h1 className="text-hero-main mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg animate-fade-in">
               Where Stories
-              <span className="text-purple-600 bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600"> Find Life</span>
+              <span className="bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-300"> Find Life</span>
             </h1>
-            <p className="text-hero-sub mb-12 max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto opacity-90 drop-shadow animate-fade-in-delay">
               The premier marketplace where pitching meets opportunity. 
               Share your vision, discover original stories, and connect with producers and investors shaping the future of film, television, and new media.
             </p>
             
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto mb-8">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <form className="flex bg-white rounded-lg shadow-lg overflow-hidden">
                 <input
                   type="text"
                   placeholder="Search pitches by title, genre, or keywords..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm"
+                  className="flex-1 px-6 py-4 text-gray-900 focus:outline-none"
                 />
-              </div>
+                <button 
+                  type="submit"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(`/marketplace?search=${searchQuery}`);
+                  }}
+                  className="px-6 py-4 bg-purple-600 hover:bg-purple-700 transition-colors"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              </form>
             </div>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => navigate('/portals')}
-                className="text-button px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-2xl hover:shadow-purple-500/30 transition transform hover:scale-105"
+                className="text-button px-8 py-4 bg-white/10 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/20 transition transform hover:scale-105"
               >
                 <Sparkles className="inline w-5 h-5 mr-2" />
                 Start Your Journey
               </button>
               <button
                 onClick={() => navigate('/marketplace')}
-                className="text-button px-8 py-4 bg-white border-2 border-purple-600 text-purple-600 rounded-xl hover:bg-purple-50 transition"
+                className="text-button px-8 py-4 bg-white text-purple-600 rounded-xl hover:bg-gray-100 transition transform hover:scale-105 shadow-lg"
               >
                 <Play className="inline w-5 h-5 mr-2" />
-                Watch Demo
+                Browse Pitches
               </button>
             </div>
           </div>

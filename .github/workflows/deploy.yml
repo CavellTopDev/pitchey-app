@@ -69,6 +69,5 @@ jobs:
       - name: Deploy to Deno Deploy
         uses: denoland/deployctl@v1
         with:
-          project: pitchey
-          entrypoint: main.ts
-          import-map: deno.json
+          project: pitchey-backend-fresh
+          entrypoint: working-server.ts

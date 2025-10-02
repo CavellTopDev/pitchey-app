@@ -17,17 +17,6 @@ export default function PortalSelect() {
       features: ['Upload pitch decks', 'Track viewer analytics', 'Secure NDA protection', 'Direct messaging']
     },
     {
-      id: 'investor',
-      title: 'Investor Portal',
-      description: 'Discover promising film projects and investment opportunities',
-      icon: DollarSign,
-      color: 'blue',
-      gradient: 'from-blue-600 to-indigo-600',
-      bgGradient: 'from-blue-900 via-indigo-900 to-blue-800',
-      path: '/login/investor',
-      features: ['Browse curated pitches', 'Investment tracking', 'Due diligence tools', 'Portfolio management']
-    },
-    {
       id: 'production',
       title: 'Production Portal',
       description: 'Find and develop the next blockbuster from talented creators',
@@ -37,6 +26,17 @@ export default function PortalSelect() {
       bgGradient: 'from-green-900 via-emerald-900 to-teal-800',
       path: '/login/production',
       features: ['Scout new projects', 'Manage productions', 'Team collaboration', 'Budget planning']
+    },
+    {
+      id: 'investor',
+      title: 'Investor Portal',
+      description: 'Discover promising film projects and investment opportunities',
+      icon: DollarSign,
+      color: 'blue',
+      gradient: 'from-blue-600 to-indigo-600',
+      bgGradient: 'from-blue-900 via-indigo-900 to-blue-800',
+      path: '/login/investor',
+      features: ['Browse curated pitches', 'Investment tracking', 'Due diligence tools', 'Portfolio management']
     }
   ];
 

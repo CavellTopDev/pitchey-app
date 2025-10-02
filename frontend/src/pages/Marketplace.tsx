@@ -152,14 +152,6 @@ export default function Marketplace() {
         // Sort by like count (most liked)
         filtered = filtered.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0));
         break;
-      case 'hot':
-        // Most discussed - simulate by combining views and likes
-        filtered = filtered.sort((a, b) => {
-          const scoreA = (a.viewCount || 0) + (a.likeCount || 0) * 3;
-          const scoreB = (b.viewCount || 0) + (b.likeCount || 0) * 3;
-          return scoreB - scoreA;
-        });
-        break;
       case 'genres':
         // Just apply genre filter
         break;
@@ -286,15 +278,6 @@ export default function Marketplace() {
                   Top Rated
                 </a>
                 <a 
-                  href="#hot" 
-                  className={`flex items-center gap-1 font-medium transition ${
-                    currentView === 'hot' ? 'text-purple-600' : 'text-gray-700 hover:text-purple-600'
-                  }`}
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Hot
-                </a>
-                <a 
                   href="#genres" 
                   className={`flex items-center gap-1 font-medium transition ${
                     currentView === 'genres' ? 'text-purple-600' : 'text-gray-700 hover:text-purple-600'
@@ -365,13 +348,38 @@ export default function Marketplace() {
       </nav>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 text-white overflow-hidden">
+        {/* Enhanced Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-violet-900/40 via-purple-800/30 to-fuchsia-900/40"></div>
+        
+        {/* Animated Background Pattern */}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute inset-0" 
+               style={{
+                 backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                 backgroundSize: '60px 60px',
+                 animation: 'float 20s ease-in-out infinite'
+               }}
+          />
+          {/* Film reel decoration */}
+          <div className="absolute top-10 left-10 w-32 h-32 opacity-30">
+            <Film className="w-full h-full animate-spin-slow" />
+          </div>
+          <div className="absolute bottom-10 right-10 w-24 h-24 opacity-30">
+            <Video className="w-full h-full animate-pulse" />
+          </div>
+          <div className="absolute top-1/2 left-1/4 w-20 h-20 opacity-20">
+            <Sparkles className="w-full h-full animate-bounce" />
+          </div>
+        </div>
+        
+        {/* Content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg animate-fade-in">
               Discover Amazing Film Projects
             </h1>
-            <p className="text-xl md:text-2xl mb-8 opacity-90">
+            <p className="text-xl md:text-2xl mb-8 opacity-90 drop-shadow animate-fade-in-delay">
               Browse the latest pitches from talented creators worldwide
             </p>
             
@@ -476,7 +484,6 @@ export default function Marketplace() {
             {currentView === 'trending' && 'Trending Pitches'}
             {currentView === 'new' && 'New Releases'}
             {currentView === 'top-rated' && 'Top Rated'}
-            {currentView === 'hot' && 'Hot & Discussed'}
             {currentView === 'genres' && 'Browse by Genre'}
             {currentView === 'all' && 'All Pitches'}
             {searchQuery && ` - "${searchQuery}"`}
