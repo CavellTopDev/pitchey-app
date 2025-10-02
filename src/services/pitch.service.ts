@@ -681,6 +681,26 @@ export class PitchService {
       };
     } catch (error) {
       console.error("Error fetching user pitches:", error);
+      console.error("Error details:", error.message);
+      console.error("User ID was:", userId);
+      
+      // Try direct SQL as fallback
+      try {
+        const DATABASE_URL = Deno.env.get("DATABASE_URL");
+        if (DATABASE_URL) {
+          const neonSql = neon(DATABASE_URL);
+          const fallbackPitches = await neonSql`
+            SELECT * FROM pitches 
+            WHERE user_id = ${userId}
+            ORDER BY updated_at DESC NULLS LAST
+          `;
+          console.log(`Fallback query returned ${fallbackPitches.length} pitches`);
+          return fallbackPitches;
+        }
+      } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
+      }
+      
       // Return empty data instead of throwing
       return {
         pitches: [],
