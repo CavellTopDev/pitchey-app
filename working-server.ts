@@ -1501,7 +1501,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const pitches = await PitchService.getUserPitches(user.id);
         return successResponse({
-          data: { pitches },
+          pitches: Array.isArray(pitches) ? pitches : pitches.pitches || [],
           message: "Creator pitches retrieved successfully"
         });
       } catch (error) {
