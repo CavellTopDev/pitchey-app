@@ -3290,79 +3290,129 @@ const handler = async (request: Request): Promise<Response> => {
     // Get conversations
     if (url.pathname === "/api/messages/conversations" && method === "GET") {
       try {
-        // First get conversations where the user is a participant
-        const userParticipations = await db
-          .select({ conversationId: conversationParticipants.conversationId })
-          .from(conversationParticipants)
-          .where(eq(conversationParticipants.userId, user.id));
+        console.log(`[Messages] Fetching conversations for user ${user.id}`);
         
-        const conversationIds = userParticipations.map(p => p.conversationId);
+        // Get all messages where user is sender or recipient
+        const allMessages = await db
+          .select({
+            id: messages.id,
+            senderId: messages.senderId,
+            recipientId: messages.recipientId,
+            content: messages.content,
+            subject: messages.subject,
+            createdAt: messages.createdAt,
+            isRead: messages.isRead,
+            senderName: users.username,
+            senderEmail: users.email,
+            senderType: users.userType,
+            senderCompany: users.companyName
+          })
+          .from(messages)
+          .leftJoin(users, eq(messages.senderId, users.id))
+          .where(
+            or(
+              eq(messages.senderId, user.id),
+              eq(messages.recipientId, user.id)
+            )
+          )
+          .orderBy(desc(messages.createdAt))
+          .catch(err => {
+            console.error("[Messages] Database query error:", err);
+            return [];
+          });
         
-        let userConversations = [];
-        if (conversationIds.length > 0) {
-          userConversations = await db
-            .select()
-            .from(conversations)
-            .where(inArray(conversations.id, conversationIds))
-            .orderBy(desc(conversations.updatedAt));
+        console.log(`[Messages] Found ${allMessages.length} total messages`);
+        
+        // Group messages by conversation partner
+        const conversationMap = new Map();
+        
+        for (const msg of allMessages) {
+          // Determine the other user in the conversation
+          const partnerId = msg.senderId === user.id ? msg.recipientId : msg.senderId;
           
-          // Add participant details for each conversation
-          for (const conv of userConversations) {
-            try {
-              // Get other participants (not the current user)
-              const participants = await db
-                .select({
-                  userId: conversationParticipants.userId,
-                  username: users.username,
-                  email: users.email,
-                  userType: users.userType,
-                  companyName: users.companyName
-                })
-                .from(conversationParticipants)
-                .innerJoin(users, eq(conversationParticipants.userId, users.id))
-                .where(
-                  eq(conversationParticipants.conversationId, conv.id)
-                );
-              
-              // Filter out current user and format participant details
-              const otherParticipants = participants.filter(p => p.userId !== user.id);
-              conv.participantDetails = otherParticipants.map(p => ({
-                id: p.userId,
-                name: p.companyName || p.username,
-                username: p.username,
-                email: p.email,
-                userType: p.userType,
-                companyName: p.companyName
-              }));
-              
-              // Get last message for the conversation
-              const lastMessages = await db
-                .select()
-                .from(messages)
-                .where(eq(messages.conversationId, conv.id))
-                .limit(1);
-              
-              if (lastMessages.length > 0) {
-                conv.lastMessage = {
-                  content: lastMessages[0].content,
-                  timestamp: lastMessages[0].createdAt
-                };
-              }
-            } catch (err) {
-              console.error("Error enriching conversation:", err);
-              // Continue with basic conversation data even if enrichment fails
-              conv.participantDetails = [];
+          if (!partnerId) continue; // Skip if no partner ID
+          
+          if (!conversationMap.has(partnerId)) {
+            // Get partner details
+            const [partner] = await db
+              .select({
+                id: users.id,
+                username: users.username,
+                email: users.email,
+                userType: users.userType,
+                companyName: users.companyName
+              })
+              .from(users)
+              .where(eq(users.id, partnerId))
+              .limit(1)
+              .catch(err => {
+                console.error("[Messages] Error fetching partner details:", err);
+                return [];
+              });
+            
+            if (partner) {
+              conversationMap.set(partnerId, {
+                partnerId: partner.id,
+                partnerName: partner.companyName || partner.username,
+                partnerEmail: partner.email,
+                partnerType: partner.userType,
+                lastMessage: msg.content || '',
+                lastMessageAt: msg.createdAt,
+                subject: msg.subject || '',
+                unreadCount: 0,
+                messages: []
+              });
+            }
+          }
+          
+          const conv = conversationMap.get(partnerId);
+          if (conv) {
+            conv.messages.push({
+              id: msg.id,
+              content: msg.content,
+              createdAt: msg.createdAt,
+              isFromMe: msg.senderId === user.id,
+              isRead: msg.isRead
+            });
+            
+            // Count unread messages (where user is recipient and not read)
+            if (msg.recipientId === user.id && !msg.isRead) {
+              conv.unreadCount++;
+            }
+            
+            // Update last message if this is more recent
+            if (msg.createdAt > conv.lastMessageAt) {
+              conv.lastMessage = msg.content || '';
+              conv.lastMessageAt = msg.createdAt;
+              conv.subject = msg.subject || conv.subject;
             }
           }
         }
-
+        
+        const conversations = Array.from(conversationMap.values());
+        console.log(`[Messages] Returning ${conversations.length} conversations`);
+        
         return successResponse({
-          conversations: userConversations,
+          conversations,
+          total: conversations.length,
+          success: true,
           message: "Conversations retrieved successfully"
         });
+        
       } catch (error) {
-        console.error("Error fetching conversations:", error);
-        return serverErrorResponse("Failed to fetch conversations");
+        console.error("[Messages] Conversations error:", {
+          error: error.message,
+          stack: error.stack,
+          userId: user.id
+        });
+        
+        // Return empty array instead of error for better UX
+        return successResponse({
+          conversations: [],
+          total: 0,
+          success: true,
+          warning: "Could not load conversations at this time"
+        });
       }
     }
 

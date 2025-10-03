@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import FollowButton from '../components/FollowButton';
+import { config } from '../config';
 
 interface CreatorData {
   id: number;
@@ -70,7 +71,7 @@ const CreatorProfile = () => {
     try {
       // Fetch creator profile from API
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://localhost:8001/api/users/profile/${creatorId}`, {
+      const response = await fetch(`${config.API_URL}/api/users/profile/${creatorId}`, {
         headers: token ? {
           'Authorization': `Bearer ${token}`
         } : {}
@@ -97,7 +98,7 @@ const CreatorProfile = () => {
     try {
       // Fetch creator's pitches from API
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://localhost:8001/api/users/${creatorId}/pitches`, {
+      const response = await fetch(`${config.API_URL}/api/users/${creatorId}/pitches`, {
         headers: token ? {
           'Authorization': `Bearer ${token}`
         } : {}
