@@ -78,7 +78,7 @@ jobs:
           deno-version: v2.x
       
       - name: Install deployctl
-        run: deno install -A --no-check -r -f https://deno.land/x/deploy/deployctl.ts
+        run: deno install --global -A --no-check -r -f https://deno.land/x/deploy/deployctl.ts
       
       - name: Temporarily move .env.example
         run: mv .env.example .env.example.backup || true
