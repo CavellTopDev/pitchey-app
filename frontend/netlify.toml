@@ -12,13 +12,13 @@
 
 # Environment variables
 [build.environment]
-  VITE_API_URL = "https://pitchey-backend-fresh.deno.dev"
+  VITE_API_URL = "https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev"
   NODE_VERSION = "18"
 
 # Redirects for SPA routing
 [[redirects]]
   from = "/api/*"
-  to = "https://pitchey-backend-fresh.deno.dev/api/:splat"
+  to = "https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/:splat"
   status = 200
   force = true
   headers = {X-From = "Netlify"}

@@ -6,10 +6,11 @@ This application uses a modern JAMstack architecture:
 - **Backend**: Deno server deployed on Deno Deploy
 - **Database**: PostgreSQL hosted on Neon
 
-## Production URLs
+## Production URLs (LIVE as of 2025-10-05)
 - Frontend: https://pitchey.netlify.app
-- Backend: https://pitchey-backend-fresh.deno.dev
+- Backend: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev
 - Database: Neon PostgreSQL (cloud-hosted)
+- Health Check: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
 
 ## Deployment Methods
 
@@ -21,20 +22,31 @@ Pushes to the `main` branch trigger automatic deployment via GitHub Actions.
 
 **Workflow:** `.github/workflows/deploy.yml`
 
-### 2. Manual Backend Deployment (Deno Deploy)
+### 2. Manual Backend Deployment (Deno Deploy) - CURRENTLY ACTIVE
 
-#### Using the deployment script:
-```bash
-./deploy-to-deno.sh
-```
+#### Prerequisites:
+1. Remove/rename `.env.example` temporarily (prevents validation errors)
+2. Ensure `.env.deploy` has all required variables (even if empty)
 
-#### Using deployctl directly:
+#### Using deployctl directly (TESTED & WORKING):
 ```bash
-deployctl deploy \
+# Temporarily move .env.example
+mv .env.example .env.example.backup
+
+# Deploy with token
+DENO_DEPLOY_TOKEN=ddp_0xCz7itR2p7NIjymyodtIOI3wfjS2n0LB8oH deployctl deploy \
   --project="pitchey-backend-fresh" \
   --entrypoint="working-server.ts" \
   --env-file=".env.deploy"
+
+# Restore .env.example
+mv .env.example.backup .env.example
 ```
+
+#### Current Deployment (2025-10-05):
+- URL: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev
+- Version: 3.3-neon-fixed
+- Status: ✅ HEALTHY
 
 ### 3. Manual Frontend Deployment (Netlify)
 
