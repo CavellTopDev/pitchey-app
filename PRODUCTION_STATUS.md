@@ -144,8 +144,8 @@ curl -I https://pitchey.netlify.app
 # Prepare
 mv .env.example .env.example.backup
 
-# Deploy
-DENO_DEPLOY_TOKEN=ddp_0xCz7itR2p7NIjymyodtIOI3wfjS2n0LB8oH deployctl deploy \
+# Deploy (use token from GitHub secrets or Deno Deploy dashboard)
+DENO_DEPLOY_TOKEN=$YOUR_DENO_DEPLOY_TOKEN deployctl deploy \
   --project="pitchey-backend-fresh" \
   --entrypoint="working-server.ts" \
   --env-file=".env.deploy"
