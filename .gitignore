@@ -6,6 +6,10 @@
 .env.production.local
 .env.backup.*
 .env.secrets
+.env.local.secrets
+*.secrets
+secrets/
+.secrets/
 
 # Dependencies
 node_modules/
