@@ -4,6 +4,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.deploy
 .env.backup.*
 .env.secrets
 .env.local.secrets

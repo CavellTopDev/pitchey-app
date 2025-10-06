@@ -3,6 +3,12 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
+// Import Sentry for error tracking
+import { sentryService, captureException } from "./src/services/sentry.service.ts";
+
+// Import Redis for caching
+import { redisService, cacheHelpers } from "./src/services/redis.service.ts";
+
 // Import database services
 import { UserService } from "./src/services/userService.ts";
 import { PitchService } from "./src/services/pitch.service.ts";
@@ -30,7 +36,9 @@ import {
   jsonResponse,
   corsHeaders,
   setRequestOrigin,
-  getCorsHeaders
+  getCorsHeaders,
+  getSecurityHeaders,
+  getCacheHeaders
 } from "./src/utils/response.ts";
 
 // Import database client and schema
@@ -297,20 +305,47 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === HEALTH & STATUS ENDPOINTS ===
     if (url.pathname === "/api/health") {
-      // Import cache service for health check
-      const { CacheService } = await import("./src/services/cache.service.ts");
-      const cacheHealth = await CacheService.healthCheck();
-      
-      return jsonResponse({ 
-        status: "healthy",
-        message: "Complete Pitchey API is running",
-        timestamp: new Date().toISOString(),
-        version: "3.3-neon-fixed",
-        deployedAt: new Date().toISOString(),
-        coverage: "29/29 tests",
-        cache: cacheHealth,
-        environment: Deno.env.get("DENO_ENV") || "development"
-      });
+      try {
+        // Check Redis cache health
+        const redisHealth = {
+          enabled: redisService.isEnabled(),
+          status: "unknown"
+        };
+        
+        if (redisService.isEnabled()) {
+          try {
+            const testKey = "health:test:" + Date.now();
+            await redisService.set(testKey, "ok", 60);
+            const testValue = await redisService.get(testKey);
+            await redisService.del(testKey);
+            redisHealth.status = testValue === "ok" ? "healthy" : "error";
+          } catch (error) {
+            redisHealth.status = "error";
+            console.error("Redis health check failed:", error);
+          }
+        } else {
+          redisHealth.status = "disabled";
+        }
+        
+        return jsonResponse({ 
+          status: "healthy",
+          message: "Complete Pitchey API is running",
+          timestamp: new Date().toISOString(),
+          version: "3.4-redis-cache",
+          deployedAt: new Date().toISOString(),
+          coverage: "29/29 tests",
+          redis: redisHealth,
+          environment: Deno.env.get("DENO_ENV") || "development"
+        });
+      } catch (error) {
+        console.error("Health check error:", error);
+        return jsonResponse({ 
+          status: "degraded",
+          message: "API running with issues",
+          timestamp: new Date().toISOString(),
+          error: error.message
+        });
+      }
     }
 
     if (url.pathname === "/api/version") {
@@ -910,14 +945,24 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === PUBLIC ENDPOINTS (No authentication required) ===
     
-    // Get public pitches
+    // Get public pitches - WITH CACHING
     if (url.pathname === "/api/pitches/public" && method === "GET") {
       try {
-        const pitches = await PitchService.getPublicPitchesWithUserType(20);
+        // Generate cache key
+        const cacheKey = cacheHelpers.pitches.public(1, 20);
+        
+        // Try to get from cache or fetch from database
+        const pitches = await redisService.cached(
+          cacheKey,
+          () => PitchService.getPublicPitchesWithUserType(20),
+          300 // 5 minutes cache
+        );
+        
         return jsonResponse({
           success: true,
           pitches,
-          message: "Public pitches retrieved successfully"
+          message: "Public pitches retrieved successfully",
+          cached: await redisService.exists(cacheKey)
         });
       } catch (error) {
         console.error("Error fetching public pitches:", error);
@@ -972,7 +1017,7 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Get individual public pitch by ID
+    // Get individual public pitch by ID - WITH CACHING
     if (url.pathname.startsWith("/api/pitches/public/") && method === "GET") {
       try {
         const pitchId = url.pathname.split('/').pop();
@@ -980,14 +1025,26 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Invalid pitch ID", 400);
         }
         
-        const pitch = await PitchService.getPublicPitchById(parseInt(pitchId));
-        if (!pitch) {
-          return errorResponse("Pitch not found", 404);
-        }
+        const id = parseInt(pitchId);
+        const cacheKey = cacheHelpers.pitches.byId(id);
+        
+        // Try cache first, then fetch from database
+        const pitch = await redisService.cached(
+          cacheKey,
+          async () => {
+            const result = await PitchService.getPublicPitchById(id);
+            if (!result) {
+              throw new Error("Pitch not found");
+            }
+            return result;
+          },
+          600 // 10 minutes cache for individual pitches
+        );
         
         return successResponse({
           pitch,
-          message: "Pitch retrieved successfully"
+          message: "Pitch retrieved successfully",
+          cached: await redisService.exists(cacheKey)
         });
       } catch (error) {
         console.error("Error fetching pitch:", error);
@@ -5393,6 +5450,15 @@ const handler = async (request: Request): Promise<Response> => {
 
   } catch (error) {
     console.error("Handler error:", error);
+    
+    // Send error to Sentry
+    captureException(error as Error, {
+      url: url.pathname,
+      method,
+      origin,
+      timestamp: new Date().toISOString(),
+    });
+    
     const response = serverErrorResponse("Request processing failed");
     response.headers.set('X-Response-Time', `${Date.now() - startTime}ms`);
     return response;

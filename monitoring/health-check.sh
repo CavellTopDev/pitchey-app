@@ -86,9 +86,9 @@ echo -e "\n${YELLOW}4. Measuring Response Times...${NC}"
 BACKEND_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$BACKEND_URL/api/health")
 FRONTEND_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$FRONTEND_URL")
 
-# Convert to milliseconds
-BACKEND_MS=$(echo "$BACKEND_TIME * 1000" | bc | cut -d. -f1)
-FRONTEND_MS=$(echo "$FRONTEND_TIME * 1000" | bc | cut -d. -f1)
+# Convert to milliseconds (using awk instead of bc for compatibility)
+BACKEND_MS=$(awk "BEGIN {printf \"%.0f\", $BACKEND_TIME * 1000}")
+FRONTEND_MS=$(awk "BEGIN {printf \"%.0f\", $FRONTEND_TIME * 1000}")
 
 echo "   Backend Response: ${BACKEND_MS}ms"
 echo "   Frontend Response: ${FRONTEND_MS}ms"
@@ -110,7 +110,7 @@ log_message "Response times - Backend: ${BACKEND_MS}ms, Frontend: ${FRONTEND_MS}
 
 # 5. Check Public Pitches Endpoint
 echo -e "\n${YELLOW}5. Checking Public Pitches Endpoint...${NC}"
-PITCHES_RESPONSE=$(curl -s -w "\n%{http_code}" "$BACKEND_URL/api/public/pitches?limit=1" 2>/dev/null)
+PITCHES_RESPONSE=$(curl -s -w "\n%{http_code}" "$BACKEND_URL/api/pitches/public?limit=1" 2>/dev/null)
 PITCHES_CODE=$(echo "$PITCHES_RESPONSE" | tail -n 1)
 
 if [ "$PITCHES_CODE" = "200" ]; then

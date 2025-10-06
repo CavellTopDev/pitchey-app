@@ -20,6 +20,7 @@ console.log('🚀 Pitchey App Environment:', {
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
 import Homepage from './pages/Homepage';
+import { TestSentryButton } from './components/TestSentry';
 
 // Lazy loaded pages
 const Login = lazy(() => import('./pages/Login'));
@@ -126,6 +127,7 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
+          <TestSentryButton />
           <Router>
             <Suspense fallback={
               <div className="min-h-screen flex items-center justify-center">

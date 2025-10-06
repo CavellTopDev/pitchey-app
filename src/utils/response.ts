@@ -63,6 +63,45 @@ export function getCorsHeaders(origin?: string): Record<string, string> {
   };
 }
 
+/**
+ * Get security headers for all responses
+ */
+export function getSecurityHeaders(): Record<string, string> {
+  return {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:;"
+  };
+}
+
+/**
+ * Get cache headers based on content type
+ */
+export function getCacheHeaders(contentType: string = "application/json"): Record<string, string> {
+  // Static assets should be cached for a long time
+  if (contentType.includes("image") || contentType.includes("font")) {
+    return {
+      "Cache-Control": "public, max-age=31536000, immutable"
+    };
+  }
+  
+  // API responses get shorter cache
+  if (contentType.includes("json")) {
+    return {
+      "Cache-Control": "public, max-age=300, must-revalidate"
+    };
+  }
+  
+  // Default no cache
+  return {
+    "Cache-Control": "no-cache, no-store, must-revalidate"
+  };
+}
+
 // Legacy CORS headers for backward compatibility
 export const corsHeaders = getCorsHeaders();
 
@@ -87,7 +126,12 @@ export function successResponse<T>(
 
   return new Response(JSON.stringify(response), {
     status: 200,
-    headers: { ...getCorsHeaders(origin), "content-type": "application/json" },
+    headers: { 
+      ...getCorsHeaders(origin), 
+      ...getSecurityHeaders(),
+      ...getCacheHeaders("application/json"),
+      "content-type": "application/json" 
+    },
   });
 }
 
@@ -114,7 +158,12 @@ export function errorResponse(
 
   return new Response(JSON.stringify(response), {
     status,
-    headers: { ...getCorsHeaders(origin), "content-type": "application/json" },
+    headers: { 
+      ...getCorsHeaders(origin), 
+      ...getSecurityHeaders(),
+      ...getCacheHeaders("application/json"),
+      "content-type": "application/json" 
+    },
   });
 }
 
@@ -243,7 +292,10 @@ export function paginatedResponse<T>(
 export function corsPreflightResponse(origin?: string): Response {
   return new Response(null, { 
     status: 204,
-    headers: getCorsHeaders(origin)
+    headers: {
+      ...getCorsHeaders(origin),
+      ...getSecurityHeaders()
+    }
   });
 }
 
@@ -255,7 +307,12 @@ export function jsonResponse(data: any, status = 200, origin?: string): Response
   if (data && typeof data === 'object' && 'success' in data) {
     return new Response(JSON.stringify(data), {
       status,
-      headers: { ...getCorsHeaders(origin), "content-type": "application/json" },
+      headers: { 
+        ...getCorsHeaders(origin), 
+        ...getSecurityHeaders(),
+        ...getCacheHeaders("application/json"),
+        "content-type": "application/json" 
+      },
     });
   }
 

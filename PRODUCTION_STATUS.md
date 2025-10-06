@@ -98,17 +98,52 @@ curl -X POST https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/auth/creato
 3. **PWA Score**
    - Low PWA score (30/100) - not optimized for offline/installable
 
+## Monitoring & Alerting 🔍
+
+### Monitoring Infrastructure ✅
+- **Health Check Script**: `./monitoring/health-check.sh`
+- **Performance Dashboard**: `monitoring/performance-dashboard.html`
+- **Error Tracking**: `monitoring/error-tracking.md`
+- **Alert System**: Webhook/Email notifications configured
+
+### Available Monitors
+1. **Health Check** - Every 5 minutes via cron
+2. **Uptime Monitor** - Continuous monitoring with alerts
+3. **Performance Dashboard** - Real-time metrics visualization
+4. **Daily Summary Reports** - Automated at 9 AM
+5. **Alert Logging** - All issues tracked in `monitoring/alerts.log`
+
+### Run Monitoring
+```bash
+# One-time health check
+./monitoring/health-check.sh
+
+# View performance dashboard
+open monitoring/performance-dashboard.html
+
+# Start continuous monitoring
+nohup ./monitoring/uptime-monitor.sh > monitoring/logs/uptime.log 2>&1 &
+
+# Configure alerts (Discord/Slack/Email)
+cp monitoring/.env.alerts.template monitoring/.env.alerts
+nano monitoring/.env.alerts
+```
+
 ## Next Steps Priority
 
-### Immediate (Today)
+### Completed Today ✅
 - [x] Test GitHub Actions deployment with next commit
-- [ ] Monitor production for errors
-- [ ] Test all demo account workflows
+- [x] Set up production monitoring with health checks
+- [x] Configure error tracking and logging
+- [x] Create performance monitoring dashboard
+- [x] Set up automated alerts for downtime
+- [x] Fix security issue - Implement secure token storage
 
 ### This Week
+- [ ] Fix public pitches endpoint (401 error detected)
 - [ ] Configure Redis for distributed caching
-- [ ] Set up error monitoring (Sentry/LogRocket)
-- [ ] Add health check monitoring
+- [ ] Set up Sentry error tracking (free tier)
+- [ ] Add cron jobs for automated monitoring
 
 ### Later
 - [ ] Add email service (Resend)
