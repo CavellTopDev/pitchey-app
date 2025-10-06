@@ -5,12 +5,24 @@
 .env.test.local
 .env.production.local
 .env.deploy
+.env.production
+.env.sentry
 .env.backup.*
 .env.secrets
 .env.local.secrets
 *.secrets
 secrets/
 .secrets/
+
+# Sentry and monitoring configuration
+sentry.properties
+.sentryclirc
+
+# API keys and tokens
+*.key
+*.token
+api-keys/
+tokens/
 
 # Dependencies
 node_modules/

@@ -14,6 +14,10 @@
 [build.environment]
   VITE_API_URL = "https://pitchey-backend-fresh.deno.dev"
   NODE_VERSION = "18"
+  # Add Sentry DSN via Netlify dashboard environment variables
+  # VITE_SENTRY_DSN should be set in Netlify UI, not in this file
+  VITE_SENTRY_ENVIRONMENT = "production"
+  VITE_SENTRY_RELEASE = "pitchey-frontend-v1.0"
 
 # Redirects for SPA routing
 [[redirects]]
