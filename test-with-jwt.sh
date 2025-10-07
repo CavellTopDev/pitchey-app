@@ -2,9 +2,9 @@
 
 echo "Creating a proper JWT token for testing..."
 
-# Create a JWT token for demo creator (user ID 1001)
+# Create a JWT token for demo creator (user ID 1)
 # This simulates what the frontend would have
-JWT_PAYLOAD='{"userId":1001,"email":"creator@demo.com","userType":"creator","role":"creator"}'
+JWT_PAYLOAD='{"userId":1,"email":"alex.creator@demo.com","userType":"creator","role":"creator"}'
 JWT_HEADER='{"alg":"HS256","typ":"JWT"}'
 
 # Base64 encode (URL safe)

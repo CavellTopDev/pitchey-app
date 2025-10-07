@@ -100,7 +100,7 @@ const PITCH_CONFIG = {
 // Demo accounts for testing
 const demoAccounts = {
   creator: {
-    id: 1001,  // Updated to match database
+    id: 1,  // Fixed to match actual database
     email: "alex.creator@demo.com",
     username: "alexcreator",
     password: "Demo123",
@@ -108,7 +108,7 @@ const demoAccounts = {
     companyName: "Independent Films"
   },
   investor: {
-    id: 1002,  // Updated to match database
+    id: 2,  // Fixed to match actual database
     email: "sarah.investor@demo.com",
     username: "sarahinvestor",
     password: "Demo123",
@@ -116,7 +116,7 @@ const demoAccounts = {
     companyName: "Johnson Ventures"
   },
   production: {
-    id: 1003,  // Updated to match database
+    id: 3,  // Fixed to match actual database
     email: "stellar.production@demo.com",
     username: "stellarproduction",
     password: "Demo123",
@@ -151,8 +151,8 @@ async function authenticate(request: Request): Promise<{ user: any; error?: stri
     
     console.log(`JWT verification successful! Payload:`, payload);
     
-    // Check if it's a demo account (IDs 1001, 1002, or 1003)
-    if (payload && payload.userId >= 1001 && payload.userId <= 1003) {
+    // Check if it's a demo account (IDs 1, 2, or 3)
+    if (payload && payload.userId >= 1 && payload.userId <= 3) {
       // Return demo user data
       const demoUser = {
         id: payload.userId,
@@ -163,18 +163,6 @@ async function authenticate(request: Request): Promise<{ user: any; error?: stri
       return { user: demoUser };
     }
     
-    // Also accept old IDs 1-3 for backward compatibility
-    if (payload && payload.userId >= 1 && payload.userId <= 3) {
-      // Map old IDs to new IDs
-      const idMapping: Record<number, number> = { 1: 1001, 2: 1002, 3: 1003 };
-      const demoUser = {
-        id: idMapping[payload.userId] || payload.userId,
-        email: payload.email,
-        role: payload.role || payload.userType,
-        userType: payload.userType || payload.role
-      };
-      return { user: demoUser };
-    }
   } catch (jwtError) {
     console.log(`JWT verification failed:`, jwtError);
     // Not a valid JWT, continue to session check
@@ -235,7 +223,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         // For demo accounts
         let user;
-        if (payload.userId >= 1001 && payload.userId <= 1003) {
+        if (payload.userId >= 1 && payload.userId <= 3) {
           user = {
             id: payload.userId,
             username: payload.email?.split('@')[0] || `user${payload.userId}`,
@@ -4022,7 +4010,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/analytics/dashboard" && method === "GET") {
       try {
         // Check if demo user
-        const isDemoUser = user.id >= 1001 && user.id <= 1003;
+        const isDemoUser = user.id >= 1 && user.id <= 3;
         
         if (isDemoUser) {
           // Return mock analytics for demo users - reset to zero
@@ -4404,7 +4392,7 @@ const handler = async (request: Request): Promise<Response> => {
           // Return mock following list for demo
           followingWithPitchCounts = [
             {
-              id: 1002,
+              id: 2,
               username: "sarahinvestor",
               firstName: "Sarah",
               lastName: "Mitchell",
@@ -4419,7 +4407,7 @@ const handler = async (request: Request): Promise<Response> => {
               pitchCount: 8
             },
             {
-              id: 1003,
+              id: 3,
               username: "stellarprod",
               firstName: "Stellar",
               lastName: "Productions",

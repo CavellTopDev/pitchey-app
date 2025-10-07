@@ -93,7 +93,7 @@ test_endpoint "Individual public pitch" "GET" "/api/pitches/public/11" "" "" ".d
 test_endpoint "Search pitches" "GET" "/api/pitches/search?q=frontier" "" "" ".data.results"
 test_endpoint "New releases" "GET" "/api/pitches/new" "" "" ".data"
 test_endpoint "Trending pitches" "GET" "/api/pitches/trending" "" "" ".data"
-test_endpoint "Get followers (public)" "GET" "/api/follows/followers?creatorId=1001" "" "" ".data.followers"
+test_endpoint "Get followers (public)" "GET" "/api/follows/followers?creatorId=1" "" "" ".data.followers"
 echo ""
 
 # =============== CREATOR ENDPOINTS ===============
@@ -159,8 +159,8 @@ echo ""
 echo -e "${MAGENTA}Testing Follow Endpoints${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 test_endpoint "Get following list" "GET" "/api/follows/following" "$INVESTOR_TOKEN"
-test_endpoint "Follow creator" "POST" "/api/follows/1001" "$INVESTOR_TOKEN"
-test_endpoint "Unfollow creator" "DELETE" "/api/follows/1001" "$INVESTOR_TOKEN"
+test_endpoint "Follow creator" "POST" "/api/follows/1" "$INVESTOR_TOKEN"
+test_endpoint "Unfollow creator" "DELETE" "/api/follows/1" "$INVESTOR_TOKEN"
 echo ""
 
 # =============== NDA ENDPOINTS ===============

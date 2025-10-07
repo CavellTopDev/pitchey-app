@@ -6,7 +6,7 @@ const sql = neon(DATABASE_URL);
 console.log("Testing what PitchService.getUserPitches should return...\n");
 
 // Simulate the exact query from PitchService
-const userId = 1001;
+const userId = 1;
 const userPitches = await sql`
   SELECT * FROM pitches 
   WHERE user_id = ${userId}
