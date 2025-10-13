@@ -1,18 +1,12 @@
-import { neon } from "npm:@neondatabase/serverless";
+import { db } from "./src/db/client.ts";
+import { sql } from "npm:drizzle-orm";
 
-const sql = neon("postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require");
+const result = await db.execute(sql`
+  SELECT id, title, user_id, status 
+  FROM pitches 
+  ORDER BY id
+  LIMIT 10;
+`);
 
-const columns = await sql`
-  SELECT column_name, data_type 
-  FROM information_schema.columns 
-  WHERE table_name = 'nda_requests'
-  ORDER BY ordinal_position
-`;
-
-console.log("NDA Requests table columns:");
-columns.forEach(c => console.log(`  - ${c.column_name}: ${c.data_type}`));
-
-// Add missing columns
-console.log("\nAdding missing nda_type column...");
-await sql`ALTER TABLE nda_requests ADD COLUMN IF NOT EXISTS nda_type VARCHAR(20) DEFAULT 'basic'`;
-console.log("✅ Added nda_type column");
+console.log("Available pitches:");
+result.forEach(row => console.log(`- ID ${row.id}: "${row.title}" (user: ${row.user_id}, status: ${row.status})`));

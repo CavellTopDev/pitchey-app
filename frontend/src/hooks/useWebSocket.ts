@@ -48,8 +48,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     try {
       // Connect to the main server WebSocket endpoint
-      const wsUrl = config.WS_URL;
-      const ws = new WebSocket(`${wsUrl}/api/messages/ws?token=${token}`);
+      // WS_URL already includes the base WebSocket URL (e.g., ws://localhost:8001)
+      const ws = new WebSocket(`${config.WS_URL}/ws?token=${token}`);
       
       ws.onopen = () => {
         console.log('WebSocket connected');
@@ -84,16 +84,22 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           // Handle specific message types
           switch (message.type) {
             case 'connected':
-              console.log('WebSocket connected as:', message.username, `(ID: ${message.userId})`);
+              console.log('WebSocket connected as:', message.payload?.username || message.username, `(ID: ${message.payload?.userId || message.userId})`);
+              break;
+            case 'ping':
+              // Server sent ping, respond with pong
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+              }
               break;
             case 'pong':
-              // Ping received, connection is healthy
+              // Pong received, connection is healthy - no action needed
               break;
             case 'user_online':
-              console.log(`${message.username} came online`);
+              console.log(`${message.payload?.username || message.username} came online`);
               break;
             case 'user_offline':
-              console.log(`${message.username} went offline`);
+              console.log(`${message.payload?.username || message.username} went offline`);
               break;
             case 'new_message':
               console.log('New message received:', message);
@@ -108,19 +114,61 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
               console.log('Typing indicator:', message);
               break;
             case 'conversation_joined':
-              console.log('Joined conversation:', message.conversationId);
+              console.log('Joined conversation:', message.payload?.conversationId || message.conversationId);
               break;
             case 'online_users':
-              console.log('Online users:', message.users);
+              console.log('Online users:', message.payload?.users || message.users);
               break;
             case 'queued_message':
               console.log('Received queued message:', message);
               break;
             case 'error':
-              console.error('WebSocket error:', message.message, message.error);
+              // Handle structured error messages
+              const errorMsg = message.payload?.error || message.message || message.error || 'Unknown error';
+              const errorCode = message.payload?.code || message.code;
+              const errorCategory = message.payload?.category || 'unknown';
+              
+              // Only log errors in development or if they're not low-severity
+              if (config.IS_DEVELOPMENT || (message.payload?.severity && message.payload.severity > 1)) {
+                console.error('WebSocket error:', {
+                  message: errorMsg,
+                  code: errorCode,
+                  category: errorCategory,
+                  recoverable: message.payload?.recoverable,
+                  retryAfter: message.payload?.retryAfter
+                });
+              }
+              
+              // Handle specific error types
+              if (errorCode === 2001 || errorCode === 2002) { // Auth token invalid/expired
+                // Clear token and redirect to login
+                localStorage.removeItem('authToken');
+                if (window.location.pathname !== '/login') {
+                  window.location.href = '/login';
+                }
+              }
+              break;
+            case 'notification':
+            case 'dashboard_update':
+            case 'metrics_update':
+            case 'draft_sync':
+            case 'draft_update':
+            case 'presence_update':
+            case 'upload_progress':
+            case 'upload_complete':
+            case 'upload_error':
+            case 'pitch_view_update':
+            case 'pitch_stats_update':
+            case 'activity_update':
+            case 'system_announcement':
+            case 'maintenance_mode':
+              // These are handled by specific consumers - pass through without logging
               break;
             default:
-              // Other messages are handled by the consumer
+              // Log unhandled messages only in development
+              if (config.IS_DEVELOPMENT) {
+                console.log('Unhandled WebSocket message type:', message.type, message);
+              }
               break;
           }
         } catch (error) {

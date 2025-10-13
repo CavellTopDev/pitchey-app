@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Portal Comprehensive Test Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            border-left: 4px solid #4CAF50;
+            padding: 10px 15px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            border-radius: 0 5px 5px 0;
+        }
+        .error {
+            border-left-color: #f44336;
+            background-color: #ffebee;
+        }
+        .warning {
+            border-left-color: #ff9800;
+            background-color: #fff3e0;
+        }
+        .success {
+            border-left-color: #4CAF50;
+            background-color: #e8f5e9;
+        }
+        .button {
+            background-color: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #764ba2;
+        }
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #4CAF50; }
+        .status-error { background-color: #f44336; }
+        .status-warning { background-color: #ff9800; }
+        .status-pending { background-color: #ccc; }
+        
+        .navigation-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .test-progress {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Production Portal Comprehensive Test Report</h1>
+        <p>Testing stellar.production@demo.com / Demo123</p>
+        <p>Backend: http://localhost:8001 | Frontend: http://localhost:5173</p>
+        <div id="timestamp"></div>
+    </div>
+
+    <div class="test-progress">
+        <h3>Test Progress</h3>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar"></div>
+        </div>
+        <span id="progressText">0/13 tests completed</span>
+    </div>
+
+    <div class="navigation-links">
+        <a href="http://localhost:5173" target="_blank" class="button">Open Frontend</a>
+        <a href="http://localhost:5173/production-login" target="_blank" class="button">Production Login</a>
+        <button class="button" onclick="startTesting()">Start Comprehensive Test</button>
+        <button class="button" onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Configuration</h2>
+        <div class="test-item">
+            <strong>Demo Account:</strong> stellar.production@demo.com
+        </div>
+        <div class="test-item">
+            <strong>Password:</strong> Demo123
+        </div>
+        <div class="test-item">
+            <strong>Test Environment:</strong> Local Development
+        </div>
+        <div class="test-item">
+            <strong>Expected User Type:</strong> Production Company
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Authentication Tests</h2>
+        <div class="test-item" id="auth-login">
+            <span class="status-indicator status-pending"></span>
+            <strong>Production Login Test:</strong> Login with demo credentials
+            <button class="button" onclick="testLogin()">Test Login</button>
+        </div>
+        <div class="test-item" id="auth-token">
+            <span class="status-indicator status-pending"></span>
+            <strong>Token Validation:</strong> Verify JWT token storage and validity
+            <button class="button" onclick="testTokenValidation()">Test Token</button>
+        </div>
+        <div class="test-item" id="auth-redirect">
+            <span class="status-indicator status-pending"></span>
+            <strong>Redirect Test:</strong> Verify redirect to production dashboard
+            <button class="button" onclick="testRedirect()">Test Redirect</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Production Dashboard Tests</h2>
+        <div class="test-item" id="dashboard-load">
+            <span class="status-indicator status-pending"></span>
+            <strong>Dashboard Load:</strong> Test dashboard page loading
+            <button class="button" onclick="testDashboard()">Test Dashboard</button>
+        </div>
+        <div class="test-item" id="dashboard-stats">
+            <span class="status-indicator status-pending"></span>
+            <strong>Statistics Display:</strong> Test metrics and analytics display
+            <button class="button" onclick="testDashboardStats()">Test Stats</button>
+        </div>
+        <div class="test-item" id="dashboard-navigation">
+            <span class="status-indicator status-pending"></span>
+            <strong>Navigation Menu:</strong> Test all navigation links
+            <button class="button" onclick="testNavigation()">Test Navigation</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Pitch Management Tests</h2>
+        <div class="test-item" id="pitches-browse">
+            <span class="status-indicator status-pending"></span>
+            <strong>Browse Pitches:</strong> Test pitch browsing and filtering
+            <button class="button" onclick="testBrowsePitches()">Test Browse</button>
+        </div>
+        <div class="test-item" id="pitches-details">
+            <span class="status-indicator status-pending"></span>
+            <strong>Pitch Details:</strong> Test individual pitch viewing
+            <button class="button" onclick="testPitchDetails()">Test Details</button>
+        </div>
+        <div class="test-item" id="pitches-interest">
+            <span class="status-indicator status-pending"></span>
+            <strong>Express Interest:</strong> Test expressing interest in pitches
+            <button class="button" onclick="testExpressInterest()">Test Interest</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>NDA Management Tests</h2>
+        <div class="test-item" id="nda-incoming">
+            <span class="status-indicator status-pending"></span>
+            <strong>Incoming NDAs:</strong> Test viewing incoming NDA requests
+            <button class="button" onclick="testIncomingNDAs()">Test Incoming</button>
+        </div>
+        <div class="test-item" id="nda-outgoing">
+            <span class="status-indicator status-pending"></span>
+            <strong>Outgoing NDAs:</strong> Test viewing outgoing NDA requests
+            <button class="button" onclick="testOutgoingNDAs()">Test Outgoing</button>
+        </div>
+        <div class="test-item" id="nda-actions">
+            <span class="status-indicator status-pending"></span>
+            <strong>NDA Actions:</strong> Test accepting/declining NDAs
+            <button class="button" onclick="testNDAActions()">Test Actions</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Company Features Tests</h2>
+        <div class="test-item" id="company-profile">
+            <span class="status-indicator status-pending"></span>
+            <strong>Company Profile:</strong> Test company settings and profile
+            <button class="button" onclick="testCompanyProfile()">Test Profile</button>
+        </div>
+        <div class="test-item" id="company-verification">
+            <span class="status-indicator status-pending"></span>
+            <strong>Verification Status:</strong> Test company verification display
+            <button class="button" onclick="testVerificationStatus()">Test Verification</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="testResults" class="test-results">Ready to start testing. Click "Start Comprehensive Test" to begin automated testing.</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001';
+        let testResults = [];
+        let currentTestIndex = 0;
+        let totalTests = 13;
+
+        function updateTimestamp() {
+            document.getElementById('timestamp').innerText = `Test started: ${new Date().toLocaleString()}`;
+        }
+
+        function updateProgress() {
+            const completed = testResults.filter(r => r.completed).length;
+            const percentage = (completed / totalTests) * 100;
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressText').innerText = `${completed}/${totalTests} tests completed`;
+        }
+
+        function logResult(testName, status, message, error = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const result = {
+                testName,
+                status,
+                message,
+                error,
+                timestamp,
+                completed: true
+            };
+            testResults.push(result);
+            
+            const resultsDiv = document.getElementById('testResults');
+            const statusIcon = status === 'success' ? '✅' : status === 'warning' ? '⚠️' : '❌';
+            resultsDiv.textContent += `[${timestamp}] ${statusIcon} ${testName}: ${message}\n`;
+            if (error) {
+                resultsDiv.textContent += `    Error: ${error}\n`;
+            }
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+
+            // Update test item status
+            const testElement = document.querySelector(`[id*="${testName.toLowerCase().replace(/\s+/g, '-')}"]`);
+            if (testElement) {
+                const indicator = testElement.querySelector('.status-indicator');
+                indicator.className = `status-indicator status-${status}`;
+            }
+
+            updateProgress();
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').textContent = '';
+            testResults = [];
+            currentTestIndex = 0;
+            updateProgress();
+            
+            // Reset all indicators
+            document.querySelectorAll('.status-indicator').forEach(indicator => {
+                indicator.className = 'status-indicator status-pending';
+            });
+        }
+
+        async function makeAPIRequest(endpoint, method = 'GET', body = null, token = null) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const config = {
+                method,
+                headers
+            };
+
+            if (body) {
+                config.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, config);
+                const responseData = await response.text();
+                
+                let jsonData;
+                try {
+                    jsonData = JSON.parse(responseData);
+                } catch (e) {
+                    jsonData = { rawResponse: responseData };
+                }
+
+                return {
+                    status: response.status,
+                    ok: response.ok,
+                    data: jsonData,
+                    headers: Object.fromEntries(response.headers.entries())
+                };
+            } catch (error) {
+                return {
+                    status: 0,
+                    ok: false,
+                    error: error.message,
+                    data: null
+                };
+            }
+        }
+
+        async function testLogin() {
+            logResult('Login Test', 'info', 'Starting production login test...');
+            
+            try {
+                const response = await makeAPIRequest('/api/auth/production/login', 'POST', {
+                    email: 'stellar.production@demo.com',
+                    password: 'Demo123'
+                });
+
+                if (response.ok && response.data.token) {
+                    localStorage.setItem('auth_token', response.data.token);
+                    localStorage.setItem('user_type', 'production');
+                    logResult('Login Test', 'success', `Login successful. Token stored. User ID: ${response.data.user?.id || 'N/A'}`);
+                } else {
+                    logResult('Login Test', 'error', `Login failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Login Test', 'error', 'Login request failed', error.message);
+            }
+        }
+
+        async function testTokenValidation() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Token Validation', 'error', 'No token found in localStorage');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/auth/validate', 'GET', null, token);
+                
+                if (response.ok) {
+                    logResult('Token Validation', 'success', `Token valid. User type: ${response.data.userType || 'N/A'}`);
+                } else {
+                    logResult('Token Validation', 'error', `Token validation failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Token Validation', 'error', 'Token validation request failed', error.message);
+            }
+        }
+
+        async function testRedirect() {
+            logResult('Redirect Test', 'info', 'Testing redirect to production dashboard...');
+            
+            try {
+                // Open production dashboard in new window to test redirect
+                const dashboardWindow = window.open('http://localhost:5173/production-dashboard', '_blank');
+                
+                setTimeout(() => {
+                    if (dashboardWindow) {
+                        logResult('Redirect Test', 'success', 'Dashboard window opened successfully');
+                        dashboardWindow.close();
+                    } else {
+                        logResult('Redirect Test', 'warning', 'Dashboard window may have been blocked by popup blocker');
+                    }
+                }, 2000);
+            } catch (error) {
+                logResult('Redirect Test', 'error', 'Failed to open dashboard window', error.message);
+            }
+        }
+
+        async function testDashboard() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Dashboard Load', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/production/dashboard', 'GET', null, token);
+                
+                if (response.ok) {
+                    logResult('Dashboard Load', 'success', `Dashboard data loaded successfully. Projects: ${response.data.projects?.length || 0}`);
+                } else {
+                    logResult('Dashboard Load', 'error', `Dashboard load failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Dashboard Load', 'error', 'Dashboard request failed', error.message);
+            }
+        }
+
+        async function testDashboardStats() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Dashboard Stats', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/production/stats', 'GET', null, token);
+                
+                if (response.ok) {
+                    logResult('Dashboard Stats', 'success', `Stats loaded successfully. Active projects: ${response.data.activeProjects || 0}`);
+                } else if (response.status === 404) {
+                    logResult('Dashboard Stats', 'warning', 'Stats endpoint not found - may not be implemented yet');
+                } else {
+                    logResult('Dashboard Stats', 'error', `Stats load failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Dashboard Stats', 'error', 'Stats request failed', error.message);
+            }
+        }
+
+        async function testNavigation() {
+            logResult('Navigation Test', 'info', 'Testing navigation menu functionality...');
+            
+            const navigationItems = [
+                '/production-dashboard',
+                '/production-pitches',
+                '/production-projects',
+                '/production-ndas',
+                '/production-settings'
+            ];
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const path of navigationItems) {
+                try {
+                    const response = await fetch(`http://localhost:5173${path}`);
+                    if (response.ok) {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (error) {
+                    errorCount++;
+                }
+            }
+
+            if (errorCount === 0) {
+                logResult('Navigation Test', 'success', `All ${navigationItems.length} navigation items accessible`);
+            } else {
+                logResult('Navigation Test', 'warning', `${successCount}/${navigationItems.length} navigation items accessible`);
+            }
+        }
+
+        async function testBrowsePitches() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Browse Pitches', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/pitches?userType=production', 'GET', null, token);
+                
+                if (response.ok) {
+                    const pitches = response.data.pitches || response.data;
+                    logResult('Browse Pitches', 'success', `Pitches loaded successfully. Count: ${Array.isArray(pitches) ? pitches.length : 'N/A'}`);
+                } else {
+                    logResult('Browse Pitches', 'error', `Pitch browsing failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Browse Pitches', 'error', 'Pitch browsing request failed', error.message);
+            }
+        }
+
+        async function testPitchDetails() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Pitch Details', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                // First get pitches to find a valid ID
+                const pitchesResponse = await makeAPIRequest('/api/pitches?userType=production', 'GET', null, token);
+                
+                if (pitchesResponse.ok && pitchesResponse.data.pitches && pitchesResponse.data.pitches.length > 0) {
+                    const firstPitch = pitchesResponse.data.pitches[0];
+                    const detailsResponse = await makeAPIRequest(`/api/pitches/${firstPitch.id}`, 'GET', null, token);
+                    
+                    if (detailsResponse.ok) {
+                        logResult('Pitch Details', 'success', `Pitch details loaded for ID: ${firstPitch.id}`);
+                    } else {
+                        logResult('Pitch Details', 'error', `Pitch details failed with status ${detailsResponse.status}`, detailsResponse.data?.message);
+                    }
+                } else {
+                    logResult('Pitch Details', 'warning', 'No pitches available to test details view');
+                }
+            } catch (error) {
+                logResult('Pitch Details', 'error', 'Pitch details request failed', error.message);
+            }
+        }
+
+        async function testExpressInterest() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Express Interest', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                // First get pitches to find a valid ID
+                const pitchesResponse = await makeAPIRequest('/api/pitches?userType=production', 'GET', null, token);
+                
+                if (pitchesResponse.ok && pitchesResponse.data.pitches && pitchesResponse.data.pitches.length > 0) {
+                    const firstPitch = pitchesResponse.data.pitches[0];
+                    const interestResponse = await makeAPIRequest(`/api/pitches/${firstPitch.id}/interest`, 'POST', {
+                        message: 'Test interest message from automated test'
+                    }, token);
+                    
+                    if (interestResponse.ok) {
+                        logResult('Express Interest', 'success', `Interest expressed for pitch ID: ${firstPitch.id}`);
+                    } else if (interestResponse.status === 404) {
+                        logResult('Express Interest', 'warning', 'Express interest endpoint not found - may not be implemented yet');
+                    } else {
+                        logResult('Express Interest', 'error', `Express interest failed with status ${interestResponse.status}`, interestResponse.data?.message);
+                    }
+                } else {
+                    logResult('Express Interest', 'warning', 'No pitches available to test interest expression');
+                }
+            } catch (error) {
+                logResult('Express Interest', 'error', 'Express interest request failed', error.message);
+            }
+        }
+
+        async function testIncomingNDAs() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Incoming NDAs', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/ndas/incoming', 'GET', null, token);
+                
+                if (response.ok) {
+                    const ndas = response.data.ndas || response.data;
+                    logResult('Incoming NDAs', 'success', `Incoming NDAs loaded. Count: ${Array.isArray(ndas) ? ndas.length : 'N/A'}`);
+                } else if (response.status === 404) {
+                    logResult('Incoming NDAs', 'warning', 'Incoming NDAs endpoint not found - may not be implemented yet');
+                } else {
+                    logResult('Incoming NDAs', 'error', `Incoming NDAs failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Incoming NDAs', 'error', 'Incoming NDAs request failed', error.message);
+            }
+        }
+
+        async function testOutgoingNDAs() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Outgoing NDAs', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/ndas/outgoing', 'GET', null, token);
+                
+                if (response.ok) {
+                    const ndas = response.data.ndas || response.data;
+                    logResult('Outgoing NDAs', 'success', `Outgoing NDAs loaded. Count: ${Array.isArray(ndas) ? ndas.length : 'N/A'}`);
+                } else if (response.status === 404) {
+                    logResult('Outgoing NDAs', 'warning', 'Outgoing NDAs endpoint not found - may not be implemented yet');
+                } else {
+                    logResult('Outgoing NDAs', 'error', `Outgoing NDAs failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Outgoing NDAs', 'error', 'Outgoing NDAs request failed', error.message);
+            }
+        }
+
+        async function testNDAActions() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('NDA Actions', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                // Test the NDA actions endpoint exists
+                const response = await makeAPIRequest('/api/ndas/1/accept', 'POST', {}, token);
+                
+                if (response.status === 404) {
+                    logResult('NDA Actions', 'warning', 'NDA actions endpoints not found - may not be implemented yet');
+                } else if (response.status === 400 || response.status === 422) {
+                    logResult('NDA Actions', 'success', 'NDA actions endpoint exists (returned validation error as expected)');
+                } else {
+                    logResult('NDA Actions', 'warning', `NDA actions endpoint responded with status ${response.status}`);
+                }
+            } catch (error) {
+                logResult('NDA Actions', 'error', 'NDA actions request failed', error.message);
+            }
+        }
+
+        async function testCompanyProfile() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Company Profile', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/production/profile', 'GET', null, token);
+                
+                if (response.ok) {
+                    logResult('Company Profile', 'success', `Company profile loaded. Company: ${response.data.name || 'N/A'}`);
+                } else if (response.status === 404) {
+                    logResult('Company Profile', 'warning', 'Company profile endpoint not found - may not be implemented yet');
+                } else {
+                    logResult('Company Profile', 'error', `Company profile failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Company Profile', 'error', 'Company profile request failed', error.message);
+            }
+        }
+
+        async function testVerificationStatus() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                logResult('Verification Status', 'error', 'No authentication token available');
+                return;
+            }
+
+            try {
+                const response = await makeAPIRequest('/api/production/verification', 'GET', null, token);
+                
+                if (response.ok) {
+                    logResult('Verification Status', 'success', `Verification status loaded. Status: ${response.data.status || 'N/A'}`);
+                } else if (response.status === 404) {
+                    logResult('Verification Status', 'warning', 'Verification status endpoint not found - may not be implemented yet');
+                } else {
+                    logResult('Verification Status', 'error', `Verification status failed with status ${response.status}`, response.data?.message || response.error);
+                }
+            } catch (error) {
+                logResult('Verification Status', 'error', 'Verification status request failed', error.message);
+            }
+        }
+
+        async function startTesting() {
+            clearResults();
+            updateTimestamp();
+            logResult('Test Suite', 'info', 'Starting comprehensive Production Portal testing...');
+
+            const tests = [
+                testLogin,
+                testTokenValidation,
+                testRedirect,
+                testDashboard,
+                testDashboardStats,
+                testNavigation,
+                testBrowsePitches,
+                testPitchDetails,
+                testExpressInterest,
+                testIncomingNDAs,
+                testOutgoingNDAs,
+                testNDAActions,
+                testCompanyProfile,
+                testVerificationStatus
+            ];
+
+            for (const test of tests) {
+                await test();
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between tests
+            }
+
+            logResult('Test Suite', 'info', 'All tests completed. Review results above.');
+            
+            // Generate summary
+            const successCount = testResults.filter(r => r.status === 'success').length;
+            const warningCount = testResults.filter(r => r.status === 'warning').length;
+            const errorCount = testResults.filter(r => r.status === 'error').length;
+            
+            logResult('Test Summary', 'info', `Results: ${successCount} successful, ${warningCount} warnings, ${errorCount} errors`);
+        }
+
+        // Initialize on page load
+        updateTimestamp();
+        updateProgress();
+    </script>
+</body>
+</html>

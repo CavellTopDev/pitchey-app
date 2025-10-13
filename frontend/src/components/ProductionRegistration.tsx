@@ -1,13 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Mail, Phone, Globe, MapPin, Hash, AlertCircle, CheckCircle } from 'lucide-react';
 import { authAPI } from '../lib/api';
+import { validateProductionRegistration } from '../utils/validation';
+import { a11y } from '../utils/accessibility';
+import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../constants/messages';
 
 export default function ProductionRegistration() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  
+  // Initialize accessibility announcer
+  useEffect(() => {
+    a11y.announcer.createAnnouncer();
+  }, []);
   
   const [formData, setFormData] = useState({
     // Account Info
@@ -48,63 +58,87 @@ export default function ProductionRegistration() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    const newValue = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+      [name]: newValue
     }));
+    
+    // Real-time validation for touched fields
+    if (touched[name]) {
+      validateField(name, newValue);
+    }
+  };
+  
+  const handleBlur = (fieldName: string) => {
+    markFieldTouched(fieldName);
+    validateField(fieldName, formData[fieldName as keyof typeof formData]);
   };
 
-  const validateStep = () => {
-    switch(step) {
+  // Real-time field validation
+  const validateField = (fieldName: string, value: any) => {
+    const result = validateProductionRegistration({ ...formData, [fieldName]: value });
+    const errors = result.fieldErrors[fieldName] || [];
+    
+    setFieldErrors(prev => ({
+      ...prev,
+      [fieldName]: errors
+    }));
+    
+    return errors.length === 0;
+  };
+  
+  // Mark field as touched
+  const markFieldTouched = (fieldName: string) => {
+    setTouched(prev => ({ ...prev, [fieldName]: true }));
+  };
+  
+  // Get required fields for current step
+  const getStepRequiredFields = (stepNumber: number): string[] => {
+    switch(stepNumber) {
       case 1:
-        if (!formData.companyName || !formData.registrationNumber) {
-          setError('Company name and registration number are required');
-          return false;
-        }
-        if (!formData.website || !formData.website.includes('.')) {
-          setError('Valid company website is required');
-          return false;
-        }
-        break;
+        return ['companyName', 'registrationNumber', 'website'];
       case 2:
-        if (!formData.address || !formData.city || !formData.state || !formData.zipCode || !formData.country) {
-          setError('Complete address information is required');
-          return false;
-        }
-        if (!formData.companyEmail || !formData.companyEmail.includes('@')) {
-          setError('Valid company email is required');
-          return false;
-        }
-        if (!formData.companyPhone) {
-          setError('Company phone number is required');
-          return false;
-        }
-        break;
+        return ['companyEmail', 'companyPhone', 'address', 'city', 'state', 'zipCode', 'country'];
       case 3:
-        if (!formData.firstName || !formData.lastName || !formData.position) {
-          setError('Representative information is required');
-          return false;
-        }
-        if (!formData.email || !formData.username || !formData.password) {
-          setError('Account credentials are required');
-          return false;
-        }
-        if (formData.password !== formData.confirmPassword) {
-          setError('Passwords do not match');
-          return false;
-        }
-        if (formData.password.length < 8) {
-          setError('Password must be at least 8 characters');
-          return false;
-        }
-        break;
+        return ['firstName', 'lastName', 'position', 'email', 'username', 'password', 'confirmPassword'];
       case 4:
-        if (!formData.agreeToTerms || !formData.agreeToVetting) {
-          setError('You must agree to the terms and vetting process');
-          return false;
-        }
-        break;
+        return ['agreeToTerms', 'agreeToVetting'];
+      default:
+        return [];
     }
+  };
+  
+  // Validate current step
+  const validateStep = () => {
+    const result = validateProductionRegistration(formData);
+    const stepFields = getStepRequiredFields(step);
+    const stepErrors: string[] = [];
+    const stepFieldErrors: Record<string, string[]> = {};
+    
+    stepFields.forEach(field => {
+      if (result.fieldErrors[field]) {
+        stepFieldErrors[field] = result.fieldErrors[field];
+        stepErrors.push(...result.fieldErrors[field]);
+      }
+    });
+    
+    setFieldErrors(prev => ({ ...prev, ...stepFieldErrors }));
+    
+    if (stepErrors.length > 0) {
+      setError(VALIDATION_MESSAGES.FORM_HAS_ERRORS);
+      a11y.validation.announceErrors(stepErrors);
+      
+      // Focus first field with error
+      const firstErrorField = stepFields.find(field => stepFieldErrors[field]);
+      if (firstErrorField) {
+        a11y.focus.focusById(firstErrorField);
+      }
+      
+      return false;
+    }
+    
     setError('');
     return true;
   };
@@ -112,6 +146,26 @@ export default function ProductionRegistration() {
   const handleNext = () => {
     if (validateStep()) {
       setStep(step + 1);
+      a11y.announcer.announce(`Step ${step + 1} of 4: ${getStepTitle(step + 1)}`);
+    }
+  };
+  
+  const handlePrevious = () => {
+    if (step > 1) {
+      setStep(step - 1);
+      a11y.announcer.announce(`Step ${step - 1} of 4: ${getStepTitle(step - 1)}`);
+    } else {
+      navigate('/portals');
+    }
+  };
+  
+  const getStepTitle = (stepNumber: number): string => {
+    switch(stepNumber) {
+      case 1: return 'Company Information';
+      case 2: return 'Contact Details';
+      case 3: return 'Representative Account';
+      case 4: return 'Verification & Terms';
+      default: return '';
     }
   };
 
@@ -152,10 +206,15 @@ export default function ProductionRegistration() {
         }
       });
       
+      // Announce success
+      a11y.validation.announceSuccess(SUCCESS_MESSAGES.REGISTRATION_SUCCESS);
+      
       // Redirect to verification pending page
       navigate('/production/verification-pending');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed');
+      const errorMessage = err.response?.data?.error || ERROR_MESSAGES.UNEXPECTED_ERROR;
+      setError(errorMessage);
+      a11y.announcer.announce(`Error: ${errorMessage}`, 'assertive');
     } finally {
       setLoading(false);
     }
@@ -167,15 +226,15 @@ export default function ProductionRegistration() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <Building2 className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900">Production Company Registration</h1>
+            <Building2 className="w-12 h-12 text-purple-600 mx-auto mb-4" aria-hidden="true" />
+            <h1 id="page-title" className="text-3xl font-bold text-gray-900">Production Company Registration</h1>
             <p className="text-gray-600 mt-2">
               Join as a verified production company to access premium features
             </p>
           </div>
 
           {/* Progress Bar */}
-          <div className="mb-8">
+          <div className="mb-8" role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={4} aria-label={`Registration step ${step} of 4`}>
             <div className="flex items-center justify-between mb-2">
               {[1, 2, 3, 4].map((i) => (
                 <div
@@ -186,6 +245,7 @@ export default function ProductionRegistration() {
                     className={`h-2 rounded-full transition-colors ${
                       i <= step ? 'bg-purple-600' : 'bg-gray-200'
                     }`}
+                    aria-hidden="true"
                   />
                 </div>
               ))}
@@ -196,26 +256,49 @@ export default function ProductionRegistration() {
               <span>Representative</span>
               <span>Verification</span>
             </div>
+            <div className={a11y.classes.srOnly}>
+              Current step: {step} of 4 - {getStepTitle(step)}
+            </div>
           </div>
 
           {/* Form Steps */}
-          <div className="mb-8">
-            {step === 1 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Company Information</h2>
+          <form noValidate {...a11y.aria.labelledBy('page-title')}>
+            <div className="mb-8">
+              {step === 1 && (
+                <div className="space-y-6">
+                  <h2 id="step-1-title" className="text-xl font-semibold text-gray-900 mb-4">Company Information</h2>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Name *
+                  <label 
+                    {...a11y.formField.getLabelAttributes('companyName', true)}
+                  >
+                    {MESSAGES.LABELS.COMPANY_NAME}
                   </label>
                   <input
+                    {...a11y.formField.getAttributes({
+                      id: 'companyName',
+                      label: MESSAGES.LABELS.COMPANY_NAME,
+                      required: true,
+                      invalid: fieldErrors.companyName?.length > 0,
+                      errorId: fieldErrors.companyName?.length > 0 ? 'companyName-error' : undefined
+                    })}
                     type="text"
-                    name="companyName"
                     value={formData.companyName}
                     onChange={handleInputChange}
-                    placeholder="Warner Bros. Pictures"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    onBlur={() => handleBlur('companyName')}
+                    placeholder={MESSAGES.PLACEHOLDERS.COMPANY_NAME}
+                    className={`w-full px-4 py-2 border rounded-lg transition-colors ${
+                      fieldErrors.companyName?.length > 0 
+                        ? 'border-red-500 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-purple-500'
+                    } focus:ring-2 focus:border-transparent ${a11y.classes.focusVisible}`}
                   />
+                  {fieldErrors.companyName?.length > 0 && (
+                    <div {...a11y.formField.getErrorAttributes('companyName')}>
+                      <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
+                      {fieldErrors.companyName[0]}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -561,7 +644,12 @@ export default function ProductionRegistration() {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div 
+              role="alert"
+              aria-live="assertive"
+              className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2"
+            >
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" aria-hidden="true" />
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
@@ -569,33 +657,51 @@ export default function ProductionRegistration() {
           {/* Navigation Buttons */}
           <div className="flex justify-between">
             <button
-              onClick={() => step > 1 ? setStep(step - 1) : navigate('/portals')}
-              className="px-6 py-2 text-gray-600 hover:text-gray-800"
+              {...a11y.button.getAttributes({
+                type: 'button',
+                disabled: loading,
+                ariaLabel: step === 1 ? 'Cancel registration' : 'Go back to previous step'
+              })}
+              onClick={handlePrevious}
+              className={`px-6 py-2 text-gray-600 hover:text-gray-800 ${a11y.classes.focusVisible} ${loading ? a11y.classes.disabledElement : ''}`}
             >
               {step === 1 ? 'Cancel' : 'Back'}
             </button>
             
             {step < 4 ? (
               <button
+                {...a11y.button.getAttributes({
+                  type: 'button',
+                  disabled: loading,
+                  ariaLabel: `Continue to step ${step + 1}: ${getStepTitle(step + 1)}`
+                })}
                 onClick={handleNext}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                className={`px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 ${a11y.classes.focusVisible} ${loading ? a11y.classes.disabledElement : ''}`}
               >
                 Next
               </button>
             ) : (
               <button
+                {...a11y.button.getAttributes({
+                  type: 'button',
+                  disabled: loading || !formData.agreeToTerms || !formData.agreeToVetting,
+                  loading,
+                  ariaLabel: loading ? MESSAGES.INFO.SUBMITTING_FORM : 'Submit registration for verification'
+                })}
                 onClick={handleSubmit}
-                disabled={loading || !formData.agreeToTerms || !formData.agreeToVetting}
                 className={`px-6 py-2 rounded-lg font-medium ${
                   loading || !formData.agreeToTerms || !formData.agreeToVetting
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                    ? `${a11y.classes.disabledElement} bg-gray-300 text-gray-500`
+                    : `bg-purple-600 text-white hover:bg-purple-700 ${a11y.classes.focusVisible}`
                 }`}
               >
-                {loading ? 'Submitting...' : 'Submit for Verification'}
+                <span aria-live="polite">
+                  {loading ? MESSAGES.INFO.SUBMITTING_FORM : 'Submit for Verification'}
+                </span>
               </button>
             )}
           </div>
+          </form>
         </div>
       </div>
     </div>

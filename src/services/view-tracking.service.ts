@@ -1,6 +1,6 @@
-import { db } from "../db/client-optimized.ts";
+import { db } from "../db/client.ts";
 import { pitchViews, users, pitches } from "../db/schema.ts";
-import { and, eq, desc, gte, sql, count } from "drizzle-orm";
+import { and, eq, desc, gte, sql, count } from "npm:drizzle-orm";
 
 export class ViewTrackingService {
   static async trackView(
@@ -14,19 +14,25 @@ export class ViewTrackingService {
     sessionId?: string
   ) {
     try {
-      // Record the view using raw SQL
-      await db.execute(sql`
-        INSERT INTO pitch_views (pitch_id, user_id, view_type, ip_address, user_agent, referrer, session_id, created_at)
-        VALUES (${pitchId}, ${viewerId}, ${viewType}, ${ipAddress}, ${userAgent}, ${referrer}, ${sessionId}, NOW())
-      `);
+      // Record the view using Drizzle ORM
+      await db.insert(pitchViews).values({
+        pitchId: pitchId,
+        userId: viewerId,
+        viewType: viewType,
+        ipAddress: ipAddress,
+        userAgent: userAgent,
+        referrer: referrer,
+        sessionId: sessionId,
+        createdAt: new Date()
+      });
 
       // Increment view count on the pitch
-      await db.execute(sql`
-        UPDATE pitches 
-        SET view_count = COALESCE(view_count, 0) + 1,
-            updated_at = NOW()
-        WHERE id = ${pitchId}
-      `);
+      await db.update(pitches)
+        .set({ 
+          viewCount: sql`COALESCE(${pitches.viewCount}, 0) + 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(pitches.id, pitchId));
 
       return { success: true };
     } catch (error) {
@@ -37,19 +43,19 @@ export class ViewTrackingService {
 
   static async getViewDemographics(pitchId: number) {
     try {
-      // Get all views with user types using raw SQL due to column mapping issues
-      const result = await db.execute(sql`
-        SELECT u.user_type, COUNT(*) as view_count
-        FROM pitch_views pv
-        LEFT JOIN users u ON pv.user_id = u.id
-        WHERE pv.pitch_id = ${pitchId}
-        GROUP BY u.user_type
-      `);
-      
-      const viewsWithUsers = result.rows || [];
+      // Get all views with user types using Drizzle ORM
+      const viewsWithUsers = await db
+        .select({
+          userType: users.userType,
+          viewCount: count(pitchViews.id).as('view_count')
+        })
+        .from(pitchViews)
+        .leftJoin(users, eq(pitchViews.userId, users.id))
+        .where(eq(pitchViews.pitchId, pitchId))
+        .groupBy(users.userType);
       
       // Calculate demographics
-      const totalViews = viewsWithUsers.reduce((sum, row: any) => sum + Number(row.view_count), 0);
+      const totalViews = viewsWithUsers.reduce((sum, row) => sum + Number(row.viewCount), 0);
       
       const demographics = {
         investors: 0,
@@ -58,13 +64,13 @@ export class ViewTrackingService {
         anonymous: 0
       };
 
-      viewsWithUsers.forEach((row: any) => {
-        const count = Number(row.view_count);
-        if (row.user_type === 'investor') {
+      viewsWithUsers.forEach((row) => {
+        const count = Number(row.viewCount);
+        if (row.userType === 'investor') {
           demographics.investors = count;
-        } else if (row.user_type === 'production') {
+        } else if (row.userType === 'production') {
           demographics.productions = count;
-        } else if (row.user_type === 'creator') {
+        } else if (row.userType === 'creator') {
           demographics.creators = count;
         } else {
           demographics.anonymous = count;
@@ -107,16 +113,22 @@ export class ViewTrackingService {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      const result = await db.execute(sql`
-        SELECT DATE(created_at) as date, COUNT(*) as views
-        FROM pitch_views
-        WHERE pitch_id = ${pitchId}
-          AND created_at >= ${startDate}
-        GROUP BY DATE(created_at)
-        ORDER BY DATE(created_at)
-      `);
+      const results = await db
+        .select({
+          date: sql`DATE(${pitchViews.createdAt})`.as('date'),
+          views: count(pitchViews.id).as('views')
+        })
+        .from(pitchViews)
+        .where(
+          and(
+            eq(pitchViews.pitchId, pitchId),
+            gte(pitchViews.createdAt, startDate.toISOString())
+          )
+        )
+        .groupBy(sql`DATE(${pitchViews.createdAt})`)
+        .orderBy(sql`DATE(${pitchViews.createdAt})`);
 
-      return (result.rows || []).map((row: any) => ({
+      return results.map((row) => ({
         date: row.date,
         views: Number(row.views)
       }));
@@ -128,13 +140,14 @@ export class ViewTrackingService {
 
   static async getUniqueViewCount(pitchId: number) {
     try {
-      const result = await db.execute(sql`
-        SELECT COUNT(DISTINCT COALESCE(user_id::text, ip_address)) as unique_views
-        FROM pitch_views
-        WHERE pitch_id = ${pitchId}
-      `);
+      const result = await db
+        .select({
+          uniqueViews: sql`COUNT(DISTINCT COALESCE(${pitchViews.userId}::text, ${pitchViews.ipAddress}))`.as('unique_views')
+        })
+        .from(pitchViews)
+        .where(eq(pitchViews.pitchId, pitchId));
 
-      return result.rows?.[0]?.unique_views || 0;
+      return Number(result[0]?.uniqueViews) || 0;
     } catch (error) {
       console.error("Error getting unique view count:", error);
       return 0;

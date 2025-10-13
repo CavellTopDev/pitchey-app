@@ -10,17 +10,59 @@ export interface ConfigurationData {
 // Fallback constants - used if API fails
 const FALLBACK_CONFIG: ConfigurationData = {
   genres: [
+    'Abstract / Non-Narrative',
     'Action',
-    'Animation', 
+    'Action-Comedy',
+    'Action-Thriller',
+    'Adventure',
+    'Animation',
+    'Avant-Garde',
+    'Biographical Documentary',
+    'Biographical Drama (Biopic)',
     'Comedy',
+    'Coming-of-Age',
+    'Crime Drama',
+    'Crime Thriller',
+    'Dramedy',
     'Documentary',
-    'Drama',
+    'Docudrama',
+    'Essay Film',
+    'Experimental Documentary',
+    'Family / Kids',
     'Fantasy',
+    'Fantasy Adventure',
+    'Historical Drama',
+    'Historical Fiction',
     'Horror',
-    'Mystery',
+    'Hybrid Experimental',
+    'Meta-Cinema',
+    'Mockumentary',
+    'Musical',
+    'Musical Drama',
+    'Mystery Thriller',
+    'Noir / Neo-Noir',
+    'Parody / Spoof',
+    'Performance Film',
+    'Period Piece',
+    'Political Drama',
+    'Political Thriller',
+    'Psychological Thriller',
+    'Reality-Drama',
     'Romance',
-    'Sci-Fi',
-    'Thriller'
+    'Romantic Comedy (Rom-Com)',
+    'Romantic Drama',
+    'Satire',
+    'Science Fiction (Sci-Fi)',
+    'Sci-Fi Horror',
+    'Slow Cinema',
+    'Sports Drama',
+    'Superhero',
+    'Surrealist',
+    'Thriller',
+    'True Crime',
+    'Visual Poetry',
+    'War',
+    'Western'
   ],
   formats: [
     'Feature Film',
@@ -47,7 +89,7 @@ const FALLBACK_CONFIG: ConfigurationData = {
 };
 
 class ConfigService {
-  private config: ConfigurationData | null = null;
+  private config: ConfigurationData | null = FALLBACK_CONFIG;
   private isLoading = false;
   private loadPromise: Promise<ConfigurationData> | null = null;
 

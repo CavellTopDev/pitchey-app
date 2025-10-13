@@ -12,12 +12,15 @@ class SentryService {
   constructor() {
     this.dsn = SENTRY_DSN;
     this.environment = Deno.env.get("DENO_ENV") || "production";
-    this.enabled = !!this.dsn;
+    
+    // Only enable Sentry in production with valid DSN
+    this.enabled = !!(this.dsn && this.environment === "production");
 
     if (this.enabled) {
       console.log(`✅ Sentry initialized for ${this.environment} environment`);
     } else {
-      console.log("⚠️ Sentry DSN not configured - error tracking disabled");
+      const reason = !this.dsn ? "DSN not configured" : `disabled in ${this.environment}`;
+      console.log(`⚠️ Sentry error tracking disabled - ${reason}`);
     }
   }
 

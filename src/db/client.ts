@@ -1,11 +1,8 @@
-import { drizzle } from "npm:drizzle-orm/postgres-js";
-import { drizzle as drizzleNeon } from "npm:drizzle-orm/neon-http";
-import { neon, neonConfig } from "npm:@neondatabase/serverless";
-import postgres from "npm:postgres";
+import { drizzle } from "npm:drizzle-orm@0.33.0/postgres-js";
+import { drizzle as drizzleNeon } from "npm:drizzle-orm@0.33.0/neon-http";
+import { neon } from "npm:@neondatabase/serverless@0.9.5";
+import postgres from "npm:postgres@^3.4.0";
 import * as schema from "./schema.ts";
-
-// Configure Neon for Edge/Serverless environments
-// fetchConnectionCache is now always true in newer versions
 
 // Get connection string with fallback for deployment
 const connectionString = Deno.env.get("DATABASE_URL") || 
@@ -15,14 +12,19 @@ const connectionString = Deno.env.get("DATABASE_URL") ||
 const isLocalDb = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
 
 // Create appropriate client based on environment
-const client = isLocalDb 
-  ? postgres(connectionString)
-  : neon(connectionString);
+let client: any;
+let db: any;
 
-// Create drizzle instance with appropriate adapter
-export const db = isLocalDb
-  ? drizzle(client as any, { schema })
-  : drizzleNeon(client as any, { schema });
+if (isLocalDb) {
+  client = postgres(connectionString);
+  db = drizzle(client, { schema });
+} else {
+  // Use Neon with newer syntax
+  client = neon(connectionString);
+  db = drizzleNeon(client, { schema });
+}
+
+export { db };
 
 export type Database = typeof db;
 

@@ -1,15 +1,17 @@
 import { db } from "../db/client.ts";
 import { pitches, ndas, pitchViews, follows, users } from "../db/schema.ts";
-import { eq, and, desc, sql } from "npm:drizzle-orm";
+import { eq, and, desc, sql, or } from "npm:drizzle-orm";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { CacheService } from "./cache.service.ts";
-import { neon } from "npm:@neondatabase/serverless";
 
 export const CreatePitchSchema = z.object({
   title: z.string().min(1).max(200),
   logline: z.string().min(1).max(500),
   genre: z.enum(["drama", "comedy", "thriller", "horror", "scifi", "fantasy", "documentary", "animation", "action", "romance", "other"]),
   format: z.enum(["feature", "tv", "short", "webseries", "other"]),
+  formatCategory: z.string().optional(),
+  formatSubtype: z.string().optional(),
+  customFormat: z.string().optional(),
   shortSynopsis: z.string().optional(),
   longSynopsis: z.string().optional(),
   characters: z.array(z.object({
@@ -45,47 +47,26 @@ export class PitchService {
     const validated = data;
     
     try {
-      // Try using Neon directly to bypass any Drizzle issues
-      const DATABASE_URL = Deno.env.get("DATABASE_URL");
-      if (!DATABASE_URL) {
-        throw new Error("DATABASE_URL not configured");
-      }
-      
-      const neonSql = neon(DATABASE_URL);
-      
-      const result = await neonSql`
-        INSERT INTO pitches (
-          user_id,
-          title,
-          logline,
-          genre,
-          format,
-          short_synopsis,
-          long_synopsis,
-          budget,
-          status,
-          view_count,
-          like_count,
-          nda_count,
-          created_at,
-          updated_at
-        ) VALUES (
-          ${userId},
-          ${validated.title || "New Pitch"},
-          ${validated.logline || "A compelling story"},
-          ${validated.genre || "Drama"},
-          ${validated.format || "Feature Film"},
-          ${validated.shortSynopsis || null},
-          ${validated.longSynopsis || null},
-          ${validated.budget || validated.estimatedBudget?.toString() || null},
-          'draft',
-          0,
-          0,
-          0,
-          NOW(),
-          NOW()
-        ) RETURNING *
-      `;
+      // Use the proper db client that handles local vs production databases
+      const result = await db.insert(pitches).values({
+        userId: userId,
+        title: validated.title || "New Pitch",
+        logline: validated.logline || "A compelling story",
+        genre: validated.genre || "drama",
+        format: validated.format || "feature",
+        formatCategory: validated.formatCategory || null,
+        formatSubtype: validated.formatSubtype || null,
+        customFormat: validated.customFormat || null,
+        shortSynopsis: validated.shortSynopsis || null,
+        longSynopsis: validated.longSynopsis || null,
+        estimatedBudget: validated.budget || validated.estimatedBudget?.toString() || null,
+        status: 'draft',
+        viewCount: 0,
+        likeCount: 0,
+        ndaCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
       
       const pitch = result[0];
       
@@ -419,7 +400,7 @@ export class PitchService {
           ndaCount: pitches.ndaCount,
           shortSynopsis: pitches.shortSynopsis,
           longSynopsis: pitches.longSynopsis,
-          requireNDA: pitches.requireNDA,
+          requireNDA: pitches.requireNda,
           createdAt: pitches.createdAt,
           updatedAt: pitches.updatedAt,
           publishedAt: pitches.publishedAt,
@@ -477,7 +458,6 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
-          budgetBracket: pitches.budgetBracket,
           estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
           userId: pitches.userId,
@@ -485,7 +465,7 @@ export class PitchService {
           likeCount: pitches.likeCount,
           ndaCount: pitches.ndaCount,
           shortSynopsis: pitches.shortSynopsis,
-          requireNDA: pitches.requireNDA,
+          requireNda: pitches.requireNda,
           createdAt: pitches.createdAt,
           updatedAt: pitches.updatedAt,
           publishedAt: pitches.publishedAt,
@@ -509,7 +489,6 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
-        budgetBracket: p.budgetBracket,
         estimatedBudget: p.estimatedBudget,
         status: p.status,
         userId: p.userId,
@@ -517,7 +496,7 @@ export class PitchService {
         likeCount: p.likeCount || 0,
         ndaCount: p.ndaCount || 0,
         shortSynopsis: p.shortSynopsis,
-        requireNDA: p.requireNDA || false,
+        requireNDA: p.requireNda || false,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
         publishedAt: p.publishedAt,
@@ -640,7 +619,17 @@ export class PitchService {
       conditions.push(eq(pitches.format, params.format as any));
     }
     
-    // TODO: Add full-text search for query parameter
+    // Add text search for query parameter
+    if (params.query && params.query.trim() !== '') {
+      const searchTerm = `%${params.query.toLowerCase()}%`;
+      conditions.push(
+        or(
+          sql`LOWER(${pitches.title}) LIKE ${searchTerm}`,
+          sql`LOWER(${pitches.logline}) LIKE ${searchTerm}`,
+          sql`LOWER(${pitches.shortSynopsis}) LIKE ${searchTerm}`
+        )
+      );
+    }
     
     const [searchResults, totalCount] = await Promise.all([
       db
@@ -726,21 +715,18 @@ export class PitchService {
       console.error("Error details:", error.message);
       console.error("User ID was:", userId);
       
-      // Try direct SQL as fallback
+      // Try simplified Drizzle query as fallback
       try {
-        const DATABASE_URL = Deno.env.get("DATABASE_URL");
-        if (DATABASE_URL) {
-          const neonSql = neon(DATABASE_URL);
-          const fallbackPitches = await neonSql`
-            SELECT * FROM pitches 
-            WHERE user_id = ${userId}
-            ORDER BY updated_at DESC NULLS LAST
-          `;
-          console.log(`Fallback query returned ${fallbackPitches.length} pitches`);
-          return fallbackPitches;
-        }
+        console.log("Attempting fallback with simplified Drizzle query...");
+        const fallbackPitches = await db
+          .select()
+          .from(pitches)
+          .where(eq(pitches.userId, userId));
+        
+        console.log(`Fallback query returned ${fallbackPitches.length} pitches`);
+        return fallbackPitches;
       } catch (fallbackError) {
-        console.error("Fallback also failed:", fallbackError);
+        console.error("Drizzle fallback also failed:", fallbackError);
       }
       
       // Return empty data instead of throwing
@@ -758,6 +744,8 @@ export class PitchService {
   }
   
   static async deletePitch(pitchId: number, userId: number) {
+    console.log(`🗑️ Attempting to delete pitch ${pitchId} by user ${userId}`);
+    
     // Check ownership
     const pitchResult = await db
       .select()
@@ -771,14 +759,100 @@ export class PitchService {
     const pitch = pitchResult[0];
     
     if (!pitch) {
+      console.error(`❌ Pitch ${pitchId} not found or user ${userId} not authorized`);
       throw new Error("Pitch not found or unauthorized");
     }
     
-    // Delete the pitch
-    await db.delete(pitches)
-      .where(eq(pitches.id, pitchId));
+    console.log('🧹 Preparing to delete pitch...');
     
-    return { success: true };
+    try {
+      // Since all foreign keys have CASCADE, we can directly delete the pitch
+      // Cascade will automatically handle:
+      // - pitch_views
+      // - ndas
+      // - nda_requests
+      // - follows
+      // - watchlist entries
+      
+      // Delete the pitch (cascade will handle all related records)
+      const deleteResult = await db.delete(pitches)
+        .where(eq(pitches.id, pitchId))
+        .returning();
+      
+      if (!deleteResult.length) {
+        throw new Error('Failed to delete pitch from database');
+      }
+      
+      console.log(`✅ Pitch ${pitchId} deleted successfully`);
+      
+      // Invalidate all related caches
+      console.log('🗑️ Invalidating caches...');
+      
+      try {
+        // Import dashboard cache service dynamically
+        const dashboardCacheModule = await import('./dashboard-cache.service.ts');
+        const cacheService = dashboardCacheModule.dashboardCacheService || dashboardCacheModule.default;
+        
+        if (cacheService && typeof cacheService.invalidateCache === 'function') {
+          // Invalidate trending cache
+          await cacheService.invalidateCache('trending_pitches');
+          
+          // Invalidate user's pitch cache
+          await cacheService.invalidateCache(`user:${userId}:pitches`);
+          
+          // Invalidate dashboard cache
+          await cacheService.invalidateCache(`dashboard:user:${userId}`);
+          await cacheService.invalidateCache(`dashboard:creator:${userId}`);
+          
+          // Invalidate public pitches cache patterns
+          if (typeof cacheService.invalidatePattern === 'function') {
+            await cacheService.invalidatePattern('pitchey:pitches:public');
+            await cacheService.invalidatePattern(`pitchey:pitch:${pitchId}:*`);
+            
+            // Invalidate user-specific caches
+            await cacheService.invalidatePattern(`pitchey:user:${userId}:*`);
+          }
+          
+          console.log('✅ Caches invalidated');
+        } else {
+          console.log('⚠️ Cache service not available, skipping cache invalidation');
+        }
+      } catch (cacheError) {
+        console.error('⚠️ Error invalidating cache (non-critical):', cacheError);
+        // Continue - cache invalidation failure should not prevent deletion
+      }
+      
+      // Broadcast deletion via WebSocket if available
+      try {
+        const { websocketIntegrationService } = await import('./websocket-integration.service.ts');
+        if (websocketIntegrationService) {
+          websocketIntegrationService.broadcast({
+            type: 'pitch_deleted',
+            data: { pitchId, userId }
+          });
+          console.log('📡 WebSocket notification sent');
+        }
+      } catch (wsError) {
+        // WebSocket not available, that's okay
+        console.log('📡 WebSocket not available for notification');
+      }
+      
+      return { 
+        success: true, 
+        message: 'Pitch deleted successfully',
+        pitchId: pitchId 
+      };
+      
+    } catch (error: any) {
+      console.error('❌ Error during pitch deletion:', error);
+      
+      // Check if it's a foreign key constraint error
+      if (error.message?.includes('foreign key constraint') || error.code === '23503') {
+        throw new Error('Cannot delete pitch: it has related records that must be removed first');
+      }
+      
+      throw error;
+    }
   }
 
   static async getCreatorDashboard(userId: number) {
@@ -951,5 +1025,41 @@ export class PitchService {
       .returning();
 
     return updatedPitch;
+  }
+
+  static async getProductionPitches(productionUserId: number) {
+    try {
+      // Get all published pitches that production companies can view
+      // This could include pitches that are looking for production
+      const productionPitches = await db
+        .select({
+          pitch: pitches,
+          creator: {
+            id: users.id,
+            username: users.username,
+            companyName: users.companyName,
+            userType: users.userType,
+          },
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(
+          and(
+            eq(pitches.status, "published"),
+            // Only show pitches that are looking for production or investment
+            // You could add more specific filtering here based on your business logic
+          )
+        )
+        .orderBy(desc(pitches.publishedAt))
+        .limit(50);
+
+      return productionPitches.map(row => ({
+        ...row.pitch,
+        creator: row.creator,
+      }));
+    } catch (error) {
+      console.error("Error fetching production pitches:", error);
+      throw new Error("Failed to fetch production pitches");
+    }
   }
 }

@@ -1,5 +1,5 @@
-import { migrate as migratePostgres } from "npm:drizzle-orm/postgres-js/migrator";
-import { migrate as migrateNeon } from "npm:drizzle-orm/neon-http/migrator";
+import { migrate as migratePostgres } from "npm:drizzle-orm@0.33.0/postgres-js/migrator";
+import { migrate as migrateNeon } from "npm:drizzle-orm@0.33.0/neon-http/migrator";
 import { db, migrationClient } from "./client.ts";
 
 console.log("Running migrations...");

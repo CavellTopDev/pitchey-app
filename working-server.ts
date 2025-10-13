@@ -6,8 +6,8 @@ import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 // Import Sentry for error tracking
 import { sentryService, captureException } from "./src/services/sentry.service.ts";
 
-// Import Redis for caching
-import { redisService, cacheHelpers } from "./src/services/redis.service.ts";
+// Import Redis for caching - using native Redis service for local development
+import { nativeRedisService as redisService, cacheKeys } from "./src/services/redis-native.service.ts";
 
 // Import database services
 import { UserService } from "./src/services/userService.ts";
@@ -21,10 +21,28 @@ import { EmailTemplates } from "./src/services/email-templates.service.ts";
 import { AnalyticsService } from "./src/services/analytics.service.ts";
 import { NotificationService } from "./src/services/notification.service.ts";
 import { InvestmentService } from "./src/services/investment.service.ts";
+import { DashboardCacheService } from "./src/services/dashboard-cache.service.ts";
+import { DraftSyncService } from "./src/services/draft-sync.service.ts";
+
+// Import Content Management Services
+import { contentManagementService } from "./src/services/content-management.service.ts";
+import { featureFlagService } from "./src/services/feature-flag.service.ts";
+import { portalConfigurationService } from "./src/services/portal-configuration.service.ts";
+import { internationalizationService } from "./src/services/internationalization.service.ts";
+import { navigationService } from "./src/services/navigation.service.ts";
+
+// Import WebSocket services
+import { 
+  webSocketIntegration, 
+  addWebSocketSupport, 
+  addWebSocketHeaders 
+} from "./src/services/websocket-integration.service.ts";
+import { verifyToken } from "./src/utils/jwt.ts";
 
 // Import utilities
 import { 
   successResponse, 
+  createdResponse,
   errorResponse, 
   authErrorResponse, 
   forbiddenResponse, 
@@ -40,6 +58,14 @@ import {
   getSecurityHeaders,
   getCacheHeaders
 } from "./src/utils/response.ts";
+import { 
+  safeParseJson, 
+  validateRequiredFields, 
+  validateJsonRequest, 
+  ClientError, 
+  ServerError, 
+  isClientError 
+} from "./src/utils/request.validation.ts";
 
 // Import database client and schema
 import { db } from "./src/db/client.ts";
@@ -48,9 +74,12 @@ import {
   portfolio, ndas, pitchViews, sessions, watchlist,
   analyticsAggregates, userSessions, searchAnalytics, searchSuggestions,
   conversations, conversationParticipants, messageReadReceipts, typingIndicators,
-  analytics, ndaRequests, securityEvents
+  analytics, ndaRequests, securityEvents, pitchLikes, pitchSaves,
+  contentTypes, contentItems, featureFlags, portalConfigurations,
+  translationKeys, translations, navigationMenus, contentApprovals,
+  savedPitches, reviews, calendarEvents, investments, investmentDocuments, investmentTimeline
 } from "./src/db/schema.ts";
-import { eq, and, desc, sql, inArray, isNotNull, or, gte, ilike } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "drizzle-orm";
 
 const port = Deno.env.get("PORT") || "8001";
 const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-secret-key-change-this-in-production";
@@ -59,6 +88,44 @@ const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-secret-key-change-this-in
 const wsConnections = new Map<number, Set<WebSocket>>();
 const userSessions = new Map<WebSocket, any>();
 const messageQueue = new Map<number, any[]>();
+
+// WebSocket heartbeat interval (30 seconds)
+setInterval(() => {
+  const now = Date.now();
+  const staleThreshold = 5 * 60 * 1000; // 5 minutes
+
+  // Send ping to all connected WebSocket sessions and clean up stale connections
+  for (const [socket, session] of userSessions.entries()) {
+    try {
+      if (socket.readyState === WebSocket.OPEN) {
+        // Send ping message
+        socket.send(JSON.stringify({
+          type: 'ping',
+          timestamp: new Date().toISOString()
+        }));
+        
+        // Update last activity
+        session.lastActivity = new Date();
+      } else {
+        // Clean up closed connections
+        console.log(`Cleaning up closed WebSocket for user: ${session.username}`);
+        userSessions.delete(socket);
+        
+        // Remove from user connections
+        if (wsConnections.has(session.userId)) {
+          wsConnections.get(session.userId)!.delete(socket);
+          if (wsConnections.get(session.userId)!.size === 0) {
+            wsConnections.delete(session.userId);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`WebSocket heartbeat error for user ${session.username}:`, error);
+      // Clean up failed connections
+      userSessions.delete(socket);
+    }
+  }
+}, 30000); // Every 30 seconds
 
 // Mock storage for NDA requests (in-memory)
 const mockNdaRequestsStore = new Map<number, any>();
@@ -69,9 +136,19 @@ const calendarEventsStore = new Map<number, any[]>(); // userId -> events[]
 // Pitch configuration constants
 const PITCH_CONFIG = {
   genres: [
-    'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 
-    'Documentary', 'Drama', 'Family', 'Fantasy', 'Horror', 'Mystery', 
-    'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'
+    'Abstract / Non-Narrative', 'Action', 'Action-Comedy', 'Action-Thriller', 
+    'Adventure', 'Animation', 'Avant-Garde', 'Biographical Documentary', 
+    'Biographical Drama (Biopic)', 'Comedy', 'Coming-of-Age', 'Crime Drama', 
+    'Crime Thriller', 'Dramedy', 'Documentary', 'Docudrama', 'Essay Film', 
+    'Experimental Documentary', 'Family / Kids', 'Fantasy', 'Fantasy Adventure', 
+    'Historical Drama', 'Historical Fiction', 'Horror', 'Hybrid Experimental', 
+    'Meta-Cinema', 'Mockumentary', 'Musical', 'Musical Drama', 'Mystery Thriller', 
+    'Noir / Neo-Noir', 'Parody / Spoof', 'Performance Film', 'Period Piece', 
+    'Political Drama', 'Political Thriller', 'Psychological Thriller', 
+    'Reality-Drama', 'Romance', 'Romantic Comedy (Rom-Com)', 'Romantic Drama', 
+    'Satire', 'Science Fiction (Sci-Fi)', 'Sci-Fi Horror', 'Slow Cinema', 
+    'Sports Drama', 'Superhero', 'Surrealist', 'Thriller', 'True Crime', 
+    'Visual Poetry', 'War', 'Western'
   ],
   formats: [
     'Feature Film', 'Short Film', 'TV Series', 'TV Movie', 'Mini-Series', 
@@ -152,7 +229,7 @@ async function authenticate(request: Request): Promise<{ user: any; error?: stri
     console.log(`JWT verification successful! Payload:`, payload);
     
     // Check if it's a demo account (IDs 1, 2, or 3)
-    if (payload && payload.userId >= 1 && payload.userId <= 3) {
+    if (payload && (payload.userId === 1 || payload.userId === 2 || payload.userId === 3)) {
       // Return demo user data
       const demoUser = {
         id: payload.userId,
@@ -180,6 +257,41 @@ async function authenticate(request: Request): Promise<{ user: any; error?: stri
   }
   
   return { user: null, error: "Invalid token" };
+}
+
+// Initialize WebSocket services
+console.log("🔌 Initializing WebSocket services...");
+try {
+  await webSocketIntegration.initialize();
+  console.log("✅ WebSocket services initialized successfully");
+} catch (error) {
+  console.error("❌ Failed to initialize WebSocket services:", error);
+  captureException(error);
+}
+
+// Initialize real-time services
+console.log("🚀 Initializing real-time services...");
+try {
+  // Initialize notification service with WebSocket support
+  NotificationService.initialize(webSocketIntegration);
+  console.log("🔔 NotificationService initialized with real-time support");
+
+  // Initialize dashboard cache service
+  DashboardCacheService.initialize(webSocketIntegration);
+  console.log("📊 DashboardCacheService initialized with WebSocket support");
+
+  // Initialize draft sync service
+  DraftSyncService.initialize(webSocketIntegration);
+  console.log("💾 DraftSyncService initialized with collaborative editing");
+
+  // Start cache warming
+  await DashboardCacheService.warmCache();
+  console.log("🔥 Dashboard cache warming completed");
+
+  console.log("✅ All real-time services initialized successfully");
+} catch (error) {
+  console.error("❌ Failed to initialize real-time services:", error);
+  captureException(error);
 }
 
 // Main request handler
@@ -292,6 +404,14 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     // === HEALTH & STATUS ENDPOINTS ===
+    // GET /api/test/new - Test endpoint to verify new code is loaded (public)
+    if (url.pathname === "/api/test/new" && method === "GET") {
+      return successResponse({
+        message: "New endpoint code is working!",
+        timestamp: new Date().toISOString()
+      });
+    }
+
     if (url.pathname === "/api/health") {
       try {
         // Check Redis cache health
@@ -333,6 +453,192 @@ const handler = async (request: Request): Promise<Response> => {
           timestamp: new Date().toISOString(),
           error: error.message
         });
+      }
+    }
+
+    // === WEBSOCKET ENDPOINTS ===
+    
+    // WebSocket health check
+    if (url.pathname === "/api/ws/health") {
+      try {
+        const healthStatus = await webSocketIntegration.getHealthStatus();
+        return jsonResponse(healthStatus);
+      } catch (error) {
+        console.error("WebSocket health check failed:", error);
+        captureException(error);
+        return serverErrorResponse("WebSocket health check failed");
+      }
+    }
+    
+    // WebSocket server statistics (admin only)
+    if (url.pathname === "/api/ws/stats") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        // Check if user is admin or demo user (demo users can access stats for testing)
+        const isAdmin = authResult.user.userType === "admin" || authResult.user.id === 1;
+        const isDemoUser = authResult.user.id >= 1 && authResult.user.id <= 3;
+        if (!isAdmin && !isDemoUser) {
+          return forbiddenResponse("Admin or demo access required");
+        }
+        
+        const stats = await webSocketIntegration.getServerStats();
+        return jsonResponse(stats);
+      } catch (error) {
+        console.error("WebSocket stats failed:", error);
+        captureException(error);
+        return serverErrorResponse("Stats retrieval failed");
+      }
+    }
+    
+    // Send notification via WebSocket
+    if (url.pathname === "/api/ws/notify" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        const body = await request.json();
+        const { userId, notification } = body;
+        
+        if (!userId || !notification) {
+          return validationErrorResponse("userId and notification are required");
+        }
+        
+        const success = await webSocketIntegration.sendNotificationToUser(userId, notification);
+        
+        if (success) {
+          return successResponse({ message: "Notification sent successfully" });
+        } else {
+          return serverErrorResponse("Failed to send notification");
+        }
+      } catch (error) {
+        console.error("WebSocket notification failed:", error);
+        captureException(error);
+        return serverErrorResponse("Notification failed");
+      }
+    }
+    
+    // Get user presence status
+    if (url.pathname.startsWith("/api/ws/presence/") && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        const userId = parseInt(url.pathname.split("/").pop() || "0");
+        if (!userId) {
+          return validationErrorResponse("Invalid user ID");
+        }
+        
+        const presence = await webSocketIntegration.getUserPresence(userId);
+        
+        if (presence) {
+          return jsonResponse(presence);
+        } else {
+          return notFoundResponse("User presence not found");
+        }
+      } catch (error) {
+        console.error("Get presence failed:", error);
+        captureException(error);
+        return serverErrorResponse("Failed to get presence");
+      }
+    }
+    
+    // Get online following users
+    if (url.pathname === "/api/ws/following-online" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        const userId = authResult.user.id;
+        const onlineFollowing = await webSocketIntegration.getFollowingOnlineUsers(userId);
+        
+        return jsonResponse({
+          onlineFollowing,
+          count: onlineFollowing.length
+        });
+      } catch (error) {
+        console.error("Get following online failed:", error);
+        captureException(error);
+        return serverErrorResponse("Failed to get online following");
+      }
+    }
+    
+    // Send upload progress update
+    if (url.pathname === "/api/ws/upload-progress" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        const body = await request.json();
+        const { uploadId, progress, status } = body;
+        
+        if (!uploadId || progress === undefined || !status) {
+          return validationErrorResponse("uploadId, progress, and status are required");
+        }
+        
+        const userId = authResult.user.id;
+        const success = await webSocketIntegration.sendUploadProgress(
+          userId, 
+          uploadId, 
+          progress, 
+          status
+        );
+        
+        if (success) {
+          return successResponse({ message: "Upload progress sent" });
+        } else {
+          return serverErrorResponse("Failed to send upload progress");
+        }
+      } catch (error) {
+        console.error("Upload progress update failed:", error);
+        captureException(error);
+        return serverErrorResponse("Upload progress update failed");
+      }
+    }
+    
+    // System announcement (admin only)
+    if (url.pathname === "/api/ws/announce" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        // Check if user is admin
+        const isAdmin = authResult.user.userType === "admin" || authResult.user.id === 1;
+        if (!isAdmin) {
+          return forbiddenResponse("Admin access required");
+        }
+        
+        const body = await request.json();
+        const { announcement } = body;
+        
+        if (!announcement || !announcement.title || !announcement.message) {
+          return validationErrorResponse("announcement with title and message is required");
+        }
+        
+        const success = await webSocketIntegration.broadcastSystemAnnouncement(announcement);
+        
+        if (success) {
+          return successResponse({ message: "Announcement broadcast successfully" });
+        } else {
+          return serverErrorResponse("Failed to broadcast announcement");
+        }
+      } catch (error) {
+        console.error("System announcement failed:", error);
+        captureException(error);
+        return serverErrorResponse("System announcement failed");
       }
     }
 
@@ -600,17 +906,18 @@ const handler = async (request: Request): Promise<Response> => {
       return jsonResponse(stats);
     }
 
+
     // === AUTHENTICATION ENDPOINTS ===
     
     // Universal login endpoint
     if (url.pathname === "/api/auth/login" && method === "POST") {
       try {
-        const body = await request.json();
-        const { email, password } = body;
-
-        if (!email || !password) {
-          return validationErrorResponse("Email and password are required");
+        const result = await validateJsonRequest(request, ["email", "password"]);
+        if (!result.success) {
+          return result.error!;
         }
+
+        const { email, password } = result.data;
 
         // Check demo accounts first
         const demoAccount = Object.values(demoAccounts).find(acc => acc.email === email);
@@ -660,6 +967,10 @@ const handler = async (request: Request): Promise<Response> => {
         return authErrorResponse("Invalid credentials");
       } catch (error) {
         console.error("Login error:", error);
+        // Check if this is a client error (like JSON parsing)
+        if (isClientError(error)) {
+          return validationErrorResponse(error.message || "Bad request");
+        }
         return serverErrorResponse("Login failed");
       }
     }
@@ -779,15 +1090,72 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // ============ ADDITIONAL AUTH ENDPOINTS ============
+    
+    // Logout endpoint
+    if (url.pathname === "/api/auth/logout" && method === "POST") {
+      // For JWT-based auth, logout is handled client-side
+      // But we can still provide an endpoint for consistency
+      return jsonResponse({
+        success: true,
+        message: "Logged out successfully"
+      });
+    }
+
+    // Get user profile
+    if (url.pathname === "/api/auth/profile" && method === "GET") {
+      // This requires authentication
+      const authResult = await authenticate(request);
+      if (authResult.error) {
+        return authErrorResponse(authResult.error);
+      }
+
+      try {
+        const user = authResult.user;
+        
+        // Get user from database using Drizzle
+        const userResult = await db
+          .select({
+            id: users.id,
+            email: users.email,
+            username: users.username,
+            userType: users.userType,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            bio: users.bio,
+            profileImageUrl: users.profileImageUrl,
+            companyName: users.companyName,
+            emailVerified: users.emailVerified,
+            subscriptionTier: users.subscriptionTier,
+            createdAt: users.createdAt
+          })
+          .from(users)
+          .where(eq(users.id, user.id))
+          .limit(1);
+
+        if (!userResult.length) {
+          return errorResponse("User not found", 404);
+        }
+
+        return jsonResponse({
+          success: true,
+          user: userResult[0]
+        });
+      } catch (error) {
+        console.error("Profile error:", error);
+        return serverErrorResponse("Failed to fetch profile");
+      }
+    }
+
     // Registration endpoints
     if (url.pathname === "/api/auth/register" && method === "POST") {
       try {
-        const body = await request.json();
-        const { email, password, username, userType, companyName } = body;
-
-        if (!email || !password || !username || !userType) {
-          return validationErrorResponse("Missing required fields");
+        const validationResult = await validateJsonRequest(request, ["email", "password", "username", "userType"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
         }
+
+        const { email, password, username, userType, companyName } = validationResult.data;
 
         const result = await UserService.createUser({
           email,
@@ -798,7 +1166,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
 
         if (result.success) {
-          return successResponse({
+          return createdResponse({
             user: result.user,
             message: "Registration successful"
           });
@@ -807,6 +1175,10 @@ const handler = async (request: Request): Promise<Response> => {
         return errorResponse(result.error || "Registration failed", 400);
       } catch (error) {
         console.error("Registration error:", error);
+        // Check if this is a client error (like JSON parsing)
+        if (isClientError(error)) {
+          return validationErrorResponse(error.message || "Bad request");
+        }
         return serverErrorResponse("Registration failed");
       }
     }
@@ -821,7 +1193,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
 
         if (result.success) {
-          return successResponse({
+          return createdResponse({
             user: result.user,
             message: "Creator registration successful"
           });
@@ -842,7 +1214,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
 
         if (result.success) {
-          return successResponse({
+          return createdResponse({
             user: result.user,
             message: "Investor registration successful"
           });
@@ -863,7 +1235,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
 
         if (result.success) {
-          return successResponse({
+          return createdResponse({
             user: result.user,
             message: "Production registration successful"
           });
@@ -937,7 +1309,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/pitches/public" && method === "GET") {
       try {
         // Generate cache key
-        const cacheKey = cacheHelpers.pitches.public(1, 20);
+        const cacheKey = redisService.generateKey(cacheKeys.lists.public(1, 20));
         
         // Try to get from cache or fetch from database
         const pitches = await redisService.cached(
@@ -964,20 +1336,23 @@ const handler = async (request: Request): Promise<Response> => {
         const searchQuery = url.searchParams.get('q') || '';
         const genre = url.searchParams.get('genre');
         const format = url.searchParams.get('format');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
         
-        const pitches = await PitchService.searchPitches(searchQuery, {
-          genre,
-          format,
-          status: 'published'
+        const results = await PitchService.searchPitches({
+          query: searchQuery || undefined,
+          genre: genre || undefined,
+          format: format || undefined,
+          limit,
+          offset
         });
         
         return successResponse({
-          data: {
-            results: pitches,
-            query: searchQuery,
-            total: pitches.length
-          },
-          message: "Search completed successfully"
+          results: results.pitches,
+          query: searchQuery,
+          total: results.totalCount,
+          genre: genre || null,
+          format: format || null
         });
       } catch (error) {
         console.error("Error searching pitches:", error);
@@ -1005,6 +1380,140 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // Get featured pitches (PUBLIC)
+    if (url.pathname === "/api/pitches/featured" && method === "GET") {
+      try {
+        // Get featured pitches (high view count, recent, public)
+        const featuredPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            posterUrl: pitches.posterUrl,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            createdAt: pitches.createdAt
+          })
+          .from(pitches)
+          .where(
+            and(
+              eq(pitches.status, "published"),
+              or(
+                eq(pitches.visibility, "public"),
+                isNull(pitches.visibility)
+              )
+            )
+          )
+          .orderBy(desc(pitches.viewCount), desc(pitches.likeCount))
+          .limit(10);
+
+        return jsonResponse({
+          success: true,
+          pitches: featuredPitches,
+          cached: false
+        });
+
+      } catch (error) {
+        console.error("Featured pitches error:", error);
+        return serverErrorResponse("Failed to fetch featured pitches");
+      }
+    }
+
+    // Search pitches endpoint (public and authenticated)
+    if (url.pathname === "/api/search/pitches" && method === "GET") {
+      try {
+        const params = new URLSearchParams(url.search);
+        const query = params.get("q") || "";
+        const genre = params.get("genre");
+        const format = params.get("format");
+        const limit = parseInt(params.get("limit") || "20");
+        const offset = parseInt(params.get("offset") || "0");
+
+        // Check if user is authenticated (optional)
+        const authResult = await authenticate(request);
+        const userId = authResult.user ? authResult.user.id : null;
+
+        // Build query conditions using Drizzle
+        const conditions = [];
+        
+        // Only show public/active pitches
+        conditions.push(eq(pitches.status, "published"));
+        conditions.push(or(
+          eq(pitches.visibility, "public"),
+          isNull(pitches.visibility)
+        ));
+
+        // Add search query if provided
+        if (query) {
+          conditions.push(
+            sql`(
+              LOWER(title) LIKE LOWER(${'%' + query + '%'}) OR
+              LOWER(logline) LIKE LOWER(${'%' + query + '%'}) OR
+              LOWER(short_synopsis) LIKE LOWER(${'%' + query + '%'})
+            )`
+          );
+        }
+
+        // Add genre filter if provided
+        if (genre) {
+          conditions.push(eq(pitches.genre, genre));
+        }
+
+        // Add format filter if provided
+        if (format) {
+          conditions.push(eq(pitches.format, format));
+        }
+
+        // Execute search query with Drizzle
+        const searchResults = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            shortSynopsis: pitches.shortSynopsis,
+            posterUrl: pitches.posterUrl,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            createdAt: pitches.createdAt,
+            userId: pitches.userId,
+            budgetBracket: pitches.budgetBracket,
+            status: pitches.status
+          })
+          .from(pitches)
+          .where(and(...conditions))
+          .orderBy(desc(pitches.createdAt))
+          .limit(limit)
+          .offset(offset);
+
+        // Get total count for pagination
+        const countResult = await db
+          .select({ count: sql`count(*)::int` })
+          .from(pitches)
+          .where(and(...conditions));
+
+        const total = countResult[0]?.count || 0;
+
+        return jsonResponse({
+          success: true,
+          results: searchResults,
+          pagination: {
+            total,
+            limit,
+            offset,
+            hasMore: offset + limit < total
+          }
+        });
+
+      } catch (error) {
+        console.error("Search error:", error);
+        return serverErrorResponse("Search failed");
+      }
+    }
+
     // Get individual public pitch by ID - WITH CACHING
     if (url.pathname.startsWith("/api/pitches/public/") && method === "GET") {
       try {
@@ -1014,7 +1523,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
         
         const id = parseInt(pitchId);
-        const cacheKey = cacheHelpers.pitches.byId(id);
+        const cacheKey = redisService.generateKey(cacheKeys.pitch.details(id));
         
         // Try cache first, then fetch from database
         const pitch = await redisService.cached(
@@ -1056,6 +1565,41 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error fetching new releases:", error);
         return errorResponse("Failed to fetch new releases", 500);
+      }
+    }
+
+    // Featured pitches (Public endpoint)
+    if (url.pathname === "/api/pitches/featured" && method === "GET") {
+      try {
+        const limit = parseInt(url.searchParams.get('limit') || '6');
+        
+        // Get featured pitches - these could be manually curated or algorithm-based
+        // For now, we'll return the most viewed or recent public pitches
+        const featuredPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            budgetBracket: pitches.budgetBracket,
+            status: pitches.status,
+            visibility: pitches.visibility,
+            userId: pitches.userId,
+            createdAt: pitches.createdAt,
+            updatedAt: pitches.updatedAt
+          })
+          .from(pitches)
+          .where(eq(pitches.visibility, "public"))
+          .orderBy(desc(pitches.createdAt))
+          .limit(limit);
+        
+        return successResponse({
+          data: featuredPitches,
+          message: "Featured pitches retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching featured pitches:", error);
+        return serverErrorResponse("Failed to fetch featured pitches");
       }
     }
 
@@ -1179,6 +1723,163 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // === DYNAMIC CONTENT MANAGEMENT ENDPOINTS (PUBLIC) ===
+    
+    // GET /api/content/portals/{portalType} - Get portal-specific content
+    if (url.pathname.startsWith("/api/content/portals/") && method === "GET") {
+      try {
+        const portalType = url.pathname.split("/")[4];
+        const locale = url.searchParams.get("locale") || "en";
+        
+        if (!portalType || !["creator", "investor", "production", "admin"].includes(portalType)) {
+          return errorResponse("Invalid portal type", 400);
+        }
+        
+        const content = await contentManagementService.getPortalContent(portalType, locale);
+        return successResponse({ content, portalType, locale });
+      } catch (error) {
+        console.error("Get portal content error:", error);
+        return serverErrorResponse("Failed to get portal content");
+      }
+    }
+
+    // GET /api/content/forms/{formType} - Get form configuration
+    if (url.pathname.startsWith("/api/content/forms/") && method === "GET") {
+      try {
+        const formType = url.pathname.split("/")[4];
+        const portalType = url.searchParams.get("portal");
+        const locale = url.searchParams.get("locale") || "en";
+        
+        if (!formType) {
+          return errorResponse("Form type is required", 400);
+        }
+        
+        const content = await contentManagementService.getContentByKey(
+          `forms.${formType}`, 
+          portalType, 
+          locale
+        );
+        
+        if (!content) {
+          return notFoundResponse("Form configuration not found");
+        }
+        
+        return successResponse({ form: content.content, formType });
+      } catch (error) {
+        console.error("Get form content error:", error);
+        return serverErrorResponse("Failed to get form content");
+      }
+    }
+
+    // GET /api/content/navigation/{portalType} - Get navigation structure
+    if (url.pathname.startsWith("/api/content/navigation/") && method === "GET") {
+      try {
+        const portalType = url.pathname.split("/")[4];
+        const menuType = url.searchParams.get("type") || "header";
+        
+        if (!portalType || !["creator", "investor", "production", "admin"].includes(portalType)) {
+          return errorResponse("Invalid portal type", 400);
+        }
+        
+        const navigation = await navigationService.getActiveNavigation(portalType, menuType);
+        
+        if (!navigation) {
+          return notFoundResponse("Navigation not found");
+        }
+        
+        return successResponse({ navigation, portalType, menuType });
+      } catch (error) {
+        console.error("Get navigation error:", error);
+        return serverErrorResponse("Failed to get navigation");
+      }
+    }
+
+    // GET /api/features/flags - Get feature flags for user context
+    if (url.pathname === "/api/features/flags" && method === "GET") {
+      try {
+        const portalType = url.searchParams.get("portal");
+        const userType = url.searchParams.get("userType");
+        const userId = url.searchParams.get("userId");
+        
+        const context = {
+          portalType,
+          userType,
+          userId: userId ? parseInt(userId) : undefined,
+        };
+        
+        let flags;
+        if (portalType) {
+          flags = await featureFlagService.getPortalFeatureFlags(portalType, context);
+        } else {
+          flags = await featureFlagService.getEnabledFeatures(context);
+        }
+        
+        return successResponse({ flags, context });
+      } catch (error) {
+        console.error("Get feature flags error:", error);
+        return serverErrorResponse("Failed to get feature flags");
+      }
+    }
+
+    // GET /api/config/portal/{portalType} - Get portal configuration
+    if (url.pathname.startsWith("/api/config/portal/") && method === "GET") {
+      try {
+        const portalType = url.pathname.split("/")[4];
+        const includeSecrets = url.searchParams.get("secrets") === "true";
+        
+        if (!portalType || !["creator", "investor", "production", "admin"].includes(portalType)) {
+          return errorResponse("Invalid portal type", 400);
+        }
+        
+        // Check if requesting secrets (admin only)
+        if (includeSecrets) {
+          const authResult = await authenticate(request);
+          if (authResult.error || !authResult.user) {
+            return authErrorResponse("Authentication required for secrets");
+          }
+          
+          if (authResult.user.userType !== "admin") {
+            return forbiddenResponse("Admin access required for secrets");
+          }
+        }
+        
+        const config = await portalConfigurationService.getPortalConfig(portalType, includeSecrets);
+        return successResponse({ config, portalType });
+      } catch (error) {
+        console.error("Get portal config error:", error);
+        return serverErrorResponse("Failed to get portal configuration");
+      }
+    }
+
+    // GET /api/i18n/translations - Get translations for locale
+    if (url.pathname === "/api/i18n/translations" && method === "GET") {
+      try {
+        const locale = url.searchParams.get("locale") || "en";
+        const fallback = url.searchParams.get("fallback") || "en";
+        const keys = url.searchParams.get("keys")?.split(",");
+        
+        let translations;
+        if (keys && keys.length > 0) {
+          // Get specific keys only
+          const allTranslations = await internationalizationService.getTranslationsWithFallback(locale, fallback);
+          translations = {};
+          for (const key of keys) {
+            if (allTranslations[key]) {
+              translations[key] = allTranslations[key];
+            }
+          }
+        } else {
+          // Get all translations
+          translations = await internationalizationService.getTranslationsWithFallback(locale, fallback);
+        }
+        
+        return successResponse({ translations, locale, fallback });
+      } catch (error) {
+        console.error("Get translations error:", error);
+        return serverErrorResponse("Failed to get translations");
+      }
+    }
+
     // From here, require authentication
     const authResult = await authenticate(request);
     if (!authResult.user) {
@@ -1189,11 +1890,144 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === AUTHENTICATED ENDPOINTS ===
 
+    // === ADMIN CONTENT MANAGEMENT ENDPOINTS ===
+    
+    // POST /api/admin/content - Create or update content item (admin only)
+    if (url.pathname === "/api/admin/content" && method === "POST") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+        
+        const validationResult = await validateJsonRequest(request, ["key", "content"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+        
+        const { key, content, portalType, locale, metadata, status } = validationResult.data;
+        
+        const contentItem = await contentManagementService.createContentItem({
+          key,
+          content,
+          portalType,
+          locale,
+          metadata,
+          status,
+        }, user.id);
+        
+        return createdResponse({ contentItem });
+      } catch (error) {
+        console.error("Create content error:", error);
+        if (error.message.includes("already exists")) {
+          return errorResponse(error.message, 409);
+        }
+        return serverErrorResponse("Failed to create content");
+      }
+    }
+
+    // PUT /api/admin/content/{id} - Update content item (admin only)
+    if (url.pathname.startsWith("/api/admin/content/") && method === "PUT") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+        
+        const contentId = parseInt(url.pathname.split("/")[4]);
+        if (!contentId) {
+          return errorResponse("Invalid content ID", 400);
+        }
+        
+        const validationResult = await validateJsonRequest(request, []);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+        
+        const updateData = validationResult.data;
+        
+        const contentItem = await contentManagementService.updateContentItem(
+          contentId, 
+          updateData, 
+          user.id
+        );
+        
+        if (!contentItem) {
+          return notFoundResponse("Content item not found");
+        }
+        
+        return successResponse({ contentItem });
+      } catch (error) {
+        console.error("Update content error:", error);
+        return serverErrorResponse("Failed to update content");
+      }
+    }
+
+    // POST /api/admin/features - Create or update feature flag (admin only)
+    if (url.pathname === "/api/admin/features" && method === "POST") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+        
+        const validationResult = await validateJsonRequest(request, ["name"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+        
+        const flagData = validationResult.data;
+        
+        const flag = await featureFlagService.createFeatureFlag(flagData, user.id);
+        
+        return createdResponse({ flag });
+      } catch (error) {
+        console.error("Create feature flag error:", error);
+        if (error.message.includes("already exists")) {
+          return errorResponse(error.message, 409);
+        }
+        return serverErrorResponse("Failed to create feature flag");
+      }
+    }
+
+    // PUT /api/admin/features/{name}/toggle - Toggle feature flag (admin only)
+    if (url.pathname.includes("/api/admin/features/") && url.pathname.endsWith("/toggle") && method === "PUT") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+        
+        const pathParts = url.pathname.split("/");
+        const flagName = pathParts[pathParts.length - 2];
+        
+        if (!flagName) {
+          return errorResponse("Feature flag name is required", 400);
+        }
+        
+        const flag = await featureFlagService.toggleFeatureFlag(flagName, user.id);
+        
+        if (!flag) {
+          return notFoundResponse("Feature flag not found");
+        }
+        
+        return successResponse({ flag });
+      } catch (error) {
+        console.error("Toggle feature flag error:", error);
+        return serverErrorResponse("Failed to toggle feature flag");
+      }
+    }
+
     // === CREATOR ENDPOINTS ===
     
-    // Creator dashboard (main dashboard endpoint)
+    // Creator dashboard (main dashboard endpoint with caching)
     if (url.pathname === "/api/creator/dashboard" && method === "GET") {
       try {
+        // Get cached dashboard metrics first
+        const cachedMetrics = await DashboardCacheService.getDashboardMetrics(user.id, user.userType);
+        
+        if (cachedMetrics) {
+          console.log(`📊 Dashboard metrics served from cache for user ${user.id}`);
+          return successResponse(cachedMetrics);
+        }
+
+        // Fallback to original logic if cache fails
         let pitches = [];
         let followersCount = 0;
         
@@ -1451,7 +2285,7 @@ const handler = async (request: Request): Promise<Response> => {
         // In production, save to database here
         // await db.insert(calendarEvents).values(newEvent);
         
-        return successResponse({
+        return createdResponse({
           event: newEvent,
           message: "Event created successfully"
         });
@@ -1591,7 +2425,7 @@ const handler = async (request: Request): Promise<Response> => {
         try {
           const followers = await db.select()
             .from(follows)
-            .where(eq(follows.followingId, creatorId));
+            .where(eq(follows.creatorId, creatorId));
           followerCount = followers.length;
         } catch (e) {
           // If follows table doesn't exist yet, default to 0
@@ -1917,6 +2751,189 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // GET /api/creator/followers - Get list of followers
+    if (url.pathname === "/api/creator/followers" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+        
+        // Get followers with user details using Drizzle
+        const followersQuery = await db
+          .select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            email: users.email,
+            profileImageUrl: users.profileImageUrl,
+            bio: users.bio,
+            userType: users.userType,
+            followedAt: follows.followedAt
+          })
+          .from(follows)
+          .innerJoin(users, eq(follows.followerId, users.id))
+          .where(eq(follows.creatorId, userId))
+          .orderBy(desc(follows.followedAt))
+          .limit(limit)
+          .offset(offset);
+        
+        // Get total count
+        const totalResult = await db
+          .select({ count: sql`count(*)::integer` })
+          .from(follows)
+          .where(eq(follows.creatorId, userId));
+        
+        return successResponse({
+          followers: followersQuery,
+          total: totalResult[0]?.count || 0,
+          page,
+          limit
+        });
+      } catch (error) {
+        console.error("Error fetching followers:", error);
+        return errorResponse("Failed to fetch followers");
+      }
+    }
+
+    // GET /api/creator/saved-pitches - Get saved pitches
+    if (url.pathname === "/api/creator/saved-pitches" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+        
+        // Get saved pitches
+        const savedPitchesQuery = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            posterUrl: pitches.posterUrl,
+            status: pitches.status,
+            visibility: pitches.visibility,
+            viewCount: pitches.viewCount,
+            userId: pitches.userId,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            savedAt: savedPitches.createdAt
+          })
+          .from(savedPitches)
+          .innerJoin(pitches, eq(savedPitches.pitchId, pitches.id))
+          .innerJoin(users, eq(pitches.userId, users.id))
+          .where(eq(savedPitches.userId, userId))
+          .orderBy(desc(savedPitches.createdAt))
+          .limit(limit)
+          .offset(offset);
+        
+        const totalResult = await db
+          .select({ count: sql`count(*)::integer` })
+          .from(savedPitches)
+          .where(eq(savedPitches.userId, userId));
+        
+        return successResponse({
+          pitches: savedPitchesQuery,
+          total: totalResult[0]?.count || 0,
+          page,
+          limit
+        });
+      } catch (error) {
+        console.error("Error fetching saved pitches:", error);
+        return errorResponse("Failed to fetch saved pitches");
+      }
+    }
+
+    // GET /api/creator/recommendations - Get recommendations
+    if (url.pathname === "/api/creator/recommendations" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        // Get creator's genre preferences
+        const userPitches = await db
+          .select({ genre: pitches.genre })
+          .from(pitches)
+          .where(eq(pitches.userId, userId))
+          .limit(5);
+        
+        const userGenres = [...new Set(userPitches.map(p => p.genre).filter(Boolean))];
+        
+        // Build where conditions
+        const whereConditions = [
+          ne(pitches.userId, userId),
+          eq(pitches.visibility, 'public')
+        ];
+        
+        if (userGenres.length > 0) {
+          whereConditions.push(inArray(pitches.genre, userGenres));
+        }
+        
+        // Get recommended pitches
+        const recommendedPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            posterUrl: pitches.posterUrl,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            creatorId: users.id,
+            viewCount: pitches.viewCount,
+            createdAt: pitches.createdAt
+          })
+          .from(pitches)
+          .innerJoin(users, eq(pitches.userId, users.id))
+          .where(and(...whereConditions))
+          .orderBy(desc(pitches.viewCount))
+          .limit(10);
+        
+        // Get recommended creators
+        const recommendedCreators = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            bio: users.bio,
+            profilePicture: users.profilePicture,
+            followerCount: sql`(SELECT COUNT(*) FROM follows WHERE following_id = ${users.id})::integer`,
+            pitchCount: sql`(SELECT COUNT(*) FROM pitches WHERE creator_id = ${users.id})::integer`
+          })
+          .from(users)
+          .where(and(
+            eq(users.userType, 'creator'),
+            ne(users.id, userId),
+            sql`${users.id} NOT IN (SELECT following_id FROM follows WHERE follower_id = ${userId})`
+          ))
+          .orderBy(sql`(SELECT COUNT(*) FROM follows WHERE following_id = ${users.id}) DESC`)
+          .limit(5);
+        
+        return successResponse({
+          pitches: recommendedPitches,
+          creators: recommendedCreators
+        });
+      } catch (error) {
+        console.error("Error fetching recommendations:", error);
+        return errorResponse("Failed to fetch recommendations");
+      }
+    }
+
     // Create creator pitch
     if (url.pathname === "/api/creator/pitches" && method === "POST") {
       try {
@@ -1934,7 +2951,7 @@ const handler = async (request: Request): Promise<Response> => {
           ...body
         });
         
-        return successResponse({
+        return createdResponse({
           pitch: newPitch,
           message: "Pitch created successfully"
         });
@@ -1981,6 +2998,35 @@ const handler = async (request: Request): Promise<Response> => {
             'full'
           );
           console.log(`View tracking for pitch ${pitchId}:`, trackResult.message);
+          
+          // Send real-time pitch stats update via WebSocket if view was tracked
+          if (trackResult.tracked) {
+            try {
+              // Get updated pitch stats
+              const pitchStats = {
+                pitchId,
+                viewCount: trackResult.totalViews,
+                uniqueViewers: trackResult.uniqueViewers,
+                lastViewed: new Date().toISOString()
+              };
+              
+              // Broadcast updated stats to interested users
+              await webSocketIntegration.updatePitchStats(pitchId, pitchStats);
+              
+              // Send notification to pitch creator if it's a new unique view
+              if (trackResult.isNewViewer && pitch.creator !== user.id) {
+                await webSocketIntegration.sendNotificationToUser(pitch.creator, {
+                  type: "pitch_view",
+                  title: "New Pitch View",
+                  message: `Your pitch "${pitch.title}" was viewed by a ${user.userType}`,
+                  relatedId: pitchId,
+                  relatedType: "pitch"
+                });
+              }
+            } catch (wsError) {
+              console.warn("WebSocket pitch stats update failed:", wsError);
+            }
+          }
         } catch (viewError) {
           console.warn(`Failed to track view for pitch ${pitchId}:`, viewError);
           // Don't fail the request if view tracking fails
@@ -2160,6 +3206,209 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // === REAL-TIME FEATURES ENDPOINTS ===
+
+    // Auto-save draft
+    if (url.pathname.startsWith("/api/drafts/") && url.pathname.endsWith("/autosave") && method === "POST") {
+      try {
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        
+        if (!pitchId || isNaN(pitchId)) {
+          return validationErrorResponse("Invalid pitch ID");
+        }
+
+        const body = await request.json();
+        const draftData = {
+          userId: user.id,
+          pitchId,
+          content: body.content || {},
+          version: body.version || 1,
+          lastModified: Date.now(),
+          deviceId: body.deviceId || 'unknown',
+        };
+
+        const result = await DraftSyncService.autoSaveDraft(draftData);
+        
+        if (result.success) {
+          return successResponse({
+            version: result.version,
+            message: "Draft auto-saved successfully"
+          });
+        } else {
+          return jsonResponse({
+            success: false,
+            conflicts: result.conflicts,
+            message: "Conflicts detected"
+          }, 409);
+        }
+      } catch (error) {
+        console.error("Auto-save error:", error);
+        return serverErrorResponse("Failed to auto-save draft");
+      }
+    }
+
+    // Get draft
+    if (url.pathname.startsWith("/api/drafts/") && method === "GET" && !url.pathname.includes("/autosave")) {
+      try {
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        
+        if (!pitchId || isNaN(pitchId)) {
+          return validationErrorResponse("Invalid pitch ID");
+        }
+
+        const draft = await DraftSyncService.getDraft(user.id, pitchId);
+        
+        if (draft) {
+          return successResponse(draft);
+        } else {
+          return notFoundResponse("Draft not found");
+        }
+      } catch (error) {
+        console.error("Get draft error:", error);
+        return serverErrorResponse("Failed to get draft");
+      }
+    }
+
+    // Save draft to database
+    if (url.pathname.startsWith("/api/drafts/") && url.pathname.endsWith("/save") && method === "POST") {
+      try {
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        
+        if (!pitchId || isNaN(pitchId)) {
+          return validationErrorResponse("Invalid pitch ID");
+        }
+
+        const result = await DraftSyncService.saveDraftToDatabase(user.id, pitchId);
+        
+        if (result.success) {
+          // Invalidate dashboard cache since pitch was updated
+          await DashboardCacheService.invalidateDashboardCache(user.id, user.userType);
+          
+          return successResponse({
+            message: "Draft saved successfully"
+          });
+        } else {
+          return serverErrorResponse(result.error || "Failed to save draft");
+        }
+      } catch (error) {
+        console.error("Save draft error:", error);
+        return serverErrorResponse("Failed to save draft");
+      }
+    }
+
+    // Lock/unlock field
+    if (url.pathname.startsWith("/api/drafts/") && url.pathname.includes("/lock") && method === "POST") {
+      try {
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        const field = pathParts[5]; // /api/drafts/{id}/lock/{field}
+        
+        if (!pitchId || isNaN(pitchId) || !field) {
+          return validationErrorResponse("Invalid pitch ID or field");
+        }
+
+        const body = await request.json();
+        const { action, deviceId } = body;
+
+        if (action === "lock") {
+          const result = await DraftSyncService.lockField(user.id, pitchId, field, deviceId || 'unknown');
+          
+          if (result.success) {
+            return successResponse({ message: "Field locked successfully" });
+          } else {
+            return jsonResponse({
+              success: false,
+              lockedBy: result.lockedBy,
+              message: "Field is already locked"
+            }, 409);
+          }
+        } else if (action === "unlock") {
+          const result = await DraftSyncService.unlockField(user.id, pitchId, field, deviceId || 'unknown');
+          
+          if (result) {
+            return successResponse({ message: "Field unlocked successfully" });
+          } else {
+            return forbiddenResponse("Cannot unlock field");
+          }
+        } else {
+          return validationErrorResponse("Invalid action");
+        }
+      } catch (error) {
+        console.error("Field lock error:", error);
+        return serverErrorResponse("Failed to process field lock");
+      }
+    }
+
+    // Update typing indicator
+    if (url.pathname.startsWith("/api/drafts/") && url.pathname.includes("/typing") && method === "POST") {
+      try {
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        const field = pathParts[5]; // /api/drafts/{id}/typing/{field}
+        
+        if (!pitchId || isNaN(pitchId) || !field) {
+          return validationErrorResponse("Invalid pitch ID or field");
+        }
+
+        const body = await request.json();
+        const { isTyping, deviceId } = body;
+
+        await DraftSyncService.updateTypingIndicator(user.id, pitchId, field, isTyping, deviceId || 'unknown');
+        
+        return successResponse({ message: "Typing indicator updated" });
+      } catch (error) {
+        console.error("Typing indicator error:", error);
+        return serverErrorResponse("Failed to update typing indicator");
+      }
+    }
+
+    // Get notifications
+    if (url.pathname === "/api/notifications" && method === "GET") {
+      try {
+        const params = new URLSearchParams(url.search);
+        const limit = parseInt(params.get('limit') || '20');
+        const onlyUnread = params.get('unread') === 'true';
+
+        const result = await NotificationService.getUserNotifications(user.id, limit, onlyUnread);
+        
+        if (result.success) {
+          return successResponse({
+            notifications: result.notifications,
+            unreadCount: await NotificationService.getUnreadCount(user.id)
+          });
+        } else {
+          return serverErrorResponse("Failed to fetch notifications");
+        }
+      } catch (error) {
+        console.error("Get notifications error:", error);
+        return serverErrorResponse("Failed to get notifications");
+      }
+    }
+
+    // Mark notifications as read
+    if (url.pathname === "/api/notifications/read" && method === "POST") {
+      try {
+        const body = await request.json();
+        const { notificationIds } = body;
+
+        if (!Array.isArray(notificationIds)) {
+          return validationErrorResponse("Invalid notification IDs");
+        }
+
+        await NotificationService.markAsRead(user.id, notificationIds);
+        
+        return successResponse({
+          message: "Notifications marked as read"
+        });
+      } catch (error) {
+        console.error("Mark notifications read error:", error);
+        return serverErrorResponse("Failed to mark notifications as read");
+      }
+    }
+
     // === INVESTOR ENDPOINTS ===
 
     // Investor dashboard
@@ -2183,7 +3432,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         // Get watchlist count
         const watchlistCount = await db
-          .select({ count: sql`count(*)` })
+          .select({ count: count() })
           .from(watchlist)
           .where(eq(watchlist.userId, user.id))
           .catch(() => [{ count: 0 }]);
@@ -2298,7 +3547,7 @@ const handler = async (request: Request): Promise<Response> => {
           pitchGenre: "Sci-Fi"
         };
         
-        return successResponse({
+        return createdResponse({
           savedPitch,
           message: "Pitch saved successfully"
         });
@@ -2496,7 +3745,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         // Get pending opportunities (pitches in watchlist that aren't invested in yet)
         const watchlistCount = await db
-          .select({ count: sql`count(*)` })
+          .select({ count: count() })
           .from(watchlist)
           .where(eq(watchlist.userId, user.id));
         
@@ -2782,6 +4031,57 @@ const handler = async (request: Request): Promise<Response> => {
       });
     }
 
+    // Get user settings
+    if (url.pathname === "/api/user/settings" && method === "GET") {
+      try {
+        // Get user with settings
+        const userSettings = {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          userType: user.userType,
+          companyName: user.companyName,
+          profilePicture: user.profilePicture || null,
+          preferences: {
+            emailNotifications: true,
+            marketingEmails: false,
+            twoFactorEnabled: false
+          }
+        };
+
+        return successResponse({
+          success: true,
+          settings: userSettings
+        });
+      } catch (error) {
+        console.error('Error fetching user settings:', error);
+        return serverErrorResponse('Failed to fetch settings');
+      }
+    }
+
+    // Update user settings
+    if (url.pathname === "/api/user/settings" && method === "PATCH") {
+      try {
+        const updates = await request.json();
+        
+        // Mock successful update (in real app, you'd update the database)
+        const updatedSettings = {
+          ...user,
+          ...updates,
+          updatedAt: new Date().toISOString()
+        };
+
+        return successResponse({
+          success: true,
+          settings: updatedSettings,
+          message: "Settings updated successfully"
+        });
+      } catch (error) {
+        console.error('Error updating user settings:', error);
+        return serverErrorResponse('Failed to update settings');
+      }
+    }
+
     // Alternative profile endpoint
     if (url.pathname === "/api/profile" && method === "GET") {
       return successResponse({
@@ -2852,9 +4152,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Create pitch
     if (url.pathname === "/api/pitches" && method === "POST") {
       try {
-        const body = await request.json();
-        const pitch = await PitchService.createPitch(user.id, body);
-        return successResponse({
+        const result = await safeParseJson(request);
+        if (!result.success) {
+          return result.error!;
+        }
+
+        const pitch = await PitchService.createPitch(user.id, result.data);
+        return createdResponse({
           pitch,
           message: "Pitch created successfully"
         });
@@ -2877,6 +4181,140 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // Get pitch analytics (view data)
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/analytics$/) && method === "GET") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[3]);
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+
+        // Verify pitch exists and user has access
+        const pitch = await PitchService.getPitchById(pitchId, user.id);
+        if (!pitch) {
+          return errorResponse("Pitch not found or access denied", 404);
+        }
+
+        // Check if user is the pitch owner (only owner can see detailed analytics)
+        if (pitch.userId !== user.id) {
+          return forbiddenResponse("Only pitch owner can access analytics");
+        }
+
+        // Import ViewTrackingServiceSimple and get analytics data
+        const { ViewTrackingServiceSimple } = await import("./src/services/view-tracking-simple.service.ts");
+        
+        const viewData = await ViewTrackingServiceSimple.getViewDemographics(pitchId);
+        const viewsByDate = await ViewTrackingServiceSimple.getViewsByDate(pitchId, 30);
+        const uniqueViews = await ViewTrackingServiceSimple.getUniqueViewCount(pitchId);
+
+        const analytics = {
+          pitchId: pitchId,
+          totalViews: viewData.totalViews || pitch.viewCount || 0,
+          uniqueViews: uniqueViews || 0,
+          demographics: viewData.demographics,
+          viewsByDate: viewsByDate,
+          likes: pitch.likeCount || 0,
+          ndaRequests: pitch.ndaCount || 0,
+          lastViewed: pitch.lastViewedAt || null
+        };
+
+        return successResponse({
+          analytics,
+          message: "Pitch analytics retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching pitch analytics:", error);
+        return serverErrorResponse("Failed to fetch pitch analytics");
+      }
+    }
+
+    // Get pitches from followed creators
+    if (url.pathname === "/api/pitches/following" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+        const page = parseInt(url.searchParams.get("page") || "1");
+        const limit = parseInt(url.searchParams.get("limit") || "20");
+        const offset = (page - 1) * limit;
+        
+        // Get pitches from creators that the current user follows
+        const followingPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            budgetBracket: pitches.budgetBracket,
+            posterUrl: pitches.posterUrl,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            commentCount: pitches.commentCount,
+            status: pitches.status,
+            visibility: pitches.visibility,
+            createdAt: pitches.createdAt,
+            updatedAt: pitches.updatedAt,
+            userId: pitches.userId,
+            creator: {
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              companyName: users.companyName,
+              userType: users.userType
+            }
+          })
+          .from(pitches)
+          .innerJoin(follows, eq(follows.creatorId, pitches.userId))
+          .innerJoin(users, eq(users.id, pitches.userId))
+          .where(
+            and(
+              eq(follows.followerId, user.id),
+              eq(pitches.status, 'published'),
+              eq(pitches.visibility, 'public')
+            )
+          )
+          .orderBy(desc(pitches.createdAt))
+          .limit(limit)
+          .offset(offset);
+        
+        // Get total count for pagination
+        const totalCountResult = await db
+          .select({ count: count() })
+          .from(pitches)
+          .innerJoin(follows, eq(follows.creatorId, pitches.userId))
+          .where(
+            and(
+              eq(follows.followerId, user.id),
+              eq(pitches.status, 'published'),
+              eq(pitches.visibility, 'public')
+            )
+          );
+        
+        const totalCount = totalCountResult[0]?.count || 0;
+        
+        return successResponse({
+          pitches: followingPitches,
+          pagination: {
+            page,
+            limit,
+            total: totalCount,
+            totalPages: Math.ceil(totalCount / limit),
+            hasNext: page * limit < totalCount,
+            hasPrev: page > 1
+          },
+          message: "Following pitches retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching following pitches:", error);
+        return serverErrorResponse("Failed to fetch following pitches");
+      }
+    }
+
     // Get pitch by ID
     if (url.pathname.startsWith("/api/pitches/") && method === "GET") {
       try {
@@ -2885,7 +4323,31 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Invalid pitch ID", 400);
         }
 
-        const pitch = await PitchService.getPitchById(pitchId, user.id);
+        // First try to get user's own pitch
+        let pitch = await PitchService.getPitchById(pitchId, user.id);
+        
+        // If not found and user is an investor, try to get public pitch
+        if (!pitch && user.userType === 'investor') {
+          const publicPitch = await db
+            .select()
+            .from(pitches)
+            .where(
+              and(
+                eq(pitches.id, pitchId),
+                eq(pitches.status, "published"),
+                or(
+                  eq(pitches.visibility, "public"),
+                  isNull(pitches.visibility)
+                )
+              )
+            )
+            .limit(1);
+          
+          if (publicPitch.length > 0) {
+            pitch = publicPitch[0];
+          }
+        }
+        
         if (!pitch) {
           return errorResponse("Pitch not found or access denied", 404);
         }
@@ -2948,6 +4410,67 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         return serverErrorResponse("Failed to delete pitch");
+      }
+    }
+
+
+    // Track pitch view
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/view$/) && method === "POST") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[3]);
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+
+        let viewType = 'full';
+        try {
+          const body = await request.json();
+          viewType = body.viewType || 'full';
+        } catch (error) {
+          // No body or invalid JSON - use default viewType
+          console.log("No request body for view tracking, using default viewType");
+        }
+
+        // Validate viewType
+        const validViewTypes = ['full', 'preview', 'thumbnail'];
+        if (!validViewTypes.includes(viewType)) {
+          return errorResponse("Invalid view type. Must be 'full', 'preview', or 'thumbnail'", 400);
+        }
+
+        // Verify pitch exists with simple query
+        const [pitch] = await db
+          .select({ id: pitches.id, status: pitches.status, userId: pitches.userId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch) {
+          return errorResponse("Pitch not found", 404);
+        }
+
+        // Import and use ViewTrackingServiceSimple
+        const { ViewTrackingServiceSimple } = await import("./src/services/view-tracking-simple.service.ts");
+        const trackResult = await ViewTrackingServiceSimple.trackView(
+          pitchId,
+          user.id,
+          user.userType,
+          viewType
+        );
+
+        if (trackResult.success) {
+          return successResponse({
+            message: trackResult.message,
+            pitchId: pitchId,
+            viewType: viewType,
+            tracked: true
+          });
+        } else {
+          console.error("View tracking failed:", trackResult.error);
+          return serverErrorResponse("Failed to track view");
+        }
+      } catch (error) {
+        console.error("Error in view tracking endpoint:", error);
+        return serverErrorResponse("Failed to track pitch view");
       }
     }
 
@@ -3085,7 +4608,7 @@ const handler = async (request: Request): Promise<Response> => {
         // Store in mock storage
         mockNdaRequestsStore.set(ndaRequest.id, ndaRequest);
         
-        return successResponse({
+        return createdResponse({
           nda: ndaRequest,
           message: "NDA request submitted successfully"
         });
@@ -3123,6 +4646,87 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         return serverErrorResponse("Failed to fetch signed NDAs");
+      }
+    }
+
+    // Get NDA status for a pitch
+    if (url.pathname.match(/^\/api\/ndas\/pitch\/[^\/]+\/status$/) && method === "GET") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[4]);
+        
+        if (isNaN(pitchId)) {
+          return validationErrorResponse("Invalid pitch ID");
+        }
+
+        // Check if pitch exists
+        const pitch = await db.select()
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+
+        if (pitch.length === 0) {
+          return notFoundResponse("Pitch not found");
+        }
+
+        // Check for existing NDA for current user and this pitch
+        let existingNDA = null;
+        let canAccess = false;
+
+        if (user) {
+          // Get NDA using Drizzle ORM
+          const ndaQuery = await db
+            .select()
+            .from(ndas)
+            .where(
+              and(
+                eq(ndas.pitchId, pitchId),
+                or(
+                  eq(ndas.userId, user.id),
+                  eq(ndas.signerId, user.id)
+                )
+              )
+            )
+            .limit(1);
+
+          if (ndaQuery.length > 0) {
+            const nda = ndaQuery[0];
+            existingNDA = {
+              id: nda.id,
+              pitchId: nda.pitch_id,
+              userId: nda.user_id,
+              signerId: nda.signer_id,
+              status: nda.status,
+              signedAt: nda.signed_at,
+              expiresAt: nda.expires_at,
+              documentUrl: nda.custom_nda_url,
+              createdAt: nda.created_at,
+              updatedAt: nda.updated_at,
+              accessGranted: nda.access_granted,
+              ndaType: nda.nda_type,
+            };
+            // User can access if they have a signed/approved NDA or if they own the pitch
+            canAccess = existingNDA.status === 'signed' || 
+                       existingNDA.status === 'approved' || 
+                       existingNDA.accessGranted ||
+                       pitch[0].userId === user.id;
+          } else {
+            // Check if user owns the pitch (creators can always access their own pitches)
+            canAccess = pitch[0].userId === user.id;
+          }
+        }
+
+        const hasNDA = existingNDA !== null;
+
+        return successResponse({
+          hasNDA,
+          nda: existingNDA,
+          canAccess,
+          message: "NDA status retrieved successfully"
+        });
+
+      } catch (error) {
+        console.error("Error fetching NDA status:", error);
+        return serverErrorResponse("Failed to fetch NDA status");
       }
     }
 
@@ -3197,7 +4801,7 @@ const handler = async (request: Request): Promise<Response> => {
           conversationId: newConversation.id
         };
         
-        return successResponse({
+        return createdResponse({
           nda: approvedNDA,
           message: "NDA approved successfully. Conversation created."
         });
@@ -3229,6 +4833,221 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         return serverErrorResponse("Failed to reject NDA");
+      }
+    }
+
+    // Get incoming NDA requests (for production dashboard)
+    if (url.pathname === "/api/ndas/incoming-requests" && method === "GET") {
+      try {
+        if (!user) {
+          return unauthorizedResponse("Authentication required");
+        }
+
+        // Get incoming NDA requests where the current user is the owner/recipient
+        let incomingRequests = [];
+        try {
+          incomingRequests = await db
+            .select({
+              id: ndaRequests.id,
+              pitchId: ndaRequests.pitchId,
+              requesterId: ndaRequests.requesterId,
+              status: ndaRequests.status,
+              requestMessage: ndaRequests.requestMessage,
+              companyInfo: ndaRequests.companyInfo,
+              requestedAt: ndaRequests.requestedAt,
+              // Include requester info
+              requesterName: users.username,
+              requesterEmail: users.email,
+              requesterCompany: users.companyName,
+              // Include pitch info
+              pitchTitle: pitches.title,
+              pitchGenre: pitches.genre
+            })
+            .from(ndaRequests)
+            .innerJoin(users, eq(ndaRequests.requesterId, users.id))
+            .innerJoin(pitches, eq(ndaRequests.pitchId, pitches.id))
+            .where(eq(ndaRequests.ownerId, user.id))
+            .orderBy(desc(ndaRequests.requestedAt));
+        } catch (dbError) {
+          console.warn("NDA requests table not available or schema mismatch:", dbError);
+          // Return empty array if table doesn't exist yet
+          incomingRequests = [];
+        }
+
+        return successResponse({
+          requests: incomingRequests,
+          count: incomingRequests.length,
+          message: "Incoming NDA requests retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching incoming NDA requests:", error);
+        return serverErrorResponse("Failed to fetch incoming NDA requests");
+      }
+    }
+
+    // Get outgoing NDA requests (for production dashboard)
+    if (url.pathname === "/api/ndas/outgoing-requests" && method === "GET") {
+      try {
+        if (!user) {
+          return unauthorizedResponse("Authentication required");
+        }
+
+        // Get outgoing NDA requests where the current user is the requester
+        let outgoingRequests = [];
+        try {
+          outgoingRequests = await db
+            .select({
+              id: ndaRequests.id,
+              pitchId: ndaRequests.pitchId,
+              ownerId: ndaRequests.ownerId,
+              status: ndaRequests.status,
+              requestMessage: ndaRequests.requestMessage,
+              rejectionReason: ndaRequests.rejectionReason,
+              companyInfo: ndaRequests.companyInfo,
+              requestedAt: ndaRequests.requestedAt,
+              // Include owner info
+              ownerName: users.username,
+              ownerEmail: users.email,
+              ownerCompany: users.companyName,
+              // Include pitch info
+              pitchTitle: pitches.title,
+              pitchGenre: pitches.genre
+            })
+            .from(ndaRequests)
+            .innerJoin(users, eq(ndaRequests.ownerId, users.id))
+            .innerJoin(pitches, eq(ndaRequests.pitchId, pitches.id))
+            .where(eq(ndaRequests.requesterId, user.id))
+            .orderBy(desc(ndaRequests.requestedAt));
+        } catch (dbError) {
+          console.warn("NDA requests table not available or schema mismatch:", dbError);
+          // Return empty array if table doesn't exist yet
+          outgoingRequests = [];
+        }
+
+        return successResponse({
+          requests: outgoingRequests,
+          count: outgoingRequests.length,
+          message: "Outgoing NDA requests retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching outgoing NDA requests:", error);
+        return serverErrorResponse("Failed to fetch outgoing NDA requests");
+      }
+    }
+
+    // Get incoming signed NDAs (for production dashboard)
+    if (url.pathname === "/api/ndas/incoming-signed" && method === "GET") {
+      try {
+        if (!user) {
+          return unauthorizedResponse("Authentication required");
+        }
+
+        // Get signed NDAs where the current user is the creator/owner of the pitch
+        let incomingSignedNDAs = [];
+        try {
+          incomingSignedNDAs = await db
+            .select({
+              id: ndas.id,
+              pitchId: ndas.pitchId,
+              signerId: ndas.signerId,
+              status: ndas.status,
+              signedAt: ndas.signedAt,
+              expiresAt: ndas.expiresAt,
+              documentUrl: ndas.documentUrl,
+              createdAt: ndas.signedAt,
+              // Include signer info
+              signerName: users.username,
+              signerEmail: users.email,
+              signerCompany: users.companyName,
+              // Include pitch info
+              pitchTitle: pitches.title,
+              pitchGenre: pitches.genre
+            })
+            .from(ndas)
+            .innerJoin(users, eq(ndas.signerId, users.id))
+            .innerJoin(pitches, eq(ndas.pitchId, pitches.id))
+            .where(
+              and(
+                eq(ndas.userId, user.id), // Current user is the NDA creator/pitch owner
+                or(
+                  eq(ndas.status, "signed"),
+                  eq(ndas.status, "approved")
+                )
+              )
+            )
+            .orderBy(desc(ndas.signedAt));
+        } catch (dbError) {
+          console.warn("NDAs table not available or schema mismatch:", dbError);
+          // Return empty array if table doesn't exist yet
+          incomingSignedNDAs = [];
+        }
+
+        return successResponse({
+          ndas: incomingSignedNDAs,
+          count: incomingSignedNDAs.length,
+          message: "Incoming signed NDAs retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching incoming signed NDAs:", error);
+        return serverErrorResponse("Failed to fetch incoming signed NDAs");
+      }
+    }
+
+    // Get outgoing signed NDAs (for production dashboard)
+    if (url.pathname === "/api/ndas/outgoing-signed" && method === "GET") {
+      try {
+        if (!user) {
+          return unauthorizedResponse("Authentication required");
+        }
+
+        // Get signed NDAs where the current user is the signer
+        let outgoingSignedNDAs = [];
+        try {
+          outgoingSignedNDAs = await db
+            .select({
+              id: ndas.id,
+              pitchId: ndas.pitchId,
+              userId: ndas.userId,
+              status: ndas.status,
+              signedAt: ndas.signedAt,
+              expiresAt: ndas.expiresAt,
+              documentUrl: ndas.documentUrl,
+              createdAt: ndas.signedAt,
+              // Include creator/owner info
+              creatorName: users.username,
+              creatorEmail: users.email,
+              creatorCompany: users.companyName,
+              // Include pitch info
+              pitchTitle: pitches.title,
+              pitchGenre: pitches.genre
+            })
+            .from(ndas)
+            .innerJoin(users, eq(ndas.userId, users.id))
+            .innerJoin(pitches, eq(ndas.pitchId, pitches.id))
+            .where(
+              and(
+                eq(ndas.signerId, user.id), // Current user is the signer
+                or(
+                  eq(ndas.status, "signed"),
+                  eq(ndas.status, "approved")
+                )
+              )
+            )
+            .orderBy(desc(ndas.signedAt));
+        } catch (dbError) {
+          console.warn("NDAs table not available or schema mismatch:", dbError);
+          // Return empty array if table doesn't exist yet
+          outgoingSignedNDAs = [];
+        }
+
+        return successResponse({
+          ndas: outgoingSignedNDAs,
+          count: outgoingSignedNDAs.length,
+          message: "Outgoing signed NDAs retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching outgoing signed NDAs:", error);
+        return serverErrorResponse("Failed to fetch outgoing signed NDAs");
       }
     }
 
@@ -3289,12 +5108,12 @@ const handler = async (request: Request): Promise<Response> => {
     // Send message (general endpoint)
     if (url.pathname === "/api/messages" && method === "POST") {
       try {
-        const body = await request.json();
-        const { recipientId, subject, content, pitchId } = body;
-
-        if (!content) {
-          return validationErrorResponse("Message content is required");
+        const result = await validateJsonRequest(request, ["content"]);
+        if (!result.success) {
+          return result.error!;
         }
+
+        const { recipientId, subject, content, pitchId } = result.data;
 
         // Mock message creation
         const newMessage = {
@@ -3323,12 +5142,43 @@ const handler = async (request: Request): Promise<Response> => {
           });
         }
 
-        return successResponse({
+        return createdResponse({
           message: newMessage,
           message: "Message sent successfully"
         });
       } catch (error) {
         return serverErrorResponse("Failed to send message");
+      }
+    }
+
+    // Get unread message count
+    if (url.pathname === "/api/messages/unread-count" && method === "GET") {
+      try {
+        // Count unread messages using Drizzle
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+        const user = authResult.user;
+        
+        const unreadCount = await db
+          .select({ count: sql`count(*)::int` })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.receiverId, user.id),
+              eq(messages.isRead, false)
+            )
+          );
+
+        return jsonResponse({
+          success: true,
+          unreadCount: unreadCount[0]?.count || 0
+        });
+
+      } catch (error) {
+        console.error("Message count error:", error);
+        return serverErrorResponse("Failed to get unread count");
       }
     }
 
@@ -3342,7 +5192,7 @@ const handler = async (request: Request): Promise<Response> => {
           .select({
             id: messages.id,
             senderId: messages.senderId,
-            recipientId: messages.recipientId,
+            recipientId: messages.receiverId,
             content: messages.content,
             subject: messages.subject,
             createdAt: messages.createdAt,
@@ -3357,7 +5207,7 @@ const handler = async (request: Request): Promise<Response> => {
           .where(
             or(
               eq(messages.senderId, user.id),
-              eq(messages.recipientId, user.id)
+              eq(messages.receiverId, user.id)
             )
           )
           .orderBy(desc(messages.createdAt))
@@ -3373,7 +5223,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         for (const msg of allMessages) {
           // Determine the other user in the conversation
-          const partnerId = msg.senderId === user.id ? msg.recipientId : msg.senderId;
+          const partnerId = msg.senderId === user.id ? msg.receiverId : msg.senderId;
           
           if (!partnerId) continue; // Skip if no partner ID
           
@@ -3472,7 +5322,7 @@ const handler = async (request: Request): Promise<Response> => {
             eq(ndaRequests.status, "approved"),
             or(
               eq(ndaRequests.requesterId, user.id),
-              eq(ndaRequests.approvedBy, user.id)
+              eq(ndaRequests.ownerId, user.id)
             )
           ));
         
@@ -3481,7 +5331,7 @@ const handler = async (request: Request): Promise<Response> => {
         for (const nda of approvedNDAs) {
           // Add the other party as a contact
           const otherUserId = nda.requesterId === user.id 
-            ? nda.approvedBy 
+            ? nda.ownerId 
             : nda.requesterId;
           
           if (otherUserId && !contactsMap.has(otherUserId)) {
@@ -3512,7 +5362,7 @@ const handler = async (request: Request): Promise<Response> => {
                 userType: otherUser.userType,
                 pitchTitle: pitchTitle,
                 pitchId: nda.pitchId,
-                ndaApprovedAt: nda.approvedAt
+                ndaApprovedAt: nda.respondedAt
               });
             }
           }
@@ -3531,12 +5381,12 @@ const handler = async (request: Request): Promise<Response> => {
     // Send message
     if (url.pathname === "/api/messages/send" && method === "POST") {
       try {
-        const body = await request.json();
-        const { recipientId, content, conversationId } = body;
-
-        if (!content) {
-          return validationErrorResponse("Message content is required");
+        const result = await validateJsonRequest(request, ["content"]);
+        if (!result.success) {
+          return result.error!;
         }
+
+        const { recipientId, content, conversationId } = result.data;
 
         // Create message
         const message = await db.insert(messages).values({
@@ -3561,7 +5411,7 @@ const handler = async (request: Request): Promise<Response> => {
           });
         }
 
-        return successResponse({
+        return createdResponse({
           message: message[0],
           message: "Message sent successfully"
         });
@@ -3690,7 +5540,7 @@ const handler = async (request: Request): Promise<Response> => {
         const body = await request.json();
         const { amount, currency = "usd" } = body;
 
-        return successResponse({
+        return createdResponse({
           clientSecret: `pi_${Date.now()}_secret_${Math.random().toString(36).substr(2, 9)}`,
           amount,
           currency,
@@ -3755,7 +5605,7 @@ const handler = async (request: Request): Promise<Response> => {
         const body = await request.json();
         const { planId } = body;
 
-        return successResponse({
+        return createdResponse({
           subscription: {
             id: `sub_${Date.now()}`,
             planId,
@@ -3773,6 +5623,81 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/payments/cancel-subscription" && method === "POST") {
       return successResponse({
         message: "Subscription cancelled successfully"
+      });
+    }
+
+    // Get payment history
+    if (url.pathname === "/api/payments/history" && method === "GET") {
+      const limit = parseInt(url.searchParams.get('limit') || '20');
+      
+      // Mock payment history data
+      const payments = [
+        {
+          id: 1,
+          amount: 29.99,
+          currency: 'USD',
+          description: 'Pro Plan Subscription',
+          status: 'completed',
+          createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+          paymentMethod: 'card'
+        },
+        {
+          id: 2,
+          amount: 19.99,
+          currency: 'USD', 
+          description: 'Credits Purchase',
+          status: 'completed',
+          createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+          paymentMethod: 'card'
+        }
+      ].slice(0, limit);
+
+      return successResponse({
+        payments,
+        total: payments.length,
+        hasMore: false
+      });
+    }
+
+    // Get payment methods
+    if (url.pathname === "/api/payments/payment-methods" && method === "GET") {
+      // Mock payment methods data
+      const paymentMethods = [
+        {
+          id: 'pm_1234567890',
+          type: 'card',
+          brand: 'visa',
+          last4: '4242',
+          expiryMonth: 12,
+          expiryYear: 2025,
+          isDefault: true,
+          createdAt: new Date().toISOString()
+        }
+      ];
+
+      return successResponse({
+        paymentMethods,
+        total: paymentMethods.length
+      });
+    }
+
+    // Add payment method
+    if (url.pathname === "/api/payments/payment-methods" && method === "POST") {
+      const body = await request.json();
+      const { type, details } = body;
+      
+      // Mock adding payment method
+      const paymentMethod = {
+        id: `pm_${Date.now()}`,
+        type: type || 'card',
+        ...details,
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      };
+
+      return createdResponse({
+        paymentMethod,
+        message: 'Payment method added successfully'
       });
     }
 
@@ -3852,6 +5777,199 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         return serverErrorResponse("Failed to fetch analytics events");
+      }
+    }
+
+    // Get real-time analytics data
+    if (url.pathname === "/api/analytics/realtime" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+        const timeRange = url.searchParams.get('timeRange') || '24h';
+        
+        // Calculate time range for real-time data
+        const now = new Date();
+        let startTime = new Date();
+        
+        switch (timeRange) {
+          case '1h':
+            startTime.setHours(now.getHours() - 1);
+            break;
+          case '24h':
+            startTime.setDate(now.getDate() - 1);
+            break;
+          case '7d':
+            startTime.setDate(now.getDate() - 7);
+            break;
+          default:
+            startTime.setDate(now.getDate() - 1);
+        }
+        
+        // Get real-time analytics from the database
+        try {
+          // Get recent analytics events for the user's pitches
+          const userPitches = await db.select({ id: pitches.id })
+            .from(pitches)
+            .where(eq(pitches.userId, user.id));
+          
+          const pitchIds = userPitches.map(p => p.id);
+          
+          let realtimeData = {
+            totalViews: 0,
+            totalLikes: 0,
+            totalNDARequests: 0,
+            activeViewers: 0,
+            recentActivity: [],
+            viewsByTime: [],
+            topPitches: [],
+            userActivity: {
+              newFollowers: 0,
+              newComments: 0,
+              newShares: 0
+            }
+          };
+          
+          if (pitchIds.length > 0) {
+            // Get recent analytics events for user's pitches
+            const recentEvents = await db.select()
+              .from(analyticsEvents)
+              .where(
+                and(
+                  inArray(analyticsEvents.pitchId, pitchIds),
+                  gte(analyticsEvents.createdAt, startTime)
+                )
+              )
+              .orderBy(desc(analyticsEvents.createdAt))
+              .limit(100);
+            
+            // Process events to generate real-time metrics
+            realtimeData.totalViews = recentEvents.filter(e => e.eventType === 'pitch_view').length;
+            realtimeData.totalLikes = recentEvents.filter(e => e.eventType === 'pitch_like').length;
+            realtimeData.totalNDARequests = recentEvents.filter(e => e.eventType === 'nda_request').length;
+            realtimeData.activeViewers = new Set(
+              recentEvents
+                .filter(e => e.eventType === 'pitch_view' && e.timestamp >= new Date(now.getTime() - 5 * 60 * 1000))
+                .map(e => e.userId)
+            ).size;
+            
+            // Generate recent activity from events
+            realtimeData.recentActivity = recentEvents.slice(0, 20).map(event => ({
+              id: event.id,
+              type: event.eventType,
+              timestamp: event.timestamp,
+              pitchId: event.pitchId,
+              userId: event.userId,
+              data: event.eventData
+            }));
+            
+            // Generate views by time (hourly buckets for last 24h)
+            const hoursBack = timeRange === '1h' ? 1 : timeRange === '7d' ? 168 : 24;
+            const bucketSize = timeRange === '1h' ? 5 * 60 * 1000 : 60 * 60 * 1000; // 5 min or 1 hour buckets
+            
+            for (let i = 0; i < hoursBack; i++) {
+              const bucketStart = new Date(now.getTime() - (i + 1) * bucketSize);
+              const bucketEnd = new Date(now.getTime() - i * bucketSize);
+              
+              const bucketViews = recentEvents.filter(e => 
+                e.eventType === 'pitch_view' && 
+                e.timestamp >= bucketStart && 
+                e.timestamp < bucketEnd
+              ).length;
+              
+              realtimeData.viewsByTime.unshift({
+                time: bucketStart.toISOString(),
+                views: bucketViews
+              });
+            }
+            
+            // Get top performing pitches from recent data
+            const pitchViewCounts = {};
+            recentEvents.filter(e => e.eventType === 'pitch_view').forEach(event => {
+              pitchViewCounts[event.pitchId] = (pitchViewCounts[event.pitchId] || 0) + 1;
+            });
+            
+            const topPitchIds = Object.entries(pitchViewCounts)
+              .sort(([,a], [,b]) => b - a)
+              .slice(0, 5)
+              .map(([pitchId]) => parseInt(pitchId));
+            
+            if (topPitchIds.length > 0) {
+              const topPitchesData = await db.select({
+                id: pitches.id,
+                title: pitches.title,
+                viewCount: pitches.viewCount
+              })
+              .from(pitches)
+              .where(inArray(pitches.id, topPitchIds));
+              
+              realtimeData.topPitches = topPitchesData.map(pitch => ({
+                ...pitch,
+                recentViews: pitchViewCounts[pitch.id] || 0
+              }));
+            }
+          }
+          
+          return successResponse({
+            realtime: realtimeData,
+            timeRange,
+            timestamp: now.toISOString(),
+            message: "Real-time analytics retrieved successfully"
+          });
+          
+        } catch (dbError) {
+          console.error("Database error in realtime analytics:", dbError);
+          
+          // Fallback to mock data if database query fails
+          const mockRealtimeData = {
+            totalViews: Math.floor(Math.random() * 50) + 10,
+            totalLikes: Math.floor(Math.random() * 15) + 2,
+            totalNDARequests: Math.floor(Math.random() * 5),
+            activeViewers: Math.floor(Math.random() * 8) + 1,
+            recentActivity: [
+              {
+                id: 1,
+                type: 'pitch_view',
+                timestamp: new Date(now.getTime() - 2 * 60 * 1000).toISOString(),
+                pitchId: 1,
+                userId: 2
+              },
+              {
+                id: 2,
+                type: 'pitch_like',
+                timestamp: new Date(now.getTime() - 5 * 60 * 1000).toISOString(),
+                pitchId: 1,
+                userId: 3
+              }
+            ],
+            viewsByTime: Array.from({ length: 24 }, (_, i) => ({
+              time: new Date(now.getTime() - (24 - i) * 60 * 60 * 1000).toISOString(),
+              views: Math.floor(Math.random() * 10)
+            })),
+            topPitches: [
+              { id: 1, title: "Sample Pitch", viewCount: 45, recentViews: 8 }
+            ],
+            userActivity: {
+              newFollowers: Math.floor(Math.random() * 3),
+              newComments: Math.floor(Math.random() * 8),
+              newShares: Math.floor(Math.random() * 2)
+            }
+          };
+          
+          return successResponse({
+            realtime: mockRealtimeData,
+            timeRange,
+            timestamp: now.toISOString(),
+            message: "Real-time analytics retrieved successfully (mock data)"
+          });
+        }
+        
+      } catch (error) {
+        console.error("Error fetching real-time analytics:", error);
+        return serverErrorResponse("Failed to fetch real-time analytics");
       }
     }
 
@@ -4042,9 +6160,14 @@ const handler = async (request: Request): Promise<Response> => {
         // Count NDAs - safely handle if columns don't exist
         let totalNDAs = 0;
         try {
-          const ndaCount = await db.select({ count: sql<number>`count(*)` })
+          const ndaCount = await db.select({ count: count() })
             .from(ndas)
-            .where(sql`requester_id = ${user.id} OR recipient_id = ${user.id}`);
+            .where(
+              or(
+                eq(ndas.userId, user.id),
+                eq(ndas.signerId, user.id)
+              )
+            );
           totalNDAs = ndaCount[0]?.count || 0;
         } catch (e) {
           // NDAs table might have different column names, default to 0
@@ -4178,7 +6301,35 @@ const handler = async (request: Request): Promise<Response> => {
             pitchId: null, // Explicitly set to null for user follows
             followedAt: new Date()
           });
-          return successResponse({
+          
+          // Send real-time notification to the creator being followed
+          try {
+            const [followerUser] = await db.select({
+              username: users.username,
+              companyName: users.companyName,
+              userType: users.userType
+            }).from(users).where(eq(users.id, user.id)).limit(1);
+            
+            const followerName = followerUser?.companyName || followerUser?.username || 'Someone';
+            
+            await webSocketIntegration.sendNotificationToUser(creatorId, {
+              type: "new_follower",
+              title: "New Follower",
+              message: `${followerName} started following you`,
+              relatedId: user.id,
+              relatedType: "user"
+            });
+            
+            // Send dashboard update to notify about follower count change
+            await webSocketIntegration.sendDashboardUpdate(creatorId, {
+              type: "follower_count_update",
+              timestamp: Date.now()
+            });
+          } catch (wsError) {
+            console.warn("WebSocket follow notification failed:", wsError);
+          }
+          
+          return createdResponse({
             message: 'User followed successfully'
           });
         } else if (pitchId !== undefined && pitchId !== null) {
@@ -4189,7 +6340,37 @@ const handler = async (request: Request): Promise<Response> => {
             creatorId: null, // Explicitly set to null for pitch follows
             followedAt: new Date()
           });
-          return successResponse({
+          
+          // Send real-time notification for pitch follow
+          try {
+            // Get pitch details
+            const [pitch] = await db.select({
+              title: pitches.title,
+              creator: pitches.creator
+            }).from(pitches).where(eq(pitches.id, pitchId)).limit(1);
+            
+            if (pitch && pitch.creator) {
+              const [followerUser] = await db.select({
+                username: users.username,
+                companyName: users.companyName,
+                userType: users.userType
+              }).from(users).where(eq(users.id, user.id)).limit(1);
+              
+              const followerName = followerUser?.companyName || followerUser?.username || 'Someone';
+              
+              await webSocketIntegration.sendNotificationToUser(pitch.creator, {
+                type: "pitch_followed",
+                title: "Pitch Followed",
+                message: `${followerName} started following your pitch "${pitch.title}"`,
+                relatedId: pitchId,
+                relatedType: "pitch"
+              });
+            }
+          } catch (wsError) {
+            console.warn("WebSocket pitch follow notification failed:", wsError);
+          }
+          
+          return createdResponse({
             message: 'Pitch followed successfully'
           });
         } else {
@@ -4212,7 +6393,7 @@ const handler = async (request: Request): Promise<Response> => {
               followedAt: new Date()
             });
           }
-          return successResponse({
+          return createdResponse({
             message: `${type === 'user' ? 'User' : 'Pitch'} followed successfully`
           });
         }
@@ -4371,7 +6552,7 @@ const handler = async (request: Request): Promise<Response> => {
               let pitchCount = 0;
               try {
                 const pitchCountResult = await db
-                  .select({ count: sql<number>`COUNT(*)` })
+                  .select({ count: sql`COUNT(*)` })
                   .from(pitches)
                   .where(eq(pitches.userId, followedUser.id));
                 pitchCount = Number(pitchCountResult[0]?.count || 0);
@@ -4486,7 +6667,7 @@ const handler = async (request: Request): Promise<Response> => {
         if (tab === "activity") {
           // Get the list of users that current user follows
           const followedUsers = await db
-            .select({ userId: follows.followingId })
+            .select({ userId: follows.creatorId })
             .from(follows)
             .where(eq(follows.followerId, user.id));
 
@@ -4531,8 +6712,8 @@ const handler = async (request: Request): Promise<Response> => {
               .select()
               .from(follows)
               .leftJoin(users, eq(follows.followerId, users.id))
-              .where(eq(follows.followingId, user.id))
-              .orderBy(desc(follows.createdAt))
+              .where(eq(follows.creatorId, user.id))
+              .orderBy(desc(follows.followedAt))
               .limit(10);
 
             recentFollows.forEach(row => {
@@ -4583,12 +6764,12 @@ const handler = async (request: Request): Promise<Response> => {
           email: users.email,
           companyName: users.companyName,
           userType: users.userType,
-          followedAt: follows.createdAt
+          followedAt: follows.followedAt
         })
         .from(follows)
-        .innerJoin(users, eq(follows.followingId, users.id))
+        .innerJoin(users, eq(follows.creatorId, users.id))
         .where(eq(follows.followerId, user.id))
-        .orderBy(desc(follows.createdAt));
+        .orderBy(desc(follows.followedAt));
 
         return successResponse({ following });
       } catch (error) {
@@ -4611,7 +6792,7 @@ const handler = async (request: Request): Promise<Response> => {
           createdAt: new Date()
         });
 
-        return successResponse({
+        return createdResponse({
           message: "Added to watchlist successfully"
         });
       } catch (error) {
@@ -4689,6 +6870,162 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         return serverErrorResponse("Failed to track investment");
+      }
+    }
+
+    // POST /api/investments/{id}/update - Update investment
+    if (url.pathname.match(/^\/api\/investments\/\d+\/update$/) && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const investmentId = parseInt(url.pathname.split('/')[3]);
+        const body = await request.json();
+        
+        // Verify ownership
+        const investment = await db
+          .select()
+          .from(investments)
+          .where(and(
+            eq(investments.id, investmentId),
+            eq(investments.investorId, userId)
+          ))
+          .limit(1);
+        
+        if (!investment[0]) {
+          return errorResponse("Investment not found", 404);
+        }
+        
+        // Update investment
+        const updated = await db
+          .update(investments)
+          .set({
+            ...body,
+            updatedAt: new Date()
+          })
+          .where(eq(investments.id, investmentId))
+          .returning();
+        
+        return successResponse({ investment: updated[0] });
+      } catch (error) {
+        console.error("Error updating investment:", error);
+        return errorResponse("Failed to update investment");
+      }
+    }
+
+    // DELETE /api/investments/{id} - Delete investment
+    if (url.pathname.match(/^\/api\/investments\/\d+$/) && method === "DELETE") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const investmentId = parseInt(url.pathname.split('/')[3]);
+        
+        // Verify ownership
+        const investment = await db
+          .select()
+          .from(investments)
+          .where(and(
+            eq(investments.id, investmentId),
+            eq(investments.investorId, userId)
+          ))
+          .limit(1);
+        
+        if (!investment[0]) {
+          return errorResponse("Investment not found", 404);
+        }
+        
+        // Delete investment
+        await db
+          .delete(investments)
+          .where(eq(investments.id, investmentId));
+        
+        return successResponse({ message: "Investment deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting investment:", error);
+        return errorResponse("Failed to delete investment");
+      }
+    }
+
+    // GET /api/investments/{id}/details - Get investment details
+    if (url.pathname.match(/^\/api\/investments\/\d+\/details$/) && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const investmentId = parseInt(url.pathname.split('/')[3]);
+        
+        // Get detailed investment information
+        const investmentData = await db
+          .select({
+            id: investments.id,
+            amount: investments.amount,
+            investorId: investments.investorId,
+            pitchId: investments.pitchId,
+            status: investments.status,
+            terms: investments.terms,
+            createdAt: investments.createdAt,
+            updatedAt: investments.updatedAt,
+            pitchTitle: pitches.title,
+            pitchLogline: pitches.logline,
+            pitchGenre: pitches.genre,
+            pitchStatus: pitches.status,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            creatorEmail: users.email,
+            creatorId: users.id
+          })
+          .from(investments)
+          .innerJoin(pitches, eq(investments.pitchId, pitches.id))
+          .innerJoin(users, eq(pitches.userId, users.id))
+          .where(and(
+            eq(investments.id, investmentId),
+            eq(investments.investorId, userId)
+          ))
+          .limit(1);
+        
+        if (!investmentData[0]) {
+          return errorResponse("Investment not found", 404);
+        }
+        
+        // Get related documents
+        const documents = await db
+          .select()
+          .from(investmentDocuments)
+          .where(eq(investmentDocuments.investmentId, investmentId))
+          .orderBy(desc(investmentDocuments.uploadedAt));
+        
+        // Get timeline
+        const timeline = await db
+          .select()
+          .from(investmentTimeline)
+          .where(eq(investmentTimeline.investmentId, investmentId))
+          .orderBy(desc(investmentTimeline.eventDate));
+        
+        const currentValue = investmentData[0].amount;
+        const roi = ((currentValue - investmentData[0].amount) / investmentData[0].amount) * 100;
+        
+        const details = {
+          ...investmentData[0],
+          roi,
+          documents,
+          timeline,
+          updates: []
+        };
+        
+        return successResponse(details);
+      } catch (error) {
+        console.error("Error fetching investment details:", error);
+        return errorResponse("Failed to fetch details");
       }
     }
 
@@ -4770,7 +7107,7 @@ const handler = async (request: Request): Promise<Response> => {
         const body = await request.json();
         const { name, query, filters } = body;
 
-        return successResponse({
+        return createdResponse({
           savedSearch: {
             id: Date.now(),
             name,
@@ -5258,7 +7595,7 @@ const handler = async (request: Request): Promise<Response> => {
           contactEmail: user.email
         };
         
-        return successResponse({
+        return createdResponse({
           offer,
           message: "Offer submitted successfully"
         });
@@ -5314,7 +7651,7 @@ const handler = async (request: Request): Promise<Response> => {
         try {
           const body = await request.json();
           const pitch = await PitchService.createPitch(user.id, body);
-          return successResponse({
+          return createdResponse({
             pitch,
             message: "Production pitch created successfully"
           });
@@ -5323,6 +7660,278 @@ const handler = async (request: Request): Promise<Response> => {
         }
       }
 
+    }
+
+    // GET /api/production/analytics - Production analytics
+    if (url.pathname === "/api/production/analytics" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+        if (!user[0] || user[0].userType !== 'production') {
+          return errorResponse("Not a production company", 403);
+        }
+        
+        const period = url.searchParams.get('period') || '30d';
+        const startDate = getStartDateFromPeriod(period);
+        
+        // Get analytics
+        const submissionsResult = await db
+          .select({ count: sql`count(*)::integer` })
+          .from(ndas)
+          .where(and(
+            eq(ndas.productionId, userId),
+            gte(ndas.signedAt, startDate)
+          ));
+        
+        const activeProjectsResult = await db
+          .select({ count: sql`count(*)::integer` })
+          .from(pitches)
+          .where(and(
+            eq(pitches.productionCompanyId, userId),
+            eq(pitches.status, 'in_production')
+          ));
+        
+        const viewsTotalResult = await db
+          .select({ sum: sql`COALESCE(SUM(view_count), 0)::integer` })
+          .from(pitches)
+          .where(eq(pitches.productionCompanyId, userId));
+        
+        const analytics = {
+          submissions: submissionsResult[0]?.count || 0,
+          activeProjects: activeProjectsResult[0]?.count || 0,
+          viewsTotal: viewsTotalResult[0]?.sum || 0,
+          engagementRate: 0.0,
+          chartData: {
+            labels: getLast30Days(),
+            submissions: [],
+            views: [],
+            engagements: []
+          }
+        };
+        
+        return successResponse(analytics);
+      } catch (error) {
+        console.error("Error fetching production analytics:", error);
+        return errorResponse("Failed to fetch analytics");
+      }
+    }
+
+    // POST /api/production/pitches/{id}/review - Review pitch
+    if (url.pathname.match(/^\/api\/production\/pitches\/\d+\/review$/) && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const pitchId = parseInt(url.pathname.split('/')[4]);
+        const body = await request.json();
+        const { status, feedback, rating } = body;
+        
+        // Verify access
+        const hasAccess = await db
+          .select()
+          .from(ndas)
+          .where(and(
+            eq(ndas.pitchId, pitchId),
+            eq(ndas.productionId, userId),
+            eq(ndas.status, 'signed')
+          ))
+          .limit(1);
+        
+        if (!hasAccess[0]) {
+          return errorResponse("No access to this pitch", 403);
+        }
+        
+        // Get pitch creator
+        const pitch = await db
+          .select({ creatorId: pitches.creatorId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch[0]) {
+          return errorResponse("Pitch not found", 404);
+        }
+        
+        // Create or update review
+        const existingReview = await db
+          .select()
+          .from(reviews)
+          .where(and(
+            eq(reviews.pitchId, pitchId),
+            eq(reviews.reviewerId, userId)
+          ))
+          .limit(1);
+        
+        let review;
+        if (existingReview[0]) {
+          review = await db
+            .update(reviews)
+            .set({
+              status,
+              feedback,
+              rating,
+              updatedAt: new Date()
+            })
+            .where(and(
+              eq(reviews.pitchId, pitchId),
+              eq(reviews.reviewerId, userId)
+            ))
+            .returning();
+        } else {
+          review = await db
+            .insert(reviews)
+            .values({
+              pitchId,
+              reviewerId: userId,
+              status,
+              feedback,
+              rating
+            })
+            .returning();
+        }
+        
+        return successResponse({ review: review[0] });
+      } catch (error) {
+        console.error("Error reviewing pitch:", error);
+        return errorResponse("Failed to submit review");
+      }
+    }
+
+    // GET /api/production/calendar - Get calendar events
+    if (url.pathname === "/api/production/calendar" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const startDate = url.searchParams.get('start') || new Date().toISOString();
+        const endDate = url.searchParams.get('end') || 
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        
+        // Get calendar events
+        const events = await db
+          .select({
+            id: calendarEvents.id,
+            title: calendarEvents.title,
+            description: calendarEvents.description,
+            startDate: calendarEvents.startDate,
+            endDate: calendarEvents.endDate,
+            type: calendarEvents.type,
+            relatedPitchId: calendarEvents.relatedPitchId,
+            location: calendarEvents.location,
+            attendees: calendarEvents.attendees
+          })
+          .from(calendarEvents)
+          .where(and(
+            eq(calendarEvents.userId, userId),
+            gte(calendarEvents.startDate, new Date(startDate)),
+            lte(calendarEvents.startDate, new Date(endDate))
+          ))
+          .orderBy(asc(calendarEvents.startDate));
+        
+        return successResponse({ events });
+      } catch (error) {
+        console.error("Error fetching calendar events:", error);
+        return errorResponse("Failed to fetch calendar");
+      }
+    }
+
+    // POST /api/production/calendar - Create calendar event
+    if (url.pathname === "/api/production/calendar" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        const body = await request.json();
+        const { title, description, startDate, endDate, type, relatedPitchId, location, attendees } = body;
+        
+        const event = await db
+          .insert(calendarEvents)
+          .values({
+            userId,
+            title,
+            description,
+            startDate: new Date(startDate),
+            endDate: endDate ? new Date(endDate) : null,
+            type,
+            relatedPitchId,
+            location,
+            attendees: attendees || []
+          })
+          .returning();
+        
+        return successResponse({ event: event[0] });
+      } catch (error) {
+        console.error("Error creating calendar event:", error);
+        return errorResponse("Failed to create event");
+      }
+    }
+
+    // GET /api/production/submissions/stats - Submission statistics
+    if (url.pathname === "/api/production/submissions/stats" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const userId = authResult.user.id;
+        
+        // Get all stats
+        const [total, pending, approved, rejected] = await Promise.all([
+          db.select({ count: sql`count(*)::integer` })
+            .from(ndas)
+            .where(eq(ndas.productionId, userId)),
+          
+          db.select({ count: sql`count(*)::integer` })
+            .from(ndas)
+            .where(and(
+              eq(ndas.productionId, userId),
+              eq(ndas.status, 'pending')
+            )),
+          
+          db.select({ count: sql`count(*)::integer` })
+            .from(ndas)
+            .where(and(
+              eq(ndas.productionId, userId),
+              eq(ndas.status, 'signed')
+            )),
+          
+          db.select({ count: sql`count(*)::integer` })
+            .from(ndas)
+            .where(and(
+              eq(ndas.productionId, userId),
+              eq(ndas.status, 'rejected')
+            ))
+        ]);
+        
+        const stats = {
+          total: total[0]?.count || 0,
+          pending: pending[0]?.count || 0,
+          approved: approved[0]?.count || 0,
+          rejected: rejected[0]?.count || 0,
+          byGenre: {},
+          byMonth: {},
+          averageResponseTime: 0
+        };
+        
+        return successResponse(stats);
+      } catch (error) {
+        console.error("Error fetching submission stats:", error);
+        return errorResponse("Failed to fetch stats");
+      }
     }
 
     // === SECURITY ENDPOINTS ===
@@ -5433,13 +8042,740 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // === DASHBOARD ENDPOINTS ===
+
+
+    // GET /api/dashboard/stats - Dashboard statistics
+    if (url.pathname === "/api/dashboard/stats" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        // Get total pitches for user
+        const totalPitches = await db
+          .select({ count: count() })
+          .from(pitches)
+          .where(eq(pitches.userId, user.id));
+
+        // Get total views for user's pitches
+        const totalViews = await db
+          .select({ 
+            totalViews: sql`COALESCE(SUM(${pitches.viewCount}), 0)`.as('totalViews')
+          })
+          .from(pitches)
+          .where(eq(pitches.userId, user.id));
+
+        // Get total likes for user's pitches  
+        const totalLikes = await db
+          .select({ 
+            totalLikes: sql`COALESCE(SUM(${pitches.likeCount}), 0)`.as('totalLikes')
+          })
+          .from(pitches)
+          .where(eq(pitches.userId, user.id));
+
+        // Get total saved pitches in watchlist
+        const totalSaved = await db
+          .select({ count: count() })
+          .from(watchlist)
+          .where(eq(watchlist.userId, user.id));
+
+        // Get recent activity count (last 30 days) - simplified to use pitches created
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const recentActivity = await db
+          .select({ count: count() })
+          .from(pitches)
+          .where(
+            and(
+              eq(pitches.userId, user.id),
+              gte(pitches.createdAt, thirtyDaysAgo)
+            )
+          );
+
+        const stats = {
+          totalPitches: totalPitches[0]?.count || 0,
+          totalViews: totalViews[0]?.totalViews || 0,
+          totalLikes: totalLikes[0]?.totalLikes || 0,
+          totalSaved: totalSaved[0]?.count || 0,
+          recentActivity: recentActivity[0]?.count || 0,
+          last30Days: {
+            newPitches: recentActivity[0]?.count || 0,
+          }
+        };
+
+        return successResponse({
+          stats,
+          message: "Dashboard statistics retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+        return serverErrorResponse("Failed to fetch dashboard statistics");
+      }
+    }
+
+    // GET /api/dashboard/recent-pitches - Recent pitches
+    if (url.pathname === "/api/dashboard/recent-pitches" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const limit = parseInt(url.searchParams.get("limit") || "5");
+
+        const recentPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            status: pitches.status,
+            createdAt: pitches.createdAt,
+            updatedAt: pitches.updatedAt
+          })
+          .from(pitches)
+          .where(eq(pitches.userId, user.id))
+          .orderBy(desc(pitches.updatedAt))
+          .limit(limit);
+
+        return successResponse({
+          pitches: recentPitches,
+          message: "Recent pitches retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching recent pitches:", error);
+        return serverErrorResponse("Failed to fetch recent pitches");
+      }
+    }
+
+    // GET /api/dashboard/trending - Trending pitches
+    if (url.pathname === "/api/dashboard/trending" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+
+        // Get trending pitches based on view count and recent activity
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        const trendingPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            userId: pitches.userId,
+            createdAt: pitches.createdAt,
+            // Calculate trending score
+            trendingScore: sql`(${pitches.viewCount} * 2 + ${pitches.likeCount} * 5)`.as('trendingScore')
+          })
+          .from(pitches)
+          .where(
+            and(
+              eq(pitches.visibility, "public"),
+              eq(pitches.status, "active"),
+              gte(pitches.createdAt, sevenDaysAgo)
+            )
+          )
+          .orderBy(desc(sql`(${pitches.viewCount} * 2 + ${pitches.likeCount} * 5)`))
+          .limit(limit);
+
+        // Get creator usernames for the trending pitches
+        const pitchesWithCreators = await Promise.all(
+          trendingPitches.map(async (pitch) => {
+            const [creator] = await db
+              .select({ username: users.username, userType: users.userType })
+              .from(users)
+              .where(eq(users.id, pitch.userId))
+              .limit(1);
+
+            return {
+              ...pitch,
+              creatorName: creator?.username || "Unknown",
+              creatorType: creator?.userType || "creator"
+            };
+          })
+        );
+
+        return successResponse({
+          pitches: pitchesWithCreators,
+          message: "Trending pitches retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching trending pitches:", error);
+        return serverErrorResponse("Failed to fetch trending pitches");
+      }
+    }
+
+    // GET /api/saved-pitches - User's saved pitches
+    if (url.pathname === "/api/saved-pitches" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const page = parseInt(url.searchParams.get("page") || "1");
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+        const offset = (page - 1) * limit;
+
+        // Get saved pitches from watchlist
+        const savedPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            userId: pitches.userId,
+            createdAt: pitches.createdAt,
+            savedAt: watchlist.createdAt
+          })
+          .from(watchlist)
+          .innerJoin(pitches, eq(watchlist.pitchId, pitches.id))
+          .where(eq(watchlist.userId, user.id))
+          .orderBy(desc(watchlist.createdAt))
+          .limit(limit)
+          .offset(offset);
+
+        // Get creator usernames for the saved pitches
+        const pitchesWithCreators = await Promise.all(
+          savedPitches.map(async (pitch) => {
+            const [creator] = await db
+              .select({ username: users.username, userType: users.userType })
+              .from(users)
+              .where(eq(users.id, pitch.userId))
+              .limit(1);
+
+            return {
+              ...pitch,
+              creatorName: creator?.username || "Unknown",
+              creatorType: creator?.userType || "creator"
+            };
+          })
+        );
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(watchlist)
+          .where(eq(watchlist.userId, user.id));
+
+        return successResponse({
+          savedPitches: pitchesWithCreators,
+          pagination: {
+            page,
+            limit,
+            total: totalCount[0]?.count || 0,
+            totalPages: Math.ceil((totalCount[0]?.count || 0) / limit)
+          },
+          message: "Saved pitches retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching saved pitches:", error);
+        return serverErrorResponse("Failed to fetch saved pitches");
+      }
+    }
+
+    // GET /api/investment/recommendations - Investment recommendations
+    if (url.pathname === "/api/investment/recommendations" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+
+        // Get recommendations based on user's investment history and preferences
+        // For now, show trending pitches that user hasn't invested in yet
+        const recommendations = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            budgetBracket: pitches.budgetBracket,
+            estimatedBudget: pitches.estimatedBudget,
+            viewCount: pitches.viewCount,
+            likeCount: pitches.likeCount,
+            userId: pitches.userId,
+            createdAt: pitches.createdAt,
+            recommendationScore: sql`(${pitches.viewCount} * 1.5 + ${pitches.likeCount} * 3)`.as('recommendationScore')
+          })
+          .from(pitches)
+          .where(
+            and(
+              eq(pitches.visibility, "public"),
+              eq(pitches.status, "active"),
+              // Don't recommend user's own pitches
+              sql`${pitches.userId} != ${user.id}`
+            )
+          )
+          .orderBy(desc(sql`(${pitches.viewCount} * 1.5 + ${pitches.likeCount} * 3)`))
+          .limit(limit);
+
+        // Get creator usernames for the recommendations
+        const recommendationsWithCreators = await Promise.all(
+          recommendations.map(async (pitch) => {
+            const [creator] = await db
+              .select({ 
+                username: users.username, 
+                userType: users.userType,
+                companyName: users.companyName 
+              })
+              .from(users)
+              .where(eq(users.id, pitch.userId))
+              .limit(1);
+
+            return {
+              ...pitch,
+              creatorName: creator?.username || "Unknown",
+              creatorType: creator?.userType || "creator",
+              creatorCompany: creator?.companyName,
+              recommendationReason: "High engagement and trending"
+            };
+          })
+        );
+
+        return successResponse({
+          recommendations: recommendationsWithCreators,
+          message: "Investment recommendations retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching investment recommendations:", error);
+        return serverErrorResponse("Failed to fetch investment recommendations");
+      }
+    }
+
+    // GET /api/follows/followers - Get user's followers
+    if (url.pathname === "/api/follows/followers" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const page = parseInt(url.searchParams.get("page") || "1");
+        const limit = parseInt(url.searchParams.get("limit") || "20");
+        const offset = (page - 1) * limit;
+
+        // Get followers (people who follow this user)
+        const followers = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            userType: users.userType,
+            companyName: users.companyName,
+            profileImageUrl: users.profileImageUrl,
+            followedAt: follows.followedAt
+          })
+          .from(follows)
+          .innerJoin(users, eq(follows.followerId, users.id))
+          .where(eq(follows.creatorId, user.id))
+          .orderBy(desc(follows.followedAt))
+          .limit(limit)
+          .offset(offset);
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(follows)
+          .where(eq(follows.creatorId, user.id));
+
+        return successResponse({
+          data: followers,
+          pagination: {
+            page,
+            limit,
+            total: totalCount[0]?.count || 0,
+            totalPages: Math.ceil((totalCount[0]?.count || 0) / limit)
+          },
+          message: "Followers retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching followers:", error);
+        return serverErrorResponse("Failed to fetch followers");
+      }
+    }
+
+    // GET /api/follows/following - Get who user is following
+    if (url.pathname === "/api/follows/following" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const page = parseInt(url.searchParams.get("page") || "1");
+        const limit = parseInt(url.searchParams.get("limit") || "20");
+        const offset = (page - 1) * limit;
+
+        // Get following (people this user follows)
+        const following = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            userType: users.userType,
+            companyName: users.companyName,
+            profileImageUrl: users.profileImageUrl,
+            followedAt: follows.followedAt
+          })
+          .from(follows)
+          .innerJoin(users, eq(follows.creatorId, users.id))
+          .where(eq(follows.followerId, user.id))
+          .orderBy(desc(follows.followedAt))
+          .limit(limit)
+          .offset(offset);
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(follows)
+          .where(eq(follows.followerId, user.id));
+
+        return successResponse({
+          data: following,
+          pagination: {
+            page,
+            limit,
+            total: totalCount[0]?.count || 0,
+            totalPages: Math.ceil((totalCount[0]?.count || 0) / limit)
+          },
+          message: "Following retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching following:", error);
+        return serverErrorResponse("Failed to fetch following");
+      }
+    }
+
+    // === AUTH ENDPOINTS ===
+    
+    // POST /api/auth/logout - Logout user
+    if (url.pathname === "/api/auth/logout" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+
+        // For now, just return success - JWT tokens are stateless
+        // In production, you might want to maintain a blacklist of tokens
+        return successResponse({ 
+          message: "Logged out successfully",
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Logout error:", error);
+        return serverErrorResponse("Logout failed");
+      }
+    }
+
+    // GET /api/auth/profile - Get user profile
+    if (url.pathname === "/api/auth/profile" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+
+        const user = authResult.user;
+        
+        // Return user profile without sensitive data
+        const profile = {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          userType: user.userType,
+          company: user.company,
+          createdAt: user.createdAt,
+          lastLogin: user.lastLogin
+        };
+
+        return successResponse(profile);
+      } catch (error) {
+        console.error("Get profile error:", error);
+        return serverErrorResponse("Failed to get profile");
+      }
+    }
+
+    // GET /api/search/pitches - Search pitches with query parameters
+    if (url.pathname === "/api/search/pitches" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+
+        const query = url.searchParams.get("q") || "";
+        const genre = url.searchParams.get("genre");
+        const budgetRange = url.searchParams.get("budgetRange");
+        const stage = url.searchParams.get("stage");
+        const page = parseInt(url.searchParams.get("page") || "1");
+        const limit = parseInt(url.searchParams.get("limit") || "20");
+        const offset = (page - 1) * limit;
+
+        console.log(`Searching pitches with query: "${query}", genre: ${genre}, budgetRange: ${budgetRange}, stage: ${stage}`);
+
+        // Build search conditions
+        const conditions = [];
+        
+        if (query) {
+          conditions.push(
+            sql`(
+              LOWER(title) LIKE LOWER(${'%' + query + '%'}) OR
+              LOWER(logline) LIKE LOWER(${'%' + query + '%'}) OR
+              LOWER(short_synopsis) LIKE LOWER(${'%' + query + '%'})
+            )`
+          );
+        }
+        
+        if (genre) {
+          conditions.push(eq(pitches.genre, genre));
+        }
+        
+        if (budgetRange) {
+          conditions.push(eq(pitches.budgetBracket, budgetRange));
+        }
+        
+        if (stage) {
+          conditions.push(eq(pitches.status, stage));
+        }
+
+        // Always filter for public pitches or user's own pitches
+        conditions.push(
+          or(
+            eq(pitches.visibility, "public"),
+            eq(pitches.userId, authResult.user.id)
+          )
+        );
+
+        const searchCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+        const results = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            budgetBracket: pitches.budgetBracket,
+            status: pitches.status,
+            visibility: pitches.visibility,
+            userId: pitches.userId,
+            createdAt: pitches.createdAt,
+            updatedAt: pitches.updatedAt
+          })
+          .from(pitches)
+          .where(searchCondition)
+          .orderBy(desc(pitches.createdAt))
+          .limit(limit)
+          .offset(offset);
+
+        // Get total count for pagination
+        const totalResults = await db
+          .select({ count: count() })
+          .from(pitches)
+          .where(searchCondition);
+
+        const total = totalResults[0]?.count || 0;
+
+        return paginatedResponse(results, {
+          page,
+          limit,
+          total
+        });
+      } catch (error) {
+        console.error("Search pitches error:", error);
+        return serverErrorResponse("Search failed");
+      }
+    }
+
+    // POST /api/watchlist/:id - Add pitch to watchlist
+    if (url.pathname.startsWith("/api/watchlist/") && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+
+        const pitchId = parseInt(url.pathname.split("/")[3]);
+        if (!pitchId) {
+          return validationErrorResponse("Invalid pitch ID");
+        }
+
+        // Check if pitch exists
+        const pitch = await db
+          .select()
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+
+        if (pitch.length === 0) {
+          return notFoundResponse("Pitch not found");
+        }
+
+        // Check if already in watchlist
+        const existing = await db
+          .select()
+          .from(watchlist)
+          .where(and(
+            eq(watchlist.userId, authResult.user.id),
+            eq(watchlist.pitchId, pitchId)
+          ))
+          .limit(1);
+
+        if (existing.length > 0) {
+          return validationErrorResponse("Pitch already in watchlist");
+        }
+
+        // Add to watchlist
+        await db.insert(watchlist).values({
+          userId: authResult.user.id,
+          pitchId: pitchId,
+          addedAt: new Date()
+        });
+
+        return successResponse({ 
+          message: "Added to watchlist",
+          pitchId: pitchId
+        });
+      } catch (error) {
+        console.error("Add to watchlist error:", error);
+        return serverErrorResponse("Failed to add to watchlist");
+      }
+    }
+
+    // GET /api/nda/status/:id - Check NDA status for a pitch
+    if (url.pathname.startsWith("/api/nda/status/") && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+
+        const pitchId = parseInt(url.pathname.split("/")[4]);
+        if (!pitchId) {
+          return validationErrorResponse("Invalid pitch ID");
+        }
+
+        // Check if pitch exists
+        const pitch = await db
+          .select()
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+
+        if (pitch.length === 0) {
+          return notFoundResponse("Pitch not found");
+        }
+
+        // Check NDA status
+        const ndaStatus = await db
+          .select()
+          .from(ndas)
+          .where(and(
+            eq(ndas.pitchId, pitchId),
+            eq(ndas.userId, authResult.user.id)
+          ))
+          .limit(1);
+
+        const status = {
+          pitchId: pitchId,
+          hasNDA: ndaStatus.length > 0,
+          ndaStatus: ndaStatus.length > 0 ? ndaStatus[0].status : null,
+          signedAt: ndaStatus.length > 0 ? ndaStatus[0].signedAt : null
+        };
+
+        return successResponse(status);
+      } catch (error) {
+        console.error("Check NDA status error:", error);
+        return serverErrorResponse("Failed to check NDA status");
+      }
+    }
+
+    // GET /api/messages/unread-count - Get unread message count
+    if (url.pathname === "/api/messages/unread-count" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+
+        const unreadCount = await db
+          .select({ count: count() })
+          .from(messages)
+          .where(and(
+            eq(messages.receiverId, authResult.user.id),
+            eq(messages.isRead, false)
+          ));
+
+        return successResponse({ 
+          unreadCount: unreadCount[0]?.count || 0 
+        });
+      } catch (error) {
+        console.error("Get unread count error:", error);
+        return serverErrorResponse("Failed to get unread count");
+      }
+    }
+
+    // GET /api/notifications/unread - Get unread notifications
+    if (url.pathname === "/api/notifications/unread" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return authErrorResponse(authResult.error);
+        }
+
+        const unreadNotifications = await db
+          .select()
+          .from(notifications)
+          .where(and(
+            eq(notifications.userId, authResult.user.id),
+            eq(notifications.isRead, false)
+          ))
+          .orderBy(desc(notifications.createdAt))
+          .limit(50);
+
+        return successResponse(unreadNotifications);
+      } catch (error) {
+        console.error("Get unread notifications error:", error);
+        return serverErrorResponse("Failed to get unread notifications");
+      }
+    }
+
     // === DEFAULT: Route not found ===
     return notFoundResponse(`Endpoint ${method} ${url.pathname} not found`);
 
   } catch (error) {
     console.error("Handler error:", error);
     
-    // Send error to Sentry
+    // Determine if this is a client error (400) or server error (500)
+    if (isClientError(error)) {
+      console.log("Client error detected:", error.message);
+      const response = validationErrorResponse(error.message || "Bad request");
+      response.headers.set('X-Response-Time', `${Date.now() - startTime}ms`);
+      return response;
+    }
+
+    // Server errors get sent to Sentry
     captureException(error as Error, {
       url: url.pathname,
       method,
@@ -5447,7 +8783,7 @@ const handler = async (request: Request): Promise<Response> => {
       timestamp: new Date().toISOString(),
     });
     
-    const response = serverErrorResponse("Request processing failed");
+    const response = serverErrorResponse("Internal server error");
     response.headers.set('X-Response-Time', `${Date.now() - startTime}ms`);
     return response;
   }
@@ -5561,8 +8897,87 @@ async function handleWebSocketMessage(socket: WebSocket, data: any) {
       socket.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
       break;
       
+    case 'pong':
+      // Client responded to our ping - update last activity
+      if (session) {
+        session.lastActivity = new Date();
+      }
+      break;
+      
+    case 'presence_update':
+      // Handle presence update from client
+      if (session) {
+        const status = data.status || 'online';
+        session.status = status;
+        console.log(`📍 User ${session.username} presence: ${status}`);
+        
+        // Broadcast presence to other users
+        broadcastToAll({
+          type: 'user_presence',
+          userId: session.userId,
+          username: session.username,
+          status: status,
+          timestamp: new Date().toISOString()
+        }, socket);
+      }
+      break;
+      
+    case 'request_initial_data':
+      // Send initial data to client
+      console.log(`📦 Sending initial data to user ${session.username}`);
+      try {
+        // Get user's recent notifications (using Drizzle with PostgreSQL)
+        const userNotifications = await db.select()
+          .from(notifications)
+          .where(eq(notifications.userId, session.userId))
+          .orderBy(desc(notifications.createdAt))
+          .limit(10);
+        
+        // Get user's conversations using the join table
+        const userConversations = await db.select({
+          id: conversations.id,
+          createdAt: conversations.createdAt,
+          updatedAt: conversations.updatedAt
+        })
+          .from(conversations)
+          .innerJoin(
+            conversationParticipants, 
+            eq(conversationParticipants.conversationId, conversations.id)
+          )
+          .where(eq(conversationParticipants.userId, session.userId))
+          .limit(10);
+        
+        socket.send(JSON.stringify({
+          type: 'initial_data',
+          data: {
+            userId: session.userId,
+            username: session.username,
+            notifications: userNotifications,
+            conversations: userConversations,
+            timestamp: Date.now()
+          }
+        }));
+      } catch (error) {
+        console.error('Error sending initial data:', error);
+        // Send empty data on error
+        socket.send(JSON.stringify({
+          type: 'initial_data',
+          data: {
+            userId: session.userId,
+            username: session.username,
+            notifications: [],
+            conversations: [],
+            timestamp: Date.now()
+          }
+        }));
+      }
+      break;
+      
     default:
-      console.log('Unknown WebSocket message type:', data.type);
+      // Only log unknown messages in development
+      if (Deno.env.get("DENO_ENV") !== "production") {
+        console.log('Unknown WebSocket message type:', data.type, 'from user:', session?.username);
+      }
   }
 }
 
@@ -5578,6 +8993,19 @@ function broadcastToUser(userId: number, message: any) {
       }
     });
   }
+}
+
+// Broadcast message to all connected users except sender
+function broadcastToAll(message: any, excludeSocket?: WebSocket) {
+  userSessions.forEach((session, socket) => {
+    if (socket !== excludeSocket && socket.readyState === WebSocket.OPEN) {
+      try {
+        socket.send(JSON.stringify(message));
+      } catch (error) {
+        console.error("Failed to send broadcast message:", error);
+      }
+    }
+  });
 }
 
 // Utility function to convert data to CSV
@@ -5630,7 +9058,65 @@ console.log(`
    - ✅ Mobile Responsive
 `);
 
-await serve(handler, { 
+// Initialize Redis connection
+console.log("Initializing Redis connection...");
+const redisConnected = await redisService.connect();
+if (redisConnected) {
+  console.log("✅ Redis connected successfully");
+} else {
+  console.log("⚠️ Redis not connected - using fallback mode");
+}
+
+// Start server with WebSocket support
+const webSocketEnabledHandler = addWebSocketSupport(handler);
+
+await serve(webSocketEnabledHandler, { 
   port: Number(port),
-  hostname: "0.0.0.0"
-});// Force redeploy at Thu  2 Oct 21:31:10 BST 2025
+  hostname: "0.0.0.0",
+  onListen: ({ port, hostname }) => {
+    console.log(`🚀 Server running on http://${hostname}:${port}`);
+    console.log(`🔌 WebSocket endpoint: ws://${hostname}:${port}/ws`);
+    console.log("📡 WebSocket features enabled:");
+    console.log("  - Real-time notifications");
+    console.log("  - Live dashboard metrics");
+    console.log("  - Draft auto-sync");
+    console.log("  - Presence tracking");
+    console.log("  - Upload progress");
+    console.log("  - Live pitch view counters");
+    console.log("  - Typing indicators");
+    console.log("  - Activity feed updates");
+  }
+});
+
+// Helper functions for the new endpoints
+function getStartDateFromPeriod(period: string): Date {
+  const now = new Date();
+  switch(period) {
+    case '7d': return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case '30d': return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case '90d': return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    case '1y': return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    default: return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
+}
+
+function getLast30Days(): string[] {
+  const dates = [];
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    dates.push(date.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+// Handle graceful shutdown
+const shutdown = async () => {
+  console.log("🔴 Shutting down server...");
+  await webSocketIntegration.shutdown();
+  Deno.exit(0);
+};
+
+// Listen for shutdown signals
+Deno.addSignalListener("SIGINT", shutdown);
+Deno.addSignalListener("SIGTERM", shutdown);

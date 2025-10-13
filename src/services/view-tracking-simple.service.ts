@@ -1,16 +1,9 @@
-import postgres from "npm:postgres";
+import { db } from '../db/client.ts';
+import { pitches, pitchViews, users } from '../db/schema.ts';
+import { eq, sql, count, desc, gte, and } from 'npm:drizzle-orm';
 
-// Simple view tracking service using direct SQL queries
+// Simple view tracking service using Drizzle ORM
 export class ViewTrackingServiceSimple {
-  private static getConnection() {
-    const connectionString = Deno.env.get("DATABASE_URL") || 
-      "postgresql://postgres:password@localhost:5432/pitchey";
-    return postgres(connectionString, { 
-      max: 1,  // Single connection for simplicity
-      idle_timeout: 0,
-      connect_timeout: 5 
-    });
-  }
 
   static async trackView(
     pitchId: number,
@@ -18,55 +11,52 @@ export class ViewTrackingServiceSimple {
     userType: string | null,
     viewType: string = 'full'
   ) {
-    const sql = this.getConnection();
     try {
       // First check if the viewer is the pitch owner
       if (viewerId) {
-        const ownerCheck = await sql`
-          SELECT user_id FROM pitches WHERE id = ${pitchId}
-        `;
+        const pitch = await db.select({ userId: pitches.userId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
         
-        if (ownerCheck.length > 0 && ownerCheck[0].user_id === viewerId) {
+        if (pitch.length > 0 && pitch[0].userId === viewerId) {
           console.log(`Skipping view tracking: User ${viewerId} is viewing their own pitch ${pitchId}`);
           return { success: true, message: "Own pitch view not tracked" };
         }
       }
 
       // Insert view record
-      await sql`
-        INSERT INTO pitch_views (pitch_id, user_id, view_type, created_at)
-        VALUES (${pitchId}, ${viewerId}, ${viewType}, NOW())
-      `;
+      await db.insert(pitchViews).values({
+        pitchId: pitchId,
+        userId: viewerId,
+        viewType: viewType,
+        createdAt: new Date()
+      });
 
       // Update pitch view count
-      await sql`
-        UPDATE pitches 
-        SET view_count = COALESCE(view_count, 0) + 1
-        WHERE id = ${pitchId}
-      `;
+      await db.update(pitches)
+        .set({ viewCount: sql`COALESCE(${pitches.viewCount}, 0) + 1` })
+        .where(eq(pitches.id, pitchId));
 
       return { success: true, message: "View tracked successfully" };
     } catch (error) {
       console.error("Error tracking view:", error);
       return { success: false, error };
-    } finally {
-      await sql.end();
     }
   }
 
   static async getViewDemographics(pitchId: number) {
-    const sql = this.getConnection();
     try {
-      // Get view counts by user type
-      const results = await sql`
-        SELECT 
-          u.user_type,
-          COUNT(*) as view_count
-        FROM pitch_views pv
-        LEFT JOIN users u ON pv.user_id = u.id
-        WHERE pv.pitch_id = ${pitchId}
-        GROUP BY u.user_type
-      `;
+      // Get view counts by user type using Drizzle
+      const results = await db
+        .select({
+          userType: users.userType,
+          viewCount: sql<number>`cast(count(${pitchViews.id}) as int)`
+        })
+        .from(pitchViews)
+        .leftJoin(users, eq(pitchViews.userId, users.id))
+        .where(eq(pitchViews.pitchId, pitchId))
+        .groupBy(users.userType);
 
       // Calculate totals and percentages
       let totalViews = 0;
@@ -77,14 +67,14 @@ export class ViewTrackingServiceSimple {
       };
 
       for (const row of results) {
-        const count = parseInt(row.view_count);
+        const count = row.viewCount;
         totalViews += count;
         
-        if (row.user_type === 'investor') {
+        if (row.userType === 'investor') {
           demographics.investors = count;
-        } else if (row.user_type === 'production') {
+        } else if (row.userType === 'production') {
           demographics.productions = count;
-        } else if (row.user_type === 'creator') {
+        } else if (row.userType === 'creator') {
           demographics.creators = count;
         }
       }
@@ -106,52 +96,52 @@ export class ViewTrackingServiceSimple {
         totalViews: 0,
         demographics: { investors: 0, productions: 0, creators: 0 }
       };
-    } finally {
-      await sql.end();
     }
   }
 
   static async getViewsByDate(pitchId: number, days: number = 30) {
-    const sql = this.getConnection();
     try {
-      const results = await sql`
-        SELECT 
-          DATE(created_at) as date,
-          COUNT(*) as views
-        FROM pitch_views
-        WHERE pitch_id = ${pitchId}
-          AND created_at >= NOW() - INTERVAL '30 days'
-        GROUP BY DATE(created_at)
-        ORDER BY DATE(created_at)
-      `;
+      const dateThreshold = new Date();
+      dateThreshold.setDate(dateThreshold.getDate() - days);
+      
+      const results = await db
+        .select({
+          date: sql<string>`DATE(${pitchViews.createdAt})`,
+          views: sql<number>`cast(count(${pitchViews.id}) as int)`
+        })
+        .from(pitchViews)
+        .where(
+          and(
+            eq(pitchViews.pitchId, pitchId),
+            gte(pitchViews.createdAt, dateThreshold)
+          )
+        )
+        .groupBy(sql`DATE(${pitchViews.createdAt})`)
+        .orderBy(sql`DATE(${pitchViews.createdAt})`);
 
       return results.map(row => ({
         date: row.date,
-        views: parseInt(row.views)
+        views: row.views
       }));
     } catch (error) {
       console.error("Error getting views by date:", error);
       return [];
-    } finally {
-      await sql.end();
     }
   }
 
   static async getUniqueViewCount(pitchId: number) {
-    const sql = this.getConnection();
     try {
-      const result = await sql`
-        SELECT COUNT(DISTINCT COALESCE(user_id::text, ip_address)) as unique_views
-        FROM pitch_views
-        WHERE pitch_id = ${pitchId}
-      `;
+      const result = await db
+        .select({
+          uniqueViews: sql<number>`cast(COUNT(DISTINCT ${pitchViews.userId}) as int)`
+        })
+        .from(pitchViews)
+        .where(eq(pitchViews.pitchId, pitchId));
 
-      return parseInt(result[0]?.unique_views || '0');
+      return result[0]?.uniqueViews || 0;
     } catch (error) {
       console.error("Error getting unique views:", error);
       return 0;
-    } finally {
-      await sql.end();
     }
   }
 }

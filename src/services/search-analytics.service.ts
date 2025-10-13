@@ -61,8 +61,8 @@ export class SearchAnalyticsService {
     userId?: number
   ): Promise<SearchAnalyticsData> {
     const baseConditions = [
-      gte(searchHistory.searchedAt, startDate),
-      lte(searchHistory.searchedAt, endDate)
+      gte(searchHistory.searchedAt, startDate.toISOString()),
+      lte(searchHistory.searchedAt, endDate.toISOString())
     ];
 
     if (userId) {
@@ -185,7 +185,7 @@ export class SearchAnalyticsService {
     .from(searchHistory)
     .leftJoin(searchClickTracking, eq(searchClickTracking.searchHistoryId, searchHistory.id))
     .where(and(
-      gte(searchHistory.searchedAt, startDate),
+      gte(searchHistory.searchedAt, startDate.toISOString()),
       lte(searchHistory.searchedAt, endDate),
       sql`${searchHistory.query} = ANY(${queries})`
     ))
@@ -306,7 +306,7 @@ export class SearchAnalyticsService {
     })
     .from(searchHistory)
     .where(and(
-      gte(searchHistory.searchedAt, startDate),
+      gte(searchHistory.searchedAt, startDate.toISOString()),
       lte(searchHistory.searchedAt, endDate),
       eq(searchHistory.resultCount, 0)
     ))
@@ -400,7 +400,7 @@ export class SearchAnalyticsService {
     .from(searchHistory)
     .leftJoin(searchClickTracking, eq(searchClickTracking.searchHistoryId, searchHistory.id))
     .where(and(
-      gte(searchHistory.searchedAt, startDate),
+      gte(searchHistory.searchedAt, startDate.toISOString()),
       lte(searchHistory.searchedAt, endDate)
     ))
     .groupBy(sql`TO_CHAR(${searchHistory.searchedAt}, '${dateFormat}')`)
@@ -438,7 +438,7 @@ export class SearchAnalyticsService {
     .from(searchHistory)
     .leftJoin(searchClickTracking, eq(searchClickTracking.searchHistoryId, searchHistory.id))
     .where(and(
-      gte(searchHistory.searchedAt, startDate),
+      gte(searchHistory.searchedAt, startDate.toISOString()),
       lte(searchHistory.searchedAt, endDate)
     ));
 
@@ -457,7 +457,7 @@ export class SearchAnalyticsService {
     .from(searchHistory)
     .leftJoin(searchClickTracking, eq(searchClickTracking.searchHistoryId, searchHistory.id))
     .where(and(
-      gte(searchHistory.searchedAt, startDate),
+      gte(searchHistory.searchedAt, startDate.toISOString()),
       lte(searchHistory.searchedAt, endDate)
     ))
     .groupBy(searchHistory.query)

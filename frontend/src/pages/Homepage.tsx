@@ -348,12 +348,12 @@ export default function Homepage() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="text-card-title text-white mb-1 group-hover:text-yellow-400 transition">
+                    <h3 className="text-card-title text-black mb-1 group-hover:text-purple-600 transition">
                       {pitch.title}
                     </h3>
-                    <p className="text-metadata text-yellow-400 mb-2">{pitch.genre}</p>
-                    <p className="text-metadata text-gray-300 mb-3 line-clamp-2">{pitch.logline}</p>
-                    <div className="flex items-center justify-between text-metadata text-gray-400">
+                    <p className="text-metadata text-gray-600 mb-2">{pitch.genre}</p>
+                    <p className="text-metadata text-gray-700 mb-3 line-clamp-2">{pitch.logline}</p>
+                    <div className="flex items-center justify-between text-metadata text-gray-600">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <Eye className="w-3 h-3" />

@@ -1,17 +1,11 @@
 #!/usr/bin/env -S deno run --allow-net --allow-env
 
-// Simplified script to add production company pitches using direct SQL
+// Simplified script to add production company pitches using Drizzle ORM
 
-import { neon } from "npm:@neondatabase/serverless";
+import { db } from "./src/db/client.ts";
+import { users, pitches } from "./src/db/schema.ts";
+import { eq, and } from "npm:drizzle-orm";
 import { hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
-
-const DATABASE_URL = Deno.env.get("DATABASE_URL");
-if (!DATABASE_URL) {
-  console.error("DATABASE_URL environment variable is required");
-  Deno.exit(1);
-}
-
-const sql = neon(DATABASE_URL);
 
 async function addProductionPitches() {
   try {
@@ -52,31 +46,40 @@ async function addProductionPitches() {
     // Create users
     for (const company of companies) {
       // Check if user exists
-      const existing = await sql`
-        SELECT id, company_name FROM users WHERE email = ${company.email}
-      `;
+      const existing = await db
+        .select({ id: users.id, companyName: users.companyName })
+        .from(users)
+        .where(eq(users.email, company.email))
+        .limit(1);
 
       if (existing.length > 0) {
         console.log(`✓ ${company.companyName} already exists (ID: ${existing[0].id})`);
       } else {
         const hashedPassword = await hash(company.password);
-        const result = await sql`
-          INSERT INTO users (
-            email, username, password_hash, user_type, 
-            company_name, bio, subscription_tier, created_at, updated_at
-          ) VALUES (
-            ${company.email}, ${company.username}, ${hashedPassword}, 'production',
-            ${company.companyName}, ${company.bio}, 'premium', NOW(), NOW()
-          ) RETURNING id, company_name
-        `;
+        const result = await db.insert(users).values({
+          email: company.email,
+          username: company.username,
+          passwordHash: hashedPassword,
+          userType: 'production',
+          companyName: company.companyName,
+          bio: company.bio,
+          subscriptionTier: 'premium',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).returning({ id: users.id, companyName: users.companyName });
         console.log(`✓ Created ${company.companyName} (ID: ${result[0].id})`);
       }
     }
 
     // Get all production users
-    const productionUsers = await sql`
-      SELECT id, company_name, username FROM users WHERE user_type = 'production'
-    `;
+    const productionUsers = await db
+      .select({
+        id: users.id,
+        companyName: users.companyName,
+        username: users.username
+      })
+      .from(users)
+      .where(eq(users.userType, 'production'));
 
     console.log(`\n📽️  Adding pitches for ${productionUsers.length} production companies...\n`);
 
@@ -122,33 +125,38 @@ async function addProductionPitches() {
       const pitch = pitchTemplates[i];
 
       // Check if pitch exists
-      const existingPitch = await sql`
-        SELECT id FROM pitches 
-        WHERE user_id = ${user.id} AND title = ${pitch.title}
-      `;
+      const existingPitch = await db
+        .select({ id: pitches.id })
+        .from(pitches)
+        .where(
+          and(
+            eq(pitches.userId, user.id),
+            eq(pitches.title, pitch.title)
+          )
+        )
+        .limit(1);
 
       if (existingPitch.length === 0) {
-        await sql`
-          INSERT INTO pitches (
-            user_id, title, logline, genre, format, short_synopsis,
-            estimated_budget, status, view_count, like_count, nda_count,
-            target_audience, comparable_films, distribution_strategy,
-            created_at, updated_at
-          ) VALUES (
-            ${user.id}, ${pitch.title}, ${pitch.logline}, ${pitch.genre}, 
-            ${pitch.format}, ${pitch.shortSynopsis}, ${pitch.budget},
-            'published', ${Math.floor(Math.random() * 500) + 100},
-            ${Math.floor(Math.random() * 50) + 10},
-            ${Math.floor(Math.random() * 20) + 5},
-            'Adult audiences 18-45, Film enthusiasts',
-            ARRAY['Interstellar', 'The Martian', 'Blade Runner 2049'],
-            'Theatrical release with streaming follow-up',
-            NOW(), NOW()
-          )
-        `;
-        console.log(`✓ Created pitch "${pitch.title}" for ${user.company_name}`);
+        await db.insert(pitches).values({
+          userId: user.id,
+          title: pitch.title,
+          logline: pitch.logline,
+          genre: pitch.genre,
+          format: pitch.format,
+          shortSynopsis: pitch.shortSynopsis,
+          estimatedBudget: pitch.budget.toString(),
+          status: 'published',
+          viewCount: Math.floor(Math.random() * 500) + 100,
+          likeCount: Math.floor(Math.random() * 50) + 10,
+          ndaCount: Math.floor(Math.random() * 20) + 5,
+          targetAudience: 'Adult audiences 18-45, Film enthusiasts',
+          distributionStrategy: 'Theatrical release with streaming follow-up',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        console.log(`✓ Created pitch "${pitch.title}" for ${user.companyName}`);
       } else {
-        console.log(`✓ Pitch "${pitch.title}" already exists for ${user.company_name}`);
+        console.log(`✓ Pitch "${pitch.title}" already exists for ${user.companyName}`);
       }
     }
 

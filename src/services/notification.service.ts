@@ -1,46 +1,110 @@
 import { db } from "../db/client.ts";
-import { notifications, users } from "../db/schema.ts";
+import { notifications, users, pitches } from "../db/schema.ts";
 import { eq, and, desc, isNull } from "npm:drizzle-orm";
+import { nativeRedisService } from "./redis-native.service.ts";
 
 export interface CreateNotificationData {
   userId: number;
-  type: "message" | "investment" | "follow" | "pitch_update" | "nda_request" | "system";
+  type: "message" | "investment" | "follow" | "pitch_update" | "nda_request" | "system" | "pitch_view" | "like" | "nda_approved" | "nda_rejected";
   title: string;
   message?: string;
   metadata?: Record<string, any>;
   relatedId?: number;
+  relatedPitchId?: number;
+  relatedUserId?: number;
+  actionUrl?: string;
 }
 
+// Global reference to WebSocket service (set during initialization)
+let wsService: any = null;
+
 export class NotificationService {
-  // Create a new notification
+  private static get redis() { return nativeRedisService; }
+
+  // Initialize with WebSocket service
+  static initialize(webSocketService: any) {
+    wsService = webSocketService;
+    console.log("✅ NotificationService initialized with WebSocket support");
+  }
+
+  // Create a new notification with real-time delivery
   static async create(data: CreateNotificationData) {
     try {
+      // 1. Store in PostgreSQL
       const [notification] = await db.insert(notifications)
         .values({
           userId: data.userId,
           type: data.type,
           title: data.title,
           message: data.message,
-          metadata: data.metadata || {},
-          relatedId: data.relatedId,
+          relatedPitchId: data.relatedPitchId,
+          relatedUserId: data.relatedUserId,
           isRead: false,
           createdAt: new Date(),
         })
         .returning();
 
-      // TODO: Send real-time notification via WebSocket if user is online
-      // TODO: Send email notification if user has email notifications enabled
+      // 2. Cache in Redis (last 50 notifications per user)
+      await this.cacheNotification(data.userId, {
+        ...notification,
+        metadata: data.metadata,
+        actionUrl: data.actionUrl,
+      });
 
+      // 3. Send real-time via WebSocket
+      if (wsService) {
+        try {
+          await wsService.sendNotificationToUser(data.userId, {
+            type: 'notification',
+            data: {
+              id: notification.id,
+              type: data.type,
+              title: data.title,
+              message: data.message,
+              relatedPitchId: data.relatedPitchId,
+              relatedUserId: data.relatedUserId,
+              actionUrl: data.actionUrl,
+              metadata: data.metadata,
+              createdAt: notification.createdAt,
+              isRead: false,
+            },
+          });
+          console.log(`🔔 Real-time notification sent to user ${data.userId}: ${data.title}`);
+        } catch (wsError) {
+          console.error("❌ WebSocket notification failed:", wsError);
+        }
+      }
+
+      // 4. Update unread count cache
+      await this.invalidateUnreadCountCache(data.userId);
+
+      console.log(`✅ Notification created for user ${data.userId}: ${data.title}`);
       return { success: true, notification };
     } catch (error) {
-      console.error("Error creating notification:", error);
+      console.error("❌ Error creating notification:", error);
       return { success: false, error: error.message };
     }
   }
 
-  // Get notifications for a user
+  // Get notifications for a user (Redis first, DB fallback)
   static async getUserNotifications(userId: number, limit = 50, onlyUnread = false) {
     try {
+      // Try Redis cache first for recent notifications
+      if (!onlyUnread) {
+        const cacheKey = `user:${userId}:notifications`;
+        const cached = await this.redis.lrange(cacheKey, 0, limit - 1);
+        
+        if (cached.length > 0) {
+          const parsed = cached.map(n => JSON.parse(n)).slice(0, limit);
+          console.log(`📋 Retrieved ${parsed.length} notifications from cache for user ${userId}`);
+          return {
+            success: true,
+            notifications: parsed,
+          };
+        }
+      }
+
+      // Fallback to database
       const conditions = [eq(notifications.userId, userId)];
       
       if (onlyUnread) {
@@ -51,14 +115,38 @@ export class NotificationService {
         where: and(...conditions),
         orderBy: [desc(notifications.createdAt)],
         limit,
+        with: {
+          relatedUser: {
+            columns: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              profileImageUrl: true,
+            },
+          },
+          relatedPitch: {
+            columns: {
+              id: true,
+              title: true,
+              thumbnailUrl: true,
+            },
+          },
+        },
       });
 
+      // Cache the result if it's the full recent list
+      if (!onlyUnread && userNotifications.length > 0) {
+        await this.cacheNotifications(userId, userNotifications);
+      }
+
+      console.log(`📋 Retrieved ${userNotifications.length} notifications from DB for user ${userId}`);
       return {
         success: true,
         notifications: userNotifications,
       };
     } catch (error) {
-      console.error("Error fetching notifications:", error);
+      console.error("❌ Error fetching notifications:", error);
       return { success: false, error: error.message, notifications: [] };
     }
   }
@@ -269,7 +357,113 @@ export class NotificationService {
       title: `NDA request from ${requesterName}`,
       message: `${requesterName} (${requester?.userType}) wants to view your protected content`,
       metadata: { requesterId, pitchId },
-      relatedId: pitchId,
+      relatedPitchId: pitchId,
+      relatedUserId: requesterId,
+      actionUrl: `/creator/nda-requests`,
     });
+  }
+
+  // Notify pitch view
+  static async notifyPitchView(pitchId: number, viewerId: number, pitchOwnerId: number) {
+    if (viewerId === pitchOwnerId) return; // Don't notify self-views
+    
+    const [viewer, pitch] = await Promise.all([
+      db.query.users.findFirst({
+        where: eq(users.id, viewerId),
+        columns: { username: true, firstName: true, lastName: true },
+      }),
+      db.query.pitches.findFirst({
+        where: eq(pitches.id, pitchId),
+        columns: { title: true },
+      }),
+    ]);
+
+    if (!viewer || !pitch) return;
+
+    const viewerName = viewer.firstName 
+      ? `${viewer.firstName} ${viewer.lastName}` 
+      : viewer.username;
+
+    return this.create({
+      userId: pitchOwnerId,
+      type: "pitch_view",
+      title: "New pitch view",
+      message: `${viewerName} viewed your pitch "${pitch.title}"`,
+      relatedPitchId: pitchId,
+      relatedUserId: viewerId,
+      actionUrl: `/pitches/${pitchId}/analytics`,
+      metadata: {
+        pitchTitle: pitch.title,
+        viewerName,
+      },
+    });
+  }
+
+  // Redis caching methods
+  private static async cacheNotification(userId: number, notification: any): Promise<void> {
+    try {
+      const cacheKey = `user:${userId}:notifications`;
+      await this.redis.lpush(cacheKey, JSON.stringify(notification));
+      await this.redis.ltrim(cacheKey, 0, 49); // Keep last 50
+      await this.redis.expire(cacheKey, 7 * 24 * 60 * 60); // 7 days
+    } catch (error) {
+      console.error("❌ Failed to cache notification:", error);
+    }
+  }
+
+  private static async cacheNotifications(userId: number, notifications: any[]): Promise<void> {
+    try {
+      const cacheKey = `user:${userId}:notifications`;
+      const serialized = notifications.map(n => JSON.stringify(n));
+      
+      if (serialized.length > 0) {
+        await this.redis.del(cacheKey); // Clear existing
+        await this.redis.lpush(cacheKey, ...serialized);
+        await this.redis.ltrim(cacheKey, 0, 49);
+        await this.redis.expire(cacheKey, 7 * 24 * 60 * 60);
+      }
+    } catch (error) {
+      console.error("❌ Failed to cache notifications:", error);
+    }
+  }
+
+  private static async invalidateUnreadCountCache(userId: number): Promise<void> {
+    try {
+      const unreadCountKey = `user:${userId}:unread_count`;
+      await this.redis.del(unreadCountKey);
+    } catch (error) {
+      console.error("❌ Failed to invalidate unread count cache:", error);
+    }
+  }
+
+  // Get unread count with Redis caching
+  static async getUnreadCount(userId: number): Promise<number> {
+    try {
+      const cacheKey = `user:${userId}:unread_count`;
+      const cached = await this.redis.get(cacheKey);
+      
+      if (cached !== null) {
+        return parseInt(cached);
+      }
+
+      // Query database
+      const result = await db.query.notifications.findMany({
+        where: and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false)
+        ),
+        columns: { id: true },
+      });
+
+      const count = result.length;
+
+      // Cache for 5 minutes
+      await this.redis.setex(cacheKey, 300, count.toString());
+
+      return count;
+    } catch (error) {
+      console.error("❌ Failed to get unread count:", error);
+      return 0;
+    }
   }
 }

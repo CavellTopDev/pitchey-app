@@ -12,6 +12,9 @@ export interface Pitch {
   logline: string;
   genre: 'drama' | 'comedy' | 'thriller' | 'horror' | 'scifi' | 'fantasy' | 'documentary' | 'animation' | 'action' | 'romance' | 'other';
   format: 'feature' | 'tv' | 'short' | 'webseries' | 'other';
+  formatCategory?: string;
+  formatSubtype?: string;
+  customFormat?: string;
   shortSynopsis?: string;
   longSynopsis?: string;
   opener?: string;
@@ -78,6 +81,9 @@ export interface CreatePitchInput {
   logline: string;
   genre: string;
   format: string;
+  formatCategory?: string;
+  formatSubtype?: string;
+  customFormat?: string;
   shortSynopsis?: string;
   longSynopsis?: string;
   characters?: Array<{
@@ -250,12 +256,35 @@ export class PitchService {
 
   // Delete a pitch
   static async delete(id: number): Promise<void> {
-    const response = await apiClient.delete<{ success: boolean }>(
-      `/api/creator/pitches/${id}`
-    );
+    console.log(`🗑️ Attempting to delete pitch ${id}`);
+    
+    try {
+      const response = await apiClient.delete<{ success: boolean; message?: string }>(
+        `/api/creator/pitches/${id}`
+      );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to delete pitch');
+      if (!response.success) {
+        console.error('❌ Delete failed:', response);
+        throw new Error(response.error?.message || 'Failed to delete pitch');
+      }
+      
+      console.log(`✅ Pitch ${id} deleted successfully`);
+      
+      // Trigger a WebSocket event if connected
+      if ((window as any).websocketService?.isConnected()) {
+        (window as any).websocketService.send({
+          type: 'pitch_deleted',
+          data: { pitchId: id }
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error deleting pitch:', error);
+      // Re-throw with more context if needed
+      if (error.message?.includes('foreign key constraint')) {
+        throw new Error('Cannot delete pitch: it has active investments or related records');
+      }
+      throw error;
     }
   }
 
@@ -322,9 +351,11 @@ export class PitchService {
       throw new Error(response.error?.message || 'Failed to fetch public pitches');
     }
 
-    // Backend returns data.pitches for public endpoint
+    // Backend returns { success: true, pitches: [...], message: "...", cached: bool }
+    // API client strips outer layer so response.data contains the backend response object
     const pitches = response.data?.pitches || [];
-    const total = response.metadata?.pagination?.total || pitches.length;
+    const total = pitches.length; // Backend doesn't provide total count for this endpoint
+    
     
     return {
       pitches,
@@ -336,28 +367,38 @@ export class PitchService {
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      pitches: Pitch[] 
+      data: Pitch[] 
     }>(`/api/pitches/trending?limit=${limit}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch trending pitches');
     }
 
-    return response.data?.pitches || [];
+    // Backend returns successResponse({ data: [...] }) which becomes { success: true, data: { data: [...] } }
+    // So response.data contains { data: [...] }
+    const pitches = response.data?.data?.data || response.data?.data || [];
+    
+    
+    return pitches;
   }
 
   // Get new releases
   static async getNewReleases(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      pitches: Pitch[] 
+      data: Pitch[] 
     }>(`/api/pitches/new?limit=${limit}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch new releases');
     }
 
-    return response.data?.pitches || [];
+    // Backend returns successResponse({ data: [...] }) which becomes { success: true, data: { data: [...] } }
+    // So response.data contains { data: [...] }
+    const pitches = response.data?.data?.data || response.data?.data || [];
+    
+    
+    return pitches;
   }
 
   // Track view for a pitch

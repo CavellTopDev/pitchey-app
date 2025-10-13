@@ -36,9 +36,9 @@ export default function ProductionPitchCreate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [genres, setGenres] = useState<string[]>(getGenresSync());
-  const [formats, setFormats] = useState<string[]>(getFormatsSync());
-  const [budgetBrackets, setBudgetBrackets] = useState<string[]>(getBudgetRangesSync());
+  const [genres, setGenres] = useState<string[]>(getGenresSync() || []);
+  const [formats, setFormats] = useState<string[]>(getFormatsSync() || []);
+  const [budgetBrackets, setBudgetBrackets] = useState<string[]>(getBudgetRangesSync() || []);
   
   // Form Data State
   const [formData, setFormData] = useState({
@@ -572,9 +572,11 @@ export default function ProductionPitchCreate() {
                     }`}
                   >
                     <option value="">Select Genre</option>
-                    {genres.map(genre => (
+                    {genres && genres.length > 0 ? genres.map(genre => (
                       <option key={genre} value={genre.toLowerCase()}>{genre}</option>
-                    ))}
+                    )) : (
+                      <option value="" disabled>Loading genres...</option>
+                    )}
                   </select>
                   {errors.genre && (
                     <p className="mt-1 text-sm text-red-500">{errors.genre}</p>
@@ -594,9 +596,11 @@ export default function ProductionPitchCreate() {
                     }`}
                   >
                     <option value="">Select Format</option>
-                    {formats.map(format => (
+                    {formats && formats.length > 0 ? formats.map(format => (
                       <option key={format} value={format.toLowerCase().replace(' ', '_')}>{format}</option>
-                    ))}
+                    )) : (
+                      <option value="" disabled>Loading formats...</option>
+                    )}
                   </select>
                   {errors.format && (
                     <p className="mt-1 text-sm text-red-500">{errors.format}</p>
@@ -881,9 +885,11 @@ export default function ProductionPitchCreate() {
                     }`}
                   >
                     <option value="">Select Budget Range</option>
-                    {budgetBrackets.map(bracket => (
+                    {budgetBrackets && budgetBrackets.length > 0 ? budgetBrackets.map(bracket => (
                       <option key={bracket} value={bracket}>{bracket}</option>
-                    ))}
+                    )) : (
+                      <option value="" disabled>Loading budget ranges...</option>
+                    )}
                   </select>
                   {errors.budgetBracket && (
                     <p className="mt-1 text-sm text-red-500">{errors.budgetBracket}</p>

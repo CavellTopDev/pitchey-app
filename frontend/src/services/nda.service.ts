@@ -188,28 +188,65 @@ export class NDAService {
     };
   }
 
-  // Get NDA status for a pitch
+  // Get NDA status for a pitch with enhanced error handling
   static async getNDAStatus(pitchId: number): Promise<{
     hasNDA: boolean;
     nda?: NDA;
     canAccess: boolean;
+    error?: string;
   }> {
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      hasNDA: boolean;
-      nda?: NDA;
-      canAccess: boolean;
-    }>(`/api/ndas/pitch/${pitchId}/status`);
+    try {
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        hasNDA: boolean;
+        nda?: NDA;
+        canAccess: boolean;
+      }>(`/api/ndas/pitch/${pitchId}/status`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch NDA status');
+      if (!response.success) {
+        // Handle specific error cases
+        const errorMessage = response.error?.message || 'Failed to fetch NDA status';
+        
+        // Don't throw for business rule violations, return them as part of response
+        if (response.error?.status === 404 || errorMessage.includes('not found')) {
+          return {
+            hasNDA: false,
+            canAccess: false,
+            error: 'No NDA relationship found'
+          };
+        }
+        
+        if (response.error?.status === 403 || errorMessage.includes('forbidden')) {
+          return {
+            hasNDA: false,
+            canAccess: false,
+            error: 'Access denied'
+          };
+        }
+        
+        // For other errors, include error message but don't throw
+        return {
+          hasNDA: false,
+          canAccess: false,
+          error: errorMessage
+        };
+      }
+
+      return {
+        hasNDA: response.data?.hasNDA || false,
+        nda: response.data?.nda,
+        canAccess: response.data?.canAccess || false
+      };
+    } catch (error: any) {
+      console.error('NDA status check failed:', error);
+      
+      // Return error in response instead of throwing
+      return {
+        hasNDA: false,
+        canAccess: false,
+        error: error.message || 'Network error while checking NDA status'
+      };
     }
-
-    return {
-      hasNDA: response.data?.hasNDA || false,
-      nda: response.data?.nda,
-      canAccess: response.data?.canAccess || false
-    };
   }
 
   // Get NDA history for user
@@ -340,28 +377,46 @@ export class NDAService {
     return response.data.stats;
   }
 
-  // Check if user can request NDA for pitch
+  // Check if user can request NDA for pitch with business rule validation
   static async canRequestNDA(pitchId: number): Promise<{
     canRequest: boolean;
     reason?: string;
     existingNDA?: NDA;
+    error?: string;
   }> {
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      canRequest: boolean;
-      reason?: string;
-      existingNDA?: NDA;
-    }>(`/api/ndas/pitch/${pitchId}/can-request`);
+    try {
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        canRequest: boolean;
+        reason?: string;
+        existingNDA?: NDA;
+      }>(`/api/ndas/pitch/${pitchId}/can-request`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to check NDA request status');
+      if (!response.success) {
+        // Handle business rule violations gracefully
+        const errorMessage = response.error?.message || 'Failed to check NDA request status';
+        
+        return {
+          canRequest: false,
+          reason: errorMessage,
+          error: errorMessage
+        };
+      }
+
+      return {
+        canRequest: response.data?.canRequest || false,
+        reason: response.data?.reason,
+        existingNDA: response.data?.existingNDA
+      };
+    } catch (error: any) {
+      console.error('NDA request check failed:', error);
+      
+      return {
+        canRequest: false,
+        reason: 'Unable to verify NDA request eligibility',
+        error: error.message || 'Network error'
+      };
     }
-
-    return {
-      canRequest: response.data?.canRequest || false,
-      reason: response.data?.reason,
-      existingNDA: response.data?.existingNDA
-    };
   }
 
   // Bulk approve NDAs (for creators)

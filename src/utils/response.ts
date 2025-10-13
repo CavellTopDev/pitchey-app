@@ -136,6 +136,36 @@ export function successResponse<T>(
 }
 
 /**
+ * Created response wrapper - for resource creation operations (HTTP 201)
+ */
+export function createdResponse<T>(
+  data: T,
+  message?: string,
+  metadata?: StandardResponse["metadata"],
+  origin?: string
+): Response {
+  const response: StandardResponse<T> = {
+    success: true,
+    data,
+    message,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      ...metadata,
+    },
+  };
+
+  return new Response(JSON.stringify(response), {
+    status: 201,
+    headers: { 
+      ...getCorsHeaders(origin), 
+      ...getSecurityHeaders(),
+      ...getCacheHeaders("application/json"),
+      "content-type": "application/json" 
+    },
+  });
+}
+
+/**
  * Error response wrapper
  */
 export function errorResponse(
@@ -168,7 +198,16 @@ export function errorResponse(
 }
 
 /**
- * Validation error response
+ * Bad request error response - for malformed requests and client syntax errors
+ */
+export function badRequestResponse(message = "Bad Request", origin?: string): Response {
+  return errorResponse(message, 400, {
+    code: "BAD_REQUEST",
+  }, origin);
+}
+
+/**
+ * Validation error response - for valid JSON but invalid data
  */
 export function validationErrorResponse(
   fieldOrMessage: string,

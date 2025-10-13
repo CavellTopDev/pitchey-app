@@ -12,6 +12,42 @@ This application uses a modern JAMstack architecture:
 - Database: Neon PostgreSQL (cloud-hosted)
 - Health Check: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
 
+## Local Development Configuration
+
+**IMPORTANT: Local backend always runs on port 8001**
+
+### Quick Start
+```bash
+# Backend (always use port 8001)
+PORT=8001 deno run --allow-all working-server.ts
+
+# Frontend (in separate terminal)
+cd frontend && npm run dev
+```
+
+### Using Scripts
+```bash
+# Start all services with Docker
+./start-local.sh
+
+# Start development environment
+./start-dev.sh
+
+# Using deno tasks
+deno task dev    # Starts backend on port 8001
+```
+
+### Port Configuration
+- **Backend**: http://localhost:8001 (API and WebSocket)
+- **Frontend**: http://localhost:5173 (Vite dev server)
+- **Database**: localhost:5432 (PostgreSQL via Docker)
+
+**Frontend .env must always have:**
+```
+VITE_API_URL=http://localhost:8001
+VITE_WS_URL=ws://localhost:8001
+```
+
 ## Deployment Methods
 
 ### 1. Automatic Deployment (GitHub Actions)

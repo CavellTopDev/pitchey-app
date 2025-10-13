@@ -358,10 +358,10 @@ export class SearchService {
 
     // Date range
     if (filters.dateFrom) {
-      conditions.push(gte(pitches.publishedAt, new Date(filters.dateFrom)));
+      conditions.push(gte(pitches.publishedAt, new Date(filters.dateFrom).toISOString()));
     }
     if (filters.dateTo) {
-      conditions.push(lte(pitches.publishedAt, new Date(filters.dateTo)));
+      conditions.push(lte(pitches.publishedAt, new Date(filters.dateTo).toISOString()));
     }
 
     // View count range
@@ -689,7 +689,7 @@ export class SearchService {
     .where(and(
       eq(analyticsEvents.eventType, 'search'),
       sql`event_data->>'query' ILIKE '%${searchTerm}%'`,
-      gte(analyticsEvents.timestamp, sql`NOW() - INTERVAL '30 days'`)
+      gte(analyticsEvents.createdAt, sql`NOW() - INTERVAL '30 days'`)
     ))
     .groupBy(sql`event_data->>'query'`)
     .orderBy(desc(sql`COUNT(*)`))
@@ -720,7 +720,7 @@ export class SearchService {
     .where(and(
       eq(analyticsEvents.eventType, 'search'),
       isNotNull(sql`event_data->>'query'`),
-      gte(analyticsEvents.timestamp, sql`NOW() - INTERVAL '30 days'`)
+      gte(analyticsEvents.createdAt, sql`NOW() - INTERVAL '30 days'`)
     ))
     .groupBy(sql`event_data->>'query'`)
     .having(sql`COUNT(*) >= 5`) // Minimum search count
@@ -744,7 +744,7 @@ export class SearchService {
     try {
       await db.insert(analyticsEvents).values({
         eventType: 'search',
-        category: 'search',
+        eventCategory: 'search',
         userId,
         eventData: {
           query: filters.query,

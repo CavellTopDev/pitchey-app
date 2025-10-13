@@ -21,23 +21,68 @@ export default function PitchDetail() {
   
   // Check if current user owns this pitch
   // First check the isOwner flag from backend, then fallback to comparing IDs
-  const isOwner = pitch?.isOwner || 
-                  (pitch?.userId && user?.id && Number(pitch.userId) === Number(user.id)) ||
-                  (pitch?.creator?.id && user?.id && Number(pitch.creator.id) === Number(user.id));
+  // Handle both direct user object and nested user.data structure
+  const getUserId = () => {
+    if (!user) return null;
+    // Check if user has an id directly
+    if (user.id !== undefined) return user.id;
+    // Check if user is nested in data
+    if ((user as any).data?.id !== undefined) return (user as any).data.id;
+    // Check if user has user property
+    if ((user as any).user?.id !== undefined) return (user as any).user.id;
+    return null;
+  };
+  
+  const currentUserId = getUserId();
+  
+  // Secure owner check - only return true if IDs are valid and match
+  const isOwner = (() => {
+    // First check the backend-provided isOwner flag (most reliable)
+    if (pitch?.isOwner === true) return true;
+    
+    // If no backend flag, validate IDs manually
+    if (!currentUserId || !pitch) return false;
+    
+    // Check pitch.userId (ensure both IDs are valid numbers)
+    if (pitch.userId) {
+      const pitchUserId = Number(pitch.userId);
+      const currentUserIdNum = Number(currentUserId);
+      
+      // Only return true if both are valid numbers and match
+      if (!isNaN(pitchUserId) && !isNaN(currentUserIdNum) && pitchUserId === currentUserIdNum) {
+        return true;
+      }
+    }
+    
+    // Check pitch.creator.id (ensure both IDs are valid numbers)
+    if (pitch.creator?.id) {
+      const creatorId = Number(pitch.creator.id);
+      const currentUserIdNum = Number(currentUserId);
+      
+      // Only return true if both are valid numbers and match
+      if (!isNaN(creatorId) && !isNaN(currentUserIdNum) && creatorId === currentUserIdNum) {
+        return true;
+      }
+    }
+    
+    // Default to false for security
+    return false;
+  })();
   
   // Debug logging to see what's being compared
   useEffect(() => {
-    console.log('=== OWNER CHECK DEBUG ===');
-    console.log('Pitch:', pitch);
-    console.log('User:', user);
     if (pitch && user) {
-      console.log('Pitch Creator ID:', pitch.creator?.id, 'Type:', typeof pitch.creator?.id);
-      console.log('Current User ID:', user.id, 'Type:', typeof user.id);
-      console.log('Number comparison:', Number(pitch.creator?.id), '===', Number(user.id));
-      console.log('Is Owner?', isOwner);
-      console.log('=========================');
+      console.log('=== SECURE OWNER CHECK DEBUG ===');
+      console.log('Pitch userId:', pitch.userId, 'Type:', typeof pitch.userId, 'IsNaN:', isNaN(Number(pitch.userId)));
+      console.log('Current User ID:', currentUserId, 'Type:', typeof currentUserId, 'IsNaN:', isNaN(Number(currentUserId)));
+      console.log('Pitch isOwner flag:', pitch.isOwner);
+      console.log('Pitch creator ID:', pitch.creator?.id);
+      console.log('Number comparison (userId):', Number(pitch.userId), '===', Number(currentUserId), '=', Number(pitch.userId) === Number(currentUserId));
+      console.log('Number comparison (creator.id):', Number(pitch.creator?.id), '===', Number(currentUserId), '=', Number(pitch.creator?.id) === Number(currentUserId));
+      console.log('SECURE Is Owner Result?', isOwner);
+      console.log('================================');
     }
-  }, [pitch, user, isOwner]);
+  }, [pitch, user, currentUserId, isOwner]);
 
   useEffect(() => {
     if (id) {
@@ -58,7 +103,21 @@ export default function PitchDetail() {
       }
     } catch (error) {
       console.error('Failed to fetch pitch:', error);
-      setError('Pitch not found or failed to load');
+      
+      // More specific error handling
+      if (error instanceof Error) {
+        if (error.message.includes('404')) {
+          setError(`Pitch #${pitchId} not found. It may have been removed or you may not have permission to view it.`);
+        } else if (error.message.includes('403')) {
+          setError('You do not have permission to view this pitch. Please log in or contact the owner.');
+        } else if (error.message.includes('401')) {
+          setError('Please log in to view this pitch.');
+        } else {
+          setError(`Failed to load pitch: ${error.message}`);
+        }
+      } else {
+        setError('Pitch not found or failed to load');
+      }
     } finally {
       setLoading(false);
     }

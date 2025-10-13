@@ -110,6 +110,49 @@ let cacheType = "in-memory";
 
 // Try to initialize Redis/Upstash based on environment
 async function initCache() {
+  // Check for native Redis first (for local development)
+  const redisHost = Deno.env.get("REDIS_HOST");
+  const redisPort = Deno.env.get("REDIS_PORT");
+  const cacheEnabled = Deno.env.get("CACHE_ENABLED") === "true";
+  
+  if (cacheEnabled && redisHost && redisPort) {
+    try {
+      // Use dynamic import to avoid circular dependencies
+      const { nativeRedisService } = await import("./redis-native.service.ts");
+      
+      // Test if Redis is connected
+      if (nativeRedisService.isEnabled()) {
+        // Create a wrapper to match the CacheClient interface
+        cacheClient = {
+          async set(key: string, value: string) {
+            await nativeRedisService.set(key, value);
+          },
+          async get(key: string): Promise<string | null> {
+            const result = await nativeRedisService.get(key);
+            return result ? JSON.stringify(result) : null;
+          },
+          async del(key: string) {
+            await nativeRedisService.del(key);
+          },
+          async expire(key: string, seconds: number) {
+            await nativeRedisService.expire(key, seconds);
+          },
+          async incrby(key: string, value: number) {
+            await nativeRedisService.incr(key);
+          },
+          async ttl(key: string): Promise<number> {
+            return 300; // Default TTL, native service handles TTL differently
+          }
+        };
+        cacheType = "native-redis";
+        console.log("✅ Using native Redis for cache service");
+        return;
+      }
+    } catch (error) {
+      console.warn("⚠️ Native Redis connection failed:", error.message);
+    }
+  }
+  
   // Check for Upstash Redis (for Deno Deploy)
   const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
   const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
@@ -126,13 +169,6 @@ async function initCache() {
     } catch (error) {
       console.warn("⚠️ Upstash Redis connection failed:", error.message);
     }
-  }
-
-  // Check for standard Redis URL (for self-hosted)
-  const redisUrl = Deno.env.get("REDIS_URL");
-  if (redisUrl) {
-    console.log("⚠️ Standard Redis detected but not connected (would need redis client)");
-    console.log("   For Deno Deploy, use Upstash Redis instead");
   }
 
   // Fallback to in-memory cache

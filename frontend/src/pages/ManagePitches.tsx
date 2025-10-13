@@ -96,11 +96,31 @@ export default function ManagePitches() {
 
     try {
       await pitchService.delete(pitchId);
+      
+      // Remove from local state immediately
       setPitches(prev => prev.filter(pitch => pitch.id !== pitchId));
+      
+      // Force refresh to ensure consistency
+      setTimeout(() => {
+        fetchPitches(true); // Force refresh from server
+      }, 500);
+      
       addNotification('Pitch deleted successfully', 'success');
     } catch (error: any) {
       console.error('Failed to delete pitch:', error);
-      addNotification(error.message || 'Failed to delete pitch', 'error');
+      
+      // Show more specific error messages
+      let errorMessage = 'Failed to delete pitch';
+      if (error.message?.includes('foreign key constraint') || error.message?.includes('related records')) {
+        errorMessage = 'Cannot delete pitch: it has active investments or NDAs. Please resolve these first.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      addNotification(errorMessage, 'error');
+      
+      // Refresh the list in case of partial deletion
+      fetchPitches(true);
     } finally {
       clearLoadingState(pitchId);
     }

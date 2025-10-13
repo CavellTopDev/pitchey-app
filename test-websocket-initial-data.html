@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Initial Data Test</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        .log {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f14c4c; }
+        .info { color: #4fc1ff; }
+        .data { color: #dcdcaa; }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        pre {
+            background: #252526;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 WebSocket Initial Data Test</h1>
+    
+    <div>
+        <button onclick="connect()">Connect WebSocket</button>
+        <button onclick="sendPresenceUpdate()">Send Presence Update</button>
+        <button onclick="requestInitialData()">Request Initial Data</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <h2>📊 Connection Status</h2>
+    <div id="status" class="log">
+        <div class="info">⏳ Not connected</div>
+    </div>
+
+    <h2>📨 Messages</h2>
+    <div id="messages" class="log"></div>
+
+    <h2>📦 Initial Data</h2>
+    <div id="initialData" class="log">
+        <div class="info">No data received yet</div>
+    </div>
+
+    <script>
+        let ws = null;
+        const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoiYWxleC5jcmVhdG9yQGRlbW8uY29tIiwidXNlclR5cGUiOiJjcmVhdG9yIiwiZXhwIjoxNzYwMTQ2NzIxfQ.NnzxF87Eps-cEsJJwOXa5w3LF2iUORK-62pXKcIlPJg';
+        
+        function log(message, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messagesDiv.appendChild(entry);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected', 'info');
+                return;
+            }
+
+            const wsUrl = `ws://localhost:8001/api/messages/ws?token=${token}`;
+            log(`Connecting to ${wsUrl}`, 'info');
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                updateStatus('✅ Connected to WebSocket', 'success');
+                log('WebSocket connection established', 'success');
+                
+                // Automatically request initial data after connection
+                setTimeout(() => {
+                    log('Automatically requesting initial data...', 'info');
+                    requestInitialData();
+                }, 500);
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`Received: ${data.type}`, 'data');
+                    
+                    // Handle different message types
+                    switch(data.type) {
+                        case 'connected':
+                            log(`Connected as: ${data.username} (ID: ${data.userId})`, 'success');
+                            break;
+                            
+                        case 'initial_data':
+                            log('📦 Initial data received!', 'success');
+                            displayInitialData(data.data);
+                            break;
+                            
+                        case 'user_presence':
+                            log(`Presence update: ${data.username} is ${data.status}`, 'info');
+                            break;
+                            
+                        case 'pong':
+                            log('Pong received', 'info');
+                            break;
+                            
+                        case 'error':
+                            log(`Error: ${data.message || data.error}`, 'error');
+                            break;
+                            
+                        default:
+                            log(`Unknown message type: ${data.type}`, 'info');
+                    }
+                } catch (e) {
+                    log(`Failed to parse message: ${e.message}`, 'error');
+                }
+            };
+            
+            ws.onerror = (error) => {
+                log(`WebSocket error: ${error}`, 'error');
+                updateStatus('❌ WebSocket error', 'error');
+            };
+            
+            ws.onclose = () => {
+                log('WebSocket disconnected', 'info');
+                updateStatus('⚫ Disconnected', 'info');
+                ws = null;
+            };
+        }
+
+        function displayInitialData(data) {
+            const dataDiv = document.getElementById('initialData');
+            
+            let html = '<h3 class="success">✅ Initial Data Received</h3>';
+            html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            
+            if (data.notifications) {
+                html += `<div class="info">📬 Notifications: ${data.notifications.length}</div>`;
+                if (data.notifications.length > 0) {
+                    html += '<ul>';
+                    data.notifications.forEach(n => {
+                        html += `<li>${n.title || n.message} (${n.type})</li>`;
+                    });
+                    html += '</ul>';
+                }
+            }
+            
+            if (data.conversations) {
+                html += `<div class="info">💬 Conversations: ${data.conversations.length}</div>`;
+            }
+            
+            dataDiv.innerHTML = html;
+        }
+
+        function sendPresenceUpdate() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected', 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'presence_update',
+                status: 'online'
+            };
+            
+            ws.send(JSON.stringify(message));
+            log('Sent presence update', 'info');
+        }
+
+        function requestInitialData() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected', 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'request_initial_data'
+            };
+            
+            ws.send(JSON.stringify(message));
+            log('Requested initial data', 'info');
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                log('Disconnected', 'info');
+            } else {
+                log('Not connected', 'info');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('messages').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+
+        // Auto-connect on page load
+        window.onload = () => {
+            log('Page loaded, click Connect to start', 'info');
+        };
+    </script>
+</body>
+</html>

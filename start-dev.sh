@@ -19,6 +19,7 @@ sleep 5
 
 # Start backend server
 echo "🔧 Starting backend server..."
+PORT=8001 \
 JWT_SECRET="test-secret-key-for-development" \
 DATABASE_URL="postgresql://postgres:password@localhost:5432/pitchey" \
 deno run --allow-all working-server.ts &

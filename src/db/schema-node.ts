@@ -11,8 +11,8 @@ import {
   pgEnum,
   index,
   uniqueIndex,
-} from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+} from "npm:drizzle-orm/pg-core";
+import { relations } from "npm:drizzle-orm";
 
 // Enums
 export const userTypeEnum = pgEnum('user_type', ['creator', 'production', 'investor']);

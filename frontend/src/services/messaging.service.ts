@@ -370,7 +370,7 @@ export class MessagingService {
       return;
     }
 
-    const wsUrl = `${config.WS_URL}/ws/messages?token=${token}`;
+    const wsUrl = `${config.WS_URL}/ws?token=${token}`;
     
     this.ws = new WebSocket(wsUrl);
 

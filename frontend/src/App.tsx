@@ -5,6 +5,7 @@ import { useAuthStore } from './store/authStore';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 import { configService } from './services/config.service';
 import { config } from './config';
 
@@ -126,9 +127,10 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <TestSentryButton />
-          <Router>
+        <WebSocketProvider>
+          <ToastProvider>
+            <TestSentryButton />
+            <Router>
             <Suspense fallback={
               <div className="min-h-screen flex items-center justify-center">
                 <LoadingSpinner size="lg" text="Loading..." />
@@ -345,6 +347,7 @@ function App() {
             </Suspense>
           </Router>
         </ToastProvider>
+        </WebSocketProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

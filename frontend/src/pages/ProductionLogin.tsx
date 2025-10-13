@@ -1,139 +1,173 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Building2, Briefcase, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { Briefcase, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
-import { authService } from '../services/auth.service';
 
 export default function ProductionLogin() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { loginProduction, loading, error } = useAuthStore();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
     try {
-      const data = await authService.productionLogin({ email, password });
-      
-      // Update auth store state
-      useAuthStore.setState({ 
-        user: data.user, 
-        isAuthenticated: true, 
-        loading: false 
-      });
-      
-      // Navigate to production dashboard
+      await loginProduction(formData.email, formData.password);
       navigate('/production/dashboard');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid production company credentials');
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Production login failed:', error);
     }
   };
 
+  const setDemoCredentials = () => {
+    setFormData({ 
+      email: 'stellar.production@demo.com', 
+      password: 'Demo123' 
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-emerald-900 to-teal-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 flex items-center justify-center p-4">
       {/* Back Button */}
       <div className="absolute top-6 left-6">
-        <BackButton variant="dark" />
+        <BackButton variant="light" />
       </div>
 
       <div className="max-w-md w-full">
-        {/* Production Portal Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center p-2">
-              <img src="/pitcheylogo.png" alt="Pitchey Logo" className="h-12 w-auto object-contain filter brightness-0 invert" />
+        <div className="bg-white py-8 px-6 shadow-xl rounded-lg border border-gray-200">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-lg bg-orange-100">
+                <Briefcase className="h-8 w-8 text-orange-600" />
+              </div>
             </div>
+            <h2 className="text-2xl font-bold text-gray-900">Production Portal</h2>
+            <p className="text-gray-600 mt-2">Sign in to manage productions</p>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Production Portal</h1>
-          <p className="text-green-200">Transform creative visions into reality</p>
-        </div>
 
-        {/* Login Form */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+              <AlertCircle className="h-5 w-5 mr-2" />
+              {error}
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-green-100 text-sm font-medium mb-2">
-                Company Email
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
               </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-green-300/30 rounded-lg text-white placeholder-green-300/50 focus:outline-none focus:border-green-400 focus:bg-white/20 transition"
-                placeholder="production@company.com"
-                required
-              />
+              <div className="mt-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="you@example.com"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-green-100 text-sm font-medium mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-green-300/30 rounded-lg text-white placeholder-green-300/50 focus:outline-none focus:border-green-400 focus:bg-white/20 transition"
-                placeholder="••••••••"
-                required
-              />
+              <div className="mt-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
 
-            {error && (
-              <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200 text-sm">
-                {error}
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <Link to="/forgot-password" className="font-medium text-orange-600 hover:text-orange-500">
+                  Forgot password?
+                </Link>
               </div>
-            )}
+            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            >
-              {loading ? 'Signing in...' : 'Sign in as Production Company'}
-            </button>
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <LogIn className="h-5 w-5 mr-2" />
+                    Sign in
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Demo Account Button */}
+            <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+              <p className="text-orange-700 text-xs text-center mb-3">Try our demo account</p>
+              <button
+                type="button"
+                onClick={setDemoCredentials}
+                className="w-full py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg text-sm font-medium transition border border-orange-300"
+              >
+                Use Demo Production Account
+              </button>
+            </div>
           </form>
 
-          {/* Additional Links */}
-          <div className="mt-6 space-y-3">
-            <div className="text-center">
-              <a href="/register/production" className="text-green-200 hover:text-white text-sm transition">
-                Register your production company
-              </a>
+          {/* Other Portals */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">
+                  Try other portals
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-center space-x-4 text-xs">
-              <a href="/login/creator" className="text-green-300 hover:text-white transition flex items-center gap-1">
-                <Briefcase className="w-3 h-3" /> Creator Portal
-              </a>
-              <span className="text-green-400">•</span>
-              <a href="/login/investor" className="text-green-300 hover:text-white transition flex items-center gap-1">
-                <Users className="w-3 h-3" /> Investor Portal
-              </a>
-            </div>
-          </div>
 
-          {/* Demo Account */}
-          <div className="mt-6 p-4 bg-green-600/20 rounded-lg border border-green-500/30">
-            <p className="text-green-200 text-xs text-center mb-3">
-              Try our demo account
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('stellar.production@demo.com');
-                setPassword('Demo123');
-              }}
-              className="w-full py-2 bg-green-500/30 hover:bg-green-500/40 text-green-100 rounded-lg text-sm font-medium transition border border-green-400/30"
-            >
-              Use Demo Production Account
-            </button>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <Link
+                to="/login/creator"
+                className="inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Creator Portal
+              </Link>
+              <Link
+                to="/login/investor"
+                className="inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Investor Portal
+              </Link>
+            </div>
           </div>
         </div>
       </div>

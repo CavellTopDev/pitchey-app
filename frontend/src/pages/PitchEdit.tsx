@@ -3,12 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Upload, FileText, Video, Image as ImageIcon } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch, UpdatePitchInput } from '../services/pitch.service';
-import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
+import { getGenresSync } from '../constants/pitchConstants';
 
 interface PitchFormData {
   title: string;
   genre: string;
   format: string;
+  formatCategory: string;
+  formatSubtype: string;
+  customFormat: string;
   logline: string;
   shortSynopsis: string;
   image: File | null;
@@ -23,17 +26,66 @@ export default function PitchEdit() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [genres] = useState<string[]>(getGenresSync());
-  const [formats] = useState<string[]>(getFormatsSync());
   const [formData, setFormData] = useState<PitchFormData>({
     title: '',
     genre: '',
     format: '',
+    formatCategory: '',
+    formatSubtype: '',
+    customFormat: '',
     logline: '',
     shortSynopsis: '',
     image: null,
     pdf: null,
     video: null
   });
+
+  const formatCategories: Record<string, string[]> = {
+    'Television - Scripted': [
+      'Narrative Series (ongoing)',
+      'Limited Series (closed-ended)',
+      'Soap/Continuing Drama',
+      'Anthology Series'
+    ],
+    'Television - Unscripted': [
+      'Documentary One-off',
+      'Documentary Series',
+      'Docudrama / Hybrid',
+      'Reality Series (competition, dating, makeover, Docu-reality)',
+      'Game / Quiz Show',
+      'Talk / Variety / Sketch Show',
+      'Lifestyle / Factual Entertainment'
+    ],
+    'Film': [
+      'Feature Narrative (live action)',
+      'Feature Documentary',
+      'Feature Animation',
+      'Anthology / Omnibus Film',
+      'Short Film / Short Documentary'
+    ],
+    'Animation (Series)': [
+      'Kids Series',
+      'Adult Series',
+      'Limited Series / Specials'
+    ],
+    'Audio': [
+      'Podcast - Drama (scripted fiction)',
+      'Podcast - Documentary (non-fiction)',
+      'Podcast - Hybrid / Docudrama'
+    ],
+    'Digital / Emerging': [
+      'Web Series / Digital-first Series',
+      'Interactive / Immersive (VR/AR, choose-your-own path)'
+    ],
+    'Stage-to-Screen': [
+      'Recorded Theatre',
+      'Comedy Specials',
+      'Performance Hybrids'
+    ],
+    'Other': [
+      'Custom Format (please specify)'
+    ]
+  };
 
   useEffect(() => {
     if (id) {
@@ -43,11 +95,21 @@ export default function PitchEdit() {
 
   const fetchPitch = async (pitchId: number) => {
     try {
-      const pitch = await pitchService.getById(pitchId);
+      // Fetch all creator pitches and find the one with matching ID
+      const pitches = await pitchService.getMyPitches();
+      const pitch = pitches.find(p => p.id === pitchId);
+      
+      if (!pitch) {
+        throw new Error('Pitch not found');
+      }
+      
       setFormData({
         title: pitch.title || '',
         genre: pitch.genre || '',
         format: pitch.format || '',
+        formatCategory: pitch.formatCategory || '',
+        formatSubtype: pitch.formatSubtype || '',
+        customFormat: pitch.customFormat || '',
         logline: pitch.logline || '',
         shortSynopsis: pitch.shortSynopsis || '',
         image: null,
@@ -70,6 +132,26 @@ export default function PitchEdit() {
     }));
   };
 
+  const handleFormatCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const category = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      formatCategory: category,
+      formatSubtype: '', // Reset subtype when category changes
+      customFormat: '', // Reset custom format
+      format: category // Set the main format to the category
+    }));
+  };
+
+  const handleFormatSubtypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const subtype = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      formatSubtype: subtype,
+      format: subtype === 'Custom Format (please specify)' ? 'Custom' : subtype
+    }));
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'image' | 'pdf' | 'video') => {
     const file = e.target.files?.[0] || null;
     setFormData(prev => ({
@@ -86,8 +168,10 @@ export default function PitchEdit() {
   };
 
   const validateForm = () => {
-    const { title, genre, format, logline, shortSynopsis } = formData;
-    return title.trim() && genre && format && logline.trim() && shortSynopsis.trim();
+    const { title, genre, format, formatCategory, formatSubtype, customFormat, logline, shortSynopsis } = formData;
+    const isCustomFormat = formatSubtype === 'Custom Format (please specify)';
+    const isFormatValid = formatCategory && formatSubtype && (!isCustomFormat || customFormat.trim());
+    return title.trim() && genre && format && isFormatValid && logline.trim() && shortSynopsis.trim();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,6 +189,9 @@ export default function PitchEdit() {
         title: formData.title,
         genre: formData.genre,
         format: formData.format,
+        formatCategory: formData.formatCategory,
+        formatSubtype: formData.formatSubtype,
+        customFormat: formData.customFormat,
         logline: formData.logline,
         shortSynopsis: formData.shortSynopsis
       };
@@ -248,23 +335,64 @@ export default function PitchEdit() {
               </div>
 
               <div>
-                <label htmlFor="format" className="block text-sm font-medium text-gray-700 mb-2">
-                  Format *
+                <label htmlFor="formatCategory" className="block text-sm font-medium text-gray-700 mb-2">
+                  Format Category *
                 </label>
                 <select
-                  id="format"
-                  name="format"
-                  value={formData.format}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  id="formatCategory"
+                  name="formatCategory"
+                  value={formData.formatCategory}
+                  onChange={handleFormatCategoryChange}
+                  aria-required="true"
                   required
+                  className="w-full px-3 py-2 border rounded-lg transition-colors border-gray-300 focus:ring-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                 >
-                  <option value="">Select a format</option>
-                  {formats.map(format => (
-                    <option key={format} value={format}>{format}</option>
+                  <option value="">Select a format category</option>
+                  {Object.keys(formatCategories).map(category => (
+                    <option key={category} value={category}>{category}</option>
                   ))}
                 </select>
               </div>
+
+              {formData.formatCategory && (
+                <div>
+                  <label htmlFor="formatSubtype" className="block text-sm font-medium text-gray-700 mb-2">
+                    Format Subtype *
+                  </label>
+                  <select
+                    id="formatSubtype"
+                    name="formatSubtype"
+                    value={formData.formatSubtype}
+                    onChange={handleFormatSubtypeChange}
+                    aria-required="true"
+                    required
+                    className="w-full px-3 py-2 border rounded-lg transition-colors border-gray-300 focus:ring-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                  >
+                    <option value="">Select a format subtype</option>
+                    {formatCategories[formData.formatCategory as keyof typeof formatCategories]?.map(subtype => (
+                      <option key={subtype} value={subtype}>{subtype}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {formData.formatSubtype === 'Custom Format (please specify)' && (
+                <div>
+                  <label htmlFor="customFormat" className="block text-sm font-medium text-gray-700 mb-2">
+                    Custom Format *
+                  </label>
+                  <input
+                    type="text"
+                    id="customFormat"
+                    name="customFormat"
+                    value={formData.customFormat}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Please specify your custom format"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             <div className="mt-6">

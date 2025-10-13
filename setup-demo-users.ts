@@ -1,16 +1,8 @@
 // Script to add demo users to PostgreSQL database
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { db } from "./src/db/client.ts";
+import { users } from "./src/db/schema.ts";
+import { eq } from "npm:drizzle-orm";
 import { hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
-
-const DATABASE_URL = Deno.env.get("DATABASE_URL");
-if (!DATABASE_URL) {
-  console.log("No DATABASE_URL found, exiting");
-  Deno.exit(1);
-}
-
-const sql = postgres(DATABASE_URL);
-const db = drizzle(sql);
 
 // Demo users to create
 const demoUsers = [
@@ -52,36 +44,39 @@ async function setupDemoUsers() {
       const hashedPassword = await hash(user.password);
       
       // Check if user exists
-      const existingUser = await sql`
-        SELECT id FROM users WHERE email = ${user.email}
-      `;
+      const existingUser = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, user.email))
+        .limit(1);
       
       if (existingUser.length > 0) {
         // Update existing user's password
-        await sql`
-          UPDATE users 
-          SET password = ${hashedPassword},
-              username = ${user.username},
-              user_type = ${user.userType},
-              first_name = ${user.firstName},
-              last_name = ${user.lastName},
-              company_name = ${user.companyName}
-          WHERE email = ${user.email}
-        `;
+        await db.update(users)
+          .set({
+            passwordHash: hashedPassword,
+            username: user.username,
+            userType: user.userType,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            companyName: user.companyName,
+            updatedAt: new Date()
+          })
+          .where(eq(users.email, user.email));
         console.log(`Updated user: ${user.email}`);
       } else {
         // Insert new user
-        await sql`
-          INSERT INTO users (
-            email, username, password, user_type, 
-            first_name, last_name, company_name, 
-            created_at, updated_at
-          ) VALUES (
-            ${user.email}, ${user.username}, ${hashedPassword}, 
-            ${user.userType}, ${user.firstName}, ${user.lastName}, 
-            ${user.companyName}, NOW(), NOW()
-          )
-        `;
+        await db.insert(users).values({
+          email: user.email,
+          username: user.username,
+          passwordHash: hashedPassword,
+          userType: user.userType,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          companyName: user.companyName,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
         console.log(`Created user: ${user.email}`);
       }
     } catch (error) {
@@ -91,17 +86,22 @@ async function setupDemoUsers() {
   
   // List all users
   console.log("\nCurrent users in database:");
-  const allUsers = await sql`
-    SELECT id, email, username, user_type, first_name, last_name 
-    FROM users
-    ORDER BY id
-  `;
+  const allUsers = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      username: users.username,
+      userType: users.userType,
+      firstName: users.firstName,
+      lastName: users.lastName
+    })
+    .from(users)
+    .orderBy(users.id);
   
   for (const user of allUsers) {
-    console.log(`- ${user.email} (${user.user_type}) - ${user.first_name} ${user.last_name}`);
+    console.log(`- ${user.email} (${user.userType}) - ${user.firstName} ${user.lastName}`);
   }
   
-  await sql.end();
   console.log("\nDemo users setup complete!");
 }
 

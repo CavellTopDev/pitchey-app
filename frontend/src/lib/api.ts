@@ -176,6 +176,7 @@ export const authAPI = {
     }
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userType', response.data.user.userType);
     }
     return { user: response.data.user };
   },
@@ -190,6 +191,7 @@ export const authAPI = {
     }
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userType', response.data.user.userType);
     }
     return { user: response.data.user };
   },
@@ -204,6 +206,7 @@ export const authAPI = {
     }
     if (response.data.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userType', response.data.user.userType);
     }
     return { user: response.data.user };
   },

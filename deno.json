@@ -1,18 +1,20 @@
 {
   "imports": {
+    "drizzle-kit": "npm:drizzle-kit@^0.31.5",
     "stripe": "npm:stripe@^14.0.0",
     "@std/http": "https://deno.land/std@0.224.0/http/",
     "@std/crypto": "https://deno.land/std@0.224.0/crypto/",
     "djwt": "https://deno.land/x/djwt@v2.8/mod.ts",
     "bcrypt": "https://deno.land/x/bcrypt@v0.4.1/mod.ts",
-    "drizzle-orm": "npm:drizzle-orm@^0.29.0",
-    "drizzle-orm/": "npm:drizzle-orm@^0.29.0/",
-    "@neondatabase/serverless": "npm:@neondatabase/serverless@0.7.2",
-    "postgres": "npm:postgres@^3.4.0"
+    "drizzle-orm": "npm:drizzle-orm@^0.33.0",
+    "drizzle-orm/": "npm:drizzle-orm@^0.33.0/",
+    "@neondatabase/serverless": "npm:@neondatabase/serverless@0.9.5",
+    "postgres": "npm:postgres@^3.4.0",
+    "redis": "https://deno.land/x/redis@v0.32.3/mod.ts"
   },
   "tasks": {
-    "dev": "deno run --allow-net --allow-env --allow-read --watch working-server.ts",
-    "start": "deno run --allow-net --allow-env --allow-read working-server.ts",
+    "dev": "CACHE_ENABLED=true REDIS_HOST=localhost REDIS_PORT=6379 NODE_ENV=development DENO_ENV=development PORT=8001 deno run --allow-net --allow-env --allow-read --watch working-server.ts",
+    "start": "CACHE_ENABLED=true REDIS_HOST=localhost REDIS_PORT=6379 NODE_ENV=development DENO_ENV=development PORT=8001 deno run --allow-net --allow-env --allow-read working-server.ts",
     "dev:mock": "deno run --allow-net --allow-env --allow-read --watch oak-server.old.ts",
     "start:mock": "deno run --allow-net --allow-env --allow-read oak-server.old.ts",
     "init-db": "deno run --allow-net --allow-env --allow-read init-neon-db.ts",
@@ -21,10 +23,18 @@
     "start:old": "deno run --allow-net --allow-read --allow-env --allow-write multi-portal-server.ts",
     "test": "echo 'Tests passed'",
     "test:security": "deno test --allow-all tests/security.test.ts",
-    "migrate": "deno run --allow-read --allow-write --allow-env migrate-to-secure.ts"
+    "migrate": "deno run --allow-read --allow-write --allow-env migrate-to-secure.ts",
+    "redis:health": "deno run --allow-net --allow-env scripts/redis-health-check.ts",
+    "redis:start": "docker run -d --name pitchey-redis -p 6379:6379 --restart unless-stopped redis:7-alpine",
+    "redis:stop": "docker stop pitchey-redis && docker rm pitchey-redis",
+    "db:generate": "deno run -A npm:drizzle-kit generate",
+    "db:push": "deno run -A npm:drizzle-kit push",
+    "db:studio": "deno run -A npm:drizzle-kit studio",
+    "db:migrate": "deno run -A npm:drizzle-kit migrate",
+    "clean": "pkill -f 'deno.*working-server' || true",
+    "restart": "deno task clean && sleep 1 && deno task dev"
   },
   "compilerOptions": {
-    "allowJs": true,
     "lib": [
       "deno.window"
     ],

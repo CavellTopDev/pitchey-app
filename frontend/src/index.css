@@ -104,7 +104,7 @@
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-tight);
     letter-spacing: var(--letter-spacing-normal);
-    color: var(--color-text-primary);
+    color: #000000;
   }
   
   .text-nav-link {
@@ -124,7 +124,7 @@
     font-size: var(--font-size-metadata);
     font-weight: var(--font-weight-normal);
     letter-spacing: var(--letter-spacing-normal);
-    color: var(--color-text-muted);
+    color: #333333;
   }
 
   .btn-primary {

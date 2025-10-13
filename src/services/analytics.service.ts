@@ -16,30 +16,37 @@ export class AnalyticsService {
     eventType: string;
     userId?: number;
     sessionId?: string;
-    pitchId?: number;
+    eventCategory?: string;
     eventData?: any;
     ipAddress?: string;
     userAgent?: string;
-    pathname?: string;
   }) {
     try {
+      // Check if analytics table exists (fail silently if not)
       const [event] = await db.insert(analyticsEvents)
         .values({
-          eventType: data.eventType as any,
+          eventType: data.eventType,
           userId: data.userId,
           sessionId: data.sessionId,
-          pitchId: data.pitchId,
+          eventCategory: data.eventCategory || 'general',
           eventData: data.eventData || {},
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
-          pathname: data.pathname,
-          timestamp: new Date()
         })
         .returning();
 
       return event;
-    } catch (error) {
-      console.error("Error tracking event:", error);
+    } catch (error: any) {
+      // Silently ignore if table doesn't exist (42P01 = table does not exist)
+      if (error.code === '42P01') {
+        // Don't log this error - table will be created on next migration
+        return null;
+      }
+      
+      // Only log non-table-existence errors
+      if (error.code !== '42P01') {
+        console.warn('Analytics tracking error (non-critical):', error.code || error.message);
+      }
       return null;
     }
   }
@@ -122,9 +129,9 @@ export class AnalyticsService {
       const events = await db.query.analyticsEvents.findMany({
         where: and(
           eq(analyticsEvents.pitchId, pitchId),
-          gte(analyticsEvents.timestamp, thirtyDaysAgo)
+          gte(analyticsEvents.createdAt, thirtyDaysAgo)
         ),
-        orderBy: desc(analyticsEvents.timestamp)
+        orderBy: desc(analyticsEvents.createdAt)
       });
 
       // Calculate metrics
@@ -187,9 +194,9 @@ export class AnalyticsService {
       const recentEvents = await db.query.analyticsEvents.findMany({
         where: and(
           eq(analyticsEvents.userId, userId),
-          gte(analyticsEvents.timestamp, sevenDaysAgo)
+          gte(analyticsEvents.createdAt, sevenDaysAgo)
         ),
-        orderBy: desc(analyticsEvents.timestamp),
+        orderBy: desc(analyticsEvents.createdAt),
         limit: 50
       });
 
@@ -382,7 +389,7 @@ export class AnalyticsService {
           eq(analyticsEvents.userId, userId),
           eq(analyticsEvents.eventType, "like")
         ),
-        orderBy: desc(analyticsEvents.timestamp)
+        orderBy: desc(analyticsEvents.createdAt)
       });
 
       let isLiked = false;

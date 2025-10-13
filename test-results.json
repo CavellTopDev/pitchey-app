@@ -1,0 +1,330 @@
+{
+  "timestamp": "2025-10-11T12:48:00.366Z",
+  "summary": {
+    "total": 39,
+    "passed": 37,
+    "failed": 2,
+    "passRate": "94.87",
+    "avgDuration": 20
+  },
+  "statusCodes": {
+    "200": 36,
+    "201": 1,
+    "422": 1,
+    "500": 1
+  },
+  "results": [
+    {
+      "endpoint": "/api/auth/creator/login",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Creator login successful",
+      "duration": 4
+    },
+    {
+      "endpoint": "/api/auth/investor/login",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Investor login successful",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/auth/production/login",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Production login successful",
+      "duration": 0
+    },
+    {
+      "endpoint": "/api/health",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"status\":\"healthy\",\"message\":\"Complete Pitchey API is running\",\"timestamp\":\"",
+      "duration": 0
+    },
+    {
+      "endpoint": "/api/pitches/public",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "Public pitches retrieved successfully",
+      "duration": 15
+    },
+    {
+      "endpoint": "/api/pitches/trending",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"data\":[{\"id\":2,\"title\":\"Midnight Diner\",\"logline\":\"A late-night diner becom",
+      "duration": 12
+    },
+    {
+      "endpoint": "/api/pitches/featured",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"pitches\":[{\"id\":2,\"title\":\"Midnight Diner\",\"logline\":\"A late-night diner becomes th",
+      "duration": 12
+    },
+    {
+      "endpoint": "/api/search/pitches?q=test",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"results\":[{\"id\":1,\"title\":\"Comprehensive Test Updated Title\",\"logline\":\"Testing com",
+      "duration": 26
+    },
+    {
+      "endpoint": "/api/auth/creator/login",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Creator login successful",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/auth/investor/login",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Investor login successful",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/auth/production/login",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Production login successful",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Login successful",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/auth/logout",
+      "method": "POST",
+      "status": 200,
+      "success": true,
+      "message": "Logged out successfully",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/auth/profile",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"user\":{\"id\":1,\"email\":\"alex.creator@demo.com\",\"username\":\"alex_creator\",\"userType\":",
+      "duration": 14
+    },
+    {
+      "endpoint": "/api/creator/dashboard",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"totalPitches\":6,\"publishedPitches\":2,\"draftPitches\":4,\"totalViews\":0,\"total",
+      "duration": 134
+    },
+    {
+      "endpoint": "/api/creator/stats",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"stats\":{\"totalPitches\":6,\"publishedPitches\":2,\"draftPitches\":4,\"totalViews\"",
+      "duration": 26
+    },
+    {
+      "endpoint": "/api/creator/pitches",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitches\":[{\"id\":20,\"userId\":1,\"title\":\"Test Pitch 1760186795496\",\"logline\":",
+      "duration": 25
+    },
+    {
+      "endpoint": "/api/pitches/1",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitch\":{\"id\":1,\"userId\":1,\"title\":\"Comprehensive Test Updated Title\",\"logli",
+      "duration": 16
+    },
+    {
+      "endpoint": "/api/pitches",
+      "method": "POST",
+      "status": 201,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitch\":{\"id\":21,\"userId\":1,\"title\":\"Test Pitch 1760186879868\",\"logline\":\"A ",
+      "duration": 67
+    },
+    {
+      "endpoint": "/api/creator/analytics",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"overview\":{\"totalViews\":0,\"totalLikes\":0,\"totalComments\":0,\"totalDownloads\"",
+      "duration": 36
+    },
+    {
+      "endpoint": "/api/pitches/1/views",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitch\":{\"id\":1,\"userId\":1,\"title\":\"Comprehensive Test Updated Title\",\"logli",
+      "duration": 17
+    },
+    {
+      "endpoint": "/api/pitches/1/engagement",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitch\":{\"id\":1,\"userId\":1,\"title\":\"Comprehensive Test Updated Title\",\"logli",
+      "duration": 16
+    },
+    {
+      "endpoint": "/api/investor/dashboard",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"data\":{\"portfolio\":{\"totalInvestments\":0,\"activeDeals\":0,\"totalInvested\":0,",
+      "duration": 28
+    },
+    {
+      "endpoint": "/api/investor/portfolio",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"portfolio\":[],\"message\":\"Portfolio retrieved successfully\"},\"metadata\":{\"ti",
+      "duration": 12
+    },
+    {
+      "endpoint": "/api/pitches",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitches\":[{\"id\":3,\"userId\":2,\"title\":\"Code Red\",\"logline\":\"A cybersecurity ",
+      "duration": 23
+    },
+    {
+      "endpoint": "/api/pitches/1",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitch\":{\"id\":1,\"userId\":1,\"title\":\"Comprehensive Test Updated Title\",\"logli",
+      "duration": 98
+    },
+    {
+      "endpoint": "/api/search/pitches?q=test",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"results\":[{\"id\":1,\"title\":\"Comprehensive Test Updated Title\",\"logline\":\"Testing com",
+      "duration": 29
+    },
+    {
+      "endpoint": "/api/watchlist",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"watchlist\":[{\"id\":1,\"title\":\"Comprehensive Test Updated Title\",\"genre\":\"sci",
+      "duration": 14
+    },
+    {
+      "endpoint": "/api/watchlist/1",
+      "method": "POST",
+      "status": 422,
+      "success": false,
+      "message": "Pitch already in watchlist",
+      "duration": 26
+    },
+    {
+      "endpoint": "/api/nda/status/1",
+      "method": "GET",
+      "status": 500,
+      "success": false,
+      "message": "Failed to check NDA status",
+      "duration": 30
+    },
+    {
+      "endpoint": "/api/production/dashboard",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"dashboard\":{\"activeProjects\":0,\"inDevelopment\":0,\"preProduction\":0,\"filming",
+      "duration": 20
+    },
+    {
+      "endpoint": "/api/production/projects",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"projects\":[{\"id\":1,\"title\":\"Horror Feature Film\",\"status\":\"pre-production\",",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/production/team",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"team\":[{\"id\":1,\"name\":\"John Smith\",\"role\":\"Director\",\"email\":\"john@producti",
+      "duration": 0
+    },
+    {
+      "endpoint": "/api/pitches",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"pitches\":[{\"id\":4,\"userId\":3,\"title\":\"Growing Pains\",\"logline\":\"A coming-of",
+      "duration": 14
+    },
+    {
+      "endpoint": "/api/search/pitches?q=action",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"results\":[],\"pagination\":{\"total\":0,\"limit\":20,\"offset\":0,\"hasMore\":false}}",
+      "duration": 26
+    },
+    {
+      "endpoint": "/api/messages/conversations",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"conversations\":[],\"total\":0,\"success\":true,\"warning\":\"Could not load conver",
+      "duration": 2
+    },
+    {
+      "endpoint": "/api/messages/unread-count",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"unreadCount\":0}",
+      "duration": 20
+    },
+    {
+      "endpoint": "/api/notifications",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":{\"notifications\":[{\"id\":1,\"userId\":1,\"type\":\"nda_request\",\"title\":\"New NDA Re",
+      "duration": 1
+    },
+    {
+      "endpoint": "/api/notifications/unread",
+      "method": "GET",
+      "status": 200,
+      "success": true,
+      "message": "{\"success\":true,\"data\":[],\"metadata\":{\"timestamp\":\"2025-10-11T12:48:00.365Z\"}}",
+      "duration": 13
+    }
+  ]
+}
