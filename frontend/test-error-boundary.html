@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error Boundary Testing</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-button { 
+            background: #e11d48; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 5px; 
+            margin: 10px; 
+            cursor: pointer; 
+        }
+        .info { background: #f3f4f6; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .success { color: #22c55e; }
+        .error { color: #e11d48; }
+    </style>
+</head>
+<body>
+    <h1>🚨 Error Boundary Testing Suite</h1>
+    
+    <div class="info">
+        <h3>Testing Overview</h3>
+        <p>This page helps you test the enhanced error boundary functionality. The improvements include:</p>
+        <ul>
+            <li><strong>Source Maps</strong>: Error stack traces now show actual line numbers instead of minified names</li>
+            <li><strong>Enhanced Error Boundary</strong>: Comprehensive error logging with copy-to-clipboard functionality</li>
+            <li><strong>Error Reporting</strong>: Automatic error reporting to backend API and console logging</li>
+            <li><strong>Better UX</strong>: Detailed error information with development tips</li>
+        </ul>
+    </div>
+
+    <h3>🔧 How to Test:</h3>
+    <ol>
+        <li><strong>Visit Production Site</strong>: Go to <a href="https://pitchey.netlify.app" target="_blank">https://pitchey.netlify.app</a></li>
+        <li><strong>Navigate to Problem Area</strong>: Try to reproduce the error that was occurring</li>
+        <li><strong>Check Developer Console</strong>: Open browser DevTools (F12) and check the Console tab</li>
+        <li><strong>Look for Enhanced Error Logging</strong>: You should see detailed error reports with error IDs</li>
+        <li><strong>Test Error Boundary UI</strong>: If an error occurs, you should see the new error boundary with copy button</li>
+    </ol>
+
+    <h3>📋 What to Look For:</h3>
+    <div class="info">
+        <h4>✅ In Browser Console:</h4>
+        <ul>
+            <li>🚨 React Error Boundary - [ERROR_ID] groups with detailed error information</li>
+            <li>Error tables showing: errorId, message, stack, componentStack, timestamp, etc.</li>
+            <li>Source map files loading (check Network tab for .js.map files)</li>
+        </ul>
+
+        <h4>✅ In Error Boundary UI:</h4>
+        <ul>
+            <li>Error ID and timestamp display</li>
+            <li>Copy Details button that works</li>
+            <li>Expandable stack trace sections</li>
+            <li>Development tips section (in non-prod builds)</li>
+            <li>Retry and Go Home buttons</li>
+        </ul>
+    </div>
+
+    <h3>🔍 Debugging Benefits:</h3>
+    <div class="info">
+        <h4>Before (Minified Error):</h4>
+        <code>componentDidCatch @ index-5mPbOMXY.js:234</code>
+        
+        <h4>After (With Source Maps):</h4>
+        <code>componentDidCatch @ ErrorBoundary.tsx:51</code>
+        <p class="success">✅ Now you can see the actual file and line number!</p>
+    </div>
+
+    <h3>🧪 Manual Testing:</h3>
+    <p>To manually trigger an error for testing:</p>
+    <ol>
+        <li>Open browser DevTools Console</li>
+        <li>Navigate to any page on the site</li>
+        <li>Run this command: <code>setTimeout(() => { throw new Error('Test error for debugging') }, 1000)</code></li>
+        <li>Check if the error is properly caught and logged</li>
+    </ol>
+
+    <div class="info">
+        <h3>🔗 Quick Links:</h3>
+        <ul>
+            <li><a href="https://pitchey.netlify.app" target="_blank">Production Site (Pitchey)</a></li>
+            <li><a href="http://localhost:4173" target="_blank">Local Preview (if running)</a></li>
+            <li><a href="http://localhost:5173" target="_blank">Local Dev Server (if running)</a></li>
+        </ul>
+    </div>
+
+    <script>
+        // Test source maps by checking if they're loading
+        setTimeout(() => {
+            const scripts = Array.from(document.scripts);
+            console.log('Testing Source Map Detection...');
+            
+            // This would be run on the actual Pitchey site
+            console.log('🔍 To test source maps, visit https://pitchey.netlify.app and check:');
+            console.log('1. Network tab for .js.map files');
+            console.log('2. Console errors showing real file names instead of minified names');
+            console.log('3. Error boundary with detailed error information');
+        }, 1000);
+    </script>
+</body>
+</html>

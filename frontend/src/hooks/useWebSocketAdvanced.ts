@@ -40,9 +40,9 @@ const DEFAULT_OPTIONS: Required<UseWebSocketAdvancedOptions> = {
   onError: () => {},
   onReconnect: () => {},
   autoConnect: true,
-  maxReconnectAttempts: 10,
+  maxReconnectAttempts: 5,  // Reduced from 10 to prevent excessive retries
   reconnectInterval: 3000,
-  maxReconnectInterval: 45000,
+  maxReconnectInterval: 30000,  // Reduced from 45000 for faster failure detection
   maxQueueSize: 100,
   enablePersistence: true,
   rateLimit: {
@@ -391,21 +391,36 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             reconnectAttempts: attempt,
           }));
           
-          console.log(`Attempting reconnect ${attempt}/${opts.maxReconnectAttempts} in ${delay}ms`);
+          console.log(`WebSocket disconnected (code: ${event.code}). Attempting reconnect ${attempt}/${opts.maxReconnectAttempts} in ${delay}ms`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             opts.onReconnect(attempt);
             connect();
           }, delay);
+        } else if (connectionStatus.reconnectAttempts >= opts.maxReconnectAttempts) {
+          // Max attempts reached - stop trying and show user-friendly message
+          console.error(`WebSocket connection failed after ${opts.maxReconnectAttempts} attempts. Real-time features disabled.`);
+          setConnectionStatus(prev => ({
+            ...prev,
+            reconnecting: false,
+            error: 'Connection failed after multiple attempts. Real-time features temporarily unavailable.',
+          }));
         }
       };
       
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setConnectionStatus(prev => ({
-          ...prev,
-          error: 'Connection error occurred',
-        }));
+        console.error('WebSocket error occurred:', {
+          readyState: ws.readyState,
+          url: ws.url,
+          error: error
+        });
+        
+        // Don't immediately set error state - let onclose handle reconnection logic
+        // This prevents error loops when the server is unreachable
+        if (ws.readyState === WebSocket.CONNECTING) {
+          console.log('WebSocket failed to connect - will attempt reconnect via onclose handler');
+        }
+        
         opts.onError(error);
       };
       

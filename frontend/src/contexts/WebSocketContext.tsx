@@ -87,6 +87,11 @@ interface WebSocketContextType {
   disconnect: () => void;
   clearQueue: () => void;
   
+  // Emergency controls
+  disableWebSocket: () => void;
+  enableWebSocket: () => void;
+  isWebSocketDisabled: boolean;
+  
   // Subscriptions
   subscribeToNotifications: (callback: (notification: NotificationData) => void) => () => void;
   subscribeToDashboard: (callback: (metrics: DashboardMetrics) => void) => () => void;
@@ -104,6 +109,9 @@ interface WebSocketProviderProps {
 
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const { user, isAuthenticated } = useAuthStore();
+  
+  // Emergency disable state
+  const [isWebSocketDisabled, setIsWebSocketDisabled] = useState(false);
   
   // State
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -136,10 +144,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     onMessage: handleMessage,
     onConnect: handleConnect,
     onDisconnect: handleDisconnect,
-    autoConnect: isAuthenticated,
-    maxReconnectAttempts: 10,
-    reconnectInterval: 3000,
-    maxReconnectInterval: 45000,
+    autoConnect: isAuthenticated && !isWebSocketDisabled,
+    maxReconnectAttempts: 5,  // Reduced to prevent infinite loops
+    reconnectInterval: 5000,  // Increased initial delay
+    maxReconnectInterval: 30000,  // Reduced max interval
     maxQueueSize: 100,
     enablePersistence: true,
     rateLimit: {
@@ -358,6 +366,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     
     // Update local state to reflect disconnection
     setOnlineUsers(prev => prev.filter(user => user.userId !== user?.id));
+    
+    // Auto-disable if too many failed attempts
+    if (connectionStatus.reconnectAttempts >= 4) {
+      console.warn('Too many WebSocket reconnection failures. Auto-disabling to prevent infinite loops.');
+      setTimeout(() => {
+        setIsWebSocketDisabled(true);
+        localStorage.setItem('pitchey_websocket_disabled', 'true');
+      }, 1000);
+    }
   }
   
   // Public methods
@@ -483,6 +500,31 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
   }, [isAuthenticated, isConnected, connect, disconnect]);
   
+  // Emergency control functions
+  const disableWebSocket = useCallback(() => {
+    console.log('WebSocket manually disabled - stopping all connections');
+    setIsWebSocketDisabled(true);
+    disconnect();
+    localStorage.setItem('pitchey_websocket_disabled', 'true');
+  }, [disconnect]);
+
+  const enableWebSocket = useCallback(() => {
+    console.log('WebSocket manually enabled - allowing connections');
+    setIsWebSocketDisabled(false);
+    localStorage.removeItem('pitchey_websocket_disabled');
+    if (isAuthenticated) {
+      setTimeout(connect, 1000); // Small delay before reconnecting
+    }
+  }, [connect, isAuthenticated]);
+
+  // Check if WebSocket was manually disabled
+  useEffect(() => {
+    const wasDisabled = localStorage.getItem('pitchey_websocket_disabled') === 'true';
+    if (wasDisabled) {
+      setIsWebSocketDisabled(true);
+    }
+  }, []);
+
   // Request browser notification permission
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -517,6 +559,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     connect,
     disconnect,
     clearQueue,
+    
+    // Emergency controls
+    disableWebSocket,
+    enableWebSocket,
+    isWebSocketDisabled,
     
     // Subscriptions
     subscribeToNotifications,
