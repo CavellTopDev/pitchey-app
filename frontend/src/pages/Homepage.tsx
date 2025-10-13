@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
 import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
+import FormatDisplay from '../components/FormatDisplay';
 
 
 export default function Homepage() {
@@ -271,7 +272,12 @@ export default function Homepage() {
                       <Film className="w-16 h-16 text-purple-200" />
                     </div>
                     <div className="absolute top-2 right-2 bg-purple-600 px-2 py-1 rounded text-xs text-white">
-                      {pitch.format}
+                      <FormatDisplay 
+                        formatCategory={pitch.formatCategory}
+                        formatSubtype={pitch.formatSubtype}
+                        format={pitch.format}
+                        variant="subtype-only"
+                      />
                     </div>
                   </div>
                   <div className="p-4">
@@ -344,7 +350,12 @@ export default function Homepage() {
                       NEW
                     </div>
                     <div className="absolute top-2 right-2 bg-purple-600 px-2 py-1 rounded text-xs text-white">
-                      {pitch.format}
+                      <FormatDisplay 
+                        formatCategory={pitch.formatCategory}
+                        formatSubtype={pitch.formatSubtype}
+                        format={pitch.format}
+                        variant="subtype-only"
+                      />
                     </div>
                   </div>
                   <div className="p-4">

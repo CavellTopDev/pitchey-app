@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { ndaAPI } from '../lib/apiServices';
 import { ndaService } from '../services/nda.service';
 import NDAModal from '../components/NDAModal';
+import FormatDisplay from '../components/FormatDisplay';
 
 export default function PublicPitchView() {
   const navigate = useNavigate();
@@ -316,7 +317,12 @@ export default function PublicPitchView() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Film className="w-4 h-4" />
-                      {pitch.format}
+                      <FormatDisplay 
+                        formatCategory={pitch.formatCategory}
+                        formatSubtype={pitch.formatSubtype}
+                        format={pitch.format}
+                        variant="compact"
+                      />
                     </div>
                   </div>
                 </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Eye, Edit3, Trash2, BarChart3, Search, Filter, RefreshCw, Shield } from 'lucide-react';
 import { pitchService, type Pitch } from '../services/pitch.service';
+import FormatDisplay from '../components/FormatDisplay';
 
 // Using Pitch type from pitch.service.ts which matches Drizzle schema
 
@@ -360,7 +361,15 @@ export default function ManagePitches() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 mb-1">{pitch.title}</h3>
-                      <p className="text-sm text-gray-500">{pitch.genre} • {pitch.format}</p>
+                      <p className="text-sm text-gray-500">
+                        {pitch.genre} • {' '}
+                        <FormatDisplay 
+                          formatCategory={pitch.formatCategory}
+                          formatSubtype={pitch.formatSubtype}
+                          format={pitch.format}
+                          variant="compact"
+                        />
+                      </p>
                     </div>
                     <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadge(pitch.status)}`}>
                       {pitch.status.replace('_', ' ')}

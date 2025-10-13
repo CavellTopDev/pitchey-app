@@ -6,6 +6,7 @@ import type { Pitch } from '../services/pitch.service';
 import { useAuthStore } from '../store/authStore';
 import BackButton from '../components/BackButton';
 import NDAModal from '../components/NDAModal';
+import FormatDisplay from '../components/FormatDisplay';
 
 export default function PitchDetail() {
   const navigate = useNavigate();
@@ -228,7 +229,12 @@ export default function PitchDetail() {
                   <span>•</span>
                   <span>{pitch.genre}</span>
                   <span>•</span>
-                  <span>{pitch.format}</span>
+                  <FormatDisplay 
+                    formatCategory={pitch.formatCategory}
+                    formatSubtype={pitch.formatSubtype}
+                    format={pitch.format}
+                    variant="compact"
+                  />
                 </div>
               </div>
             </div>
@@ -287,7 +293,12 @@ export default function PitchDetail() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Film className="w-4 h-4" />
-                      {pitch.format}
+                      <FormatDisplay 
+                        formatCategory={pitch.formatCategory}
+                        formatSubtype={pitch.formatSubtype}
+                        format={pitch.format}
+                        variant="compact"
+                      />
                     </div>
                   </div>
                 </div>

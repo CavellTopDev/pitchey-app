@@ -11,6 +11,7 @@ import Pagination from '../components/Pagination';
 import { useSearch } from '../hooks/useSearch';
 import { useResponsive } from '../hooks/useResponsive';
 import { configService } from '../services/config.service';
+import FormatDisplay from '../components/FormatDisplay';
 import { 
   Search, 
   Filter, 
@@ -434,9 +435,15 @@ export default function Marketplace() {
                     } flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity`}>
                     <div className="text-center">
                       <Film className="w-12 h-12 text-white/80 mx-auto mb-2" />
-                      <span className="text-white font-bold text-lg">
-                        {pitch.format}
-                      </span>
+                      <div className="text-white font-bold text-lg">
+                        <FormatDisplay 
+                          formatCategory={pitch.formatCategory}
+                          formatSubtype={pitch.formatSubtype}
+                          format={pitch.format}
+                          variant="subtype-only"
+                          className="text-white"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="p-4">
@@ -582,7 +589,15 @@ export default function Marketplace() {
                   className={`aspect-video bg-gradient-to-br ${bgGradient} flex items-center justify-center text-white font-bold text-sm relative cursor-pointer hover:opacity-90 transition-opacity`}
                 >
                   <Film className="w-8 h-8 text-white/50 absolute" />
-                  <span className="z-10">{pitch.format}</span>
+                  <div className="z-10 text-center">
+                    <FormatDisplay 
+                      formatCategory={pitch.formatCategory}
+                      formatSubtype={pitch.formatSubtype}
+                      format={pitch.format}
+                      variant="subtype-only"
+                      className="text-white"
+                    />
+                  </div>
                   
                   {/* Enhanced media indicators for production pitches */}
                   {isProduction && (

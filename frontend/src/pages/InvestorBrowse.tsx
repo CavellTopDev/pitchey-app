@@ -4,6 +4,7 @@ import { ArrowLeft, Search, Filter, Eye, Heart, DollarSign, Calendar, Shield, St
 import { pitchAPI } from '../lib/api';
 import { API_URL } from '../config/api.config';
 import { configService } from '../services/config.service';
+import FormatDisplay from '../components/FormatDisplay';
 
 interface Pitch {
   id: number;
@@ -11,6 +12,8 @@ interface Pitch {
   logline: string;
   genre: string;
   format: string;
+  formatCategory?: string;
+  formatSubtype?: string;
   budget: string;
   creator: {
     id: number;
@@ -439,7 +442,12 @@ export default function InvestorBrowse() {
                   <p className="text-sm text-gray-600 mb-4 line-clamp-2">{pitch.logline}</p>
                   
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <span>{pitch.genre} • {pitch.format}</span>
+                    <span>{pitch.genre} • <FormatDisplay 
+                      formatCategory={pitch.formatCategory}
+                      formatSubtype={pitch.formatSubtype}
+                      format={pitch.format}
+                      variant="compact"
+                    /></span>
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1">
                         <Eye className="w-4 h-4" />

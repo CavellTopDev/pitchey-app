@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '../store/authStore';
 import FollowButton from '../components/FollowButton';
 import { config } from '../config';
+import FormatDisplay from '../components/FormatDisplay';
 
 interface CreatorData {
   id: number;
@@ -300,7 +301,12 @@ const CreatorProfile = () => {
                     <p className="text-sm text-gray-600 mb-4 line-clamp-2">{pitch.logline}</p>
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
                       <span>{pitch.genre}</span>
-                      <span>{pitch.format}</span>
+                      <FormatDisplay 
+                        formatCategory={pitch.formatCategory}
+                        formatSubtype={pitch.formatSubtype}
+                        format={pitch.format}
+                        variant="compact"
+                      />
                     </div>
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <div className="flex items-center gap-3">

@@ -8,6 +8,7 @@ import {
   AlertCircle, CheckCircle, XCircle, Star, ChevronRight
 } from 'lucide-react';
 import { pitchAPI } from '../../lib/api';
+import FormatDisplay from '../../components/FormatDisplay';
 
 interface Pitch {
   id: string;
@@ -327,7 +328,12 @@ const InvestorPitchView: React.FC = () => {
                     {pitch.genre}
                   </span>
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                    {pitch.format}
+                    <FormatDisplay 
+                      formatCategory={pitch.formatCategory}
+                      formatSubtype={pitch.formatSubtype}
+                      format={pitch.format}
+                      variant="compact"
+                    />
                   </span>
                   <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
                     {pitch.budget}

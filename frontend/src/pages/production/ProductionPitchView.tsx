@@ -10,6 +10,7 @@ import {
   Truck, Home, Globe, Mic, Edit3, Package
 } from 'lucide-react';
 import { pitchAPI } from '../../lib/api';
+import FormatDisplay from '../../components/FormatDisplay';
 
 interface Pitch {
   id: string;
@@ -374,7 +375,12 @@ const ProductionPitchView: React.FC = () => {
                     {pitch.genre}
                   </span>
                   <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">
-                    {pitch.format}
+                    <FormatDisplay 
+                      formatCategory={pitch.formatCategory}
+                      formatSubtype={pitch.formatSubtype}
+                      format={pitch.format}
+                      variant="subtype-only"
+                    />
                   </span>
                   <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm">
                     {pitch.budget}
@@ -762,7 +768,12 @@ const ProductionPitchView: React.FC = () => {
                     <Film className="h-4 w-4 mr-2" />
                     Format
                   </span>
-                  <span className="font-semibold">{pitch.format}</span>
+                  <FormatDisplay 
+                    formatCategory={pitch.formatCategory}
+                    formatSubtype={pitch.formatSubtype}
+                    format={pitch.format}
+                    variant="compact"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center text-gray-600">

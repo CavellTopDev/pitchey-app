@@ -9,6 +9,7 @@ import {
 import { useAuthStore } from '../store/authStore';
 import PitchMediaGallery from '../components/PitchMediaGallery';
 import { API_URL } from '../config/api.config';
+import FormatDisplay from '../components/FormatDisplay';
 
 interface PitchDetails {
   id: number;
@@ -149,7 +150,12 @@ export default function ProductionPitchDetail() {
                 <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                   <span>{pitch.genre}</span>
                   <span>•</span>
-                  <span>{pitch.format}</span>
+                  <FormatDisplay 
+                    formatCategory={pitch.formatCategory}
+                    formatSubtype={pitch.formatSubtype}
+                    format={pitch.format}
+                    variant="compact"
+                  />
                   <span>•</span>
                   <span className="text-green-600 flex items-center gap-1">
                     <CheckCircle className="w-4 h-4" />

@@ -15,6 +15,7 @@ import type { Pitch } from '../lib/api';
 import { ndaAPI, analyticsAPI, companyAPI, paymentsAPI, pitchServicesAPI, apiClient } from '../lib/apiServices';
 import FollowButton from '../components/FollowButton';
 import NDAManagementPanel from '../components/NDAManagementPanel';
+import FormatDisplay from '../components/FormatDisplay';
 
 interface Analytics {
   totalViews: number;
@@ -876,7 +877,12 @@ export default function ProductionDashboard() {
                     
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <span>{pitch.genre}</span>
-                      <span>{pitch.format}</span>
+                      <FormatDisplay 
+                        formatCategory={pitch.formatCategory}
+                        formatSubtype={pitch.formatSubtype}
+                        format={pitch.format}
+                        variant="compact"
+                      />
                     </div>
 
                     {/* Media Files Section */}
@@ -1226,7 +1232,12 @@ export default function ProductionDashboard() {
                                 {pitch.genre}
                               </span>
                               <span className="px-2 py-1 bg-gray-100 rounded-full">
-                                {pitch.format}
+                                <FormatDisplay 
+                                  formatCategory={pitch.formatCategory}
+                                  formatSubtype={pitch.formatSubtype}
+                                  format={pitch.format}
+                                  variant="compact"
+                                />
                               </span>
                               <span className="flex items-center gap-1">
                                 <Eye className="w-4 h-4" />
@@ -1365,7 +1376,12 @@ export default function ProductionDashboard() {
                         
                         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                           <span>{pitch.genre}</span>
-                          <span>{pitch.format}</span>
+                          <FormatDisplay 
+                            formatCategory={pitch.formatCategory}
+                            formatSubtype={pitch.formatSubtype}
+                            format={pitch.format}
+                            variant="compact"
+                          />
                         </div>
 
                         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">

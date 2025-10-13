@@ -7,6 +7,7 @@ import {
   FileText, Download, Lock, Unlock
 } from 'lucide-react';
 import { pitchAPI } from '../../lib/api';
+import FormatDisplay from '../../components/FormatDisplay';
 
 interface Pitch {
   id: string;
@@ -267,7 +268,12 @@ const CreatorPitchView: React.FC = () => {
                     {pitch.genre}
                   </span>
                   <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                    {pitch.format}
+                    <FormatDisplay 
+                      formatCategory={pitch.formatCategory}
+                      formatSubtype={pitch.formatSubtype}
+                      format={pitch.format}
+                      variant="compact"
+                    />
                   </span>
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
                     {pitch.status}

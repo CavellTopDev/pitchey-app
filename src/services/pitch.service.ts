@@ -362,6 +362,7 @@ export class PitchService {
         creator: {
           username: users.username,
           companyName: users.companyName,
+          userType: users.userType,
         },
       })
       .from(pitches)
@@ -372,6 +373,9 @@ export class PitchService {
     
     return results.map(row => ({
       ...row.pitch,
+      formatCategory: row.pitch.formatCategory,
+      formatSubtype: row.pitch.formatSubtype,
+      customFormat: row.pitch.customFormat,
       creator: row.creator,
     }));
   }
@@ -391,6 +395,9 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
+          formatCategory: pitches.formatCategory,
+          formatSubtype: pitches.formatSubtype,
+          customFormat: pitches.customFormat,
           budgetBracket: pitches.budgetBracket,
           estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
@@ -458,6 +465,9 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
+          formatCategory: pitches.formatCategory,
+          formatSubtype: pitches.formatSubtype,
+          customFormat: pitches.customFormat,
           estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
           userId: pitches.userId,
@@ -489,6 +499,9 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
+        formatCategory: p.formatCategory,
+        formatSubtype: p.formatSubtype,
+        customFormat: p.customFormat,
         estimatedBudget: p.estimatedBudget,
         status: p.status,
         userId: p.userId,
@@ -535,6 +548,9 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
+          formatCategory: pitches.formatCategory,
+          formatSubtype: pitches.formatSubtype,
+          customFormat: pitches.customFormat,
           budgetBracket: pitches.budgetBracket,
           estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
@@ -568,6 +584,9 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
+        formatCategory: p.formatCategory,
+        formatSubtype: p.formatSubtype,
+        customFormat: p.customFormat,
         budgetBracket: p.budgetBracket,
         estimatedBudget: p.estimatedBudget ? parseFloat(p.estimatedBudget) : null,
         status: p.status,
@@ -650,6 +669,9 @@ export class PitchService {
         .orderBy(desc(pitches.publishedAt))
         .then(results => results.map(row => ({
           ...row.pitch,
+          formatCategory: row.pitch.formatCategory,
+          formatSubtype: row.pitch.formatSubtype,
+          customFormat: row.pitch.customFormat,
           creator: row.creator,
         }))),
       db.select({ count: sql<number>`count(*)` })
@@ -927,6 +949,9 @@ export class PitchService {
           logline: pitches.logline,
           genre: pitches.genre,
           format: pitches.format,
+          formatCategory: pitches.formatCategory,
+          formatSubtype: pitches.formatSubtype,
+          customFormat: pitches.customFormat,
           budgetBracket: pitches.budgetBracket,
           estimatedBudget: pitches.estimatedBudget,
           status: pitches.status,
@@ -958,6 +983,9 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
+        formatCategory: p.formatCategory,
+        formatSubtype: p.formatSubtype,
+        customFormat: p.customFormat,
         budgetBracket: p.budgetBracket,
         estimatedBudget: p.estimatedBudget ? parseFloat(p.estimatedBudget) : null,
         status: p.status,
@@ -1055,6 +1083,9 @@ export class PitchService {
 
       return productionPitches.map(row => ({
         ...row.pitch,
+        formatCategory: row.pitch.formatCategory,
+        formatSubtype: row.pitch.formatSubtype,
+        customFormat: row.pitch.customFormat,
         creator: row.creator,
       }));
     } catch (error) {
