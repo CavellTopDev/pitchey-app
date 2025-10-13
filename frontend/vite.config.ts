@@ -15,16 +15,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 600, // Increase warning limit slightly
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React libraries
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          
-          // UI and utility libraries
-          'ui-libs': ['lucide-react', '@tanstack/react-query'],
-          
-          // Services and utilities (avoiding circular deps)
-          'services': ['./src/services/notification.service', './src/services/messaging.service'],
-        },
+        // Let Vite handle chunking automatically to avoid circular dependency issues
+        manualChunks: undefined,
       },
     },
   },
