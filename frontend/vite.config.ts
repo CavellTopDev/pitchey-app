@@ -9,7 +9,7 @@ export default defineConfig({
   
   build: {
     outDir: 'dist',
-    sourcemap: false,  // Disable sourcemaps in production
+    sourcemap: true,  // Enable sourcemaps for debugging
     minify: 'esbuild',  // Enable minification
     target: 'esnext',
     chunkSizeWarningLimit: 600, // Increase warning limit slightly
@@ -17,6 +17,8 @@ export default defineConfig({
       output: {
         // Let Vite handle chunking automatically to avoid circular dependency issues
         manualChunks: undefined,
+        // Don't include source code in sourcemaps for security
+        sourcemapExcludeSources: true,
       },
     },
   },

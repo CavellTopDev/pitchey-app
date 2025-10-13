@@ -1,34 +1,97 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, Copy, ExternalLink } from 'lucide-react';
 import { config } from '../config';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  enableSentryReporting?: boolean;
+  showErrorDetails?: boolean;
 }
 
 interface State {
   hasError: boolean;
   error?: Error;
   errorInfo?: ErrorInfo;
+  errorId: string;
+  userAgent: string;
+  timestamp: string;
+  currentPath: string;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { 
+      hasError: false,
+      errorId: '',
+      userAgent: '',
+      timestamp: '',
+      currentPath: ''
+    };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    const errorId = Math.random().toString(36).substr(2, 9);
+    const timestamp = new Date().toISOString();
+    const currentPath = window.location.pathname + window.location.search;
+    const userAgent = navigator.userAgent;
+
+    return { 
+      hasError: true, 
+      error,
+      errorId,
+      timestamp,
+      currentPath,
+      userAgent
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo });
     
-    // Log error for monitoring
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Enhanced error logging
+    const errorReport = {
+      errorId: this.state.errorId,
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: this.state.timestamp,
+      userAgent: this.state.userAgent,
+      currentPath: this.state.currentPath,
+      buildInfo: {
+        mode: import.meta.env.MODE,
+        prod: import.meta.env.PROD,
+        dev: import.meta.env.DEV,
+      },
+      reactVersion: React.version,
+    };
+
+    // Detailed console logging
+    console.group(`🚨 React Error Boundary - ${this.state.errorId}`);
+    console.error('Error:', error);
+    console.error('Error Info:', errorInfo);
+    console.table(errorReport);
+    console.groupEnd();
+
+    // Send to error reporting service if enabled
+    if (this.props.enableSentryReporting && window.Sentry) {
+      window.Sentry.withScope((scope) => {
+        scope.setTag('errorBoundary', true);
+        scope.setContext('errorReport', errorReport);
+        scope.captureException(error);
+      });
+    }
+
+    // Send to custom logging endpoint
+    if (config.API_URL) {
+      fetch(`${config.API_URL}/api/errors/client`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(errorReport),
+      }).catch(err => console.warn('Failed to send error report:', err));
+    }
     
     // Call custom error handler if provided
     if (this.props.onError) {
@@ -44,6 +107,39 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.href = '/';
   };
 
+  copyErrorDetails = () => {
+    const { error, errorInfo, errorId, timestamp, currentPath } = this.state;
+    const errorDetails = {
+      errorId,
+      timestamp,
+      path: currentPath,
+      message: error?.message,
+      stack: error?.stack,
+      componentStack: errorInfo?.componentStack,
+      userAgent: navigator.userAgent,
+      buildInfo: {
+        mode: import.meta.env.MODE,
+        prod: import.meta.env.PROD,
+        dev: import.meta.env.DEV,
+      },
+    };
+
+    navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2))
+      .then(() => {
+        alert('Error details copied to clipboard!');
+      })
+      .catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = JSON.stringify(errorDetails, null, 2);
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Error details copied to clipboard!');
+      });
+  };
+
   render() {
     if (this.state.hasError) {
       // Custom fallback UI if provided
@@ -51,40 +147,86 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      // Default error UI
+      const showDetails = this.props.showErrorDetails ?? (config.IS_DEVELOPMENT || !import.meta.env.PROD);
+
+      // Enhanced error UI
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
-            <div className="mb-4">
-              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-2" />
+          <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-6">
+            <div className="text-center mb-6">
+              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
                 Something went wrong
               </h2>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-sm mb-2">
                 We encountered an unexpected error. Please try refreshing the page or go back to the home page.
               </p>
+              
+              {/* Error ID for reference */}
+              <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-xs text-gray-600 mt-2">
+                <span>Error ID: {this.state.errorId}</span>
+                <span>•</span>
+                <span>{new Date(this.state.timestamp).toLocaleString()}</span>
+              </div>
             </div>
 
-            {/* Show error details in development */}
-            {config.IS_DEVELOPMENT && this.state.error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-left">
-                <p className="text-xs font-medium text-red-800 mb-1">Error Details:</p>
-                <p className="text-xs text-red-700 font-mono break-all">
-                  {this.state.error.message}
-                </p>
-                {this.state.errorInfo && (
-                  <details className="mt-2">
-                    <summary className="text-xs text-red-600 cursor-pointer">
-                      Stack trace
-                    </summary>
-                    <pre className="mt-1 text-xs text-red-600 whitespace-pre-wrap">
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  </details>
-                )}
+            {/* Show error details */}
+            {showDetails && this.state.error && (
+              <div className="mb-6 space-y-4">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-red-800">Error Details</h3>
+                    <button
+                      onClick={this.copyErrorDetails}
+                      className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy Details
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <p className="font-medium text-red-800 mb-1">Message:</p>
+                      <p className="text-red-700 font-mono bg-red-100 p-2 rounded break-all">
+                        {this.state.error.message}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="font-medium text-red-800 mb-1">Location:</p>
+                      <p className="text-red-700 bg-red-100 p-2 rounded">
+                        {this.state.currentPath}
+                      </p>
+                    </div>
+
+                    {this.state.errorInfo?.componentStack && (
+                      <details className="mt-3">
+                        <summary className="font-medium text-red-800 cursor-pointer hover:text-red-900">
+                          Component Stack
+                        </summary>
+                        <pre className="mt-2 text-red-700 bg-red-100 p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap">
+                          {this.state.errorInfo.componentStack}
+                        </pre>
+                      </details>
+                    )}
+
+                    {this.state.error.stack && (
+                      <details className="mt-3">
+                        <summary className="font-medium text-red-800 cursor-pointer hover:text-red-900">
+                          JavaScript Stack Trace
+                        </summary>
+                        <pre className="mt-2 text-red-700 bg-red-100 p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap">
+                          {this.state.error.stack}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
+            {/* Actions */}
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleRetry}
@@ -100,7 +242,29 @@ export class ErrorBoundary extends Component<Props, State> {
                 <Home className="w-4 h-4" />
                 Go Home
               </button>
+              {!showDetails && (
+                <button
+                  onClick={() => this.setState({ ...this.state })}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Report Issue
+                </button>
+              )}
             </div>
+
+            {/* Development tips */}
+            {showDetails && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                <p className="font-medium mb-1">💡 Development Tips:</p>
+                <ul className="list-disc list-inside space-y-1 text-blue-600">
+                  <li>Check the browser console for additional error details</li>
+                  <li>Ensure all lazy imports are correctly configured</li>
+                  <li>Verify that all route components exist and export correctly</li>
+                  <li>Check for circular dependencies in your module imports</li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       );

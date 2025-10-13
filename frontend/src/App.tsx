@@ -125,7 +125,7 @@ function App() {
   const userType = localStorage.getItem('userType');
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
       <QueryClientProvider client={queryClient}>
         <WebSocketProvider>
           <ToastProvider>
