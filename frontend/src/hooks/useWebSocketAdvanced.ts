@@ -235,11 +235,15 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     if (wsRef.current && 
         (wsRef.current.readyState === WebSocket.CONNECTING || 
          wsRef.current.readyState === WebSocket.OPEN)) {
+      console.log('WebSocket: Connection already exists, skipping');
       return;
     }
     
     const token = localStorage.getItem('authToken');
+    console.log('WebSocket: Auth token check:', token ? `${token.substring(0, 20)}...` : 'NULL');
+    
     if (!token) {
+      console.warn('WebSocket: No authentication token available');
       setConnectionStatus(prev => ({ 
         ...prev, 
         error: 'No authentication token available' 
@@ -249,6 +253,14 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     
     const isDemoMode = localStorage.getItem('demoMode') === 'true';
     if (isDemoMode) {
+      console.log('WebSocket: Demo mode enabled, skipping connection');
+      return;
+    }
+    
+    // Check if WebSocket was manually disabled
+    const isDisabled = localStorage.getItem('pitchey_websocket_disabled') === 'true';
+    if (isDisabled) {
+      console.log('WebSocket: Manually disabled, skipping connection');
       return;
     }
     
@@ -260,10 +272,14 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     
     try {
       const wsUrl = config.WS_URL.replace(/^http/, 'ws');
-      const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
+      const finalWsUrl = `${wsUrl}/ws?token=${token}`;
+      console.log(`WebSocket: Attempting connection to ${wsUrl}/ws`);
+      console.log(`WebSocket: Full URL (token hidden): ${wsUrl}/ws?token=<hidden>`);
+      
+      const ws = new WebSocket(finalWsUrl);
       
       ws.onopen = () => {
-        console.log('WebSocket connected successfully');
+        console.log('WebSocket: Connection opened successfully');
         setConnectionStatus(prev => ({
           ...prev,
           connected: true,
@@ -358,7 +374,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       };
       
       ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
+        console.log(`WebSocket: Connection closed - Code: ${event.code}, Reason: "${event.reason}", Clean: ${event.wasClean}`);
         setConnectionStatus(prev => ({
           ...prev,
           connected: false,

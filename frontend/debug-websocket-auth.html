@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔐 Frontend WebSocket Auth Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .debug-section { margin: 20px 0; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
+        .success { background: #dcfce7; border-color: #16a34a; }
+        .error { background: #fef2f2; border-color: #dc2626; }
+        .info { background: #dbeafe; border-color: #2563eb; }
+        .warning { background: #fef3c7; border-color: #d97706; }
+        button { 
+            background: #3b82f6; color: white; padding: 8px 16px; 
+            border: none; border-radius: 4px; margin: 4px; cursor: pointer; 
+        }
+        button:hover { background: #2563eb; }
+        .code { background: #f3f4f6; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 14px; }
+        .log { 
+            background: #1f2937; color: #e5e7eb; padding: 15px; border-radius: 4px; 
+            max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px;
+            white-space: pre-wrap; word-break: break-all;
+        }
+        .status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status.connected { background: #16a34a; color: white; }
+        .status.disconnected { background: #dc2626; color: white; }
+        .status.connecting { background: #d97706; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Frontend WebSocket Authentication Debug</h1>
+    
+    <div class="debug-section info">
+        <h3>🎯 Debugging WebSocket Auth Issues</h3>
+        <p><strong>Problem:</strong> WebSocket connections failing with infinite retries</p>
+        <p><strong>Backend Test Results:</strong> ✅ WebSocket works with valid JWT tokens</p>
+        <p><strong>Investigation:</strong> Check if frontend auth tokens are valid/available</p>
+    </div>
+
+    <div class="debug-section">
+        <h3>📋 Debug Steps</h3>
+        <button onclick="checkLocalStorage()">1. Check Local Storage</button>
+        <button onclick="testAuthFlow()">2. Test Auth Flow</button>
+        <button onclick="testWebSocketAuth()">3. Test WebSocket with Current Auth</button>
+        <button onclick="simulateFrontendFlow()">4. Simulate Frontend Flow</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>📊 Current Status</h3>
+        <div>
+            <strong>WebSocket Status:</strong> <span id="wsStatus" class="status disconnected">Disconnected</span>
+        </div>
+        <div style="margin-top: 8px;">
+            <strong>Auth Token:</strong> <span id="authStatus">Unknown</span>
+        </div>
+        <div style="margin-top: 8px;">
+            <strong>User Type:</strong> <span id="userType">Unknown</span>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <h3>🔍 Debug Log</h3>
+        <div id="log" class="log">Debug logger ready...\n</div>
+    </div>
+
+    <div class="debug-section warning">
+        <h3>💡 Expected Findings</h3>
+        <ul>
+            <li><strong>No Auth Token:</strong> localStorage.authToken is missing/null</li>
+            <li><strong>Invalid Auth Token:</strong> Token exists but is expired/malformed</li>
+            <li><strong>Wrong API URL:</strong> Frontend pointing to wrong backend</li>
+            <li><strong>CORS Issues:</strong> WebSocket upgrade blocked by CORS</li>
+            <li><strong>Demo Mode:</strong> Frontend in demo mode, skipping WebSocket</li>
+        </ul>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        const wsStatus = document.getElementById('wsStatus');
+        const authStatus = document.getElementById('authStatus');
+        const userTypeSpan = document.getElementById('userType');
+        
+        let currentWs = null;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const colorMap = {
+                'error': '#ef4444',
+                'success': '#22c55e', 
+                'info': '#3b82f6',
+                'warning': '#f59e0b'
+            };
+            const color = colorMap[type] || '#e5e7eb';
+            
+            logDiv.innerHTML += `<span style="color: ${color};">[${timestamp}] ${message}</span>\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            logDiv.innerHTML = 'Debug logger cleared...\n';
+        }
+        
+        function updateStatus(status, element, className) {
+            element.textContent = status;
+            element.className = `status ${className}`;
+        }
+
+        // Check 1: Local Storage Inspection
+        function checkLocalStorage() {
+            log('🔍 Checking localStorage for auth data...', 'info');
+            
+            const authToken = localStorage.getItem('authToken');
+            const userType = localStorage.getItem('userType');
+            const demoMode = localStorage.getItem('demoMode');
+            const wsDisabled = localStorage.getItem('pitchey_websocket_disabled');
+            
+            log(`Auth Token: ${authToken ? `${authToken.substring(0, 20)}...` : 'NULL'}`, authToken ? 'success' : 'error');
+            log(`User Type: ${userType || 'NULL'}`, userType ? 'success' : 'warning');
+            log(`Demo Mode: ${demoMode || 'false'}`, demoMode === 'true' ? 'warning' : 'info');
+            log(`WebSocket Disabled: ${wsDisabled || 'false'}`, wsDisabled === 'true' ? 'warning' : 'info');
+            
+            // Update status display
+            authStatus.textContent = authToken ? '✅ Present' : '❌ Missing';
+            userTypeSpan.textContent = userType || 'Not Set';
+            
+            // Try to decode JWT
+            if (authToken) {
+                try {
+                    const payload = JSON.parse(atob(authToken.split('.')[1]));
+                    log(`JWT Payload: ${JSON.stringify(payload, null, 2)}`, 'success');
+                    log(`Token Expires: ${new Date(payload.exp * 1000).toLocaleString()}`, 
+                        payload.exp * 1000 > Date.now() ? 'success' : 'error');
+                } catch (error) {
+                    log(`Failed to decode JWT: ${error.message}`, 'error');
+                }
+            }
+            
+            // Check environment variables (simulated)
+            log('Environment check:', 'info');
+            log(`Current Origin: ${window.location.origin}`, 'info');
+            log(`Expected API URL: Should be https://pitchey-backend-fresh.deno.dev`, 'info');
+        }
+
+        // Check 2: Test Auth Flow
+        async function testAuthFlow() {
+            log('🔐 Testing authentication flow...', 'info');
+            
+            try {
+                // Test with demo credentials
+                const response = await fetch('https://pitchey-backend-fresh.deno.dev/api/auth/creator/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'alex.creator@demo.com',
+                        password: 'Demo123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Auth successful! Token: ${data.token.substring(0, 20)}...`, 'success');
+                    log(`User: ${data.user.username} (ID: ${data.user.id})`, 'success');
+                    
+                    // Update localStorage
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('userType', 'creator');
+                    authStatus.textContent = '✅ Fresh Token';
+                    userTypeSpan.textContent = 'creator';
+                    
+                    return data.token;
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ Auth failed: ${response.status} ${errorText}`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                log(`❌ Auth request failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        // Check 3: Test WebSocket with Current Auth
+        async function testWebSocketAuth() {
+            log('🔌 Testing WebSocket with current auth...', 'info');
+            
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                log('❌ No auth token available. Run auth flow first.', 'error');
+                return;
+            }
+            
+            const wsUrl = `wss://pitchey-backend-fresh.deno.dev/ws?token=${token}`;
+            log(`Connecting to: ${wsUrl.substring(0, 80)}...`, 'info');
+            
+            if (currentWs) {
+                currentWs.close();
+                currentWs = null;
+            }
+            
+            try {
+                currentWs = new WebSocket(wsUrl);
+                updateStatus('Connecting...', wsStatus, 'connecting');
+                
+                const timeout = setTimeout(() => {
+                    if (currentWs && currentWs.readyState === WebSocket.CONNECTING) {
+                        log('⏱️ WebSocket connection timeout after 10s', 'warning');
+                        currentWs.close();
+                    }
+                }, 10000);
+                
+                currentWs.onopen = () => {
+                    clearTimeout(timeout);
+                    log('🎉 WebSocket connected successfully!', 'success');
+                    updateStatus('Connected', wsStatus, 'connected');
+                    
+                    // Send test message
+                    const testMessage = {
+                        type: 'ping',
+                        timestamp: new Date().toISOString()
+                    };
+                    currentWs.send(JSON.stringify(testMessage));
+                    log(`📤 Sent test message: ${JSON.stringify(testMessage)}`, 'info');
+                };
+                
+                currentWs.onmessage = (event) => {
+                    log(`📨 Received: ${event.data}`, 'success');
+                };
+                
+                currentWs.onclose = (event) => {
+                    clearTimeout(timeout);
+                    updateStatus('Disconnected', wsStatus, 'disconnected');
+                    log(`🔒 WebSocket closed - Code: ${event.code}, Reason: "${event.reason}"`, 
+                        event.code === 1000 ? 'info' : 'warning');
+                };
+                
+                currentWs.onerror = (error) => {
+                    clearTimeout(timeout);
+                    updateStatus('Error', wsStatus, 'disconnected');
+                    log(`❌ WebSocket error: ${error}`, 'error');
+                };
+                
+            } catch (error) {
+                updateStatus('Failed', wsStatus, 'disconnected');
+                log(`❌ Failed to create WebSocket: ${error.message}`, 'error');
+            }
+        }
+
+        // Check 4: Simulate Frontend Flow
+        async function simulateFrontendFlow() {
+            log('🎭 Simulating complete frontend flow...', 'info');
+            
+            log('Step 1: Clear existing auth', 'info');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('pitchey_websocket_disabled');
+            
+            log('Step 2: Simulate user login', 'info');
+            const token = await testAuthFlow();
+            
+            if (!token) {
+                log('❌ Cannot continue - auth failed', 'error');
+                return;
+            }
+            
+            log('Step 3: Wait 2 seconds (simulate app load)', 'info');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            log('Step 4: Attempt WebSocket connection (like frontend does)', 'info');
+            await testWebSocketAuth();
+            
+            log('✅ Frontend flow simulation complete!', 'success');
+        }
+
+        // Auto-check on load
+        setTimeout(() => {
+            log('🚀 Auto-running localStorage check...', 'info');
+            checkLocalStorage();
+        }, 500);
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (currentWs) {
+                currentWs.close();
+            }
+        });
+    </script>
+</body>
+</html>
