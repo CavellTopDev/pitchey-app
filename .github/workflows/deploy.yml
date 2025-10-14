@@ -81,7 +81,7 @@ jobs:
         run: mv .env.example .env.example.backup || true
       
       - name: Install deployctl
-        run: deno install --allow-read --allow-write --allow-env --allow-net --allow-run --no-check -f https://deno.land/x/deployctl/deployctl.ts
+        run: npm install -g deployctl
         
       - name: Deploy to Deno Deploy
         env:
