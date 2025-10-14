@@ -391,8 +391,10 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           pingIntervalRef.current = undefined;
         }
         
-        // Attempt reconnect if not a clean close
-        if (event.code !== 1000 && event.code !== 1001 && 
+        // Attempt reconnect if not a clean close or auth failure
+        // Auth failure codes: 1008 (Policy Violation), 4001-4003 (Custom auth errors)
+        const isAuthFailure = event.code === 1008 || (event.code >= 4001 && event.code <= 4003);
+        if (event.code !== 1000 && event.code !== 1001 && !isAuthFailure &&
             connectionStatus.reconnectAttempts < opts.maxReconnectAttempts) {
           
           const attempt = connectionStatus.reconnectAttempts + 1;
@@ -413,6 +415,20 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             opts.onReconnect(attempt);
             connect();
           }, delay);
+        } else if (isAuthFailure) {
+          // Authentication failed - don't retry, provide clear feedback
+          console.warn(`WebSocket authentication failed (code: ${event.code}): ${event.reason}`);
+          setConnectionStatus(prev => ({
+            ...prev,
+            reconnecting: false,
+            error: `Authentication failed: ${event.reason || 'Invalid or expired token'}. Please log in again.`,
+          }));
+          
+          // Clear invalid token if authentication failed
+          if (event.reason && event.reason.toLowerCase().includes('token')) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userType');
+          }
         } else if (connectionStatus.reconnectAttempts >= opts.maxReconnectAttempts) {
           // Max attempts reached - stop trying and show user-friendly message
           console.error(`WebSocket connection failed after ${opts.maxReconnectAttempts} attempts. Real-time features disabled.`);
