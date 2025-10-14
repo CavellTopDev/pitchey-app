@@ -81,14 +81,13 @@ jobs:
         run: mv .env.example .env.example.backup || true
       
       - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: "pitchey-backend-fresh"
+          entrypoint: "working-server.ts"
+          env-file: ".env.deploy"
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          npx deployctl deploy \
-            --project="pitchey-backend-fresh" \
-            --entrypoint="working-server.ts" \
-            --env-file=".env.deploy" \
-            --token="$DENO_DEPLOY_TOKEN"
       
       - name: Restore .env.example
         if: always()
