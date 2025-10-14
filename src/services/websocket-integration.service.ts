@@ -77,18 +77,36 @@ export class WebSocketIntegrationService {
       const token = url.searchParams.get("token");
       
       if (!token) {
-        return new Response("Authentication token required", { status: 1008 });
+        return new Response(
+          JSON.stringify({ error: "Authentication token required" }), 
+          { 
+            status: 401, 
+            headers: { "Content-Type": "application/json" }
+          }
+        );
       }
 
       // Verify the JWT token using the same logic as the main server
       try {
         const verified = await verifyToken(token);
         if (!verified || !verified.userId) {
-          return new Response("Invalid authentication token", { status: 1008 });
+          return new Response(
+            JSON.stringify({ error: "Invalid authentication token" }), 
+            { 
+              status: 401,
+              headers: { "Content-Type": "application/json" }
+            }
+          );
         }
       } catch (authError) {
         console.error("[WebSocket Integration] Authentication failed:", authError);
-        return new Response("Authentication failed", { status: 1008 });
+        return new Response(
+          JSON.stringify({ error: "Authentication failed" }), 
+          { 
+            status: 401,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
       }
 
       // Create WebSocket pair

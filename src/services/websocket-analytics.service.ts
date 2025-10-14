@@ -115,7 +115,6 @@ export interface DashboardMetrics {
  * WebSocket Analytics Service Class
  */
 export class WebSocketAnalyticsService {
-  private baseAnalyticsService: AnalyticsService;
   private metricsCache = new Map<string, any>();
   private sessionAnalytics = new Map<string, SessionAnalytics>();
   private realtimeMetrics: WSMetrics;
@@ -132,7 +131,6 @@ export class WebSocketAnalyticsService {
   };
 
   constructor() {
-    this.baseAnalyticsService = new AnalyticsService();
     this.realtimeMetrics = this.initializeMetrics();
     this.setupIntervals();
     console.log("[WebSocket Analytics] Initialized");
@@ -200,7 +198,7 @@ export class WebSocketAnalyticsService {
       this.sessionAnalytics.set(session.id, sessionAnalytics);
 
       // Track in base analytics
-      await this.baseAnalyticsService.trackEvent({
+      await AnalyticsService.trackEvent({
         eventType: WSAnalyticsEventType.CONNECTION_ESTABLISHED,
         category: 'websocket',
         userId: session.userId,
@@ -240,7 +238,7 @@ export class WebSocketAnalyticsService {
       sessionAnalytics.duration = sessionAnalytics.endTime.getTime() - sessionAnalytics.startTime.getTime();
 
       // Track in base analytics
-      await this.baseAnalyticsService.trackEvent({
+      await AnalyticsService.trackEvent({
         eventType: WSAnalyticsEventType.CONNECTION_LOST,
         category: 'websocket',
         userId: sessionAnalytics.userId,
@@ -325,7 +323,7 @@ export class WebSocketAnalyticsService {
 
       // Track in base analytics for important message types
       if (this.shouldTrackMessage(message.type)) {
-        await this.baseAnalyticsService.trackEvent({
+        await AnalyticsService.trackEvent({
           eventType: direction === 'sent' ? WSAnalyticsEventType.MESSAGE_SENT : WSAnalyticsEventType.MESSAGE_RECEIVED,
           category: 'websocket',
           userId: sessionAnalytics?.userId,
@@ -366,7 +364,7 @@ export class WebSocketAnalyticsService {
         (this.messageCounters.sent + this.messageCounters.received + 1);
 
       // Track in base analytics
-      await this.baseAnalyticsService.trackEvent({
+      await AnalyticsService.trackEvent({
         eventType: WSAnalyticsEventType.ERROR_OCCURRED,
         category: 'websocket',
         userId: sessionAnalytics?.userId,
@@ -417,7 +415,7 @@ export class WebSocketAnalyticsService {
 
       // Track significant latency spikes
       if (latency > 5000) { // 5 seconds
-        await this.baseAnalyticsService.trackEvent({
+        await AnalyticsService.trackEvent({
           eventType: WSAnalyticsEventType.LATENCY_MEASURED,
           category: 'websocket',
           userId: sessionAnalytics?.userId,
@@ -447,7 +445,7 @@ export class WebSocketAnalyticsService {
     details?: Record<string, any>
   ): Promise<void> {
     try {
-      await this.baseAnalyticsService.trackEvent({
+      await AnalyticsService.trackEvent({
         eventType: WSAnalyticsEventType.RATE_LIMIT_HIT,
         category: 'websocket',
         userId: this.sessionAnalytics.get(sessionId)?.userId,
@@ -482,7 +480,7 @@ export class WebSocketAnalyticsService {
       }
       this.realtimeMetrics.presenceDistribution[newStatus]++;
 
-      await this.baseAnalyticsService.trackEvent({
+      await AnalyticsService.trackEvent({
         eventType: WSAnalyticsEventType.PRESENCE_CHANGED,
         category: 'websocket',
         userId,
@@ -520,7 +518,7 @@ export class WebSocketAnalyticsService {
       this.realtimeMetrics.featureUsage[featureKey] = 
         (this.realtimeMetrics.featureUsage[featureKey] || 0) + 1;
 
-      await this.baseAnalyticsService.trackEvent({
+      await AnalyticsService.trackEvent({
         eventType: WSAnalyticsEventType.USER_ACTIVITY,
         category: 'websocket',
         userId: sessionAnalytics?.userId,
