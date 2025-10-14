@@ -89,7 +89,7 @@ export class WebSocketIntegrationService {
       // Verify the JWT token using the same logic as the main server
       try {
         const verified = await verifyToken(token);
-        if (!verified || !verified.userId) {
+        if (!verified || !verified.sub) {
           return new Response(
             JSON.stringify({ error: "Invalid authentication token" }), 
             { 
