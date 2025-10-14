@@ -72,6 +72,25 @@ export class WebSocketIntegrationService {
         return new Response("Invalid WebSocket request", { status: 400 });
       }
 
+      // AUTHENTICATION: Verify JWT token from query parameter
+      const url = new URL(request.url);
+      const token = url.searchParams.get("token");
+      
+      if (!token) {
+        return new Response("Authentication token required", { status: 1008 });
+      }
+
+      // Verify the JWT token using the same logic as the main server
+      try {
+        const verified = await verifyToken(token);
+        if (!verified || !verified.userId) {
+          return new Response("Invalid authentication token", { status: 1008 });
+        }
+      } catch (authError) {
+        console.error("[WebSocket Integration] Authentication failed:", authError);
+        return new Response("Authentication failed", { status: 1008 });
+      }
+
       // Create WebSocket pair
       const { socket, response } = Deno.upgradeWebSocket(request);
 

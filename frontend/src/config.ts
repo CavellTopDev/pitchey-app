@@ -29,8 +29,18 @@ function createConfig(): AppConfig {
   }
 
   // Default WebSocket URL if not provided
-  const defaultWsUrl = apiUrl.replace(/^https?:\/\//, '').replace(/^http/, 'ws').replace(/^https/, 'wss');
-  const finalWsUrl = wsUrl || (apiUrl.startsWith('https') ? `wss://${defaultWsUrl}` : `ws://${defaultWsUrl}`);
+  let finalWsUrl = wsUrl;
+  if (!wsUrl) {
+    // Convert API URL to WebSocket URL
+    if (apiUrl.startsWith('https://')) {
+      finalWsUrl = apiUrl.replace('https://', 'wss://');
+    } else if (apiUrl.startsWith('http://')) {
+      finalWsUrl = apiUrl.replace('http://', 'ws://');
+    } else {
+      // Fallback - assume http for local development
+      finalWsUrl = `ws://${apiUrl}`;
+    }
+  }
 
   const config: AppConfig = {
     API_URL: apiUrl,

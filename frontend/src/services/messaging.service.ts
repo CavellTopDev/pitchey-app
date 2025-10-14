@@ -76,10 +76,8 @@ export interface TypingStatus {
 }
 
 export class MessagingService {
-  private static ws: WebSocket | null = null;
-  private static reconnectAttempts = 0;
-  private static maxReconnectAttempts = 5;
-  private static reconnectDelay = 1000;
+  // WebSocket functionality has been moved to WebSocketContext
+  // This service now only handles REST API calls for messaging
 
   // Get all conversations
   static async getConversations(filters?: ConversationFilters): Promise<{ 
@@ -362,83 +360,11 @@ export class MessagingService {
     };
   }
 
-  // WebSocket connection for real-time messaging
-  static connectWebSocket(onMessage?: (message: Message) => void, onTyping?: (status: TypingStatus) => void): void {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      console.error('No auth token for WebSocket connection');
-      return;
-    }
-
-    const wsUrl = `${config.WS_URL}/ws?token=${token}`;
-    
-    this.ws = new WebSocket(wsUrl);
-
-    this.ws.onopen = () => {
-      console.log('WebSocket connected');
-      this.reconnectAttempts = 0;
-      this.reconnectDelay = 1000;
-    };
-
-    this.ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'message' && onMessage) {
-          onMessage(data.message);
-        } else if (data.type === 'typing' && onTyping) {
-          onTyping(data.status);
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
-
-    this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    this.ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      this.reconnect(onMessage, onTyping);
-    };
-  }
-
-  // Reconnect WebSocket
-  private static reconnect(onMessage?: (message: Message) => void, onTyping?: (status: TypingStatus) => void): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
-      return;
-    }
-
-    this.reconnectAttempts++;
-    setTimeout(() => {
-      console.log(`Reconnecting WebSocket (attempt ${this.reconnectAttempts})...`);
-      this.connectWebSocket(onMessage, onTyping);
-    }, this.reconnectDelay);
-
-    // Exponential backoff
-    this.reconnectDelay = Math.min(this.reconnectDelay * 2, 30000);
-  }
-
-  // Disconnect WebSocket
-  static disconnectWebSocket(): void {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-  }
-
-  // Send typing status
-  static sendTypingStatus(conversationId: number, isTyping: boolean): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'typing',
-        conversationId,
-        isTyping
-      }));
-    }
-  }
+  // WebSocket functionality removed - now handled by WebSocketContext
+  // Use the WebSocketContext methods for real-time messaging features like:
+  // - startTyping() / stopTyping()
+  // - sendMessage() for real-time message sending
+  // - subscribeToMessages() for receiving real-time updates
 
   // Block user from messaging
   static async blockUserMessaging(userId: number): Promise<void> {

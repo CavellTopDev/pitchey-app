@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { notificationService } from '../services/notification.service';
 import { getUserId } from '../lib/apiServices';
-import { config } from '../config';
+import { useWebSocket as useWebSocketContext } from '../contexts/WebSocketContext';
 
 interface WebSocketMessage {
   type: string;
@@ -23,243 +23,53 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     reconnectInterval = 5000,
   } = options;
 
-  const [isConnected, setIsConnected] = useState(false);
+  // Use the WebSocketContext instead of creating a new connection
+  const { isConnected, sendMessage: contextSendMessage, subscribeToMessages } = useWebSocketContext();
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const pingIntervalRef = useRef<NodeJS.Timeout>();
+  const callbacksRef = useRef({ onMessage, onConnect, onDisconnect });
+
+  // Update callbacks ref when they change
+  useEffect(() => {
+    callbacksRef.current = { onMessage, onConnect, onDisconnect };
+  }, [onMessage, onConnect, onDisconnect]);
+
+  // Handle connection state changes
+  useEffect(() => {
+    if (isConnected) {
+      callbacksRef.current.onConnect?.();
+    } else {
+      callbacksRef.current.onDisconnect?.();
+    }
+  }, [isConnected]);
 
   const connect = useCallback(() => {
-    // Check if already connected or connecting
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
-      return;
-    }
-
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      return;
-    }
-
-    // Skip WebSocket connection in demo mode or if explicitly disabled
-    const isDemoMode = localStorage.getItem('demoMode') === 'true';
-    if (isDemoMode) {
-      return;
-    }
-
-    try {
-      // Connect to the main server WebSocket endpoint
-      // WS_URL already includes the base WebSocket URL (e.g., ws://localhost:8001)
-      const ws = new WebSocket(`${config.WS_URL}/ws?token=${token}`);
-      
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setIsConnected(true);
-        onConnect?.();
-        
-        // Clear any reconnect timeout
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
-        
-        // Start ping interval
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-        }
-        pingIntervalRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, 30000);
-        
-        // Send initial ping
-        ws.send(JSON.stringify({ type: 'ping' }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          setLastMessage(message);
-          onMessage?.(message);
-          
-          // Handle specific message types
-          switch (message.type) {
-            case 'connected':
-              console.log('WebSocket connected as:', message.payload?.username || message.username, `(ID: ${message.payload?.userId || message.userId})`);
-              break;
-            case 'ping':
-              // Server sent ping, respond with pong
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
-              }
-              break;
-            case 'pong':
-              // Pong received, connection is healthy - no action needed
-              break;
-            case 'user_online':
-              console.log(`${message.payload?.username || message.username} came online`);
-              break;
-            case 'user_offline':
-              console.log(`${message.payload?.username || message.username} went offline`);
-              break;
-            case 'new_message':
-              console.log('New message received:', message);
-              break;
-            case 'message_sent':
-              console.log('Message sent confirmation:', message);
-              break;
-            case 'message_read':
-              console.log('Message read receipt:', message);
-              break;
-            case 'user_typing':
-              console.log('Typing indicator:', message);
-              break;
-            case 'conversation_joined':
-              console.log('Joined conversation:', message.payload?.conversationId || message.conversationId);
-              break;
-            case 'online_users':
-              console.log('Online users:', message.payload?.users || message.users);
-              break;
-            case 'queued_message':
-              console.log('Received queued message:', message);
-              break;
-            case 'error':
-              // Handle structured error messages
-              const errorMsg = message.payload?.error || message.message || message.error || 'Unknown error';
-              const errorCode = message.payload?.code || message.code;
-              const errorCategory = message.payload?.category || 'unknown';
-              
-              // Only log errors in development or if they're not low-severity
-              if (config.IS_DEVELOPMENT || (message.payload?.severity && message.payload.severity > 1)) {
-                console.error('WebSocket error:', {
-                  message: errorMsg,
-                  code: errorCode,
-                  category: errorCategory,
-                  recoverable: message.payload?.recoverable,
-                  retryAfter: message.payload?.retryAfter
-                });
-              }
-              
-              // Handle specific error types
-              if (errorCode === 2001 || errorCode === 2002) { // Auth token invalid/expired
-                // Clear token and redirect to login
-                localStorage.removeItem('authToken');
-                if (window.location.pathname !== '/login') {
-                  window.location.href = '/login';
-                }
-              }
-              break;
-            case 'notification':
-            case 'dashboard_update':
-            case 'metrics_update':
-            case 'draft_sync':
-            case 'draft_update':
-            case 'presence_update':
-            case 'upload_progress':
-            case 'upload_complete':
-            case 'upload_error':
-            case 'pitch_view_update':
-            case 'pitch_stats_update':
-            case 'activity_update':
-            case 'system_announcement':
-            case 'maintenance_mode':
-              // These are handled by specific consumers - pass through without logging
-              break;
-            default:
-              // Log unhandled messages only in development
-              if (config.IS_DEVELOPMENT) {
-                console.log('Unhandled WebSocket message type:', message.type, message);
-              }
-              break;
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      ws.onclose = (event) => {
-        console.log('WebSocket disconnected');
-        setIsConnected(false);
-        onDisconnect?.();
-        wsRef.current = null;
-        
-        // Clear ping interval
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-        }
-        
-        // Only attempt reconnect if it was an unexpected disconnect (not a client-initiated close)
-        // and we have a valid token
-        if (event.code !== 1000 && event.code !== 1001 && localStorage.getItem('authToken')) {
-          // Schedule reconnect with exponential backoff
-          const delay = Math.min(reconnectInterval * (reconnectTimeoutRef.current ? 2 : 1), 30000);
-          reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('Attempting to reconnect...');
-            connect();
-          }, delay);
-        }
-      };
-
-      ws.onerror = (error) => {
-        // Suppress error logging to reduce console spam
-        // Errors are handled in onclose
-      };
-
-      wsRef.current = ws;
-    } catch (error) {
-      // Only log connection errors in development
-      if (config.IS_DEVELOPMENT) {
-        console.error('Failed to connect WebSocket:', error);
-      }
-    }
-  }, [onMessage, onConnect, onDisconnect, reconnectInterval]);
+    // The WebSocketContext handles connection automatically
+    // This is here for compatibility but does nothing
+    console.log('useWebSocket.connect() called - using WebSocketContext connection');
+  }, []);
 
   const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
+    // The WebSocketContext handles disconnection
+    // This is here for compatibility but does nothing
+    console.log('useWebSocket.disconnect() called - WebSocketContext handles disconnection');
   }, []);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      try {
-        wsRef.current.send(JSON.stringify(message));
-      } catch (error) {
-        console.error('Failed to send WebSocket message:', error);
-        // Try to reconnect if send fails
-        connect();
-      }
-    } else {
-      // Only log detailed warnings in development
-      if (config.IS_DEVELOPMENT && message.type !== 'typing_start' && message.type !== 'typing_stop') {
-        console.warn('WebSocket not connected, message not sent:', message);
-        // Log the stack trace to help debug where this is being called from
-        console.warn('Stack:', new Error().stack?.split('\n')[2]);
-      }
-      // Try to reconnect
-      connect();
-    }
-  }, [connect]);
+    // Delegate to the WebSocketContext
+    return contextSendMessage(message);
+  }, [contextSendMessage]);
 
+  // Subscribe to WebSocket messages from context
   useEffect(() => {
-    connect();
-    return () => {
-      // Cleanup on unmount
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
+    const unsubscribe = subscribeToMessages((message: WebSocketMessage) => {
+      setLastMessage(message);
+      if (callbacksRef.current.onMessage) {
+        callbacksRef.current.onMessage(message);
       }
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    };
-  }, []); // Empty dependency array - only connect on mount
+    });
+    
+    return unsubscribe;
+  }, [subscribeToMessages]);
 
   return {
     isConnected,

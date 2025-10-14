@@ -99,6 +99,9 @@ interface WebSocketContextType {
   subscribeToTyping: (conversationId: number, callback: (typing: TypingData[]) => void) => () => void;
   subscribeToUploads: (callback: (uploads: UploadProgress[]) => void) => () => void;
   subscribeToPitchViews: (pitchId: number, callback: (data: PitchViewData) => void) => () => void;
+  
+  // General message subscription for custom hooks
+  subscribeToMessages: (callback: (message: WebSocketMessage) => void) => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -129,6 +132,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     typing: new Map<number, Set<(typing: TypingData[]) => void>>(),
     uploads: new Set<(uploads: UploadProgress[]) => void>(),
     pitchViews: new Map<number, Set<(data: PitchViewData) => void>>(),
+    messages: new Set<(message: WebSocketMessage) => void>(), // General message subscriptions
   });
   
   // WebSocket connection
@@ -158,6 +162,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   // Handle incoming messages
   function handleMessage(message: WebSocketMessage) {
+    // Notify all general message subscribers first
+    subscriptions.messages.forEach(callback => callback(message));
+    
     switch (message.type) {
       case 'notification':
         handleNotificationMessage(message);
@@ -435,6 +442,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     subscriptions.notifications.add(callback);
     return () => subscriptions.notifications.delete(callback);
   }, []);
+
+  const subscribeToMessages = useCallback((callback: (message: WebSocketMessage) => void) => {
+    subscriptions.messages.add(callback);
+    return () => subscriptions.messages.delete(callback);
+  }, []);
   
   const subscribeToDashboard = useCallback((callback: (metrics: DashboardMetrics) => void) => {
     subscriptions.dashboard.add(callback);
@@ -572,6 +584,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     subscribeToTyping,
     subscribeToUploads,
     subscribeToPitchViews,
+    subscribeToMessages,
   };
   
   return (
