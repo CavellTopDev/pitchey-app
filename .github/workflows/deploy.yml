@@ -80,14 +80,28 @@ jobs:
       - name: Temporarily move .env.example
         run: mv .env.example .env.example.backup || true
       
+      - name: Install deployctl
+        run: deno install --allow-read --allow-write --allow-env --allow-net --allow-run --no-check -f https://deno.land/x/deployctl/deployctl.ts
+        
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: "pitchey-backend-fresh"
-          entrypoint: "working-server.ts"
-          env-file: ".env.deploy"
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          deployctl deploy \
+            --project="pitchey-backend-fresh" \
+            --entrypoint="working-server.ts" \
+            --token="$DENO_DEPLOY_TOKEN" \
+            --env="DATABASE_URL=$DATABASE_URL" \
+            --env="JWT_SECRET=$JWT_SECRET" \
+            --env="FRONTEND_URL=https://pitchey.netlify.app" \
+            --env="UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" \
+            --env="UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" \
+            --env="CACHE_ENABLED=true" \
+            --env="PORT=8000" \
+            --env="NODE_ENV=production" \
+            --env="DENO_ENV=production"
       
       - name: Restore .env.example
         if: always()
