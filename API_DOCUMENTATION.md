@@ -1,603 +1,186 @@
-# Pitchey API Documentation
+# Pitchey Platform API Documentation
 
-## Base URL
-```
-http://localhost:8000
-```
+## Base Information
+- **Base URL**: `http://localhost:8001`
+- **Authentication**: JWT-based authentication
+- **Authentication Endpoints**:
+  - Creator Login: `/api/auth/creator/login`
+  - Investor Login: `/api/auth/investor/login`
+  - Production Login: `/api/auth/production/login`
 
 ## Authentication
-The API uses JWT Bearer tokens for authentication. Include the token in the Authorization header:
-```
-Authorization: Bearer <token>
-```
 
-## Response Format
-All API responses are in JSON format with appropriate HTTP status codes.
+### Login Endpoints
 
-### Success Response
+#### POST `/api/auth/creator/login`
+**Description**: Authenticate a creator user
+**Request Body**:
 ```json
 {
-  "data": { ... },
-  "message": "Success message"
+  "email": "string",
+  "password": "string"
 }
 ```
+**Responses**:
+- `200 OK`: Authentication successful, returns user and token
+- `401 Unauthorized`: Invalid credentials
 
-### Error Response
+#### POST `/api/auth/investor/login`
+**Description**: Authenticate an investor user
+**Request Body**:
 ```json
 {
-  "error": "Error message",
-  "details": { ... }
+  "email": "string", 
+  "password": "string"
 }
 ```
+**Responses**:
+- `200 OK`: Authentication successful, returns user and token
+- `401 Unauthorized`: Invalid credentials
 
----
-
-## Endpoints
-
-### Authentication
-
-#### Register User
-**POST** `/auth/register`
-
-Creates a new user account.
-
-**Request Body:**
+#### POST `/api/auth/production/login`
+**Description**: Authenticate a production company user
+**Request Body**:
 ```json
 {
-  "email": "user@example.com",
-  "username": "johndoe",
-  "password": "minimum8chars",
-  "userType": "creator|production|investor",
-  "companyName": "Optional Company Name",
-  "companyNumber": "Optional Registration Number"
+  "email": "string",
+  "password": "string"
 }
 ```
+**Responses**:
+- `200 OK`: Authentication successful, returns user and token
+- `401 Unauthorized`: Invalid credentials
 
-**Response:** `201 Created`
+## Pitches
+
+### Pitch Creation and Management
+
+#### POST `/api/creator/pitches`
+**Description**: Create a new pitch
+**Authentication**: Creator token required
+**Request Body**:
 ```json
 {
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "username": "johndoe",
-    "userType": "creator"
-  },
-  "session": {
-    "token": "eyJhbGciOiJIUzI1NiIs...",
-    "expiresAt": "2025-09-26T17:00:00.000Z"
-  }
-}
-```
-
-#### Login
-**POST** `/auth/login`
-
-Authenticates user and returns session token.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
-
-**Response:** `200 OK`
-```json
-{
-  "user": { ... },
-  "session": {
-    "token": "eyJhbGciOiJIUzI1NiIs...",
-    "expiresAt": "2025-09-26T17:00:00.000Z"
-  }
-}
-```
-
-#### Logout
-**POST** `/auth/logout`
-**Authentication:** Required
-
-Invalidates the current session.
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Logged out successfully"
-}
-```
-
----
-
-### User Profile
-
-#### Get Current User Profile
-**GET** `/api/profile`
-**Authentication:** Required
-
-Returns the authenticated user's profile.
-
-**Response:** `200 OK`
-```json
-{
-  "id": 1,
-  "email": "user@example.com",
-  "username": "johndoe",
-  "userType": "creator",
-  "firstName": "John",
-  "lastName": "Doe",
-  "bio": "Film creator and writer",
-  "profileImage": "https://...",
-  "companyName": "Doe Productions",
-  "subscriptionTier": "pro"
-}
-```
-
-#### Update Profile
-**PUT** `/api/profile`
-**Authentication:** Required
-
-Updates the authenticated user's profile.
-
-**Request Body:**
-```json
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "bio": "Updated bio",
-  "location": "Los Angeles, CA",
-  "phone": "+1234567890"
-}
-```
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Profile updated successfully",
-  "user": { ... }
-}
-```
-
----
-
-### Pitches
-
-#### List All Pitches
-**GET** `/api/pitches`
-
-Returns a paginated list of published pitches.
-
-**Query Parameters:**
-- `page` (integer): Page number (default: 1)
-- `limit` (integer): Items per page (default: 20)
-- `genre` (string): Filter by genre
-- `format` (string): Filter by format
-- `search` (string): Search in title and logline
-
-**Response:** `200 OK`
-```json
-[
-  {
-    "id": 1,
-    "title": "The Matrix",
-    "logline": "A computer hacker learns about the true nature of reality",
-    "genre": "scifi",
-    "format": "feature",
-    "creator": {
-      "id": 1,
-      "username": "wachowski",
-      "userType": "creator"
-    },
-    "viewCount": 1523,
-    "likeCount": 342,
-    "ndaCount": 89,
-    "createdAt": "2025-09-19T12:00:00.000Z"
-  }
-]
-```
-
-#### Get Single Pitch
-**GET** `/api/pitches/:id`
-
-Returns detailed information about a specific pitch.
-
-**Response:** `200 OK`
-```json
-{
-  "id": 1,
-  "title": "The Matrix",
-  "logline": "A computer hacker learns about the true nature of reality",
-  "genre": "scifi",
-  "format": "feature",
-  "shortSynopsis": "...",
-  "longSynopsis": "...",
-  "characters": [...],
-  "themes": ["reality", "freedom", "technology"],
-  "budgetBracket": "$50M-$100M",
-  "creator": { ... },
-  "ndaRequired": true,
-  "hasSignedNda": false
-}
-```
-
-#### Create Pitch
-**POST** `/api/pitches`
-**Authentication:** Required (Creator only)
-
-Creates a new pitch draft.
-
-**Request Body:**
-```json
-{
-  "title": "My Amazing Film",
-  "logline": "One-line description of the story",
+  "title": "string (required)",
+  "logline": "string (required)",
   "genre": "drama|comedy|thriller|horror|scifi|fantasy|documentary|animation|action|romance|other",
   "format": "feature|tv|short|webseries|other",
-  "shortSynopsis": "Brief synopsis (optional)",
-  "longSynopsis": "Detailed synopsis (optional)",
+  "shortSynopsis": "string (optional)",
+  "longSynopsis": "string (optional)",
   "characters": [
     {
-      "name": "John Doe",
-      "description": "The protagonist",
-      "age": "35",
-      "gender": "male"
+      "name": "string",
+      "description": "string",
+      "age": "string (optional)",
+      "gender": "string (optional)",
+      "actor": "string (optional)"
     }
   ],
-  "themes": ["love", "redemption"],
-  "budgetBracket": "$1M-$5M",
-  "aiUsed": false
+  "themes": "string (optional)",
+  "worldDescription": "string (optional)",
+  "estimatedBudget": "number (optional)",
+  "requireNDA": "boolean (optional)"
 }
 ```
+**Responses**:
+- `201 Created`: Pitch successfully created
+- `400 Bad Request`: Invalid input
+- `401 Unauthorized`: Authentication required
 
-**Response:** `201 Created`
+#### GET `/api/creator/pitches`
+**Description**: Retrieve all pitches for the authenticated creator
+**Authentication**: Creator token required
+**Responses**:
+- `200 OK`: List of pitches
+- `401 Unauthorized`: Authentication required
+
+#### GET `/api/pitches/{pitchId}`
+**Description**: Retrieve a specific pitch by ID
+**Authentication**: Depends on pitch's NDA status
+**Responses**:
+- `200 OK`: Pitch details
+- `403 Forbidden`: NDA required
+- `404 Not Found`: Pitch does not exist
+
+#### PATCH `/api/creator/pitches/{pitchId}`
+**Description**: Update an existing pitch
+**Authentication**: Creator token required, must own the pitch
+**Request Body**: Same as pitch creation
+**Responses**:
+- `200 OK`: Pitch updated successfully
+- `400 Bad Request`: Invalid input
+- `403 Forbidden`: Not pitch owner
+- `404 Not Found`: Pitch does not exist
+
+## WebSocket Endpoints
+
+### WebSocket Connection
+**URL**: `ws://localhost:8001/ws`
+**Authentication**: JWT token required as query parameter
+
+### WebSocket Message Types
+- `ping`: Client/server connection health check
+- `notification`: Real-time platform notifications
+- `dashboard_update`: Live dashboard metrics
+- `draft_sync`: Auto-sync draft changes
+- `presence_update`: User online/away/offline status
+- `typing_start/stop`: Conversation typing indicators
+- `send_message`: Send instant messages
+- `message_read`: Message read receipts
+
+## NDA Endpoints
+
+#### POST `/api/ndas/request`
+**Description**: Request an NDA for a pitch
+**Authentication**: Required
+**Request Body**:
 ```json
 {
-  "id": 42,
-  "title": "My Amazing Film",
-  "status": "draft",
-  "createdAt": "2025-09-19T17:00:00.000Z"
+  "pitchId": "number",
+  "ndaType": "basic|enhanced"
 }
 ```
-
-#### Update Pitch
-**PUT** `/api/pitches/:id`
-**Authentication:** Required (Owner only)
-
-Updates an existing pitch.
-
-**Request Body:**
-Same as Create Pitch (all fields optional)
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Pitch updated successfully",
-  "pitch": { ... }
-}
-```
-
-#### Delete Pitch
-**DELETE** `/api/pitches/:id`
-**Authentication:** Required (Owner only)
-
-Deletes a pitch permanently.
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Pitch deleted successfully"
-}
-```
-
-#### Publish Pitch
-**POST** `/api/pitches/:id/publish`
-**Authentication:** Required (Owner only)
-
-Changes pitch status from draft to published.
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Pitch published successfully",
-  "pitch": {
-    "id": 42,
-    "status": "published",
-    "publishedAt": "2025-09-19T17:00:00.000Z"
-  }
-}
-```
-
----
-
-### NDA Management
-
-#### Sign NDA
-**POST** `/api/pitches/:id/nda`
-**Authentication:** Required
-
-Signs an NDA to access protected pitch content.
-
-**Request Body:**
-```json
-{
-  "ndaType": "basic|enhanced",
-  "customNdaUrl": "https://... (optional for custom NDAs)"
-}
-```
-
-**Response:** `201 Created`
-```json
-{
-  "id": 1,
-  "pitchId": 42,
-  "signerId": 7,
-  "ndaType": "basic",
-  "signedAt": "2025-09-19T17:00:00.000Z",
-  "accessGranted": true
-}
-```
-
-#### Get NDA Status
-**GET** `/api/pitches/:id/nda`
-**Authentication:** Required
-
-Checks if the current user has signed an NDA for a pitch.
-
-**Response:** `200 OK`
-```json
-{
-  "hasSignedNda": true,
-  "nda": {
-    "id": 1,
-    "signedAt": "2025-09-19T17:00:00.000Z",
-    "ndaType": "basic",
-    "accessGranted": true
-  }
-}
-```
-
----
-
-### File Upload
-
-#### Upload Pitch Materials
-**POST** `/api/upload`
-**Authentication:** Required
-**Content-Type:** `multipart/form-data`
-
-Uploads files for pitch materials (scripts, pitch decks, images).
-
-**Form Data:**
-- `file`: The file to upload
-- `type`: File type (script|pitchdeck|image|video)
-- `pitchId`: Associated pitch ID (optional)
-
-**Response:** `201 Created`
-```json
-{
-  "url": "https://storage.pitchey.com/uploads/...",
-  "filename": "pitch_deck.pdf",
-  "size": 2048576,
-  "type": "application/pdf"
-}
-```
-
----
-
-### Analytics
-
-#### Record Pitch View
-**POST** `/api/pitches/:id/view`
-**Authentication:** Optional
-
-Records a view for analytics tracking.
-
-**Response:** `200 OK`
-```json
-{
-  "message": "View recorded",
-  "viewCount": 1524
-}
-```
-
-#### Get Pitch Analytics
-**GET** `/api/pitches/:id/analytics`
-**Authentication:** Required (Owner only)
-
-Returns detailed analytics for a pitch.
-
-**Response:** `200 OK`
-```json
-{
-  "totalViews": 1523,
-  "uniqueViewers": 892,
-  "ndaSignatures": 89,
-  "likes": 342,
-  "viewsByDay": [...],
-  "viewerDemographics": {
-    "creators": 234,
-    "producers": 456,
-    "investors": 202
-  }
-}
-```
-
----
-
-### Search & Discovery
-
-#### Search Pitches
-**GET** `/api/search`
-
-Advanced search with multiple filters.
-
-**Query Parameters:**
-- `q` (string): Search query
-- `genre[]` (array): Filter by genres
-- `format[]` (array): Filter by formats
-- `budgetMin` (number): Minimum budget
-- `budgetMax` (number): Maximum budget
-- `sortBy` (string): newest|popular|trending
-- `page` (integer): Page number
-- `limit` (integer): Results per page
-
-**Response:** `200 OK`
-```json
-{
-  "results": [...],
-  "totalCount": 156,
-  "page": 1,
-  "totalPages": 8
-}
-```
-
-#### Get Trending Pitches
-**GET** `/api/trending`
-
-Returns currently trending pitches.
-
-**Response:** `200 OK`
-```json
-[
-  {
-    "id": 1,
-    "title": "Trending Pitch",
-    "trendingScore": 95.2,
-    "viewsToday": 523,
-    "viewsChange": "+45%"
-  }
-]
-```
-
----
-
-### Follow System
-
-#### Follow a Pitch
-**POST** `/api/pitches/:id/follow`
-**Authentication:** Required
-
-Follow a pitch to get updates.
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Now following pitch",
-  "followCount": 234
-}
-```
-
-#### Unfollow a Pitch
-**DELETE** `/api/pitches/:id/follow`
-**Authentication:** Required
-
-Unfollow a pitch.
-
-**Response:** `200 OK`
-```json
-{
-  "message": "Unfollowed pitch",
-  "followCount": 233
-}
-```
-
-#### Get Followed Pitches
-**GET** `/api/user/following`
-**Authentication:** Required
-
-Returns all pitches the user is following.
-
-**Response:** `200 OK`
-```json
-[
-  {
-    "id": 1,
-    "title": "Followed Pitch",
-    "followedAt": "2025-09-19T12:00:00.000Z",
-    "lastUpdate": "2025-09-19T15:00:00.000Z"
-  }
-]
-```
-
----
-
-## Status Codes
-
-- `200 OK` - Request successful
-- `201 Created` - Resource created successfully
-- `400 Bad Request` - Invalid request data
-- `401 Unauthorized` - Authentication required or invalid token
-- `403 Forbidden` - Access denied to resource
-- `404 Not Found` - Resource not found
-- `409 Conflict` - Resource already exists
-- `422 Unprocessable Entity` - Validation errors
-- `429 Too Many Requests` - Rate limit exceeded
-- `500 Internal Server Error` - Server error
-
----
-
-## Rate Limiting
-
-API requests are limited to:
-- **Authenticated users**: 1000 requests per hour
-- **Unauthenticated users**: 100 requests per hour
-
-Rate limit headers are included in responses:
-```
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
-X-RateLimit-Reset: 1758909600
-```
-
----
-
-## Webhooks
-
-### Available Webhook Events
-
-- `pitch.published` - New pitch published
-- `pitch.updated` - Pitch updated
-- `nda.signed` - NDA signed for your pitch
-- `pitch.viewed` - Your pitch was viewed
-- `user.subscribed` - User subscription changed
-
-### Webhook Payload Format
-```json
-{
-  "event": "pitch.published",
-  "timestamp": "2025-09-19T17:00:00.000Z",
-  "data": { ... }
-}
-```
-
----
-
-## Testing
-
-### Test Endpoints
-Available only in development mode:
-
-**GET** `/api/health`
-```json
-{
-  "status": "healthy",
-  "message": "Pitchey API is running",
-  "timestamp": "2025-09-19T17:00:00.000Z"
-}
-```
-
-**POST** `/api/test/reset-db`
-Resets database to initial seed data (development only).
-
----
-
-## SDKs & Libraries
-
-Official SDKs coming soon:
-- JavaScript/TypeScript
-- Python
-- Ruby
-- Go
-
-## Support
-
-For API support, contact: api@pitchey.com
+**Responses**:
+- `200 OK`: NDA request created
+- `400 Bad Request`: Invalid pitch or NDA type
+- `403 Forbidden`: Unauthorized
+
+#### GET `/api/ndas/signed`
+**Description**: Retrieve signed NDAs
+**Authentication**: Required
+**Responses**:
+- `200 OK`: List of signed NDAs
+
+## Marketplace Endpoints
+
+#### GET `/api/marketplace/pitches`
+**Description**: Retrieve pitches for marketplace browsing
+**Authentication**: Optional
+**Query Parameters**:
+- `genre`: Filter by pitch genre
+- `format`: Filter by pitch format
+- `limit`: Number of results
+- `offset`: Pagination offset
+**Responses**:
+- `200 OK`: List of pitches
+
+## Demo Accounts
+- **Creator**: alex.creator@demo.com / Demo123
+- **Investor**: sarah.investor@demo.com / Demo123
+- **Production**: stellar.production@demo.com / Demo123
+
+## Notes
+- All endpoints return appropriate HTTP status codes
+- Authentication is required for most endpoints
+- Rate limiting is implemented for WebSocket connections
+- Responses include user-friendly error messages
+
+## WebSocket Subscription Events
+- `pitch_view_update`: Real-time pitch view counter
+- `dashboard_update`: Live metrics for user dashboards
+- `upload_progress`: File upload tracking
+
+## Error Handling
+- Descriptive error messages
+- Standard HTTP status codes
+- Detailed logging on server-side
