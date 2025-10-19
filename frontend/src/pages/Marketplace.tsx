@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';
+import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../services/pitch.service';
 import { useAuthStore } from '../store/authStore';
 import FollowButton from '../components/FollowButton';
