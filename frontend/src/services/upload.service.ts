@@ -1,4 +1,4 @@
-import { config } from './config.service';
+import { config } from '../config';
 
 export interface UploadProgress {
   loaded: number;
