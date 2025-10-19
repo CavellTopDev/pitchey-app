@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Camera, Mail, Phone, MapPin, Building2, Calendar, Edit3, Save, X } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { API_URL } from '../config/api.config';
+import { API_URL } from '../config';
 import { config } from '../config';
 
 interface UserProfile {

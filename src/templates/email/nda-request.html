@@ -1,0 +1,30 @@
+<div class="greeting">New NDA Request</div>
+
+<div class="text">
+  Hi {{recipientName}},
+</div>
+
+<div class="text">
+  <strong>{{senderName}}</strong> has requested NDA access to your pitch 
+  "<strong>{{pitchTitle}}</strong>".
+</div>
+
+{{#if requestMessage}}
+<div class="highlight-box">
+  <strong>Message from {{senderName}}:</strong>
+  <p style="margin: 10px 0; font-style: italic;">"{{requestMessage}}"</p>
+</div>
+{{/if}}
+
+<div class="text">
+  Please review the request and decide whether to approve or decline access. 
+  Once approved, they'll be able to view your protected content.
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{actionUrl}}" class="button">Review NDA Request</a>
+</div>
+
+<div class="text" style="font-size: 14px; color: #6b7280;">
+  This request will expire in 7 days if no action is taken.
+</div>

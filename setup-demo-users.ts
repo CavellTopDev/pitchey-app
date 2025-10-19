@@ -32,6 +32,15 @@ const demoUsers = [
     firstName: "Stellar",
     lastName: "Productions",
     companyName: "Stellar Productions",
+  },
+  {
+    email: "admin@demo.com",
+    username: "admin",
+    password: "Demo123",
+    userType: "admin",
+    firstName: "System",
+    lastName: "Administrator",
+    companyName: "Pitchey Platform",
   }
 ];
 

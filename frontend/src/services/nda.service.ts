@@ -1,29 +1,16 @@
 // NDA Service - Complete NDA management with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import type { User } from './user.service';
-import type { Pitch } from './pitch.service';
 import { config } from '../config';
+import type { 
+  NDA, 
+  NDARequest, 
+  User, 
+  Pitch,
+  ApiResponse 
+} from '../types/api';
 
-// Types matching Drizzle schema
-export interface NDA {
-  id: number;
-  pitchId: number;
-  requesterId: number;
-  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'revoked';
-  documentUrl?: string;
-  signedDocumentUrl?: string;
-  signedAt?: string;
-  expiresAt?: string;
-  revokedAt?: string;
-  rejectionReason?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  requester?: User;
-  pitch?: Pitch;
-}
+// Export types from centralized types file
+export type { NDA, NDARequest } from '../types/api';
 
 export interface NDATemplate {
   id: number;
@@ -37,7 +24,7 @@ export interface NDATemplate {
   updatedAt: string;
 }
 
-export interface NDARequest {
+export interface NDARequestInput {
   pitchId: number;
   message?: string;
   templateId?: number;
@@ -77,8 +64,8 @@ export interface NDAStats {
 
 export class NDAService {
   // Request NDA for a pitch
-  static async requestNDA(request: NDARequest): Promise<NDA> {
-    const response = await apiClient.post<{ success: boolean; data: any }>(
+  static async requestNDA(request: NDARequestInput): Promise<NDA> {
+    const response = await apiClient.post<ApiResponse<NDA>>(
       '/api/ndas/request',
       request
     );
@@ -93,7 +80,7 @@ export class NDAService {
 
   // Sign NDA
   static async signNDA(signature: NDASignature): Promise<NDA> {
-    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
       `/api/ndas/${signature.ndaId}/sign`,
       signature
     );
@@ -107,7 +94,7 @@ export class NDAService {
 
   // Approve NDA request (for creators)
   static async approveNDA(ndaId: number, notes?: string): Promise<NDA> {
-    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
       `/api/ndas/${ndaId}/approve`,
       { notes }
     );
@@ -121,7 +108,7 @@ export class NDAService {
 
   // Reject NDA request (for creators)
   static async rejectNDA(ndaId: number, reason: string): Promise<NDA> {
-    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
       `/api/ndas/${ndaId}/reject`,
       { reason }
     );
@@ -135,7 +122,7 @@ export class NDAService {
 
   // Revoke NDA (for creators)
   static async revokeNDA(ndaId: number, reason?: string): Promise<NDA> {
-    const response = await apiClient.post<{ success: boolean; nda: NDA }>(
+    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
       `/api/ndas/${ndaId}/revoke`,
       { reason }
     );
@@ -149,7 +136,7 @@ export class NDAService {
 
   // Get NDA by ID
   static async getNDAById(ndaId: number): Promise<NDA> {
-    const response = await apiClient.get<{ success: boolean; nda: NDA }>(
+    const response = await apiClient.get<ApiResponse<{ nda: NDA }>>(
       `/api/ndas/${ndaId}`
     );
 
@@ -172,11 +159,10 @@ export class NDAService {
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await apiClient.get<{ 
-      success: boolean; 
+    const response = await apiClient.get<ApiResponse<{ 
       ndas: NDA[]; 
       total: number 
-    }>(`/api/ndas?${params}`);
+    }>>(`/api/ndas?${params}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch NDAs');
@@ -196,12 +182,11 @@ export class NDAService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get<{ 
-        success: boolean; 
+      const response = await apiClient.get<ApiResponse<{ 
         hasNDA: boolean;
         nda?: NDA;
         canAccess: boolean;
-      }>(`/api/ndas/pitch/${pitchId}/status`);
+      }>>(`/api/ndas/pitch/${pitchId}/status`);
 
       if (!response.success) {
         // Handle specific error cases
@@ -252,7 +237,7 @@ export class NDAService {
   // Get NDA history for user
   static async getNDAHistory(userId?: number): Promise<NDA[]> {
     const endpoint = userId ? `/api/ndas/history/${userId}` : '/api/ndas/history';
-    const response = await apiClient.get<{ success: boolean; ndas: NDA[] }>(endpoint);
+    const response = await apiClient.get<ApiResponse<{ ndas: NDA[] }>>(endpoint);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch NDA history');
@@ -285,7 +270,7 @@ export class NDAService {
 
   // Generate NDA preview
   static async generatePreview(pitchId: number, templateId?: number): Promise<string> {
-    const response = await apiClient.post<{ success: boolean; preview: string }>(
+    const response = await apiClient.post<ApiResponse<{ preview: string }>>(
       '/api/ndas/preview',
       { pitchId, templateId }
     );
@@ -299,7 +284,7 @@ export class NDAService {
 
   // Get NDA templates
   static async getTemplates(): Promise<NDATemplate[]> {
-    const response = await apiClient.get<{ success: boolean; templates: NDATemplate[] }>(
+    const response = await apiClient.get<ApiResponse<{ templates: NDATemplate[] }>>(
       '/api/ndas/templates'
     );
 
@@ -312,7 +297,7 @@ export class NDAService {
 
   // Get NDA template by ID
   static async getTemplateById(templateId: number): Promise<NDATemplate> {
-    const response = await apiClient.get<{ success: boolean; template: NDATemplate }>(
+    const response = await apiClient.get<ApiResponse<{ template: NDATemplate }>>(
       `/api/ndas/templates/${templateId}`
     );
 
@@ -325,7 +310,7 @@ export class NDAService {
 
   // Create NDA template (for admins/creators)
   static async createTemplate(template: Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<NDATemplate> {
-    const response = await apiClient.post<{ success: boolean; template: NDATemplate }>(
+    const response = await apiClient.post<ApiResponse<{ template: NDATemplate }>>(
       '/api/ndas/templates',
       template
     );
@@ -342,7 +327,7 @@ export class NDAService {
     templateId: number, 
     updates: Partial<Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
   ): Promise<NDATemplate> {
-    const response = await apiClient.put<{ success: boolean; template: NDATemplate }>(
+    const response = await apiClient.put<ApiResponse<{ template: NDATemplate }>>(
       `/api/ndas/templates/${templateId}`,
       updates
     );
@@ -356,7 +341,7 @@ export class NDAService {
 
   // Delete NDA template
   static async deleteTemplate(templateId: number): Promise<void> {
-    const response = await apiClient.delete<{ success: boolean }>(
+    const response = await apiClient.delete<ApiResponse<void>>(
       `/api/ndas/templates/${templateId}`
     );
 
@@ -368,7 +353,7 @@ export class NDAService {
   // Get NDA statistics
   static async getNDAStats(pitchId?: number): Promise<NDAStats> {
     const endpoint = pitchId ? `/api/ndas/stats/${pitchId}` : '/api/ndas/stats';
-    const response = await apiClient.get<{ success: boolean; stats: NDAStats }>(endpoint);
+    const response = await apiClient.get<ApiResponse<{ stats: NDAStats }>>(endpoint);
 
     if (!response.success || !response.data?.stats) {
       throw new Error(response.error?.message || 'Failed to fetch NDA statistics');
@@ -385,12 +370,11 @@ export class NDAService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get<{ 
-        success: boolean; 
+      const response = await apiClient.get<ApiResponse<{ 
         canRequest: boolean;
         reason?: string;
         existingNDA?: NDA;
-      }>(`/api/ndas/pitch/${pitchId}/can-request`);
+      }>>(`/api/ndas/pitch/${pitchId}/can-request`);
 
       if (!response.success) {
         // Handle business rule violations gracefully
@@ -424,11 +408,10 @@ export class NDAService {
     successful: number[]; 
     failed: { id: number; error: string }[] 
   }> {
-    const response = await apiClient.post<{ 
-      success: boolean; 
+    const response = await apiClient.post<ApiResponse<{ 
       successful: number[]; 
       failed: { id: number; error: string }[] 
-    }>('/api/ndas/bulk-approve', { ndaIds });
+    }>>('/api/ndas/bulk-approve', { ndaIds });
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to bulk approve NDAs');
@@ -445,11 +428,10 @@ export class NDAService {
     successful: number[]; 
     failed: { id: number; error: string }[] 
   }> {
-    const response = await apiClient.post<{ 
-      success: boolean; 
+    const response = await apiClient.post<ApiResponse<{ 
       successful: number[]; 
       failed: { id: number; error: string }[] 
-    }>('/api/ndas/bulk-reject', { ndaIds, reason });
+    }>>('/api/ndas/bulk-reject', { ndaIds, reason });
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to bulk reject NDAs');
@@ -463,7 +445,7 @@ export class NDAService {
 
   // Send NDA reminder
   static async sendReminder(ndaId: number): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
+    const response = await apiClient.post<ApiResponse<void>>(
       `/api/ndas/${ndaId}/remind`,
       {}
     );
@@ -479,12 +461,11 @@ export class NDAService {
     signedBy?: User;
     signedAt?: string;
   }> {
-    const response = await apiClient.get<{ 
-      success: boolean; 
+    const response = await apiClient.get<ApiResponse<{ 
       valid: boolean;
       signedBy?: User;
       signedAt?: string;
-    }>(`/api/ndas/${ndaId}/verify`);
+    }>>(`/api/ndas/${ndaId}/verify`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to verify NDA signature');

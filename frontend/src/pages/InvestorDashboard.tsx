@@ -28,106 +28,101 @@ export default function InvestorDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('authToken');
       
-      // Fetch dashboard data, portfolio data, and billing info in parallel
-      const [
-        dashboardResponse, 
-        portfolioSummaryResponse,
-        portfolioPerformanceResponse,
-        investmentPreferencesResponse,
-        creditsData, 
-        subscriptionData, 
-        followingData
-      ] = await Promise.all([
-        apiClient.get('/api/investor/dashboard'),
-        apiClient.get('/api/investor/portfolio/summary'),
-        apiClient.get('/api/investor/portfolio/performance'),
-        apiClient.get('/api/investor/preferences'),
-        paymentsAPI.getCreditBalance(),
-        paymentsAPI.getSubscriptionStatus(),
-        pitchServicesAPI.getFollowingPitches()
-      ]);
+      console.log('🔄 Fetching investor dashboard data...');
       
-      // Set portfolio data from new endpoints
-      if (portfolioSummaryResponse.success) {
-        setPortfolio(portfolioSummaryResponse.data);
-      }
-      
-      if (portfolioPerformanceResponse.success) {
-        setPortfolioPerformance(portfolioPerformanceResponse.data);
-      }
-      
-      if (investmentPreferencesResponse.success) {
-        setInvestmentPreferences(investmentPreferencesResponse.data);
-      }
+      // Fetch dashboard data first
+      const dashboardResponse = await apiClient.get('/api/investor/dashboard');
+      console.log('📊 Dashboard response:', dashboardResponse);
       
       if (dashboardResponse.success) {
-        const data = dashboardResponse.data;
-        // Use portfolio data from the dedicated endpoint if available, otherwise use dashboard data
-        if (!portfolioSummaryResponse.success && data.portfolio) {
-          setPortfolio(data.portfolio);
-        }
-        setWatchlist(data.watchlist || []);
-        setRecommendations(data.recommendations || []);
-      } else {
-        // Try to fetch AI recommendations separately
-        try {
-          const recsResponse = await apiClient.get('/api/ai/recommendations/investor');
-          if (recsResponse.success) {
-            setRecommendations(recsResponse.data.recommendations || []);
-          }
-        } catch (recsError) {
-          console.error('Failed to fetch AI recommendations:', recsError);
-          setRecommendations([]);
+        // Handle nested data structure: data.data contains the actual data
+        const dashboardData = dashboardResponse.data?.data || dashboardResponse.data;
+        console.log('📈 Dashboard data extracted:', dashboardData);
+        
+        // Set portfolio data from dashboard
+        if (dashboardData.portfolio) {
+          setPortfolio(dashboardData.portfolio);
         }
         
-        // Set default empty states if all portfolio endpoints failed
-        if (!portfolioSummaryResponse.success) {
-          console.error('Failed to fetch dashboard data:', dashboardResponse.error?.message);
-          setPortfolio({
-            totalInvestments: 0,
-            activeDeals: 0,
-            totalInvested: 0,
-            averageReturn: 0,
-            pendingOpportunities: 0
-          });
-        }
-        if (!dashboardResponse.success) {
-          setWatchlist([]);
-        }
+        // Set watchlist and recommendations
+        setWatchlist(dashboardData.watchlist || []);
+        setRecommendations(dashboardData.recommendations || []);
+      } else {
+        console.error('❌ Dashboard API failed:', dashboardResponse.error);
+        setError(`Failed to load dashboard: ${dashboardResponse.error?.message || 'Unknown error'}`);
+        
+        // Set fallback empty states
+        setPortfolio({
+          totalInvestments: 0,
+          activeDeals: 0,
+          totalInvested: 0,
+          averageReturn: 0,
+          pendingOpportunities: 0
+        });
+        setWatchlist([]);
+        setRecommendations([]);
       }
       
-      setCredits(creditsData);
-      setSubscription(subscriptionData);
+      // Fetch portfolio summary separately if available
+      try {
+        const portfolioResponse = await apiClient.get('/api/investor/portfolio/summary');
+        console.log('💼 Portfolio response:', portfolioResponse);
+        
+        if (portfolioResponse.success) {
+          const portfolioData = portfolioResponse.data?.data || portfolioResponse.data;
+          setPortfolio(portfolioData);
+        }
+      } catch (portfolioError) {
+        console.error('⚠️ Portfolio summary failed (non-critical):', portfolioError);
+      }
       
-      // Set following data with fallback handling
-      if (followingData?.success) {
-        setFollowingPitches(followingData.pitches || []);
-      } else {
-        // Fallback: try to fetch using the follows API if primary fails
-        try {
-          const fallbackResponse = await apiClient.get('/api/follows/following?type=pitches');
-          
-          if (fallbackResponse.success) {
-            setFollowingPitches(fallbackResponse.data.following || []);
-          } else {
-            setFollowingPitches([]);
-          }
-        } catch (fallbackError) {
-          console.error('Failed to fetch following data from fallback API:', fallbackError);
+      // Fetch billing info
+      try {
+        const creditsData = await paymentsAPI.getCreditBalance();
+        setCredits(creditsData);
+      } catch (creditsError) {
+        console.error('⚠️ Credits fetch failed (non-critical):', creditsError);
+        setCredits(null);
+      }
+      
+      try {
+        const subscriptionData = await paymentsAPI.getSubscriptionStatus();
+        setSubscription(subscriptionData);
+      } catch (subscriptionError) {
+        console.error('⚠️ Subscription fetch failed (non-critical):', subscriptionError);
+        setSubscription(null);
+      }
+      
+      // Fetch following pitches
+      try {
+        const followingData = await pitchServicesAPI.getFollowingPitches();
+        console.log('👥 Following response:', followingData);
+        
+        if (followingData?.success) {
+          setFollowingPitches(followingData.pitches || []);
+        } else {
           setFollowingPitches([]);
         }
+      } catch (followingError) {
+        console.error('⚠️ Following pitches fetch failed (non-critical):', followingError);
+        setFollowingPitches([]);
       }
       
       // Get user data from localStorage
       const userData = localStorage.getItem('user');
       if (userData) {
-        setUser(JSON.parse(userData));
+        try {
+          setUser(JSON.parse(userData));
+        } catch (userError) {
+          console.error('⚠️ Failed to parse user data:', userError);
+        }
       }
+      
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
+      console.error('💥 Critical dashboard error:', error);
       setError('Failed to load dashboard data. Please try refreshing the page.');
+      
       // Set fallback empty states
       setPortfolio({
         totalInvestments: 0,
@@ -145,8 +140,7 @@ export default function InvestorDashboard() {
   };
 
   const handleLogout = () => {
-    logout();
-    navigate('/login/investor');
+    logout(); // This will automatically navigate to login page
   };
 
   const formatCurrency = (amount: number) => {
@@ -172,39 +166,42 @@ export default function InvestorDashboard() {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 lg:gap-6">
               {/* Pitchey Logo - Links to Homepage */}
               <Link 
                 to="/" 
                 className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
                 title="Go to Homepage"
               >
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-purple-500 rounded-lg flex items-center justify-center">
-                  <Film className="w-6 h-6 text-white" />
+                <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-purple-600 to-purple-500 rounded-lg flex items-center justify-center">
+                  <Film className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
                 </div>
-                <span className="text-xl font-bold text-gray-900">Pitchey</span>
+                <span className="text-lg lg:text-xl font-bold text-gray-900 hidden sm:block">Pitchey</span>
               </Link>
               
-              {/* Divider */}
-              <div className="h-8 w-px bg-gray-300"></div>
+              {/* Divider - Hidden on mobile */}
+              <div className="h-8 w-px bg-gray-300 hidden lg:block"></div>
               
-              {/* Dashboard Info */}
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-white" />
+              {/* Dashboard Info - Responsive */}
+              <div className="flex items-center gap-2 lg:gap-3">
+                <div className="w-7 h-7 lg:w-9 lg:h-9 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">Investor Dashboard</h1>
-                  <p className="text-xs text-gray-500">Welcome back, {user?.username || 'Investor'}</p>
+                <div className="hidden sm:block">
+                  <h1 className="text-lg lg:text-xl font-bold text-gray-900">Investor Dashboard</h1>
+                  <p className="text-xs text-gray-500 hidden lg:block">Welcome back, {user?.username || 'Investor'}</p>
+                </div>
+                <div className="sm:hidden">
+                  <h1 className="text-sm font-bold text-gray-900">Dashboard</h1>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              {/* Credits Display */}
+            <div className="flex items-center gap-2 lg:gap-4">
+              {/* Credits Display - Hidden on mobile */}
               <button
                 onClick={() => navigate('/investor/billing?tab=credits')}
-                className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group"
+                className="hidden lg:flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group"
               >
                 <Coins className="w-4 h-4 text-blue-600" />
                 <div className="text-sm">
@@ -214,10 +211,10 @@ export default function InvestorDashboard() {
                 </div>
               </button>
               
-              {/* Subscription Status */}
+              {/* Subscription Status - Hidden on mobile */}
               <button
                 onClick={() => navigate('/investor/billing?tab=subscription')}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                className="hidden md:flex items-center gap-2 px-2 lg:px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
               >
                 <span className="font-medium text-gray-700">
                   {subscription?.tier?.toUpperCase() || 'FREE'}
@@ -227,37 +224,62 @@ export default function InvestorDashboard() {
                 )}
               </button>
               
-              {/* Search Bar */}
-              <div className="relative">
+              {/* Search Bar - Responsive width */}
+              <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   placeholder="Search opportunities..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-40 lg:w-64"
                 />
               </div>
               
+              {/* Search Icon for mobile */}
+              <button className="p-2 text-gray-500 hover:text-gray-700 transition md:hidden">
+                <Search className="w-5 h-5" />
+              </button>
+              
               <Link
                 to="/investor/following"
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                className="hidden lg:flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
               >
                 <Users className="w-5 h-5" />
                 Following
               </Link>
               
+              {/* Following icon for mobile/tablet */}
+              <Link
+                to="/investor/following"
+                className="p-2 text-gray-500 hover:text-blue-600 transition lg:hidden"
+                title="Following"
+              >
+                <Users className="w-5 h-5" />
+              </Link>
+              
               <button
                 onClick={() => navigate('/investor/browse')}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition"
+                className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition"
               >
                 <Filter className="w-4 h-4" />
-                Browse Deals
+                <span className="hidden lg:block">Browse Deals</span>
+                <span className="lg:hidden">Browse</span>
+              </button>
+              
+              {/* Browse icon for mobile */}
+              <button
+                onClick={() => navigate('/investor/browse')}
+                className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition sm:hidden"
+                title="Browse Deals"
+              >
+                <Filter className="w-4 h-4" />
               </button>
               
               <button
                 onClick={handleLogout}
                 className="p-2 text-gray-500 hover:text-gray-700 transition"
+                title="Logout"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
               </button>
             </div>
           </div>

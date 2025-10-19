@@ -1,32 +1,16 @@
 // Auth Service - Consolidated authentication for all user types with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import type { User } from './user.service';
 import { config } from '../config';
+import type { 
+  User, 
+  LoginCredentials, 
+  RegisterData, 
+  AuthResponse,
+  ApiResponse 
+} from '../types/api';
 
-// Types matching Drizzle schema
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface RegisterData {
-  email: string;
-  username: string;
-  password: string;
-  name?: string;
-  userType: 'creator' | 'investor' | 'production';
-  companyName?: string;
-  companyNumber?: string;
-  companyWebsite?: string;
-  companyAddress?: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  token: string;
-  user: User;
-  message?: string;
-}
+// Export types from centralized types file
+export type { LoginCredentials, RegisterData, AuthResponse } from '../types/api';
 
 export interface TokenValidation {
   valid: boolean;

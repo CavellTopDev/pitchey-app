@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Filter, Eye, Heart, DollarSign, Calendar, Shield, Star, Film, TrendingUp, Building2, User } from 'lucide-react';
 import { pitchAPI } from '../lib/api';
-import { API_URL } from '../config/api.config';
+import { API_URL } from '../config';
 import { configService } from '../services/config.service';
 import FormatDisplay from '../components/FormatDisplay';
 
@@ -82,14 +82,28 @@ export default function InvestorBrowse() {
       
       if (response.ok) {
         const data = await response.json();
-        setPitches(data.pitches || []);
+        // Handle both array response and object with pitches property
+        if (Array.isArray(data)) {
+          setPitches(data);
+        } else if (data && data.pitches) {
+          setPitches(data.pitches || []);
+        } else {
+          setPitches([]);
+        }
       } else {
         // Fallback to public marketplace API
         try {
           const publicResponse = await fetch(`${API_URL}/api/pitches/public`);
           if (publicResponse.ok) {
             const publicData = await publicResponse.json();
-            setPitches(publicData || []);
+            // Handle both array response and object with pitches property
+            if (Array.isArray(publicData)) {
+              setPitches(publicData);
+            } else if (publicData && publicData.pitches) {
+              setPitches(publicData.pitches);
+            } else {
+              setPitches([]);
+            }
           } else {
             setPitches([]);
           }
@@ -106,7 +120,10 @@ export default function InvestorBrowse() {
   };
 
   const filterAndSortPitches = () => {
-    let filtered = pitches.filter(pitch => {
+    // Ensure pitches is always an array
+    const pitchArray = Array.isArray(pitches) ? pitches : [];
+    
+    let filtered = pitchArray.filter(pitch => {
       const matchesSearch = pitch.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            pitch.logline.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            pitch.genre.toLowerCase().includes(searchTerm.toLowerCase());

@@ -6,7 +6,7 @@
 
 import { WSSession, WSMessageType } from "../services/websocket.service.ts";
 import { redisService } from "../services/redis.service.ts";
-import { sentryService, captureException } from "../services/sentry.service.ts";
+import { captureException } from "../services/logging.service.ts";
 
 // Rate limit configuration per message type
 interface RateLimitRule {
@@ -208,7 +208,7 @@ export class WebSocketRateLimiter {
 
     } catch (error) {
       console.error("[WebSocket Rate Limiter] Error checking rate limit:", error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRateLimiter' });
       // Allow message in case of error to avoid blocking legitimate users
       return { allowed: true };
     }

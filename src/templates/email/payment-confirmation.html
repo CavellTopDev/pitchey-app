@@ -1,0 +1,44 @@
+<div class="greeting">Payment Confirmed ✅</div>
+
+<div class="text">
+  Hi {{firstName}},
+</div>
+
+<div class="text">
+  Your {{paymentTypeText}} has been successfully processed.
+</div>
+
+<div class="highlight-box alert-success">
+  <h3 style="margin: 0 0 15px 0; color: #111827;">Payment Details</h3>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+    <span>Amount:</span>
+    <strong>{{amount}} {{currency}}</strong>
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+    <span>Type:</span>
+    <strong>{{paymentTypeLabel}}</strong>
+  </div>
+  <div style="display: flex; justify-content: space-between;">
+    <span>Description:</span>
+    <strong>{{description}}</strong>
+  </div>
+</div>
+
+{{#if hasDocuments}}
+<div style="text-align: center; margin: 30px 0;">
+  {{#if invoiceUrl}}
+  <a href="{{invoiceUrl}}" class="button">View Invoice</a>
+  {{/if}}
+  {{#if receiptUrl}}
+  <a href="{{receiptUrl}}" class="button button-secondary" style="margin-left: 10px;">Download Receipt</a>
+  {{/if}}
+</div>
+{{/if}}
+
+<div class="text">
+  Thank you for your payment. Your account has been updated and you can now enjoy your new features or credits.
+</div>
+
+<div class="text" style="font-size: 14px; color: #6b7280;">
+  If you have any questions about this payment, please contact our support team.
+</div>

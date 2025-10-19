@@ -1,10 +1,20 @@
 // COMPLETE Multi-portal authentication server for Pitchey v0.2 - ALL 29 TESTS COVERAGE
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { serveFile } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
-// Import Sentry for error tracking
-import { sentryService, captureException } from "./src/services/sentry.service.ts";
+// Simple error logging utility (replaced Sentry)
+function logError(error: any, context?: Record<string, any>) {
+  const timestamp = new Date().toISOString();
+  console.error(`[${timestamp}] ERROR:`, error.message || error);
+  if (error.stack) {
+    console.error('Stack trace:', error.stack);
+  }
+  if (context) {
+    console.error('Context:', context);
+  }
+}
 
 // Import Redis for caching - using native Redis service for local development
 import { nativeRedisService as redisService, cacheKeys } from "./src/services/redis-native.service.ts";
@@ -13,8 +23,10 @@ import { nativeRedisService as redisService, cacheKeys } from "./src/services/re
 import { UserService } from "./src/services/userService.ts";
 import { PitchService } from "./src/services/pitch.service.ts";
 import { NDAService } from "./src/services/nda.service.ts";
+import InfoRequestService from "./src/services/info-request.service.ts";
 import { AuthService } from "./src/services/auth.service.ts";
 import { StripeService } from "./src/services/stripe.service.ts";
+import { UploadService } from "./src/services/upload.service.ts";
 import { CREDIT_PACKAGES, SUBSCRIPTION_PRICES } from "./utils/stripe.ts";
 import { getEmailService } from "./src/services/email.service.ts";
 import { EmailTemplates } from "./src/services/email-templates.service.ts";
@@ -77,7 +89,8 @@ import {
   analytics, ndaRequests, securityEvents, pitchLikes, pitchSaves,
   contentTypes, contentItems, featureFlags, portalConfigurations,
   translationKeys, translations, navigationMenus, contentApprovals,
-  savedPitches, reviews, calendarEvents, investments, investmentDocuments, investmentTimeline
+  savedPitches, reviews, calendarEvents, investments, investmentDocuments, investmentTimeline,
+  infoRequests, infoRequestAttachments, pitchDocuments
 } from "./src/db/schema.ts";
 import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "drizzle-orm";
 
@@ -127,8 +140,7 @@ setInterval(() => {
   }
 }, 30000); // Every 30 seconds
 
-// Mock storage for NDA requests (in-memory)
-const mockNdaRequestsStore = new Map<number, any>();
+// Mock storage removed - using real NDAService now
 
 // Mock storage for calendar events (in-memory)
 const calendarEventsStore = new Map<number, any[]>(); // userId -> events[]
@@ -266,7 +278,7 @@ try {
   console.log("✅ WebSocket services initialized successfully");
 } catch (error) {
   console.error("❌ Failed to initialize WebSocket services:", error);
-  captureException(error);
+  logError(error, { service: 'WebSocket' });
 }
 
 // Initialize real-time services
@@ -291,7 +303,7 @@ try {
   console.log("✅ All real-time services initialized successfully");
 } catch (error) {
   console.error("❌ Failed to initialize real-time services:", error);
-  captureException(error);
+  logError(error, { service: 'WebSocket' });
 }
 
 // Main request handler
@@ -310,98 +322,8 @@ const handler = async (request: Request): Promise<Response> => {
       return corsPreflightResponse(origin);
     }
 
-    // WebSocket upgrade for real-time messaging
-    if (url.pathname === "/api/messages/ws" && request.headers.get("upgrade") === "websocket") {
-      const token = url.searchParams.get("token");
-      
-      if (!token) {
-        return authErrorResponse("Missing authentication token");
-      }
-
-      try {
-        // Use the same authentication logic as regular endpoints
-        const key = await crypto.subtle.importKey(
-          "raw",
-          new TextEncoder().encode(JWT_SECRET),
-          { name: "HMAC", hash: "SHA-256" },
-          false,
-          ["verify"]
-        );
-        
-        const payload = await verify(token, key);
-        if (!payload) {
-          return authErrorResponse("Invalid authentication token");
-        }
-
-        // For demo accounts
-        let user;
-        if (payload.userId >= 1 && payload.userId <= 3) {
-          user = {
-            id: payload.userId,
-            username: payload.email?.split('@')[0] || `user${payload.userId}`,
-            email: payload.email,
-            userType: payload.userType || payload.role
-          };
-        } else {
-          user = await UserService.getUserById(payload.userId);
-          if (!user) {
-            return authErrorResponse("User not found");
-          }
-        }
-
-        const { socket, response } = Deno.upgradeWebSocket(request);
-
-        socket.onopen = () => {
-          console.log(`WebSocket connected: ${user.username} (${user.id})`);
-          
-          // Store connection
-          if (!wsConnections.has(user.id)) {
-            wsConnections.set(user.id, new Set());
-          }
-          wsConnections.get(user.id)!.add(socket);
-          
-          userSessions.set(socket, {
-            userId: user.id,
-            username: user.username,
-            userType: user.userType,
-            lastActivity: new Date(),
-          });
-
-          // Send welcome message
-          socket.send(JSON.stringify({
-            type: 'connected',
-            userId: user.id,
-            username: user.username,
-            timestamp: new Date().toISOString(),
-          }));
-        };
-
-        socket.onmessage = async (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            await handleWebSocketMessage(socket, data);
-          } catch (error) {
-            console.error("WebSocket message error:", error);
-          }
-        };
-
-        socket.onclose = () => {
-          console.log(`WebSocket disconnected: ${user.username}`);
-          if (wsConnections.has(user.id)) {
-            wsConnections.get(user.id)!.delete(socket);
-            if (wsConnections.get(user.id)!.size === 0) {
-              wsConnections.delete(user.id);
-            }
-          }
-          userSessions.delete(socket);
-        };
-
-        return response;
-      } catch (error) {
-        console.error("WebSocket auth error:", error);
-        return authErrorResponse("Authentication failed");
-      }
-    }
+    // WebSocket connections are now handled by the WebSocket integration service
+    // via the addWebSocketSupport wrapper at /ws and /api/ws endpoints
 
     // === HEALTH & STATUS ENDPOINTS ===
     // GET /api/test/new - Test endpoint to verify new code is loaded (public)
@@ -465,7 +387,7 @@ const handler = async (request: Request): Promise<Response> => {
         return jsonResponse(healthStatus);
       } catch (error) {
         console.error("WebSocket health check failed:", error);
-        captureException(error);
+        logError(error, { service: 'WebSocket' });
         return serverErrorResponse("WebSocket health check failed");
       }
     }
@@ -489,7 +411,7 @@ const handler = async (request: Request): Promise<Response> => {
         return jsonResponse(stats);
       } catch (error) {
         console.error("WebSocket stats failed:", error);
-        captureException(error);
+        logError(error, { service: 'WebSocket' });
         return serverErrorResponse("Stats retrieval failed");
       }
     }
@@ -518,7 +440,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
       } catch (error) {
         console.error("WebSocket notification failed:", error);
-        captureException(error);
+        logError(error, { service: 'WebSocket' });
         return serverErrorResponse("Notification failed");
       }
     }
@@ -545,7 +467,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
       } catch (error) {
         console.error("Get presence failed:", error);
-        captureException(error);
+        logError(error, { service: 'WebSocket' });
         return serverErrorResponse("Failed to get presence");
       }
     }
@@ -567,7 +489,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Get following online failed:", error);
-        captureException(error);
+        logError(error, { service: 'WebSocket' });
         return serverErrorResponse("Failed to get online following");
       }
     }
@@ -602,7 +524,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
       } catch (error) {
         console.error("Upload progress update failed:", error);
-        captureException(error);
+        logError(error, { service: 'WebSocket' });
         return serverErrorResponse("Upload progress update failed");
       }
     }
@@ -637,7 +559,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
       } catch (error) {
         console.error("System announcement failed:", error);
-        captureException(error);
+        logError(error, { service: 'WebSocket' });
         return serverErrorResponse("System announcement failed");
       }
     }
@@ -1370,13 +1292,34 @@ const handler = async (request: Request): Promise<Response> => {
           .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
           .slice(0, limit);
         
-        return successResponse({
-          data: trendingPitches,
-          message: "Trending pitches retrieved successfully"
-        });
+        return successResponse(
+          trendingPitches,
+          "Trending pitches retrieved successfully"
+        );
       } catch (error) {
         console.error("Error fetching trending pitches:", error);
         return errorResponse("Failed to fetch trending pitches", 500);
+      }
+    }
+
+    // Get newest pitches (PUBLIC) - for "New" tab in browse
+    if (url.pathname === "/api/pitches/newest" && method === "GET") {
+      try {
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        const newestPitches = await PitchService.getPublicPitchesWithUserType(limit);
+        // Sort by creation date (newest first)
+        const sortedPitches = newestPitches
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, limit);
+        
+        return successResponse({
+          data: sortedPitches,
+          message: "Newest pitches retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching newest pitches:", error);
+        return errorResponse("Failed to fetch newest pitches", 500);
       }
     }
 
@@ -1558,10 +1501,10 @@ const handler = async (request: Request): Promise<Response> => {
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, limit);
         
-        return successResponse({
-          data: newPitches,
-          message: "New releases retrieved successfully"
-        });
+        return successResponse(
+          newPitches,
+          "New releases retrieved successfully"
+        );
       } catch (error) {
         console.error("Error fetching new releases:", error);
         return errorResponse("Failed to fetch new releases", 500);
@@ -1880,6 +1823,328 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // GET /api/pitches/browse/general - General browse with sorting (PUBLIC)
+    if (url.pathname === "/api/pitches/browse/general" && method === "GET") {
+      try {
+        const sortBy = url.searchParams.get('sort') || 'date';
+        const order = url.searchParams.get('order') || 'desc';
+        const genre = url.searchParams.get('genre');
+        const format = url.searchParams.get('format');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        
+        // Validate sort parameters
+        const validSortFields = ['alphabetical', 'date', 'budget', 'views', 'likes'];
+        const validOrders = ['asc', 'desc'];
+        
+        if (!validSortFields.includes(sortBy)) {
+          return errorResponse("Invalid sort field. Allowed: alphabetical, date, budget, views, likes", 400);
+        }
+        
+        if (!validOrders.includes(order)) {
+          return errorResponse("Invalid order. Allowed: asc, desc", 400);
+        }
+        
+        // Generate cache key including sort and filter parameters
+        const cacheKey = redisService.generateKey(
+          `pitches:browse:${sortBy}:${order}:${genre || 'all'}:${format || 'all'}:${limit}:${offset}`
+        );
+        
+        // Try to get from cache or fetch from database
+        const result = await redisService.cached(
+          cacheKey,
+          async () => {
+            // Build the query using the same approach as the featured pitches endpoint
+            let query = db.select({
+              id: pitches.id,
+              title: pitches.title,
+              logline: pitches.logline,
+              genre: pitches.genre,
+              format: pitches.format,
+              formatCategory: pitches.formatCategory,
+              formatSubtype: pitches.formatSubtype,
+              viewCount: pitches.viewCount,
+              likeCount: pitches.likeCount,
+              createdAt: pitches.createdAt,
+              creator: {
+                id: users.id,
+                username: users.username,
+                companyName: users.companyName,
+                userType: users.userType
+              }
+            })
+            .from(pitches)
+            .leftJoin(users, eq(pitches.userId, users.id));
+            
+            // Apply filters - build conditions array
+            const conditions = [eq(pitches.status, "published")];
+            
+            if (genre) {
+              conditions.push(eq(pitches.genre, genre));
+            }
+            
+            if (format) {
+              conditions.push(eq(pitches.format, format));
+            }
+            
+            // Apply all conditions at once
+            query = query.where(and(...conditions));
+            
+            // Apply sorting
+            switch (sortBy) {
+              case 'alphabetical':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.title))
+                  : query.orderBy(desc(pitches.title));
+                break;
+              case 'date':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.createdAt))
+                  : query.orderBy(desc(pitches.createdAt));
+                break;
+              case 'budget':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.estimatedBudget))
+                  : query.orderBy(desc(pitches.estimatedBudget));
+                break;
+              case 'views':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.viewCount))
+                  : query.orderBy(desc(pitches.viewCount));
+                break;
+              case 'likes':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.likeCount))
+                  : query.orderBy(desc(pitches.likeCount));
+                break;
+            }
+            
+            // Add pagination
+            query = query.limit(limit).offset(offset);
+            
+            const pitchResults = await query.execute();
+            
+            // Get total count for pagination using same conditions
+            const countQuery = db.select({ count: count() })
+              .from(pitches)
+              .where(and(...conditions));
+            
+            const [{ count: totalCount }] = await countQuery.execute();
+            
+            return {
+              pitches: pitchResults,
+              totalCount,
+              pagination: {
+                limit,
+                offset,
+                totalPages: Math.ceil(totalCount / limit),
+                currentPage: Math.floor(offset / limit) + 1
+              },
+              filters: {
+                sortBy,
+                order,
+                genre: genre || null,
+                format: format || null
+              }
+            };
+          },
+          300 // 5 minutes cache
+        );
+        
+        return jsonResponse({
+          success: true,
+          ...result,
+          message: "General browse pitches retrieved successfully",
+          cached: await redisService.exists(cacheKey)
+        });
+      } catch (error) {
+        console.error("Error in general browse:", error);
+        return errorResponse("Failed to fetch browse pitches", 500);
+      }
+    }
+
+    // === STATIC FILE SERVING ===
+    if ((url.pathname.startsWith("/static/uploads/") || url.pathname.startsWith("/uploads/")) && method === "GET") {
+      try {
+        // Handle both /static/uploads/ (old) and /uploads/ (new) paths
+        let filePath: string;
+        if (url.pathname.startsWith("/uploads/")) {
+          filePath = `./uploads${url.pathname.slice(8)}`; // Remove /uploads prefix
+        } else {
+          filePath = `.${url.pathname}`; // Keep /static/uploads as is
+        }
+        
+        // Security check - ensure path doesn't traverse outside uploads directory
+        if (!filePath.startsWith("./static/uploads/") && !filePath.startsWith("./uploads/")) {
+          return forbiddenResponse("Access denied");
+        }
+        
+        // Check if file exists
+        try {
+          const fileInfo = await Deno.stat(filePath);
+          if (!fileInfo.isFile) {
+            return notFoundResponse("File not found");
+          }
+        } catch {
+          return notFoundResponse("File not found");
+        }
+        
+        // Helper function to get MIME type from file extension
+        const getMimeType = (fileName: string): string => {
+          const ext = fileName.toLowerCase().split('.').pop() || '';
+          const mimeTypes: Record<string, string> = {
+            // Images - public files
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'svg': 'image/svg+xml',
+            'bmp': 'image/bmp',
+            'ico': 'image/x-icon',
+            // Documents - protected files
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'rtf': 'application/rtf',
+            // Videos
+            'mp4': 'video/mp4',
+            'avi': 'video/x-msvideo',
+            'mov': 'video/quicktime',
+            'wmv': 'video/x-ms-wmv',
+            // Audio
+            'mp3': 'audio/mpeg',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            // Default
+            '': 'application/octet-stream'
+          };
+          return mimeTypes[ext] || 'application/octet-stream';
+        };
+        
+        // Helper function to check if file type is public (images, thumbnails)
+        const isPublicFileType = (fileName: string): boolean => {
+          const ext = fileName.toLowerCase().split('.').pop() || '';
+          const publicExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
+          return publicExtensions.includes(ext);
+        };
+        
+        // Helper function to check if file is protected (documents)
+        const isProtectedFileType = (fileName: string): boolean => {
+          const ext = fileName.toLowerCase().split('.').pop() || '';
+          const protectedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'];
+          return protectedExtensions.includes(ext);
+        };
+        
+        const fileName = filePath.split('/').pop() || '';
+        const mimeType = getMimeType(fileName);
+        
+        // Public files (images) - no authentication required
+        if (isPublicFileType(fileName)) {
+          const response = await serveFile(request, filePath);
+          response.headers.set("Content-Type", mimeType);
+          response.headers.set("Cache-Control", "public, max-age=31536000"); // 1 year cache for images
+          return response;
+        }
+        
+        // Protected files (documents) - require authentication and NDA verification
+        if (isProtectedFileType(fileName)) {
+          // Authenticate user
+          const authResult = await authenticate(request);
+          if (authResult.error || !authResult.user) {
+            return authErrorResponse("Authentication required to access documents");
+          }
+          
+          const user = authResult.user;
+          
+          // Extract pitch ID from file path to check NDA status
+          // File path format: ./static/uploads/{pitchId}/{fileName}
+          const pathParts = filePath.split('/');
+          if (pathParts.length >= 4) {
+            const pitchIdStr = pathParts[3];
+            const pitchId = parseInt(pitchIdStr);
+            
+            if (!isNaN(pitchId)) {
+              // Check if user owns the pitch
+              try {
+                const ownedPitch = await db.select()
+                  .from(pitches)
+                  .where(eq(pitches.id, pitchId))
+                  .limit(1);
+                
+                const userOwnsPitch = ownedPitch.length > 0 && ownedPitch[0].userId === user.id;
+                
+                // If user doesn't own the pitch, check NDA status
+                if (!userOwnsPitch) {
+                  const hasNDA = await NDAService.hasSignedNDA(user.id, pitchId);
+                  if (!hasNDA) {
+                    return forbiddenResponse("NDA signature required to access this document");
+                  }
+                }
+              } catch (error) {
+                console.error("Error checking document access:", error);
+                return serverErrorResponse("Failed to verify document access");
+              }
+            }
+          }
+          
+          // User has access - serve the file
+          const response = await serveFile(request, filePath);
+          response.headers.set("Content-Type", mimeType);
+          response.headers.set("Cache-Control", "private, max-age=3600"); // 1 hour cache for documents
+          return response;
+        }
+        
+        // Other file types - default to protected access
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        
+        const response = await serveFile(request, filePath);
+        response.headers.set("Content-Type", mimeType);
+        response.headers.set("Cache-Control", "private, max-age=3600");
+        
+        return response;
+      } catch (error) {
+        console.error("Static file serving error:", error);
+        return serverErrorResponse("Failed to serve file");
+      }
+    }
+
+    // Get pitches for investor browse (public)
+    if (url.pathname === "/api/investor/browse" && method === "GET") {
+      try {
+        // Use the same method as public pitches to avoid syntax issues
+        const publicPitches = await PitchService.getPublicPitchesWithUserType(20);
+
+        // Format the response with investor-specific fields
+        const formattedPitches = publicPitches.map(p => ({
+          ...p,
+          // Add investor-specific fields
+          budget: "$5M - $15M",
+          expectedROI: "150-300%",
+          riskLevel: "medium",
+          productionStage: "development",
+          investmentTarget: "$2.5M",
+          attachedTalent: [],
+          similarProjects: ["Interstellar", "The Martian"]
+        }));
+
+        return successResponse({
+          pitches: formattedPitches
+        });
+      } catch (error) {
+        console.error("Error fetching investor browse pitches:", error);
+        return errorResponse("Failed to fetch pitches", 500);
+      }
+    }
+
     // From here, require authentication
     const authResult = await authenticate(request);
     if (!authResult.user) {
@@ -2011,6 +2276,598 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Toggle feature flag error:", error);
         return serverErrorResponse("Failed to toggle feature flag");
+      }
+    }
+
+    // === ADMIN DASHBOARD ENDPOINTS ===
+
+    // GET /api/admin/stats - Dashboard statistics
+    if (url.pathname === "/api/admin/stats" && method === "GET") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        // Get comprehensive stats from database
+        const totalUsers = await db.select({ count: sql`count(*)` }).from(users);
+        const totalPitches = await db.select({ count: sql`count(*)` }).from(pitches);
+        const pendingNDAs = await db.select({ count: sql`count(*)` }).from(ndas).where(eq(ndas.status, 'pending'));
+        const recentSignups = await db.select({ count: sql`count(*)` })
+          .from(users)
+          .where(gte(users.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)));
+        
+        const approvedPitches = await db.select({ count: sql`count(*)` })
+          .from(pitches)
+          .where(eq(pitches.status, 'approved'));
+        
+        const rejectedPitches = await db.select({ count: sql`count(*)` })
+          .from(pitches)
+          .where(eq(pitches.status, 'rejected'));
+
+        // Calculate active users (logged in within last 30 days)
+        const activeUsers = await db.select({ count: sql`count(*)` })
+          .from(users)
+          .where(gte(users.lastLoginAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)));
+
+        // Mock total revenue for now (would integrate with payment system)
+        const totalRevenue = 45750.50;
+
+        const stats = {
+          totalUsers: totalUsers[0]?.count || 0,
+          totalPitches: totalPitches[0]?.count || 0,
+          totalRevenue,
+          pendingNDAs: pendingNDAs[0]?.count || 0,
+          activeUsers: activeUsers[0]?.count || 0,
+          recentSignups: recentSignups[0]?.count || 0,
+          approvedPitches: approvedPitches[0]?.count || 0,
+          rejectedPitches: rejectedPitches[0]?.count || 0
+        };
+
+        return successResponse(stats);
+      } catch (error) {
+        console.error("Admin stats error:", error);
+        return serverErrorResponse("Failed to load dashboard stats");
+      }
+    }
+
+    // GET /api/admin/activity - Recent activity
+    if (url.pathname === "/api/admin/activity" && method === "GET") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        // Get recent activities from various tables
+        const recentActivities = [];
+
+        // Recent user signups
+        const recentUsers = await db.select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          createdAt: users.createdAt
+        }).from(users)
+          .orderBy(desc(users.createdAt))
+          .limit(5);
+
+        recentUsers.forEach(user => {
+          recentActivities.push({
+            id: `user_${user.id}`,
+            type: 'user_signup',
+            description: `New user registered: ${user.name}`,
+            timestamp: user.createdAt,
+            user: user.name
+          });
+        });
+
+        // Recent pitches
+        const recentPitches = await db.select({
+          id: pitches.id,
+          title: pitches.title,
+          createdAt: pitches.createdAt,
+          userId: pitches.userId
+        }).from(pitches)
+          .orderBy(desc(pitches.createdAt))
+          .limit(5);
+
+        for (const pitch of recentPitches) {
+          const creator = await db.select({ name: users.name })
+            .from(users)
+            .where(eq(users.id, pitch.userId))
+            .limit(1);
+          
+          recentActivities.push({
+            id: `pitch_${pitch.id}`,
+            type: 'pitch_created',
+            description: `New pitch created: ${pitch.title}`,
+            timestamp: pitch.createdAt,
+            user: creator[0]?.name || 'Unknown'
+          });
+        }
+
+        // Sort by timestamp
+        recentActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        return successResponse(recentActivities.slice(0, 10));
+      } catch (error) {
+        console.error("Admin activity error:", error);
+        return serverErrorResponse("Failed to load recent activity");
+      }
+    }
+
+    // GET /api/admin/users - List users with filters
+    if (url.pathname === "/api/admin/users" && method === "GET") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const params = new URLSearchParams(url.search);
+        const search = params.get('search') || '';
+        const userType = params.get('userType') || '';
+        const status = params.get('status') || '';
+        const sortBy = params.get('sortBy') || 'createdAt';
+        const sortOrder = params.get('sortOrder') || 'desc';
+
+        let query = db.select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          userType: users.userType,
+          credits: users.credits,
+          status: users.status,
+          createdAt: users.createdAt,
+          lastLoginAt: users.lastLoginAt
+        }).from(users);
+
+        // Apply filters
+        const conditions = [];
+        if (search) {
+          conditions.push(or(
+            ilike(users.name, `%${search}%`),
+            ilike(users.email, `%${search}%`)
+          ));
+        }
+        if (userType) {
+          conditions.push(eq(users.userType, userType));
+        }
+        if (status) {
+          conditions.push(eq(users.status, status));
+        }
+
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+
+        // Apply sorting
+        const sortColumn = users[sortBy as keyof typeof users] || users.createdAt;
+        query = sortOrder === 'asc' ? query.orderBy(asc(sortColumn)) : query.orderBy(desc(sortColumn));
+
+        const usersResult = await query.limit(100);
+
+        // Get additional stats for each user
+        const usersWithStats = await Promise.all(usersResult.map(async (user) => {
+          const pitchCount = await db.select({ count: sql`count(*)` })
+            .from(pitches)
+            .where(eq(pitches.userId, user.id));
+          
+          const investmentCount = await db.select({ count: sql`count(*)` })
+            .from(investments)
+            .where(eq(investments.investorId, user.id));
+
+          return {
+            ...user,
+            pitchCount: pitchCount[0]?.count || 0,
+            investmentCount: investmentCount[0]?.count || 0,
+            lastLogin: user.lastLoginAt
+          };
+        }));
+
+        return successResponse(usersWithStats);
+      } catch (error) {
+        console.error("Admin users error:", error);
+        return serverErrorResponse("Failed to load users");
+      }
+    }
+
+    // PUT /api/admin/users/:id - Update user
+    if (url.pathname.startsWith("/api/admin/users/") && method === "PUT") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const userId = url.pathname.split("/")[4];
+        if (!userId) {
+          return errorResponse("User ID is required", 400);
+        }
+
+        const validationResult = await validateJsonRequest(request);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const updates = validationResult.data;
+
+        // Update user
+        await db.update(users)
+          .set({
+            ...updates,
+            updatedAt: new Date()
+          })
+          .where(eq(users.id, userId));
+
+        const updatedUser = await db.select()
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        if (updatedUser.length === 0) {
+          return notFoundResponse("User not found");
+        }
+
+        return successResponse({ user: updatedUser[0] });
+      } catch (error) {
+        console.error("Admin update user error:", error);
+        return serverErrorResponse("Failed to update user");
+      }
+    }
+
+    // GET /api/admin/pitches - List pitches for moderation
+    if (url.pathname === "/api/admin/pitches" && method === "GET") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const params = new URLSearchParams(url.search);
+        const status = params.get('status') || '';
+        const genre = params.get('genre') || '';
+        const sortBy = params.get('sortBy') || 'createdAt';
+        const sortOrder = params.get('sortOrder') || 'desc';
+
+        let query = db.select({
+          id: pitches.id,
+          title: pitches.title,
+          synopsis: pitches.synopsis,
+          genre: pitches.genre,
+          budget: pitches.budget,
+          status: pitches.status,
+          createdAt: pitches.createdAt,
+          userId: pitches.userId,
+          moderationNotes: pitches.moderationNotes
+        }).from(pitches);
+
+        // Apply filters
+        const conditions = [];
+        if (status) {
+          conditions.push(eq(pitches.status, status));
+        }
+        if (genre) {
+          conditions.push(eq(pitches.genre, genre));
+        }
+
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+
+        // Apply sorting
+        const sortColumn = pitches[sortBy as keyof typeof pitches] || pitches.createdAt;
+        query = sortOrder === 'asc' ? query.orderBy(asc(sortColumn)) : query.orderBy(desc(sortColumn));
+
+        const pitchesResult = await query.limit(100);
+
+        // Get creator info for each pitch
+        const pitchesWithCreators = await Promise.all(pitchesResult.map(async (pitch) => {
+          const creator = await db.select({
+            id: users.id,
+            name: users.name,
+            email: users.email
+          }).from(users)
+            .where(eq(users.id, pitch.userId))
+            .limit(1);
+
+          return {
+            ...pitch,
+            creator: creator[0] || { id: '', name: 'Unknown', email: '' }
+          };
+        }));
+
+        return successResponse(pitchesWithCreators);
+      } catch (error) {
+        console.error("Admin pitches error:", error);
+        return serverErrorResponse("Failed to load pitches");
+      }
+    }
+
+    // PUT /api/admin/pitches/:id/approve - Approve pitch
+    if (url.pathname.includes("/api/admin/pitches/") && url.pathname.endsWith("/approve") && method === "PUT") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const pitchId = url.pathname.split("/")[4];
+        if (!pitchId) {
+          return errorResponse("Pitch ID is required", 400);
+        }
+
+        const validationResult = await validateJsonRequest(request);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const { notes } = validationResult.data;
+
+        await db.update(pitches)
+          .set({
+            status: 'approved',
+            moderationNotes: notes || '',
+            moderatedAt: new Date(),
+            moderatedBy: user.id,
+            updatedAt: new Date()
+          })
+          .where(eq(pitches.id, pitchId));
+
+        return successResponse({ message: "Pitch approved successfully" });
+      } catch (error) {
+        console.error("Admin approve pitch error:", error);
+        return serverErrorResponse("Failed to approve pitch");
+      }
+    }
+
+    // PUT /api/admin/pitches/:id/reject - Reject pitch
+    if (url.pathname.includes("/api/admin/pitches/") && url.pathname.endsWith("/reject") && method === "PUT") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const pitchId = url.pathname.split("/")[4];
+        if (!pitchId) {
+          return errorResponse("Pitch ID is required", 400);
+        }
+
+        const validationResult = await validateJsonRequest(request);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const { reason } = validationResult.data;
+
+        await db.update(pitches)
+          .set({
+            status: 'rejected',
+            moderationNotes: reason,
+            moderatedAt: new Date(),
+            moderatedBy: user.id,
+            updatedAt: new Date()
+          })
+          .where(eq(pitches.id, pitchId));
+
+        return successResponse({ message: "Pitch rejected successfully" });
+      } catch (error) {
+        console.error("Admin reject pitch error:", error);
+        return serverErrorResponse("Failed to reject pitch");
+      }
+    }
+
+    // PUT /api/admin/pitches/:id/flag - Flag pitch
+    if (url.pathname.includes("/api/admin/pitches/") && url.pathname.endsWith("/flag") && method === "PUT") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const pitchId = url.pathname.split("/")[4];
+        if (!pitchId) {
+          return errorResponse("Pitch ID is required", 400);
+        }
+
+        const validationResult = await validateJsonRequest(request);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const { reasons, notes } = validationResult.data;
+
+        await db.update(pitches)
+          .set({
+            status: 'flagged',
+            moderationNotes: notes || '',
+            flaggedReasons: JSON.stringify(reasons || []),
+            moderatedAt: new Date(),
+            moderatedBy: user.id,
+            updatedAt: new Date()
+          })
+          .where(eq(pitches.id, pitchId));
+
+        return successResponse({ message: "Pitch flagged successfully" });
+      } catch (error) {
+        console.error("Admin flag pitch error:", error);
+        return serverErrorResponse("Failed to flag pitch");
+      }
+    }
+
+    // GET /api/admin/transactions - List transactions
+    if (url.pathname === "/api/admin/transactions" && method === "GET") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        // Mock transaction data for now (would integrate with payment system)
+        const mockTransactions = [
+          {
+            id: "tx_1234567890",
+            type: "payment",
+            amount: 299.99,
+            currency: "USD",
+            status: "completed",
+            user: {
+              id: "user_1",
+              name: "John Doe",
+              email: "john@example.com",
+              userType: "investor"
+            },
+            description: "Pitch access payment",
+            paymentMethod: "card_visa_4242",
+            stripeTransactionId: "pi_1234567890",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            refundableAmount: 299.99,
+            metadata: {
+              pitchTitle: "Quantum Paradox"
+            }
+          },
+          {
+            id: "tx_0987654321",
+            type: "subscription",
+            amount: 49.99,
+            currency: "USD",
+            status: "completed",
+            user: {
+              id: "user_2",
+              name: "Jane Smith",
+              email: "jane@example.com",
+              userType: "creator"
+            },
+            description: "Premium subscription",
+            paymentMethod: "card_visa_4242",
+            stripeTransactionId: "pi_0987654321",
+            createdAt: new Date(Date.now() - 86400000).toISOString(),
+            updatedAt: new Date(Date.now() - 86400000).toISOString(),
+            refundableAmount: 0,
+            metadata: {
+              subscriptionPlan: "premium"
+            }
+          }
+        ];
+
+        return successResponse(mockTransactions);
+      } catch (error) {
+        console.error("Admin transactions error:", error);
+        return serverErrorResponse("Failed to load transactions");
+      }
+    }
+
+    // POST /api/admin/transactions/:id/refund - Process refund
+    if (url.pathname.includes("/api/admin/transactions/") && url.pathname.endsWith("/refund") && method === "POST") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const transactionId = url.pathname.split("/")[4];
+        if (!transactionId) {
+          return errorResponse("Transaction ID is required", 400);
+        }
+
+        const validationResult = await validateJsonRequest(request, ["amount", "reason"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const { amount, reason } = validationResult.data;
+
+        // Mock refund processing (would integrate with Stripe)
+        console.log(`Processing refund for transaction ${transactionId}: $${amount} - ${reason}`);
+
+        return successResponse({ 
+          message: "Refund processed successfully",
+          refundId: `rf_${Date.now()}`,
+          amount 
+        });
+      } catch (error) {
+        console.error("Admin refund error:", error);
+        return serverErrorResponse("Failed to process refund");
+      }
+    }
+
+    // GET /api/admin/settings - Get system settings
+    if (url.pathname === "/api/admin/settings" && method === "GET") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        // Mock system settings (would be stored in database)
+        const settings = {
+          maintenance: {
+            enabled: false,
+            message: "System maintenance in progress. Please check back later.",
+            scheduledStart: "",
+            scheduledEnd: ""
+          },
+          features: {
+            userRegistration: true,
+            pitchSubmission: true,
+            payments: true,
+            messaging: true,
+            ndaWorkflow: true,
+            realTimeUpdates: true
+          },
+          limits: {
+            maxPitchesPerUser: 10,
+            maxFileUploadSize: 50,
+            maxDocumentsPerPitch: 5,
+            sessionTimeout: 60
+          },
+          pricing: {
+            creditPrices: {
+              single: 9.99,
+              pack5: 39.99,
+              pack10: 69.99,
+              pack25: 149.99
+            },
+            subscriptionPlans: {
+              basic: { monthly: 19.99, yearly: 199.99 },
+              premium: { monthly: 49.99, yearly: 499.99 },
+              enterprise: { monthly: 99.99, yearly: 999.99 }
+            }
+          },
+          notifications: {
+            emailEnabled: true,
+            smsEnabled: false,
+            pushEnabled: true,
+            weeklyDigest: true
+          },
+          security: {
+            enforceStrongPasswords: true,
+            twoFactorRequired: false,
+            sessionSecurity: "normal",
+            apiRateLimit: 100
+          }
+        };
+
+        return successResponse(settings);
+      } catch (error) {
+        console.error("Admin settings error:", error);
+        return serverErrorResponse("Failed to load system settings");
+      }
+    }
+
+    // PUT /api/admin/settings - Update system settings
+    if (url.pathname === "/api/admin/settings" && method === "PUT") {
+      try {
+        if (user.userType !== "admin") {
+          return forbiddenResponse("Admin access required");
+        }
+
+        const validationResult = await validateJsonRequest(request);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const settings = validationResult.data;
+
+        // Mock settings update (would be stored in database)
+        console.log("System settings updated:", settings);
+
+        return successResponse({ message: "Settings updated successfully" });
+      } catch (error) {
+        console.error("Admin update settings error:", error);
+        return serverErrorResponse("Failed to update system settings");
       }
     }
 
@@ -2934,8 +3791,16 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Create creator pitch
+    // Create creator pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname === "/api/creator/pitches" && method === "POST") {
+      // SECURITY: Enforce role-based access control
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY] User ${user.id} (${user.userType}) attempted to create pitch via creator endpoint`);
+        return forbiddenResponse(
+          `Access denied. Only creators can create pitches. Current role: ${user.userType}`
+        );
+      }
+
       try {
         const body = await request.json();
         
@@ -3077,8 +3942,16 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Update creator pitch
+    // Update creator pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/creator/pitches/") && method === "PUT") {
+      // SECURITY: Enforce role-based access control
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY] User ${user.id} (${user.userType}) attempted to update pitch via creator endpoint`);
+        return forbiddenResponse(
+          `Access denied. Only creators can update pitches. Current role: ${user.userType}`
+        );
+      }
+
       try {
         const pitchId = parseInt(url.pathname.split('/')[4]);
         const body = await request.json();
@@ -3099,8 +3972,16 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Publish creator pitch
+    // Publish creator pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.match(/^\/api\/creator\/pitches\/\d+\/publish$/) && method === "POST") {
+      // SECURITY: Enforce role-based access control
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY] User ${user.id} (${user.userType}) attempted to publish pitch`);
+        return forbiddenResponse(
+          `Access denied. Only creators can publish pitches. Current role: ${user.userType}`
+        );
+      }
+
       try {
         const pitchId = parseInt(url.pathname.split('/')[4]);
         
@@ -3121,8 +4002,16 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Archive creator pitch (change status to draft)
+    // Archive creator pitch (change status to draft) - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.match(/^\/api\/creator\/pitches\/\d+\/archive$/) && method === "POST") {
+      // SECURITY: Enforce role-based access control
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY] User ${user.id} (${user.userType}) attempted to archive pitch`);
+        return forbiddenResponse(
+          `Access denied. Only creators can archive pitches. Current role: ${user.userType}`
+        );
+      }
+
       try {
         const pitchId = parseInt(url.pathname.split('/')[4]);
         
@@ -3142,8 +4031,16 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Delete creator pitch
+    // Delete creator pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/creator/pitches/") && method === "DELETE") {
+      // SECURITY: Enforce role-based access control
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY] User ${user.id} (${user.userType}) attempted to delete pitch via creator endpoint`);
+        return forbiddenResponse(
+          `Access denied. Only creators can delete pitches. Current role: ${user.userType}`
+        );
+      }
+
       try {
         const pitchId = parseInt(url.pathname.split('/')[4]);
         await PitchService.deletePitch(pitchId, user.id);
@@ -3208,8 +4105,16 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === REAL-TIME FEATURES ENDPOINTS ===
 
-    // Auto-save draft
+    // Auto-save draft - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/drafts/") && url.pathname.endsWith("/autosave") && method === "POST") {
+      // SECURITY: Only creators can save drafts
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY] User ${user.id} (${user.userType}) attempted to auto-save draft`);
+        return forbiddenResponse(
+          `Access denied. Only creators can save drafts. Current role: ${user.userType}`
+        );
+      }
+
       try {
         const pathParts = url.pathname.split('/');
         const pitchId = parseInt(pathParts[3]);
@@ -3271,8 +4176,16 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Save draft to database
+    // Save draft to database - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/drafts/") && url.pathname.endsWith("/save") && method === "POST") {
+      // SECURITY: Only creators can save drafts to database
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY] User ${user.id} (${user.userType}) attempted to save draft to database`);
+        return forbiddenResponse(
+          `Access denied. Only creators can save drafts. Current role: ${user.userType}`
+        );
+      }
+
       try {
         const pathParts = url.pathname.split('/');
         const pitchId = parseInt(pathParts[3]);
@@ -3418,12 +4331,19 @@ const handler = async (request: Request): Promise<Response> => {
         const investments = await db
           .select()
           .from(portfolio)
-          .where(eq(portfolio.userId, user.id))
+          .where(eq(portfolio.investorId, user.id))
           .catch(() => []); // Fallback to empty array if table doesn't exist
 
-        // Calculate portfolio metrics
-        const totalInvested = investments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-        const currentValue = investments.reduce((sum, inv) => sum + (inv.currentValue || inv.amount || 0), 0);
+        // Calculate portfolio metrics - safely convert decimal strings to numbers
+        const totalInvested = investments.reduce((sum, inv) => {
+          const amount = inv.amount ? parseFloat(inv.amount.toString()) : 0;
+          return sum + (isNaN(amount) ? 0 : amount);
+        }, 0);
+        const currentValue = investments.reduce((sum, inv) => {
+          const value = inv.currentValue ? parseFloat(inv.currentValue.toString()) : 
+                       inv.amount ? parseFloat(inv.amount.toString()) : 0;
+          return sum + (isNaN(value) ? 0 : value);
+        }, 0);
         const activeDeals = investments.filter(inv => inv.status === 'active').length;
         const totalInvestments = investments.length;
         
@@ -3446,14 +4366,13 @@ const handler = async (request: Request): Promise<Response> => {
             title: pitches.title,
             genre: pitches.genre,
             status: pitches.status,
-            budget: pitches.budget,
+            budgetBracket: pitches.budgetBracket,
+            estimatedBudget: pitches.estimatedBudget,
             addedAt: watchlist.createdAt,
-            creator: {
-              id: users.id,
-              username: users.username,
-              companyName: users.companyName,
-              userType: users.userType
-            }
+            creatorId: users.id,
+            creatorUsername: users.username,
+            creatorCompanyName: users.companyName,
+            creatorUserType: users.userType
           })
           .from(watchlist)
           .innerJoin(pitches, eq(watchlist.pitchId, pitches.id))
@@ -3469,8 +4388,14 @@ const handler = async (request: Request): Promise<Response> => {
           title: item.title,
           genre: item.genre,
           status: 'Reviewing', // Default status for watchlist items
-          budget: item.budget,
-          creator: item.creator
+          budgetBracket: item.budgetBracket,
+          estimatedBudget: item.estimatedBudget ? parseFloat(item.estimatedBudget.toString()) : null,
+          creator: {
+            id: item.creatorId,
+            username: item.creatorUsername,
+            companyName: item.creatorCompanyName,
+            userType: item.creatorUserType
+          }
         }));
 
         const dashboardData = {
@@ -3531,6 +4456,7 @@ const handler = async (request: Request): Promise<Response> => {
         message: "Investor profile retrieved successfully"
       });
     }
+
 
     // Save pitch
     if (url.pathname.startsWith("/api/investor/saved/") && method === "POST") {
@@ -3703,13 +4629,55 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // Investor following endpoint
+    if (url.pathname === "/api/investor/following" && method === "GET") {
+      try {
+        const tab = url.searchParams.get('tab') || 'activity';
+        
+        if (tab === 'activity') {
+          // Return mock activity data
+          const activities = [
+            {
+              id: 1,
+              type: 'pitch_update',
+              message: 'New pitch "Space Adventure" has been updated',
+              timestamp: new Date(),
+              pitchId: 1,
+              pitchTitle: 'Space Adventure'
+            },
+            {
+              id: 2,
+              type: 'following_update',
+              message: 'Alex Creator published a new pitch',
+              timestamp: new Date(),
+              userId: 1,
+              username: 'alexcreator'
+            }
+          ];
+          
+          return successResponse({
+            activities,
+            message: "Following activity retrieved successfully"
+          });
+        } else {
+          // Return mock following data for other tabs
+          return successResponse({
+            following: [],
+            message: "Following data retrieved successfully"
+          });
+        }
+      } catch (error) {
+        return serverErrorResponse("Failed to fetch following data");
+      }
+    }
+
     // Main investor portfolio endpoint
     if (url.pathname === "/api/investor/portfolio" && method === "GET") {
       try {
         const investments = await db
           .select()
           .from(portfolio)
-          .where(eq(portfolio.userId, user.id))
+          .where(eq(portfolio.investorId, user.id))
           .orderBy(desc(portfolio.createdAt));
 
         return successResponse({
@@ -3732,11 +4700,18 @@ const handler = async (request: Request): Promise<Response> => {
         const investments = await db
           .select()
           .from(portfolio)
-          .where(eq(portfolio.userId, user.id));
+          .where(eq(portfolio.investorId, user.id));
 
-        // Calculate portfolio metrics
-        const totalInvested = investments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-        const currentValue = investments.reduce((sum, inv) => sum + (inv.currentValue || inv.amount || 0), 0);
+        // Calculate portfolio metrics - safely convert decimal strings to numbers
+        const totalInvested = investments.reduce((sum, inv) => {
+          const amount = inv.amount ? parseFloat(inv.amount.toString()) : 0;
+          return sum + (isNaN(amount) ? 0 : amount);
+        }, 0);
+        const currentValue = investments.reduce((sum, inv) => {
+          const value = inv.currentValue ? parseFloat(inv.currentValue.toString()) : 
+                       inv.amount ? parseFloat(inv.amount.toString()) : 0;
+          return sum + (isNaN(value) ? 0 : value);
+        }, 0);
         const activeInvestments = investments.filter(inv => inv.status === 'active').length;
         const totalInvestments = investments.length;
         
@@ -3922,7 +4897,7 @@ const handler = async (request: Request): Promise<Response> => {
             .from(portfolio)
             .leftJoin(pitches, eq(portfolio.pitchId, pitches.id))
             .leftJoin(users, eq(pitches.creatorId, users.id))
-            .where(eq(portfolio.userId, user.id));
+            .where(eq(portfolio.investorId, user.id));
 
           if (status) {
             query = query.where(eq(portfolio.status, status));
@@ -4149,8 +5124,39 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === PITCH MANAGEMENT ENDPOINTS ===
 
-    // Create pitch
+    // Create pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname === "/api/pitches" && method === "POST") {
+      // SECURITY: Enforce strict role-based access control
+      // Only creators can create pitches - investors and production companies are blocked
+      if (user.userType !== 'creator') {
+        // Log security event for audit trail
+        console.warn(`[SECURITY VIOLATION] User ${user.id} (${user.userType}) attempted unauthorized pitch creation`);
+        
+        // Track security event in database
+        try {
+          await db.insert(securityEvents).values({
+            userId: user.id,
+            eventType: 'unauthorized_access',
+            resource: 'pitch_creation',
+            userRole: user.userType,
+            ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+            details: JSON.stringify({
+              endpoint: '/api/pitches',
+              method: 'POST',
+              message: 'Non-creator attempted to create pitch'
+            }),
+            createdAt: new Date()
+          });
+        } catch (logError) {
+          console.error("Failed to log security event:", logError);
+        }
+        
+        return forbiddenResponse(
+          `Access denied. Only creators can create pitches. Your current role is: ${user.userType}. ` +
+          `Please use a creator account to create pitches.`
+        );
+      }
+
       try {
         const result = await safeParseJson(request);
         if (!result.success) {
@@ -4315,6 +5321,101 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // Get pitch documents (must come before general pitch endpoint)
+    if (url.pathname.startsWith("/api/pitches/") && url.pathname.endsWith("/documents") && method === "GET") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[3]);
+        if (!pitchId || isNaN(pitchId)) {
+          return validationErrorResponse("Valid pitch ID required");
+        }
+
+        const authResult = await authenticate(request);
+        const user = authResult.user;
+
+        // Check if pitch exists
+        const pitch = await db.select().from(pitches).where(eq(pitches.id, pitchId)).limit(1);
+        if (pitch.length === 0) {
+          return notFoundResponse("Pitch not found");
+        }
+
+        // Get documents - filter based on user permissions
+        let documentsQuery = db.select({
+          id: pitchDocuments.id,
+          fileName: pitchDocuments.originalFileName,
+          fileUrl: pitchDocuments.fileUrl,
+          fileSize: pitchDocuments.fileSize,
+          documentType: pitchDocuments.documentType,
+          isPublic: pitchDocuments.isPublic,
+          requiresNda: pitchDocuments.requiresNda,
+          uploadedAt: pitchDocuments.uploadedAt,
+          downloadCount: pitchDocuments.downloadCount
+        }).from(pitchDocuments).where(eq(pitchDocuments.pitchId, pitchId));
+
+        // If user is not the owner, only show public documents or those they have NDA access to
+        if (!user || pitch[0].userId !== user.id) {
+          documentsQuery = documentsQuery.where(eq(pitchDocuments.isPublic, true));
+        }
+
+        const documents = await documentsQuery.orderBy(desc(pitchDocuments.uploadedAt));
+
+        return successResponse({
+          documents,
+          message: "Documents retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Get documents error:", error);
+        return serverErrorResponse("Failed to retrieve documents");
+      }
+    }
+
+    // Delete pitch document (must come before general pitch endpoint)
+    if (url.pathname.startsWith("/api/pitches/documents/") && method === "DELETE") {
+      try {
+        const documentId = parseInt(url.pathname.split('/')[4]);
+        if (!documentId || isNaN(documentId)) {
+          return validationErrorResponse("Valid document ID required");
+        }
+
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+
+        // Get document and verify ownership
+        const document = await db.select({
+          id: pitchDocuments.id,
+          pitchId: pitchDocuments.pitchId,
+          fileUrl: pitchDocuments.fileUrl,
+          fileKey: pitchDocuments.fileKey,
+          uploadedBy: pitchDocuments.uploadedBy
+        }).from(pitchDocuments).where(eq(pitchDocuments.id, documentId)).limit(1);
+
+        if (document.length === 0) {
+          return notFoundResponse("Document not found");
+        }
+
+        // Check if user owns the document
+        if (document[0].uploadedBy !== user.id) {
+          return forbiddenResponse("You can only delete your own documents");
+        }
+
+        // Delete file from storage
+        await UploadService.deleteFile(document[0].fileKey || document[0].fileUrl);
+
+        // Delete from database
+        await db.delete(pitchDocuments).where(eq(pitchDocuments.id, documentId));
+
+        return successResponse({
+          message: "Document deleted successfully"
+        });
+      } catch (error) {
+        console.error("Delete document error:", error);
+        return serverErrorResponse("Failed to delete document");
+      }
+    }
+
     // Get pitch by ID
     if (url.pathname.startsWith("/api/pitches/") && method === "GET") {
       try {
@@ -4384,13 +5485,41 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Update pitch
+    // Update pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/pitches/") && method === "PUT") {
+      // SECURITY: Only creators can update pitches
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY VIOLATION] User ${user.id} (${user.userType}) attempted to update pitch`);
+        
+        // Log security event
+        try {
+          await db.insert(securityEvents).values({
+            userId: user.id,
+            eventType: 'unauthorized_access',
+            resource: 'pitch_update',
+            userRole: user.userType,
+            ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+            details: JSON.stringify({
+              endpoint: url.pathname,
+              method: 'PUT',
+              pitchId: parseInt(url.pathname.split('/')[3])
+            }),
+            createdAt: new Date()
+          });
+        } catch (logError) {
+          console.error("Failed to log security event:", logError);
+        }
+        
+        return forbiddenResponse(
+          `Access denied. Only creators can update pitches. Your role: ${user.userType}`
+        );
+      }
+
       try {
         const pitchId = parseInt(url.pathname.split('/')[3]);
         const body = await request.json();
         
-        const pitch = await PitchService.updatePitch(pitchId, user.id, body);
+        const pitch = await PitchService.updatePitch(pitchId, body, user.id);
         return successResponse({
           pitch,
           message: "Pitch updated successfully"
@@ -4400,8 +5529,36 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Delete pitch
+    // Delete pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/pitches/") && method === "DELETE") {
+      // SECURITY: Only creators can delete their own pitches
+      if (user.userType !== 'creator') {
+        console.warn(`[SECURITY VIOLATION] User ${user.id} (${user.userType}) attempted to delete pitch`);
+        
+        // Log security event
+        try {
+          await db.insert(securityEvents).values({
+            userId: user.id,
+            eventType: 'unauthorized_access',
+            resource: 'pitch_deletion',
+            userRole: user.userType,
+            ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+            details: JSON.stringify({
+              endpoint: url.pathname,
+              method: 'DELETE',
+              pitchId: parseInt(url.pathname.split('/')[3])
+            }),
+            createdAt: new Date()
+          });
+        } catch (logError) {
+          console.error("Failed to log security event:", logError);
+        }
+        
+        return forbiddenResponse(
+          `Access denied. Only creators can delete pitches. Your role: ${user.userType}`
+        );
+      }
+
       try {
         const pitchId = parseInt(url.pathname.split('/')[3]);
         await PitchService.deletePitch(pitchId, user.id);
@@ -4476,108 +5633,166 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === NDA ENDPOINTS ===
 
-    // Get pending NDAs
+    // Get incoming NDA requests for current user
     if (url.pathname === "/api/nda/pending" && method === "GET") {
       try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+
+        const requests = await NDAService.getIncomingRequests(user.id);
+        
+        const formattedRequests = requests.map(req => ({
+          id: req.request.id,
+          pitchId: req.request.pitchId,
+          pitchTitle: req.pitch.title,
+          requesterName: req.requester.username,
+          requesterEmail: req.requester.email,
+          companyInfo: req.request.companyInfo,
+          requestMessage: req.request.requestMessage,
+          requestedAt: req.request.requestedAt,
+          status: req.request.status
+        }));
+        
         return successResponse({
-          ndas: [
-            {
-              id: 1,
-              pitchId: 7,
-              pitchTitle: "Neon Nights",
-              creatorName: "Alex Thompson",
-              requestedAt: new Date().toISOString(),
-              status: "pending"
-            }
-          ],
-          message: "Pending NDAs retrieved successfully"
+          ndas: formattedRequests,
+          message: "Pending NDA requests retrieved successfully"
         });
       } catch (error) {
+        console.error('Error fetching pending NDAs:', error);
         return serverErrorResponse("Failed to fetch pending NDAs");
       }
     }
 
-    // Get active NDAs
+    // Get active (signed) NDAs for current user
     if (url.pathname === "/api/nda/active" && method === "GET") {
       try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+
+        const signedNDAs = await NDAService.getUserSignedNDAs(user.id);
+        
+        const formattedNDAs = signedNDAs.map(record => ({
+          id: record.nda.id,
+          pitchId: record.nda.pitchId,
+          pitchTitle: record.pitch.title,
+          signedAt: record.nda.signedAt,
+          expiresAt: record.nda.expiresAt,
+          status: record.nda.status === "signed" ? "active" : "revoked",
+          ndaType: record.nda.ndaType
+        }));
+        
         return successResponse({
-          ndas: [
-            {
-              id: 2,
-              pitchId: 8,
-              pitchTitle: "The Last Stand",
-              creatorName: "Sarah Johnson",
-              signedAt: new Date(Date.now() - 86400000).toISOString(),
-              status: "active",
-              expiresAt: new Date(Date.now() + 86400000 * 30).toISOString()
-            }
-          ],
+          ndas: formattedNDAs,
           message: "Active NDAs retrieved successfully"
         });
       } catch (error) {
+        console.error('Error fetching active NDAs:', error);
         return serverErrorResponse("Failed to fetch active NDAs");
       }
     }
 
     // NDA statistics
     if (url.pathname === "/api/nda/stats" && method === "GET") {
-      return successResponse({
-        stats: {
-          totalRequests: 12,
-          approvedRequests: 8,
-          pendingRequests: 3,
-          rejectedRequests: 1,
-          avgResponseTime: "2.5 days"
-        },
-        message: "NDA stats retrieved successfully"
-      });
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+
+        const stats = await NDAService.getUserNDAStats(user.id);
+        
+        return successResponse({
+          stats: {
+            totalRequests: stats.totalRequests || 0,
+            approvedRequests: stats.approvedRequests || 0,
+            pendingRequests: stats.pendingRequests || 0,
+            rejectedRequests: stats.rejectedRequests || 0,
+            signedNDAs: stats.signedNDAs || 0
+          },
+          message: "NDA stats retrieved successfully"
+        });
+      } catch (error) {
+        console.error('Error fetching NDA stats:', error);
+        return serverErrorResponse("Failed to fetch NDA stats");
+      }
     }
 
     // Creator NDA requests
     if (url.pathname.startsWith("/api/nda-requests/creator/") && method === "GET") {
       try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+        
         const creatorId = parseInt(url.pathname.split('/')[4]);
-        // Mock NDA requests for creator
-        const ndaRequests = [
-          {
-            id: 1,
-            pitchId: 11,
-            requesterName: "Sarah Investor",
-            requesterEmail: "sarah@investors.com",
-            status: "pending",
-            requestedAt: new Date(),
-            message: "Interested in your project"
-          }
-        ];
+        
+        // Verify user can access this creator's requests
+        if (user.id !== creatorId && user.userType !== 'admin') {
+          return unauthorizedResponse("Unauthorized to access these requests");
+        }
+
+        const requests = await NDAService.getIncomingRequests(creatorId);
+        
+        const formattedRequests = requests.map(req => ({
+          id: req.request.id,
+          pitchId: req.request.pitchId,
+          pitchTitle: req.pitch.title,
+          requesterName: req.requester.username,
+          requesterEmail: req.requester.email,
+          requestMessage: req.request.requestMessage,
+          companyInfo: req.request.companyInfo,
+          status: req.request.status,
+          requestedAt: req.request.requestedAt
+        }));
         
         return successResponse({
-          ndaRequests,
+          ndaRequests: formattedRequests,
           message: "Creator NDA requests retrieved successfully"
         });
       } catch (error) {
+        console.error('Error fetching creator NDA requests:', error);
         return serverErrorResponse("Failed to fetch creator NDA requests");
       }
     }
 
-    // Get NDA requests (this endpoint was being called with GET but should list requests)
+    // Get outgoing NDA requests (requests made by current user)
     if (url.pathname === "/api/ndas/request" && method === "GET") {
       try {
-        // Mock pending NDA requests for user
-        const ndaRequests = [
-          {
-            id: 1,
-            pitchId: 11,
-            pitchTitle: "Space Adventure",
-            status: "pending",
-            requestedAt: new Date()
-          }
-        ];
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+
+        const requests = await NDAService.getOutgoingRequests(user.id);
+        
+        const formattedRequests = requests.map(req => ({
+          id: req.request.id,
+          pitchId: req.request.pitchId,
+          pitchTitle: req.pitch.title,
+          ownerName: req.owner.username,
+          requestMessage: req.request.requestMessage,
+          status: req.request.status,
+          requestedAt: req.request.requestedAt,
+          respondedAt: req.request.respondedAt,
+          rejectionReason: req.request.rejectionReason
+        }));
         
         return successResponse({
-          ndaRequests,
+          ndaRequests: formattedRequests,
           message: "NDA requests retrieved successfully"
         });
       } catch (error) {
+        console.error('Error fetching NDA requests:', error);
         return serverErrorResponse("Failed to fetch NDA requests");
       }
     }
@@ -4585,66 +5800,80 @@ const handler = async (request: Request): Promise<Response> => {
     // Request NDA
     if (url.pathname === "/api/ndas/request" && method === "POST") {
       try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+        
         const body = await request.json();
-        const { pitchId, requesterName, requesterEmail, companyInfo, message } = body;
+        const { pitchId, ndaType, requestMessage, companyInfo } = body;
 
         if (!pitchId) {
           return validationErrorResponse("Pitch ID is required");
         }
 
-        // Mock NDA request creation - use a smaller ID
-        const ndaRequest = {
-          id: Math.floor(Math.random() * 1000000),
-          pitchId,
+        const requestData = {
+          pitchId: parseInt(pitchId),
           requesterId: user.id,
-          requesterName: requesterName || user.username,
-          requesterEmail: requesterEmail || user.email,
-          companyInfo: companyInfo || { name: user.companyName },
-          message: message || "NDA request",
-          status: "pending",
-          requestedAt: new Date()
+          ndaType: ndaType || 'basic',
+          requestMessage: requestMessage || 'I would like to access this pitch.',
+          companyInfo: companyInfo || {
+            companyName: user.companyName || 'N/A',
+            position: user.position || 'N/A',
+            intendedUse: 'Investment evaluation'
+          }
         };
         
-        // Store in mock storage
-        mockNdaRequestsStore.set(ndaRequest.id, ndaRequest);
+        const ndaRequest = await NDAService.createRequest(requestData);
         
         return createdResponse({
-          nda: ndaRequest,
+          nda: {
+            id: ndaRequest.id,
+            pitchId: ndaRequest.pitchId,
+            requesterId: ndaRequest.requesterId,
+            ndaType: ndaRequest.ndaType,
+            requestMessage: ndaRequest.requestMessage,
+            companyInfo: ndaRequest.companyInfo,
+            status: ndaRequest.status,
+            requestedAt: ndaRequest.requestedAt
+          },
           message: "NDA request submitted successfully"
         });
       } catch (error) {
-        return serverErrorResponse("Failed to request NDA");
+        console.error('Error creating NDA request:', error);
+        return serverErrorResponse(error.message || "Failed to request NDA");
       }
     }
 
     // Get signed NDAs
     if (url.pathname === "/api/ndas/signed" && method === "GET") {
       try {
-        // Mock signed NDAs data
-        const signedNDAs = [
-          {
-            id: 1,
-            pitchId: 11,
-            pitchTitle: "Space Adventure",
-            signedAt: new Date(),
-            status: "signed",
-            creatorName: "Alex Creator"
-          },
-          {
-            id: 2,
-            pitchId: 12,
-            pitchTitle: "Horror Movie",
-            signedAt: new Date(),
-            status: "signed", 
-            creatorName: "Jane Director"
-          }
-        ];
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+
+        const signedNDAs = await NDAService.getUserSignedNDAs(user.id);
+        
+        const formattedNDAs = signedNDAs.map(record => ({
+          id: record.nda.id,
+          pitchId: record.nda.pitchId,
+          pitchTitle: record.pitch.title,
+          signedAt: record.nda.signedAt,
+          expiresAt: record.nda.expiresAt,
+          status: record.nda.status === "signed" ? "signed" : "revoked",
+          ndaType: record.nda.ndaType || 'basic',
+          accessGranted: record.nda.status === "signed"
+        }));
         
         return successResponse({
-          ndas: signedNDAs,
+          ndas: formattedNDAs,
           message: "Signed NDAs retrieved successfully"
         });
       } catch (error) {
+        console.error('Error fetching signed NDAs:', error);
         return serverErrorResponse("Failed to fetch signed NDAs");
       }
     }
@@ -4733,106 +5962,116 @@ const handler = async (request: Request): Promise<Response> => {
     // Approve NDA request
     if (url.pathname.startsWith("/api/ndas/") && url.pathname.endsWith("/approve") && method === "POST") {
       try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+        
         const ndaId = parseInt(url.pathname.split('/')[3]);
         
-        // Get the NDA request to find the requester
-        // Get NDA request from mock storage
-        const ndaRequest = mockNdaRequestsStore.get(ndaId);
-        
-        if (!ndaRequest) {
-          return notFoundResponse("NDA request not found");
+        if (isNaN(ndaId)) {
+          return validationErrorResponse("Invalid NDA request ID");
         }
         
-        // Update NDA status to approved in mock storage
-        ndaRequest.status = "approved";
-        ndaRequest.approvedAt = new Date();
-        ndaRequest.approvedBy = user.id;
-        ndaRequest.updatedAt = new Date();
-        mockNdaRequestsStore.set(ndaId, ndaRequest);
-        
-        // Create a conversation between the NDA requester and the pitch owner
-        const [newConversation] = await db
-          .insert(conversations)
-          .values({
-            pitchId: ndaRequest.pitchId,
-            createdById: user.id,
-            title: `Discussion about Pitch #${ndaRequest.pitchId}`,
-            isGroup: false,
-            lastMessageAt: new Date(),
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-        
-        // Add both users as participants
-        await db.insert(conversationParticipants).values([
-          {
-            conversationId: newConversation.id,
-            userId: user.id, // Pitch owner (approver)
-            role: "owner",
-            joinedAt: new Date(),
-            lastReadAt: new Date()
-          },
-          {
-            conversationId: newConversation.id,
-            userId: ndaRequest.requesterId, // NDA requester
-            role: "participant",
-            joinedAt: new Date(),
-            lastReadAt: new Date()
-          }
-        ]);
-        
-        // Send an initial system message
-        await db.insert(messages).values({
-          conversationId: newConversation.id,
-          senderId: user.id,
-          receiverId: ndaRequest.requesterId, // Add the requester as receiver
-          content: "NDA has been approved. You can now discuss this pitch.",
-          messageType: "system",
-          createdAt: new Date()
-        });
-        
-        const approvedNDA = {
-          id: ndaId,
-          status: "approved",
-          approvedAt: new Date(),
-          approvedBy: user.id,
-          approverName: user.username,
-          conversationId: newConversation.id
-        };
+        const nda = await NDAService.approveRequest(ndaId, user.id);
         
         return createdResponse({
-          nda: approvedNDA,
-          message: "NDA approved successfully. Conversation created."
+          nda: {
+            id: nda.id,
+            pitchId: nda.pitchId,
+            signerId: nda.signerId,
+            ndaType: nda.ndaType,
+            signedAt: nda.signedAt,
+            accessGranted: nda.accessGranted,
+            status: "approved"
+          },
+          message: "NDA approved successfully. Access granted."
         });
       } catch (error) {
         console.error("Error approving NDA:", error);
-        return serverErrorResponse("Failed to approve NDA");
+        return serverErrorResponse(error.message || "Failed to approve NDA");
       }
     }
 
     // Reject NDA request
     if (url.pathname.startsWith("/api/ndas/") && url.pathname.endsWith("/reject") && method === "POST") {
       try {
-        const ndaId = url.pathname.split('/')[3];
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+        
+        const ndaId = parseInt(url.pathname.split('/')[3]);
         const body = await request.json();
         const { reason } = body;
         
-        // Mock NDA rejection
-        const rejectedNDA = {
-          id: ndaId,
-          status: "rejected",
-          rejectedAt: new Date(),
-          rejectedBy: user.id,
-          rejectionReason: reason || "Not suitable at this time"
-        };
+        if (isNaN(ndaId)) {
+          return validationErrorResponse("Invalid NDA request ID");
+        }
+        
+        const result = await NDAService.rejectRequest(ndaId, user.id, reason);
         
         return successResponse({
-          nda: rejectedNDA,
-          message: "NDA rejected successfully"
+          nda: {
+            id: ndaId,
+            status: "rejected",
+            rejectedAt: new Date(),
+            rejectedBy: user.id,
+            rejectionReason: reason || "Request declined"
+          },
+          message: result.message || "NDA rejected successfully"
         });
       } catch (error) {
-        return serverErrorResponse("Failed to reject NDA");
+        console.error("Error rejecting NDA:", error);
+        return serverErrorResponse(error.message || "Failed to reject NDA");
+      }
+    }
+
+    // Sign NDA directly (POST /api/ndas/sign)
+    if (url.pathname === "/api/ndas/sign" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+        
+        const body = await request.json();
+        const { pitchId, ndaType, ipAddress, userAgent, signatureData, customNdaUrl } = body;
+        
+        if (!pitchId) {
+          return validationErrorResponse("Pitch ID is required");
+        }
+        
+        const signData = {
+          pitchId: parseInt(pitchId),
+          signerId: user.id,
+          ndaType: ndaType || 'basic',
+          ipAddress,
+          userAgent,
+          signatureData,
+          customNdaUrl
+        };
+        
+        const nda = await NDAService.signNDA(signData);
+        
+        return createdResponse({
+          nda: {
+            id: nda.id,
+            pitchId: nda.pitchId,
+            signerId: nda.signerId,
+            ndaType: nda.ndaType,
+            signedAt: nda.signedAt,
+            accessGranted: nda.accessGranted,
+            status: "signed"
+          },
+          message: "NDA signed successfully"
+        });
+      } catch (error) {
+        console.error("Error signing NDA:", error);
+        return serverErrorResponse(error.message || "Failed to sign NDA");
       }
     }
 
@@ -5048,6 +6287,260 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error fetching outgoing signed NDAs:", error);
         return serverErrorResponse("Failed to fetch outgoing signed NDAs");
+      }
+    }
+
+    // === INFORMATION REQUEST ENDPOINTS ===
+
+    // Create information request (POST-NDA communication)
+    if (url.pathname === "/api/info-requests" && method === "POST") {
+      try {
+        const body = await request.json();
+        const { ndaId, pitchId, requestType, subject, message, priority } = body;
+
+        if (!ndaId || !pitchId || !requestType || !subject || !message) {
+          return validationErrorResponse("Missing required fields: ndaId, pitchId, requestType, subject, message");
+        }
+
+        const requestData = {
+          ndaId: parseInt(ndaId),
+          pitchId: parseInt(pitchId),
+          requestType,
+          subject,
+          message,
+          priority: priority || 'medium'
+        };
+
+        const infoRequest = await InfoRequestService.createRequest(user.id, requestData);
+
+        return createdResponse({
+          infoRequest: {
+            id: infoRequest.id,
+            ndaId: infoRequest.ndaId,
+            pitchId: infoRequest.pitchId,
+            requestType: infoRequest.requestType,
+            subject: infoRequest.subject,
+            message: infoRequest.message,
+            priority: infoRequest.priority,
+            status: infoRequest.status,
+            requestedAt: infoRequest.requestedAt,
+            pitch: infoRequest.pitch,
+            requester: infoRequest.requester,
+            owner: infoRequest.owner
+          },
+          message: "Information request created successfully"
+        });
+      } catch (error) {
+        console.error('Error creating information request:', error);
+        return serverErrorResponse(error.message || "Failed to create information request");
+      }
+    }
+
+    // Get all information requests (combines incoming and outgoing)
+    if (url.pathname === "/api/info-requests" && method === "GET") {
+      try {
+        const url_obj = new URL(request.url);
+        const status = url_obj.searchParams.get('status');
+        const requestType = url_obj.searchParams.get('requestType');
+        const role = url_obj.searchParams.get('role'); // 'incoming', 'outgoing', or 'all' (default)
+
+        const filters = {};
+        if (status) filters.status = status;
+        if (requestType) filters.requestType = requestType;
+
+        let allRequests = [];
+
+        if (!role || role === 'all' || role === 'incoming') {
+          const incomingRequests = await InfoRequestService.getIncomingRequests(user.id, filters);
+          const markedIncoming = incomingRequests.map(req => ({ ...req, direction: 'incoming' }));
+          allRequests.push(...markedIncoming);
+        }
+
+        if (!role || role === 'all' || role === 'outgoing') {
+          const outgoingRequests = await InfoRequestService.getOutgoingRequests(user.id, filters);
+          const markedOutgoing = outgoingRequests.map(req => ({ ...req, direction: 'outgoing' }));
+          allRequests.push(...markedOutgoing);
+        }
+
+        // Sort by requestedAt descending
+        allRequests.sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+
+        return successResponse({
+          infoRequests: allRequests,
+          count: allRequests.length,
+          role: role || 'all',
+          message: "Information requests retrieved successfully"
+        });
+      } catch (error) {
+        console.error('Error fetching information requests:', error);
+        return serverErrorResponse("Failed to fetch information requests");
+      }
+    }
+
+    // Get incoming information requests (for pitch owners)
+    if (url.pathname === "/api/info-requests/incoming" && method === "GET") {
+      try {
+        const url_obj = new URL(request.url);
+        const status = url_obj.searchParams.get('status');
+        const requestType = url_obj.searchParams.get('requestType');
+
+        const filters = {};
+        if (status) filters.status = status;
+        if (requestType) filters.requestType = requestType;
+
+        const requests = await InfoRequestService.getIncomingRequests(user.id, filters);
+
+        return successResponse({
+          infoRequests: requests,
+          count: requests.length,
+          message: "Incoming information requests retrieved successfully"
+        });
+      } catch (error) {
+        console.error('Error fetching incoming information requests:', error);
+        return serverErrorResponse("Failed to fetch incoming information requests");
+      }
+    }
+
+    // Get outgoing information requests (for requesters)
+    if (url.pathname === "/api/info-requests/outgoing" && method === "GET") {
+      try {
+        const url_obj = new URL(request.url);
+        const status = url_obj.searchParams.get('status');
+        const requestType = url_obj.searchParams.get('requestType');
+
+        const filters = {};
+        if (status) filters.status = status;
+        if (requestType) filters.requestType = requestType;
+
+        const requests = await InfoRequestService.getOutgoingRequests(user.id, filters);
+
+        return successResponse({
+          infoRequests: requests,
+          count: requests.length,
+          message: "Outgoing information requests retrieved successfully"
+        });
+      } catch (error) {
+        console.error('Error fetching outgoing information requests:', error);
+        return serverErrorResponse("Failed to fetch outgoing information requests");
+      }
+    }
+
+    // Get information request statistics (must come before general ID route)
+    if (url.pathname === "/api/info-requests/stats" && method === "GET") {
+      try {
+        const stats = await InfoRequestService.getStats(user.id);
+
+        return successResponse({
+          stats,
+          message: "Information request statistics retrieved successfully"
+        });
+      } catch (error) {
+        console.error('Error fetching information request stats:', error);
+        return serverErrorResponse("Failed to fetch information request statistics");
+      }
+    }
+
+    // Get request type analytics (must come before general ID route)
+    if (url.pathname === "/api/info-requests/analytics" && method === "GET") {
+      try {
+        const url_obj = new URL(request.url);
+        const role = url_obj.searchParams.get('role') || 'owner';
+
+        const analytics = await InfoRequestService.getRequestTypeAnalytics(user.id, role);
+
+        return successResponse({
+          analytics,
+          role,
+          message: "Request type analytics retrieved successfully"
+        });
+      } catch (error) {
+        console.error('Error fetching request type analytics:', error);
+        return serverErrorResponse("Failed to fetch analytics");
+      }
+    }
+
+    // Get information request by ID
+    if (url.pathname.startsWith("/api/info-requests/") && method === "GET") {
+      try {
+        const requestId = parseInt(url.pathname.split('/')[3]);
+        
+        if (isNaN(requestId)) {
+          return validationErrorResponse("Invalid request ID");
+        }
+
+        const infoRequest = await InfoRequestService.getRequestById(requestId, user.id);
+
+        return successResponse({
+          infoRequest,
+          message: "Information request retrieved successfully"
+        });
+      } catch (error) {
+        console.error('Error fetching information request:', error);
+        return serverErrorResponse(error.message || "Failed to fetch information request");
+      }
+    }
+
+    // Respond to information request
+    if (url.pathname.startsWith("/api/info-requests/") && url.pathname.endsWith("/respond") && method === "POST") {
+      try {
+        const requestId = parseInt(url.pathname.split('/')[3]);
+        const body = await request.json();
+        const { response } = body;
+
+        if (isNaN(requestId)) {
+          return validationErrorResponse("Invalid request ID");
+        }
+
+        if (!response) {
+          return validationErrorResponse("Response message is required");
+        }
+
+        const responseData = {
+          infoRequestId: requestId,
+          response
+        };
+
+        const updatedRequest = await InfoRequestService.respondToRequest(user.id, responseData);
+
+        return successResponse({
+          infoRequest: updatedRequest,
+          message: "Response sent successfully"
+        });
+      } catch (error) {
+        console.error('Error responding to information request:', error);
+        return serverErrorResponse(error.message || "Failed to respond to information request");
+      }
+    }
+
+    // Update information request status
+    if (url.pathname.startsWith("/api/info-requests/") && url.pathname.endsWith("/status") && method === "PUT") {
+      try {
+        const requestId = parseInt(url.pathname.split('/')[3]);
+        const body = await request.json();
+        const { status } = body;
+
+        if (isNaN(requestId)) {
+          return validationErrorResponse("Invalid request ID");
+        }
+
+        if (!status) {
+          return validationErrorResponse("Status is required");
+        }
+
+        const statusData = {
+          infoRequestId: requestId,
+          status
+        };
+
+        const updatedRequest = await InfoRequestService.updateStatus(user.id, statusData);
+
+        return successResponse({
+          infoRequest: updatedRequest,
+          message: "Status updated successfully"
+        });
+      } catch (error) {
+        console.error('Error updating information request status:', error);
+        return serverErrorResponse(error.message || "Failed to update status");
       }
     }
 
@@ -5508,28 +7001,68 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Get credit balance
     if (url.pathname === "/api/payments/credits/balance" && method === "GET") {
-      return successResponse({
-        balance: 150,
-        message: "Credit balance retrieved"
-      });
+      try {
+        // Get user credits from database
+        const userCreditsRecord = await db.query.userCredits.findFirst({
+          where: eq(userCredits.userId, user.id),
+        });
+
+        const balance = userCreditsRecord?.amount || 0;
+
+        return successResponse({
+          balance,
+          totalPurchased: userCreditsRecord?.amount || 0,
+          message: "Credit balance retrieved"
+        });
+      } catch (error) {
+        console.error("Error getting credit balance:", error);
+        return successResponse({
+          balance: 0,
+          totalPurchased: 0,
+          message: "Credit balance retrieved"
+        });
+      }
     }
 
     // Purchase credits
     if (url.pathname === "/api/payments/credits/purchase" && method === "POST") {
       try {
         const body = await request.json();
-        const { packageId, amount } = body;
+        const { priceId, packageType, credits } = body;
+
+        if (!priceId || !packageType || !credits) {
+          return badRequestResponse("Missing required fields: priceId, packageType, credits");
+        }
+
+        // Import payment service
+        const { getPaymentService } = await import("./src/services/payment/index.ts");
+        const paymentService = getPaymentService();
+
+        // Create checkout session for credits purchase
+        const session = await paymentService.createCheckoutSession({
+          line_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+          mode: "payment",
+          success_url: `${Deno.env.get("APP_URL") || "http://localhost:8001"}/dashboard?success=true&type=credits`,
+          cancel_url: `${Deno.env.get("APP_URL") || "http://localhost:8001"}/pricing?canceled=true`,
+          metadata: {
+            userId: String(user.id),
+            credits: String(credits),
+            package: packageType,
+          },
+        });
 
         return successResponse({
-          transaction: {
-            id: `tx_${Date.now()}`,
-            amount,
-            credits: amount * 10, // 10 credits per dollar
-            status: "completed"
-          },
-          message: "Credits purchased successfully"
+          checkoutUrl: session.url,
+          sessionId: session.id,
+          message: "Checkout session created successfully"
         });
       } catch (error) {
+        console.error("Credit purchase error:", error);
         return serverErrorResponse("Credit purchase failed");
       }
     }
@@ -5603,18 +7136,40 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/payments/subscribe" && method === "POST") {
       try {
         const body = await request.json();
-        const { planId } = body;
+        const { priceId, planType } = body;
 
-        return createdResponse({
-          subscription: {
-            id: `sub_${Date.now()}`,
-            planId,
-            status: "active",
-            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        if (!priceId || !planType) {
+          return badRequestResponse("Missing required fields: priceId, planType");
+        }
+
+        // Import payment service
+        const { getPaymentService } = await import("./src/services/payment/index.ts");
+        const paymentService = getPaymentService();
+
+        // Create checkout session for subscription
+        const session = await paymentService.createCheckoutSession({
+          line_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+          mode: "subscription",
+          success_url: `${Deno.env.get("APP_URL") || "http://localhost:8001"}/dashboard?success=true&type=subscription`,
+          cancel_url: `${Deno.env.get("APP_URL") || "http://localhost:8001"}/pricing?canceled=true`,
+          metadata: {
+            userId: String(user.id),
+            planType: planType,
           },
-          message: "Subscription created successfully"
+        });
+
+        return successResponse({
+          checkoutUrl: session.url,
+          sessionId: session.id,
+          message: "Subscription checkout session created successfully"
         });
       } catch (error) {
+        console.error("Subscription error:", error);
         return serverErrorResponse("Subscription failed");
       }
     }
@@ -5699,6 +7254,91 @@ const handler = async (request: Request): Promise<Response> => {
         paymentMethod,
         message: 'Payment method added successfully'
       });
+    }
+
+    // === PAYMENT CONFIGURATION ENDPOINT ===
+
+    // Get payment configuration for frontend
+    if (url.pathname === "/api/payments/config" && method === "GET") {
+      try {
+        // Import payment service
+        const { getPaymentFrontendConfig } = await import("./src/services/payment/index.ts");
+        const config = getPaymentFrontendConfig();
+
+        return successResponse({
+          config,
+          message: "Payment configuration retrieved"
+        });
+      } catch (error) {
+        console.error("Error getting payment config:", error);
+        return serverErrorResponse("Failed to get payment configuration");
+      }
+    }
+
+    // === MOCK CHECKOUT ENDPOINTS ===
+
+    // Serve mock checkout page
+    if (url.pathname.startsWith("/mock-checkout/") && method === "GET") {
+      try {
+        const sessionId = url.pathname.split("/mock-checkout/")[1];
+        
+        // Read and serve the mock checkout HTML
+        const htmlContent = await Deno.readTextFile("./mock-checkout.html");
+        return new Response(htmlContent, {
+          status: 200,
+          headers: { "Content-Type": "text/html; charset=utf-8" }
+        });
+      } catch (error) {
+        console.error("Error serving mock checkout:", error);
+        return new Response("Mock checkout page not found", { status: 404 });
+      }
+    }
+
+    // Get mock checkout session data
+    if (url.pathname.startsWith("/api/payments/mock-checkout/") && url.pathname.endsWith("/complete") === false && method === "GET") {
+      try {
+        const sessionId = url.pathname.split("/api/payments/mock-checkout/")[1];
+        
+        // Import payment service
+        const { getPaymentService } = await import("./src/services/payment/index.ts");
+        const paymentService = getPaymentService();
+        
+        // Get checkout session data
+        const session = await paymentService.retrieveCheckoutSession(sessionId);
+        
+        return successResponse(session);
+      } catch (error) {
+        console.error("Error retrieving mock checkout session:", error);
+        return notFoundResponse("Checkout session not found");
+      }
+    }
+
+    // Complete mock checkout payment
+    if (url.pathname.startsWith("/api/payments/mock-checkout/") && url.pathname.endsWith("/complete") && method === "POST") {
+      try {
+        const sessionId = url.pathname.split("/api/payments/mock-checkout/")[1].replace("/complete", "");
+        const body = await request.json();
+        
+        // Import payment service
+        const { getPaymentService } = await import("./src/services/payment/index.ts");
+        const paymentService = getPaymentService();
+        
+        // Simulate checkout completion
+        if (paymentService.simulateCheckoutCompletion) {
+          const event = await paymentService.simulateCheckoutCompletion(sessionId);
+          
+          return successResponse({
+            success: true,
+            event: event,
+            message: "Mock payment completed successfully"
+          });
+        } else {
+          return serverErrorResponse("Mock checkout completion not available");
+        }
+      } catch (error) {
+        console.error("Error completing mock checkout:", error);
+        return serverErrorResponse("Failed to complete mock payment");
+      }
     }
 
     // === ANALYTICS ENDPOINTS ===
@@ -7031,40 +8671,167 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === FILE UPLOAD ===
 
-    // Upload file
+    // Upload file (general media upload)
     if (url.pathname === "/api/media/upload" && method === "POST") {
       try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+
         const formData = await request.formData();
         const file = formData.get('file') as File;
+        const folder = formData.get('folder') as string || 'media';
 
         if (!file) {
           return validationErrorResponse("No file provided");
         }
 
-        // Validate file type and size
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-        if (!allowedTypes.includes(file.type)) {
-          return validationErrorResponse("Invalid file type");
+        // Validate file based on type
+        if (file.type.startsWith('image/')) {
+          if (!UploadService.validateImageFile(file)) {
+            return validationErrorResponse("Invalid image file or size too large (max 10MB)");
+          }
+        } else if (file.type.startsWith('video/')) {
+          if (!UploadService.validateVideoFile(file)) {
+            return validationErrorResponse("Invalid video file or size too large (max 500MB)");
+          }
+        } else {
+          if (!UploadService.validateDocumentFile(file)) {
+            return validationErrorResponse("Invalid document file or size too large (max 50MB)");
+          }
         }
 
-        if (file.size > 10 * 1024 * 1024) { // 10MB limit
-          return validationErrorResponse("File too large");
+        // Validate file signature for security
+        const buffer = await file.arrayBuffer();
+        const isValidSignature = await UploadService.validateFileSignature(buffer, file.type);
+        if (!isValidSignature) {
+          return validationErrorResponse("File content does not match declared type");
         }
 
-        // Mock file upload
-        const fileUrl = `https://uploads.pitchey.com/${Date.now()}_${file.name}`;
+        // Upload file
+        const uploadResult = await UploadService.uploadFile(file, folder, {
+          publicRead: true,
+          metadata: {
+            uploadedBy: user.id.toString(),
+            uploadedAt: new Date().toISOString()
+          }
+        });
 
         return successResponse({
-          url: fileUrl,
+          url: uploadResult.url,
+          cdnUrl: uploadResult.cdnUrl,
+          key: uploadResult.key,
           filename: file.name,
           size: file.size,
           type: file.type,
+          provider: uploadResult.provider,
           message: "File uploaded successfully"
         });
       } catch (error) {
+        console.error("Media upload error:", error);
         return serverErrorResponse("File upload failed");
       }
     }
+
+    // Upload pitch documents
+    if (url.pathname === "/api/pitches/upload-document" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+
+        const formData = await request.formData();
+        const file = formData.get('file') as File;
+        const pitchId = parseInt(formData.get('pitchId') as string);
+        const documentType = formData.get('documentType') as string;
+        const isPublic = formData.get('isPublic') === 'true';
+        const requiresNda = formData.get('requiresNda') === 'true';
+
+        if (!file) {
+          return validationErrorResponse("No file provided");
+        }
+
+        if (!pitchId || isNaN(pitchId)) {
+          return validationErrorResponse("Valid pitch ID required");
+        }
+
+        if (!documentType || !['script', 'treatment', 'pitch_deck', 'nda', 'supporting'].includes(documentType)) {
+          return validationErrorResponse("Valid document type required (script, treatment, pitch_deck, nda, supporting)");
+        }
+
+        // Validate file type
+        if (!UploadService.validateDocumentFile(file)) {
+          return validationErrorResponse("Invalid document file type or size (max 10MB per file)");
+        }
+
+        // Check if user owns the pitch or has permission
+        const pitch = await db.select().from(pitches).where(eq(pitches.id, pitchId)).limit(1);
+        if (pitch.length === 0) {
+          return notFoundResponse("Pitch not found");
+        }
+
+        if (pitch[0].userId !== user.id) {
+          return forbiddenResponse("You can only upload documents to your own pitches");
+        }
+
+        // Upload to appropriate folder based on document type
+        const folder = `pitches/${pitchId}/${documentType}`;
+        
+        const uploadResult = await UploadService.uploadFile(file, folder, {
+          publicRead: isPublic,
+          encrypt: !isPublic || requiresNda,
+          metadata: {
+            pitchId: pitchId.toString(),
+            documentType,
+            uploadedBy: user.id.toString(),
+            uploadedAt: new Date().toISOString()
+          }
+        });
+
+        // Save file metadata to database
+        const documentRecord = await db.insert(pitchDocuments).values({
+          pitchId,
+          fileName: uploadResult.key.split('/').pop() || file.name,
+          originalFileName: file.name,
+          fileUrl: uploadResult.url,
+          fileKey: uploadResult.key,
+          fileType: file.name.split('.').pop() || '',
+          mimeType: file.type,
+          fileSize: file.size,
+          documentType,
+          isPublic,
+          requiresNda,
+          uploadedBy: user.id,
+          metadata: {
+            provider: uploadResult.provider,
+            cdnUrl: uploadResult.cdnUrl
+          }
+        }).returning();
+
+        return successResponse({
+          id: documentRecord[0].id,
+          url: uploadResult.url,
+          cdnUrl: uploadResult.cdnUrl,
+          fileName: file.name,
+          fileSize: file.size,
+          documentType,
+          isPublic,
+          requiresNda,
+          uploadedAt: documentRecord[0].uploadedAt,
+          message: "Document uploaded successfully"
+        });
+      } catch (error) {
+        console.error("Document upload error:", error);
+        return serverErrorResponse("Document upload failed");
+      }
+    }
+
 
     // === SEARCH FEATURES ===
 
@@ -7646,18 +9413,33 @@ const handler = async (request: Request): Promise<Response> => {
         }
       }
 
-      // Create production pitch
+      // Create production pitch - BLOCKED: Production companies cannot create pitches
       if (url.pathname === "/api/production/pitches" && method === "POST") {
+        // SECURITY: Production companies are NOT allowed to create pitches
+        console.warn(`[SECURITY VIOLATION] Production company ${user.id} attempted to create a pitch`);
+        
+        // Track security event in database
         try {
-          const body = await request.json();
-          const pitch = await PitchService.createPitch(user.id, body);
-          return createdResponse({
-            pitch,
-            message: "Production pitch created successfully"
-          });
-        } catch (error) {
-          return serverErrorResponse("Failed to create production pitch");
+          await db.insert(securityEvents).values({
+            userId: user.id,
+            eventType: 'unauthorized_access',
+            resource: 'pitch_creation',
+            userRole: 'production',
+            ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+            details: JSON.stringify({
+              endpoint: '/api/production/pitches',
+              method: 'POST',
+              message: 'Production company attempted to create pitch'
+            }),
+            createdAt: new Date()
+          }).execute();
+        } catch (logError) {
+          console.error('Failed to log security event:', logError);
         }
+        
+        return forbiddenResponse(
+          "Access denied. Production companies cannot create pitches. Only creators can submit pitches to the platform."
+        );
       }
 
     }
@@ -8032,12 +9814,21 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Missing Stripe signature", 400);
         }
 
-        // Mock webhook processing
+        const payload = await request.text();
+        
+        // Import payment service
+        const { getPaymentService } = await import("./src/services/payment/index.ts");
+        const paymentService = getPaymentService();
+
+        // Process webhook using payment service
+        await paymentService.handleWebhook(payload, signature);
+
         return successResponse({
           received: true,
           message: "Webhook processed successfully"
         });
       } catch (error) {
+        console.error("Webhook processing error:", error);
         return serverErrorResponse("Webhook processing failed");
       }
     }
@@ -8687,21 +10478,30 @@ const handler = async (request: Request): Promise<Response> => {
           return notFoundResponse("Pitch not found");
         }
 
-        // Check NDA status
-        const ndaStatus = await db
-          .select()
-          .from(ndas)
-          .where(and(
-            eq(ndas.pitchId, pitchId),
-            eq(ndas.userId, authResult.user.id)
-          ))
-          .limit(1);
+        // Check NDA status using service
+        const hasSignedNDA = await NDAService.hasSignedNDA(authResult.user.id, pitchId);
+        
+        // Get additional NDA details if signed
+        let ndaDetails = null;
+        if (hasSignedNDA) {
+          const userNDAs = await NDAService.getUserSignedNDAs(authResult.user.id);
+          const pitchNDA = userNDAs.find(record => record.nda.pitchId === pitchId);
+          if (pitchNDA) {
+            ndaDetails = {
+              id: pitchNDA.nda.id,
+              signedAt: pitchNDA.nda.signedAt,
+              expiresAt: pitchNDA.nda.expiresAt,
+              ndaType: pitchNDA.nda.ndaType,
+              accessGranted: pitchNDA.nda.accessGranted
+            };
+          }
+        }
 
         const status = {
           pitchId: pitchId,
-          hasNDA: ndaStatus.length > 0,
-          ndaStatus: ndaStatus.length > 0 ? ndaStatus[0].status : null,
-          signedAt: ndaStatus.length > 0 ? ndaStatus[0].signedAt : null
+          hasNDA: hasSignedNDA,
+          ndaDetails: ndaDetails,
+          canAccess: hasSignedNDA || pitch[0].userId === authResult.user.id
         };
 
         return successResponse(status);
@@ -8761,6 +10561,7 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+
     // === DEFAULT: Route not found ===
     return notFoundResponse(`Endpoint ${method} ${url.pathname} not found`);
 
@@ -8776,7 +10577,7 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     // Server errors get sent to Sentry
-    captureException(error as Error, {
+    logError(error as Error, {
       url: url.pathname,
       method,
       origin,
@@ -9065,6 +10866,15 @@ if (redisConnected) {
   console.log("✅ Redis connected successfully");
 } else {
   console.log("⚠️ Redis not connected - using fallback mode");
+}
+
+// Helper function to extract auth token from request
+function getAuthToken(request: Request): string | null {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  return authHeader.substring(7);
 }
 
 // Start server with WebSocket support

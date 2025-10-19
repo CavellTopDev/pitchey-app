@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Users, Film, Calendar, MapPin, Eye, Heart, AlertCircle } from 'lucide-react';
-import { API_URL } from '../config/api.config';
+import { API_URL } from '../config';
 
 interface Creator {
   id: number;

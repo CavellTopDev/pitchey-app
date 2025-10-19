@@ -46,7 +46,7 @@ export default function PortalSelect() {
       {/* Back Button */}
       <div className="pt-6 px-6">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/')}
           className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft className="h-5 w-5 mr-2" />

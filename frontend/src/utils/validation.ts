@@ -164,6 +164,8 @@ export const validationSchemas = {
     customFormat: [validationRules.required('Custom Format')], // Applied conditionally
     logline: [validationRules.required('Logline'), validationRules.maxLength(300)],
     shortSynopsis: [validationRules.required('Short Synopsis'), validationRules.maxLength(1000)],
+    themes: [validationRules.maxLength(1000)],
+    worldDescription: [validationRules.maxLength(2000)],
     image: [validationRules.file({ 
       maxSize: 10 * 1024 * 1024,
       allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],

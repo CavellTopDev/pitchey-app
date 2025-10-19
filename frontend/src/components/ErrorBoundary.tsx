@@ -75,13 +75,12 @@ export class ErrorBoundary extends Component<Props, State> {
     console.table(errorReport);
     console.groupEnd();
 
-    // Send to error reporting service if enabled
-    if (this.props.enableSentryReporting && window.Sentry) {
-      window.Sentry.withScope((scope) => {
-        scope.setTag('errorBoundary', true);
-        scope.setContext('errorReport', errorReport);
-        scope.captureException(error);
-      });
+    // Send to error reporting service if enabled (Sentry removed, using console logging)
+    if (this.props.enableSentryReporting) {
+      console.group('🚨 Error Boundary Report');
+      console.error('Error caught by Error Boundary:', error);
+      console.table(errorReport);
+      console.groupEnd();
     }
 
     // Send to custom logging endpoint

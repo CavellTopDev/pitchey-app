@@ -6,7 +6,7 @@
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { nativeRedisService as redisService } from "./redis-native.service.ts";
 import { AnalyticsService } from "./analytics.service.ts";
-import { sentryService, captureException } from "./sentry.service.ts";
+import { captureException } from "./logging.service.ts";
 import { db } from "../db/client.ts";
 import { 
   users, notifications, analyticsEvents, pitchViews, sessions,
@@ -123,7 +123,7 @@ export interface WSMessage {
 // Connection session interface
 export interface WSSession {
   id: string;
-  userId: number;
+  userId: number | null;
   userType: string;
   socket: WebSocket;
   lastActivity: number;
@@ -132,6 +132,7 @@ export interface WSSession {
   rateLimitTokens: number;
   rateLimitLastRefill: number;
   messageQueue: WSMessage[];
+  authenticated: boolean;
   clientInfo: {
     userAgent?: string;
     ip?: string;
@@ -212,7 +213,7 @@ export class PitcheyWebSocketServer {
   /**
    * Handle new WebSocket connection
    */
-  async handleConnection(socket: WebSocket, request: Request): Promise<void> {
+  async handleConnection(socket: WebSocket, request: Request, user?: any, isAuthenticated = false): Promise<void> {
     const clientIP = this.getClientIP(request);
     
     try {
@@ -222,26 +223,25 @@ export class PitcheyWebSocketServer {
         return;
       }
       
-      // Extract JWT token from query parameters
-      const url = new URL(request.url);
-      const token = url.searchParams.get("token");
+      let payload = user;
       
-      if (!token) {
-        this.recordFailedConnection(clientIP);
-        socket.close(1008, "Authentication token required");
-        return;
+      // If no user provided, try to authenticate using the old method for compatibility
+      if (!payload && !isAuthenticated) {
+        // Extract JWT token from query parameters
+        const url = new URL(request.url);
+        const token = url.searchParams.get("token");
+        
+        if (token) {
+          // Verify JWT token
+          payload = await verifySimpleToken(token);
+          if (payload) {
+            isAuthenticated = true;
+          }
+        }
       }
-
-      // Verify JWT token
-      const payload = await verifySimpleToken(token);
-      if (!payload) {
-        this.recordFailedConnection(clientIP);
-        socket.close(1008, "Invalid authentication token");
-        return;
-      }
-
-      // Create session
-      const session = await this.createSession(socket, payload, request);
+      
+      // Create session (authenticated or unauthenticated)
+      const session = await this.createSession(socket, payload, request, isAuthenticated);
       
       // Clear failed attempts on successful connection
       this.failedConnections.delete(clientIP);
@@ -281,47 +281,84 @@ export class PitcheyWebSocketServer {
     } catch (error) {
       this.recordFailedConnection(clientIP);
       console.error("[WebSocket] Connection error:", error);
-      captureException(error);
-      socket.close(1011, "Internal server error");
+      console.error("[WebSocket] Detailed error information:", {
+        message: error instanceof Error ? error.message : "Unknown error type",
+        stack: error instanceof Error ? error.stack : undefined,
+        type: typeof error,
+        clientIP,
+        url: request.url
+      });
+      
+      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+      
+      // Send detailed error message to client before closing
+      if (socket.readyState === WebSocket.OPEN) {
+        const errorResponse = {
+          type: "error",
+          message: error instanceof Error ? error.message : "Server connection error",
+          code: 1011,
+          category: "internal",
+          timestamp: Date.now()
+        };
+        
+        try {
+          socket.send(JSON.stringify(errorResponse));
+        } catch (sendError) {
+          console.error("[WebSocket] Failed to send error message:", sendError);
+        }
+      }
+      
+      socket.close(1011, error instanceof Error ? error.message.substring(0, 123) : "Internal server error");
     }
   }
 
   /**
-   * Create a new WebSocket session
+   * Create a new WebSocket session (authenticated or unauthenticated)
    */
-  private async createSession(socket: WebSocket, payload: any, request: Request): Promise<WSSession> {
+  private async createSession(socket: WebSocket, payload: any, request: Request, isAuthenticated = false): Promise<WSSession> {
     const sessionId = crypto.randomUUID();
-    const userId = payload.userId || parseInt(payload.sub);
+    let userId = null;
+    let userType = 'anonymous';
+    let user = null;
     
-    // Debug logging for user lookup
-    console.log(`[WebSocket] Creating session for user ID: ${userId}, type: ${typeof userId}`);
-    
-    // Validate userId before database query
-    if (!userId || isNaN(userId)) {
-      console.warn(`[WebSocket] Invalid user ID: ${userId} from token payload:`, payload);
-      throw new Error("Invalid user ID in token");
+    if (isAuthenticated && payload) {
+      userId = payload.userId || parseInt(payload.sub);
+      
+      // Debug logging for user lookup
+      console.log(`[WebSocket] Creating authenticated session for user ID: ${userId}, type: ${typeof userId}`);
+      
+      // Validate userId before database query
+      if (!userId || isNaN(userId)) {
+        console.warn(`[WebSocket] Invalid user ID: ${userId} from token payload:`, payload);
+        throw new Error("Invalid user ID in token");
+      }
+      
+      // Get user info from database
+      const [dbUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!dbUser) {
+        console.warn(`[WebSocket] User not found in database: ID ${userId}`);
+        throw new Error("User not found");
+      }
+      
+      user = dbUser;
+      userType = user.userType;
+      console.log(`[WebSocket] User found: ${user.email} (${user.userType})`);
+    } else {
+      console.log(`[WebSocket] Creating unauthenticated session: ${sessionId}`);
     }
-    
-    // Get user info from database
-    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-    if (!user) {
-      console.warn(`[WebSocket] User not found in database: ID ${userId}`);
-      throw new Error("User not found");
-    }
-    
-    console.log(`[WebSocket] User found: ${user.email} (${user.userType})`);
 
     const session: WSSession = {
       id: sessionId,
       userId,
-      userType: user.userType,
+      userType,
       socket,
       lastActivity: Date.now(),
-      presence: PresenceStatus.ONLINE,
+      presence: isAuthenticated ? PresenceStatus.ONLINE : PresenceStatus.OFFLINE,
       subscriptions: new Set(),
       rateLimitTokens: this.rateLimitConfig.maxMessages,
       rateLimitLastRefill: Date.now(),
       messageQueue: [],
+      authenticated: isAuthenticated,
       clientInfo: {
         userAgent: request.headers.get("user-agent") || undefined,
         ip: request.headers.get("x-forwarded-for") || 
@@ -333,11 +370,13 @@ export class PitcheyWebSocketServer {
     // Store session
     this.sessions.set(sessionId, session);
     
-    // Add to user sessions map
-    if (!this.userSessions.has(userId)) {
-      this.userSessions.set(userId, new Set());
+    // Add to user sessions map only if authenticated
+    if (isAuthenticated && userId) {
+      if (!this.userSessions.has(userId)) {
+        this.userSessions.set(userId, new Set());
+      }
+      this.userSessions.get(userId)!.add(sessionId);
     }
-    this.userSessions.get(userId)!.add(sessionId);
 
     return session;
   }
@@ -353,7 +392,7 @@ export class PitcheyWebSocketServer {
         await this.handleMessage(session, event.data);
       } catch (error) {
         console.error(`[WebSocket] Message handling error for session ${session.id}:`, error);
-        captureException(error);
+        captureException(error, { service: 'WebSocket', method: 'handleConnection' });
         await this.sendError(session, "Message processing failed");
       }
     };
@@ -493,7 +532,7 @@ export class PitcheyWebSocketServer {
 
     } catch (error) {
       console.error(`[WebSocket] Error handling message type ${message.type}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
       await this.sendError(session, "Message handling failed");
     }
   }
@@ -868,7 +907,7 @@ export class PitcheyWebSocketServer {
       await Promise.allSettled(promises);
     } catch (error) {
       console.error(`[WebSocket] Failed to broadcast to conversation ${conversationId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 
@@ -897,7 +936,7 @@ export class PitcheyWebSocketServer {
 
     } catch (error) {
       console.error(`[WebSocket] Failed to update presence for user ${userId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 
@@ -951,7 +990,7 @@ export class PitcheyWebSocketServer {
 
     } catch (error) {
       console.error(`[WebSocket] Error handling disconnection for session ${session.id}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 
@@ -999,7 +1038,7 @@ export class PitcheyWebSocketServer {
       }
     } catch (error) {
       console.error(`[WebSocket] Failed to publish to Redis channel ${channel}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 

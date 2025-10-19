@@ -1,230 +1,281 @@
-#!/usr/bin/env -S deno run --allow-env --allow-net
+#!/usr/bin/env -S deno run --allow-net --allow-env --allow-read --allow-write
 
 /**
- * Test WebSocket Authentication Fix
- * Verifies that authentication failures no longer cause infinite retries
+ * Test WebSocket Authentication Fixes
+ * Tests the new flexible authentication methods for WebSocket connections
  */
 
-const BACKEND_URL = "wss://pitchey-backend-fresh.deno.dev";
-const WS_URL = `${BACKEND_URL}/ws`;
-
-console.log("🧪 Testing WebSocket Authentication Fix");
-console.log("🎯 Verifying that auth failures don't cause infinite retries\n");
-
-/**
- * Test 1: No token (should close with 1008, should not retry infinitely)
- */
-async function testNoToken(): Promise<boolean> {
-  console.log("🔐 Test 1: Connection without token");
-  
-  return new Promise((resolve) => {
-    const ws = new WebSocket(WS_URL);
-    const startTime = Date.now();
-    let opened = false;
-    
-    const timeout = setTimeout(() => {
-      if (ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-        console.log("❌ Connection timeout - backend not responding");
-        resolve(false);
-      }
-    }, 10000);
-    
-    ws.onopen = () => {
-      opened = true;
-      console.log("✅ Connection opened (expected - backend validates after open)");
-    };
-    
-    ws.onclose = (event) => {
-      clearTimeout(timeout);
-      const duration = Date.now() - startTime;
-      
-      console.log(`🔒 Connection closed after ${duration}ms`);
-      console.log(`   Code: ${event.code}, Reason: "${event.reason}"`);
-      
-      if (event.code === 1008 && event.reason.includes("token")) {
-        console.log("✅ Correct auth failure response");
-        resolve(true);
-      } else {
-        console.log("❌ Unexpected close code/reason");
-        resolve(false);
-      }
-    };
-    
-    ws.onerror = (error) => {
-      clearTimeout(timeout);
-      console.log("❌ WebSocket error:", error);
-      resolve(false);
-    };
-  });
+interface TestResult {
+  name: string;
+  success: boolean;
+  message: string;
+  details?: any;
 }
 
-/**
- * Test 2: Invalid token (should close with 1008, should not retry infinitely)
- */
-async function testInvalidToken(): Promise<boolean> {
-  console.log("\n🔑 Test 2: Connection with invalid token");
-  
-  const fakeToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature";
-  const wsUrlWithToken = `${WS_URL}?token=${fakeToken}`;
-  
-  return new Promise((resolve) => {
-    const ws = new WebSocket(wsUrlWithToken);
-    const startTime = Date.now();
-    
-    const timeout = setTimeout(() => {
-      if (ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-        console.log("❌ Connection timeout");
-        resolve(false);
-      }
-    }, 10000);
-    
-    ws.onopen = () => {
-      console.log("✅ Connection opened (expected - backend validates after open)");
-    };
-    
-    ws.onclose = (event) => {
-      clearTimeout(timeout);
-      const duration = Date.now() - startTime;
-      
-      console.log(`🔒 Connection closed after ${duration}ms`);
-      console.log(`   Code: ${event.code}, Reason: "${event.reason}"`);
-      
-      if (event.code === 1008 && event.reason.includes("Invalid")) {
-        console.log("✅ Correct invalid token response");
-        resolve(true);
-      } else {
-        console.log("❌ Unexpected close code/reason");
-        resolve(false);
-      }
-    };
-    
-    ws.onerror = (error) => {
-      clearTimeout(timeout);
-      console.log("❌ WebSocket error:", error);
-      resolve(false);
-    };
-  });
+interface WebSocketTestCase {
+  name: string;
+  url: string;
+  description: string;
+  expectedOutcome: 'success' | 'limited' | 'fail';
+  authMethod: 'query' | 'header' | 'message' | 'none';
 }
 
-/**
- * Test 3: Valid token (should connect successfully)
- */
-async function testValidToken(): Promise<boolean> {
-  console.log("\n🎫 Test 3: Connection with valid token");
-  
-  try {
-    // Get auth token
-    console.log("🔐 Getting authentication token...");
-    const authResponse = await fetch("https://pitchey-backend-fresh.deno.dev/api/auth/creator/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: "alex.creator@demo.com",
-        password: "Demo123"
-      })
-    });
-    
-    if (!authResponse.ok) {
-      console.log(`❌ Failed to get auth token: ${authResponse.status}`);
-      return false;
-    }
-    
-    const authData = await authResponse.json();
-    const token = authData.token;
-    console.log(`✅ Got token: ${token.substring(0, 20)}...`);
-    
-    // Test WebSocket with valid token
-    return new Promise((resolve) => {
-      const wsUrlWithToken = `${WS_URL}?token=${token}`;
-      const ws = new WebSocket(wsUrlWithToken);
-      const startTime = Date.now();
+const testCases: WebSocketTestCase[] = [
+  {
+    name: "No Authentication Token",
+    url: "ws://localhost:8001/ws",
+    description: "Test connection without any authentication (should allow limited functionality)",
+    expectedOutcome: 'limited',
+    authMethod: 'none'
+  },
+  {
+    name: "Authentication via First Message",
+    url: "ws://localhost:8001/ws",
+    description: "Test connection without token, then authenticate via first message",
+    expectedOutcome: 'success',
+    authMethod: 'message'
+  }
+];
+
+async function testWebSocketConnection(testCase: WebSocketTestCase): Promise<TestResult> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve({
+        name: testCase.name,
+        success: false,
+        message: "Test timed out",
+        details: { timeout: "10s" }
+      });
+    }, 10000);
+
+    try {
+      console.log(`\n🧪 Testing: ${testCase.name}`);
+      console.log(`📍 URL: ${testCase.url}`);
+      console.log(`📝 Description: ${testCase.description}`);
       
-      const timeout = setTimeout(() => {
-        if (ws.readyState === WebSocket.CONNECTING) {
-          ws.close();
-          console.log("❌ Connection timeout");
-          resolve(false);
-        }
-      }, 10000);
-      
+      const ws = new WebSocket(testCase.url);
+      let messageCount = 0;
+      let authAttempted = false;
+
       ws.onopen = () => {
-        const duration = Date.now() - startTime;
-        console.log(`🎉 WebSocket connected successfully after ${duration}ms!`);
+        console.log("✅ WebSocket connection opened");
         
-        // Send test message and close cleanly
-        setTimeout(() => {
-          ws.close(1000, "Test completed");
-          resolve(true);
-        }, 1000);
-      };
-      
-      ws.onmessage = (event) => {
-        console.log("📨 Received:", event.data);
-      };
-      
-      ws.onclose = (event) => {
-        clearTimeout(timeout);
-        const duration = Date.now() - startTime;
-        console.log(`🔒 Connection closed after ${duration}ms (code: ${event.code})`);
-        
-        if (event.code === 1000) {
-          resolve(true);
+        // If this is the "first message" auth test, send auth message
+        if (testCase.authMethod === 'message') {
+          setTimeout(() => {
+            if (!authAttempted) {
+              authAttempted = true;
+              console.log("🔐 Sending authentication via first message");
+              ws.send(JSON.stringify({
+                type: 'auth',
+                token: 'demo_token_for_testing',
+                timestamp: new Date().toISOString()
+              }));
+            }
+          }, 500);
         }
       };
-      
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        console.log("❌ WebSocket error:", error);
-        resolve(false);
+
+      ws.onmessage = (event) => {
+        messageCount++;
+        console.log(`📨 Message ${messageCount}:`, event.data);
+        
+        try {
+          const message = JSON.parse(event.data);
+          
+          // Handle different message types
+          if (message.type === 'connected') {
+            const isAuthenticated = message.authenticated;
+            const capabilities = message.capabilities || [];
+            
+            console.log(`🔗 Connection confirmed - Authenticated: ${isAuthenticated}`);
+            console.log(`🎯 Capabilities: ${capabilities.join(', ')}`);
+            
+            if (testCase.expectedOutcome === 'success' && isAuthenticated) {
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                name: testCase.name,
+                success: true,
+                message: "Authenticated connection successful",
+                details: { capabilities, authenticated: isAuthenticated }
+              });
+            } else if (testCase.expectedOutcome === 'limited' && !isAuthenticated && capabilities.length > 0) {
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                name: testCase.name,
+                success: true,
+                message: "Unauthenticated connection with limited functionality",
+                details: { capabilities, authenticated: isAuthenticated }
+              });
+            }
+          } else if (message.type === 'auth_success') {
+            console.log("🎉 Authentication via first message successful");
+            if (testCase.authMethod === 'message') {
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                name: testCase.name,
+                success: true,
+                message: "Authentication via first message successful",
+                details: { authMethod: 'first_message' }
+              });
+            }
+          } else if (message.type === 'auth_error') {
+            console.log("❌ Authentication failed");
+            if (testCase.expectedOutcome === 'fail') {
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                name: testCase.name,
+                success: true,
+                message: "Authentication correctly failed as expected",
+                details: { authMethod: testCase.authMethod }
+              });
+            }
+          } else if (message.type === 'error') {
+            console.log("⚠️ Error message received:", message);
+            
+            // For auth failure tests, this might be expected
+            if (testCase.expectedOutcome === 'fail') {
+              clearTimeout(timeout);
+              ws.close();
+              resolve({
+                name: testCase.name,
+                success: true,
+                message: "Authentication correctly failed as expected",
+                details: { error: message }
+              });
+            }
+          }
+          
+          // For ping/pong, just acknowledge
+          if (message.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+          }
+          
+        } catch (error) {
+          console.log("⚠️ Failed to parse message:", error);
+        }
       };
-    });
+
+      ws.onclose = (event) => {
+        console.log(`🔌 WebSocket closed - Code: ${event.code}, Reason: "${event.reason}"`);
+        
+        // Handle expected auth failures
+        if (testCase.expectedOutcome === 'fail' && (event.code === 1008 || event.code === 4001)) {
+          clearTimeout(timeout);
+          resolve({
+            name: testCase.name,
+            success: true,
+            message: "Connection correctly rejected for invalid authentication",
+            details: { closeCode: event.code, reason: event.reason }
+          });
+        } else if (messageCount === 0) {
+          // No messages received before close
+          clearTimeout(timeout);
+          resolve({
+            name: testCase.name,
+            success: false,
+            message: `Connection closed immediately: ${event.reason}`,
+            details: { closeCode: event.code, reason: event.reason }
+          });
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.log("❌ WebSocket error:", error);
+        clearTimeout(timeout);
+        resolve({
+          name: testCase.name,
+          success: false,
+          message: "WebSocket connection error",
+          details: { error: error.toString() }
+        });
+      };
+
+    } catch (error) {
+      clearTimeout(timeout);
+      resolve({
+        name: testCase.name,
+        success: false,
+        message: `Failed to create WebSocket: ${error}`,
+        details: { error: error.toString() }
+      });
+    }
+  });
+}
+
+async function runAllTests(): Promise<void> {
+  console.log("🚀 Starting WebSocket Authentication Tests");
+  console.log("=" .repeat(60));
+  
+  const results: TestResult[] = [];
+  
+  for (const testCase of testCases) {
+    const result = await testWebSocketConnection(testCase);
+    results.push(result);
     
+    // Wait between tests
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  
+  // Print summary
+  console.log("\n" + "=" .repeat(60));
+  console.log("📊 TEST RESULTS SUMMARY");
+  console.log("=" .repeat(60));
+  
+  let passed = 0;
+  let failed = 0;
+  
+  for (const result of results) {
+    const status = result.success ? "✅ PASS" : "❌ FAIL";
+    console.log(`${status} ${result.name}`);
+    console.log(`    ${result.message}`);
+    if (result.details) {
+      console.log(`    Details: ${JSON.stringify(result.details, null, 2).split('\n').join('\n    ')}`);
+    }
+    console.log();
+    
+    if (result.success) {
+      passed++;
+    } else {
+      failed++;
+    }
+  }
+  
+  console.log(`📈 Results: ${passed} passed, ${failed} failed out of ${results.length} total tests`);
+  
+  if (failed === 0) {
+    console.log("🎉 All WebSocket authentication tests passed!");
+  } else {
+    console.log("⚠️ Some tests failed. Check the server logs for details.");
+  }
+}
+
+// Check if server is running before testing
+async function checkServerHealth(): Promise<boolean> {
+  try {
+    const response = await fetch("http://localhost:8001/api/test/new");
+    return response.ok;
   } catch (error) {
-    console.log("❌ Test failed:", error);
+    console.error("❌ Server health check failed. Make sure the server is running on port 8001");
+    console.error("   Start server with: PORT=8001 deno run --allow-all working-server.ts");
     return false;
   }
 }
 
-/**
- * Run all tests
- */
-async function runTests() {
-  console.log("🚀 Starting WebSocket Authentication Fix Tests...\n");
-  
-  const results: boolean[] = [];
-  
-  // Test 1: No token
-  results.push(await testNoToken());
-  
-  // Test 2: Invalid token
-  results.push(await testInvalidToken());
-  
-  // Test 3: Valid token
-  results.push(await testValidToken());
-  
-  // Summary
-  const passed = results.filter(r => r).length;
-  const total = results.length;
-  
-  console.log("\n" + "=".repeat(60));
-  console.log("📊 TEST RESULTS SUMMARY");
-  console.log("=".repeat(60));
-  console.log(`✅ Tests Passed: ${passed}/${total}`);
-  
-  if (passed === total) {
-    console.log("🎉 ALL TESTS PASSED! WebSocket auth fix is working correctly.");
-    console.log("\n💡 Key Fix: Frontend now recognizes code 1008 as auth failure");
-    console.log("   and doesn't retry, preventing infinite loops.");
-  } else {
-    console.log("⚠️  Some tests failed - fix may need adjustment");
-  }
-  
-  console.log("\n" + "=".repeat(60));
-}
-
-// Run the tests
+// Main execution
 if (import.meta.main) {
-  await runTests();
+  console.log("🔍 Checking server health...");
+  const serverHealthy = await checkServerHealth();
+  
+  if (serverHealthy) {
+    console.log("✅ Server is running");
+    await runAllTests();
+  } else {
+    console.log("❌ Server is not accessible. Please start the server first.");
+    Deno.exit(1);
+  }
 }

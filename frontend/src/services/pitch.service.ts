@@ -2,7 +2,7 @@
 // Matches the Drizzle schema exactly for all pitch operations
 
 import { apiClient } from '../lib/api-client';
-import { API_URL } from '../config/api.config';
+import { API_URL } from '../config';
 
 // Types matching Drizzle schema
 export interface Pitch {
@@ -21,13 +21,16 @@ export interface Pitch {
   premise?: string;
   targetAudience?: string;
   characters?: Array<{
+    id?: string;
     name: string;
     description: string;
     age?: string;
     gender?: string;
     actor?: string;
+    displayOrder?: number;
   }>;
-  themes?: string[];
+  themes?: string;
+  worldDescription?: string;
   episodeBreakdown?: Array<{
     episodeNumber: number;
     title: string;
@@ -87,13 +90,16 @@ export interface CreatePitchInput {
   shortSynopsis?: string;
   longSynopsis?: string;
   characters?: Array<{
+    id?: string;
     name: string;
     description: string;
     age?: string;
     gender?: string;
     actor?: string;
+    displayOrder?: number;
   }>;
-  themes?: string[];
+  themes?: string;
+  worldDescription?: string;
   budgetBracket?: string;
   estimatedBudget?: number;
   productionTimeline?: string;
@@ -367,17 +373,17 @@ export class PitchService {
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      data: Pitch[] 
+      data: Pitch[];
+      message: string;
     }>(`/api/pitches/trending?limit=${limit}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch trending pitches');
     }
 
-    // Backend returns successResponse({ data: [...] }) which becomes { success: true, data: { data: [...] } }
-    // So response.data contains { data: [...] }
-    const pitches = response.data?.data?.data || response.data?.data || [];
-    
+    // Backend returns { success: true, data: [...], message: "..." }
+    const pitches = response.data || [];
+    console.log('Trending pitches received:', pitches.length);
     
     return pitches;
   }
@@ -386,19 +392,91 @@ export class PitchService {
   static async getNewReleases(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      data: Pitch[] 
+      data: Pitch[];
+      message: string;
     }>(`/api/pitches/new?limit=${limit}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch new releases');
     }
 
-    // Backend returns successResponse({ data: [...] }) which becomes { success: true, data: { data: [...] } }
-    // So response.data contains { data: [...] }
-    const pitches = response.data?.data?.data || response.data?.data || [];
-    
+    // Backend returns { success: true, data: [...], message: "..." }
+    const pitches = response.data || [];
+    console.log('New releases received:', pitches.length);
     
     return pitches;
+  }
+
+  // Get pitches with general browse and sorting
+  static async getGeneralBrowse(filters?: {
+    sort?: 'alphabetical' | 'date' | 'budget' | 'views' | 'likes';
+    order?: 'asc' | 'desc';
+    genre?: string;
+    format?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    pitches: Pitch[];
+    totalCount: number;
+    pagination: {
+      limit: number;
+      offset: number;
+      totalPages: number;
+      currentPage: number;
+    };
+    filters: {
+      sortBy: string;
+      order: string;
+      genre: string | null;
+      format: string | null;
+    };
+  }> {
+    const params = new URLSearchParams();
+    if (filters?.sort) params.append('sort', filters.sort);
+    if (filters?.order) params.append('order', filters.order);
+    if (filters?.genre) params.append('genre', filters.genre);
+    if (filters?.format) params.append('format', filters.format);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+
+    const response = await apiClient.get<{ 
+      success: boolean; 
+      pitches: Pitch[];
+      totalCount: number;
+      pagination: {
+        limit: number;
+        offset: number;
+        totalPages: number;
+        currentPage: number;
+      };
+      filters: {
+        sortBy: string;
+        order: string;
+        genre: string | null;
+        format: string | null;
+      };
+    }>(`/api/pitches/browse/general?${params}`);
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch browse pitches');
+    }
+
+    return response.data || {
+      pitches: [],
+      totalCount: 0,
+      pagination: {
+        limit: filters?.limit || 20,
+        offset: filters?.offset || 0,
+        totalPages: 0,
+        currentPage: 1
+      },
+      filters: {
+        sortBy: filters?.sort || 'date',
+        order: filters?.order || 'desc',
+        genre: filters?.genre || null,
+        format: filters?.format || null
+      }
+    };
   }
 
   // Track view for a pitch

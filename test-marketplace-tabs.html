@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Marketplace Tabs</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; border: 1px solid #ccc; padding: 15px; }
+        .test-result { margin: 5px 0; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Marketplace Tabs Testing</h1>
+    
+    <div class="test-section">
+        <h3>API Endpoint Tests</h3>
+        <button onclick="testTrendingAPI()">Test Trending API</button>
+        <button onclick="testNewReleasesAPI()">Test New Releases API</button>
+        <button onclick="testGeneralBrowseAPI()">Test General Browse API</button>
+        <button onclick="testPublicPitchesAPI()">Test Public Pitches API</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Filter Tests</h3>
+        <button onclick="testGenreFilter()">Test Genre Filter</button>
+        <button onclick="testFormatFilter()">Test Format Filter</button>
+        <button onclick="testSearchFilter()">Test Search Filter</button>
+        <div id="filter-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Tab Navigation Tests</h3>
+        <p>Open the marketplace in a new tab: <a href="http://localhost:5173" target="_blank">Marketplace</a></p>
+        <ol>
+            <li>Click "Trending" tab - should show trending pitches without filters</li>
+            <li>Click "New" tab - should show new releases without filters</li>
+            <li>Click "General Browse" tab - should show advanced filtering options</li>
+            <li>Apply genre/format filters in General Browse</li>
+            <li>Switch back to Trending - filters should be cleared</li>
+        </ol>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001/api';
+
+        async function makeRequest(url) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return { success: response.ok, data };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testTrendingAPI() {
+            const result = await makeRequest(`${API_BASE}/pitches/trending?limit=5`);
+            const container = document.getElementById('api-results');
+            
+            if (result.success) {
+                const pitches = result.data.data || [];
+                container.innerHTML += `
+                    <div class="test-result success">
+                        ✅ Trending API: ${pitches.length} pitches returned
+                        ${pitches.length > 0 ? `- First: ${pitches[0].title}` : ''}
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="test-result error">
+                        ❌ Trending API failed: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        async function testNewReleasesAPI() {
+            const result = await makeRequest(`${API_BASE}/pitches/new?limit=5`);
+            const container = document.getElementById('api-results');
+            
+            if (result.success) {
+                const pitches = result.data.data || [];
+                container.innerHTML += `
+                    <div class="test-result success">
+                        ✅ New Releases API: ${pitches.length} pitches returned
+                        ${pitches.length > 0 ? `- First: ${pitches[0].title}` : ''}
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="test-result error">
+                        ❌ New Releases API failed: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        async function testGeneralBrowseAPI() {
+            const result = await makeRequest(`${API_BASE}/pitches/browse/general?sort=date&order=desc&limit=5`);
+            const container = document.getElementById('api-results');
+            
+            if (result.success) {
+                const data = result.data;
+                const pitches = data.pitches || [];
+                container.innerHTML += `
+                    <div class="test-result success">
+                        ✅ General Browse API: ${pitches.length} pitches returned
+                        - Total: ${data.totalCount || 'unknown'}
+                        - Pages: ${data.pagination?.totalPages || 'unknown'}
+                        ${pitches.length > 0 ? `- First: ${pitches[0].title}` : ''}
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="test-result error">
+                        ❌ General Browse API failed: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        async function testPublicPitchesAPI() {
+            const result = await makeRequest(`${API_BASE}/pitches/public?limit=5`);
+            const container = document.getElementById('api-results');
+            
+            if (result.success) {
+                const pitches = result.data.pitches || [];
+                container.innerHTML += `
+                    <div class="test-result success">
+                        ✅ Public Pitches API: ${pitches.length} pitches returned
+                        ${pitches.length > 0 ? `- First: ${pitches[0].title}` : ''}
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="test-result error">
+                        ❌ Public Pitches API failed: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        async function testGenreFilter() {
+            const result = await makeRequest(`${API_BASE}/pitches/public?genre=Drama&limit=5`);
+            const container = document.getElementById('filter-results');
+            
+            if (result.success) {
+                const pitches = result.data.pitches || [];
+                const dramaCount = pitches.filter(p => p.genre && p.genre.toLowerCase().includes('drama')).length;
+                container.innerHTML += `
+                    <div class="test-result ${dramaCount === pitches.length ? 'success' : 'error'}">
+                        ${dramaCount === pitches.length ? '✅' : '❌'} Genre Filter (Drama): ${pitches.length} pitches, ${dramaCount} actually drama
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="test-result error">
+                        ❌ Genre Filter failed: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        async function testFormatFilter() {
+            const result = await makeRequest(`${API_BASE}/pitches/public?format=Feature Film&limit=5`);
+            const container = document.getElementById('filter-results');
+            
+            if (result.success) {
+                const pitches = result.data.pitches || [];
+                container.innerHTML += `
+                    <div class="test-result success">
+                        ✅ Format Filter (Feature Film): ${pitches.length} pitches returned
+                        ${pitches.length > 0 ? `- First: ${pitches[0].title} (${pitches[0].format})` : ''}
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="test-result error">
+                        ❌ Format Filter failed: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        async function testSearchFilter() {
+            const result = await makeRequest(`${API_BASE}/pitches/public?search=adventure&limit=5`);
+            const container = document.getElementById('filter-results');
+            
+            if (result.success) {
+                const pitches = result.data.pitches || [];
+                container.innerHTML += `
+                    <div class="test-result success">
+                        ✅ Search Filter ("adventure"): ${pitches.length} pitches returned
+                        ${pitches.length > 0 ? `- First: ${pitches[0].title}` : ''}
+                    </div>
+                `;
+            } else {
+                container.innerHTML += `
+                    <div class="test-result error">
+                        ❌ Search Filter failed: ${result.error || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        // Run all API tests on load
+        window.onload = function() {
+            setTimeout(() => {
+                testTrendingAPI();
+                setTimeout(() => testNewReleasesAPI(), 500);
+                setTimeout(() => testGeneralBrowseAPI(), 1000);
+                setTimeout(() => testPublicPitchesAPI(), 1500);
+            }, 500);
+        };
+    </script>
+</body>
+</html>

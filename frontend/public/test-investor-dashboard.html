@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Investor Dashboard API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .card h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Investor Dashboard API Test</h1>
+        <p>Testing the investor dashboard API endpoints and data flow.</p>
+        
+        <div id="authStatus" class="status info">
+            <strong>Authentication:</strong> Not logged in
+        </div>
+        
+        <button onclick="loginAsInvestor()" id="loginBtn">Login as Investor</button>
+        <button onclick="testDashboard()" id="dashboardBtn" disabled>Test Dashboard</button>
+        <button onclick="testPortfolio()" id="portfolioBtn" disabled>Test Portfolio</button>
+        <button onclick="testFollowing()" id="followingBtn" disabled>Test Following</button>
+        <button onclick="clearResults()" id="clearBtn">Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8001';
+        let authToken = null;
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('authStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        function addResult(title, data, status = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'container';
+            resultDiv.innerHTML = `
+                <h3>${title}</h3>
+                <div class="status ${status}">
+                    <strong>Status:</strong> ${status.toUpperCase()}
+                </div>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        function showLoading(title) {
+            const resultsDiv = document.getElementById('results');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'container loading';
+            loadingDiv.id = 'loading';
+            loadingDiv.innerHTML = `
+                <h3>${title}</h3>
+                <div class="spinner"></div>
+                <p>Loading...</p>
+            `;
+            resultsDiv.appendChild(loadingDiv);
+        }
+
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        async function loginAsInvestor() {
+            showLoading('🔐 Logging in as Investor');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/auth/investor/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'sarah.investor@demo.com',
+                        password: 'Demo123'
+                    })
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    showStatus(`<strong>Authentication:</strong> Logged in as ${data.user.username} (${data.user.userType})`, 'success');
+                    
+                    // Enable other buttons
+                    document.getElementById('dashboardBtn').disabled = false;
+                    document.getElementById('portfolioBtn').disabled = false;
+                    document.getElementById('followingBtn').disabled = false;
+                    document.getElementById('loginBtn').textContent = 'Re-login';
+                    
+                    addResult('🔐 Login Success', data, 'success');
+                } else {
+                    showStatus('<strong>Authentication:</strong> Login failed', 'error');
+                    addResult('🔐 Login Failed', data, 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showStatus('<strong>Authentication:</strong> Network error', 'error');
+                addResult('🔐 Login Error', { error: error.message }, 'error');
+            }
+        }
+
+        async function testDashboard() {
+            if (!authToken) {
+                addResult('🚫 Dashboard Test', { error: 'Not authenticated' }, 'error');
+                return;
+            }
+
+            showLoading('📊 Testing Dashboard API');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/investor/dashboard`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (data.success) {
+                    addResult('📊 Dashboard API', data, 'success');
+                    
+                    // Show dashboard metrics
+                    if (data.data && data.data.data) {
+                        const dashboardData = data.data.data;
+                        const metricsDiv = document.createElement('div');
+                        metricsDiv.className = 'container';
+                        metricsDiv.innerHTML = `
+                            <h3>📈 Dashboard Metrics</h3>
+                            <div class="grid">
+                                <div class="card">
+                                    <h3>Total Investments</h3>
+                                    <div class="value">${dashboardData.portfolio?.totalInvestments || 0}</div>
+                                </div>
+                                <div class="card">
+                                    <h3>Active Deals</h3>
+                                    <div class="value">${dashboardData.portfolio?.activeDeals || 0}</div>
+                                </div>
+                                <div class="card">
+                                    <h3>Total Invested</h3>
+                                    <div class="value">$${(dashboardData.portfolio?.totalInvested || 0).toLocaleString()}</div>
+                                </div>
+                                <div class="card">
+                                    <h3>Pending Opportunities</h3>
+                                    <div class="value">${dashboardData.portfolio?.pendingOpportunities || 0}</div>
+                                </div>
+                                <div class="card">
+                                    <h3>Watchlist Items</h3>
+                                    <div class="value">${dashboardData.watchlist?.length || 0}</div>
+                                </div>
+                                <div class="card">
+                                    <h3>Recommendations</h3>
+                                    <div class="value">${dashboardData.recommendations?.length || 0}</div>
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('results').appendChild(metricsDiv);
+                    }
+                } else {
+                    addResult('📊 Dashboard API', data, 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                addResult('📊 Dashboard Error', { error: error.message }, 'error');
+            }
+        }
+
+        async function testPortfolio() {
+            if (!authToken) {
+                addResult('🚫 Portfolio Test', { error: 'Not authenticated' }, 'error');
+                return;
+            }
+
+            showLoading('💼 Testing Portfolio API');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/investor/portfolio/summary`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (data.success) {
+                    addResult('💼 Portfolio Summary API', data, 'success');
+                } else {
+                    addResult('💼 Portfolio Summary API', data, 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                addResult('💼 Portfolio Error', { error: error.message }, 'error');
+            }
+        }
+
+        async function testFollowing() {
+            if (!authToken) {
+                addResult('🚫 Following Test', { error: 'Not authenticated' }, 'error');
+                return;
+            }
+
+            showLoading('👥 Testing Following API');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/pitches/following`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (data.success) {
+                    addResult('👥 Following Pitches API', data, 'success');
+                } else {
+                    addResult('👥 Following Pitches API', data, 'warning');
+                }
+            } catch (error) {
+                hideLoading();
+                addResult('👥 Following Error', { error: error.message }, 'error');
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Auto-login if token exists
+        window.onload = function() {
+            const existingToken = localStorage.getItem('authToken');
+            if (existingToken) {
+                authToken = existingToken;
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    try {
+                        const user = JSON.parse(userData);
+                        showStatus(`<strong>Authentication:</strong> Logged in as ${user.username} (${user.userType})`, 'success');
+                        document.getElementById('dashboardBtn').disabled = false;
+                        document.getElementById('portfolioBtn').disabled = false;
+                        document.getElementById('followingBtn').disabled = false;
+                        document.getElementById('loginBtn').textContent = 'Re-login';
+                    } catch (e) {
+                        console.error('Failed to parse user data:', e);
+                    }
+                }
+            }
+        };
+    </script>
+</body>
+</html>

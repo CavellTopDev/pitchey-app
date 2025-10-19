@@ -7,7 +7,7 @@
 import { redisService } from "./redis.service.ts";
 import { presenceTrackingService, PresenceStatus } from "./presence-tracking.service.ts";
 import { AnalyticsService } from "./analytics.service.ts";
-import { sentryService, captureException } from "./sentry.service.ts";
+import { captureException } from "./logging.service.ts";
 import { WSMessage, WSMessageType } from "./websocket.service.ts";
 import { db } from "../db/client.ts";
 import { notifications, messages, users } from "../db/schema.ts";
@@ -159,7 +159,7 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error(`[Message Queue] Failed to queue message for user ${userId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'MessageQueue' });
       throw error;
     }
   }
@@ -230,7 +230,7 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error(`[Message Queue] Failed to deliver queued messages to user ${userId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'MessageQueue' });
       return [];
     }
   }
@@ -377,7 +377,7 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error("[Message Queue] Error processing queued messages:", error);
-      captureException(error);
+      captureException(error, { service: 'MessageQueue' });
     }
   }
 
@@ -481,7 +481,7 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error("[Message Queue] Failed to cleanup expired messages:", error);
-      captureException(error);
+      captureException(error, { service: 'MessageQueue' });
     }
   }
 

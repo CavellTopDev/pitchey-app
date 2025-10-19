@@ -1,7 +1,7 @@
 // Social Service - Follows, likes, and social interactions with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import type { User } from './user.service';
-import type { Pitch } from './pitch.service';
+import type { User } from '../types/api';
+import type { Pitch } from '../types/api';
 
 // Types matching Drizzle schema
 export interface Follow {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Users, Video, Calendar as CalendarIcon, X } from 'lucide-react';
-import { API_URL } from '../config/api.config';
+import { API_URL } from '../config';
 
 interface CalendarEvent {
   id: number;

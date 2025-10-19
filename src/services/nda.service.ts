@@ -1,8 +1,9 @@
-// NDA Service with complete Drizzle ORM integration
+// NDA Service with complete Drizzle ORM integration and Email Notifications
 import { db } from '../db/client.ts';
 import { ndas, ndaRequests, pitches, users, notifications } from '../db/schema.ts';
 import { eq, and, or, desc, sql } from 'drizzle-orm';
 import { z } from 'npm:zod@3.22.4';
+import { sendNDARequestEmail, sendNDAResponseEmail } from './email/index.ts';
 
 // Validation schemas
 const createNDARequestSchema = z.object({
@@ -81,6 +82,31 @@ export class NDAService {
         actionUrl: `/creator/nda-requests/${newRequest.id}`,
       });
       
+      // Send email notification to pitch owner
+      try {
+        const pitchOwner = await db.select().from(users)
+          .where(eq(users.id, pitch[0].userId))
+          .limit(1);
+        
+        const requesterInfo = await db.select().from(users)
+          .where(eq(users.id, validatedData.requesterId))
+          .limit(1);
+        
+        if (pitchOwner[0] && requesterInfo[0]) {
+          await sendNDARequestEmail(pitchOwner[0].email, {
+            recipientName: pitchOwner[0].firstName || pitchOwner[0].username,
+            senderName: requesterInfo[0].firstName ? `${requesterInfo[0].firstName} ${requesterInfo[0].lastName || ''}`.trim() : requesterInfo[0].username,
+            pitchTitle: pitch[0].title,
+            requestMessage: validatedData.requestMessage,
+            actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/creator/nda-requests/${newRequest.id}`,
+            unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send NDA request email:', emailError);
+        // Continue execution even if email fails
+      }
+      
       return newRequest;
     } catch (error) {
       console.error('Error creating NDA request:', error);
@@ -158,9 +184,8 @@ export class NDAService {
       const [nda] = await db.insert(ndas).values({
         pitchId: request.pitchId,
         signerId: request.requesterId,
-        ndaType: request.ndaType,
+        status: 'signed',
         signedAt: new Date(),
-        accessGranted: true,
       }).returning();
       
       // Create notification for requester
@@ -174,6 +199,35 @@ export class NDAService {
         relatedNdaRequestId: requestId,
         actionUrl: `/pitch/${request.pitchId}`,
       });
+      
+      // Send email notification to requester
+      try {
+        const requesterInfo = await db.select().from(users)
+          .where(eq(users.id, request.requesterId))
+          .limit(1);
+        
+        const ownerInfo = await db.select().from(users)
+          .where(eq(users.id, ownerId))
+          .limit(1);
+        
+        const pitchInfo = await db.select().from(pitches)
+          .where(eq(pitches.id, request.pitchId))
+          .limit(1);
+        
+        if (requesterInfo[0] && ownerInfo[0] && pitchInfo[0]) {
+          await sendNDAResponseEmail(requesterInfo[0].email, {
+            recipientName: requesterInfo[0].firstName || requesterInfo[0].username,
+            senderName: ownerInfo[0].firstName ? `${ownerInfo[0].firstName} ${ownerInfo[0].lastName || ''}`.trim() : ownerInfo[0].username,
+            pitchTitle: pitchInfo[0].title,
+            approved: true,
+            actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pitch/${request.pitchId}`,
+            unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send NDA approval email:', emailError);
+        // Continue execution even if email fails
+      }
       
       // Increment NDA count on pitch
       await db.update(pitches)
@@ -224,6 +278,36 @@ export class NDAService {
         relatedUserId: ownerId,
         relatedNdaRequestId: requestId,
       });
+      
+      // Send email notification to requester
+      try {
+        const requesterInfo = await db.select().from(users)
+          .where(eq(users.id, request.requesterId))
+          .limit(1);
+        
+        const ownerInfo = await db.select().from(users)
+          .where(eq(users.id, ownerId))
+          .limit(1);
+        
+        const pitchInfo = await db.select().from(pitches)
+          .where(eq(pitches.id, request.pitchId))
+          .limit(1);
+        
+        if (requesterInfo[0] && ownerInfo[0] && pitchInfo[0]) {
+          await sendNDAResponseEmail(requesterInfo[0].email, {
+            recipientName: requesterInfo[0].firstName || requesterInfo[0].username,
+            senderName: ownerInfo[0].firstName ? `${ownerInfo[0].firstName} ${ownerInfo[0].lastName || ''}`.trim() : ownerInfo[0].username,
+            pitchTitle: pitchInfo[0].title,
+            approved: false,
+            reason: rejectionReason,
+            actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/marketplace`,
+            unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send NDA rejection email:', emailError);
+        // Continue execution even if email fails
+      }
       
       return { success: true, message: 'NDA request rejected' };
     } catch (error) {
@@ -364,9 +448,11 @@ export class NDAService {
       
       // Create NDA record
       const [nda] = await db.insert(ndas).values({
-        ...validatedData,
+        pitchId: validatedData.pitchId,
+        signerId: validatedData.signerId,
+        status: 'signed',
         signedAt: new Date(),
-        accessGranted: true,
+        documentUrl: validatedData.customNdaUrl,
       }).returning();
       
       // Increment NDA count

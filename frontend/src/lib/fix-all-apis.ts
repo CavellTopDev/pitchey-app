@@ -8,8 +8,8 @@ const WS_URL = config.WS_URL;
 const originalFetch = window.fetch;
 window.fetch = function(...args) {
   let url = args[0];
-  if (typeof url === 'string' && url.includes('http://localhost:8000')) {
-    url = url.replace('http://localhost:8000', API_URL);
+  if (typeof url === 'string' && url.includes('http://localhost:8001')) {
+    url = url.replace('http://localhost:8001', API_URL);
     args[0] = url;
   }
   return originalFetch.apply(this, args);

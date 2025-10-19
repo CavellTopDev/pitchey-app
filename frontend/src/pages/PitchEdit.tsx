@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, X, Upload, FileText, Video, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Save, X, Upload, FileText, Video, Image as ImageIcon, Shield } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
-import type { Pitch, UpdatePitchInput } from '../services/pitch.service';
+import { uploadService } from '../services/upload.service';
+import type { Pitch, UpdatePitchInput } from '../types/api';
 import { getGenresSync } from '../constants/pitchConstants';
+import { CharacterManagement } from '../components/CharacterManagement';
+import { Character } from '../types/character';
+import { normalizeCharacters, serializeCharacters } from '../utils/characterUtils';
+import { DocumentUpload, DocumentFile } from '../components/DocumentUpload';
 
 interface PitchFormData {
   title: string;
@@ -14,9 +19,13 @@ interface PitchFormData {
   customFormat: string;
   logline: string;
   shortSynopsis: string;
+  themes: string;
+  worldDescription: string;
   image: File | null;
   pdf: File | null;
   video: File | null;
+  documents: DocumentFile[];
+  characters: Character[];
 }
 
 export default function PitchEdit() {
@@ -35,9 +44,13 @@ export default function PitchEdit() {
     customFormat: '',
     logline: '',
     shortSynopsis: '',
+    themes: '',
+    worldDescription: '',
     image: null,
     pdf: null,
-    video: null
+    video: null,
+    documents: [],
+    characters: []
   });
 
   const formatCategories: Record<string, string[]> = {
@@ -112,9 +125,12 @@ export default function PitchEdit() {
         customFormat: pitch.customFormat || '',
         logline: pitch.logline || '',
         shortSynopsis: pitch.shortSynopsis || '',
+        themes: pitch.themes || '',
+        worldDescription: pitch.worldDescription || '',
         image: null,
         pdf: null,
-        video: null
+        video: null,
+        characters: normalizeCharacters(pitch.characters)
       });
     } catch (error) {
       console.error('Failed to fetch pitch:', error);
@@ -167,6 +183,13 @@ export default function PitchEdit() {
     }));
   };
 
+  const handleDocumentChange = (documents: DocumentFile[]) => {
+    setFormData(prev => ({
+      ...prev,
+      documents
+    }));
+  };
+
   const validateForm = () => {
     const { title, genre, format, formatCategory, formatSubtype, customFormat, logline, shortSynopsis } = formData;
     const isCustomFormat = formatSubtype === 'Custom Format (please specify)';
@@ -193,7 +216,10 @@ export default function PitchEdit() {
         formatSubtype: formData.formatSubtype,
         customFormat: formData.customFormat,
         logline: formData.logline,
-        shortSynopsis: formData.shortSynopsis
+        shortSynopsis: formData.shortSynopsis,
+        themes: formData.themes,
+        worldDescription: formData.worldDescription,
+        characters: serializeCharacters(formData.characters)
       };
 
       // Skip file uploads for now - media upload endpoint not yet implemented
@@ -431,6 +457,91 @@ export default function PitchEdit() {
               <p className="text-xs text-gray-500 mt-1">
                 {formData.shortSynopsis.length}/500 characters recommended
               </p>
+            </div>
+          </div>
+
+          {/* Themes & World Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Themes & World Building</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label htmlFor="themes" className="block text-sm font-medium text-gray-700 mb-2">
+                  Themes
+                </label>
+                <textarea
+                  id="themes"
+                  name="themes"
+                  value={formData.themes}
+                  onChange={handleInputChange}
+                  rows={4}
+                  maxLength={1000}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Describe the themes explored in your story (e.g., love, betrayal, redemption, social justice, family bonds, etc.)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.themes.length}/1000 characters | Recommended: 500-1000 characters
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="worldDescription" className="block text-sm font-medium text-gray-700 mb-2">
+                  World & Setting
+                </label>
+                <textarea
+                  id="worldDescription"
+                  name="worldDescription"
+                  value={formData.worldDescription}
+                  onChange={handleInputChange}
+                  rows={6}
+                  maxLength={2000}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Describe the world, setting, and environment of your story. Include time period, location, atmosphere, visual style, and any unique world-building elements..."
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.worldDescription.length}/2000 characters | Describe the world and setting in detail
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Characters Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <CharacterManagement
+              characters={formData.characters}
+              onChange={(characters) => setFormData(prev => ({ ...prev, characters }))}
+              maxCharacters={10}
+            />
+          </div>
+
+          {/* Document Upload Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Project Documents</h2>
+            
+            <DocumentUpload
+              documents={formData.documents}
+              onChange={handleDocumentChange}
+              maxFiles={15}
+              maxFileSize={10}
+              disabled={isSubmitting}
+              showProgress={true}
+              enableDragDrop={true}
+              showPreview={true}
+            />
+            
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900">Document Guidelines</h4>
+                  <ul className="text-sm text-blue-800 mt-1 space-y-1">
+                    <li>• Upload updated scripts, treatments, pitch decks, and supporting materials</li>
+                    <li>• Each file must be under 10MB (PDF, DOC, DOCX, PPT, PPTX, TXT)</li>
+                    <li>• Changes to documents will be visible to investors who have access</li>
+                    <li>• Consider version control for important document updates</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
 

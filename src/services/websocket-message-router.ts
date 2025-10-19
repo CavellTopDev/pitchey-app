@@ -7,7 +7,7 @@ import { WSSession, WSMessage, WSMessageType, PresenceStatus } from "./websocket
 import { webSocketRedisService } from "./websocket-redis.service.ts";
 import { AnalyticsService } from "./analytics.service.ts";
 import { NotificationService } from "./notification.service.ts";
-import { sentryService, captureException } from "./sentry.service.ts";
+import { captureException } from "./logging.service.ts";
 import { db } from "../db/client.ts";
 import { 
   users, pitches, notifications, messages, conversations, conversationParticipants,
@@ -170,7 +170,7 @@ export class WebSocketMessageRouter {
 
     } catch (error) {
       console.error(`[WebSocket Router] Error routing message ${message.type}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketMessageRouter' });
       
       // Track failed message processing
       await this.trackMessageAnalytics(session, message, 'error', error.message);

@@ -5,10 +5,17 @@ import { useAuthStore } from '../store/authStore';
 import { useToast } from '../components/Toast/ToastProvider';
 import LoadingSpinner from '../components/Loading/LoadingSpinner';
 import { pitchService } from '../services/pitch.service';
+import { uploadService } from '../services/upload.service';
 import { getGenresSync, getFormatsSync, FALLBACK_GENRES } from '../constants/pitchConstants';
 import { validatePitchForm, FormValidator, validationSchemas } from '../utils/validation';
 import { a11y } from '../utils/accessibility';
 import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../constants/messages';
+import { CharacterManagement } from '../components/CharacterManagement';
+import { Character } from '../types/character';
+import { serializeCharacters } from '../utils/characterUtils';
+import { DocumentUpload, DocumentFile } from '../components/DocumentUpload';
+
+// DocumentFile interface is now imported from DocumentUpload component
 
 interface PitchFormData {
   title: string;
@@ -19,10 +26,18 @@ interface PitchFormData {
   customFormat: string;
   logline: string;
   shortSynopsis: string;
+  themes: string;
+  worldDescription: string;
   image: File | null;
   pdf: File | null;
   video: File | null;
-  requireNDA: boolean;
+  documents: DocumentFile[];
+  ndaConfig: {
+    requireNDA: boolean;
+    ndaType: 'none' | 'platform' | 'custom';
+    customNDA: File | null;
+  };
+  characters: Character[];
 }
 
 export default function CreatePitch() {
@@ -41,16 +56,25 @@ export default function CreatePitch() {
     customFormat: '',
     logline: '',
     shortSynopsis: '',
+    themes: '',
+    worldDescription: '',
     image: null,
     pdf: null,
     video: null,
-    requireNDA: false
+    documents: [],
+    ndaConfig: {
+      requireNDA: false,
+      ndaType: 'none',
+      customNDA: null
+    },
+    characters: []
   });
   
   // Form validation state
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const formRef = useRef<HTMLFormElement>(null);
+  const customNDARef = useRef<HTMLInputElement>(null);
   
   // Initialize accessibility announcer
   useEffect(() => {
@@ -217,6 +241,58 @@ export default function CreatePitch() {
     a11y.announcer.announce(MESSAGES.A11Y.FILE_REMOVED);
   };
 
+  const handleDocumentChange = (documents: DocumentFile[]) => {
+    setFormData(prev => ({
+      ...prev,
+      documents
+    }));
+  };
+  
+  // Document type detection is now handled by the DocumentUpload component
+  
+  // Document updates are now handled by the DocumentUpload component
+  
+  // Document removal is now handled by the DocumentUpload component
+  
+  const handleNDAChange = (ndaType: 'none' | 'platform' | 'custom') => {
+    setFormData(prev => ({
+      ...prev,
+      ndaConfig: {
+        ...prev.ndaConfig,
+        requireNDA: ndaType !== 'none',
+        ndaType,
+        customNDA: ndaType !== 'custom' ? null : prev.ndaConfig.customNDA
+      }
+    }));
+  };
+  
+  const handleCustomNDAUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        error('Invalid file type', 'Custom NDA must be a PDF file.');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        error('File too large', 'Custom NDA must be less than 10MB.');
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        ndaConfig: {
+          ...prev.ndaConfig,
+          customNDA: file
+        }
+      }));
+    }
+  };
+  
+  // Document icon function is now handled by the DocumentUpload component
+  
+  // Document type label function is now handled by the DocumentUpload component
+
   // Real-time field validation
   const validateField = (fieldName: string, value: any) => {
     const result = validatePitchForm({ ...formData, [fieldName]: value });
@@ -278,12 +354,13 @@ export default function CreatePitch() {
         format: finalFormat,
         logline: formData.logline,
         shortSynopsis: formData.shortSynopsis,
-        requireNDA: formData.requireNDA,
+        requireNDA: formData.ndaConfig.requireNDA,
         budgetBracket: 'Medium',
         estimatedBudget: 1000000,
         productionTimeline: '6-12 months',
-        themes: [],
-        characters: [],
+        themes: formData.themes,
+        worldDescription: formData.worldDescription,
+        characters: serializeCharacters(formData.characters),
         aiUsed: false
       });
 
@@ -599,26 +676,244 @@ export default function CreatePitch() {
             </div>
           </div>
 
-          {/* NDA Requirement */}
+          {/* Themes & World Section */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Privacy & Protection</h2>
-            <div className="flex items-start gap-3">
-              <input
-                {...a11y.formField.getAttributes({
-                  id: 'requireNDA',
-                  label: 'NDA Requirement',
-                  required: false,
-                  helpId: 'requireNDA-help'
-                })}
-                type="checkbox"
-                checked={formData.requireNDA}
-                onChange={(e) => setFormData(prev => ({ ...prev, requireNDA: e.target.checked }))}
-                className={`mt-1 w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 ${a11y.classes.focusVisible}`}
-              />
-              <label htmlFor="requireNDA" className="text-sm text-gray-700">
-                <span className="font-medium block">{MESSAGES.LABELS.REQUIRE_NDA}</span>
-                <span id="requireNDA-help" className="text-gray-500">{MESSAGES.INFO.NDA_PROTECTION}</span>
-              </label>
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Themes & World Building</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label 
+                  htmlFor="themes"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Themes
+                </label>
+                <textarea
+                  id="themes"
+                  name="themes"
+                  value={formData.themes}
+                  onChange={handleInputChange}
+                  onBlur={() => handleBlur('themes')}
+                  rows={4}
+                  maxLength={1000}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                    fieldErrors.themes?.length > 0 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-purple-500'
+                  } focus:outline-none focus:ring-2`}
+                  placeholder="Describe the themes explored in your story (e.g., love, betrayal, redemption, social justice, family bonds, etc.)"
+                />
+                {fieldErrors.themes?.length > 0 && (
+                  <div className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
+                    {fieldErrors.themes[0]}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.themes.length}/1000 characters | Recommended: 500-1000 characters
+                </p>
+              </div>
+
+              <div>
+                <label 
+                  htmlFor="worldDescription"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  World & Setting
+                </label>
+                <textarea
+                  id="worldDescription"
+                  name="worldDescription"
+                  value={formData.worldDescription}
+                  onChange={handleInputChange}
+                  onBlur={() => handleBlur('worldDescription')}
+                  rows={6}
+                  maxLength={2000}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors ${
+                    fieldErrors.worldDescription?.length > 0 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-purple-500'
+                  } focus:outline-none focus:ring-2`}
+                  placeholder="Describe the world, setting, and environment of your story. Include time period, location, atmosphere, visual style, and any unique world-building elements..."
+                />
+                {fieldErrors.worldDescription?.length > 0 && (
+                  <div className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
+                    {fieldErrors.worldDescription[0]}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.worldDescription.length}/2000 characters | Describe the world and setting in detail
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Characters Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <CharacterManagement
+              characters={formData.characters}
+              onChange={(characters) => setFormData(prev => ({ ...prev, characters }))}
+              maxCharacters={10}
+            />
+          </div>
+
+          {/* Document Upload Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Upload Documents</h2>
+            
+            <DocumentUpload
+              documents={formData.documents}
+              onChange={handleDocumentChange}
+              maxFiles={15}
+              maxFileSize={10}
+              disabled={isSubmitting}
+              showProgress={true}
+              enableDragDrop={true}
+              showPreview={true}
+            />
+            
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900">Document Guidelines</h4>
+                  <ul className="text-sm text-blue-800 mt-1 space-y-1">
+                    <li>• Upload scripts, treatments, pitch decks, visual lookbooks, and supporting materials</li>
+                    <li>• Each file must be under 10MB (PDF, DOC, DOCX, PPT, PPTX, TXT)</li>
+                    <li>• Documents help investors understand your project better</li>
+                    <li>• NDA-protected content will only be visible after agreement signing</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* NDA Configuration */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">NDA Configuration</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">NDA Requirements</p>
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ndaType"
+                      value="none"
+                      checked={formData.ndaConfig.ndaType === 'none'}
+                      onChange={() => handleNDAChange('none')}
+                      className="mt-1 w-4 h-4 text-purple-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">No NDA Required</span>
+                      <p className="text-xs text-gray-500">All content will be publicly accessible</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ndaType"
+                      value="platform"
+                      checked={formData.ndaConfig.ndaType === 'platform'}
+                      onChange={() => handleNDAChange('platform')}
+                      className="mt-1 w-4 h-4 text-purple-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">Use Platform Standard NDA</span>
+                      <p className="text-xs text-gray-500">Viewers must sign our standard NDA to access detailed content</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ndaType"
+                      value="custom"
+                      checked={formData.ndaConfig.ndaType === 'custom'}
+                      onChange={() => handleNDAChange('custom')}
+                      className="mt-1 w-4 h-4 text-purple-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">Use Custom NDA</span>
+                      <p className="text-xs text-gray-500">Upload your own NDA document for viewers to sign</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              
+              {/* Custom NDA Upload */}
+              {formData.ndaConfig.ndaType === 'custom' && (
+                <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <label className="block text-sm font-medium text-purple-900 mb-2">
+                    Upload Custom NDA
+                  </label>
+                  <input
+                    ref={customNDARef}
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleCustomNDAUpload}
+                    className="hidden"
+                  />
+                  
+                  {formData.ndaConfig.customNDA ? (
+                    <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
+                      <div className="flex items-center gap-3">
+                        <Shield className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <span className="text-sm font-medium">{formData.ndaConfig.customNDA.name}</span>
+                          <p className="text-xs text-gray-500">
+                            {(formData.ndaConfig.customNDA.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          ndaConfig: { ...prev.ndaConfig, customNDA: null }
+                        }))}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => customNDARef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload NDA (PDF only)
+                    </button>
+                  )}
+                  
+                  <p className="text-xs text-purple-700 mt-2">
+                    Your custom NDA will be presented to viewers before they can access detailed pitch content.
+                  </p>
+                </div>
+              )}
+              
+              {/* NDA Info */}
+              {formData.ndaConfig.requireNDA && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-900">NDA Protection Active</h4>
+                      <p className="text-sm text-blue-800 mt-1">
+                        {formData.ndaConfig.ndaType === 'platform' 
+                          ? 'Viewers will need to sign our standard NDA to access detailed content, scripts, and media files.'
+                          : 'Viewers will need to sign your custom NDA to access detailed content, scripts, and media files.'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

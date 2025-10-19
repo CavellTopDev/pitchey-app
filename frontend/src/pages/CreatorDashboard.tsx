@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Film, TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, LogOut, Plus, Shield, CreditCard, Coins } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI, apiClient } from '../lib/apiServices';
+import { NDANotificationBadge, NDANotificationPanel } from '../components/NDANotifications';
 
 export default function CreatorDashboard() {
   const navigate = useNavigate();
@@ -144,9 +145,8 @@ export default function CreatorDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
-    logout();
-    window.location.href = '/';
+    console.log('Logout button clicked - initiating logout');
+    logout(); // This will automatically clear storage and navigate to appropriate login page
   };
 
   if (loading) {
@@ -241,6 +241,9 @@ export default function CreatorDashboard() {
                 <Plus className="w-4 h-4" />
                 New Pitch
               </button>
+              
+              {/* NDA Notifications */}
+              <NDANotificationBadge className="" />
               
               <button
                 onClick={handleLogout}
@@ -461,6 +464,9 @@ export default function CreatorDashboard() {
           </div>
         </div>
 
+        {/* NDA Notifications Panel */}
+        <NDANotificationPanel className="mb-8" />
+        
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recent Activity */}

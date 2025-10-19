@@ -5,7 +5,7 @@
 
 import { AnalyticsService } from "./analytics.service.ts";
 import { redisService } from "./redis.service.ts";
-import { sentryService, captureException } from "./sentry.service.ts";
+import { captureException, addBreadcrumb } from "./logging.service.ts";
 import { WSSession, WSMessage, WSMessageType } from "./websocket.service.ts";
 import { PresenceStatus } from "./presence-tracking.service.ts";
 import { MessagePriority } from "./message-queue.service.ts";
@@ -220,7 +220,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track session start:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -271,7 +271,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track session end:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -339,7 +339,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track message:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -377,8 +377,8 @@ export class WebSocketAnalyticsService {
         }
       });
 
-      // Log to Sentry
-      sentryService.addBreadcrumb({
+      // Log to console for debugging
+      addBreadcrumb({
         category: 'websocket.error',
         message: errorMessage,
         level: 'error',
@@ -387,7 +387,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track error:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -431,7 +431,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track latency:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -460,7 +460,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track rate limit:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -494,7 +494,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track presence change:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -533,7 +533,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to track feature usage:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -712,7 +712,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to aggregate metrics:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 
@@ -734,7 +734,7 @@ export class WebSocketAnalyticsService {
 
     } catch (error) {
       console.error(`[WebSocket Analytics] Failed to cleanup old data:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketAnalytics' });
     }
   }
 

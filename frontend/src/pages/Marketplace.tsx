@@ -47,10 +47,15 @@ export default function Marketplace() {
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [filteredPitches, setFilteredPitches] = useState<Pitch[]>([]);
   const [trendingPitches, setTrendingPitches] = useState<Pitch[]>([]);
+  const [newPitches, setNewPitches] = useState<Pitch[]>([]);
+  const [browsePitches, setBrowsePitches] = useState<Pitch[]>([]);
+  const [browseMetadata, setBrowseMetadata] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('');
+  const [sortBy, setSortBy] = useState<'alphabetical' | 'date' | 'budget' | 'views' | 'likes'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentView, setCurrentView] = useState('all');
   
   // Pagination state
@@ -97,73 +102,114 @@ export default function Marketplace() {
   useEffect(() => {
     const hash = location.hash.slice(1) || 'all';
     setCurrentView(hash);
+    
+    // Clear genre/format filters when switching to trending or new views
+    if (hash === 'trending' || hash === 'new') {
+      setSelectedGenre('');
+      setSelectedFormat('');
+    }
   }, [location.hash]);
   
   // Apply filter whenever view, pitches, genre, format or search change
   useEffect(() => {
     applyFilters();
-  }, [currentView, pitches, selectedGenre, selectedFormat, searchQuery]);
+  }, [currentView, pitches, trendingPitches, newPitches, browsePitches, selectedGenre, selectedFormat, searchQuery]);
 
   useEffect(() => {
     loadPitches();
     loadTrendingPitches();
+    loadNewPitches();
   }, []);
 
+  // Load browse pitches when browse view is active or filters change
+  useEffect(() => {
+    if (currentView === 'browse') {
+      loadBrowsePitches();
+    }
+  }, [currentView, sortBy, sortOrder, selectedGenre, selectedFormat, currentPage]);
+
+  // Load trending and new data when those views become active
+  useEffect(() => {
+    if (currentView === 'trending' && trendingPitches.length === 0) {
+      loadTrendingPitches();
+    }
+    if (currentView === 'new' && newPitches.length === 0) {
+      loadNewPitches();
+    }
+  }, [currentView]);
+
   const applyFilters = () => {
-    let filtered = [...pitches];
+    let filtered: Pitch[] = [];
     
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.title?.toLowerCase().includes(query) ||
-        p.logline?.toLowerCase().includes(query) ||
-        p.genre?.toLowerCase().includes(query)
-      );
-    }
-    
-    // Apply genre filter
-    if (selectedGenre) {
-      filtered = filtered.filter(p => 
-        p.genre?.toLowerCase() === selectedGenre.toLowerCase()
-      );
-    }
-    
-    // Apply format filter
-    if (selectedFormat) {
-      filtered = filtered.filter(p => 
-        p.format?.toLowerCase().replace(/\s+/g, '') === 
-        selectedFormat.toLowerCase().replace(/\s+/g, '')
-      );
-    }
-    
-    // Apply view-specific sorting/filtering
+    // Get the appropriate data source based on the current view
     switch(currentView) {
       case 'trending':
-        // Sort by view count (most viewed)
-        filtered = filtered.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+        // For trending, show all trending pitches without additional filtering
+        // unless there's a search query, then apply search to trending data
+        filtered = [...trendingPitches];
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          filtered = filtered.filter(p => 
+            p.title?.toLowerCase().includes(query) ||
+            p.logline?.toLowerCase().includes(query) ||
+            p.genre?.toLowerCase().includes(query)
+          );
+        }
         break;
       case 'new':
-        // Sort by creation date (newest first)
-        filtered = filtered.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        // For new releases, show all new pitches without additional filtering
+        // unless there's a search query, then apply search to new data
+        filtered = [...newPitches];
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          filtered = filtered.filter(p => 
+            p.title?.toLowerCase().includes(query) ||
+            p.logline?.toLowerCase().includes(query) ||
+            p.genre?.toLowerCase().includes(query)
+          );
+        }
         break;
-      case 'top-rated':
-        // Sort by like count (most liked)
-        filtered = filtered.sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0));
+      case 'browse':
+        // For browse, data is already filtered and sorted by backend
+        filtered = [...browsePitches];
         break;
       case 'genres':
-        // Just apply genre filter
-        break;
       case 'formats':
-        // Just apply format filter
-        break;
+      case 'all':
       default:
-        // Show all pitches
+        // For general views, apply all filters
+        filtered = [...pitches];
+        
+        // Apply search filter
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          filtered = filtered.filter(p => 
+            p.title?.toLowerCase().includes(query) ||
+            p.logline?.toLowerCase().includes(query) ||
+            p.genre?.toLowerCase().includes(query)
+          );
+        }
+        
+        // Apply genre filter
+        if (selectedGenre) {
+          filtered = filtered.filter(p => 
+            p.genre?.toLowerCase() === selectedGenre.toLowerCase()
+          );
+        }
+        
+        // Apply format filter
+        if (selectedFormat) {
+          filtered = filtered.filter(p => 
+            p.format?.toLowerCase().replace(/\s+/g, '') === 
+            selectedFormat.toLowerCase().replace(/\s+/g, '')
+          );
+        }
+        
+        // Sort the results
         filtered = filtered.sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
+        break;
     }
     
     setFilteredPitches(filtered);
@@ -187,7 +233,7 @@ export default function Marketplace() {
   const loadTrendingPitches = async () => {
     try {
       // Use the dedicated trending endpoint
-      const trending = await pitchService.getTrendingPitches(4);
+      const trending = await pitchService.getTrendingPitches(20);
       setTrendingPitches(trending);
     } catch (err) {
       console.error('Failed to load trending pitches:', err);
@@ -196,11 +242,60 @@ export default function Marketplace() {
         const { pitches: pitchesData } = await pitchService.getPublicPitches();
         if (Array.isArray(pitchesData)) {
           const trending = [...pitchesData].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-          setTrendingPitches(trending.slice(0, 4));
+          setTrendingPitches(trending.slice(0, 20));
         }
       } catch (fallbackErr) {
         console.error('Fallback also failed:', fallbackErr);
+        setTrendingPitches([]);
       }
+    }
+  };
+
+  const loadNewPitches = async () => {
+    try {
+      // Use the dedicated new releases endpoint
+      const newReleases = await pitchService.getNewReleases(20);
+      setNewPitches(newReleases);
+    } catch (err) {
+      console.error('Failed to load new pitches:', err);
+      // Fallback to manual sorting if endpoint fails
+      try {
+        const { pitches: pitchesData } = await pitchService.getPublicPitches();
+        if (Array.isArray(pitchesData)) {
+          const newReleases = [...pitchesData].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          setNewPitches(newReleases.slice(0, 20));
+        }
+      } catch (fallbackErr) {
+        console.error('New pitches fallback also failed:', fallbackErr);
+        setNewPitches([]);
+      }
+    }
+  };
+
+  const loadBrowsePitches = async () => {
+    try {
+      setLoading(true);
+      const offset = (currentPage - 1) * itemsPerPage;
+      
+      const result = await pitchService.getGeneralBrowse({
+        sort: sortBy,
+        order: sortOrder,
+        genre: selectedGenre || undefined,
+        format: selectedFormat || undefined,
+        limit: itemsPerPage,
+        offset
+      });
+      
+      setBrowsePitches(result.pitches);
+      setBrowseMetadata(result);
+    } catch (err) {
+      console.error('Failed to load browse pitches:', err);
+      setBrowsePitches([]);
+      setBrowseMetadata(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -213,17 +308,27 @@ export default function Marketplace() {
     setSearchQuery('');
     setSelectedGenre('');
     setSelectedFormat('');
+    setSortBy('date');
+    setSortOrder('desc');
     setCurrentPage(1);
   };
 
-  // Get paginated pitches
+  // Get paginated pitches - different logic for browse vs other views
   const getPaginatedPitches = () => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredPitches.slice(startIndex, endIndex);
+    if (currentView === 'browse') {
+      // Browse view uses backend pagination
+      return browsePitches;
+    } else {
+      // Other views use frontend pagination
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      return filteredPitches.slice(startIndex, endIndex);
+    }
   };
 
-  const totalPages = Math.ceil(filteredPitches.length / itemsPerPage);
+  const totalPages = currentView === 'browse' 
+    ? (browseMetadata?.pagination?.totalPages || 1)
+    : Math.ceil(filteredPitches.length / itemsPerPage);
   const paginatedPitches = getPaginatedPitches();
 
   const handlePageChange = (page: number) => {
@@ -270,13 +375,13 @@ export default function Marketplace() {
                   New
                 </a>
                 <a 
-                  href="#top-rated" 
+                  href="#browse" 
                   className={`flex items-center gap-1 font-medium transition ${
-                    currentView === 'top-rated' ? 'text-purple-600' : 'text-gray-700 hover:text-purple-600'
+                    currentView === 'browse' ? 'text-purple-600' : 'text-gray-700 hover:text-purple-600'
                   }`}
                 >
-                  <Star className="w-4 h-4" />
-                  Top Rated
+                  <Filter className="w-4 h-4" />
+                  General Browse
                 </a>
                 <a 
                   href="#genres" 
@@ -408,7 +513,7 @@ export default function Marketplace() {
               <h2 className="text-2xl font-bold text-gray-900">Trending Now</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {trendingPitches.map((pitch) => {
+              {trendingPitches.slice(0, 4).map((pitch) => {
                 const isProduction = pitch.creator?.userType === 'production';
                 const isInvestor = pitch.creator?.userType === 'investor';
                 const borderColor = 
@@ -478,69 +583,478 @@ export default function Marketplace() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">
-            {currentView === 'trending' && 'Trending Pitches'}
-            {currentView === 'new' && 'New Releases'}
-            {currentView === 'top-rated' && 'Top Rated'}
-            {currentView === 'genres' && 'Browse by Genre'}
-            {currentView === 'all' && 'All Pitches'}
-            {searchQuery && ` - "${searchQuery}"`}
-            {selectedGenre && ` - ${selectedGenre}`}
-            {selectedFormat && ` - ${selectedFormat}`}
-          </h2>
-          
-          <div className="flex flex-wrap items-center space-x-4">
-            <select
-              value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="">All Genres</option>
-              {genres.map((genre) => (
-                <option key={genre} value={genre}>{genre}</option>
-              ))}
-            </select>
-            
-            <select
-              value={selectedFormat}
-              onChange={(e) => setSelectedFormat(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="">All Formats</option>
-              {formats.map((format) => (
-                <option key={format} value={format}>{format}</option>
-              ))}
-            </select>
-            
-            {(selectedGenre || selectedFormat || searchQuery) && (
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Clear Filters
-              </button>
-            )}
+        {/* Browse View - Car Shopping Layout */}
+        {currentView === 'browse' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-6">
+            {/* Left Sidebar - Filters */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters & Sorting</h3>
+                
+                {/* Sort By */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="date">Date</option>
+                    <option value="alphabetical">Alphabetical</option>
+                    <option value="budget">Budget</option>
+                    <option value="views">Views</option>
+                    <option value="likes">Likes</option>
+                  </select>
+                </div>
+
+                {/* Sort Order */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    {sortBy === 'alphabetical' ? (
+                      <>
+                        <option value="asc">A to Z</option>
+                        <option value="desc">Z to A</option>
+                      </>
+                    ) : sortBy === 'date' ? (
+                      <>
+                        <option value="desc">Newest First</option>
+                        <option value="asc">Oldest First</option>
+                      </>
+                    ) : sortBy === 'budget' ? (
+                      <>
+                        <option value="desc">High to Low</option>
+                        <option value="asc">Low to High</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="desc">Highest First</option>
+                        <option value="asc">Lowest First</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {/* Genre Filter */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Genre</label>
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">All Genres</option>
+                    {genres.map((genre) => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Format Filter */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Format</label>
+                  <select
+                    value={selectedFormat}
+                    onChange={(e) => setSelectedFormat(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">All Formats</option>
+                    {formats.map((format) => (
+                      <option key={format} value={format}>{format}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Clear Filters */}
+                {(selectedGenre || selectedFormat || sortBy !== 'date' || sortOrder !== 'desc') && (
+                  <button
+                    onClick={() => {
+                      setSelectedGenre('');
+                      setSelectedFormat('');
+                      setSortBy('date');
+                      setSortOrder('desc');
+                      setCurrentPage(1);
+                    }}
+                    className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                  >
+                    Clear All Filters
+                  </button>
+                )}
+
+                {/* Results Summary */}
+                {browseMetadata && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="text-sm text-gray-600">
+                      <p className="font-medium">
+                        {browseMetadata.totalCount} results found
+                      </p>
+                      <p>
+                        Page {browseMetadata.pagination.currentPage} of {browseMetadata.pagination.totalPages}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Content - Results */}
+            <div className="lg:col-span-3">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  General Browse
+                  {selectedGenre && ` - ${selectedGenre}`}
+                  {selectedFormat && ` - ${selectedFormat}`}
+                </h2>
+                <div className="text-sm text-gray-500">
+                  {browseMetadata && `${browseMetadata.totalCount} pitches`}
+                </div>
+              </div>
+              
+              {/* Browse Results Grid will be rendered below */}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Standard Filters for other views */
+          <div className="flex flex-wrap items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">
+              {currentView === 'trending' && 'Trending Pitches'}
+              {currentView === 'new' && 'New Releases'}
+              {currentView === 'genres' && 'Browse by Genre'}
+              {currentView === 'all' && 'All Pitches'}
+              {searchQuery && ` - "${searchQuery}"`}
+              {selectedGenre && ` - ${selectedGenre}`}
+              {selectedFormat && ` - ${selectedFormat}`}
+            </h2>
+            
+            <div className="flex flex-wrap items-center space-x-4">
+              {/* Show genre/format filters only for appropriate views */}
+              {(currentView === 'all' || currentView === 'genres' || currentView === 'formats') && (
+                <>
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">All Genres</option>
+                    {genres.map((genre) => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    value={selectedFormat}
+                    onChange={(e) => setSelectedFormat(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">All Formats</option>
+                    {formats.map((format) => (
+                      <option key={format} value={format}>{format}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+              
+              {/* Show clear filters if any filters are active */}
+              {(selectedGenre || selectedFormat || searchQuery) && (
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  Clear Filters
+                </button>
+              )}
+              
+              {/* Show info for trending/new views */}
+              {(currentView === 'trending' || currentView === 'new') && !searchQuery && (
+                <div className="text-sm text-gray-500 italic">
+                  {currentView === 'trending' ? 'Showing curated trending content' : 'Showing latest releases'}
+                  {searchQuery && ' (filtered by search)'}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Pitches Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <PitchCardSkeleton key={index} />
-            ))}
+        {currentView === 'browse' && (
+          /* Browse view continues in the right column */
+          <div className="lg:col-span-3 -mt-6">
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <PitchCardSkeleton key={index} />
+                ))}
+              </div>
+            ) : paginatedPitches.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {paginatedPitches.map((pitch) => {
+                    // Determine card styling based on user type
+                    const isProduction = pitch.creator?.userType === 'production';
+                    const isInvestor = pitch.creator?.userType === 'investor';
+                    
+                    const borderColor = 
+                      isProduction ? 'border-purple-500 shadow-purple-300' :
+                      isInvestor ? 'border-green-500 shadow-green-300' :
+                      'border-blue-300 shadow-blue-200';
+                    
+                    const bgGradient = 
+                      isProduction ? 'from-purple-400 to-purple-600' :
+                      isInvestor ? 'from-green-400 to-green-600' :
+                      'from-gray-400 to-gray-600';
+                      
+                    return (
+                    <div
+                      key={pitch.id}
+                      className={`bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all cursor-pointer overflow-hidden border-2 ${borderColor} relative group`}
+                      style={{
+                        boxShadow: isProduction ? '0 0 20px rgba(168, 85, 247, 0.3)' :
+                                   isInvestor ? '0 0 20px rgba(34, 197, 94, 0.3)' :
+                                   '0 0 20px rgba(59, 130, 246, 0.2)'
+                      }}
+                    >
+                      {/* Enhanced badge for production companies */}
+                      {isProduction && (
+                        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+                          <span className="bg-purple-600 text-white px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
+                            <Building2 className="w-3 h-3" />
+                            Production
+                          </span>
+                          {pitch.budget && (
+                            <span className="bg-black/70 text-white px-2 py-1 rounded text-xs">
+                              {pitch.budget}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {isInvestor && (
+                        <div className="absolute top-2 left-2 z-10">
+                          <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold flex items-center gap-1">
+                            <DollarSign className="w-3 h-3" />
+                            Investor
+                          </span>
+                        </div>
+                      )}
+                      
+                      <div 
+                        onClick={() => navigate(`/pitch/${pitch.id}`)}
+                        className={`aspect-video bg-gradient-to-br ${bgGradient} flex items-center justify-center text-white font-bold text-sm relative cursor-pointer hover:opacity-90 transition-opacity`}
+                      >
+                        <Film className="w-8 h-8 text-white/50 absolute" />
+                        <div className="z-10 text-center">
+                          <FormatDisplay 
+                            formatCategory={pitch.formatCategory}
+                            formatSubtype={pitch.formatSubtype}
+                            format={pitch.format}
+                            variant="subtype-only"
+                            className="text-white"
+                          />
+                        </div>
+                        
+                        {/* Enhanced media indicators for production pitches */}
+                        {isProduction && (
+                          <div className="absolute bottom-2 right-2 flex gap-2">
+                            {pitch.lookbookUrl && <BookOpen className="w-4 h-4 text-white/80" title="Lookbook Available" />}
+                            {pitch.scriptUrl && <FileText className="w-4 h-4 text-white/80" title="Script Available" />}
+                            {pitch.trailerUrl && <Video className="w-4 h-4 text-white/80" title="Trailer Available" />}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-bold text-lg text-gray-900 line-clamp-2">
+                            {pitch.title}
+                          </h3>
+                        </div>
+                        
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                          {pitch.logline}
+                        </p>
+                        
+                        <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                          <span className="px-2 py-1 bg-gray-100 rounded-full">
+                            {pitch.genre}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <div className={`flex items-center gap-1 font-medium ${
+                              isProduction ? 'text-purple-600' :
+                              isInvestor ? 'text-green-600' :
+                              'text-blue-600'
+                            }`}>
+                              {isProduction ? (
+                                <>
+                                  <Building2 className="w-3 h-3" />
+                                  <span>Production</span>
+                                </>
+                              ) : isInvestor ? (
+                                <>
+                                  <Wallet className="w-3 h-3" />
+                                  <span>Investor</span>
+                                </>
+                              ) : (
+                                <>
+                                  <User className="w-3 h-3" />
+                                  <span>Creator</span>
+                                </>
+                              )}
+                            </div>
+                            {isAuthenticated && pitch.creator?.id && (
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <FollowButton 
+                                  creatorId={pitch.creator.id}
+                                  variant="small" 
+                                  className="text-xs px-2 py-1"
+                                  showFollowingText={false}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Creator name display */}
+                        <div className="mb-3 text-sm">
+                          <span className="text-gray-500">by </span>
+                          <span className={`font-medium ${
+                            isProduction ? 'text-purple-700' :
+                            isInvestor ? 'text-green-700' :
+                            'text-gray-700'
+                          }`}>
+                            {pitch.creator?.companyName || pitch.creator?.username || 'Anonymous'}
+                          </span>
+                        </div>
+                        
+                        {/* NDA indicator for production/investor pitches */}
+                        {(isProduction || isInvestor) && (
+                          <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-xs text-amber-800">
+                              <Shield className="w-3 h-3" />
+                              <span className="font-medium">NDA Required for Full Access</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <div className="flex items-center space-x-3">
+                            <span className="flex items-center space-x-1">
+                              <Eye className="w-3 h-3" />
+                              <span>{pitch.viewCount}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Heart className="w-3 h-3" />
+                              <span>{pitch.likeCount}</span>
+                            </span>
+                            {pitch.ndaCount > 0 && (
+                              <span className="flex items-center space-x-1 text-purple-500">
+                                <Shield className="w-3 h-3" />
+                                <span>{pitch.ndaCount}</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-3 h-3" />
+                            <span>{formatDate(pitch.createdAt)}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Action buttons for all pitches */}
+                        <div className="mt-4 pt-4 border-t flex gap-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/pitch/${pitch.id}`);
+                            }}
+                            className="flex-1 py-2 bg-purple-100 text-purple-700 text-sm font-medium rounded hover:bg-purple-200 transition"
+                          >
+                            View Details
+                          </button>
+                          
+                          {isProduction && (
+                            <button 
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await pitchService.requestNDA(pitch.id, {
+                              fullName: user?.username || "Anonymous User",
+                              email: user?.email || "noemail@example.com", 
+                              company: user?.companyName || "",
+                              purpose: "Request for full pitch materials and production details"
+                            });
+                                  toast?.success("NDA request sent successfully!");
+                                } catch (error) {
+                                  console.error("Error requesting NDA:", error);
+                                  toast?.error("Failed to send NDA request. Please try again.");
+                                }
+                              }}
+                              className="flex-1 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded hover:bg-blue-200 transition flex items-center justify-center gap-1"
+                            >
+                              <Lock className="w-3 h-3" />
+                              Request Full
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Browse Pagination */}
+                {browseMetadata && browseMetadata.pagination.totalPages > 1 && (
+                  <div className="mt-8">
+                    <Pagination
+                      currentPage={browseMetadata.pagination.currentPage}
+                      totalPages={browseMetadata.pagination.totalPages}
+                      onPageChange={handlePageChange}
+                      showTotal={true}
+                      totalItems={browseMetadata.totalCount}
+                      itemsPerPage={browseMetadata.pagination.limit}
+                      className="justify-center"
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <EmptyState
+                icon={Search}
+                title="No pitches found"
+                description="Try adjusting your filters or search criteria."
+                action={{
+                  label: "Clear Filters",
+                  onClick: () => {
+                    setSelectedGenre('');
+                    setSelectedFormat('');
+                    setSortBy('date');
+                    setSortOrder('desc');
+                    setCurrentPage(1);
+                  }
+                }}
+              />
+            )}
           </div>
-        ) : paginatedPitches.length > 0 ? (
-          <>
+        )}
+
+        {/* Standard layout for other views */}
+        {currentView !== 'browse' && (loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <PitchCardSkeleton key={index} />
+              ))}
+            </div>
+          ) : paginatedPitches.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {paginatedPitches.map((pitch) => {
-              // Determine card styling based on user type
-              const isProduction = pitch.creator?.userType === 'production';
-              const isInvestor = pitch.creator?.userType === 'investor';
+                // Determine card styling based on user type
+                const isProduction = pitch.creator?.userType === 'production';
+                const isInvestor = pitch.creator?.userType === 'investor';
               
-              const borderColor = 
+                const borderColor = 
                 isProduction ? 'border-purple-500 shadow-purple-300' :
                 isInvestor ? 'border-green-500 shadow-green-300' :
                 'border-blue-300 shadow-blue-200';
@@ -722,7 +1236,12 @@ export default function Marketplace() {
                         onClick={async (e) => {
                           e.stopPropagation();
                           try {
-                            await pitchAPI.requestNDA(pitch.id, "Request for full pitch materials and production details");
+                            await pitchService.requestNDA(pitch.id, {
+                              fullName: user?.username || "Anonymous User",
+                              email: user?.email || "noemail@example.com", 
+                              company: user?.companyName || "",
+                              purpose: "Request for full pitch materials and production details"
+                            });
                             toast?.success("NDA request sent successfully!");
                           } catch (error) {
                             console.error("Error requesting NDA:", error);
@@ -738,8 +1257,7 @@ export default function Marketplace() {
                   </div>
                 </div>
               </div>
-              );
-            })}
+            )})}
             </div>
             
             {/* Pagination */}
@@ -767,7 +1285,7 @@ export default function Marketplace() {
               onClick: clearFilters
             }}
           />
-        )}
+        ))}
       </div>
 
       {/* Call to Action */}

@@ -1,0 +1,31 @@
+<div class="greeting">NDA Request {{status}} {{emoji}}</div>
+
+<div class="text">
+  Hi {{recipientName}},
+</div>
+
+<div class="text">
+  <strong>{{senderName}}</strong> has <strong style="color: {{statusColor}};">{{statusText}}</strong> 
+  your NDA request for "<strong>{{pitchTitle}}</strong>".
+</div>
+
+{{#if reason}}
+<div class="highlight-box">
+  <strong>Message from {{senderName}}:</strong>
+  <p style="margin: 10px 0; font-style: italic;">"{{reason}}"</p>
+</div>
+{{/if}}
+
+<div class="text">
+  {{#if approved}}
+  You now have access to the protected content and can view the full pitch details.
+  {{else}}
+  You can browse other available pitches on the platform or contact the creator directly if you have questions.
+  {{/if}}
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{actionUrl}}" class="button" style="background-color: {{statusColor}};">
+    {{#if approved}}View Pitch{{else}}Browse Other Pitches{{/if}}
+  </a>
+</div>

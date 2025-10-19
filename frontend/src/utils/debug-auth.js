@@ -1,5 +1,8 @@
 // Debug auth helper - paste this in browser console to check/fix auth
 
+// Get API URL from environment config
+const API_URL = window.API_URL || 'http://localhost:8001';
+
 // Check current auth state
 function checkAuth() {
   console.log('=== AUTH DEBUG ===');
@@ -27,7 +30,7 @@ function setAuthToken(token) {
 // Login and set token
 async function quickLogin() {
   try {
-    const response = await fetch('http://localhost:8001/api/auth/creator/login', {
+    const response = await fetch(`${API_URL}/api/auth/creator/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

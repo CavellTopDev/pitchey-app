@@ -4,7 +4,7 @@ import {
   ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, 
   Film, DollarSign, Calendar, BookOpen, BarChart3, Plus, 
   Trash2, CheckCircle, AlertCircle, Loader2, Eye, EyeOff,
-  ChevronRight, Save, Send
+  ChevronRight, Save, Send, Shield
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { usePitchStore } from '../store/pitchStore';
@@ -12,7 +12,7 @@ import { getGenresSync, getFormatsSync, getBudgetRangesSync } from '../constants
 
 interface MediaFile {
   id: string;
-  type: 'lookbook' | 'script' | 'trailer' | 'pitch_deck' | 'budget_breakdown' | 'production_timeline' | 'other';
+  type: 'lookbook' | 'script' | 'trailer' | 'pitch_deck' | 'budget_breakdown' | 'production_timeline' | 'nda' | 'other';
   file: File;
   title: string;
   description?: string;
@@ -76,6 +76,13 @@ export default function ProductionPitchCreate() {
       showCharacters: false,
       showBudget: false,
       showMedia: false,
+    },
+    
+    // NDA Configuration
+    ndaConfig: {
+      requireNDA: false,
+      ndaType: 'none' as 'none' | 'platform' | 'custom',
+      customNDA: null as File | null
     }
   });
 
@@ -134,6 +141,11 @@ export default function ProductionPitchCreate() {
             showCharacters: false,
             showBudget: false,
             showMedia: false,
+          },
+          ndaConfig: draft.ndaConfig || {
+            requireNDA: false,
+            ndaType: 'none',
+            customNDA: null
           }
         });
         setPitchId(draft.id || null);
@@ -162,6 +174,11 @@ export default function ProductionPitchCreate() {
           showCharacters: false,
           showBudget: false,
           showMedia: false,
+        },
+        ndaConfig: currentDraft.ndaConfig || {
+          requireNDA: false,
+          ndaType: 'none',
+          customNDA: null
         }
       });
       setPitchId(currentDraft.id || null);
@@ -171,6 +188,7 @@ export default function ProductionPitchCreate() {
   // File Input Refs
   const titleImageRef = useRef<HTMLInputElement>(null);
   const mediaFileRef = useRef<HTMLInputElement>(null);
+  const customNDARef = useRef<HTMLInputElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -225,6 +243,7 @@ export default function ProductionPitchCreate() {
     if (name.includes('budget')) return 'budget_breakdown';
     if (name.includes('timeline')) return 'production_timeline';
     if (name.includes('deck') || name.includes('presentation')) return 'pitch_deck';
+    if (name.includes('nda') || name.includes('agreement')) return 'nda';
     if (file.type.startsWith('video/')) return 'trailer';
     return 'other';
   };
@@ -277,6 +296,41 @@ export default function ProductionPitchCreate() {
       ...prev,
       themes: prev.themes.filter(t => t !== theme)
     }));
+  };
+  
+  const handleNDAChange = (ndaType: 'none' | 'platform' | 'custom') => {
+    setFormData(prev => ({
+      ...prev,
+      ndaConfig: {
+        ...prev.ndaConfig,
+        requireNDA: ndaType !== 'none',
+        ndaType,
+        customNDA: ndaType !== 'custom' ? null : prev.ndaConfig.customNDA
+      }
+    }));
+  };
+  
+  const handleCustomNDAUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        alert('Custom NDA must be a PDF file.');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Custom NDA must be less than 10MB.');
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        ndaConfig: {
+          ...prev.ndaConfig,
+          customNDA: file
+        }
+      }));
+    }
   };
 
   const validateStep = (step: number): boolean => {
@@ -429,6 +483,7 @@ export default function ProductionPitchCreate() {
       case 'pitch_deck': return BarChart3;
       case 'budget_breakdown': return DollarSign;
       case 'production_timeline': return Calendar;
+      case 'nda': return Shield;
       default: return FileText;
     }
   };
@@ -1048,6 +1103,7 @@ export default function ProductionPitchCreate() {
                                 <option value="pitch_deck">Pitch Deck</option>
                                 <option value="budget_breakdown">Budget Breakdown</option>
                                 <option value="production_timeline">Production Timeline</option>
+                                <option value="nda">NDA</option>
                                 <option value="other">Other</option>
                               </select>
                               <textarea
@@ -1242,16 +1298,131 @@ export default function ProductionPitchCreate() {
                 </div>
               </div>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+              {/* NDA Configuration */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="font-semibold mb-4">NDA Configuration</h3>
+                
+                <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold text-yellow-900">NDA Protection</h4>
-                    <p className="text-sm text-yellow-800 mt-1">
-                      All detailed information, scripts, and media files will only be accessible 
-                      to users who have signed your NDA agreement.
-                    </p>
+                    <p className="text-sm font-medium text-gray-700 mb-3">NDA Requirements</p>
+                    <div className="space-y-3">
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="ndaType"
+                          value="none"
+                          checked={formData.ndaConfig.ndaType === 'none'}
+                          onChange={() => handleNDAChange('none')}
+                          className="mt-1 w-4 h-4 text-purple-600"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">No NDA Required</span>
+                          <p className="text-xs text-gray-500">All content will be publicly accessible</p>
+                        </div>
+                      </label>
+                      
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="ndaType"
+                          value="platform"
+                          checked={formData.ndaConfig.ndaType === 'platform'}
+                          onChange={() => handleNDAChange('platform')}
+                          className="mt-1 w-4 h-4 text-purple-600"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">Use Platform Standard NDA</span>
+                          <p className="text-xs text-gray-500">Viewers must sign our standard NDA to access detailed content</p>
+                        </div>
+                      </label>
+                      
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="ndaType"
+                          value="custom"
+                          checked={formData.ndaConfig.ndaType === 'custom'}
+                          onChange={() => handleNDAChange('custom')}
+                          className="mt-1 w-4 h-4 text-purple-600"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">Use Custom NDA</span>
+                          <p className="text-xs text-gray-500">Upload your own NDA document for viewers to sign</p>
+                        </div>
+                      </label>
+                    </div>
                   </div>
+                  
+                  {/* Custom NDA Upload */}
+                  {formData.ndaConfig.ndaType === 'custom' && (
+                    <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <label className="block text-sm font-medium text-purple-900 mb-2">
+                        Upload Custom NDA
+                      </label>
+                      <input
+                        ref={customNDARef}
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleCustomNDAUpload}
+                        className="hidden"
+                      />
+                      
+                      {formData.ndaConfig.customNDA ? (
+                        <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
+                          <div className="flex items-center gap-3">
+                            <Shield className="w-5 h-5 text-purple-600" />
+                            <div>
+                              <span className="text-sm font-medium">{formData.ndaConfig.customNDA.name}</span>
+                              <p className="text-xs text-gray-500">
+                                {(formData.ndaConfig.customNDA.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              ndaConfig: { ...prev.ndaConfig, customNDA: null }
+                            }))}
+                            className="text-red-500 hover:text-red-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => customNDARef.current?.click()}
+                          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload NDA (PDF only)
+                        </button>
+                      )}
+                      
+                      <p className="text-xs text-purple-700 mt-2">
+                        Your custom NDA will be presented to viewers before they can access detailed pitch content.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* NDA Info */}
+                  {formData.ndaConfig.requireNDA && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium text-blue-900">NDA Protection Active</h4>
+                          <p className="text-sm text-blue-800 mt-1">
+                            {formData.ndaConfig.ndaType === 'platform' 
+                              ? 'Viewers will need to sign our standard NDA to access detailed content, scripts, and media files.'
+                              : 'Viewers will need to sign your custom NDA to access detailed content, scripts, and media files.'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

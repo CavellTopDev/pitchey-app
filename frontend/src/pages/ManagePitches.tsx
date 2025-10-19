@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Eye, Edit3, Trash2, BarChart3, Search, Filter, RefreshCw, Shield } from 'lucide-react';
-import { pitchService, type Pitch } from '../services/pitch.service';
+import { pitchService } from '../services/pitch.service';
+import type { Pitch } from '../types/api';
 import FormatDisplay from '../components/FormatDisplay';
 
 // Using Pitch type from pitch.service.ts which matches Drizzle schema

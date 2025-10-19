@@ -11,8 +11,8 @@ import { presenceTrackingService, PresenceStatus } from "./presence-tracking.ser
 import { messageQueueService, MessagePriority } from "./message-queue.service.ts";
 import { webSocketAnalyticsService } from "./websocket-analytics.service.ts";
 import { webSocketErrorHandler, WSErrorCode } from "./websocket-error-handler.service.ts";
-import { verifyToken } from "../utils/jwt.ts";
-import { sentryService, captureException } from "./sentry.service.ts";
+import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
+import { captureException } from "./logging.service.ts";
 
 /**
  * WebSocket Integration Service Class
@@ -49,7 +49,7 @@ export class WebSocketIntegrationService {
 
     } catch (error) {
       console.error("[WebSocket Integration] Failed to initialize:", error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketIntegration' });
       throw error;
     }
   }
@@ -59,116 +59,268 @@ export class WebSocketIntegrationService {
    */
   async handleWebSocketUpgrade(request: Request): Promise<Response> {
     try {
+      console.log("[WebSocket Integration] Handling WebSocket upgrade request");
+      
       // Extract the WebSocket key from headers
       const upgrade = request.headers.get("upgrade");
       const connection = request.headers.get("connection");
       const webSocketKey = request.headers.get("sec-websocket-key");
+
+      console.log("[WebSocket Integration] Request headers check:", {
+        upgrade,
+        connection: connection?.toLowerCase(),
+        hasWebSocketKey: !!webSocketKey,
+        url: request.url
+      });
 
       if (
         upgrade !== "websocket" ||
         !connection?.toLowerCase().includes("upgrade") ||
         !webSocketKey
       ) {
+        console.error("[WebSocket Integration] Invalid WebSocket request headers");
         return new Response("Invalid WebSocket request", { status: 400 });
       }
 
-      // AUTHENTICATION: Verify JWT token from query parameter
+      // FLEXIBLE AUTHENTICATION: Try multiple token sources
       const url = new URL(request.url);
-      const token = url.searchParams.get("token");
+      let token: string | null = null;
+      let authMethod = 'none';
       
+      // 1. Check query parameter: ws://localhost:8001/ws?token=xxx
+      token = url.searchParams.get("token");
+      if (token) {
+        authMethod = 'query';
+      }
+      
+      // 2. Check Authorization header during upgrade
       if (!token) {
-        return new Response(
-          JSON.stringify({ error: "Authentication token required" }), 
-          { 
-            status: 401, 
-            headers: { "Content-Type": "application/json" }
-          }
-        );
-      }
-
-      // Verify the JWT token using the same logic as the main server
-      try {
-        // The main server creates tokens with 'userId' field, not 'sub'
-        // We need to verify the token directly since verifyToken() expects different format
-        const [header, payload, signature] = token.split('.');
-        if (!header || !payload || !signature) {
-          throw new Error("Invalid JWT format");
+        const authHeader = request.headers.get("authorization");
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+          token = authHeader.substring(7);
+          authMethod = 'header';
         }
-        
-        const decodedPayload = JSON.parse(atob(payload));
-        
-        // Check if token has userId (main server format) and hasn't expired
-        const now = Math.floor(Date.now() / 1000);
-        if (!decodedPayload.userId || !decodedPayload.exp || decodedPayload.exp < now) {
-          return new Response(
-            JSON.stringify({ 
-              error: "Invalid authentication token",
-              details: {
-                hasUserId: !!decodedPayload.userId,
-                hasExp: !!decodedPayload.exp,
-                isExpired: decodedPayload.exp ? decodedPayload.exp < now : true,
-                now, 
-                exp: decodedPayload.exp
-              }
-            }), 
-            { 
-              status: 401,
-              headers: { "Content-Type": "application/json" }
-            }
+      }
+      
+      console.log("[WebSocket Integration] Authentication check:", {
+        hasToken: !!token,
+        tokenLength: token?.length,
+        method: authMethod,
+        endpoint: url.pathname
+      });
+      
+      let user: any = null;
+      let isAuthenticated = false;
+      
+      // Verify token if provided
+      if (token) {
+        try {
+          console.log(`[WebSocket Auth] Verifying token via ${authMethod} method`);
+          
+          // Use the same JWT verification logic as the main server
+          const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-secret-key-change-this-in-production";
+          
+          const key = await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode(JWT_SECRET),
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["verify"]
           );
-        }
-        
-        // TODO: We should verify the signature with the same secret used in main server
-        // For now, we'll trust the token format validation
-        console.log(`[WebSocket Auth] Valid token for user ${decodedPayload.userId}`);
-      } catch (authError) {
-        console.error("[WebSocket Integration] Authentication failed:", authError);
-        return new Response(
-          JSON.stringify({ error: "Authentication failed" }), 
-          { 
-            status: 401,
-            headers: { "Content-Type": "application/json" }
+          
+          const payload = await verify(token, key);
+          
+          console.log(`[WebSocket Auth] JWT verification successful! Payload:`, payload);
+          
+          if (payload && payload.userId) {
+            user = payload;
+            isAuthenticated = true;
+            console.log(`[WebSocket Auth] Successfully verified token for user ${payload.userId}`);
+          } else {
+            console.warn("[WebSocket Auth] Token verification failed - invalid payload or missing userId");
           }
-        );
+        } catch (authError) {
+          console.warn("[WebSocket Auth] Token verification failed:", authError);
+          // Don't fail the connection - allow unauthenticated access with limited functionality
+        }
       }
+      
+      // Always allow connection but track authentication status
+      console.log(`[WebSocket Integration] ${isAuthenticated ? 'Authenticated' : 'Unauthenticated'} connection allowed`);
 
       // Create WebSocket pair
       const { socket, response } = Deno.upgradeWebSocket(request);
 
-      // Handle the WebSocket connection
-      await this.setupWebSocketConnection(socket, request);
+      // Handle the WebSocket connection with authentication status
+      await this.setupWebSocketConnection(socket, request, user, isAuthenticated);
 
       return response;
 
     } catch (error) {
       console.error("[WebSocket Integration] WebSocket upgrade failed:", error);
+      console.error("[WebSocket Integration] Error details:", {
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        type: typeof error,
+        url: request.url
+      });
       
       const wsError = await webSocketErrorHandler.handleError(error, {
         operation: "websocket_upgrade"
       });
 
-      return new Response("WebSocket upgrade failed", { status: 500 });
+      return new Response(
+        JSON.stringify({ 
+          error: "WebSocket upgrade failed",
+          details: error instanceof Error ? error.message : "Unknown error",
+          timestamp: new Date().toISOString()
+        }), 
+        { 
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
     }
   }
 
   /**
    * Setup WebSocket connection handlers
    */
-  private async setupWebSocketConnection(socket: WebSocket, request: Request): Promise<void> {
+  private async setupWebSocketConnection(socket: WebSocket, request: Request, user?: any, isAuthenticated = false): Promise<void> {
     let sessionId: string | null = null;
+    let waitingForAuth = !isAuthenticated && !user; // Track if we need authentication via first message
 
     socket.onopen = async () => {
       try {
+        console.log(`[WebSocket Integration] WebSocket opened (${isAuthenticated ? 'authenticated' : 'unauthenticated'}), setting up connection...`);
+        
+        // Send connection status to client
+        const welcomeMessage = {
+          type: "connected",
+          authenticated: isAuthenticated,
+          user: user ? { id: user.userId, username: user.username, type: user.userType } : null,
+          timestamp: Date.now(),
+          capabilities: isAuthenticated ? [
+            "notifications", "dashboard", "presence", "messaging", "uploads"
+          ] : [
+            "public_pitches", "browsing"  // Limited functionality for unauthenticated users
+          ]
+        };
+        
+        socket.send(JSON.stringify(welcomeMessage));
+        
         // Handle connection through the main WebSocket server
-        await pitcheyWebSocketServer.handleConnection(socket, request);
+        await pitcheyWebSocketServer.handleConnection(socket, request, user, isAuthenticated);
+        console.log("[WebSocket Integration] Connection setup completed successfully");
       } catch (error) {
         console.error("[WebSocket Integration] Connection setup failed:", error);
-        socket.close(1011, "Connection setup failed");
+        console.error("[WebSocket Integration] Error details:", {
+          message: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          type: typeof error,
+          error
+        });
+        
+        // Send error message before closing
+        if (socket.readyState === WebSocket.OPEN) {
+          const errorMessage = {
+            type: "error",
+            message: error instanceof Error ? error.message : "Connection setup failed",
+            code: 1011,
+            category: "connection",
+            timestamp: Date.now(),
+            details: error instanceof Error ? {
+              name: error.name,
+              stack: error.stack
+            } : undefined
+          };
+          try {
+            socket.send(JSON.stringify(errorMessage));
+          } catch (sendError) {
+            console.error("[WebSocket Integration] Failed to send error message:", sendError);
+          }
+        }
+        
+        const closeReason = error instanceof Error ? error.message.substring(0, 123) : "Connection setup failed";
+        socket.close(1011, closeReason);
       }
     };
 
     socket.onmessage = async (event) => {
       try {
+        // Handle authentication via first message if needed
+        if (waitingForAuth && !isAuthenticated) {
+          try {
+            const message = JSON.parse(event.data);
+            
+            // Check if this is an authentication message
+            if (message.type === 'auth' && message.token) {
+              console.log('[WebSocket Integration] Received authentication via first message');
+              
+              // Verify the token
+              const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-secret-key-change-this-in-production";
+              
+              const key = await crypto.subtle.importKey(
+                "raw",
+                new TextEncoder().encode(JWT_SECRET),
+                { name: "HMAC", hash: "SHA-256" },
+                false,
+                ["verify"]
+              );
+              
+              const payload = await verify(message.token, key);
+              
+              if (payload && payload.userId) {
+                user = payload;
+                isAuthenticated = true;
+                waitingForAuth = false;
+                
+                console.log(`[WebSocket Auth] Successfully authenticated user ${payload.userId} via first message`);
+                
+                // Send authentication success response
+                const authResponse = {
+                  type: "auth_success",
+                  user: { id: user.userId, username: user.username, type: user.userType },
+                  timestamp: Date.now(),
+                  capabilities: [
+                    "notifications", "dashboard", "presence", "messaging", "uploads"
+                  ]
+                };
+                
+                socket.send(JSON.stringify(authResponse));
+                return; // Don't process this message further
+              } else {
+                // Authentication failed
+                const authError = {
+                  type: "auth_error",
+                  message: "Invalid authentication token",
+                  timestamp: Date.now()
+                };
+                socket.send(JSON.stringify(authError));
+                return;
+              }
+            }
+            
+            // If not an auth message but we're waiting for auth, allow limited functionality
+            // Some messages like 'ping' or 'browse_pitches' can work without authentication
+            if (['ping', 'browse_pitches', 'get_public_data'].includes(message.type)) {
+              // Allow these messages to pass through
+            } else {
+              // Require authentication for other operations
+              const authRequired = {
+                type: "auth_required",
+                message: "Authentication required for this operation",
+                operation: message.type,
+                timestamp: Date.now()
+              };
+              socket.send(JSON.stringify(authRequired));
+              return;
+            }
+          } catch (parseError) {
+            console.error('[WebSocket Integration] Failed to parse authentication message:', parseError);
+          }
+        }
+        
         // The main WebSocket server will handle message processing
         // This is just a pass-through
       } catch (error) {
@@ -185,15 +337,23 @@ export class WebSocketIntegrationService {
         }
       } catch (error) {
         console.error("[WebSocket Integration] Disconnect cleanup failed:", error);
-        captureException(error);
+        captureException(error, { service: 'WebSocketIntegration' });
       }
     };
 
     socket.onerror = async (event) => {
-      console.error("[WebSocket Integration] Socket error:", event);
+      console.error("[WebSocket Integration] Socket error occurred:", {
+        type: event.type,
+        target: event.target,
+        timeStamp: event.timeStamp
+      });
       await webSocketErrorHandler.handleError(
-        new Error("WebSocket error occurred"),
-        { operation: "socket_error" }
+        new Error(`WebSocket error occurred: ${event.type}`),
+        { 
+          operation: "socket_error",
+          eventType: event.type,
+          timeStamp: event.timeStamp
+        }
       );
     };
   }
@@ -235,7 +395,7 @@ export class WebSocketIntegrationService {
 
     } catch (error) {
       console.error(`[WebSocket Integration] Session cleanup failed for ${sessionId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketIntegration' });
     }
   }
 
@@ -600,7 +760,7 @@ export class WebSocketIntegrationService {
 
     } catch (error) {
       console.error("[WebSocket Integration] Error during shutdown:", error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketIntegration' });
     }
   }
 
@@ -626,7 +786,7 @@ export function addWebSocketSupport(handler: (request: Request) => Promise<Respo
       const url = new URL(request.url);
       
       // Check if this is our WebSocket endpoint
-      if (url.pathname === "/ws" || url.pathname === "/api/ws") {
+      if (url.pathname === "/ws" || url.pathname === "/api/ws" || url.pathname === "/api/messages/ws") {
         return await webSocketIntegration.handleWebSocketUpgrade(request);
       }
     }

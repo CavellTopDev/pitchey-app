@@ -427,17 +427,7 @@ export default function ProductionDashboard() {
   };
 
   const handleSignOut = () => {
-    // Clear all auth-related data from localStorage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('user');
-    localStorage.clear(); // Clear all localStorage to ensure clean logout
-    
-    // Clear auth store
-    logout();
-    
-    // Force redirect to homepage
-    window.location.href = '/';
+    logout(); // This will automatically clear all storage and navigate to appropriate login page
   };
 
   const StatCard = ({ 
@@ -566,16 +556,7 @@ export default function ProductionDashboard() {
               >
                 Browse Marketplace
               </Link>
-              <Link
-                to="/pitch/new/production"
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                <Plus className="w-5 h-5" />
-                Upload Pitch
-              </Link>
-              
-              {/* Divider */}
-              <div className="h-8 w-px bg-gray-300"></div>
+              {/* Production companies cannot create pitches - removed Upload Pitch button */}
               
               {/* User Menu */}
               <div className="relative user-menu-container">
@@ -825,13 +806,7 @@ export default function ProductionDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-900">Your Production Pitches</h2>
-              <Link
-                to="/pitch/new/production"
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-              >
-                <Plus className="w-5 h-5" />
-                Create New Pitch
-              </Link>
+              {/* Production companies cannot create pitches - Create New Pitch button removed */}
             </div>
 
             {/* Show drafts count if any */}
@@ -844,12 +819,7 @@ export default function ProductionDashboard() {
                       You have {drafts.length} draft{drafts.length !== 1 ? 's' : ''} saved
                     </p>
                   </div>
-                  <button
-                    onClick={() => navigate('/pitch/new/production')}
-                    className="text-sm text-yellow-700 hover:text-yellow-900 font-medium"
-                  >
-                    Continue editing →
-                  </button>
+                  {/* Production companies cannot create pitches - removed continue editing button */}
                 </div>
               </div>
             )}
@@ -1038,7 +1008,7 @@ export default function ProductionDashboard() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h3 className="font-semibold text-blue-900 mb-2">Enhanced Media Options</h3>
               <p className="text-sm text-blue-800 mb-4">
-                As a production company, you can upload comprehensive pitch packages including:
+                As a production company, you can view and invest in comprehensive pitch packages including:
               </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                 <div className="flex items-center gap-2 text-blue-700">

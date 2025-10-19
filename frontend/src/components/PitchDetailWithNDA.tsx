@@ -8,7 +8,7 @@ import ProtectedContent, {
   ProtectedScript, 
   ProtectedFinancials 
 } from './ProtectedContent';
-import NDAModal from './NDAModal';
+import NDAWizard from './NDAWizard';
 import { Lock, Shield, Play, DollarSign, FileText, Users, Calendar } from 'lucide-react';
 
 interface Pitch {
@@ -50,7 +50,7 @@ export default function PitchDetailWithNDA() {
   const { user } = useAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showNDAModal, setShowNDAModal] = useState(false);
+  const [showNDAWizard, setShowNDAWizard] = useState(false);
   const [ndaStatus, setNDAStatus] = useState<any>(null);
 
   useEffect(() => {
@@ -87,10 +87,10 @@ export default function PitchDetailWithNDA() {
   };
 
   const handleNDARequest = () => {
-    setShowNDAModal(true);
+    setShowNDAWizard(true);
   };
 
-  const handleNDASigned = () => {
+  const handleStatusChange = () => {
     fetchNDAStatus(); // Refresh NDA status
     fetchPitch(); // Refresh pitch data with potentially new access
   };
@@ -139,7 +139,10 @@ export default function PitchDetailWithNDA() {
                 <NDAStatus 
                   pitchId={pitch.id} 
                   creatorId={pitch.creator.id}
+                  creatorName={pitch.creator.companyName || pitch.creator.username}
+                  pitchTitle={pitch.title}
                   onNDARequest={handleNDARequest}
+                  showWizard={false}
                 />
               </div>
             )}
@@ -307,15 +310,15 @@ export default function PitchDetailWithNDA() {
           </ProtectedContent>
         </div>
 
-        {/* NDA Request Modal */}
-        {showNDAModal && (
-          <NDAModal
-            isOpen={showNDAModal}
-            onClose={() => setShowNDAModal(false)}
+        {/* NDA Wizard */}
+        {showNDAWizard && (
+          <NDAWizard
+            isOpen={showNDAWizard}
+            onClose={() => setShowNDAWizard(false)}
             pitchId={pitch.id}
             pitchTitle={pitch.title}
-            creatorType="creator"
-            onNDASigned={handleNDASigned}
+            creatorName={pitch.creator.companyName || pitch.creator.username}
+            onStatusChange={handleStatusChange}
           />
         )}
       </div>

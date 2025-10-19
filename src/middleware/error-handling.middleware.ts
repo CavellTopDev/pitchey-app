@@ -16,7 +16,7 @@ import {
 } from "./json-validation.middleware.ts";
 import { handleDatabaseError } from "../utils/database-error-handler.ts";
 import { createAuthErrorResponse } from "../utils/auth-error-handler.ts";
-import { captureException } from "../services/sentry.service.ts";
+import { captureException } from "../services/logging.service.ts";
 
 export interface ErrorContext {
   endpoint: string;
@@ -266,7 +266,7 @@ async function handleUnexpectedError(error: any, context: ErrorContext): Promise
     userAgent: context.userAgent
   });
   
-  // Send to Sentry for error tracking
+  // Send to logging service for error tracking
   try {
     captureException(error, {
       tags: {
@@ -279,8 +279,8 @@ async function handleUnexpectedError(error: any, context: ErrorContext): Promise
         userAgent: context.userAgent
       }
     });
-  } catch (sentryError) {
-    console.error('Failed to send error to Sentry:', sentryError);
+  } catch (loggingError) {
+    console.error('Failed to send error to logging service:', loggingError);
   }
   
   // Check if it's a database error

@@ -340,6 +340,46 @@ export class CacheService {
     }
   }
   
+  // Public pitches cache
+  static async cachePublicPitches(data: any, ttl = 300) {
+    try {
+      await cacheClient.set("pitches:public", JSON.stringify(data));
+      await cacheClient.expire("pitches:public", ttl);
+    } catch (error) {
+      console.warn("Cache error:", error.message);
+    }
+  }
+  
+  static async getPublicPitches() {
+    try {
+      const cached = await cacheClient.get("pitches:public");
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.warn("Cache error:", error.message);
+      return null;
+    }
+  }
+  
+  static async invalidatePublicPitches() {
+    try {
+      await cacheClient.del("pitches:public");
+      await cacheClient.del("pitches:trending");
+      await cacheClient.del("pitches:new");
+    } catch (error) {
+      console.warn("Cache error:", error.message);
+    }
+  }
+
+  // Marketplace cache
+  static async invalidateMarketplace() {
+    try {
+      await this.invalidatePublicPitches();
+      await this.invalidateHomepage();
+    } catch (error) {
+      console.warn("Cache error:", error.message);
+    }
+  }
+  
   // Health check for cache status
   static async healthCheck() {
     return {

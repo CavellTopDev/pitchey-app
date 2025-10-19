@@ -1,0 +1,25 @@
+<div class="greeting">New Message 💬</div>
+
+<div class="text">
+  Hi {{recipientName}},
+</div>
+
+<div class="text">
+  You have received a new message from <strong>{{senderName}}</strong>
+  {{#if pitchTitle}}about your pitch "<strong>{{pitchTitle}}</strong>".{{else}}.{{/if}}
+</div>
+
+<div class="highlight-box">
+  <div style="font-style: italic; color: #374151;">
+    "{{messagePreview}}"
+  </div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+  <a href="{{conversationUrl}}" class="button">View Conversation</a>
+</div>
+
+<div class="text" style="font-size: 14px; color: #6b7280;">
+  You're receiving this email because you have message notifications enabled. 
+  You can update your notification preferences in your account settings.
+</div>

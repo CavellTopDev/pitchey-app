@@ -212,9 +212,25 @@ export const authAPI = {
   },
 
   async logout() {
+    try {
+      // Call backend logout endpoint to invalidate server-side session
+      await api.post('/api/auth/logout', {});
+    } catch (error) {
+      // Ignore backend errors, still clear local storage
+      console.warn('Backend logout failed, proceeding with local cleanup:', error);
+    }
+    
+    // Clear all authentication data
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     localStorage.removeItem('userType');
+    
+    // Clear any other cached data
+    localStorage.removeItem('pitchey_websocket_disabled');
+    localStorage.removeItem('pitchey_websocket_loop_detected');
+    
+    // Clear session storage as well
+    sessionStorage.clear();
   },
 
   async getProfile() {

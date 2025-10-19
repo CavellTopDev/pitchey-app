@@ -230,7 +230,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     }
   }, [isRateLimited, updateQueueStatus, persistData]);
   
-  // Connect function
+  // Connect function with bundling-loop protection
   const connect = useCallback(() => {
     if (wsRef.current && 
         (wsRef.current.readyState === WebSocket.CONNECTING || 
@@ -239,16 +239,21 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       return;
     }
     
+    // Prevent rapid connection attempts caused by bundling stale closures
+    const lastAttempt = localStorage.getItem('pitchey_last_ws_attempt');
+    const now = Date.now();
+    if (lastAttempt && (now - parseInt(lastAttempt)) < 1000) {
+      console.log('WebSocket: Rate limiting connection attempt (preventing bundling loop)');
+      return;
+    }
+    localStorage.setItem('pitchey_last_ws_attempt', now.toString());
+    
     const token = localStorage.getItem('authToken');
     console.log('WebSocket: Auth token check:', token ? `${token.substring(0, 20)}...` : 'NULL');
     
     if (!token) {
-      console.warn('WebSocket: No authentication token available');
-      setConnectionStatus(prev => ({ 
-        ...prev, 
-        error: 'No authentication token available' 
-      }));
-      return;
+      console.log('WebSocket: No authentication token - will connect with limited functionality');
+      // Don't return early - allow unauthenticated connections
     }
     
     const isDemoMode = localStorage.getItem('demoMode') === 'true';
@@ -272,14 +277,41 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     
     try {
       const wsUrl = config.WS_URL.replace(/^http/, 'ws');
-      const finalWsUrl = `${wsUrl}/ws?token=${token}`;
-      console.log(`WebSocket: Attempting connection to ${wsUrl}/ws`);
-      console.log(`WebSocket: Full URL (token hidden): ${wsUrl}/ws?token=<hidden>`);
+      
+      // Try different authentication methods
+      let finalWsUrl: string;
+      let authHeaders: Record<string, string> = {};
+      
+      if (token) {
+        // Primary method: Query parameter (most compatible)
+        finalWsUrl = `${wsUrl}/ws?token=${token}`;
+        console.log(`WebSocket: Attempting connection with token auth to ${wsUrl}/ws`);
+      } else {
+        // Fallback: Connect without authentication (limited functionality)
+        finalWsUrl = `${wsUrl}/ws`;
+        console.log(`WebSocket: Attempting unauthenticated connection to ${wsUrl}/ws`);
+      }
       
       const ws = new WebSocket(finalWsUrl);
       
       ws.onopen = () => {
         console.log('WebSocket: Connection opened successfully');
+        
+        // If we have a token but connected without it (fallback scenario), 
+        // try to authenticate via first message
+        if (token && !finalWsUrl.includes('token=')) {
+          console.log('WebSocket: Attempting authentication via first message');
+          try {
+            ws.send(JSON.stringify({
+              type: 'auth',
+              token: token,
+              timestamp: new Date().toISOString()
+            }));
+          } catch (error) {
+            console.warn('WebSocket: Failed to send auth message:', error);
+          }
+        }
+        
         setConnectionStatus(prev => ({
           ...prev,
           connected: true,
@@ -326,6 +358,18 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             }
           } else if (message.type === 'pong') {
             // Connection health confirmed - no action needed
+          } else if (message.type === 'connected') {
+            // Handle connection confirmation with authentication status
+            console.log('WebSocket: Connection confirmed', message.data || message);
+          } else if (message.type === 'auth_success') {
+            // Authentication via first message succeeded
+            console.log('WebSocket: Authentication successful', message.data || message);
+          } else if (message.type === 'auth_error') {
+            // Authentication via first message failed
+            console.warn('WebSocket: Authentication failed', message.data || message);
+          } else if (message.type === 'auth_required') {
+            // Operation requires authentication
+            console.info('WebSocket: Authentication required for operation', message.data || message);
           } else if (message.type === 'error') {
             // Handle structured error messages
             const errorMsg = message.data?.error || message.data?.message || message.data || 'Unknown error';

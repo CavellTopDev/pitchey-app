@@ -6,7 +6,7 @@
 import { redisService } from "./redis.service.ts";
 import { webSocketRedisService } from "./websocket-redis.service.ts";
 import { AnalyticsService } from "./analytics.service.ts";
-import { sentryService, captureException } from "./sentry.service.ts";
+import { captureException } from "./logging.service.ts";
 import { db } from "../db/client.ts";
 import { users, userSessions, follows } from "../db/schema.ts";
 import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
@@ -155,7 +155,7 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error(`[Presence Service] Failed to set presence for user ${userId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'PresenceTracking' });
     }
   }
 
@@ -228,7 +228,7 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to get multiple users presence:", error);
-      captureException(error);
+      captureException(error, { service: 'PresenceTracking' });
     }
 
     return presenceMap;
@@ -317,7 +317,7 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error(`[Presence Service] Failed to set activity for user ${userId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'PresenceTracking' });
     }
   }
 
@@ -461,7 +461,7 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to process batch updates:", error);
-      captureException(error);
+      captureException(error, { service: 'PresenceTracking' });
     }
   }
 
@@ -495,7 +495,7 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to update inactive users:", error);
-      captureException(error);
+      captureException(error, { service: 'PresenceTracking' });
     }
   }
 
@@ -530,7 +530,7 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to cleanup stale presence:", error);
-      captureException(error);
+      captureException(error, { service: 'PresenceTracking' });
     }
   }
 

@@ -3,7 +3,7 @@
  * Comprehensive error handling, logging, and recovery for WebSocket operations
  */
 
-import { sentryService, captureException } from "./sentry.service.ts";
+import { captureException, addBreadcrumb } from "./logging.service.ts";
 import { webSocketAnalyticsService } from "./websocket-analytics.service.ts";
 import { redisService } from "./redis.service.ts";
 import { WSSession, WSMessage, WSMessageType } from "./websocket.service.ts";
@@ -314,7 +314,7 @@ export class WebSocketErrorHandlerService {
 
     } catch (handlingError) {
       console.error("[WebSocket Error Handler] Error while handling error:", handlingError);
-      captureException(handlingError);
+      captureException(handlingError, { service: 'WebSocketErrorHandler' });
       
       // Return basic error response
       return {
@@ -442,7 +442,7 @@ export class WebSocketErrorHandlerService {
 
       // Send to Sentry for critical/high severity errors
       if (error.severity >= ErrorSeverity.HIGH) {
-        sentryService.addBreadcrumb({
+        addBreadcrumb({
           category: `websocket.${error.category}`,
           message: error.message,
           level: error.severity === ErrorSeverity.CRITICAL ? 'fatal' : 'error',
@@ -455,7 +455,7 @@ export class WebSocketErrorHandlerService {
         });
 
         if (error.stackTrace) {
-          captureException(new Error(error.message));
+          captureException(new Error(error.message), { service: 'WebSocketErrorHandler' });
         }
       }
 
@@ -612,7 +612,7 @@ export class WebSocketErrorHandlerService {
       case WSErrorCode.SERVICE_UNAVAILABLE:
         return "Service is temporarily unavailable";
       default:
-        return "An error occurred. Please try again";
+        return `Connection error (${error.code || 'unknown'}). Please check your connection and try again`;
     }
   }
 

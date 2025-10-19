@@ -217,13 +217,13 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
 
 // Get all security headers
 export function getSecurityHeaders(): Record<string, string> {
-  const headers = { ...securityConfig.securityHeaders };
+  const headers: Record<string, string> = { ...securityConfig.securityHeaders };
   
   // In development, relax CSP slightly
   if (Deno.env.get("DENO_ENV") === "development") {
     headers["Content-Security-Policy"] = headers["Content-Security-Policy"]
       .replace("'unsafe-inline'", "'unsafe-inline' 'unsafe-eval'");
-    delete headers["Strict-Transport-Security"]; // Don't force HTTPS in dev
+    delete (headers as any)["Strict-Transport-Security"]; // Don't force HTTPS in dev
   }
   
   return headers;

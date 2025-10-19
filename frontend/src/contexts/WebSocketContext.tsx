@@ -374,13 +374,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     // Update local state to reflect disconnection
     setOnlineUsers(prev => prev.filter(user => user.userId !== user?.id));
     
-    // Auto-disable if too many failed attempts
-    if (connectionStatus.reconnectAttempts >= 4) {
-      console.warn('Too many WebSocket reconnection failures. Auto-disabling to prevent infinite loops.');
+    // Enhanced circuit breaker for bundling-induced loops
+    const recentAttempts = connectionStatus.reconnectAttempts;
+    if (recentAttempts >= 3) { // Reduced threshold for faster detection
+      console.warn(`WebSocket reconnection loop detected (${recentAttempts} attempts). Auto-disabling to prevent infinite loops.`);
       setTimeout(() => {
         setIsWebSocketDisabled(true);
         localStorage.setItem('pitchey_websocket_disabled', 'true');
-      }, 1000);
+        localStorage.setItem('pitchey_websocket_loop_detected', Date.now().toString());
+      }, 500); // Faster disable
     }
   }
   
@@ -505,12 +507,21 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   // Handle authentication state changes
   useEffect(() => {
-    if (isAuthenticated && !isConnected) {
+    if (isAuthenticated && !isConnected && !isWebSocketDisabled) {
+      console.log('User authenticated, connecting WebSocket...');
       connect();
     } else if (!isAuthenticated && isConnected) {
+      console.log('User logged out, disconnecting WebSocket...');
       disconnect();
+      // Clear all real-time data when user logs out
+      setNotifications([]);
+      setDashboardMetrics(null);
+      setOnlineUsers([]);
+      setTypingIndicators([]);
+      setUploadProgress([]);
+      setPitchViews(new Map());
     }
-  }, [isAuthenticated, isConnected, connect, disconnect]);
+  }, [isAuthenticated, isConnected, isWebSocketDisabled]); // Added isWebSocketDisabled to deps
   
   // Emergency control functions
   const disableWebSocket = useCallback(() => {
@@ -529,11 +540,27 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
   }, [connect, isAuthenticated]);
 
-  // Check if WebSocket was manually disabled
+  // Check if WebSocket was manually disabled or loop detected
   useEffect(() => {
     const wasDisabled = localStorage.getItem('pitchey_websocket_disabled') === 'true';
+    const loopDetected = localStorage.getItem('pitchey_websocket_loop_detected');
+    
     if (wasDisabled) {
       setIsWebSocketDisabled(true);
+    }
+    
+    // Auto-recover from loop detection after 5 minutes
+    if (loopDetected) {
+      const detectedTime = parseInt(loopDetected);
+      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+      
+      if (detectedTime < fiveMinutesAgo) {
+        localStorage.removeItem('pitchey_websocket_loop_detected');
+        console.log('WebSocket loop detection expired - allowing reconnection');
+      } else {
+        setIsWebSocketDisabled(true);
+        console.log('WebSocket loop recently detected - keeping disabled');
+      }
     }
   }, []);
 

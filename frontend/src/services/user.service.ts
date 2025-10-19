@@ -1,6 +1,7 @@
 // User Service - Complete user management with Drizzle integration
 import { apiClient } from '../lib/api-client';
 import { config } from '../config';
+import type { User, ApiResponse } from '../types/api';
 
 // Types matching Drizzle schema
 export interface User {

@@ -15,13 +15,16 @@ export const CreatePitchSchema = z.object({
   shortSynopsis: z.string().optional(),
   longSynopsis: z.string().optional(),
   characters: z.array(z.object({
+    id: z.string().optional(),
     name: z.string(),
     description: z.string(),
     age: z.string().optional(),
     gender: z.string().optional(),
     actor: z.string().optional(),
+    displayOrder: z.number().optional(),
   })).optional(),
-  themes: z.array(z.string()).optional(),
+  themes: z.string().optional(),
+  worldDescription: z.string().optional(),
   budgetBracket: z.string().optional(),
   estimatedBudget: z.number().optional(),
   productionTimeline: z.string().optional(),
@@ -41,6 +44,31 @@ export const CreatePitchSchema = z.object({
   requireNDA: z.boolean().optional(),
 });
 
+// Helper function to parse JSON fields in pitch objects
+function parsePitchJsonFields(pitch: any) {
+  if (!pitch) return pitch;
+  
+  if (pitch.characters && typeof pitch.characters === 'string') {
+    try {
+      pitch.characters = JSON.parse(pitch.characters);
+    } catch (e) {
+      pitch.characters = [];
+    }
+  }
+  
+  // themes is now a text field, no parsing needed
+  
+  if (pitch.additionalMedia && typeof pitch.additionalMedia === 'string') {
+    try {
+      pitch.additionalMedia = JSON.parse(pitch.additionalMedia);
+    } catch (e) {
+      pitch.additionalMedia = [];
+    }
+  }
+  
+  return pitch;
+}
+
 export class PitchService {
   static async create(userId: number, data: z.infer<typeof CreatePitchSchema>) {
     // Skip validation since schema doesn't match database
@@ -59,7 +87,14 @@ export class PitchService {
         customFormat: validated.customFormat || null,
         shortSynopsis: validated.shortSynopsis || null,
         longSynopsis: validated.longSynopsis || null,
+        characters: validated.characters ? JSON.stringify(validated.characters) : null,
+        themes: validated.themes || null,
+        worldDescription: validated.worldDescription || null,
+        budgetBracket: validated.budgetBracket || null,
         estimatedBudget: validated.budget || validated.estimatedBudget?.toString() || null,
+        productionTimeline: validated.productionTimeline || null,
+        aiUsed: validated.aiUsed || false,
+        requireNda: validated.requireNDA || false,
         status: 'draft',
         viewCount: 0,
         likeCount: 0,
@@ -70,11 +105,14 @@ export class PitchService {
       
       const pitch = result[0];
       
-      // Clear homepage cache when new pitch is created
+      // Parse JSON fields back to objects
+      parsePitchJsonFields(pitch);
+      
+      // Clear homepage and marketplace cache when new pitch is created
       try {
-        await CacheService.invalidateHomepage();
+        await CacheService.invalidateMarketplace();
       } catch (error) {
-        console.warn("Failed to clear homepage cache:", error);
+        console.warn("Failed to clear marketplace cache:", error);
       }
       
       return pitch;
@@ -102,10 +140,13 @@ export class PitchService {
       throw new Error("Pitch not found or unauthorized");
     }
     
-    // Convert number to string for decimal fields
+    // Convert number to string for decimal fields and serialize JSON fields
     const updateData = {
       ...data,
       estimatedBudget: data.estimatedBudget ? data.estimatedBudget.toString() : undefined,
+      characters: data.characters ? JSON.stringify(data.characters) : undefined,
+      themes: data.themes,
+      worldDescription: data.worldDescription,
       updatedAt: new Date(),
     };
     
@@ -121,11 +162,18 @@ export class PitchService {
       .where(eq(pitches.id, pitchId))
       .returning();
     
-    // Invalidate pitch cache after update
+    // Parse JSON fields back to objects
+    parsePitchJsonFields(updated);
+    
+    // Invalidate pitch cache and marketplace cache after update
     try {
       await CacheService.invalidatePitch(pitchId);
+      // Only invalidate marketplace if the pitch is published
+      if (updated.status === 'published') {
+        await CacheService.invalidateMarketplace();
+      }
     } catch (error) {
-      console.warn("Failed to invalidate pitch cache:", error);
+      console.warn("Failed to invalidate cache:", error);
     }
     
     return updated;
@@ -144,10 +192,10 @@ export class PitchService {
       ))
       .returning();
     
-    // Invalidate pitch cache and homepage cache when pitch is published
+    // Invalidate pitch cache and marketplace cache when pitch is published
     try {
       await CacheService.invalidatePitch(pitchId);
-      await CacheService.invalidateHomepage();
+      await CacheService.invalidateMarketplace();
     } catch (error) {
       console.warn("Failed to invalidate cache:", error);
     }
@@ -188,7 +236,7 @@ export class PitchService {
         return null;
       }
       
-      return pitch;
+      return parsePitchJsonFields(pitch);
     } catch (error) {
       console.error(`Error fetching pitch ${pitchId} for user ${userId}:`, error);
       return null;
@@ -283,18 +331,18 @@ export class PitchService {
     if (!hasFullAccess) {
       // Remove protected content
       const { longSynopsis, characters, budgetBracket, scriptUrl, ...publicPitch } = pitch;
-      return {
+      return parsePitchJsonFields({
         ...publicPitch,
         hasFullAccess: false,
         requiresNda: true,
-      };
+      });
     }
     
-    return {
+    return parsePitchJsonFields({
       ...pitch,
       hasFullAccess: true,
       requiresNda: false,
-    };
+    });
     } catch (error) {
       console.error("Error in getPitch:", error);
       // Return null instead of throwing to avoid 500 errors
@@ -445,7 +493,7 @@ export class PitchService {
         return null;
       }
 
-      return pitch || null;
+      return parsePitchJsonFields(pitch) || null;
     } catch (error) {
       console.error("Error fetching public pitch:", error);
       // Return null instead of throwing to prevent 500 errors
@@ -715,21 +763,24 @@ export class PitchService {
         .where(eq(pitches.userId, userId))
         .orderBy(desc(pitches.updatedAt));
       
+      // Parse JSON fields for all pitches
+      const parsedPitches = userPitches.map(parsePitchJsonFields);
+      
       if (!includeStats) {
-        return userPitches;
+        return parsedPitches;
       }
       
       // Calculate stats
       const stats = {
-        totalPitches: userPitches.length,
-        publishedPitches: userPitches.filter(p => p.status === "published").length,
-        totalViews: userPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0),
-        totalLikes: userPitches.reduce((sum, p) => sum + (p.likeCount || 0), 0),
-        totalNDAs: userPitches.reduce((sum, p) => sum + (p.ndaCount || 0), 0),
+        totalPitches: parsedPitches.length,
+        publishedPitches: parsedPitches.filter(p => p.status === "published").length,
+        totalViews: parsedPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0),
+        totalLikes: parsedPitches.reduce((sum, p) => sum + (p.likeCount || 0), 0),
+        totalNDAs: parsedPitches.reduce((sum, p) => sum + (p.ndaCount || 0), 0),
       };
       
       return {
-        pitches: userPitches,
+        pitches: parsedPitches,
         stats,
       };
     } catch (error) {
@@ -746,7 +797,7 @@ export class PitchService {
           .where(eq(pitches.userId, userId));
         
         console.log(`Fallback query returned ${fallbackPitches.length} pitches`);
-        return fallbackPitches;
+        return fallbackPitches.map(parsePitchJsonFields);
       } catch (fallbackError) {
         console.error("Drizzle fallback also failed:", fallbackError);
       }
@@ -1016,43 +1067,9 @@ export class PitchService {
     return await this.getUserPitches(userId);
   }
 
+  // Alias for backward compatibility - calls the main update method
   static async updatePitch(pitchId: number, data: any, userId: number) {
-    // Check ownership
-    const pitchResult = await db
-      .select()
-      .from(pitches)
-      .where(and(
-        eq(pitches.id, pitchId),
-        eq(pitches.userId, userId)
-      ))
-      .limit(1);
-    
-    const pitch = pitchResult[0];
-
-    if (!pitch) {
-      throw new Error("Pitch not found or unauthorized");
-    }
-
-    // Prepare update data
-    const updateData = {
-      ...data,
-      estimatedBudget: data.estimatedBudget ? data.estimatedBudget.toString() : undefined,
-      updatedAt: new Date()
-    };
-
-    // Remove undefined fields
-    Object.keys(updateData).forEach((key: string) => {
-      if ((updateData as any)[key] === undefined) {
-        delete (updateData as any)[key];
-      }
-    });
-
-    const [updatedPitch] = await db.update(pitches)
-      .set(updateData)
-      .where(eq(pitches.id, pitchId))
-      .returning();
-
-    return updatedPitch;
+    return await this.update(pitchId, userId, data);
   }
 
   static async getProductionPitches(productionUserId: number) {

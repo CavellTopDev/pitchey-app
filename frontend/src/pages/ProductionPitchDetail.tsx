@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import PitchMediaGallery from '../components/PitchMediaGallery';
-import { API_URL } from '../config/api.config';
+import { API_URL } from '../config';
 import FormatDisplay from '../components/FormatDisplay';
 
 interface PitchDetails {

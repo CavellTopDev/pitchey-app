@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investor Functionality Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .log { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .status { font-weight: bold; margin: 10px 0; }
+        iframe { width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Investor Functionality Test</h1>
+        <p>This test verifies the investor login, dashboard, and logout functionality reported as broken by the user.</p>
+        
+        <div class="test-section">
+            <h2>🔍 Test Configuration</h2>
+            <div class="status" id="config-status">Checking configuration...</div>
+            <button onclick="checkConfiguration()">Check Frontend Config</button>
+            <div class="log" id="config-log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔐 Investor Login Test</h2>
+            <div class="status" id="login-status">Ready to test login</div>
+            <button onclick="testInvestorLogin()">Test Investor Login API</button>
+            <button onclick="openInvestorLogin()">Open Investor Login Page</button>
+            <div class="log" id="login-log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Dashboard Test</h2>
+            <div class="status" id="dashboard-status">Login required</div>
+            <button onclick="testDashboardAPI()" disabled id="dashboard-btn">Test Dashboard API</button>
+            <button onclick="openDashboard()" disabled id="dashboard-ui-btn">Open Dashboard UI</button>
+            <div class="log" id="dashboard-log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🚪 Logout Test</h2>
+            <div class="status" id="logout-status">Login required</div>
+            <button onclick="testLogout()" disabled id="logout-btn">Test Logout Functionality</button>
+            <div class="log" id="logout-log"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🌐 Interactive Test</h2>
+            <p>Use this embedded frontend to manually test the issues:</p>
+            <button onclick="loadInvestorLogin()">Load Investor Login</button>
+            <button onclick="loadDashboard()">Load Dashboard (after login)</button>
+            <iframe id="test-iframe" style="display: none;"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8001';
+        const FRONTEND_URL = 'http://localhost:5173';
+        let authToken = null;
+
+        function log(elementId, message, type = 'info') {
+            const logElement = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            logElement.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(elementId, message, type = 'info') {
+            const statusElement = document.getElementById(elementId);
+            statusElement.textContent = message;
+            statusElement.className = 'status ' + type;
+        }
+
+        async function checkConfiguration() {
+            log('config-log', 'Checking frontend configuration...', 'info');
+            
+            try {
+                // Check if frontend is responding
+                const frontendResponse = await fetch(FRONTEND_URL);
+                if (frontendResponse.ok) {
+                    log('config-log', 'Frontend server is running ✅', 'success');
+                } else {
+                    log('config-log', 'Frontend server not responding ❌', 'error');
+                }
+
+                // Check if backend is responding
+                const backendResponse = await fetch(`${API_URL}/api/health`);
+                if (backendResponse.ok) {
+                    log('config-log', 'Backend server is running ✅', 'success');
+                } else {
+                    log('config-log', 'Backend server not responding ❌', 'error');
+                }
+
+                updateStatus('config-status', 'Configuration check completed', 'success');
+            } catch (error) {
+                log('config-log', `Configuration check failed: ${error.message}`, 'error');
+                updateStatus('config-status', 'Configuration check failed', 'error');
+            }
+        }
+
+        async function testInvestorLogin() {
+            log('login-log', 'Testing investor login API...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/auth/investor/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'sarah.investor@demo.com',
+                        password: 'Demo123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    log('login-log', 'Login successful! ✅', 'success');
+                    log('login-log', `User: ${data.user.username} (${data.user.userType})`, 'info');
+                    updateStatus('login-status', 'Login successful', 'success');
+                    
+                    // Enable dashboard and logout tests
+                    document.getElementById('dashboard-btn').disabled = false;
+                    document.getElementById('dashboard-ui-btn').disabled = false;
+                    document.getElementById('logout-btn').disabled = false;
+                    updateStatus('dashboard-status', 'Ready to test dashboard', 'success');
+                    updateStatus('logout-status', 'Ready to test logout', 'success');
+                } else {
+                    log('login-log', `Login failed: ${data.error || 'Unknown error'}`, 'error');
+                    updateStatus('login-status', 'Login failed', 'error');
+                }
+            } catch (error) {
+                log('login-log', `Login API error: ${error.message}`, 'error');
+                updateStatus('login-status', 'Login API error', 'error');
+            }
+        }
+
+        async function testDashboardAPI() {
+            if (!authToken) {
+                log('dashboard-log', 'No auth token - login first', 'error');
+                return;
+            }
+
+            log('dashboard-log', 'Testing dashboard API...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/investor/dashboard`, {
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('dashboard-log', 'Dashboard API successful! ✅', 'success');
+                    log('dashboard-log', `Portfolio data: ${JSON.stringify(data.data.data.portfolio, null, 2)}`, 'info');
+                    updateStatus('dashboard-status', 'Dashboard API working', 'success');
+                } else {
+                    log('dashboard-log', `Dashboard API failed: ${data.error || 'Unknown error'}`, 'error');
+                    updateStatus('dashboard-status', 'Dashboard API failed', 'error');
+                }
+            } catch (error) {
+                log('dashboard-log', `Dashboard API error: ${error.message}`, 'error');
+                updateStatus('dashboard-status', 'Dashboard API error', 'error');
+            }
+        }
+
+        async function testLogout() {
+            log('logout-log', 'Testing logout functionality...', 'info');
+            
+            try {
+                // Test API logout
+                const response = await fetch(`${API_URL}/api/auth/logout`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    log('logout-log', 'Logout API successful! ✅', 'success');
+                    
+                    // Test if token is invalidated
+                    const testResponse = await fetch(`${API_URL}/api/investor/dashboard`, {
+                        headers: { 
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (testResponse.status === 401) {
+                        log('logout-log', 'Token properly invalidated ✅', 'success');
+                        updateStatus('logout-status', 'Logout working correctly', 'success');
+                    } else {
+                        log('logout-log', 'Token still valid - logout may not work properly ⚠️', 'warning');
+                        updateStatus('logout-status', 'Logout partially working', 'warning');
+                    }
+                    
+                    authToken = null;
+                    // Disable buttons
+                    document.getElementById('dashboard-btn').disabled = true;
+                    document.getElementById('dashboard-ui-btn').disabled = true;
+                    document.getElementById('logout-btn').disabled = true;
+                } else {
+                    const data = await response.json();
+                    log('logout-log', `Logout failed: ${data.error || 'Unknown error'}`, 'error');
+                    updateStatus('logout-status', 'Logout failed', 'error');
+                }
+            } catch (error) {
+                log('logout-log', `Logout error: ${error.message}`, 'error');
+                updateStatus('logout-status', 'Logout error', 'error');
+            }
+        }
+
+        function openInvestorLogin() {
+            window.open(`${FRONTEND_URL}/login/investor`, '_blank');
+        }
+
+        function openDashboard() {
+            window.open(`${FRONTEND_URL}/investor/dashboard`, '_blank');
+        }
+
+        function loadInvestorLogin() {
+            const iframe = document.getElementById('test-iframe');
+            iframe.src = `${FRONTEND_URL}/login/investor`;
+            iframe.style.display = 'block';
+        }
+
+        function loadDashboard() {
+            const iframe = document.getElementById('test-iframe');
+            iframe.src = `${FRONTEND_URL}/investor/dashboard`;
+            iframe.style.display = 'block';
+        }
+
+        // Auto-run configuration check on load
+        window.onload = () => {
+            checkConfiguration();
+        };
+    </script>
+</body>
+</html>

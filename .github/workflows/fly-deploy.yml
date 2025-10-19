@@ -1,10 +1,11 @@
 # See https://fly.io/docs/app-guides/continuous-deployment-with-github-actions/
+# DISABLED: Using Deno Deploy instead
 
-name: Fly Deploy
+name: Fly Deploy (Disabled)
 on:
   push:
     branches:
-      - main
+      - disabled-main
 jobs:
   deploy:
     name: Deploy app

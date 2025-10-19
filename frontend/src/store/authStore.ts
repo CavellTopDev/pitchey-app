@@ -17,7 +17,7 @@ interface AuthState {
     password: string;
     userType: string;
   }) => Promise<void>;
-  logout: () => void;
+  logout: (navigateToLogin?: boolean) => void;
   fetchProfile: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
 }
@@ -98,9 +98,33 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  logout: () => {
+  logout: (navigateToLogin = true) => {
+    console.log('Logout initiated in authStore');
+    
+    // Get current user type before clearing state
+    const currentUserType = localStorage.getItem('userType');
+    console.log('Current user type:', currentUserType);
+    
+    // Clear authentication state first
+    set({ user: null, isAuthenticated: false, loading: false, error: null });
+    
+    // Call the auth API logout to clear storage and backend session
     authAPI.logout();
-    set({ user: null, isAuthenticated: false });
+    
+    // Navigate to appropriate login page if requested
+    if (navigateToLogin) {
+      // Force a complete page reload to clear all state
+      const loginPath = currentUserType === 'creator' ? '/login/creator' : 
+                       currentUserType === 'investor' ? '/login/investor' :
+                       currentUserType === 'production' ? '/login/production' : '/';
+      
+      console.log('Redirecting to:', loginPath);
+      
+      // Add a small delay to ensure state cleanup completes
+      setTimeout(() => {
+        window.location.replace(loginPath);
+      }, 100);
+    }
   },
 
   fetchProfile: async () => {

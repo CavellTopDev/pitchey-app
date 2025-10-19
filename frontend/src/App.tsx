@@ -21,7 +21,7 @@ console.log('🚀 Pitchey App Environment:', {
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
 import Homepage from './pages/Homepage';
-import { TestSentryButton } from './components/TestSentry';
+// TestSentry component removed
 
 // Lazy loaded pages
 const Login = lazy(() => import('./pages/Login'));
@@ -56,7 +56,7 @@ const CreatorNDAManagement = lazy(() => import('./pages/CreatorNDAManagement'));
 const CreatorPitchView = lazy(() => import('./pages/creator/CreatorPitchView'));
 
 // Production Pages
-const ProductionPitchCreate = lazy(() => import('./pages/ProductionPitchCreate'));
+// ProductionPitchCreate removed - production companies cannot create pitches
 const ProductionPitchDetail = lazy(() => import('./pages/ProductionPitchDetail'));
 const ProductionPitchView = lazy(() => import('./pages/production/ProductionPitchView'));
 
@@ -82,6 +82,13 @@ const About = lazy(() => import('./pages/About'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+
+// Admin Pages
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
+const UserManagement = lazy(() => import('./pages/Admin/UserManagement'));
+const ContentModeration = lazy(() => import('./pages/Admin/ContentModeration'));
+const Transactions = lazy(() => import('./pages/Admin/Transactions'));
+const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 
 // Error Pages
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -129,7 +136,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <WebSocketProvider>
           <ToastProvider>
-            <TestSentryButton />
+            {/* TestSentry component removed */}
             <Router>
             <Suspense fallback={
               <div className="min-h-screen flex items-center justify-center">
@@ -168,6 +175,11 @@ function App() {
           <Route path="/login/production" element={
             !isAuthenticated ? <ProductionLogin /> : 
             userType === 'production' ? <Navigate to="/production/dashboard" /> :
+            <Navigate to="/" />
+          } />
+          <Route path="/login/admin" element={
+            !isAuthenticated ? <Login /> : 
+            userType === 'admin' ? <Navigate to="/admin/dashboard" /> :
             <Navigate to="/" />
           } />
           
@@ -276,15 +288,33 @@ function App() {
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/production" />
           } />
-          <Route path="/pitch/new/production" element={
-            isAuthenticated && userType === 'production' ? <ProductionPitchCreate /> : 
+          {/* Production companies cannot create or edit pitches - routes removed */}
+          
+          {/* Admin Protected Routes */}
+          <Route path="/admin/dashboard" element={
+            isAuthenticated && userType === 'admin' ? <AdminDashboard /> : 
             isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/production" />
+            <Navigate to="/login/admin" />
           } />
-          <Route path="/pitch/:id/edit" element={
-            isAuthenticated && userType === 'production' ? <PitchEdit /> : 
+          <Route path="/admin/users" element={
+            isAuthenticated && userType === 'admin' ? <UserManagement /> : 
             isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/production" />
+            <Navigate to="/login/admin" />
+          } />
+          <Route path="/admin/content" element={
+            isAuthenticated && userType === 'admin' ? <ContentModeration /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/admin" />
+          } />
+          <Route path="/admin/transactions" element={
+            isAuthenticated && userType === 'admin' ? <Transactions /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/admin" />
+          } />
+          <Route path="/admin/settings" element={
+            isAuthenticated && userType === 'admin' ? <SystemSettings /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/admin" />
           } />
           
           {/* Creator Profile Route - accessible to all authenticated users */}
@@ -338,7 +368,11 @@ function App() {
           {/* Legacy Protected routes */}
           <Route element={<Layout />}>
             <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/portals" />} />
-            <Route path="/pitch/new" element={isAuthenticated ? <div>New Pitch</div> : <Navigate to="/portals" />} />
+            <Route path="/pitch/new" element={
+              isAuthenticated && userType === 'creator' ? <CreatePitch /> : 
+              isAuthenticated ? <Navigate to={`/${userType}/dashboard`} /> :
+              <Navigate to="/portals" />
+            } />
           </Route>
           
                 {/* 404 - Must be last */}

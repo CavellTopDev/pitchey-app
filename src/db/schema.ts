@@ -85,6 +85,7 @@ export const pitches = pgTable("pitches", {
   targetAudience: text("target_audience"),
   characters: text("characters"),
   themes: text("themes"),
+  worldDescription: text("world_description"),
   episodeBreakdown: text("episode_breakdown"),
   budgetBracket: varchar("budget_bracket", { length: 100 }),
   estimatedBudget: decimal("estimated_budget", { precision: 15, scale: 2 }),
@@ -108,11 +109,11 @@ export const pitches = pgTable("pitches", {
   publishedAt: timestamp("published_at"),
   visibilitySettings: jsonb("visibility_settings").default('{"showBudget": false, "showLocation": false, "showCharacters": true, "showShortSynopsis": true}'),
   aiUsed: boolean("ai_used").default(false),
-  aiTools: varchar("ai_tools", { length: 100 }).array().default("{}"),
+  aiTools: varchar("ai_tools", { length: 100 }).array().default([]),
   aiDisclosure: text("ai_disclosure"),
   shareCount: integer("share_count").default(0),
   feedback: jsonb("feedback").default("[]"),
-  tags: varchar("tags", { length: 50 }).array().default("{}"),
+  tags: varchar("tags", { length: 50 }).array().default([]),
   archived: boolean("archived").default(false),
   archivedAt: timestamp("archived_at"),
   metadata: jsonb("metadata").default("{}"),
@@ -338,20 +339,24 @@ export const pitchSaves = pgTable("pitch_saves", {
 export const userCredits = pgTable("user_credits", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
-  creditType: varchar("credit_type", { length: 50 }),
-  amount: integer("amount").default(0),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  balance: integer("balance").default(0),
+  totalPurchased: integer("total_purchased").default(0),
+  totalUsed: integer("total_used").default(0),
+  lastUpdated: timestamp("last_updated").defaultNow(),
 });
 
 export const creditTransactions = pgTable("credit_transactions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "set null" }),
-  transactionType: varchar("transaction_type", { length: 50 }),
+  paymentId: integer("payment_id").references(() => payments.id, { onDelete: "set null" }),
+  type: varchar("type", { length: 50 }), // 'purchase', 'usage', 'refund', 'bonus'
   amount: integer("amount"),
+  balanceBefore: integer("balance_before"),
+  balanceAfter: integer("balance_after"),
   description: text("description"),
+  usageType: varchar("usage_type", { length: 50 }),
+  metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -359,11 +364,17 @@ export const payments = pgTable("payments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeSessionId: text("stripe_session_id"),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  type: varchar("type", { length: 50 }), // 'subscription', 'credits', 'one_time'
   amount: decimal("amount", { precision: 10, scale: 2 }),
   currency: varchar("currency", { length: 3 }).default("usd"),
   status: varchar("status", { length: 50 }),
   description: text("description"),
   metadata: jsonb("metadata"),
+  failureReason: text("failure_reason"),
+  completedAt: timestamp("completed_at"),
+  failedAt: timestamp("failed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -580,6 +591,8 @@ export type TranslationKey = typeof translationKeys.$inferSelect;
 export type Translation = typeof translations.$inferSelect;
 export type NavigationMenu = typeof navigationMenus.$inferSelect;
 export type ContentApproval = typeof contentApprovals.$inferSelect;
+export type InfoRequest = typeof infoRequests.$inferSelect;
+export type InfoRequestAttachment = typeof infoRequestAttachments.$inferSelect;
 
 // ============= RELATIONS =============
 // Define all table relations for Drizzle ORM
@@ -771,4 +784,54 @@ export const investmentTimeline = pgTable("investment_timeline", {
   eventDescription: text("event_description"),
   eventDate: timestamp("event_date").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// 6. Information Requests table (for post-NDA communication)
+export const infoRequests = pgTable("info_requests", {
+  id: serial("id").primaryKey(),
+  ndaId: integer("nda_id").references(() => ndas.id, { onDelete: "cascade" }).notNull(),
+  pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "cascade" }).notNull(),
+  requesterId: integer("requester_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  ownerId: integer("owner_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  requestType: varchar("request_type", { length: 50 }).notNull(), // financial, production, legal, marketing, etc.
+  subject: varchar("subject", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  priority: varchar("priority", { length: 20 }).default("medium"), // low, medium, high, urgent
+  status: varchar("status", { length: 50 }).default("pending"), // pending, responded, closed
+  response: text("response"),
+  responseAt: timestamp("response_at"),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 7. Info Request Attachments table
+export const infoRequestAttachments = pgTable("info_request_attachments", {
+  id: serial("id").primaryKey(),
+  infoRequestId: integer("info_request_id").references(() => infoRequests.id, { onDelete: "cascade" }).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileType: varchar("file_type", { length: 50 }),
+  fileSize: integer("file_size"),
+  uploadedBy: integer("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export const pitchDocuments = pgTable("pitch_documents", {
+  id: serial("id").primaryKey(),
+  pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "cascade" }).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  originalFileName: varchar("original_file_name", { length: 255 }).notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileKey: text("file_key"), // For S3 key or local path
+  fileType: varchar("file_type", { length: 50 }).notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  documentType: varchar("document_type", { length: 50 }).notNull(), // script, treatment, pitch_deck, nda, supporting
+  isPublic: boolean("is_public").default(false),
+  requiresNda: boolean("requires_nda").default(false),
+  uploadedBy: integer("uploaded_by").references(() => users.id, { onDelete: "set null" }).notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  lastModified: timestamp("last_modified").defaultNow(),
+  downloadCount: integer("download_count").default(0),
+  metadata: jsonb("metadata").default("{}"), // For additional file metadata
 });

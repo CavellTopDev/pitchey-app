@@ -5,7 +5,7 @@
 
 import { nativeRedisService as redisService } from "./redis-native.service.ts";
 import { WSMessage, WSMessageType, REDIS_CHANNELS } from "./websocket.service.ts";
-import { sentryService, captureException } from "./sentry.service.ts";
+import { captureException } from "./logging.service.ts";
 
 interface PubSubSubscription {
   channel: string;
@@ -87,7 +87,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Subscribed to channel: ${channel}`);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to subscribe to ${channel}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -104,7 +104,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Unsubscribed from channel: ${channel}`);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to unsubscribe from ${channel}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -128,7 +128,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Published message to ${channel}:`, message.type);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to publish to ${channel}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -202,7 +202,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to update presence for user ${userId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -264,7 +264,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Queued message for offline user ${userId}`);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to queue message for user ${userId}:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -319,7 +319,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to store draft sync:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -361,7 +361,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to store upload progress:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -389,7 +389,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to update pitch stats:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -426,7 +426,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to set typing indicator:`, error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 
@@ -474,7 +474,7 @@ export class WebSocketRedisService {
       console.log("[WebSocket Redis] Cleanup completed");
     } catch (error) {
       console.error("[WebSocket Redis] Failed to cleanup expired data:", error);
-      captureException(error);
+      captureException(error, { service: 'WebSocketRedis' });
     }
   }
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Bell, Eye, Mail, Smartphone, Lock, Key, Trash2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { API_URL } from '../config/api.config';
+import { API_URL } from '../config';
 
 interface NotificationSettings {
   emailNotifications: boolean;

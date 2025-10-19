@@ -86,3 +86,29 @@ The platform includes comprehensive WebSocket integration:
 3. **Restart frontend after .env changes**
 4. **Use lazy-loaded getters for Redis service access**
 5. **WebSocket types are in separate types file**
+
+## Known Issues & Client Requirements
+**⚠️ CRITICAL: See CLIENT_FEEDBACK_REQUIREMENTS.md for detailed client feedback and required fixes**
+
+### High Priority Issues:
+1. **Investor Portal Broken**: Cannot sign out, dashboard not working
+2. **Browse Section**: Tabs showing mixed content, needs filtering fixes
+3. **NDA Workflow**: Unclear/non-functional, needs complete implementation
+4. **Access Control**: Investors incorrectly able to create pitches
+
+### Required Enhancements:
+- Character editing and reordering in pitch creation
+- Document upload system improvements (multiple files, custom NDA)
+- General browse view with comprehensive sorting
+- Themes field conversion to free-text
+- New "World" field for world-building descriptions
+
+### Recently Fixed Issues:
+- **Service Naming Conflicts**: Removed duplicate NDA services, standardized naming
+- **Database Field Mismatches**: Fixed passwordHash field mapping in authentication
+- **Configuration Inconsistencies**: Unified frontend configuration, removed legacy files
+- **Port References**: Updated all references to use consistent port 8001
+
+For complete details, implementation notes, and testing criteria, refer to:
+📄 **CLIENT_FEEDBACK_REQUIREMENTS.md**
+📄 **CODEBASE_INCONSISTENCIES_REPORT.md**

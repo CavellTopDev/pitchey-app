@@ -1,7 +1,7 @@
 // Production Service - Dashboard and production company-specific operations with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import type { Pitch } from './pitch.service';
-import type { User } from './user.service';
+import type { Pitch } from '../types/api';
+import type { User } from '../types/api';
 import { config } from '../config';
 
 // Types for production dashboard data
