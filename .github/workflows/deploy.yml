@@ -81,7 +81,7 @@ jobs:
         run: mv .env.example .env.example.backup || true
       
       - name: Install deployctl
-        run: npm install -g deployctl
+        run: deno install -A --global jsr:@deno/deployctl@1.x
         
       - name: Deploy to Deno Deploy
         env:
