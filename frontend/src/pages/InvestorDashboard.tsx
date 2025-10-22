@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search, Filter, Film, CreditCard, Coins, Users, Heart, Shield, Building2, User } from 'lucide-react';
+import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search, Filter, CreditCard, Coins, Users, Heart, Shield, Building2, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI, pitchServicesAPI, apiClient } from '../lib/apiServices';
 import FollowButton from '../components/FollowButton';
@@ -170,13 +170,10 @@ export default function InvestorDashboard() {
               {/* Pitchey Logo - Links to Homepage */}
               <Link 
                 to="/" 
-                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+                className="flex items-center hover:opacity-80 transition-opacity"
                 title="Go to Homepage"
               >
-                <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-r from-purple-600 to-purple-500 rounded-lg flex items-center justify-center">
-                  <Film className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <span className="text-lg lg:text-xl font-bold text-gray-900 hidden sm:block">Pitchey</span>
+                <span className="text-lg lg:text-xl font-bold text-gray-900">Pitchey</span>
               </Link>
               
               {/* Divider - Hidden on mobile */}

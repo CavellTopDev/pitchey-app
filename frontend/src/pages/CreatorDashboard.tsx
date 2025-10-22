@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Film, TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, LogOut, Plus, Shield, CreditCard, Coins } from 'lucide-react';
+import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, LogOut, Plus, Shield, CreditCard, Coins } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI, apiClient } from '../lib/apiServices';
 import { NDANotificationBadge, NDANotificationPanel } from '../components/NDANotifications';
@@ -167,12 +167,9 @@ export default function CreatorDashboard() {
               {/* Pitchey Logo - Links to Homepage */}
               <Link 
                 to="/" 
-                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+                className="flex items-center hover:opacity-80 transition-opacity"
                 title="Go to Homepage"
               >
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-purple-500 rounded-lg flex items-center justify-center">
-                  <Film className="w-6 h-6 text-white" />
-                </div>
                 <span className="text-xl font-bold text-gray-900">Pitchey</span>
               </Link>
               
@@ -271,7 +268,7 @@ export default function CreatorDashboard() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-500 text-sm">Total Pitches</span>
-              <Film className="w-5 h-5 text-purple-500" />
+              <BarChart3 className="w-5 h-5 text-purple-500" />
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats?.totalPitches || 0}</p>
             <p className="text-xs text-gray-500 mt-1">All time</p>
@@ -342,7 +339,7 @@ export default function CreatorDashboard() {
                 stats?.totalPitches > 0 ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
               }`}>
                 <div className="flex items-center justify-between mb-2">
-                  <Film className={`w-8 h-8 ${
+                  <Upload className={`w-8 h-8 ${
                     stats?.totalPitches > 0 ? 'text-green-600' : 'text-gray-400'
                   }`} />
                   {stats?.totalPitches > 0 && (
@@ -492,7 +489,7 @@ export default function CreatorDashboard() {
                            activity.icon === 'dollar-sign' ? <CreditCard className="w-4 h-4" /> :
                            activity.icon === 'message-circle' ? <MessageSquare className="w-4 h-4" /> :
                            activity.icon === 'user-plus' ? <Plus className="w-4 h-4" /> :
-                           <Film className="w-4 h-4" />}
+                           <Calendar className="w-4 h-4" />}
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">
@@ -532,7 +529,7 @@ export default function CreatorDashboard() {
                     onClick={() => navigate('/creator/pitches')}
                     className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
                   >
-                    <Film className="w-5 h-5 text-gray-600" />
+                    <Upload className="w-5 h-5 text-gray-600" />
                     <span className="text-sm font-medium text-gray-900">Manage Pitches</span>
                   </button>
                   
