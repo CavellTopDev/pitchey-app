@@ -126,9 +126,18 @@ class ApiClient {
         // Handle 401 specifically
         if (response.status === 401) {
           try {
+            // Get user type to redirect to correct login page
+            const userType = localStorage.getItem('userType');
             localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            localStorage.removeItem('userType');
+            
             if (typeof window !== 'undefined') {
-              window.location.href = '/login';
+              // Redirect to appropriate login page based on user type
+              const loginPath = userType === 'creator' ? '/login/creator' : 
+                               userType === 'investor' ? '/login/investor' :
+                               userType === 'production' ? '/login/production' : '/';
+              window.location.href = loginPath;
             }
           } catch (error) {
             console.warn('Failed to handle auth error:', error);
