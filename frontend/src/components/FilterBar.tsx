@@ -34,6 +34,9 @@ export interface FilterState {
   budgetMax?: number;
   developmentStages: string[];
   searchQuery: string;
+  creatorTypes: string[];
+  hasNDA?: boolean;
+  seekingInvestment?: boolean;
 }
 
 export interface SortOption {
@@ -73,6 +76,9 @@ export default function FilterBar({
   const [selectedStages, setSelectedStages] = useState<string[]>([]);
   const [budgetRange, setBudgetRange] = useState<{ min: number; max: number }>({ min: 0, max: 999999999 });
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCreatorTypes, setSelectedCreatorTypes] = useState<string[]>([]);
+  const [hasNDA, setHasNDA] = useState<boolean | undefined>(undefined);
+  const [seekingInvestment, setSeekingInvestment] = useState<boolean | undefined>(undefined);
   
   // Sort state
   const [sortField, setSortField] = useState<SortOption['field']>('date');
@@ -134,9 +140,12 @@ export default function FilterBar({
       budgetMin: budgetRange.min,
       budgetMax: budgetRange.max,
       developmentStages: selectedStages,
-      searchQuery
+      searchQuery,
+      creatorTypes: selectedCreatorTypes,
+      hasNDA,
+      seekingInvestment
     });
-  }, [selectedGenres, selectedFormats, selectedStages, budgetRange, searchQuery]);
+  }, [selectedGenres, selectedFormats, selectedStages, budgetRange, searchQuery, selectedCreatorTypes, hasNDA, seekingInvestment]);
 
   // Update sort when it changes
   useEffect(() => {
@@ -192,6 +201,9 @@ export default function FilterBar({
     setBudgetRange({ min: 0, max: 999999999 });
     setBudgetSliderValue([0, 100]);
     setSearchQuery('');
+    setSelectedCreatorTypes([]);
+    setHasNDA(undefined);
+    setSeekingInvestment(undefined);
     setSortField('date');
     setSortOrder('desc');
     setSearchParams(new URLSearchParams());
@@ -201,8 +213,11 @@ export default function FilterBar({
     selectedGenres.length + 
     selectedFormats.length + 
     selectedStages.length + 
+    selectedCreatorTypes.length +
     (budgetRange.min > 0 || budgetRange.max < 999999999 ? 1 : 0) +
-    (searchQuery ? 1 : 0);
+    (searchQuery ? 1 : 0) +
+    (hasNDA ? 1 : 0) +
+    (seekingInvestment ? 1 : 0);
 
   return (
     <div className={`bg-white border-b sticky top-0 z-30 ${className}`}>
@@ -595,28 +610,55 @@ export default function FilterBar({
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Additional Filters
               </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">Has NDA</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">Seeking Investment</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors">
-                  <input
-                    type="checkbox"
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">Award Winners</span>
-                </label>
+              <div className="space-y-3">
+                {/* Creator Type Filter */}
+                <div>
+                  <p className="text-xs font-medium text-gray-600 mb-2">Creator Type</p>
+                  <div className="space-y-1">
+                    {['creator', 'production', 'investor'].map(type => (
+                      <label
+                        key={type}
+                        className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCreatorTypes.includes(type)}
+                          onChange={() => {
+                            setSelectedCreatorTypes(prev =>
+                              prev.includes(type)
+                                ? prev.filter(t => t !== type)
+                                : [...prev, type]
+                            );
+                          }}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700 capitalize">{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Other Filters */}
+                <div className="border-t pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={hasNDA === true}
+                      onChange={(e) => setHasNDA(e.target.checked ? true : undefined)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">Has NDA Protection</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={seekingInvestment === true}
+                      onChange={(e) => setSeekingInvestment(e.target.checked ? true : undefined)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">Seeking Investment</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>

@@ -2026,31 +2026,19 @@ const handler = async (request: Request): Promise<Response> => {
             // Build conditions array
             const conditions = [eq(pitches.status, "published")];
             
-            // Apply multi-genre filter (OR logic within genres)
+            // Apply multi-genre filter using inArray
             if (genres.length > 0) {
-              if (genres.length === 1) {
-                conditions.push(eq(pitches.genre, genres[0]));
-              } else {
-                conditions.push(or(...genres.map(g => eq(pitches.genre, g))));
-              }
+              conditions.push(inArray(pitches.genre, genres));
             }
             
-            // Apply multi-format filter (OR logic within formats)
+            // Apply multi-format filter using inArray
             if (formats.length > 0) {
-              if (formats.length === 1) {
-                conditions.push(eq(pitches.format, formats[0]));
-              } else {
-                conditions.push(or(...formats.map(f => eq(pitches.format, f))));
-              }
+              conditions.push(inArray(pitches.format, formats));
             }
             
-            // Apply multi-stage filter (OR logic within stages)
+            // Apply multi-stage filter using inArray
             if (stages.length > 0) {
-              if (stages.length === 1) {
-                conditions.push(eq(pitches.productionStage, stages[0]));
-              } else {
-                conditions.push(or(...stages.map(s => eq(pitches.productionStage, s))));
-              }
+              conditions.push(inArray(pitches.productionStage, stages));
             }
             
             // Apply budget range filter

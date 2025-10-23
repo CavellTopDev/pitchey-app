@@ -109,23 +109,8 @@ export default function MarketplaceEnhanced() {
         params.set('budgetMax', filters.budgetMax.toString());
       }
       
-      // Use general browse endpoint which works with basic filtering
-      // Note: Multi-select filtering will be limited to single selection for now
-      const generalParams = new URLSearchParams();
-      generalParams.set('sort', sortOption.field);
-      generalParams.set('order', sortOption.order);
-      generalParams.set('limit', itemsPerPage.toString());
-      generalParams.set('offset', ((currentPage - 1) * itemsPerPage).toString());
-      
-      // For now, use only the first selected item for each filter
-      if (filters.genres.length > 0) {
-        generalParams.set('genre', filters.genres[0]);
-      }
-      if (filters.formats.length > 0) {
-        generalParams.set('format', filters.formats[0]);
-      }
-      
-      const response = await fetch(`${API_URL}/api/pitches/browse/general?${generalParams.toString()}`, {
+      // Try enhanced endpoint first with multi-select support
+      const response = await fetch(`${API_URL}/api/pitches/browse/enhanced?${params.toString()}`, {
         headers: token ? {
           'Authorization': `Bearer ${token}`
         } : {}
@@ -135,7 +120,35 @@ export default function MarketplaceEnhanced() {
         const data = await response.json();
         setPitches(data.pitches || []);
         setTotalPages(data.pagination?.totalPages || 1);
-        setTotalResults(data.pagination?.totalCount || data.totalCount || 0);
+        setTotalResults(data.pagination?.total || data.pagination?.totalCount || data.totalCount || 0);
+      } else {
+        // Fallback to general browse endpoint
+        const generalParams = new URLSearchParams();
+        generalParams.set('sort', sortOption.field);
+        generalParams.set('order', sortOption.order);
+        generalParams.set('limit', itemsPerPage.toString());
+        generalParams.set('offset', ((currentPage - 1) * itemsPerPage).toString());
+        
+        // For fallback, use only the first selected item for each filter
+        if (filters.genres.length > 0) {
+          generalParams.set('genre', filters.genres[0]);
+        }
+        if (filters.formats.length > 0) {
+          generalParams.set('format', filters.formats[0]);
+        }
+        
+        const fallbackResponse = await fetch(`${API_URL}/api/pitches/browse/general?${generalParams.toString()}`, {
+          headers: token ? {
+            'Authorization': `Bearer ${token}`
+          } : {}
+        });
+        
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          setPitches(fallbackData.pitches || []);
+          setTotalPages(fallbackData.pagination?.totalPages || 1);
+          setTotalResults(fallbackData.pagination?.totalCount || fallbackData.totalCount || 0);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch pitches:', error);
