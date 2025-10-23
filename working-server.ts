@@ -90,7 +90,8 @@ import {
   contentTypes, contentItems, featureFlags, portalConfigurations,
   translationKeys, translations, navigationMenus, contentApprovals,
   savedPitches, reviews, calendarEvents, investments, investmentDocuments, investmentTimeline,
-  infoRequests, infoRequestAttachments, pitchDocuments
+  infoRequests, infoRequestAttachments, pitchDocuments,
+  savedFilters, emailAlerts, alertSentPitches
 } from "./src/db/schema.ts";
 import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "drizzle-orm";
 
@@ -6721,6 +6722,429 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error('Error updating information request status:', error);
         return serverErrorResponse(error.message || "Failed to update status");
+      }
+    }
+
+    // ===== SAVED FILTERS ENDPOINTS =====
+    
+    // GET /api/filters/saved - Get user's saved filters
+    if (url.pathname === "/api/filters/saved" && method === "GET") {
+      try {
+        const userFilters = await db
+          .select()
+          .from(savedFilters)
+          .where(eq(savedFilters.userId, user.id))
+          .orderBy(desc(savedFilters.isDefault), desc(savedFilters.usageCount));
+
+        return successResponse({ 
+          filters: userFilters,
+          message: "Saved filters retrieved successfully" 
+        });
+      } catch (error) {
+        console.error("Failed to get saved filters:", error);
+        return serverErrorResponse("Failed to retrieve saved filters");
+      }
+    }
+
+    // POST /api/filters/saved - Create a new saved filter
+    if (url.pathname === "/api/filters/saved" && method === "POST") {
+      try {
+        const result = await validateJsonRequest(request, ["name", "filters"]);
+        if (!result.success) {
+          return result.error!;
+        }
+
+        const { name, description, filters, isDefault } = result.data;
+
+        // If setting as default, unset other defaults
+        if (isDefault) {
+          await db
+            .update(savedFilters)
+            .set({ isDefault: false })
+            .where(eq(savedFilters.userId, user.id));
+        }
+
+        const [newFilter] = await db
+          .insert(savedFilters)
+          .values({
+            userId: user.id,
+            name,
+            description,
+            filters,
+            isDefault: isDefault || false,
+            usageCount: 0
+          })
+          .returning();
+
+        return createdResponse({ 
+          filter: newFilter,
+          message: "Filter saved successfully" 
+        });
+      } catch (error) {
+        console.error("Failed to save filter:", error);
+        return serverErrorResponse("Failed to save filter");
+      }
+    }
+
+    // PUT /api/filters/saved/:id - Update a saved filter
+    if (url.pathname.startsWith("/api/filters/saved/") && method === "PUT" && !url.pathname.includes("/default") && !url.pathname.includes("/use")) {
+      try {
+        const pathParts = url.pathname.split("/");
+        const filterId = parseInt(pathParts[4]);
+        
+        if (isNaN(filterId)) {
+          return errorResponse("Invalid filter ID", 400);
+        }
+
+        const result = await validateJsonRequest(request, ["name", "filters"]);
+        if (!result.success) {
+          return result.error!;
+        }
+
+        const { name, description, filters, isDefault } = result.data;
+
+        // Check ownership
+        const [existingFilter] = await db
+          .select()
+          .from(savedFilters)
+          .where(and(
+            eq(savedFilters.id, filterId),
+            eq(savedFilters.userId, user.id)
+          ));
+
+        if (!existingFilter) {
+          return notFoundResponse("Filter not found");
+        }
+
+        // If setting as default, unset other defaults
+        if (isDefault && !existingFilter.isDefault) {
+          await db
+            .update(savedFilters)
+            .set({ isDefault: false })
+            .where(eq(savedFilters.userId, user.id));
+        }
+
+        const [updatedFilter] = await db
+          .update(savedFilters)
+          .set({
+            name,
+            description,
+            filters,
+            isDefault: isDefault || false,
+            updatedAt: new Date()
+          })
+          .where(eq(savedFilters.id, filterId))
+          .returning();
+
+        return successResponse({ 
+          filter: updatedFilter,
+          message: "Filter updated successfully" 
+        });
+      } catch (error) {
+        console.error("Failed to update filter:", error);
+        return serverErrorResponse("Failed to update filter");
+      }
+    }
+
+    // DELETE /api/filters/saved/:id - Delete a saved filter
+    if (url.pathname.startsWith("/api/filters/saved/") && method === "DELETE") {
+      try {
+        const pathParts = url.pathname.split("/");
+        const filterId = parseInt(pathParts[4]);
+        
+        if (isNaN(filterId)) {
+          return errorResponse("Invalid filter ID", 400);
+        }
+
+        // Check ownership and delete
+        const result = await db
+          .delete(savedFilters)
+          .where(and(
+            eq(savedFilters.id, filterId),
+            eq(savedFilters.userId, user.id)
+          ))
+          .returning();
+
+        if (result.length === 0) {
+          return notFoundResponse("Filter not found");
+        }
+
+        return successResponse({ message: "Filter deleted successfully" });
+      } catch (error) {
+        console.error("Failed to delete filter:", error);
+        return serverErrorResponse("Failed to delete filter");
+      }
+    }
+
+    // PUT /api/filters/saved/:id/default - Toggle default status
+    if (url.pathname.includes("/api/filters/saved/") && url.pathname.endsWith("/default") && method === "PUT") {
+      try {
+        const pathParts = url.pathname.split("/");
+        const filterId = parseInt(pathParts[4]);
+        
+        if (isNaN(filterId)) {
+          return errorResponse("Invalid filter ID", 400);
+        }
+
+        // Get current filter
+        const [existingFilter] = await db
+          .select()
+          .from(savedFilters)
+          .where(and(
+            eq(savedFilters.id, filterId),
+            eq(savedFilters.userId, user.id)
+          ));
+
+        if (!existingFilter) {
+          return notFoundResponse("Filter not found");
+        }
+
+        // If setting as default, unset other defaults
+        if (!existingFilter.isDefault) {
+          await db
+            .update(savedFilters)
+            .set({ isDefault: false })
+            .where(eq(savedFilters.userId, user.id));
+        }
+
+        // Toggle the default status
+        const [updatedFilter] = await db
+          .update(savedFilters)
+          .set({
+            isDefault: !existingFilter.isDefault,
+            updatedAt: new Date()
+          })
+          .where(eq(savedFilters.id, filterId))
+          .returning();
+
+        return successResponse({ 
+          filter: updatedFilter,
+          message: existingFilter.isDefault ? "Removed as default" : "Set as default filter" 
+        });
+      } catch (error) {
+        console.error("Failed to toggle default:", error);
+        return serverErrorResponse("Failed to update default filter");
+      }
+    }
+
+    // POST /api/filters/saved/:id/use - Track filter usage
+    if (url.pathname.includes("/api/filters/saved/") && url.pathname.endsWith("/use") && method === "POST") {
+      try {
+        const pathParts = url.pathname.split("/");
+        const filterId = parseInt(pathParts[4]);
+        
+        if (isNaN(filterId)) {
+          return errorResponse("Invalid filter ID", 400);
+        }
+
+        // Increment usage count
+        await db
+          .update(savedFilters)
+          .set({
+            usageCount: sql`${savedFilters.usageCount} + 1`,
+            updatedAt: new Date()
+          })
+          .where(and(
+            eq(savedFilters.id, filterId),
+            eq(savedFilters.userId, user.id)
+          ));
+
+        return successResponse({ message: "Usage tracked" });
+      } catch (error) {
+        console.error("Failed to track usage:", error);
+        return serverErrorResponse("Failed to track filter usage");
+      }
+    }
+
+    // ===== EMAIL ALERTS ENDPOINTS =====
+
+    // GET /api/alerts/email - Get user's email alerts
+    if (url.pathname === "/api/alerts/email" && method === "GET") {
+      try {
+        const userAlerts = await db
+          .select()
+          .from(emailAlerts)
+          .where(eq(emailAlerts.userId, user.id))
+          .orderBy(desc(emailAlerts.isActive), desc(emailAlerts.createdAt));
+
+        return successResponse({ 
+          alerts: userAlerts,
+          message: "Email alerts retrieved successfully" 
+        });
+      } catch (error) {
+        console.error("Failed to get email alerts:", error);
+        return serverErrorResponse("Failed to retrieve email alerts");
+      }
+    }
+
+    // POST /api/alerts/email - Create a new email alert
+    if (url.pathname === "/api/alerts/email" && method === "POST") {
+      try {
+        const result = await validateJsonRequest(request, ["name", "filters", "frequency"]);
+        if (!result.success) {
+          return result.error!;
+        }
+
+        const { name, filters, frequency } = result.data;
+
+        // Validate frequency
+        if (!["immediate", "daily", "weekly"].includes(frequency)) {
+          return errorResponse("Invalid frequency. Must be 'immediate', 'daily', or 'weekly'", 400);
+        }
+
+        const [newAlert] = await db
+          .insert(emailAlerts)
+          .values({
+            userId: user.id,
+            name,
+            filters,
+            frequency,
+            isActive: true,
+            matchesFound: 0
+          })
+          .returning();
+
+        return createdResponse({ 
+          alert: newAlert,
+          message: "Email alert created successfully" 
+        });
+      } catch (error) {
+        console.error("Failed to create email alert:", error);
+        return serverErrorResponse("Failed to create email alert");
+      }
+    }
+
+    // PUT /api/alerts/email/:id - Update an email alert
+    if (url.pathname.startsWith("/api/alerts/email/") && method === "PUT" && !url.pathname.includes("/toggle")) {
+      try {
+        const pathParts = url.pathname.split("/");
+        const alertId = parseInt(pathParts[4]);
+        
+        if (isNaN(alertId)) {
+          return errorResponse("Invalid alert ID", 400);
+        }
+
+        const result = await validateJsonRequest(request, ["name", "filters", "frequency"]);
+        if (!result.success) {
+          return result.error!;
+        }
+
+        const { name, filters, frequency } = result.data;
+
+        // Validate frequency
+        if (!["immediate", "daily", "weekly"].includes(frequency)) {
+          return errorResponse("Invalid frequency. Must be 'immediate', 'daily', or 'weekly'", 400);
+        }
+
+        // Check ownership
+        const [existingAlert] = await db
+          .select()
+          .from(emailAlerts)
+          .where(and(
+            eq(emailAlerts.id, alertId),
+            eq(emailAlerts.userId, user.id)
+          ));
+
+        if (!existingAlert) {
+          return notFoundResponse("Alert not found");
+        }
+
+        const [updatedAlert] = await db
+          .update(emailAlerts)
+          .set({
+            name,
+            filters,
+            frequency,
+            updatedAt: new Date()
+          })
+          .where(eq(emailAlerts.id, alertId))
+          .returning();
+
+        return successResponse({ 
+          alert: updatedAlert,
+          message: "Email alert updated successfully" 
+        });
+      } catch (error) {
+        console.error("Failed to update email alert:", error);
+        return serverErrorResponse("Failed to update email alert");
+      }
+    }
+
+    // DELETE /api/alerts/email/:id - Delete an email alert
+    if (url.pathname.startsWith("/api/alerts/email/") && method === "DELETE") {
+      try {
+        const pathParts = url.pathname.split("/");
+        const alertId = parseInt(pathParts[4]);
+        
+        if (isNaN(alertId)) {
+          return errorResponse("Invalid alert ID", 400);
+        }
+
+        // Check ownership and delete
+        const result = await db
+          .delete(emailAlerts)
+          .where(and(
+            eq(emailAlerts.id, alertId),
+            eq(emailAlerts.userId, user.id)
+          ))
+          .returning();
+
+        if (result.length === 0) {
+          return notFoundResponse("Alert not found");
+        }
+
+        // Also delete tracked sent pitches
+        await db
+          .delete(alertSentPitches)
+          .where(eq(alertSentPitches.alertId, alertId));
+
+        return successResponse({ message: "Email alert deleted successfully" });
+      } catch (error) {
+        console.error("Failed to delete email alert:", error);
+        return serverErrorResponse("Failed to delete email alert");
+      }
+    }
+
+    // PUT /api/alerts/email/:id/toggle - Toggle alert active status
+    if (url.pathname.includes("/api/alerts/email/") && url.pathname.endsWith("/toggle") && method === "PUT") {
+      try {
+        const pathParts = url.pathname.split("/");
+        const alertId = parseInt(pathParts[4]);
+        
+        if (isNaN(alertId)) {
+          return errorResponse("Invalid alert ID", 400);
+        }
+
+        // Get current alert
+        const [existingAlert] = await db
+          .select()
+          .from(emailAlerts)
+          .where(and(
+            eq(emailAlerts.id, alertId),
+            eq(emailAlerts.userId, user.id)
+          ));
+
+        if (!existingAlert) {
+          return notFoundResponse("Alert not found");
+        }
+
+        // Toggle the active status
+        const [updatedAlert] = await db
+          .update(emailAlerts)
+          .set({
+            isActive: !existingAlert.isActive,
+            updatedAt: new Date()
+          })
+          .where(eq(emailAlerts.id, alertId))
+          .returning();
+
+        return successResponse({ 
+          alert: updatedAlert,
+          message: existingAlert.isActive ? "Alert paused" : "Alert activated" 
+        });
+      } catch (error) {
+        console.error("Failed to toggle alert:", error);
+        return serverErrorResponse("Failed to toggle email alert");
       }
     }
 
