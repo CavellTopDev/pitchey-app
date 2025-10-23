@@ -835,3 +835,40 @@ export const pitchDocuments = pgTable("pitch_documents", {
   downloadCount: integer("download_count").default(0),
   metadata: jsonb("metadata").default("{}"), // For additional file metadata
 });
+
+// Saved Filter Presets Table
+export const savedFilters = pgTable("saved_filters", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  filters: jsonb("filters").notNull().default("{}"),
+  isDefault: boolean("is_default").default(false),
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Email Alert Subscriptions Table
+export const emailAlerts = pgTable("email_alerts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  filters: jsonb("filters").notNull().default("{}"),
+  frequency: varchar("frequency", { length: 50 }).notNull().default("daily"), // 'immediate', 'daily', 'weekly'
+  isActive: boolean("is_active").default(true),
+  lastSentAt: timestamp("last_sent_at"),
+  matchesFound: integer("matches_found").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Alert Sent Pitches Tracking Table
+export const alertSentPitches = pgTable("alert_sent_pitches", {
+  id: serial("id").primaryKey(),
+  alertId: integer("alert_id").references(() => emailAlerts.id, { onDelete: "cascade" }).notNull(),
+  pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "cascade" }).notNull(),
+  sentAt: timestamp("sent_at").defaultNow()
+}, (table) => ({
+  uniqueAlertPitch: unique().on(table.alertId, table.pitchId)
+}));

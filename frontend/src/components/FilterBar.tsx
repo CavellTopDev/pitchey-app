@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import SavedFilters from './SavedFilters';
+import EmailAlerts from './EmailAlerts';
 import { 
   X, 
   ChevronDown, 
@@ -418,6 +420,53 @@ export default function FilterBar({
                 </div>
               )}
             </div>
+
+            {/* Saved Filters & Email Alerts */}
+            <SavedFilters
+              currentFilters={{
+                genres: selectedGenres,
+                formats: selectedFormats,
+                developmentStages: selectedStages,
+                creatorTypes: selectedCreatorTypes,
+                budgetMin: budgetRange.min,
+                budgetMax: budgetRange.max,
+                searchQuery,
+                hasNDA,
+                seekingInvestment
+              }}
+              onLoadFilter={(filters) => {
+                setSelectedGenres(filters.genres || []);
+                setSelectedFormats(filters.formats || []);
+                setSelectedStages(filters.developmentStages || []);
+                setSelectedCreatorTypes(filters.creatorTypes || []);
+                if (filters.budgetMin !== undefined || filters.budgetMax !== undefined) {
+                  setBudgetRange({ 
+                    min: filters.budgetMin || 0, 
+                    max: filters.budgetMax || 999999999 
+                  });
+                  const minPercent = ((filters.budgetMin || 0) / 100000000) * 100;
+                  const maxPercent = ((filters.budgetMax || 999999999) / 100000000) * 100;
+                  setBudgetSliderValue([minPercent, Math.min(maxPercent, 100)]);
+                }
+                setSearchQuery(filters.searchQuery || '');
+                setHasNDA(filters.hasNDA);
+                setSeekingInvestment(filters.seekingInvestment);
+              }}
+            />
+            
+            <EmailAlerts
+              currentFilters={{
+                genres: selectedGenres,
+                formats: selectedFormats,
+                developmentStages: selectedStages,
+                creatorTypes: selectedCreatorTypes,
+                budgetMin: budgetRange.min,
+                budgetMax: budgetRange.max,
+                searchQuery,
+                hasNDA,
+                seekingInvestment
+              }}
+            />
 
             {/* Advanced Filters Toggle */}
             <button
