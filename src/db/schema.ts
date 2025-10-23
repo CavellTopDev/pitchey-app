@@ -106,6 +106,7 @@ export const pitches = pgTable("pitches", {
   additionalMedia: jsonb("additional_media"),
   productionTimeline: text("production_timeline"),
   requireNda: boolean("require_nda").default(false),
+  seekingInvestment: boolean("seeking_investment").default(false),
   publishedAt: timestamp("published_at"),
   visibilitySettings: jsonb("visibility_settings").default('{"showBudget": false, "showLocation": false, "showCharacters": true, "showShortSynopsis": true}'),
   aiUsed: boolean("ai_used").default(false),

@@ -70,6 +70,7 @@ import {
   getSecurityHeaders,
   getCacheHeaders
 } from "./src/utils/response.ts";
+import { validateAndMigrateFilters, sanitizeFilterValues } from "./src/utils/filter-validation.ts";
 import { 
   safeParseJson, 
   validateRequiredFields, 
@@ -1968,11 +1969,14 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/pitches/browse/enhanced" && method === "GET") {
       try {
         // Parse query parameters
-        const sortBy = url.searchParams.get('sort') || 'date';
+        const sortBy = url.searchParams.get('sort') || 'newest';
         const order = url.searchParams.get('order') || 'desc';
         const genres = url.searchParams.getAll('genre');
         const formats = url.searchParams.getAll('format');
         const stages = url.searchParams.getAll('stage');
+        const creatorTypes = url.searchParams.getAll('creatorType');
+        const hasNDA = url.searchParams.get('hasNDA');
+        const seekingInvestment = url.searchParams.get('seekingInvestment');
         const searchQuery = url.searchParams.get('q');
         const budgetMin = url.searchParams.get('budgetMin');
         const budgetMax = url.searchParams.get('budgetMax');
@@ -1980,20 +1984,45 @@ const handler = async (request: Request): Promise<Response> => {
         const offset = parseInt(url.searchParams.get('offset') || '0');
         
         // Validate sort parameters
-        const validSortFields = ['alphabetical', 'date', 'budget', 'views', 'likes'];
+        const validSortFields = ['alphabetical', 'date', 'newest', 'most-viewed', 'budget', 'budget-high', 'budget-low', 'views', 'likes'];
         const validOrders = ['asc', 'desc'];
         
-        if (!validSortFields.includes(sortBy)) {
-          return errorResponse("Invalid sort field", 400);
+        // Map frontend sort values to backend sort fields
+        let actualSortBy = sortBy;
+        let actualOrder = order;
+        
+        switch(sortBy) {
+          case 'newest':
+            actualSortBy = 'date';
+            actualOrder = 'desc';
+            break;
+          case 'most-viewed':
+            actualSortBy = 'views';
+            actualOrder = 'desc';
+            break;
+          case 'budget-high':
+            actualSortBy = 'budget';
+            actualOrder = 'desc';
+            break;
+          case 'budget-low':
+            actualSortBy = 'budget';
+            actualOrder = 'asc';
+            break;
         }
         
-        if (!validOrders.includes(order)) {
-          return errorResponse("Invalid order", 400);
+        if (!validSortFields.includes(sortBy)) {
+          // Default to newest if invalid
+          actualSortBy = 'date';
+          actualOrder = 'desc';
+        }
+        
+        if (!validOrders.includes(actualOrder)) {
+          actualOrder = 'desc';
         }
         
         // Build cache key with all parameters
         const cacheKey = redisService.generateKey(
-          `pitches:browse:enhanced:${sortBy}:${order}:${genres.join(',')}:${formats.join(',')}:${stages.join(',')}:${searchQuery || ''}:${budgetMin || ''}:${budgetMax || ''}:${limit}:${offset}`
+          `pitches:browse:enhanced:${sortBy}:${order}:${genres.join(',')}:${formats.join(',')}:${stages.join(',')}:${creatorTypes.join(',')}:${hasNDA || ''}:${seekingInvestment || ''}:${searchQuery || ''}:${budgetMin || ''}:${budgetMax || ''}:${limit}:${offset}`
         );
         
         const result = await redisService.cached(
@@ -2009,11 +2038,12 @@ const handler = async (request: Request): Promise<Response> => {
               formatCategory: pitches.formatCategory,
               formatSubtype: pitches.formatSubtype,
               estimatedBudget: pitches.estimatedBudget,
-              productionStage: pitches.productionStage,
-              hasNDA: pitches.hasNDA,
+              requireNda: pitches.requireNda,
+              seekingInvestment: pitches.seekingInvestment,
               viewCount: pitches.viewCount,
               likeCount: pitches.likeCount,
               createdAt: pitches.createdAt,
+              posterUrl: pitches.posterUrl,
               creator: {
                 id: users.id,
                 username: users.username,
@@ -2037,9 +2067,25 @@ const handler = async (request: Request): Promise<Response> => {
               conditions.push(inArray(pitches.format, formats));
             }
             
-            // Apply multi-stage filter using inArray
-            if (stages.length > 0) {
-              conditions.push(inArray(pitches.productionStage, stages));
+            // Apply multi-stage filter - commented out as productionStage field doesn't exist
+            // TODO: Add productionStage field to database or remove this filter
+            // if (stages.length > 0) {
+            //   conditions.push(inArray(pitches.productionStage, stages));
+            // }
+            
+            // Apply creator type filter
+            if (creatorTypes.length > 0) {
+              conditions.push(inArray(users.userType, creatorTypes));
+            }
+            
+            // Apply NDA filter
+            if (hasNDA === 'true') {
+              conditions.push(eq(pitches.requireNda, true));
+            }
+            
+            // Apply seeking investment filter
+            if (seekingInvestment === 'true') {
+              conditions.push(eq(pitches.seekingInvestment, true));
             }
             
             // Apply budget range filter
@@ -2062,7 +2108,7 @@ const handler = async (request: Request): Promise<Response> => {
                 or(
                   ilike(pitches.title, `%${searchQuery}%`),
                   ilike(pitches.logline, `%${searchQuery}%`),
-                  ilike(pitches.synopsis, `%${searchQuery}%`)
+                  ilike(pitches.shortSynopsis, `%${searchQuery}%`)
                 )
               );
             }
@@ -2070,39 +2116,48 @@ const handler = async (request: Request): Promise<Response> => {
             // Apply all conditions
             query = query.where(and(...conditions));
             
-            // Apply sorting
-            switch (sortBy) {
+            // Apply sorting using the mapped values
+            switch (actualSortBy) {
               case 'alphabetical':
-                query = order === 'asc' 
+                query = actualOrder === 'asc' 
                   ? query.orderBy(asc(pitches.title))
                   : query.orderBy(desc(pitches.title));
                 break;
               case 'date':
-                query = order === 'asc' 
+                query = actualOrder === 'asc' 
                   ? query.orderBy(asc(pitches.createdAt))
                   : query.orderBy(desc(pitches.createdAt));
                 break;
               case 'budget':
-                query = order === 'asc' 
+                query = actualOrder === 'asc' 
                   ? query.orderBy(asc(pitches.estimatedBudget))
                   : query.orderBy(desc(pitches.estimatedBudget));
                 break;
               case 'views':
-                query = order === 'asc' 
+                query = actualOrder === 'asc' 
                   ? query.orderBy(asc(pitches.viewCount))
                   : query.orderBy(desc(pitches.viewCount));
                 break;
               case 'likes':
-                query = order === 'asc' 
+                query = actualOrder === 'asc' 
                   ? query.orderBy(asc(pitches.likeCount))
                   : query.orderBy(desc(pitches.likeCount));
                 break;
+              default:
+                // Default to newest
+                query = query.orderBy(desc(pitches.createdAt));
+                break;
             }
             
-            // Get total count for pagination
-            const countQuery = db.select({ count: sql<number>`count(*)::int` })
-              .from(pitches)
-              .where(and(...conditions));
+            // Get total count for pagination (include join if filtering by creator type)
+            let countQuery = db.select({ count: sql<number>`count(*)::int` })
+              .from(pitches);
+              
+            if (creatorTypes.length > 0) {
+              countQuery = countQuery.leftJoin(users, eq(pitches.userId, users.id));
+            }
+            
+            countQuery = countQuery.where(and(...conditions));
             const [{ count: total }] = await countQuery;
             
             // Add pagination
@@ -6756,6 +6811,10 @@ const handler = async (request: Request): Promise<Response> => {
 
         const { name, description, filters, isDefault } = result.data;
 
+        // Validate and sanitize filters
+        const validatedFilters = validateAndMigrateFilters(filters);
+        const sanitizedFilters = sanitizeFilterValues(validatedFilters);
+
         // If setting as default, unset other defaults
         if (isDefault) {
           await db
@@ -6770,7 +6829,7 @@ const handler = async (request: Request): Promise<Response> => {
             userId: user.id,
             name,
             description,
-            filters,
+            filters: sanitizedFilters,
             isDefault: isDefault || false,
             usageCount: 0
           })
@@ -6803,6 +6862,10 @@ const handler = async (request: Request): Promise<Response> => {
 
         const { name, description, filters, isDefault } = result.data;
 
+        // Validate and sanitize filters
+        const validatedFilters = validateAndMigrateFilters(filters);
+        const sanitizedFilters = sanitizeFilterValues(validatedFilters);
+
         // Check ownership
         const [existingFilter] = await db
           .select()
@@ -6829,7 +6892,7 @@ const handler = async (request: Request): Promise<Response> => {
           .set({
             name,
             description,
-            filters,
+            filters: sanitizedFilters,
             isDefault: isDefault || false,
             updatedAt: new Date()
           })
