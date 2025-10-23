@@ -1963,6 +1963,198 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // GET /api/pitches/browse/enhanced - Enhanced browse with multi-filters (PUBLIC)
+    if (url.pathname === "/api/pitches/browse/enhanced" && method === "GET") {
+      try {
+        // Parse query parameters
+        const sortBy = url.searchParams.get('sort') || 'date';
+        const order = url.searchParams.get('order') || 'desc';
+        const genres = url.searchParams.getAll('genre');
+        const formats = url.searchParams.getAll('format');
+        const stages = url.searchParams.getAll('stage');
+        const searchQuery = url.searchParams.get('q');
+        const budgetMin = url.searchParams.get('budgetMin');
+        const budgetMax = url.searchParams.get('budgetMax');
+        const limit = parseInt(url.searchParams.get('limit') || '24');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        
+        // Validate sort parameters
+        const validSortFields = ['alphabetical', 'date', 'budget', 'views', 'likes'];
+        const validOrders = ['asc', 'desc'];
+        
+        if (!validSortFields.includes(sortBy)) {
+          return errorResponse("Invalid sort field", 400);
+        }
+        
+        if (!validOrders.includes(order)) {
+          return errorResponse("Invalid order", 400);
+        }
+        
+        // Build cache key with all parameters
+        const cacheKey = redisService.generateKey(
+          `pitches:browse:enhanced:${sortBy}:${order}:${genres.join(',')}:${formats.join(',')}:${stages.join(',')}:${searchQuery || ''}:${budgetMin || ''}:${budgetMax || ''}:${limit}:${offset}`
+        );
+        
+        const result = await redisService.cached(
+          cacheKey,
+          async () => {
+            // Build the query
+            let query = db.select({
+              id: pitches.id,
+              title: pitches.title,
+              logline: pitches.logline,
+              genre: pitches.genre,
+              format: pitches.format,
+              formatCategory: pitches.formatCategory,
+              formatSubtype: pitches.formatSubtype,
+              estimatedBudget: pitches.estimatedBudget,
+              productionStage: pitches.productionStage,
+              hasNDA: pitches.hasNDA,
+              viewCount: pitches.viewCount,
+              likeCount: pitches.likeCount,
+              createdAt: pitches.createdAt,
+              creator: {
+                id: users.id,
+                username: users.username,
+                companyName: users.companyName,
+                userType: users.userType
+              }
+            })
+            .from(pitches)
+            .leftJoin(users, eq(pitches.userId, users.id));
+            
+            // Build conditions array
+            const conditions = [eq(pitches.status, "published")];
+            
+            // Apply multi-genre filter (OR logic within genres)
+            if (genres.length > 0) {
+              if (genres.length === 1) {
+                conditions.push(eq(pitches.genre, genres[0]));
+              } else {
+                conditions.push(or(...genres.map(g => eq(pitches.genre, g))));
+              }
+            }
+            
+            // Apply multi-format filter (OR logic within formats)
+            if (formats.length > 0) {
+              if (formats.length === 1) {
+                conditions.push(eq(pitches.format, formats[0]));
+              } else {
+                conditions.push(or(...formats.map(f => eq(pitches.format, f))));
+              }
+            }
+            
+            // Apply multi-stage filter (OR logic within stages)
+            if (stages.length > 0) {
+              if (stages.length === 1) {
+                conditions.push(eq(pitches.productionStage, stages[0]));
+              } else {
+                conditions.push(or(...stages.map(s => eq(pitches.productionStage, s))));
+              }
+            }
+            
+            // Apply budget range filter
+            let minBudget = 0;
+            let maxBudget = 999999999;
+            if (budgetMin || budgetMax) {
+              minBudget = parseInt(budgetMin || '0');
+              maxBudget = parseInt(budgetMax || '999999999');
+              conditions.push(
+                and(
+                  gte(pitches.estimatedBudget, minBudget),
+                  lte(pitches.estimatedBudget, maxBudget)
+                )
+              );
+            }
+            
+            // Apply search filter using ilike for case-insensitive search
+            if (searchQuery) {
+              conditions.push(
+                or(
+                  ilike(pitches.title, `%${searchQuery}%`),
+                  ilike(pitches.logline, `%${searchQuery}%`),
+                  ilike(pitches.synopsis, `%${searchQuery}%`)
+                )
+              );
+            }
+            
+            // Apply all conditions
+            query = query.where(and(...conditions));
+            
+            // Apply sorting
+            switch (sortBy) {
+              case 'alphabetical':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.title))
+                  : query.orderBy(desc(pitches.title));
+                break;
+              case 'date':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.createdAt))
+                  : query.orderBy(desc(pitches.createdAt));
+                break;
+              case 'budget':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.estimatedBudget))
+                  : query.orderBy(desc(pitches.estimatedBudget));
+                break;
+              case 'views':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.viewCount))
+                  : query.orderBy(desc(pitches.viewCount));
+                break;
+              case 'likes':
+                query = order === 'asc' 
+                  ? query.orderBy(asc(pitches.likeCount))
+                  : query.orderBy(desc(pitches.likeCount));
+                break;
+            }
+            
+            // Get total count for pagination
+            const countQuery = db.select({ count: sql<number>`count(*)::int` })
+              .from(pitches)
+              .where(and(...conditions));
+            const [{ count: total }] = await countQuery;
+            
+            // Add pagination
+            query = query.limit(limit).offset(offset);
+            
+            const results = await query;
+            
+            return {
+              pitches: results,
+              pagination: {
+                total,
+                page: Math.floor(offset / limit) + 1,
+                totalPages: Math.ceil(total / limit),
+                limit,
+                offset
+              },
+              filters: {
+                genres,
+                formats,
+                stages,
+                searchQuery,
+                budgetMin: minBudget,
+                budgetMax: maxBudget
+              }
+            };
+          },
+          300 // 5 minutes cache
+        );
+        
+        return jsonResponse({
+          success: true,
+          ...result,
+          message: "Enhanced browse pitches retrieved successfully",
+          cached: await redisService.exists(cacheKey)
+        });
+      } catch (error) {
+        console.error("Error in enhanced browse:", error);
+        return errorResponse("Failed to fetch browse pitches", 500);
+      }
+    }
+
     // === STATIC FILE SERVING ===
     if ((url.pathname.startsWith("/static/uploads/") || url.pathname.startsWith("/uploads/")) && method === "GET") {
       try {
