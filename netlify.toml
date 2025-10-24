@@ -1,0 +1,54 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "frontend/dist"
+
+# Environment variables for build
+[build.environment]
+  VITE_API_URL = "https://pitchey-backend-fresh.deno.dev"
+  VITE_WS_URL = "wss://pitchey-backend-fresh.deno.dev"
+  NODE_VERSION = "20.19.5"
+  # Sentry configuration (DSN is public-safe for frontend)
+  VITE_SENTRY_DSN = "https://1fdc8fab855b4b6b2f44f15034bdbb30@o4510137537396736.ingest.de.sentry.io/4510138262945872"
+  VITE_SENTRY_ENVIRONMENT = "production"
+  VITE_SENTRY_RELEASE = "pitchey-frontend-v1.0"
+
+# Redirects for SPA routing and API proxy
+[[redirects]]
+  from = "/api/*"
+  to = "https://pitchey-backend-fresh.deno.dev/api/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# SPA fallback - must be last
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://browser.sentry-cdn.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://pitchey-backend-fresh.deno.dev wss://pitchey-backend-fresh.deno.dev https://api.stripe.com https://*.sentry.io https://*.ingest.sentry.io; frame-src https://js.stripe.com https://checkout.stripe.com;"
+
+# Cache control for static assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
