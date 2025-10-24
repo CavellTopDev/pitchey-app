@@ -55,7 +55,10 @@ export default function MarketplaceEnhanced() {
     genres: [],
     formats: [],
     developmentStages: [],
-    searchQuery: ''
+    searchQuery: '',
+    creatorTypes: [],
+    hasNDA: undefined,
+    seekingInvestment: undefined
   });
   
   const [sortOption, setSortOption] = useState<SortOption>({
@@ -107,6 +110,15 @@ export default function MarketplaceEnhanced() {
       }
       if (filters.budgetMax !== undefined) {
         params.set('budgetMax', filters.budgetMax.toString());
+      }
+      if (filters.creatorTypes && filters.creatorTypes.length > 0) {
+        filters.creatorTypes.forEach(type => params.append('creatorType', type));
+      }
+      if (filters.hasNDA !== undefined) {
+        params.set('hasNDA', filters.hasNDA.toString());
+      }
+      if (filters.seekingInvestment !== undefined) {
+        params.set('seekingInvestment', filters.seekingInvestment.toString());
       }
       
       // Try enhanced endpoint first with multi-select support
