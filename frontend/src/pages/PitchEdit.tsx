@@ -25,6 +25,11 @@ interface PitchFormData {
   pdf: File | null;
   video: File | null;
   documents: DocumentFile[];
+  ndaConfig: {
+    requireNDA: boolean;
+    ndaType: 'none' | 'platform' | 'custom';
+    customNDA: File | null;
+  };
   characters: Character[];
 }
 
@@ -50,6 +55,11 @@ export default function PitchEdit() {
     pdf: null,
     video: null,
     documents: [],
+    ndaConfig: {
+      requireNDA: false,
+      ndaType: 'none',
+      customNDA: null
+    },
     characters: []
   });
 
@@ -130,6 +140,12 @@ export default function PitchEdit() {
         image: null,
         pdf: null,
         video: null,
+        documents: [],
+        ndaConfig: {
+          requireNDA: pitch.requireNDA || false,
+          ndaType: pitch.requireNDA ? 'platform' : 'none',
+          customNDA: null
+        },
         characters: normalizeCharacters(pitch.characters)
       });
     } catch (error) {
@@ -189,6 +205,41 @@ export default function PitchEdit() {
       documents
     }));
   };
+  
+  const handleNDAChange = (ndaType: 'none' | 'platform' | 'custom') => {
+    setFormData(prev => ({
+      ...prev,
+      ndaConfig: {
+        ...prev.ndaConfig,
+        requireNDA: ndaType !== 'none',
+        ndaType,
+        customNDA: ndaType !== 'custom' ? null : prev.ndaConfig.customNDA
+      }
+    }));
+  };
+  
+  const handleCustomNDAUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        alert('Custom NDA must be a PDF file.');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Custom NDA must be less than 10MB.');
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        ndaConfig: {
+          ...prev.ndaConfig,
+          customNDA: file
+        }
+      }));
+    }
+  };
 
   const validateForm = () => {
     const { title, genre, format, formatCategory, formatSubtype, customFormat, logline, shortSynopsis } = formData;
@@ -219,6 +270,7 @@ export default function PitchEdit() {
         shortSynopsis: formData.shortSynopsis,
         themes: formData.themes,
         worldDescription: formData.worldDescription,
+        requireNDA: formData.ndaConfig.requireNDA,
         characters: serializeCharacters(formData.characters)
       };
 
@@ -549,14 +601,6 @@ export default function PitchEdit() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Media & Assets</h2>
             
-            {/* Temporary Notice */}
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> Media upload is temporarily disabled while we upgrade our storage infrastructure. 
-                You can still update your pitch text and details.
-              </p>
-            </div>
-            
             {/* Image Upload */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -583,7 +627,6 @@ export default function PitchEdit() {
                     <p className="text-sm text-gray-600 mb-2">Upload a new cover image (optional)</p>
                     <input
                       type="file"
-                      disabled
                       accept="image/*"
                       onChange={(e) => handleFileChange(e, 'image')}
                       className="hidden"
@@ -591,7 +634,7 @@ export default function PitchEdit() {
                     />
                     <label
                       htmlFor="image-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
                       Choose Image
@@ -627,7 +670,6 @@ export default function PitchEdit() {
                     <p className="text-sm text-gray-600 mb-2">Upload a new script or treatment (optional)</p>
                     <input
                       type="file"
-                      disabled
                       accept=".pdf"
                       onChange={(e) => handleFileChange(e, 'pdf')}
                       className="hidden"
@@ -635,7 +677,7 @@ export default function PitchEdit() {
                     />
                     <label
                       htmlFor="pdf-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
                       Choose PDF
@@ -671,7 +713,6 @@ export default function PitchEdit() {
                     <p className="text-sm text-gray-600 mb-2">Upload a new pitch video (optional)</p>
                     <input
                       type="file"
-                      disabled
                       accept="video/*"
                       onChange={(e) => handleFileChange(e, 'video')}
                       className="hidden"
@@ -679,7 +720,7 @@ export default function PitchEdit() {
                     />
                     <label
                       htmlFor="video-upload"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed opacity-50"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition cursor-pointer"
                     >
                       <Upload className="w-4 h-4" />
                       Choose Video
@@ -687,6 +728,133 @@ export default function PitchEdit() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+          
+          {/* NDA Configuration */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">NDA Configuration</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">NDA Requirements</p>
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ndaType"
+                      value="none"
+                      checked={formData.ndaConfig.ndaType === 'none'}
+                      onChange={() => handleNDAChange('none')}
+                      className="mt-1 w-4 h-4 text-purple-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">No NDA Required</span>
+                      <p className="text-xs text-gray-500">All content will be publicly accessible</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ndaType"
+                      value="platform"
+                      checked={formData.ndaConfig.ndaType === 'platform'}
+                      onChange={() => handleNDAChange('platform')}
+                      className="mt-1 w-4 h-4 text-purple-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">Use Platform Standard NDA</span>
+                      <p className="text-xs text-gray-500">Viewers must sign our standard NDA to access detailed content</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ndaType"
+                      value="custom"
+                      checked={formData.ndaConfig.ndaType === 'custom'}
+                      onChange={() => handleNDAChange('custom')}
+                      className="mt-1 w-4 h-4 text-purple-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">Use Custom NDA</span>
+                      <p className="text-xs text-gray-500">Upload your own NDA document for viewers to sign</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              
+              {/* Custom NDA Upload */}
+              {formData.ndaConfig.ndaType === 'custom' && (
+                <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <label className="block text-sm font-medium text-purple-900 mb-2">
+                    Upload Custom NDA
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleCustomNDAUpload}
+                    className="hidden"
+                    id="custom-nda-upload"
+                  />
+                  
+                  {formData.ndaConfig.customNDA ? (
+                    <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
+                      <div className="flex items-center gap-3">
+                        <Shield className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <span className="text-sm font-medium">{formData.ndaConfig.customNDA.name}</span>
+                          <p className="text-xs text-gray-500">
+                            {(formData.ndaConfig.customNDA.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          ndaConfig: { ...prev.ndaConfig, customNDA: null }
+                        }))}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="custom-nda-upload"
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload NDA (PDF only)
+                    </label>
+                  )}
+                  
+                  <p className="text-xs text-purple-700 mt-2">
+                    Your custom NDA will be presented to viewers before they can access detailed pitch content.
+                  </p>
+                </div>
+              )}
+              
+              {/* NDA Info */}
+              {formData.ndaConfig.requireNDA && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-900">NDA Protection Active</h4>
+                      <p className="text-sm text-blue-800 mt-1">
+                        {formData.ndaConfig.ndaType === 'platform' 
+                          ? 'Viewers will need to sign our standard NDA to access detailed content, scripts, and media files.'
+                          : 'Viewers will need to sign your custom NDA to access detailed content, scripts, and media files.'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

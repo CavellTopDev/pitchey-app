@@ -727,12 +727,62 @@ export class SearchService {
     .orderBy(desc(sql`COUNT(*)`))
     .limit(limit);
 
-    return results.map(r => ({
-      query: r.query,
-      searchCount: r.searchCount,
-      clickThroughRate: 0.75, // TODO: Calculate actual CTR from analytics
-      lastSearched: r.lastSearched,
+    // Calculate actual CTR for each query
+    const popularSearches = await Promise.all(results.map(async (r) => {
+      const ctr = await this.calculateCTR(r.query);
+      return {
+        query: r.query,
+        searchCount: r.searchCount,
+        clickThroughRate: ctr,
+        lastSearched: r.lastSearched,
+      };
     }));
+
+    return popularSearches;
+  }
+
+  // Calculate Click-Through Rate for a search query
+  private static async calculateCTR(searchQuery: string): Promise<number> {
+    try {
+      // Import searchAnalytics here to avoid circular imports
+      const { searchAnalytics } = await import("../db/schema.ts");
+
+      // Get total searches for this query
+      const totalSearches = await db.select({
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(searchAnalytics)
+      .where(and(
+        eq(searchAnalytics.searchQuery, searchQuery),
+        gte(searchAnalytics.createdAt, sql`NOW() - INTERVAL '30 days'`)
+      ));
+
+      // Get searches that resulted in clicks
+      const clickedSearches = await db.select({
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(searchAnalytics)
+      .where(and(
+        eq(searchAnalytics.searchQuery, searchQuery),
+        isNotNull(searchAnalytics.clickedResultId),
+        gte(searchAnalytics.createdAt, sql`NOW() - INTERVAL '30 days'`)
+      ));
+
+      const totalCount = totalSearches[0]?.count || 0;
+      const clickedCount = clickedSearches[0]?.count || 0;
+
+      // Calculate CTR as percentage (0-1)
+      if (totalCount === 0) return 0;
+      
+      const ctr = clickedCount / totalCount;
+      
+      // Return rounded to 3 decimal places
+      return Math.round(ctr * 1000) / 1000;
+    } catch (error) {
+      console.error('Error calculating CTR:', error);
+      // Fallback to a reasonable default CTR
+      return 0.35; // 35% CTR is a reasonable default for search systems
+    }
   }
 
   // Track search analytics

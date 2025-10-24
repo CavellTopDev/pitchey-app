@@ -110,22 +110,74 @@ let cacheType = "in-memory";
 
 // Try to initialize Redis/Upstash based on environment
 async function initCache() {
-  // Check for native Redis first (for local development)
-  const redisHost = Deno.env.get("REDIS_HOST");
-  const redisPort = Deno.env.get("REDIS_PORT");
   const cacheEnabled = Deno.env.get("CACHE_ENABLED") === "true";
   
-  if (cacheEnabled && redisHost && redisPort) {
+  if (!cacheEnabled) {
+    console.log("📦 Cache disabled, using in-memory cache");
+    cacheClient = new InMemoryCache();
+    cacheType = "in-memory";
+    return;
+  }
+
+  // Priority 1: Try Redis Cluster (for distributed production)
+  const clusterEnabled = Deno.env.get("REDIS_CLUSTER_ENABLED") === "true";
+  if (clusterEnabled) {
+    try {
+      // Use dynamic import to avoid circular dependencies
+      const { redisClusterService } = await import("./redis-cluster.service.ts");
+      
+      // Initialize cluster
+      const initialized = await redisClusterService.initialize();
+      if (initialized && redisClusterService.isEnabled()) {
+        // Create a wrapper to match the CacheClient interface
+        cacheClient = {
+          async set(key: string, value: string) {
+            const parsed = JSON.parse(value);
+            await redisClusterService.set(key, parsed);
+          },
+          async get(key: string): Promise<string | null> {
+            const result = await redisClusterService.get(key);
+            return result ? JSON.stringify(result) : null;
+          },
+          async del(key: string) {
+            await redisClusterService.del(key);
+          },
+          async expire(key: string, seconds: number) {
+            await redisClusterService.expire(key, seconds);
+          },
+          async incrby(key: string, value: number) {
+            await redisClusterService.incr(key);
+          },
+          async ttl(key: string): Promise<number> {
+            return 300; // Default TTL, cluster service handles TTL differently
+          }
+        };
+        cacheType = "redis-cluster";
+        console.log("✅ Using Redis Cluster for distributed caching");
+        return;
+      }
+    } catch (error) {
+      console.warn("⚠️ Redis cluster connection failed:", error.message);
+    }
+  }
+  
+  // Priority 2: Try native Redis (for local development)
+  const redisHost = Deno.env.get("REDIS_HOST");
+  const redisPort = Deno.env.get("REDIS_PORT");
+  
+  if (redisHost && redisPort) {
     try {
       // Use dynamic import to avoid circular dependencies
       const { nativeRedisService } = await import("./redis-native.service.ts");
       
-      // Test if Redis is connected
-      if (nativeRedisService.isEnabled()) {
+      // Initialize and test connection
+      const connected = await nativeRedisService.connect();
+      if (connected && nativeRedisService.isEnabled()) {
         // Create a wrapper to match the CacheClient interface
         cacheClient = {
           async set(key: string, value: string) {
-            await nativeRedisService.set(key, value);
+            const parsed = JSON.parse(value);
+            await nativeRedisService.set(key, parsed);
           },
           async get(key: string): Promise<string | null> {
             const result = await nativeRedisService.get(key);
@@ -153,7 +205,7 @@ async function initCache() {
     }
   }
   
-  // Check for Upstash Redis (for Deno Deploy)
+  // Priority 3: Try Upstash Redis (for Deno Deploy/serverless)
   const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
   const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
   
@@ -171,7 +223,7 @@ async function initCache() {
     }
   }
 
-  // Fallback to in-memory cache
+  // Fallback: In-memory cache (single instance only)
   cacheClient = new InMemoryCache();
   cacheType = "in-memory";
   console.log("📦 Using in-memory cache (single instance only)");
@@ -370,11 +422,52 @@ export class CacheService {
     }
   }
 
+  // Browse cache invalidation
+  static async invalidateBrowseCache() {
+    try {
+      // Clear browse cache patterns - these match the cache keys used in browse endpoints
+      const browsePatterns = [
+        "pitches:browse:",  // General browse with different sort/filter combinations
+        "pitches:newest:",  // Newest pitches cache
+        "pitches:featured:", // Featured pitches cache
+        "pitches:trending:", // Trending pitches cache
+        "browse:enhanced:",  // Enhanced browse cache
+        "investor:browse:",  // Investor browse cache
+      ];
+      
+      // Since we don't have pattern deletion in the basic cache client,
+      // we'll clear known common browse cache keys
+      const commonBrowseKeys = [
+        "pitches:browse:date:desc:all:all:20:0",
+        "pitches:browse:views:desc:all:all:20:0", 
+        "pitches:browse:likes:desc:all:all:20:0",
+        "pitches:browse:alphabetical:asc:all:all:20:0",
+        "pitches:newest:10",
+        "pitches:newest:20",
+        "pitches:featured:10",
+        "pitches:featured:20",
+        "investor:browse:default",
+      ];
+      
+      // Clear each cache key
+      for (const key of commonBrowseKeys) {
+        try {
+          await cacheClient.del(key);
+        } catch (error) {
+          console.warn(`Failed to clear browse cache key ${key}:`, error.message);
+        }
+      }
+    } catch (error) {
+      console.warn("Browse cache invalidation error:", error.message);
+    }
+  }
+
   // Marketplace cache
   static async invalidateMarketplace() {
     try {
       await this.invalidatePublicPitches();
       await this.invalidateHomepage();
+      await this.invalidateBrowseCache(); // Add browse cache invalidation
     } catch (error) {
       console.warn("Cache error:", error.message);
     }
@@ -382,10 +475,126 @@ export class CacheService {
   
   // Health check for cache status
   static async healthCheck() {
-    return {
+    const baseHealth = {
       type: cacheType,
       distributed: cacheType !== "in-memory",
       status: "healthy"
     };
+
+    // Add cluster-specific health information
+    if (cacheType === "redis-cluster") {
+      try {
+        const { redisClusterService } = await import("./redis-cluster.service.ts");
+        const clusterStats = redisClusterService.getStats();
+        const clusterInfo = redisClusterService.getClusterInfo();
+        
+        return {
+          ...baseHealth,
+          cluster: {
+            enabled: true,
+            totalNodes: clusterStats.totalNodes,
+            healthyNodes: clusterStats.healthyNodes,
+            failedNodes: clusterStats.failedNodes,
+            operations: {
+              total: clusterStats.totalOperations,
+              successful: clusterStats.successfulOperations,
+              failed: clusterStats.failedOperations,
+              successRate: clusterStats.totalOperations > 0 
+                ? (clusterStats.successfulOperations / clusterStats.totalOperations * 100).toFixed(2) + '%'
+                : '0%'
+            },
+            performance: {
+              averageResponseTime: clusterStats.averageResponseTime,
+              uptime: clusterStats.uptime
+            },
+            connectionPool: clusterStats.poolStats,
+            nodes: clusterInfo.nodes
+          }
+        };
+      } catch (error) {
+        return {
+          ...baseHealth,
+          cluster: {
+            enabled: true,
+            error: error.message,
+            status: "unhealthy"
+          }
+        };
+      }
+    }
+
+    // Add native Redis health information
+    if (cacheType === "native-redis") {
+      try {
+        const { nativeRedisService } = await import("./redis-native.service.ts");
+        const stats = nativeRedisService.getStats();
+        
+        return {
+          ...baseHealth,
+          redis: {
+            enabled: nativeRedisService.isEnabled(),
+            operations: stats.operations,
+            performance: {
+              hits: stats.hits,
+              misses: stats.misses,
+              hitRate: (stats.hits + stats.misses) > 0 
+                ? (stats.hits / (stats.hits + stats.misses) * 100).toFixed(2) + '%'
+                : '0%',
+              errors: stats.errors,
+              uptime: stats.uptime
+            }
+          }
+        };
+      } catch (error) {
+        return {
+          ...baseHealth,
+          redis: {
+            enabled: false,
+            error: error.message,
+            status: "unhealthy"
+          }
+        };
+      }
+    }
+
+    return baseHealth;
+  }
+
+  // Get detailed cache statistics
+  static async getDetailedStats() {
+    const health = await this.healthCheck();
+    
+    return {
+      cacheType,
+      timestamp: new Date().toISOString(),
+      ...health
+    };
+  }
+
+  // Cluster management methods (only available when using cluster)
+  static async getClusterInfo() {
+    if (cacheType !== "redis-cluster") {
+      return { error: "Cluster not enabled", type: cacheType };
+    }
+
+    try {
+      const { redisClusterService } = await import("./redis-cluster.service.ts");
+      return redisClusterService.getClusterInfo();
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  static async getClusterStats() {
+    if (cacheType !== "redis-cluster") {
+      return { error: "Cluster not enabled", type: cacheType };
+    }
+
+    try {
+      const { redisClusterService } = await import("./redis-cluster.service.ts");
+      return redisClusterService.getStats();
+    } catch (error) {
+      return { error: error.message };
+    }
   }
 }

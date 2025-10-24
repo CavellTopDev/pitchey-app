@@ -1,7 +1,7 @@
 import { getEmailQueueService } from "./email-queue.service.ts";
 import { getNotificationEmailService } from "./notification-email.service.ts";
 import { db } from "../db/client.ts";
-import { users, emailPreferences, digestHistory, pitches, pitchViews, follows } from "../db/schema.ts";
+import { users, emailPreferences, digestHistory, pitches, pitchViews, follows, messages } from "../db/schema.ts";
 import { eq, gte, lt, and, sql, desc } from "npm:drizzle-orm";
 
 export class EmailCronService {
@@ -154,11 +154,33 @@ export class EmailCronService {
 
       const pitchIds = userPitches.map(p => p.id);
 
-      // Count new followers (simplified - would need a follows table with timestamps)
-      const newFollowers = 0; // TODO: Implement when follows table has timestamps
+      // Count new followers this week
+      const newFollowersResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(follows)
+        .where(
+          and(
+            sql`pitch_id IN (${pitchIds.join(',') || '0'})`,
+            gte(follows.followedAt, weekStart),
+            lt(follows.followedAt, weekEnd)
+          )
+        );
 
-      // Count messages (simplified - would need message timestamps)
-      const messages = 0; // TODO: Implement when messages are integrated
+      const newFollowers = newFollowersResult[0]?.count || 0;
+
+      // Count received messages this week
+      const messagesResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.receiverId, userId),
+            gte(messages.sentAt, weekStart),
+            lt(messages.sentAt, weekEnd)
+          )
+        );
+
+      const messageCount = messagesResult[0]?.count || 0;
 
       // Count pitch views this week
       const viewsResult = await db
@@ -202,7 +224,7 @@ export class EmailCronService {
       return {
         newPitches,
         newFollowers,
-        messages,
+        messages: messageCount,
         views,
         topPitches: topPitches.map(pitch => ({
           title: pitch.title,

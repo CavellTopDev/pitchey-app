@@ -8,7 +8,14 @@ import { UserService } from "../services/userService.ts";
 import { authErrorResponse, forbiddenResponse, serverErrorResponse, notFoundResponse } from "../utils/response.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 
-const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-secret-key-change-this-in-production";
+const JWT_SECRET = Deno.env.get("JWT_SECRET") || (() => {
+  const isProduction = Deno.env.get("DENO_ENV") === "production" || 
+                       Deno.env.get("NODE_ENV") === "production";
+  if (isProduction) {
+    throw new Error("CRITICAL: JWT_SECRET environment variable is not set in production!");
+  }
+  return "test-secret-key-for-development-only";
+})();
 
 export interface AuthenticatedRequest extends Request {
   user?: {

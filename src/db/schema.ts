@@ -1,5 +1,5 @@
 // COMPLETE SCHEMA - Matches Neon Database with All Tables
-import { pgTable, serial, integer, varchar, text, boolean, timestamp, decimal, jsonb, unique, pgEnum } from "npm:drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, boolean, timestamp, decimal, jsonb, unique, pgEnum, index } from "npm:drizzle-orm/pg-core";
 import { relations } from "npm:drizzle-orm";
 
 // Define the event_type enum to match the database
@@ -107,6 +107,7 @@ export const pitches = pgTable("pitches", {
   productionTimeline: text("production_timeline"),
   requireNda: boolean("require_nda").default(false),
   seekingInvestment: boolean("seeking_investment").default(false),
+  productionStage: varchar("production_stage", { length: 100 }).default("concept"),
   publishedAt: timestamp("published_at"),
   visibilitySettings: jsonb("visibility_settings").default('{"showBudget": false, "showLocation": false, "showCharacters": true, "showShortSynopsis": true}'),
   aiUsed: boolean("ai_used").default(false),
@@ -136,6 +137,8 @@ export const ndas = pgTable("ndas", {
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   signerId: integer("signer_id").references(() => users.id, { onDelete: "cascade" }),
   status: varchar("status", { length: 50 }).default("pending"),
+  ndaType: varchar("nda_type", { length: 50 }).default("basic"),
+  accessGranted: boolean("access_granted").default(false),
   signedAt: timestamp("signed_at"),
   expiresAt: timestamp("expires_at"),
   documentUrl: varchar("document_url", { length: 500 }),
@@ -270,6 +273,20 @@ export const searchSuggestions = pgTable("search_suggestions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const savedSearches = pgTable("saved_searches", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  filters: jsonb("filters").notNull().default("{}"),
+  useCount: integer("use_count").default(0),
+  lastUsed: timestamp("last_used"),
+  isPublic: boolean("is_public").default(false),
+  notifyOnResults: boolean("notify_on_results").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Additional messaging tables
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
@@ -397,6 +414,11 @@ export const emailPreferences = pgTable("email_preferences", {
   pitchUpdates: boolean("pitch_updates").default(true),
   messages: boolean("messages").default(true),
   security: boolean("security").default(true),
+  emailEnabled: boolean("email_enabled").default(true),
+  weeklyDigest: boolean("weekly_digest").default(true),
+  digestDay: varchar("digest_day", { length: 10 }).default("sunday"), // day of week
+  digestTime: varchar("digest_time", { length: 5 }).default("09:00"), // HH:MM format
+  timezone: varchar("timezone", { length: 50 }).default("UTC"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -413,6 +435,16 @@ export const emailQueue = pgTable("email_queue", {
   attempts: integer("attempts").default(0),
   lastAttemptAt: timestamp("last_attempt_at"),
   scheduledFor: timestamp("scheduled_for"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const digestHistory = pgTable("digest_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  weekStart: timestamp("week_start").notNull(),
+  weekEnd: timestamp("week_end").notNull(),
+  stats: jsonb("stats").notNull().default("{}"),
+  sentAt: timestamp("sent_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -553,6 +585,88 @@ export const navigationMenusUnique = unique("navigation_menus_portal_type").on(
   navigationMenus.menuType
 );
 
+// Subscription History Table - Track subscription changes and billing history
+export const subscriptionHistory = pgTable("subscription_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Previous and new subscription details
+  previousTier: varchar("previous_tier", { length: 50 }),
+  newTier: varchar("new_tier", { length: 50 }).notNull(),
+  action: varchar("action", { length: 50 }).notNull(), // upgrade, downgrade, cancel, renew, create
+  
+  // Stripe details
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripePriceId: text("stripe_price_id"),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  
+  // Billing details
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+  currency: varchar("currency", { length: 3 }).default("usd"),
+  billingInterval: varchar("billing_interval", { length: 20 }), // monthly, yearly
+  
+  // Period details
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  
+  // Status and metadata
+  status: varchar("status", { length: 50 }).notNull(), // active, canceled, expired, pending
+  metadata: jsonb("metadata").default("{}"),
+  
+  // Timestamps
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("subscription_history_user_id_idx").on(table.userId),
+  statusIdx: index("subscription_history_status_idx").on(table.status),
+  stripeSubscriptionIdx: index("subscription_history_stripe_subscription_idx").on(table.stripeSubscriptionId),
+  timestampIdx: index("subscription_history_timestamp_idx").on(table.timestamp),
+  actionIdx: index("subscription_history_action_idx").on(table.action),
+}));
+
+// Payment Methods Table - Store user payment methods
+export const paymentMethods = pgTable("payment_methods", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Stripe details
+  stripePaymentMethodId: text("stripe_payment_method_id").notNull().unique(),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  
+  // Payment method details
+  type: varchar("type", { length: 20 }).notNull(), // card, bank_account, paypal, etc.
+  
+  // Card details (for card type)
+  brand: varchar("brand", { length: 20 }), // visa, mastercard, amex, etc.
+  lastFour: varchar("last_four", { length: 4 }),
+  expMonth: integer("exp_month"),
+  expYear: integer("exp_year"),
+  
+  // Bank account details (for bank_account type)
+  bankName: varchar("bank_name", { length: 100 }),
+  accountType: varchar("account_type", { length: 20 }), // checking, savings
+  
+  // Status and preferences
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  
+  // Billing details
+  billingName: varchar("billing_name", { length: 255 }),
+  billingEmail: varchar("billing_email", { length: 255 }),
+  billingAddress: jsonb("billing_address"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("payment_methods_user_id_idx").on(table.userId),
+  stripePaymentMethodIdx: index("payment_methods_stripe_payment_method_idx").on(table.stripePaymentMethodId),
+  stripeCustomerIdx: index("payment_methods_stripe_customer_idx").on(table.stripeCustomerId),
+  typeIdx: index("payment_methods_type_idx").on(table.type),
+  defaultIdx: index("payment_methods_default_idx").on(table.isDefault),
+  activeIdx: index("payment_methods_active_idx").on(table.isActive),
+}));
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type Pitch = typeof pitches.$inferSelect;
@@ -569,6 +683,7 @@ export type AnalyticsAggregate = typeof analyticsAggregates.$inferSelect;
 export type UserSession = typeof userSessions.$inferSelect;
 export type SearchAnalytic = typeof searchAnalytics.$inferSelect;
 export type SearchSuggestion = typeof searchSuggestions.$inferSelect;
+export type SavedSearch = typeof savedSearches.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type ConversationParticipant = typeof conversationParticipants.$inferSelect;
 export type MessageReadReceipt = typeof messageReadReceipts.$inferSelect;
@@ -584,6 +699,7 @@ export type Payment = typeof payments.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type EmailPreference = typeof emailPreferences.$inferSelect;
 export type EmailQueue = typeof emailQueue.$inferSelect;
+export type DigestHistory = typeof digestHistory.$inferSelect;
 export type ContentType = typeof contentTypes.$inferSelect;
 export type ContentItem = typeof contentItems.$inferSelect;
 export type FeatureFlag = typeof featureFlags.$inferSelect;
@@ -594,6 +710,8 @@ export type NavigationMenu = typeof navigationMenus.$inferSelect;
 export type ContentApproval = typeof contentApprovals.$inferSelect;
 export type InfoRequest = typeof infoRequests.$inferSelect;
 export type InfoRequestAttachment = typeof infoRequestAttachments.$inferSelect;
+export type SubscriptionHistory = typeof subscriptionHistory.$inferSelect;
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
 
 // ============= RELATIONS =============
 // Define all table relations for Drizzle ORM
@@ -607,6 +725,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   follows: many(follows),
   pitchViews: many(pitchViews),
   sessions: many(sessions),
+  subscriptionHistory: many(subscriptionHistory),
+  paymentMethods: many(paymentMethods),
 }));
 
 export const pitchesRelations = relations(pitches, ({ one, many }) => ({
@@ -872,4 +992,20 @@ export const alertSentPitches = pgTable("alert_sent_pitches", {
   sentAt: timestamp("sent_at").defaultNow()
 }, (table) => ({
   uniqueAlertPitch: unique().on(table.alertId, table.pitchId)
+}));
+
+// Subscription History Relations
+export const subscriptionHistoryRelations = relations(subscriptionHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [subscriptionHistory.userId],
+    references: [users.id],
+  }),
+}));
+
+// Payment Methods Relations
+export const paymentMethodsRelations = relations(paymentMethods, ({ one }) => ({
+  user: one(users, {
+    fields: [paymentMethods.userId],
+    references: [users.id],
+  }),
 }));

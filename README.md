@@ -4,9 +4,9 @@
 
 Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform enables secure pitch sharing, NDA management, and real-time collaboration through WebSocket communication.
 
-## Current Version: 0.2 (Production-Ready - 90% Complete)
+## Current Version: 0.2 (Production Deployment)
 
-**✅ IMPORTANT:** The platform is 90% complete and production-ready. All core features are fully functional with swap-ready architecture for external services.
+**✅ LIVE PRODUCTION:** Platform is deployed and running in production with Upstash Redis caching and Neon PostgreSQL database.
 
 ### Core Features
 
@@ -29,7 +29,7 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 | **Production Portal** | ✅ Fully Working | Dashboard, pitch management, NDA workflow |
 | **Investor Portal** | ✅ Fully Working | Dashboard, portfolio, watchlist functional |
 | **WebSocket** | ✅ Working | Real-time notifications, draft sync, messaging |
-| **Redis Caching** | ✅ Working | Fallback to memory cache when Redis unavailable |
+| **Redis Caching** | ✅ Production Ready | Upstash Redis integrated with automatic fallback |
 | **Database** | ✅ Fully Working | PostgreSQL with complete Drizzle ORM schema |
 | **Browse/Marketplace** | ✅ Working | Search, filtering, trending pitches |
 | **NDA System** | ✅ Working | Complete info request and NDA workflow |
@@ -42,17 +42,17 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 | **Payment Processing** | ✅ Mock Stripe | ✅ Stripe Ready | Full Stripe integration ready |
 | **Email Notifications** | ✅ Console Logging | ✅ SendGrid Ready | Swap to SendGrid/AWS SES |
 | **Error Tracking** | ✅ Console Logging | ✅ Sentry Ready | Add Sentry DSN to enable |
-| **Cache System** | ✅ Memory Fallback | ✅ Redis Ready | Works with or without Redis |
+| **Cache System** | ✅ Upstash Redis | ✅ Production Ready | Auto-fallback to memory cache |
 | **Admin Portal** | ✅ Implemented | ✅ Fully Working | Complete admin dashboard |
 
 ## Quick Start
 
 ### Prerequisites
 
-- [Deno](https://deno.land/) (v1.37+)
-- [Node.js](https://nodejs.org/) (v18+ for frontend)
-- [PostgreSQL](https://www.postgresql.org/) (v14+)
-- [Redis](https://redis.io/) (optional, for caching features)
+- [Deno](https://deno.land/) (v2.0+)
+- [Node.js](https://nodejs.org/) (v20.19.5 for frontend)
+- [PostgreSQL](https://www.postgresql.org/) (v14+) or [Neon](https://neon.tech/) account
+- [Upstash Redis](https://upstash.com/) account (optional, for distributed caching)
 - [Git](https://git-scm.com/)
 
 ### Installation
@@ -128,7 +128,12 @@ HOST=0.0.0.0
 JWT_SECRET=your-secure-random-string
 JWT_REFRESH_SECRET=different-secure-random-string
 
-# Redis (Optional - features work without it)
+# Redis Caching (Optional - auto-fallback to memory cache)
+# Option 1: Upstash Redis (Recommended for production)
+UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
+
+# Option 2: Standard Redis (For local development)
 REDIS_URL=redis://localhost:6379
 
 # Mock Services (Currently in use)
@@ -148,9 +153,8 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8001
 VITE_API_URL=http://localhost:8001
 VITE_WS_URL=ws://localhost:8001
 
-# Features (Optional)
+# Features
 VITE_ENABLE_WEBSOCKET=true
-VITE_ENABLE_REDIS_CACHE=true
 ```
 
 ## Project Structure
@@ -191,7 +195,7 @@ pitchey_v0.2/
 - **Frontend**: React + TypeScript + Vite
 - **Database**: PostgreSQL with Drizzle ORM
 - **Real-time**: WebSockets with native Deno implementation
-- **Caching**: Redis (optional)
+- **Caching**: Upstash Redis (serverless) with in-memory fallback
 - **Styling**: Tailwind CSS
 - **Authentication**: JWT tokens
 
@@ -376,13 +380,21 @@ npm install
 node --version
 ```
 
-#### 8. Redis Connection (Optional)
+#### 8. Redis Caching Configuration
 
-**Problem**: Redis features not working
+**Problem**: Caching not working optimally
 
 **Solution**:
-- Redis is optional; core features work without it
-- To enable Redis caching:
+- Platform automatically falls back to in-memory cache if Redis is unavailable
+- For production caching with Upstash:
+```bash
+# Add to .env file
+UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
+CACHE_ENABLED=true
+CACHE_TTL=300
+```
+- For local Redis:
 ```bash
 # Install and start Redis
 redis-server

@@ -6,7 +6,7 @@ import type { Pitch } from '../lib/api';
 import { useAuthStore } from '../store/authStore';
 import { ndaAPI } from '../lib/apiServices';
 import { ndaService } from '../services/nda.service';
-import NDAModal from '../components/NDAModal';
+import NDAWizard from '../components/NDAWizard';
 import FormatDisplay from '../components/FormatDisplay';
 
 export default function PublicPitchView() {
@@ -16,7 +16,7 @@ export default function PublicPitchView() {
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showNDAModal, setShowNDAModal] = useState(false);
+  const [showNDAWizard, setShowNDAWizard] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
   const [ndaRequestStatus, setNdaRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
   const [isOwner, setIsOwner] = useState(false);
@@ -542,7 +542,7 @@ export default function PublicPitchView() {
                                   )}
                                 </div>
                                 <button
-                                  onClick={() => setShowNDAModal(true)}
+                                  onClick={() => setShowNDAWizard(true)}
                                   disabled={hasSignedNDA || ndaRequestStatus === 'pending' || ndaRequestStatus === 'rejected' || !canRequestNDA || !!ndaCheckError || ndaLoading}
                                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition ${
                                     hasSignedNDA 
@@ -836,14 +836,16 @@ export default function PublicPitchView() {
 
       {/* NDA Modal - Only show if user can request NDAs */}
       {pitch && canRequestNDA && !isOwner && (
-        <NDAModal
-          isOpen={showNDAModal}
-          onClose={() => setShowNDAModal(false)}
+        <NDAWizard
+          isOpen={showNDAWizard}
+          onClose={() => setShowNDAWizard(false)}
           pitchId={pitch.id}
           pitchTitle={pitch.title}
-          creatorType={pitch.creator?.userType || 'creator'}
-          onNDASigned={handleNDASigned}
-          onNDARequest={handleNDARequest}
+          creatorName={pitch.creator?.username || pitch.creator?.companyName || 'Creator'}
+          onStatusChange={() => {
+            handleNDASigned();
+            handleNDARequest();
+          }}
         />
       )}
     </div>

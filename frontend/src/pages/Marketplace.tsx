@@ -145,8 +145,7 @@ export default function Marketplace() {
     // Get the appropriate data source based on the current view
     switch(currentView) {
       case 'trending':
-        // For trending, show all trending pitches without additional filtering
-        // unless there's a search query, then apply search to trending data
+        // For trending, apply genre/format and search filters
         filtered = [...trendingPitches];
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
@@ -156,10 +155,19 @@ export default function Marketplace() {
             p.genre?.toLowerCase().includes(query)
           );
         }
+        if (selectedGenre) {
+          filtered = filtered.filter(p => 
+            p.genre?.toLowerCase() === selectedGenre.toLowerCase()
+          );
+        }
+        if (selectedFormat) {
+          filtered = filtered.filter(p => 
+            p.format?.toLowerCase() === selectedFormat.toLowerCase()
+          );
+        }
         break;
       case 'new':
-        // For new releases, show all new pitches without additional filtering
-        // unless there's a search query, then apply search to new data
+        // For new releases, apply genre/format and search filters
         filtered = [...newPitches];
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
@@ -167,6 +175,16 @@ export default function Marketplace() {
             p.title?.toLowerCase().includes(query) ||
             p.logline?.toLowerCase().includes(query) ||
             p.genre?.toLowerCase().includes(query)
+          );
+        }
+        if (selectedGenre) {
+          filtered = filtered.filter(p => 
+            p.genre?.toLowerCase() === selectedGenre.toLowerCase()
+          );
+        }
+        if (selectedFormat) {
+          filtered = filtered.filter(p => 
+            p.format?.toLowerCase() === selectedFormat.toLowerCase()
           );
         }
         break;
@@ -732,32 +750,28 @@ export default function Marketplace() {
             </h2>
             
             <div className="flex flex-wrap items-center space-x-4">
-              {/* Show genre/format filters only for appropriate views */}
-              {(currentView === 'all' || currentView === 'genres' || currentView === 'formats') && (
-                <>
-                  <select
-                    value={selectedGenre}
-                    onChange={(e) => setSelectedGenre(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="">All Genres</option>
-                    {genres.map((genre) => (
-                      <option key={genre} value={genre}>{genre}</option>
-                    ))}
-                  </select>
-                  
-                  <select
-                    value={selectedFormat}
-                    onChange={(e) => setSelectedFormat(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="">All Formats</option>
-                    {formats.map((format) => (
-                      <option key={format} value={format}>{format}</option>
-                    ))}
-                  </select>
-                </>
-              )}
+              {/* Show genre/format filters for all views */}
+              <select
+                value={selectedGenre}
+                onChange={(e) => setSelectedGenre(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">All Genres</option>
+                {genres.map((genre) => (
+                  <option key={genre} value={genre}>{genre}</option>
+                ))}
+              </select>
+              
+              <select
+                value={selectedFormat}
+                onChange={(e) => setSelectedFormat(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">All Formats</option>
+                {formats.map((format) => (
+                  <option key={format} value={format}>{format}</option>
+                ))}
+              </select>
               
               {/* Show clear filters if any filters are active */}
               {(selectedGenre || selectedFormat || searchQuery) && (

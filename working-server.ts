@@ -1,5 +1,5 @@
 // COMPLETE Multi-portal authentication server for Pitchey v0.2 - ALL 29 TESTS COVERAGE
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { serve, serveTls } from "https://deno.land/std@0.224.0/http/server.ts";
 import { serveFile } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
@@ -97,7 +97,24 @@ import {
 import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "drizzle-orm";
 
 const port = Deno.env.get("PORT") || "8001";
-const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-secret-key-change-this-in-production";
+
+// SSL Configuration
+const SSL_ENABLED = Deno.env.get("SSL_ENABLED") === "true";
+const SSL_CERT_PATH = Deno.env.get("SSL_CERT_PATH") || "./ssl/dev-cert.pem";
+const SSL_KEY_PATH = Deno.env.get("SSL_KEY_PATH") || "./ssl/dev-key.pem";
+const FORCE_HTTPS = Deno.env.get("FORCE_HTTPS") === "true";
+
+const JWT_SECRET = Deno.env.get("JWT_SECRET") || (() => {
+  const isProduction = Deno.env.get("DENO_ENV") === "production" || 
+                       Deno.env.get("NODE_ENV") === "production";
+  if (isProduction) {
+    console.error("CRITICAL SECURITY WARNING: JWT_SECRET is not set in production!");
+    console.error("This is a severe security vulnerability. Set JWT_SECRET immediately.");
+    Deno.exit(1);
+  }
+  console.warn("WARNING: Using default JWT_SECRET for development. Never use in production!");
+  return "test-secret-key-for-development-only";
+})();
 
 // WebSocket connections for real-time messaging
 const wsConnections = new Map<number, Set<WebSocket>>();
@@ -2362,11 +2379,10 @@ const handler = async (request: Request): Promise<Response> => {
         // Format the response with investor-specific fields
         const formattedPitches = publicPitches.map(p => ({
           ...p,
-          // Add investor-specific fields
+          // Add investor-specific fields (without overriding real data)
           budget: "$5M - $15M",
           expectedROI: "150-300%",
           riskLevel: "medium",
-          productionStage: "development",
           investmentTarget: "$2.5M",
           attachedTalent: [],
           similarProjects: ["Interstellar", "The Martian"]
@@ -2845,6 +2861,14 @@ const handler = async (request: Request): Promise<Response> => {
           })
           .where(eq(pitches.id, pitchId));
 
+        // Invalidate cache since pitch status changed
+        try {
+          await CacheService.invalidatePitch(parseInt(pitchId));
+          await CacheService.invalidateMarketplace();
+        } catch (cacheError) {
+          console.warn("Failed to invalidate cache after pitch approval:", cacheError);
+        }
+
         return successResponse({ message: "Pitch approved successfully" });
       } catch (error) {
         console.error("Admin approve pitch error:", error);
@@ -2880,6 +2904,14 @@ const handler = async (request: Request): Promise<Response> => {
             updatedAt: new Date()
           })
           .where(eq(pitches.id, pitchId));
+
+        // Invalidate cache since pitch status changed
+        try {
+          await CacheService.invalidatePitch(parseInt(pitchId));
+          await CacheService.invalidateMarketplace();
+        } catch (cacheError) {
+          console.warn("Failed to invalidate cache after pitch rejection:", cacheError);
+        }
 
         return successResponse({ message: "Pitch rejected successfully" });
       } catch (error) {
@@ -2917,6 +2949,14 @@ const handler = async (request: Request): Promise<Response> => {
             updatedAt: new Date()
           })
           .where(eq(pitches.id, pitchId));
+
+        // Invalidate cache since pitch status changed
+        try {
+          await CacheService.invalidatePitch(parseInt(pitchId));
+          await CacheService.invalidateMarketplace();
+        } catch (cacheError) {
+          console.warn("Failed to invalidate cache after pitch flagging:", cacheError);
+        }
 
         return successResponse({ message: "Pitch flagged successfully" });
       } catch (error) {
@@ -9403,6 +9443,109 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // Media upload endpoint with strict validation for pitches - /api/upload/media
+    if (url.pathname === "/api/upload/media" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+
+        const formData = await request.formData();
+        const file = formData.get('file') as File;
+        const folder = formData.get('folder') as string || 'pitches';
+
+        if (!file) {
+          return validationErrorResponse("No file provided");
+        }
+
+        // Enhanced file type and size validation according to requirements
+        let maxSize: number;
+        let allowedTypes: string[];
+        let fileCategory: string;
+
+        if (file.type.startsWith('image/')) {
+          maxSize = 5 * 1024 * 1024; // 5MB for images
+          allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+          fileCategory = 'image';
+        } else if (file.type === 'application/pdf') {
+          maxSize = 10 * 1024 * 1024; // 10MB for PDFs
+          allowedTypes = ['application/pdf'];
+          fileCategory = 'document';
+        } else if (file.type.startsWith('video/')) {
+          maxSize = 100 * 1024 * 1024; // 100MB for videos
+          allowedTypes = ['video/mp4', 'video/quicktime', 'video/mov', 'video/x-msvideo'];
+          fileCategory = 'video';
+        } else {
+          return validationErrorResponse("Unsupported file type. Only images (JPG, PNG, GIF), PDFs, and videos (MP4, MOV) are allowed.");
+        }
+
+        // Validate file type
+        if (!allowedTypes.includes(file.type)) {
+          return validationErrorResponse(`Invalid ${fileCategory} file type. Allowed types: ${allowedTypes.join(', ')}`);
+        }
+
+        // Validate file size
+        if (file.size > maxSize) {
+          const maxSizeMB = Math.round(maxSize / 1024 / 1024);
+          return validationErrorResponse(`File size exceeds limit. Maximum size for ${fileCategory} files is ${maxSizeMB}MB`);
+        }
+
+        // Validate file signature for security
+        const buffer = await file.arrayBuffer();
+        const isValidSignature = await UploadService.validateFileSignature(buffer, file.type);
+        if (!isValidSignature) {
+          return validationErrorResponse("File content does not match declared type. Possible security risk detected.");
+        }
+
+        // Generate unique filename to prevent collisions
+        const timestamp = Date.now();
+        const uuid = crypto.randomUUID();
+        const fileExtension = file.name.split('.').pop() || '';
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').substring(0, 50);
+        const uniqueFileName = `${timestamp}-${uuid}-${safeName}`;
+
+        // Upload file using storage service
+        const uploadResult = await UploadService.uploadFile(file, folder, {
+          publicRead: true,
+          metadata: {
+            uploadedBy: user.id.toString(),
+            uploadedAt: new Date().toISOString(),
+            originalName: file.name,
+            fileCategory,
+            userType: user.userType || 'user'
+          }
+        });
+
+        // Return structured response with file URL and metadata
+        return successResponse({
+          success: true,
+          data: {
+            url: uploadResult.url,
+            cdnUrl: uploadResult.cdnUrl,
+            key: uploadResult.key,
+            originalName: file.name,
+            uniqueName: uniqueFileName,
+            size: file.size,
+            type: file.type,
+            category: fileCategory,
+            provider: uploadResult.provider,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: user.id
+          },
+          message: `${fileCategory.charAt(0).toUpperCase() + fileCategory.slice(1)} uploaded successfully`
+        });
+      } catch (error) {
+        console.error("Media upload error:", error);
+        if (error.message.includes("size exceeds")) {
+          return validationErrorResponse(error.message);
+        }
+        return serverErrorResponse("File upload failed. Please try again.");
+      }
+    }
+
     // Upload pitch documents
     if (url.pathname === "/api/pitches/upload-document" && method === "POST") {
       try {
@@ -11544,26 +11687,101 @@ function getAuthToken(request: Request): string | null {
   return authHeader.substring(7);
 }
 
-// Start server with WebSocket support
-const webSocketEnabledHandler = addWebSocketSupport(handler);
+// HTTPS Redirect Middleware
+function addHttpsRedirect(handler: (request: Request) => Promise<Response>) {
+  return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+    
+    // Force HTTPS redirect for production
+    if (FORCE_HTTPS && url.protocol === "http:") {
+      const httpsUrl = new URL(request.url);
+      httpsUrl.protocol = "https:";
+      return new Response(null, {
+        status: 301,
+        headers: {
+          "Location": httpsUrl.toString(),
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
+        }
+      });
+    }
+    
+    return handler(request);
+  };
+}
 
-await serve(webSocketEnabledHandler, { 
-  port: Number(port),
-  hostname: "0.0.0.0",
-  onListen: ({ port, hostname }) => {
-    console.log(`🚀 Server running on http://${hostname}:${port}`);
-    console.log(`🔌 WebSocket endpoint: ws://${hostname}:${port}/ws`);
-    console.log("📡 WebSocket features enabled:");
-    console.log("  - Real-time notifications");
-    console.log("  - Live dashboard metrics");
-    console.log("  - Draft auto-sync");
-    console.log("  - Presence tracking");
-    console.log("  - Upload progress");
-    console.log("  - Live pitch view counters");
-    console.log("  - Typing indicators");
-    console.log("  - Activity feed updates");
+// Start server with WebSocket support
+let finalHandler = addWebSocketSupport(handler);
+
+// Add HTTPS redirect if enabled
+if (FORCE_HTTPS) {
+  finalHandler = addHttpsRedirect(finalHandler);
+}
+
+// SSL Certificate Loading
+async function loadSSLCertificates() {
+  try {
+    const certFile = await Deno.readTextFile(SSL_CERT_PATH);
+    const keyFile = await Deno.readTextFile(SSL_KEY_PATH);
+    return { cert: certFile, key: keyFile };
+  } catch (error) {
+    console.error("❌ Failed to load SSL certificates:", error.message);
+    console.error(`   Certificate path: ${SSL_CERT_PATH}`);
+    console.error(`   Key path: ${SSL_KEY_PATH}`);
+    console.error("   Run: ./ssl/generate-dev-certs.sh to create development certificates");
+    Deno.exit(1);
   }
-});
+}
+
+// Start server (HTTP or HTTPS based on configuration)
+if (SSL_ENABLED) {
+  console.log("🔐 Starting HTTPS server...");
+  const { cert, key } = await loadSSLCertificates();
+  
+  await serveTls(finalHandler, {
+    port: Number(port),
+    hostname: "0.0.0.0",
+    cert,
+    key,
+    onListen: ({ port, hostname }) => {
+      console.log(`🚀 Secure server running on https://${hostname}:${port}`);
+      console.log(`🔌 WebSocket endpoint: wss://${hostname}:${port}/ws`);
+      console.log("🔐 SSL/TLS Configuration:");
+      console.log(`   Certificate: ${SSL_CERT_PATH}`);
+      console.log(`   Private Key: ${SSL_KEY_PATH}`);
+      console.log(`   Force HTTPS: ${FORCE_HTTPS ? 'Enabled' : 'Disabled'}`);
+      console.log("📡 WebSocket features enabled:");
+      console.log("  - Real-time notifications");
+      console.log("  - Live dashboard metrics");
+      console.log("  - Draft auto-sync");
+      console.log("  - Presence tracking");
+      console.log("  - Upload progress");
+      console.log("  - Live pitch view counters");
+      console.log("  - Typing indicators");
+      console.log("  - Activity feed updates");
+    }
+  });
+} else {
+  console.log("🌐 Starting HTTP server...");
+  
+  await serve(finalHandler, {
+    port: Number(port),
+    hostname: "0.0.0.0",
+    onListen: ({ port, hostname }) => {
+      console.log(`🚀 Server running on http://${hostname}:${port}`);
+      console.log(`🔌 WebSocket endpoint: ws://${hostname}:${port}/ws`);
+      console.log("⚠️  SSL/TLS: Disabled (set SSL_ENABLED=true for HTTPS)");
+      console.log("📡 WebSocket features enabled:");
+      console.log("  - Real-time notifications");
+      console.log("  - Live dashboard metrics");
+      console.log("  - Draft auto-sync");
+      console.log("  - Presence tracking");
+      console.log("  - Upload progress");
+      console.log("  - Live pitch view counters");
+      console.log("  - Typing indicators");
+      console.log("  - Activity feed updates");
+    }
+  });
+}
 
 // Helper functions for the new endpoints
 function getStartDateFromPeriod(period: string): Date {
