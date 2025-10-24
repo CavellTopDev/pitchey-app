@@ -373,7 +373,7 @@ export class PitchService {
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      data: Pitch[];
+      data: { pitches: Pitch[] };
       message: string;
     }>(`/api/pitches/trending?limit=${limit}`);
 
@@ -381,8 +381,8 @@ export class PitchService {
       throw new Error(response.error?.message || 'Failed to fetch trending pitches');
     }
 
-    // Backend returns { success: true, data: [...], message: "..." }
-    const pitches = response.data || [];
+    // Backend returns { success: true, data: { pitches: [...] }, message: "..." }
+    const pitches = response.data?.pitches || [];
     console.log('Trending pitches received:', pitches.length);
     
     return pitches;
@@ -392,7 +392,7 @@ export class PitchService {
   static async getNewReleases(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      data: Pitch[];
+      data: { pitches: Pitch[] };
       message: string;
     }>(`/api/pitches/new?limit=${limit}`);
 
@@ -400,8 +400,8 @@ export class PitchService {
       throw new Error(response.error?.message || 'Failed to fetch new releases');
     }
 
-    // Backend returns { success: true, data: [...], message: "..." }
-    const pitches = response.data || [];
+    // Backend returns { success: true, data: { pitches: [...] }, message: "..." }
+    const pitches = response.data?.pitches || [];
     console.log('New releases received:', pitches.length);
     
     return pitches;
