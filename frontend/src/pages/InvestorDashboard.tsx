@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search, Filter, CreditCard, Coins, Users, Heart, Shield, Building2, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
@@ -20,18 +20,26 @@ export default function InvestorDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+
+  // Debug logging for recommendations state changes
+  useEffect(() => {
+    console.log(`🔍 RECOMMENDATIONS STATE CHANGE [${new Date().toISOString()}]:`, {
+      length: recommendations.length,
+      data: recommendations.map(r => ({ id: r.id, title: r.title }))
+    });
+  }, [recommendations]);
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
       console.log('🔄 Fetching investor dashboard data...');
       
-      // Fetch dashboard data first
+      // Fetch dashboard data - this is the primary source of truth
       const dashboardResponse = await apiClient.get('/api/investor/dashboard');
       console.log('📊 Dashboard response:', dashboardResponse);
       
@@ -39,15 +47,40 @@ export default function InvestorDashboard() {
         // Handle nested data structure: data.data contains the actual data
         const dashboardData = dashboardResponse.data?.data || dashboardResponse.data;
         console.log('📈 Dashboard data extracted:', dashboardData);
+        console.log('📋 Recommendations count:', dashboardData.recommendations?.length || 0);
         
-        // Set portfolio data from dashboard
+        // Set portfolio data from dashboard (primary source)
         if (dashboardData.portfolio) {
+          console.log('💼 Setting portfolio from dashboard:', dashboardData.portfolio);
           setPortfolio(dashboardData.portfolio);
         }
         
-        // Set watchlist and recommendations
-        setWatchlist(dashboardData.watchlist || []);
-        setRecommendations(dashboardData.recommendations || []);
+        // Set watchlist and recommendations - these are critical
+        const watchlistData = dashboardData.watchlist || [];
+        const recommendationsData = dashboardData.recommendations || [];
+        
+        console.log('📋 Setting watchlist:', watchlistData.length, 'items');
+        console.log('🎯 Setting recommendations:', recommendationsData.length, 'items');
+        
+        setWatchlist(watchlistData);
+        setRecommendations(recommendationsData);
+        
+        // Only fetch portfolio summary if dashboard didn't provide portfolio data
+        if (!dashboardData.portfolio) {
+          try {
+            console.log('💼 Fetching portfolio summary as fallback...');
+            const portfolioResponse = await apiClient.get('/api/investor/portfolio/summary');
+            console.log('💼 Portfolio summary response:', portfolioResponse);
+            
+            if (portfolioResponse.success) {
+              const portfolioData = portfolioResponse.data?.data || portfolioResponse.data;
+              console.log('💼 Setting portfolio from summary:', portfolioData);
+              setPortfolio(portfolioData);
+            }
+          } catch (portfolioError) {
+            console.error('⚠️ Portfolio summary failed (non-critical):', portfolioError);
+          }
+        }
       } else {
         console.error('❌ Dashboard API failed:', dashboardResponse.error);
         setError(`Failed to load dashboard: ${dashboardResponse.error?.message || 'Unknown error'}`);
@@ -62,19 +95,6 @@ export default function InvestorDashboard() {
         });
         setWatchlist([]);
         setRecommendations([]);
-      }
-      
-      // Fetch portfolio summary separately if available
-      try {
-        const portfolioResponse = await apiClient.get('/api/investor/portfolio/summary');
-        console.log('💼 Portfolio response:', portfolioResponse);
-        
-        if (portfolioResponse.success) {
-          const portfolioData = portfolioResponse.data?.data || portfolioResponse.data;
-          setPortfolio(portfolioData);
-        }
-      } catch (portfolioError) {
-        console.error('⚠️ Portfolio summary failed (non-critical):', portfolioError);
       }
       
       // Fetch billing info
@@ -137,7 +157,7 @@ export default function InvestorDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array - function only created once
 
   const handleLogout = () => {
     logout(); // This will automatically navigate to login page
