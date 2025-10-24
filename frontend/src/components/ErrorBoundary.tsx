@@ -83,14 +83,15 @@ export class ErrorBoundary extends Component<Props, State> {
       console.groupEnd();
     }
 
-    // Send to custom logging endpoint
-    if (config.API_URL) {
-      fetch(`${config.API_URL}/api/errors/client`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(errorReport),
-      }).catch(err => console.warn('Failed to send error report:', err));
-    }
+    // Note: Client error logging endpoint not implemented yet
+    // TODO: Implement /api/errors/client endpoint in backend for error tracking
+    // if (config.API_URL) {
+    //   fetch(`${config.API_URL}/api/errors/client`, {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify(errorReport),
+    //   }).catch(err => console.warn('Failed to send error report:', err));
+    // }
     
     // Call custom error handler if provided
     if (this.props.onError) {

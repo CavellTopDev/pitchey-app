@@ -28,9 +28,6 @@ export default function InvestorDashboard() {
       data: recommendations.map(r => ({ id: r.id, title: r.title }))
     });
   }, [recommendations]);
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -158,6 +155,10 @@ export default function InvestorDashboard() {
       setLoading(false);
     }
   }, []); // Empty dependency array - function only created once
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const handleLogout = () => {
     logout(); // This will automatically navigate to login page
