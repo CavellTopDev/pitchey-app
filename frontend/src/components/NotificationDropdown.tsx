@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNotifications } from '../contexts/WebSocketContext';
+import { NotificationsService, type Notification as BackendNotification } from '../services/notifications.service';
+import { useAuthStore } from '../store/authStore';
+import { useToast } from './Toast/ToastProvider';
 
 interface NotificationAction {
   label: string;
@@ -142,11 +145,46 @@ interface NotificationDropdownProps {
 }
 
 export function NotificationDropdown({ className = '' }: NotificationDropdownProps) {
-  const { notifications, markNotificationAsRead, clearAllNotifications } = useNotifications();
+  const { notifications: wsNotifications, markNotificationAsRead, clearAllNotifications } = useNotifications();
+  const { isAuthenticated } = useAuthStore();
+  const toast = useToast();
+  
   const [isOpen, setIsOpen] = useState(false);
   const [hasNewNotifications, setHasNewNotifications] = useState(false);
+  const [apiNotifications, setApiNotifications] = useState<BackendNotification[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const previousNotificationCount = useRef(notifications.length);
+  const previousNotificationCount = useRef(wsNotifications.length);
+
+  // Load notifications from API
+  const loadNotifications = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      setIsLoading(true);
+      const notifications = await NotificationsService.getNotifications(50);
+      setApiNotifications(notifications);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      toast.error('Failed to load notifications');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load notifications on mount and when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadNotifications();
+    }
+  }, [isAuthenticated]);
+
+  // Reload notifications when dropdown opens
+  useEffect(() => {
+    if (isOpen && isAuthenticated) {
+      loadNotifications();
+    }
+  }, [isOpen, isAuthenticated]);
 
   // Handle clicking outside to close dropdown
   useEffect(() => {
@@ -160,15 +198,70 @@ export function NotificationDropdown({ className = '' }: NotificationDropdownPro
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Handle marking notifications as read
+  const handleMarkAsRead = async (id: string) => {
+    // Try to find the notification in API notifications first
+    const apiNotification = apiNotifications.find(n => n.id.toString() === id);
+    
+    if (apiNotification && !apiNotification.isRead) {
+      try {
+        const success = await NotificationsService.markAsRead(apiNotification.id);
+        if (success) {
+          // Update local state
+          setApiNotifications(prev => 
+            prev.map(n => n.id === apiNotification.id ? { ...n, isRead: true } : n)
+          );
+          toast.success('Notification marked as read');
+        } else {
+          toast.error('Failed to mark notification as read');
+        }
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+        toast.error('Failed to mark notification as read');
+      }
+    } else {
+      // Fall back to WebSocket notification handling
+      markNotificationAsRead(id);
+    }
+  };
+
+  // Handle clearing all notifications
+  const handleClearAll = async () => {
+    try {
+      const success = await NotificationsService.markAllAsRead();
+      if (success) {
+        setApiNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        clearAllNotifications(); // Clear WebSocket notifications too
+        toast.success('All notifications marked as read');
+      } else {
+        toast.error('Failed to mark all notifications as read');
+      }
+    } catch (error) {
+      console.error('Error clearing all notifications:', error);
+      toast.error('Failed to clear all notifications');
+    }
+  };
+
+  // Combine and convert notifications from both sources
+  const allNotifications = [
+    // API notifications (converted to frontend format)
+    ...apiNotifications.map(notification => ({
+      ...NotificationsService.convertToFrontendFormat(notification),
+      actions: NotificationsService.getNotificationActions(notification)
+    })),
+    // WebSocket notifications (already in frontend format)
+    ...wsNotifications
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
   // Track new notifications
   useEffect(() => {
-    if (notifications.length > previousNotificationCount.current) {
+    if (allNotifications.length > previousNotificationCount.current) {
       setHasNewNotifications(true);
       // Auto-hide the "new" indicator after 3 seconds
       setTimeout(() => setHasNewNotifications(false), 3000);
     }
-    previousNotificationCount.current = notifications.length;
-  }, [notifications.length]);
+    previousNotificationCount.current = allNotifications.length;
+  }, [allNotifications.length]);
 
   // Reset new notifications when dropdown is opened
   useEffect(() => {
@@ -177,8 +270,8 @@ export function NotificationDropdown({ className = '' }: NotificationDropdownPro
     }
   }, [isOpen]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-  const recentNotifications = notifications.slice(0, 10); // Show last 10 notifications
+  const unreadCount = allNotifications.filter(n => !n.read).length;
+  const recentNotifications = allNotifications.slice(0, 10); // Show last 10 notifications
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -224,10 +317,11 @@ export function NotificationDropdown({ className = '' }: NotificationDropdownPro
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
-              {notifications.length > 0 && (
+              {allNotifications.length > 0 && (
                 <button
-                  onClick={clearAllNotifications}
+                  onClick={handleClearAll}
                   className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                  disabled={isLoading}
                 >
                   Clear all
                 </button>
@@ -242,7 +336,12 @@ export function NotificationDropdown({ className = '' }: NotificationDropdownPro
 
           {/* Notification List */}
           <div className="max-h-80 overflow-y-auto">
-            {recentNotifications.length === 0 ? (
+            {isLoading ? (
+              <div className="px-4 py-8 text-center text-gray-500">
+                <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                <p className="text-sm">Loading notifications...</p>
+              </div>
+            ) : recentNotifications.length === 0 ? (
               <div className="px-4 py-8 text-center text-gray-500">
                 <svg
                   className="w-12 h-12 mx-auto mb-3 text-gray-300"
@@ -268,7 +367,7 @@ export function NotificationDropdown({ className = '' }: NotificationDropdownPro
                   <NotificationItem
                     key={notification.id}
                     {...notification}
-                    onMarkAsRead={markNotificationAsRead}
+                    onMarkAsRead={handleMarkAsRead}
                   />
                 ))}
               </div>
@@ -276,10 +375,16 @@ export function NotificationDropdown({ className = '' }: NotificationDropdownPro
           </div>
 
           {/* Footer */}
-          {notifications.length > 10 && (
+          {allNotifications.length > 10 && (
             <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 text-center">
-              <button className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
-                View all notifications
+              <button 
+                className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                onClick={() => {
+                  // You can implement a full notifications page later
+                  setIsOpen(false);
+                }}
+              >
+                View all {allNotifications.length} notifications
               </button>
             </div>
           )}
