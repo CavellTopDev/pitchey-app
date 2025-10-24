@@ -1312,7 +1312,7 @@ const handler = async (request: Request): Promise<Response> => {
           .slice(0, limit);
         
         return successResponse(
-          trendingPitches,
+          { pitches: trendingPitches },
           "Trending pitches retrieved successfully"
         );
       } catch (error) {
@@ -1332,10 +1332,10 @@ const handler = async (request: Request): Promise<Response> => {
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, limit);
         
-        return successResponse({
-          data: sortedPitches,
-          message: "Newest pitches retrieved successfully"
-        });
+        return successResponse(
+          { pitches: sortedPitches },
+          "Newest pitches retrieved successfully"
+        );
       } catch (error) {
         console.error("Error fetching newest pitches:", error);
         return errorResponse("Failed to fetch newest pitches", 500);
@@ -1521,7 +1521,7 @@ const handler = async (request: Request): Promise<Response> => {
           .slice(0, limit);
         
         return successResponse(
-          newPitches,
+          { pitches: newPitches },
           "New releases retrieved successfully"
         );
       } catch (error) {
