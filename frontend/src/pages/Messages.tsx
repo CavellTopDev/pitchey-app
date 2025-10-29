@@ -4,6 +4,8 @@ import { ArrowLeft, Send, Search, Filter, MessageSquare, Paperclip, MoreVertical
 import { useMessaging } from '../hooks/useWebSocket';
 import { getUserId } from '../lib/apiServices';
 import { messagingService, type Message as ServiceMessage, type Conversation as ServiceConversation } from '../services/messaging.service';
+import { getCreditCost } from '../config/subscription-plans';
+import { useAuthStore } from '../store/authStore';
 
 // Map service types to component's expected format
 interface Message extends Omit<ServiceMessage, 'content' | 'createdAt'> {
@@ -29,6 +31,12 @@ interface Conversation extends ServiceConversation {
 
 export default function Messages() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  
+  // Get messaging cost for creators
+  const messageCost = getCreditCost('send_message');
+  const isCreator = user?.userType === 'creator';
+  const isFreeForUser = !isCreator; // Free for investors and production
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -255,7 +263,16 @@ export default function Messages() {
       }
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      addNotification(error.message || 'Failed to send message', 'error');
+      
+      // Handle payment required error specifically
+      if (error.message && error.message.includes('Insufficient credits')) {
+        addNotification(
+          `Unable to send message. ${error.message} Purchase more credits to continue messaging.`,
+          'error'
+        );
+      } else {
+        addNotification(error.message || 'Failed to send message', 'error');
+      }
     } finally {
       setSendingMessage(false);
     }
@@ -600,6 +617,25 @@ export default function Messages() {
 
                   {/* Message Input */}
                   <div className="p-4 border-t border-gray-200">
+                    {/* Cost information for creators */}
+                    {isCreator && (
+                      <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs text-yellow-800">
+                          💬 <strong>Messaging Cost:</strong> {messageCost} credits per message
+                          {isFreeForUser && <span className="text-green-600 ml-1">(Free for you!)</span>}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Free messaging notice for investors/production */}
+                    {isFreeForUser && (
+                      <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-xs text-green-800">
+                          ✨ <strong>Free Messaging:</strong> You can send messages at no cost!
+                        </p>
+                      </div>
+                    )}
+                    
                     <div className="flex items-end gap-3">
                       <button className="p-2 text-gray-400 hover:text-gray-600">
                         <Paperclip className="w-5 h-5" />

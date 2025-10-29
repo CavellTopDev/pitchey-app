@@ -19,6 +19,7 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import CreditPurchase from '../components/CreditPurchase';
 import PaymentHistory from '../components/PaymentHistory';
 import PaymentMethodCard from '../components/PaymentMethodCard';
+import { getSubscriptionTier } from '../config/subscription-plans';
 
 export default function Billing() {
   const navigate = useNavigate();
@@ -301,7 +302,10 @@ function OverviewTab({ subscription, credits, paymentHistory, onRefresh }: any) 
             <Crown className="w-6 h-6" />
           </div>
           <p className="text-2xl font-bold mb-2">
-            {subscription?.tier?.toUpperCase() || 'FREE'}
+            {(() => {
+              const tier = getSubscriptionTier(subscription?.tier || '');
+              return tier?.name || 'The Watcher';
+            })()}
           </p>
           <p className="text-purple-100 text-sm">
             {subscription?.status === 'active' ? (

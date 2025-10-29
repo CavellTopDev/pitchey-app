@@ -29,7 +29,6 @@ interface PitchFormData {
   themes: string;
   worldDescription: string;
   image: File | null;
-  pdf: File | null;
   video: File | null;
   documents: DocumentFile[];
   ndaConfig: {
@@ -59,7 +58,6 @@ export default function CreatePitch() {
     themes: '',
     worldDescription: '',
     image: null,
-    pdf: null,
     video: null,
     documents: [],
     ndaConfig: {
@@ -199,7 +197,7 @@ export default function CreatePitch() {
     validateField('formatSubtype', subtype);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'image' | 'pdf' | 'video') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'image' | 'video') => {
     const file = e.target.files?.[0] || null;
     
     // Clear previous errors for this field
@@ -228,7 +226,7 @@ export default function CreatePitch() {
     markFieldTouched(fileType);
   };
 
-  const removeFile = (fileType: 'image' | 'pdf' | 'video') => {
+  const removeFile = (fileType: 'image' | 'video') => {
     setFormData(prev => ({
       ...prev,
       [fileType]: null
@@ -409,6 +407,26 @@ export default function CreatePitch() {
           </div>
         </div>
       </header>
+
+      {/* Cost Overview Notice */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+            </div>
+            <div>
+              <h3 className="font-medium text-yellow-900 mb-2">💰 Credit System Overview</h3>
+              <p className="text-sm text-yellow-800 mb-2">
+                Creating a pitch uses credits from your subscription. Basic pitch creation (form + 1 image) costs <strong>10 credits</strong>.
+              </p>
+              <p className="text-xs text-yellow-700">
+                Additional uploads cost extra credits. See specific costs in each upload section below.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Form */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -777,13 +795,22 @@ export default function CreatePitch() {
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-blue-900">Document Guidelines</h4>
+                  <h4 className="font-medium text-blue-900">Document Guidelines & Costs</h4>
                   <ul className="text-sm text-blue-800 mt-1 space-y-1">
                     <li>• Upload scripts, treatments, pitch decks, visual lookbooks, and supporting materials</li>
                     <li>• Each file must be under 10MB (PDF, DOC, DOCX, PPT, PPTX, TXT)</li>
                     <li>• Documents help investors understand your project better</li>
                     <li>• NDA-protected content will only be visible after agreement signing</li>
                   </ul>
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <h5 className="font-medium text-yellow-900 mb-2">📋 Upload Costs (This Costs Extra):</h5>
+                    <ul className="text-xs text-yellow-800 space-y-1">
+                      <li>• Word documents (scripts, treatments): <strong>3 credits each</strong></li>
+                      <li>• Picture documents (lookbooks, mood boards): <strong>5 credits each</strong></li>
+                      <li>• Extra images: <strong>1 credit each</strong></li>
+                      <li>• Video links: <strong>1 credit each</strong></li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
@@ -991,79 +1018,11 @@ export default function CreatePitch() {
                   {fieldErrors.image[0]}
                 </div>
               )}
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                💰 <strong>This Costs Extra:</strong> First image included with basic upload (10 credits), additional images cost 1 credit each
+              </div>
             </div>
 
-            {/* PDF Upload */}
-            <div className="mb-6">
-              <label 
-                id="pdf-label"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                {MESSAGES.LABELS.SCRIPT_PDF}
-              </label>
-              <div 
-                {...a11y.fileUpload.getDropZoneAttributes({
-                  disabled: isSubmitting,
-                  labelId: 'pdf-label'
-                })}
-                onClick={() => document.getElementById('pdf-upload')?.click()}
-                onKeyDown={a11y.keyboard.onActivate(() => document.getElementById('pdf-upload')?.click())}
-              >
-                {formData.pdf ? (
-                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-purple-600" aria-hidden="true" />
-                      <div>
-                        <span className="text-sm font-medium block">{formData.pdf.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {(formData.pdf.size / 1024 / 1024).toFixed(1)}MB
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      {...a11y.button.getAttributes({
-                        type: 'button',
-                        disabled: isSubmitting,
-                        ariaLabel: MESSAGES.A11Y.REMOVE_FILE_BUTTON
-                      })}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile('pdf');
-                      }}
-                      className={`text-red-500 hover:text-red-700 transition-colors p-1 rounded ${a11y.classes.focusVisible}`}
-                    >
-                      <X className="w-4 h-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" aria-hidden="true" />
-                    <p className="text-sm text-gray-600 mb-2">{MESSAGES.INFO.PDF_UPLOAD_INSTRUCTIONS}</p>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
-                      <Upload className="w-4 h-4" aria-hidden="true" />
-                      Choose PDF
-                    </div>
-                  </div>
-                )}
-              </div>
-              <input
-                {...a11y.fileUpload.getInputAttributes({
-                  id: 'pdf-upload',
-                  accept: '.pdf',
-                  disabled: isSubmitting
-                })}
-                onChange={(e) => handleFileChange(e, 'pdf')}
-              />
-              <div id="pdf-upload-instructions" className={a11y.classes.srOnly}>
-                {MESSAGES.A11Y.FILE_UPLOAD_INSTRUCTIONS}
-              </div>
-              {fieldErrors.pdf?.length > 0 && (
-                <div {...a11y.formField.getErrorAttributes('pdf')}>
-                  <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
-                  {fieldErrors.pdf[0]}
-                </div>
-              )}
-            </div>
 
             {/* Video Upload */}
             <div>
@@ -1135,6 +1094,9 @@ export default function CreatePitch() {
                   {fieldErrors.video[0]}
                 </div>
               )}
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                💰 <strong>This Costs Extra:</strong> Video links cost 1 credit each
+              </div>
             </div>
           </div>
 

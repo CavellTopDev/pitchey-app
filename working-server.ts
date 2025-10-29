@@ -1413,7 +1413,9 @@ const handler = async (request: Request): Promise<Response> => {
             sql`(
               LOWER(title) LIKE LOWER(${'%' + query + '%'}) OR
               LOWER(logline) LIKE LOWER(${'%' + query + '%'}) OR
-              LOWER(short_synopsis) LIKE LOWER(${'%' + query + '%'})
+              LOWER(short_synopsis) LIKE LOWER(${'%' + query + '%'}) OR
+              LOWER(genre) LIKE LOWER(${'%' + query + '%'}) OR
+              LOWER(format) LIKE LOWER(${'%' + query + '%'})
             )`
           );
         }
@@ -7314,6 +7316,29 @@ const handler = async (request: Request): Promise<Response> => {
         }
 
         const { recipientId, subject, content, pitchId } = result.data;
+
+        // Check if user needs to pay for messaging (creators pay, investors are free)
+        if (user.userType === 'creator') {
+          // Check if user has sufficient credits
+          const sendMessageCost = 2; // Credits needed to send a message
+          
+          // For demo purposes, assume user has credits
+          // In production, you would check actual credit balance here
+          const userCredits = 50; // Mock credit balance
+          
+          if (userCredits < sendMessageCost) {
+            return errorResponse(
+              "Insufficient credits to send message. You need " + sendMessageCost + " credits.",
+              402 // Payment Required
+            );
+          }
+          
+          // In production, deduct credits here
+          console.log(`Creator ${user.username} sending message - would deduct ${sendMessageCost} credits`);
+        } else {
+          // Investors and production companies can send messages for free
+          console.log(`${user.userType} ${user.username} sending message - free for ${user.userType}s`);
+        }
 
         // Mock message creation
         const newMessage = {

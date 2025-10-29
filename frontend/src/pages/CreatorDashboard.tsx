@@ -4,6 +4,7 @@ import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, LogOut, Pl
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI, apiClient } from '../lib/apiServices';
 import { NDANotificationBadge, NDANotificationPanel } from '../components/NDANotifications';
+import { getSubscriptionTier, SUBSCRIPTION_TIERS } from '../config/subscription-plans';
 
 export default function CreatorDashboard() {
   const navigate = useNavigate();
@@ -62,10 +63,10 @@ export default function CreatorDashboard() {
         const data = dashboardResponse.data;
         
         // Calculate actual stats from backend data
-        const actualTotalViews = data.stats?.views || 0;
-        const actualTotalPitches = data.stats?.totalPitches || 0;
-        const actualActivePitches = data.stats?.activePitches || 0;
-        const actualTotalInterest = data.stats?.investors || 0;
+        const actualTotalViews = data.totalViews || 0;
+        const actualTotalPitches = data.totalPitches || 0;
+        const actualActivePitches = data.publishedPitches || 0;
+        const actualTotalInterest = data.totalNDAs || 0;
         
         // Calculate average rating from pitches if available
         let calculatedAvgRating = 0;
@@ -206,7 +207,10 @@ export default function CreatorDashboard() {
                 className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
               >
                 <span className="font-medium text-gray-700">
-                  {subscription?.tier?.toUpperCase() || 'FREE'}
+                  {(() => {
+                    const tier = getSubscriptionTier(subscription?.tier || '');
+                    return tier?.name || 'The Watcher';
+                  })()}
                 </span>
                 {subscription?.status === 'active' && (
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -598,36 +602,45 @@ export default function CreatorDashboard() {
 
             {/* Subscription Info */}
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-sm p-6 mt-6">
-              <h3 className="text-white font-semibold mb-2">
-                Your Plan: {subscription?.tier?.toUpperCase() || 'FREE'}
-              </h3>
-              {subscription?.status === 'active' ? (
-                <div>
-                  <p className="text-purple-100 text-sm mb-4">
-                    {subscription.subscription?.currentPeriodEnd && (
-                      <>Next payment: {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}</>
-                    )}
-                  </p>
-                  <button 
-                    onClick={() => navigate('/creator/billing?tab=subscription')}
-                    className="w-full py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition"
-                  >
-                    Manage Subscription
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-purple-100 text-sm mb-4">
-                    Upgrade to PRO for unlimited uploads and advanced analytics
-                  </p>
-                  <button 
-                    onClick={() => navigate('/creator/billing?tab=subscription')}
-                    className="w-full py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition"
-                  >
-                    Upgrade Now
-                  </button>
-                </div>
-              )}
+              {(() => {
+                const tier = getSubscriptionTier(subscription?.tier || '');
+                const tierName = tier?.name || 'The Watcher';
+                const isActive = subscription?.status === 'active';
+                const isUnlimited = tier?.credits === -1;
+                const monthlyCredits = tier?.credits || 0;
+                
+                return (
+                  <>
+                    <h3 className="text-white font-semibold mb-2">
+                      Your Plan: {tierName}
+                    </h3>
+                    <div className="text-purple-100 text-sm mb-4">
+                      {isActive ? (
+                        <div>
+                          <p>
+                            {isUnlimited ? 'Unlimited Credits' : `${monthlyCredits} Credits`} per month
+                          </p>
+                          {subscription.subscription?.currentPeriodEnd && (
+                            <p>Next payment: {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p>
+                          {tierName === 'The Watcher' 
+                            ? 'Free tier - Create pitches but cannot upload files. Upgrade to start uploading!' 
+                            : 'Choose a Creator plan to unlock uploads and advanced features'}
+                        </p>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => navigate('/creator/billing?tab=subscription')}
+                      className="w-full py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition"
+                    >
+                      {isActive ? 'Manage Subscription' : 'Choose Plan'}
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -12,58 +12,35 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { paymentsAPI } from '../lib/apiServices';
+import { CREDIT_PACKAGES } from '../config/subscription-plans';
 
 interface CreditPurchaseProps {
   credits: any;
   onRefresh: () => void;
 }
 
-const CREDIT_PACKAGES = [
-  {
-    id: 'starter',
-    name: 'Starter Pack',
-    credits: 100,
-    price: 9.99,
-    value: '$0.10 per credit',
-    icon: Zap,
-    description: 'Perfect for getting started',
-    popular: false,
-    bonus: 0
-  },
-  {
-    id: 'growth',
-    name: 'Growth Pack',
-    credits: 500,
-    price: 39.99,
-    value: '$0.08 per credit',
-    icon: TrendingUp,
-    description: 'Great for growing creators',
-    popular: true,
-    bonus: 50 // Bonus credits
-  },
-  {
-    id: 'professional',
-    name: 'Professional Pack',
-    credits: 1000,
-    price: 69.99,
-    value: '$0.07 per credit',
-    icon: Star,
-    description: 'Best value for professionals',
-    popular: false,
-    bonus: 150
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise Pack',
-    credits: 2500,
-    price: 149.99,
-    value: '$0.06 per credit',
-    icon: Crown,
-    description: 'Maximum value for power users',
-    popular: false,
-    bonus: 500
-  }
-];
+// Adapt centralized credit packages for UI display
+const UI_CREDIT_PACKAGES = CREDIT_PACKAGES.map((pkg, index) => {
+  const icons = [Zap, TrendingUp, Star, Crown];
+  const descriptions = [
+    'Perfect for getting started',
+    'Great for growing creators', 
+    'Best value for professionals',
+    'Maximum value for power users'
+  ];
+  
+  return {
+    id: `package_${index}`,
+    name: `${pkg.credits} Credit${pkg.credits === 1 ? '' : 's'}${pkg.bonus ? ` + ${pkg.bonus} Bonus` : ''}`,
+    credits: pkg.credits,
+    price: pkg.price,
+    value: `€${(pkg.price / pkg.credits).toFixed(3)} per credit`,
+    icon: icons[index] || Coins,
+    description: pkg.description || descriptions[index] || 'Credit package',
+    popular: index === 1, // Make second package popular
+    bonus: pkg.bonus || 0
+  };
+});
 
 const CREDIT_USAGE = [
   {
@@ -85,10 +62,10 @@ const CREDIT_USAGE = [
     description: 'Access detailed analytics and insights'
   },
   {
-    action: 'Priority Support',
+    action: 'Email Support',
     cost: 20,
     icon: Star,
-    description: 'Get priority customer support'
+    description: 'Get email customer support'
   }
 ];
 
@@ -187,7 +164,7 @@ export default function CreditPurchase({ credits, onRefresh }: CreditPurchasePro
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Purchase Credits</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {CREDIT_PACKAGES.map((pkg) => {
+          {UI_CREDIT_PACKAGES.map((pkg) => {
             const Icon = pkg.icon;
             const isSelected = selectedPackage === pkg.id;
             const totalCredits = pkg.credits + pkg.bonus;

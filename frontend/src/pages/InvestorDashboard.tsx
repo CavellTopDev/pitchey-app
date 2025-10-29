@@ -4,6 +4,7 @@ import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search,
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI, pitchServicesAPI, apiClient } from '../lib/apiServices';
 import FollowButton from '../components/FollowButton';
+import { getSubscriptionTier } from '../config/subscription-plans';
 
 export default function InvestorDashboard() {
   const navigate = useNavigate();
@@ -235,7 +236,10 @@ export default function InvestorDashboard() {
                 className="hidden md:flex items-center gap-2 px-2 lg:px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
               >
                 <span className="font-medium text-gray-700">
-                  {subscription?.tier?.toUpperCase() || 'FREE'}
+                  {(() => {
+                    const tier = getSubscriptionTier(subscription?.tier || '');
+                    return tier?.name || 'The Watcher';
+                  })()}
                 </span>
                 {subscription?.status === 'active' && (
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -575,7 +579,10 @@ export default function InvestorDashboard() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-600">Current Plan</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {subscription?.tier?.toUpperCase() || 'FREE'}
+                      {(() => {
+                    const tier = getSubscriptionTier(subscription?.tier || '');
+                    return tier?.name || 'The Watcher';
+                  })()}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">

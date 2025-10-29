@@ -32,7 +32,7 @@ const PLANS = {
     ],
     limits: [
       'Limited to public viewing only',
-      'No premium features',
+      'Basic features only',
       'Basic support only'
     ]
   },
@@ -44,7 +44,7 @@ const PLANS = {
       'Advanced analytics',
       '100 messages per month',
       'NDA management',
-      'Priority support',
+      'Email support',
       'Custom branding'
     ],
     limits: [
@@ -60,7 +60,7 @@ const PLANS = {
       'Advanced analytics with AI insights',
       'Unlimited messaging',
       'Advanced NDA management',
-      'Premium support',
+      'Email support',
       'Custom branding',
       'API access',
       'Export capabilities'
@@ -220,7 +220,7 @@ export default function SubscriptionCard({ subscription, onRefresh }: Subscripti
               </span>
             </div>
             <p className="text-gray-600 text-sm">
-              Upgrade to a paid plan to unlock premium features and remove limitations.
+              Upgrade to a paid plan to unlock advanced features and remove limitations.
             </p>
           </div>
         )}

@@ -94,8 +94,8 @@ const HowItWorks: React.FC = () => {
     ],
     features: [
       {
-        title: "AI-Powered Matching",
-        description: "Our algorithm connects the right projects with the right investors based on genre, budget, and track record.",
+        title: "AI-Powered Recommendations",
+        description: "Our algorithm recommends the right projects to the right investors based on genre, budget, and track record.",
         icon: "zap"
       },
       {
@@ -328,28 +328,6 @@ const HowItWorks: React.FC = () => {
         </div>
       </section>
 
-      {/* Success Metrics */}
-      <section className="py-16 px-4 bg-black/30">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-6 text-center">
-            {stats.map((stat, index) => {
-              const colorClass = {
-                purple: 'border-purple-500/20 text-purple-400',
-                green: 'border-green-500/20 text-green-400',
-                yellow: 'border-yellow-500/20 text-yellow-400',
-                pink: 'border-pink-500/20 text-pink-400'
-              }[stat.color || 'purple'] || 'border-purple-500/20 text-purple-400';
-              
-              return (
-                <div key={index} className={`bg-white/5 backdrop-blur-md rounded-xl p-6 border ${colorClass.split(' ')[0]}`}>
-                  <div className={`text-4xl font-bold mb-2 ${colorClass.split(' ')[1]}`}>{stat.value}</div>
-                  <p className="text-gray-300">{stat.label}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
       {/* CTA Section */}
       <section className="py-20 text-center">
