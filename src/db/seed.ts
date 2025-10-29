@@ -5,48 +5,48 @@ import * as bcrypt from "npm:bcrypt";
 async function seed() {
   console.log("Seeding database...");
   
-  // Create test users
-  const hashedPassword = await bcrypt.hash("password123");
+  // Create demo users expected by tests
+  const hashedPassword = await bcrypt.hash("Demo123");
   
   const [creator] = await db.insert(users).values({
-    email: "creator@test.com",
-    username: "testcreator",
+    email: "alex.creator@demo.com",
+    username: "alex.creator",
     passwordHash: hashedPassword,
     userType: "creator",
     emailVerified: true,
   }).returning();
   
   const [production] = await db.insert(users).values({
-    email: "production@test.com",
-    username: "testproduction",
+    email: "stellar.production@demo.com",
+    username: "stellar.production",
     passwordHash: hashedPassword,
     userType: "production",
-    companyName: "Test Productions Ltd",
+    companyName: "Stellar Pictures",
     emailVerified: true,
     companyVerified: true,
   }).returning();
   
   const [investor] = await db.insert(users).values({
-    email: "investor@test.com",
-    username: "testinvestor",
+    email: "sarah.investor@demo.com",
+    username: "sarah.investor",
     passwordHash: hashedPassword,
     userType: "investor",
     emailVerified: true,
   }).returning();
   
-  // Create test pitches
+  // Create demo pitches for creator
   const genres = ["drama", "comedy", "thriller", "scifi", "horror"];
   const formats = ["feature", "tv", "webseries"];
   
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 10; i++) {
     await db.insert(pitches).values({
       userId: creator.id,
-      title: `Test Pitch ${i + 1}`,
-      logline: `This is an exciting logline for test pitch ${i + 1} that will capture your imagination.`,
+      title: `Demo Pitch ${i + 1}`,
+      logline: `Compelling logline for demo pitch ${i + 1}.`,
       genre: genres[i % genres.length] as any,
       format: formats[i % formats.length] as any,
-      shortSynopsis: "A compelling short synopsis that reveals just enough to intrigue viewers.",
-      longSynopsis: "A detailed synopsis that fully explains the story, characters, and themes...",
+      shortSynopsis: "Short synopsis for demo pitch.",
+      longSynopsis: "Detailed demo synopsis with characters and themes.",
       status: "published",
       publishedAt: new Date(),
       viewCount: Math.floor(Math.random() * 1000),
