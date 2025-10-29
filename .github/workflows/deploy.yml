@@ -113,7 +113,7 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           deployctl deploy \
-            --project="3041a504-7ecb-4753-ac3b-4c64560d9a00" \
+            --project="pitchey-backend-fresh" \
             --entrypoint="working-server.ts" \
             --token="$DENO_DEPLOY_TOKEN" \
             --env="DATABASE_URL=$DATABASE_URL" \
