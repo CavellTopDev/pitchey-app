@@ -1,28 +1,7 @@
 version: "3.8"
 
 services:
-  app:
-    build:
-      context: .
-      args:
-        GIT_REVISION: ${GIT_REVISION:-dev}
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/pitchey
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./static/uploads:/app/static/uploads
-
+  # Local services for development
   db:
     image: postgres:15-alpine
     environment:
