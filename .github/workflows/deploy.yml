@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -153,7 +154,19 @@ jobs:
           VITE_API_URL: https://pitchey-backend-fresh.deno.dev
           NODE_ENV: production
         run: npm run build
-      
+
+      - name: Netlify preflight diagnostics
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          npm i -g netlify-cli@17
+          echo "Netlify CLI: $(netlify --version)"
+          test -n "$NETLIFY_AUTH_TOKEN" || (echo "Missing NETLIFY_AUTH_TOKEN" && exit 1)
+          test -n "$NETLIFY_SITE_ID" || (echo "Missing NETLIFY_SITE_ID" && exit 1)
+          netlify api getSite --data '{"site_id": "'"$NETLIFY_SITE_ID"'"}' || true
+          netlify sites:info --json --site "$NETLIFY_SITE_ID" || true
+
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v3.0
         with:
