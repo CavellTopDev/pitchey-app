@@ -1,7 +1,7 @@
 // Security test suite for Pitchey platform
 import { assertEquals, assertExists } from "https://deno.land/std@0.208.0/assert/mod.ts";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "http://localhost:8001";
 
 Deno.test("Security Headers are present", async () => {
   const response = await fetch(`${BASE_URL}/api/health`);

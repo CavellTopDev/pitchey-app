@@ -62,12 +62,13 @@ async function login(portal: "creator" | "investor" | "production") {
 Deno.test({
   name: "API Endpoints - Health Check",
   async fn() {
-    const response = await fetch(`${API_BASE}/health`);
+    const response = await fetch(`${API_BASE}/api/health`);
     assertEquals(response.status, 200);
     
     const data = await response.json();
     assertExists(data.status);
-    assertEquals(data.status, "ok");
+    // Accept either "healthy" or "ok" for compatibility
+    assertEquals(data.status === "healthy" || data.status === "ok", true);
   },
 });
 

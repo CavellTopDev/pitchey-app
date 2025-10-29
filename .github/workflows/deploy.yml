@@ -40,18 +40,33 @@ jobs:
         with:
           deno-version: v2.x
       
-      - name: Create .env
+      - name: Start backend server
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/pitchey
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret
+          PORT: 8001
+          DENO_ENV: test
+          NODE_ENV: test
         run: |
-          echo "DATABASE_URL=postgresql://postgres:password@localhost:5432/pitchey" >> .env
-          echo "REDIS_URL=redis://localhost:6379" >> .env
-          echo "JWT_SECRET=test-secret" >> .env
-      
-      # Skip migrations - database is managed via Neon console
-      # - name: Run migrations
-      #   run: deno task db:push
+          nohup deno run --allow-net --allow-env --allow-read working-server.ts > server.log 2>&1 & echo $! > server.pid
+          for i in {1..60}; do
+            if curl -sSf http://localhost:8001/api/health > /dev/null; then echo "Server is up"; break; fi; sleep 1; done
+          test -f server.pid || (echo "Server failed to start" && tail -n +1 server.log && exit 1)
       
       - name: Run tests
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/pitchey
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret
         run: deno task test
+      
+      - name: Stop backend server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill $(cat server.pid) || true; fi
+          pkill -f "deno.*working-server" || true
+          tail -n 200 server.log || true
       
       # Skip formatting and linting for now
       # - name: Check formatting
