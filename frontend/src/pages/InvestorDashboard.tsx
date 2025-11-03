@@ -4,7 +4,15 @@ import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search,
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI, pitchServicesAPI, apiClient } from '../lib/apiServices';
 import FollowButton from '../components/FollowButton';
+import { QuickNDAStatus } from '../components/NDA/NDADashboardIntegration';
 import { getSubscriptionTier } from '../config/subscription-plans';
+import { InvestmentService } from '../services/investment.service';
+import InvestmentPortfolioCard from '../components/Investment/InvestmentPortfolioCard';
+import InvestmentHistory from '../components/Investment/InvestmentHistory';
+import InvestmentOpportunities from '../components/Investment/InvestmentOpportunities';
+import { EnhancedInvestorAnalytics } from '../components/Analytics/EnhancedInvestorAnalytics';
+import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
+import { NotificationBell } from '../components/NotificationBell';
 
 export default function InvestorDashboard() {
   const navigate = useNavigate();
@@ -20,6 +28,12 @@ export default function InvestorDashboard() {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Investment tracking state
+  const [portfolioMetrics, setPortfolioMetrics] = useState<any>(null);
+  const [investmentHistory, setInvestmentHistory] = useState<any[]>([]);
+  const [investmentOpportunities, setInvestmentOpportunities] = useState<any[]>([]);
+  const [investmentLoading, setInvestmentLoading] = useState(true);
 
 
   // Debug logging for recommendations state changes
@@ -29,6 +43,35 @@ export default function InvestorDashboard() {
       data: recommendations.map(r => ({ id: r.id, title: r.title }))
     });
   }, [recommendations]);
+
+  const fetchInvestmentData = useCallback(async () => {
+    try {
+      setInvestmentLoading(true);
+      
+      // Fetch investment portfolio metrics
+      const portfolioResponse = await InvestmentService.getInvestorPortfolio();
+      if (portfolioResponse.success) {
+        setPortfolioMetrics(portfolioResponse.data);
+      }
+      
+      // Fetch investment history
+      const historyResponse = await InvestmentService.getInvestmentHistory({ limit: 10 });
+      if (historyResponse.success) {
+        setInvestmentHistory(historyResponse.data?.investments || []);
+      }
+      
+      // Fetch investment opportunities
+      const opportunitiesResponse = await InvestmentService.getInvestmentOpportunities({ limit: 6 });
+      if (opportunitiesResponse.success) {
+        setInvestmentOpportunities(opportunitiesResponse.data || []);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching investment data:', error);
+    } finally {
+      setInvestmentLoading(false);
+    }
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -81,7 +124,18 @@ export default function InvestorDashboard() {
         }
       } else {
         console.error('❌ Dashboard API failed:', dashboardResponse.error);
-        setError(`Failed to load dashboard: ${dashboardResponse.error?.message || 'Unknown error'}`);
+        const errorMessage = dashboardResponse.error?.message || 'Unknown error';
+        
+        // Handle specific error cases with user-friendly messages
+        if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+          setError('Session expired. Please log in again.');
+        } else if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
+          setError('Access denied. Please ensure you have investor access.');
+        } else if (errorMessage.includes('500') || errorMessage.includes('server')) {
+          setError('Server temporarily unavailable. Please try again in a few minutes.');
+        } else {
+          setError(`Failed to load dashboard: ${errorMessage}`);
+        }
         
         // Set fallback empty states
         setPortfolio({
@@ -159,7 +213,8 @@ export default function InvestorDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+    fetchInvestmentData(); // Fetch investment data in parallel
+  }, [fetchDashboardData, fetchInvestmentData]);
 
   const handleLogout = () => {
     logout(); // This will automatically navigate to login page
@@ -185,7 +240,7 @@ export default function InvestorDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b" data-testid="investor-dashboard-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3 lg:gap-6">
@@ -194,6 +249,7 @@ export default function InvestorDashboard() {
                 to="/" 
                 className="flex items-center hover:opacity-80 transition-opacity"
                 title="Go to Homepage"
+                data-testid="homepage-link"
               >
                 <span className="text-lg lg:text-xl font-bold text-gray-900">Pitchey</span>
               </Link>
@@ -221,6 +277,7 @@ export default function InvestorDashboard() {
               <button
                 onClick={() => navigate('/investor/billing?tab=credits')}
                 className="hidden lg:flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group"
+                data-testid="credits-display"
               >
                 <Coins className="w-4 h-4 text-blue-600" />
                 <div className="text-sm">
@@ -234,6 +291,7 @@ export default function InvestorDashboard() {
               <button
                 onClick={() => navigate('/investor/billing?tab=subscription')}
                 className="hidden md:flex items-center gap-2 px-2 lg:px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                data-testid="subscription-status"
               >
                 <span className="font-medium text-gray-700">
                   {(() => {
@@ -253,6 +311,7 @@ export default function InvestorDashboard() {
                   type="text"
                   placeholder="Search opportunities..."
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-40 lg:w-64"
+                  data-testid="search-input"
                 />
               </div>
               
@@ -264,6 +323,7 @@ export default function InvestorDashboard() {
               <Link
                 to="/investor/following"
                 className="hidden lg:flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                data-testid="following-link"
               >
                 <Users className="w-5 h-5" />
                 Following
@@ -278,9 +338,13 @@ export default function InvestorDashboard() {
                 <Users className="w-5 h-5" />
               </Link>
               
+              {/* Notifications */}
+              <NotificationBell size="md" />
+              
               <button
                 onClick={() => navigate('/investor/browse')}
                 className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition"
+                data-testid="browse-deals-button"
               >
                 <Filter className="w-4 h-4" />
                 <span className="hidden lg:block">Browse Deals</span>
@@ -300,6 +364,7 @@ export default function InvestorDashboard() {
                 onClick={handleLogout}
                 className="p-2 text-gray-500 hover:text-gray-700 transition"
                 title="Logout"
+                data-testid="logout-button"
               >
                 <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
               </button>
@@ -310,66 +375,86 @@ export default function InvestorDashboard() {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 px-4 py-3">
+        <div className="bg-red-50 border border-red-200 px-4 py-3" data-testid="error-message">
           <div className="max-w-7xl mx-auto">
             <p className="text-red-700 text-sm">{error}</p>
           </div>
         </div>
       )}
 
-      {/* Portfolio Overview */}
+      {/* Investment Portfolio Overview */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-500 text-sm">Total Investments</span>
-              <Briefcase className="w-5 h-5 text-blue-500" />
+        {portfolioMetrics && !investmentLoading ? (
+          <InvestmentPortfolioCard 
+            metrics={portfolioMetrics}
+            className="mb-8"
+          />
+        ) : (
+          // Fallback to original portfolio overview
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-500 text-sm">Total Investments</span>
+                <Briefcase className="w-5 h-5 text-blue-500" />
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{portfolio?.totalInvestments || 0}</p>
+              <p className="text-xs text-gray-500 mt-1">All time</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{portfolio?.totalInvestments || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">All time</p>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-500 text-sm">Active Deals</span>
-              <TrendingUp className="w-5 h-5 text-green-500" />
+            
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-500 text-sm">Active Deals</span>
+                <TrendingUp className="w-5 h-5 text-green-500" />
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{portfolio?.activeDeals || 0}</p>
+              <p className="text-xs text-green-500 mt-1">In production</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{portfolio?.activeDeals || 0}</p>
-            <p className="text-xs text-green-500 mt-1">In production</p>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-500 text-sm">Total Invested</span>
-              <DollarSign className="w-5 h-5 text-purple-500" />
+            
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-500 text-sm">Total Invested</span>
+                <DollarSign className="w-5 h-5 text-purple-500" />
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(portfolio?.totalInvested || 0)}</p>
+              <p className="text-xs text-gray-500 mt-1">Capital deployed</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(portfolio?.totalInvested || 0)}</p>
-            <p className="text-xs text-gray-500 mt-1">Capital deployed</p>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-500 text-sm">Avg. Return</span>
-              <PieChart className="w-5 h-5 text-orange-500" />
+            
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-500 text-sm">Avg. Return</span>
+                <PieChart className="w-5 h-5 text-orange-500" />
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{portfolio?.averageReturn || 0}%</p>
+              <p className="text-xs text-orange-500 mt-1">Annual ROI</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{portfolio?.averageReturn || 0}%</p>
-            <p className="text-xs text-orange-500 mt-1">Annual ROI</p>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-500 text-sm">Opportunities</span>
-              <Eye className="w-5 h-5 text-yellow-500" />
+            
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-500 text-sm">Opportunities</span>
+                <Eye className="w-5 h-5 text-yellow-500" />
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{portfolio?.pendingOpportunities || 0}</p>
+              <p className="text-xs text-yellow-500 mt-1">Pending review</p>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{portfolio?.pendingOpportunities || 0}</p>
-            <p className="text-xs text-yellow-500 mt-1">Pending review</p>
           </div>
-        </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Investment Pipeline & Following */}
+          {/* Investment History & Pipeline */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Notifications Widget */}
+            <NotificationWidget maxNotifications={4} compact={true} />
+            {/* Investment History */}
+            {investmentHistory.length > 0 && (
+              <InvestmentHistory 
+                investments={investmentHistory}
+                loading={investmentLoading}
+                showPagination={false}
+                pageSize={5}
+                className="mb-6"
+              />
+            )}
             {/* Following Activity */}
             {followingPitches.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm">
@@ -521,39 +606,59 @@ export default function InvestorDashboard() {
             </div>
           </div>
 
-          {/* Recommendations */}
+          {/* Investment Opportunities & Recommendations */}
           <div>
-            <div className="bg-white rounded-xl shadow-sm">
-              <div className="px-6 py-4 border-b">
-                <h2 className="text-lg font-semibold text-gray-900">AI Recommendations</h2>
-              </div>
-              <div className="p-6">
-                {recommendations.length > 0 ? (
-                  <div className="space-y-4">
-                    {recommendations.map((rec, index) => (
-                      <div key={index} className="p-3 border rounded-lg hover:bg-gray-50 transition">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium text-gray-900">{rec.title}</h4>
-                          <div className="flex items-center gap-1">
-                            <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                            <span className="text-sm font-semibold">{rec.matchScore}%</span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-2">{rec.genre}</p>
-                        <button 
-                          onClick={() => navigate(`/investor/pitch/${rec.id || 1}`)}
-                          className="text-sm text-blue-600 hover:text-blue-700"
-                        >
-                          View Pitch
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center">No recommendations available</p>
-                )}
-              </div>
+            {/* Enhanced Investment Analytics */}
+            <div className="mb-6">
+              <EnhancedInvestorAnalytics 
+                portfolioPerformance={portfolioPerformance}
+              />
             </div>
+
+            {/* Investment Opportunities */}
+            {investmentOpportunities.length > 0 && (
+              <InvestmentOpportunities 
+                opportunities={investmentOpportunities}
+                loading={investmentLoading}
+                showMatchScore={true}
+                className="mb-6"
+              />
+            )}
+
+            {/* AI Recommendations Fallback */}
+            {(!investmentOpportunities.length || investmentLoading) && (
+              <div className="bg-white rounded-xl shadow-sm">
+                <div className="px-6 py-4 border-b">
+                  <h2 className="text-lg font-semibold text-gray-900">AI Recommendations</h2>
+                </div>
+                <div className="p-6">
+                  {recommendations.length > 0 ? (
+                    <div className="space-y-4">
+                      {recommendations.map((rec, index) => (
+                        <div key={index} className="p-3 border rounded-lg hover:bg-gray-50 transition">
+                          <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-medium text-gray-900">{rec.title}</h4>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                              <span className="text-sm font-semibold">{rec.matchScore}%</span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-500 mb-2">{rec.genre}</p>
+                          <button 
+                            onClick={() => navigate(`/investor/pitch/${rec.id || 1}`)}
+                            className="text-sm text-blue-600 hover:text-blue-700"
+                          >
+                            View Pitch
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center">No recommendations available</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Billing & Account */}
             <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
@@ -593,6 +698,11 @@ export default function InvestorDashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* NDA Quick Status */}
+            <div className="mt-6">
+              <QuickNDAStatus userType="investor" />
             </div>
 
             {/* Investment Criteria */}

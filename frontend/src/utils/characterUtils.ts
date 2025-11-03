@@ -1,4 +1,4 @@
-import { Character } from '../types/character';
+import type { Character } from '../types/character';
 
 /**
  * Character validation rules
@@ -168,11 +168,15 @@ export function getCharacterStats(characters: Character[]): {
   total: number;
   withActors: number;
   withAge: number;
+  withRole: number;
+  withRelationships: number;
   avgDescriptionLength: number;
 } {
   const total = characters.length;
   const withActors = characters.filter(char => char.actor?.trim()).length;
   const withAge = characters.filter(char => char.age?.trim()).length;
+  const withRole = characters.filter(char => char.role?.trim()).length;
+  const withRelationships = characters.filter(char => char.relationship?.trim()).length;
   const avgDescriptionLength = total > 0 
     ? Math.round(characters.reduce((sum, char) => sum + (char.description?.length || 0), 0) / total)
     : 0;
@@ -181,6 +185,8 @@ export function getCharacterStats(characters: Character[]): {
     total,
     withActors,
     withAge,
+    withRole,
+    withRelationships,
     avgDescriptionLength
   };
 }

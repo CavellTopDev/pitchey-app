@@ -89,7 +89,7 @@ export class AuthService {
   static async logout(): Promise<void> {
     try {
       // Call backend logout endpoint if exists
-      await apiClient.post('/api/logout', {});
+      await apiClient.post('/api/auth/logout', {});
     } catch {
       // Ignore errors, still clear local storage
     } finally {

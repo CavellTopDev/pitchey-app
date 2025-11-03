@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronUp, ChevronDown, Edit, Trash2, GripVertical } from 'lucide-react';
-import { Character } from '../../types/character';
+import type { Character } from '../../types/character';
 
 interface CharacterCardProps {
   character: Character;
@@ -50,7 +50,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
 
   return (
     <div 
-      className={`bg-gray-50 border rounded-lg p-4 transition-all duration-200 ${
+      className={`bg-gray-50 border rounded-lg p-4 transition-all duration-200 focus-within:ring-2 focus-within:ring-purple-500 focus-within:ring-offset-2 ${
         isDragging 
           ? 'opacity-50 scale-105 shadow-lg border-purple-300' 
           : isDragOver 
@@ -66,6 +66,8 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
       onDragEnter={onDragEnter ? (e) => onDragEnter(e, index) : undefined}
       onDragLeave={onDragLeave}
       onDrop={onDrop ? (e) => onDrop(e, index) : undefined}
+      role="article"
+      aria-label={`Character ${index + 1}: ${character.name || 'Unnamed Character'}`}
     >
       <div className="flex items-start justify-between gap-3">
         {/* Character Info */}
@@ -91,6 +93,11 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
                 {character.gender}
               </span>
             )}
+            {character.role && (
+              <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                {character.role}
+              </span>
+            )}
           </div>
           
           {character.description && (
@@ -105,9 +112,15 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             </p>
           )}
           
+          {character.relationship && (
+            <p className="text-xs text-gray-600 mb-1">
+              <span className="font-medium">Relationships:</span> {character.relationship}
+            </p>
+          )}
+          
           {character.actor && (
             <p className="text-xs text-gray-500">
-              Suggested Actor: <span className="font-medium">{character.actor}</span>
+              <span className="font-medium">Suggested Actor:</span> {character.actor}
             </p>
           )}
         </div>
@@ -116,38 +129,40 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         <div className="flex items-center gap-1">
           {/* Reorder Buttons - Always show for fine-tuning */}
           {isReordering && (
-            <div className="flex flex-col">
+            <div className="flex flex-col" role="group" aria-label="Reorder controls">
               <button
                 type="button"
                 onClick={() => onMoveUp(index)}
                 disabled={!canMoveUp || isDragging}
-                className={`p-1 rounded transition-colors ${
+                className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-purple-500 ${
                   canMoveUp && !isDragging
                     ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-200' 
                     : 'text-gray-300 cursor-not-allowed'
                 }`}
                 title="Move up"
+                aria-label={`Move ${character.name || 'character'} up`}
               >
-                <ChevronUp className="w-3 h-3" />
+                <ChevronUp className="w-3 h-3" aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={() => onMoveDown(index)}
                 disabled={!canMoveDown || isDragging}
-                className={`p-1 rounded transition-colors ${
+                className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-purple-500 ${
                   canMoveDown && !isDragging
                     ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-200' 
                     : 'text-gray-300 cursor-not-allowed'
                 }`}
                 title="Move down"
+                aria-label={`Move ${character.name || 'character'} down`}
               >
-                <ChevronDown className="w-3 h-3" />
+                <ChevronDown className="w-3 h-3" aria-hidden="true" />
               </button>
             </div>
           )}
 
           {!isReordering && (
-            <>
+            <div className="flex items-center gap-1" role="group" aria-label="Character actions">
               {/* Edit Button */}
               <button
                 type="button"
@@ -159,8 +174,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
                     : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1'
                 }`}
                 title="Edit character"
+                aria-label={`Edit ${character.name || 'character'}`}
               >
-                <Edit className="w-4 h-4" />
+                <Edit className="w-4 h-4" aria-hidden="true" />
               </button>
 
               {/* Delete Button */}
@@ -174,10 +190,11 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
                     : 'text-red-600 hover:text-red-800 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1'
                 }`}
                 title="Delete character"
+                aria-label={`Delete ${character.name || 'character'}`}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>

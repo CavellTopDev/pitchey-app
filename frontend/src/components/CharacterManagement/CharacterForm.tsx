@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User } from 'lucide-react';
-import { Character } from '../../types/character';
+import type { Character } from '../../types/character';
 
 interface CharacterFormProps {
   character?: Character;
@@ -21,14 +21,21 @@ export const CharacterForm: React.FC<CharacterFormProps> = ({
     description: '',
     age: '',
     gender: '',
-    actor: ''
+    actor: '',
+    role: '',
+    relationship: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     if (character) {
-      setFormData(character);
+      setFormData({
+        ...character,
+        role: character.role || '',
+        relationship: character.relationship || ''
+      });
     } else {
       setFormData({
         id: '',
@@ -36,10 +43,13 @@ export const CharacterForm: React.FC<CharacterFormProps> = ({
         description: '',
         age: '',
         gender: '',
-        actor: ''
+        actor: '',
+        role: '',
+        relationship: ''
       });
     }
     setErrors({});
+    setIsDirty(false);
   }, [character, isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -48,6 +58,8 @@ export const CharacterForm: React.FC<CharacterFormProps> = ({
       ...prev,
       [name]: value
     }));
+    
+    setIsDirty(true);
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -85,6 +97,16 @@ export const CharacterForm: React.FC<CharacterFormProps> = ({
     // Actor validation (if provided)
     if (formData.actor && formData.actor.length > 100) {
       newErrors.actor = 'Actor name must be less than 100 characters';
+    }
+
+    // Role validation (if provided)
+    if (formData.role && formData.role.length > 100) {
+      newErrors.role = 'Role must be less than 100 characters';
+    }
+
+    // Relationship validation (if provided)
+    if (formData.relationship && formData.relationship.length > 200) {
+      newErrors.relationship = 'Relationship must be less than 200 characters';
     }
 
     setErrors(newErrors);
@@ -250,6 +272,54 @@ export const CharacterForm: React.FC<CharacterFormProps> = ({
               </div>
             </div>
 
+            {/* Character Role */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                Role/Position (Optional)
+              </label>
+              <input
+                type="text"
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleInputChange}
+                maxLength={100}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                  errors.role 
+                    ? 'border-red-500 focus:ring-red-500' 
+                    : 'border-gray-300 focus:ring-purple-500'
+                }`}
+                placeholder="e.g., Protagonist, Antagonist, Supporting, Mentor"
+              />
+              {errors.role && (
+                <p className="mt-1 text-sm text-red-600">{errors.role}</p>
+              )}
+            </div>
+
+            {/* Character Relationships */}
+            <div>
+              <label htmlFor="relationship" className="block text-sm font-medium text-gray-700 mb-1">
+                Key Relationships (Optional)
+              </label>
+              <input
+                type="text"
+                id="relationship"
+                name="relationship"
+                value={formData.relationship}
+                onChange={handleInputChange}
+                maxLength={200}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                  errors.relationship 
+                    ? 'border-red-500 focus:ring-red-500' 
+                    : 'border-gray-300 focus:ring-purple-500'
+                }`}
+                placeholder="e.g., Father to Jane, Rival of John, Love interest"
+              />
+              {errors.relationship && (
+                <p className="mt-1 text-sm text-red-600">{errors.relationship}</p>
+              )}
+            </div>
+
             {/* Suggested Actor */}
             <div>
               <label htmlFor="actor" className="block text-sm font-medium text-gray-700 mb-1">
@@ -278,7 +348,15 @@ export const CharacterForm: React.FC<CharacterFormProps> = ({
             <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={() => {
+                  if (isDirty && (formData.name.trim() || formData.description.trim())) {
+                    if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+                      onCancel();
+                    }
+                  } else {
+                    onCancel();
+                  }
+                }}
                 className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >
                 Cancel

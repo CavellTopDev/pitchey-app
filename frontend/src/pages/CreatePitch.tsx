@@ -11,9 +11,10 @@ import { validatePitchForm, FormValidator, validationSchemas } from '../utils/va
 import { a11y } from '../utils/accessibility';
 import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../constants/messages';
 import { CharacterManagement } from '../components/CharacterManagement';
-import { Character } from '../types/character';
+import type { Character } from '../types/character';
 import { serializeCharacters } from '../utils/characterUtils';
-import { DocumentUpload, DocumentFile } from '../components/DocumentUpload';
+import { DocumentUpload } from '../components/DocumentUpload';
+import type { DocumentFile } from '../components/DocumentUpload';
 
 // DocumentFile interface is now imported from DocumentUpload component
 
@@ -435,6 +436,7 @@ export default function CreatePitch() {
           onSubmit={handleSubmit} 
           className="space-y-8"
           noValidate
+          data-testid="create-pitch-form"
           {...a11y.aria.labelledBy('page-title')}
         >
           {/* Basic Information */}
@@ -466,6 +468,7 @@ export default function CreatePitch() {
                       : 'border-gray-300 focus:ring-purple-500'
                   } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
                   placeholder={MESSAGES.PLACEHOLDERS.TITLE}
+                  data-testid="title-input"
                 />
                 {fieldErrors.title?.length > 0 && (
                   <div {...a11y.formField.getErrorAttributes('title')}>
@@ -497,6 +500,7 @@ export default function CreatePitch() {
                       ? 'border-red-500 focus:ring-red-500' 
                       : 'border-gray-300 focus:ring-purple-500'
                   } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
+                  data-testid="genre-select"
                 >
                   <option value="">Select a genre</option>
                   {(genres && genres.length > 0 ? genres : FALLBACK_GENRES).map(genre => (
@@ -644,6 +648,7 @@ export default function CreatePitch() {
                     : 'border-gray-300 focus:ring-purple-500'
                 } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
                 placeholder={MESSAGES.PLACEHOLDERS.LOGLINE}
+                data-testid="logline-textarea"
               />
               {fieldErrors.logline?.length > 0 && (
                 <div {...a11y.formField.getErrorAttributes('logline')}>
@@ -1110,6 +1115,7 @@ export default function CreatePitch() {
               })}
               onClick={() => navigate('/creator/dashboard')}
               className={`px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition ${a11y.classes.focusVisible} ${isSubmitting ? a11y.classes.disabledElement : ''}`}
+              data-testid="cancel-button"
             >
               Cancel
             </button>
@@ -1121,6 +1127,7 @@ export default function CreatePitch() {
                 ariaLabel: isSubmitting ? MESSAGES.INFO.CREATING_PITCH : MESSAGES.A11Y.SUBMIT_BUTTON
               })}
               className={`px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition flex items-center gap-2 ${a11y.classes.focusVisible} ${isSubmitting ? a11y.classes.disabledElement : ''}`}
+              data-testid="submit-button"
             >
               {isSubmitting ? (
                 <>

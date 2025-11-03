@@ -1,18 +1,47 @@
-# Pitchey Platform Deployment Guide
+# Pitchey Production Deployment Guide
 
-## Current Production Status
+## Overview
 
-### Live URLs
-- **Frontend**: https://pitchey.netlify.app
-- **Backend**: https://pitchey-backend-fresh.deno.dev
+This guide covers the complete production deployment process for the Pitchey platform, which uses a modern serverless architecture with Cloudflare infrastructure and Deno Deploy as backup.
+
+## Architecture
+
+### Production Infrastructure
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Cloudflare    │    │   Cloudflare     │    │   Deno Deploy   │
+│     Pages       │◄───┤     Workers      │◄───┤   (Backup)      │
+│   (Frontend)    │    │   (API Layer)    │    │   (Full API)    │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────────┐
+                    │                     │
+            ┌───────▼────────┐   ┌────────▼────────┐
+            │ Neon PostgreSQL │   │ Upstash Redis   │
+            │   (Database)    │   │    (Cache)      │
+            └─────────────────┘   └─────────────────┘
+```
+
+### Production URLs
+- **Frontend**: https://pitchey.pages.dev
+- **API Worker**: https://pitchey-api-production.cavelltheleaddev.workers.dev
+- **Backup API**: https://pitchey-backend-fresh.deno.dev
 - **Database**: Neon PostgreSQL (Managed)
 - **Cache**: Upstash Redis (Serverless)
 
-### Version Information
-- **Platform Version**: v0.2 Production
-- **Last Deployment**: October 2025
-- **Node Version**: 20.19.5
-- **Deno Version**: 2.0+
+### Components
+
+1. **Frontend**: React app deployed to Cloudflare Pages
+2. **API Layer**: Cloudflare Workers with progressive enhancement
+3. **Backup API**: Full Deno Deploy application
+4. **Database**: Neon PostgreSQL with Hyperdrive acceleration
+5. **Cache**: Upstash Redis for performance optimization
+6. **Storage**: Cloudflare R2 for file uploads
+7. **Monitoring**: Built-in observability and alerting
 
 ## Quick Start Deployment
 

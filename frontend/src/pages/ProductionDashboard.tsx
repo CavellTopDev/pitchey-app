@@ -13,11 +13,16 @@ import { usePitchStore } from '../store/pitchStore';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
 import { ndaAPI, analyticsAPI, companyAPI, paymentsAPI, pitchServicesAPI, apiClient } from '../lib/apiServices';
+import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
+import { NotificationBell } from '../components/NotificationBell';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { config } from '../config';
 import FollowButton from '../components/FollowButton';
 import NDAManagementPanel from '../components/NDAManagementPanel';
 import FormatDisplay from '../components/FormatDisplay';
+import { InvestmentService } from '../services/investment.service';
+import InvestmentOpportunities from '../components/Investment/InvestmentOpportunities';
+import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';
 
 interface Analytics {
   totalViews: number;
@@ -74,6 +79,11 @@ export default function ProductionDashboard() {
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
+  
+  // Investment tracking state
+  const [investmentMetrics, setInvestmentMetrics] = useState<any>(null);
+  const [investmentOpportunities, setInvestmentOpportunities] = useState<any[]>([]);
+  const [investmentLoading, setInvestmentLoading] = useState(true);
 
   // NDA Template Upload State
   interface NDATemplate {
@@ -88,7 +98,31 @@ export default function ProductionDashboard() {
 
   useEffect(() => {
     fetchData();
+    fetchInvestmentData(); // Fetch investment data in parallel
   }, [getAllPitches]);
+
+  const fetchInvestmentData = async () => {
+    try {
+      setInvestmentLoading(true);
+      
+      // Fetch production investment metrics
+      const metricsResponse = await InvestmentService.getProductionInvestments();
+      if (metricsResponse.success) {
+        setInvestmentMetrics(metricsResponse.data);
+      }
+      
+      // Fetch investment opportunities for production companies
+      const opportunitiesResponse = await InvestmentService.getInvestmentOpportunities({ limit: 8 });
+      if (opportunitiesResponse.success) {
+        setInvestmentOpportunities(opportunitiesResponse.data || []);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching investment data:', error);
+    } finally {
+      setInvestmentLoading(false);
+    }
+  };
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -700,6 +734,9 @@ export default function ProductionDashboard() {
               </Link>
               {/* Production companies cannot create pitches - removed Upload Pitch button */}
               
+              {/* Notifications */}
+              <NotificationBell size="md" />
+              
               {/* User Menu */}
               <div className="relative user-menu-container">
                 <button
@@ -846,6 +883,21 @@ export default function ProductionDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && (
           <div className="space-y-8">
+            {/* Enhanced Production Analytics */}
+            <EnhancedProductionAnalytics 
+              productionPerformance={{
+                totalPitches: myPitches.length,
+                totalRevenue: 0, // You can calculate this from actual data
+                activeProjects: myPitches.filter(p => p.status === 'published').length,
+                ndaSignedCount: analytics.totalNDAs,
+                averageProjectBudget: 0, // Calculate from project data
+                creatorInteractions: analytics.totalViews + analytics.totalLikes
+              }}
+            />
+
+            {/* Notifications Widget */}
+            <NotificationWidget maxNotifications={3} compact={true} />
+
             {/* Stats Grid with Feature Flag */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
@@ -876,6 +928,46 @@ export default function ProductionDashboard() {
                 color="bg-purple-500"
               />
             </div>
+
+            {/* Investment Metrics */}
+            {investmentMetrics && !investmentLoading && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">Investment Overview</h2>
+                  <DollarSign className="w-5 h-5 text-green-500" />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-gray-900">{investmentMetrics.totalInvestments || 0}</p>
+                    <p className="text-sm text-gray-600">Total Investments</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-gray-900">{investmentMetrics.activeDeals || 0}</p>
+                    <p className="text-sm text-gray-600">Active Deals</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-gray-900">
+                      {investmentMetrics.pipelineValue ? `$${(investmentMetrics.pipelineValue / 1000000).toFixed(1)}M` : '$0'}
+                    </p>
+                    <p className="text-sm text-gray-600">Pipeline Value</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">+{investmentMetrics.monthlyGrowth || 0}%</p>
+                    <p className="text-sm text-gray-600">Monthly Growth</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Investment Opportunities */}
+            {investmentOpportunities.length > 0 && (
+              <InvestmentOpportunities 
+                opportunities={investmentOpportunities}
+                loading={investmentLoading}
+                showMatchScore={false}
+                className="max-h-96 overflow-y-auto"
+              />
+            )}
 
             {/* Top Performing Pitch */}
             {analytics.topPitch && (

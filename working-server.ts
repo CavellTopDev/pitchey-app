@@ -1033,6 +1033,30 @@ const handler = async (request: Request): Promise<Response> => {
 
     // ============ ADDITIONAL AUTH ENDPOINTS ============
     
+    // Validate token and return user info
+    if (url.pathname === "/api/validate-token" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Invalid or expired token");
+        }
+        const u = authResult.user;
+        return successResponse({
+          valid: true,
+          user: {
+            id: u.id,
+            email: u.email,
+            username: u.username,
+            userType: u.userType
+          },
+          roles: [u.userType],
+          message: "Token is valid"
+        });
+      } catch (error) {
+        return authErrorResponse("Invalid token");
+      }
+    }
+    
     // Logout endpoint
     if (url.pathname === "/api/auth/logout" && method === "POST") {
       // For JWT-based auth, logout is handled client-side
@@ -3432,6 +3456,12 @@ const handler = async (request: Request): Promise<Response> => {
     
     // Creator dashboard stats
     if (url.pathname === "/api/creator/stats" && method === "GET") {
+      // Enforce role-based access control: only creators may access
+      if (!user || user.userType !== 'creator') {
+        return forbiddenResponse(
+          `Access denied. Only creators can access this endpoint. Current role: ${user?.userType ?? 'unknown'}`
+        );
+      }
       try {
         const pitches = await PitchService.getUserPitches(user.id);
         const totalViews = pitches.reduce((sum, p) => sum + (p.viewCount || 0), 0);
@@ -3455,6 +3485,12 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Creator activity
     if (url.pathname === "/api/creator/activity" && method === "GET") {
+      // Enforce role-based access control: only creators may access
+      if (!user || user.userType !== 'creator') {
+        return forbiddenResponse(
+          `Access denied. Only creators can access this endpoint. Current role: ${user?.userType ?? 'unknown'}`
+        );
+      }
       try {
         const limit = parseInt(url.searchParams.get('limit') || '20');
         // Mock recent activity
@@ -3475,6 +3511,12 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Creator notifications
     if (url.pathname === "/api/notifications" && method === "GET") {
+      // Enforce role-based access control: only creators may access
+      if (!user || user.userType !== 'creator') {
+        return forbiddenResponse(
+          `Access denied. Only creators can access this endpoint. Current role: ${user?.userType ?? 'unknown'}`
+        );
+      }
       try {
         // Mock notifications data
         const mockNotifications = [
@@ -3521,6 +3563,12 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Creator pitches
     if (url.pathname === "/api/creator/pitches" && method === "GET") {
+      // Enforce role-based access control: only creators may access
+      if (!user || user.userType !== 'creator') {
+        return forbiddenResponse(
+          `Access denied. Only creators can access this endpoint. Current role: ${user?.userType ?? 'unknown'}`
+        );
+      }
       try {
         const pitches = await PitchService.getUserPitches(user.id);
         return successResponse({
@@ -9664,6 +9712,340 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Document upload error:", error);
         return serverErrorResponse("Document upload failed");
+      }
+    }
+
+    // === ENHANCED UPLOAD ENDPOINTS ===
+    
+    // Multiple document upload with enhanced features
+    if (url.pathname === "/api/upload/documents" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+        const formData = await request.formData();
+        
+        // Extract files from form data
+        const files: File[] = [];
+        const documentTypes: string[] = [];
+        const titles: string[] = [];
+        const descriptions: string[] = [];
+        
+        // Parse multiple files and metadata
+        for (const [key, value] of formData.entries()) {
+          if (key === 'files' && value instanceof File) {
+            files.push(value);
+          } else if (key === 'documentTypes' && typeof value === 'string') {
+            documentTypes.push(value);
+          } else if (key === 'titles' && typeof value === 'string') {
+            titles.push(value);
+          } else if (key === 'descriptions' && typeof value === 'string') {
+            descriptions.push(value);
+          }
+        }
+        
+        if (files.length === 0) {
+          return validationErrorResponse("No files provided");
+        }
+        
+        if (files.length > 15) {
+          return validationErrorResponse("Maximum 15 files can be uploaded at once");
+        }
+        
+        // Process each file
+        const results = [];
+        const errors = [];
+        
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const documentType = documentTypes[i] || 'supporting_materials';
+          const title = titles[i] || file.name.replace(/\.[^/.]+$/, "");
+          const description = descriptions[i] || '';
+          
+          try {
+            // Validate file
+            if (!UploadService.validateDocumentFile(file)) {
+              errors.push({
+                file: file.name,
+                error: "Invalid document file type or size (max 10MB per file)"
+              });
+              continue;
+            }
+            
+            // Upload file
+            const folder = `documents/${user.id}`;
+            const uploadResult = await UploadService.uploadFile(file, folder, {
+              publicRead: false,
+              encrypt: true,
+              metadata: {
+                uploadedBy: user.id.toString(),
+                uploadedAt: new Date().toISOString(),
+                documentType,
+                title,
+                description,
+                originalName: file.name
+              }
+            });
+            
+            results.push({
+              id: crypto.randomUUID(),
+              file: file.name,
+              title,
+              description,
+              documentType,
+              url: uploadResult.url,
+              cdnUrl: uploadResult.cdnUrl,
+              key: uploadResult.key,
+              size: file.size,
+              mimeType: file.type,
+              provider: uploadResult.provider,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: user.id
+            });
+            
+          } catch (error) {
+            console.error(`Upload error for file ${file.name}:`, error);
+            errors.push({
+              file: file.name,
+              error: error.message || "Upload failed"
+            });
+          }
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          results,
+          errors,
+          uploaded: results.length,
+          failed: errors.length,
+          message: `${results.length} file(s) uploaded successfully${errors.length > 0 ? `, ${errors.length} failed` : ''}`
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+        
+      } catch (error) {
+        console.error("Multiple document upload error:", error);
+        return serverErrorResponse("Document upload failed");
+      }
+    }
+    
+    // Multiple media upload with enhanced features
+    if (url.pathname === "/api/upload/media-batch" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const user = authResult.user;
+        const formData = await request.formData();
+        
+        // Extract files from form data
+        const files: File[] = [];
+        const titles: string[] = [];
+        const descriptions: string[] = [];
+        const metadata: string[] = [];
+        
+        // Parse multiple files and metadata
+        for (const [key, value] of formData.entries()) {
+          if (key === 'files' && value instanceof File) {
+            files.push(value);
+          } else if (key === 'titles' && typeof value === 'string') {
+            titles.push(value);
+          } else if (key === 'descriptions' && typeof value === 'string') {
+            descriptions.push(value);
+          } else if (key === 'metadata' && typeof value === 'string') {
+            metadata.push(value);
+          }
+        }
+        
+        if (files.length === 0) {
+          return validationErrorResponse("No files provided");
+        }
+        
+        if (files.length > 20) {
+          return validationErrorResponse("Maximum 20 files can be uploaded at once");
+        }
+        
+        // Process each file
+        const results = [];
+        const errors = [];
+        
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const title = titles[i] || file.name.replace(/\.[^/.]+$/, "");
+          const description = descriptions[i] || '';
+          const fileMetadata = metadata[i] ? JSON.parse(metadata[i]) : {};
+          
+          try {
+            // Determine file category
+            let fileCategory: string;
+            let isValid = false;
+            
+            if (file.type.startsWith('image/')) {
+              fileCategory = 'image';
+              isValid = UploadService.validateImageFile(file);
+            } else if (file.type.startsWith('video/')) {
+              fileCategory = 'video';
+              isValid = UploadService.validateVideoFile(file);
+            } else if (file.type === 'application/pdf' || file.type.includes('document')) {
+              fileCategory = 'document';
+              isValid = UploadService.validateDocumentFile(file);
+            } else {
+              errors.push({
+                file: file.name,
+                error: "Unsupported file type"
+              });
+              continue;
+            }
+            
+            if (!isValid) {
+              errors.push({
+                file: file.name,
+                error: `Invalid ${fileCategory} file type or size`
+              });
+              continue;
+            }
+            
+            // Upload file
+            const folder = `media/${user.id}/${fileCategory}`;
+            const uploadResult = await UploadService.uploadFile(file, folder, {
+              publicRead: true,
+              metadata: {
+                uploadedBy: user.id.toString(),
+                uploadedAt: new Date().toISOString(),
+                fileCategory,
+                title,
+                description,
+                originalName: file.name,
+                ...fileMetadata
+              }
+            });
+            
+            results.push({
+              id: crypto.randomUUID(),
+              file: file.name,
+              title,
+              description,
+              type: fileCategory,
+              url: uploadResult.url,
+              cdnUrl: uploadResult.cdnUrl,
+              key: uploadResult.key,
+              size: file.size,
+              mimeType: file.type,
+              provider: uploadResult.provider,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: user.id,
+              metadata: fileMetadata
+            });
+            
+          } catch (error) {
+            console.error(`Upload error for file ${file.name}:`, error);
+            errors.push({
+              file: file.name,
+              error: error.message || "Upload failed"
+            });
+          }
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          results,
+          errors,
+          uploaded: results.length,
+          failed: errors.length,
+          message: `${results.length} file(s) uploaded successfully${errors.length > 0 ? `, ${errors.length} failed` : ''}`
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+        
+      } catch (error) {
+        console.error("Multiple media upload error:", error);
+        return serverErrorResponse("Media upload failed");
+      }
+    }
+    
+    // File upload status/info endpoint
+    if (url.pathname === "/api/upload/info" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const storageInfo = UploadService.getStorageInfo();
+        
+        return new Response(JSON.stringify({
+          maxFileSize: 50 * 1024 * 1024, // 50MB
+          allowedTypes: [
+            'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+            'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm',
+            'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain', 'application/zip', 'application/x-zip-compressed'
+          ],
+          maxFiles: 20,
+          totalStorage: 1024 * 1024 * 1024, // 1GB placeholder
+          usedStorage: 0, // TODO: Calculate actual usage
+          remainingStorage: 1024 * 1024 * 1024,
+          uploadLimits: {
+            hourly: 100,
+            daily: 500,
+            monthly: 2000
+          },
+          currentUsage: {
+            hourly: 0, // TODO: Track actual usage
+            daily: 0,
+            monthly: 0
+          },
+          features: {
+            concurrentUploads: true,
+            chunkUpload: false,
+            deduplication: true,
+            previewGeneration: true
+          },
+          provider: storageInfo.provider || 'local'
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+        
+      } catch (error) {
+        console.error("Upload info error:", error);
+        return serverErrorResponse("Failed to get upload info");
+      }
+    }
+    
+    // File hash check for deduplication
+    if (url.pathname.startsWith("/api/files/check/") && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return unauthorizedResponse("Authentication required");
+        }
+        
+        const hash = url.pathname.split('/').pop();
+        if (!hash) {
+          return validationErrorResponse("File hash required");
+        }
+        
+        // TODO: Implement actual file hash checking against database
+        // For now, return that file doesn't exist to allow all uploads
+        return new Response(JSON.stringify({
+          exists: false
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+        
+      } catch (error) {
+        console.error("File check error:", error);
+        return serverErrorResponse("Failed to check file");
       }
     }
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { 
   Upload, 
   X, 
@@ -12,7 +12,16 @@ import {
   Loader,
   Plus,
   Eye,
-  Download
+  Download,
+  Play,
+  Pause,
+  RotateCcw,
+  Trash2,
+  FolderOpen,
+  ChevronUp,
+  ChevronDown,
+  Grid,
+  List
 } from 'lucide-react';
 import { useToast } from '../Toast/ToastProvider';
 import { uploadService } from '../../services/upload.service';
@@ -24,8 +33,13 @@ export interface DocumentFile {
   title: string;
   description?: string;
   uploadProgress?: number;
-  uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error';
+  uploadStatus?: 'idle' | 'uploading' | 'completed' | 'error' | 'paused' | 'retrying';
   url?: string;
+  error?: string;
+  uploadSpeed?: number;
+  estimatedTimeRemaining?: number;
+  retryCount?: number;
+  order?: number;
 }
 
 interface DocumentUploadProps {
@@ -39,6 +53,13 @@ interface DocumentUploadProps {
   enableDragDrop?: boolean;
   showPreview?: boolean;
   className?: string;
+  enableConcurrentUploads?: boolean;
+  maxConcurrentUploads?: number;
+  enableRetry?: boolean;
+  showBulkActions?: boolean;
+  viewMode?: 'grid' | 'list';
+  onUploadComplete?: (document: DocumentFile) => void;
+  onUploadError?: (document: DocumentFile, error: string) => void;
 }
 
 const DOCUMENT_TYPES = [
@@ -57,33 +78,100 @@ const DEFAULT_ALLOWED_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'text/plain'
+  'text/plain',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/quicktime',
+  'video/x-msvideo',
+  'application/zip',
+  'application/x-zip-compressed'
 ];
+
+const FILE_EXTENSIONS = {
+  pdf: 'PDF',
+  doc: 'Word',
+  docx: 'Word',
+  ppt: 'PowerPoint',
+  pptx: 'PowerPoint',
+  txt: 'Text',
+  jpg: 'Image',
+  jpeg: 'Image',
+  png: 'Image',
+  webp: 'Image',
+  gif: 'Image',
+  mp4: 'Video',
+  mov: 'Video',
+  avi: 'Video',
+  zip: 'Archive'
+};
 
 export default function DocumentUpload({
   documents,
   onChange,
-  maxFiles = 10,
+  maxFiles = 15,
   maxFileSize = 10,
   allowedTypes = DEFAULT_ALLOWED_TYPES,
   disabled = false,
   showProgress = true,
   enableDragDrop = true,
   showPreview = true,
-  className = ''
+  className = '',
+  enableConcurrentUploads = true,
+  maxConcurrentUploads = 3,
+  enableRetry = true,
+  showBulkActions = true,
+  viewMode = 'list',
+  onUploadComplete,
+  onUploadError
 }: DocumentUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [currentViewMode, setCurrentViewMode] = useState<'grid' | 'list'>(viewMode);
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [uploadQueue, setUploadQueue] = useState<string[]>([]);
+  const [activeUploads, setActiveUploads] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllers = useRef<Map<string, AbortController>>(new Map());
+  const uploadStats = useRef<Map<string, { startTime: number; lastProgress: number; lastTime: number }>>(new Map());
   const { success, error } = useToast();
+
+  // Calculate upload statistics
+  const uploadStatistics = useMemo(() => {
+    const total = documents.length;
+    const completed = documents.filter(d => d.uploadStatus === 'completed').length;
+    const uploading = documents.filter(d => d.uploadStatus === 'uploading').length;
+    const failed = documents.filter(d => d.uploadStatus === 'error').length;
+    const pending = documents.filter(d => d.uploadStatus === 'idle').length;
+    const totalSize = documents.reduce((sum, d) => sum + d.file.size, 0);
+    const uploadedSize = documents
+      .filter(d => d.uploadStatus === 'completed')
+      .reduce((sum, d) => sum + d.file.size, 0);
+    
+    return {
+      total,
+      completed,
+      uploading,
+      failed,
+      pending,
+      totalSize,
+      uploadedSize,
+      progress: total > 0 ? (completed / total) * 100 : 0,
+      sizeProgress: totalSize > 0 ? (uploadedSize / totalSize) * 100 : 0
+    };
+  }, [documents]);
 
   // Validate file type and size
   const validateFile = useCallback((file: File): { valid: boolean; error?: string } => {
     // Check file type
     if (!allowedTypes.includes(file.type)) {
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const supportedExtensions = Object.keys(FILE_EXTENSIONS).join(', ');
       return {
         valid: false,
-        error: `File type ${file.type} is not supported. Please use PDF, DOC, DOCX, PPT, PPTX, or TXT files.`
+        error: `File type not supported. Supported formats: ${supportedExtensions.toUpperCase()}`
       };
     }
 
@@ -96,8 +184,21 @@ export default function DocumentUpload({
       };
     }
 
+    // Check for duplicate files
+    const duplicate = documents.find(d => 
+      d.file.name === file.name && 
+      d.file.size === file.size && 
+      d.file.lastModified === file.lastModified
+    );
+    if (duplicate) {
+      return {
+        valid: false,
+        error: `File ${file.name} has already been added.`
+      };
+    }
+
     return { valid: true };
-  }, [allowedTypes, maxFileSize]);
+  }, [allowedTypes, maxFileSize, documents]);
 
   // Detect document type based on filename
   const detectDocumentType = useCallback((file: File): DocumentFile['type'] => {
@@ -117,14 +218,15 @@ export default function DocumentUpload({
     
     // Check total file limit
     if (documents.length + fileArray.length > maxFiles) {
-      error('Too many files', `You can only upload up to ${maxFiles} files total.`);
+      error('Too many files', `You can only upload up to ${maxFiles} files total. Current: ${documents.length}, trying to add: ${fileArray.length}`);
       return;
     }
 
     const validFiles: DocumentFile[] = [];
     const invalidFiles: string[] = [];
 
-    for (const file of fileArray) {
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
       const validation = validateFile(file);
       
       if (validation.valid) {
@@ -135,7 +237,9 @@ export default function DocumentUpload({
           title: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
           description: '',
           uploadProgress: 0,
-          uploadStatus: 'idle'
+          uploadStatus: 'idle',
+          retryCount: 0,
+          order: documents.length + i
         });
       } else {
         invalidFiles.push(validation.error!);
@@ -147,10 +251,18 @@ export default function DocumentUpload({
     }
 
     if (validFiles.length > 0) {
-      onChange([...documents, ...validFiles]);
+      const newDocuments = [...documents, ...validFiles];
+      onChange(newDocuments);
       success('Files added', `${validFiles.length} file(s) ready for upload.`);
+      
+      // Auto-start uploads if concurrent uploading is enabled
+      if (enableConcurrentUploads) {
+        validFiles.forEach(doc => {
+          setUploadQueue(prev => [...prev, doc.id]);
+        });
+      }
     }
-  }, [documents, maxFiles, validateFile, detectDocumentType, onChange, error, success]);
+  }, [documents, maxFiles, validateFile, detectDocumentType, onChange, error, success, enableConcurrentUploads]);
 
   // Handle file selection
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,17 +322,55 @@ export default function DocumentUpload({
     return docType || DOCUMENT_TYPES[DOCUMENT_TYPES.length - 1]; // Default to supporting materials
   }, []);
 
-  // Upload document to server
+  // Upload document to server with enhanced features
   const uploadDocument = useCallback(async (document: DocumentFile) => {
-    updateDocument(document.id, { uploadStatus: 'uploading', uploadProgress: 0 });
+    const controller = new AbortController();
+    abortControllers.current.set(document.id, controller);
+    
+    // Initialize upload stats
+    uploadStats.current.set(document.id, {
+      startTime: Date.now(),
+      lastProgress: 0,
+      lastTime: Date.now()
+    });
+    
+    setActiveUploads(prev => new Set([...prev, document.id]));
+    updateDocument(document.id, { 
+      uploadStatus: 'uploading', 
+      uploadProgress: 0,
+      error: undefined
+    });
     
     try {
       const result = await uploadService.uploadDocument(
         document.file,
         document.type,
         {
+          signal: controller.signal,
           onProgress: (progress) => {
-            updateDocument(document.id, { uploadProgress: progress.percentage });
+            const stats = uploadStats.current.get(document.id);
+            if (stats) {
+              const now = Date.now();
+              const timeDiff = (now - stats.lastTime) / 1000; // seconds
+              const progressDiff = progress.percentage - stats.lastProgress;
+              
+              if (timeDiff > 0 && progressDiff > 0) {
+                const speed = (progressDiff / 100 * document.file.size) / timeDiff; // bytes per second
+                const remainingBytes = document.file.size * (1 - progress.percentage / 100);
+                const estimatedTimeRemaining = remainingBytes / speed; // seconds
+                
+                updateDocument(document.id, { 
+                  uploadProgress: progress.percentage,
+                  uploadSpeed: speed,
+                  estimatedTimeRemaining
+                });
+                
+                stats.lastProgress = progress.percentage;
+                stats.lastTime = now;
+              } else {
+                updateDocument(document.id, { uploadProgress: progress.percentage });
+              }
+            }
           }
         }
       );
@@ -228,30 +378,258 @@ export default function DocumentUpload({
       updateDocument(document.id, { 
         uploadStatus: 'completed', 
         uploadProgress: 100,
-        url: result.url
+        url: result.url,
+        uploadSpeed: undefined,
+        estimatedTimeRemaining: undefined
+      });
+      
+      abortControllers.current.delete(document.id);
+      uploadStats.current.delete(document.id);
+      setActiveUploads(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(document.id);
+        return newSet;
       });
       
       success('Upload completed', `${document.title} uploaded successfully.`);
-    } catch (err: any) {
-      updateDocument(document.id, { 
-        uploadStatus: 'error', 
-        uploadProgress: 0 
-      });
+      onUploadComplete?.(document);
       
-      error('Upload failed', err.message || `Failed to upload ${document.title}`);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        updateDocument(document.id, { 
+          uploadStatus: 'idle', 
+          uploadProgress: 0,
+          error: 'Upload cancelled'
+        });
+      } else {
+        const retryCount = (document.retryCount || 0) + 1;
+        updateDocument(document.id, { 
+          uploadStatus: 'error', 
+          uploadProgress: 0,
+          error: err.message || 'Upload failed',
+          retryCount
+        });
+        
+        error('Upload failed', err.message || `Failed to upload ${document.title}`);
+        onUploadError?.(document, err.message || 'Upload failed');
+      }
+      
+      abortControllers.current.delete(document.id);
+      uploadStats.current.delete(document.id);
+      setActiveUploads(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(document.id);
+        return newSet;
+      });
     }
-  }, [updateDocument, success, error]);
+  }, [updateDocument, success, error, onUploadComplete, onUploadError]);
 
-  const formatFileSize = (bytes: number): string => {
+  // Enhanced file utilities
+  const formatFileSize = useCallback((bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  }, []);
+
+  const formatTime = useCallback((seconds: number): string => {
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+    return `${Math.round(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`;
+  }, []);
+
+  const formatSpeed = useCallback((bytesPerSecond: number): string => {
+    if (bytesPerSecond < 1024) return `${Math.round(bytesPerSecond)} B/s`;
+    if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
+  }, []);
+
+  // Bulk actions
+  const selectAllDocuments = useCallback(() => {
+    setSelectedDocuments(new Set(documents.map(d => d.id)));
+  }, [documents]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedDocuments(new Set());
+  }, []);
+
+  const bulkUpload = useCallback(() => {
+    const selectedDocs = documents.filter(d => 
+      selectedDocuments.has(d.id) && d.uploadStatus === 'idle'
+    );
+    selectedDocs.forEach(doc => {
+      if (activeUploads.size < maxConcurrentUploads) {
+        uploadDocument(doc);
+      } else {
+        setUploadQueue(prev => [...prev, doc.id]);
+      }
+    });
+    clearSelection();
+  }, [documents, selectedDocuments, activeUploads.size, maxConcurrentUploads, uploadDocument, clearSelection]);
+
+  const bulkDelete = useCallback(() => {
+    onChange(documents.filter(d => !selectedDocuments.has(d.id)));
+    clearSelection();
+    success('Documents removed', `${selectedDocuments.size} document(s) removed.`);
+  }, [documents, selectedDocuments, onChange, clearSelection, success]);
+
+  const pauseUpload = useCallback((documentId: string) => {
+    const controller = abortControllers.current.get(documentId);
+    if (controller) {
+      controller.abort();
+      updateDocument(documentId, { uploadStatus: 'paused' });
+    }
+  }, [updateDocument]);
+
+  const resumeUpload = useCallback((documentId: string) => {
+    const document = documents.find(d => d.id === documentId);
+    if (document && document.uploadStatus === 'paused') {
+      uploadDocument(document);
+    }
+  }, [documents, uploadDocument]);
+
+  const retryUpload = useCallback((documentId: string) => {
+    const document = documents.find(d => d.id === documentId);
+    if (document && (document.uploadStatus === 'error' || document.uploadStatus === 'paused')) {
+      uploadDocument(document);
+    }
+  }, [documents, uploadDocument]);
+
+  const reorderDocument = useCallback((dragIndex: number, hoverIndex: number) => {
+    const newDocuments = [...documents];
+    const draggedDocument = newDocuments[dragIndex];
+    newDocuments.splice(dragIndex, 1);
+    newDocuments.splice(hoverIndex, 0, draggedDocument);
+    
+    // Update order property
+    newDocuments.forEach((doc, index) => {
+      doc.order = index;
+    });
+    
+    onChange(newDocuments);
+  }, [documents, onChange]);
+
+  // Auto-upload queue management
+  React.useEffect(() => {
+    if (enableConcurrentUploads && uploadQueue.length > 0 && activeUploads.size < maxConcurrentUploads) {
+      const nextUploadId = uploadQueue[0];
+      const document = documents.find(d => d.id === nextUploadId);
+      
+      if (document && document.uploadStatus === 'idle') {
+        setUploadQueue(prev => prev.slice(1));
+        uploadDocument(document);
+      }
+    }
+  }, [uploadQueue, activeUploads.size, maxConcurrentUploads, documents, uploadDocument, enableConcurrentUploads]);
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Upload Statistics */}
+      {documents.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-gray-900">Upload Progress</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {uploadStatistics.completed}/{uploadStatistics.total} files completed
+              </span>
+              {showBulkActions && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentViewMode(currentViewMode === 'grid' ? 'list' : 'grid')}
+                    className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                    title={`Switch to ${currentViewMode === 'grid' ? 'list' : 'grid'} view`}
+                  >
+                    {currentViewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="text-center">
+              <div className="text-lg font-semibold text-green-600">{uploadStatistics.completed}</div>
+              <div className="text-xs text-gray-500">Completed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-blue-600">{uploadStatistics.uploading}</div>
+              <div className="text-xs text-gray-500">Uploading</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-red-600">{uploadStatistics.failed}</div>
+              <div className="text-xs text-gray-500">Failed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold text-gray-600">{uploadStatistics.pending}</div>
+              <div className="text-xs text-gray-500">Pending</div>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Overall Progress</span>
+              <span>{uploadStatistics.progress.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${uploadStatistics.progress}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>{formatFileSize(uploadStatistics.uploadedSize)} / {formatFileSize(uploadStatistics.totalSize)}</span>
+              <span>Size Progress: {uploadStatistics.sizeProgress.toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Bulk Actions */}
+      {showBulkActions && documents.length > 0 && (
+        <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={selectedDocuments.size === documents.length && documents.length > 0}
+                onChange={(e) => e.target.checked ? selectAllDocuments() : clearSelection()}
+                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              />
+              Select All ({selectedDocuments.size}/{documents.length})
+            </label>
+          </div>
+          
+          {selectedDocuments.size > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={bulkUpload}
+                disabled={!Array.from(selectedDocuments).some(id => 
+                  documents.find(d => d.id === id)?.uploadStatus === 'idle'
+                )}
+                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Upload Selected ({Array.from(selectedDocuments).filter(id => 
+                  documents.find(d => d.id === id)?.uploadStatus === 'idle'
+                ).length})
+              </button>
+              <button
+                onClick={bulkDelete}
+                className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Remove Selected
+              </button>
+              <button
+                onClick={clearSelection}
+                className="px-3 py-1 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Clear Selection
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Upload Area */}
       <div
         className={`
@@ -297,9 +675,12 @@ export default function DocumentUpload({
               }
             </p>
             <div className="text-xs text-gray-500 space-y-1">
-              <p>Supported: PDF, DOC, DOCX, PPT, PPTX, TXT</p>
+              <p>Supported: {Object.entries(FILE_EXTENSIONS).map(([ext, type]) => ext.toUpperCase()).join(', ')}</p>
               <p>Max file size: {maxFileSize}MB • Max files: {maxFiles}</p>
               <p>Current: {documents.length}/{maxFiles} files</p>
+              {enableConcurrentUploads && (
+                <p>Concurrent uploads: {activeUploads.size}/{maxConcurrentUploads} active</p>
+              )}
             </div>
           </div>
           
@@ -348,27 +729,67 @@ export default function DocumentUpload({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">
-              Uploaded Documents ({documents.length})
+              Documents ({documents.length})
             </h3>
-            {documents.some(doc => doc.uploadStatus === 'idle') && (
-              <button
-                onClick={() => {
-                  documents
-                    .filter(doc => doc.uploadStatus === 'idle')
-                    .forEach(doc => uploadDocument(doc));
-                }}
-                disabled={isUploading}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                Upload All
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {documents.some(doc => doc.uploadStatus === 'idle') && (
+                <button
+                  onClick={() => {
+                    documents
+                      .filter(doc => doc.uploadStatus === 'idle')
+                      .forEach((doc, index) => {
+                        if (enableConcurrentUploads) {
+                          if (activeUploads.size + index < maxConcurrentUploads) {
+                            uploadDocument(doc);
+                          } else {
+                            setUploadQueue(prev => [...prev, doc.id]);
+                          }
+                        } else {
+                          uploadDocument(doc);
+                        }
+                      });
+                  }}
+                  disabled={isUploading && !enableConcurrentUploads}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload All Pending
+                </button>
+              )}
+              {documents.some(doc => doc.uploadStatus === 'uploading') && (
+                <button
+                  onClick={() => {
+                    documents
+                      .filter(doc => doc.uploadStatus === 'uploading')
+                      .forEach(doc => pauseUpload(doc.id));
+                  }}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center gap-2"
+                >
+                  <Pause className="w-4 h-4" />
+                  Pause All
+                </button>
+              )}
+              {documents.some(doc => doc.uploadStatus === 'error') && (
+                <button
+                  onClick={() => {
+                    documents
+                      .filter(doc => doc.uploadStatus === 'error')
+                      .forEach(doc => retryUpload(doc.id));
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Retry Failed
+                </button>
+              )}
+            </div>
           </div>
           
-          <div className="space-y-4">
-            {documents.map(document => {
+          <div className={currentViewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-4'}>
+            {documents.map((document, index) => {
               const docInfo = getDocumentInfo(document.type);
               const Icon = docInfo.icon;
+              const isSelected = selectedDocuments.has(document.id);
               
               const colorClasses = {
                 blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
@@ -385,31 +806,68 @@ export default function DocumentUpload({
               return (
                 <div 
                   key={document.id} 
-                  className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                  className={`p-4 bg-white border-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${
+                    isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                  } ${document.uploadStatus === 'uploading' ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Document Icon */}
-                    <div className={`p-3 rounded-lg ${colors.bg} flex-shrink-0`}>
-                      <Icon className={`w-6 h-6 ${colors.text}`} />
+                  <div className={`flex items-start gap-4 ${currentViewMode === 'grid' ? 'flex-col' : ''}`}>
+                    {/* Selection and Document Icon */}
+                    <div className="flex items-center gap-3">
+                      {showBulkActions && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDocuments(prev => new Set([...prev, document.id]));
+                            } else {
+                              setSelectedDocuments(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(document.id);
+                                return newSet;
+                              });
+                            }
+                          }}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                      )}
+                      <div className={`p-3 rounded-lg ${colors.bg} flex-shrink-0 relative`}>
+                        <Icon className={`w-6 h-6 ${colors.text}`} />
+                        {/* Status indicator */}
+                        <div className="absolute -top-1 -right-1">
+                          {document.uploadStatus === 'completed' && (
+                            <CheckCircle className="w-5 h-5 text-green-600 bg-white rounded-full" />
+                          )}
+                          {document.uploadStatus === 'error' && (
+                            <AlertCircle className="w-5 h-5 text-red-600 bg-white rounded-full" />
+                          )}
+                          {document.uploadStatus === 'uploading' && (
+                            <Loader className="w-5 h-5 text-blue-600 bg-white rounded-full animate-spin" />
+                          )}
+                          {document.uploadStatus === 'paused' && (
+                            <Pause className="w-5 h-5 text-yellow-600 bg-white rounded-full" />
+                          )}
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Document Details */}
-                    <div className="flex-1 min-w-0 space-y-3">
+                    <div className={`flex-1 min-w-0 space-y-3 ${currentViewMode === 'grid' ? 'w-full' : ''}`}>
                       {/* Title and Type */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className={`grid gap-3 ${currentViewMode === 'grid' ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                         <input
                           type="text"
                           value={document.title}
                           onChange={(e) => updateDocument(document.id, { title: e.target.value })}
                           placeholder="Document title"
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                         />
                         <select
                           value={document.type}
                           onChange={(e) => updateDocument(document.id, { 
                             type: e.target.value as DocumentFile['type'] 
                           })}
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                         >
                           {DOCUMENT_TYPES.map(({ value, label }) => (
                             <option key={value} value={value}>{label}</option>
@@ -417,49 +875,73 @@ export default function DocumentUpload({
                         </select>
                       </div>
                       
-                      {/* Description */}
-                      <textarea
-                        value={document.description || ''}
-                        onChange={(e) => updateDocument(document.id, { description: e.target.value })}
-                        placeholder="Brief description (optional)"
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      />
+                      {/* Description (only in list view) */}
+                      {currentViewMode === 'list' && (
+                        <textarea
+                          value={document.description || ''}
+                          onChange={(e) => updateDocument(document.id, { description: e.target.value })}
+                          placeholder="Brief description (optional)"
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        />
+                      )}
                       
                       {/* File Info */}
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <span>{document.file.name} • {formatFileSize(document.file.size)}</span>
-                        <div className="flex items-center gap-2">
-                          {document.uploadStatus === 'completed' && (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          )}
-                          {document.uploadStatus === 'error' && (
-                            <AlertCircle className="w-4 h-4 text-red-600" />
-                          )}
-                          {document.uploadStatus === 'uploading' && (
-                            <Loader className="w-4 h-4 text-blue-600 animate-spin" />
-                          )}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <span className="truncate">{document.file.name}</span>
+                          <span>{formatFileSize(document.file.size)}</span>
                         </div>
+                        
+                        {/* Upload Status Details */}
+                        {document.uploadStatus === 'uploading' && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{document.uploadProgress?.toFixed(1)}%</span>
+                              <div className="flex items-center gap-2">
+                                {document.uploadSpeed && (
+                                  <span>{formatSpeed(document.uploadSpeed)}</span>
+                                )}
+                                {document.estimatedTimeRemaining && document.estimatedTimeRemaining > 0 && (
+                                  <span>ETA: {formatTime(document.estimatedTimeRemaining)}</span>
+                                )}
+                              </div>
+                            </div>
+                            {showProgress && (
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${document.uploadProgress || 0}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {document.uploadStatus === 'error' && document.error && (
+                          <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                            {document.error}
+                            {enableRetry && document.retryCount && document.retryCount > 0 && (
+                              <span className="ml-2">(Retry {document.retryCount})</span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {document.uploadStatus === 'completed' && (
+                          <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+                            Upload completed successfully
+                          </div>
+                        )}
                       </div>
-                      
-                      {/* Upload Progress */}
-                      {showProgress && document.uploadStatus === 'uploading' && (
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${document.uploadProgress || 0}%` }}
-                          />
-                        </div>
-                      )}
                     </div>
                     
                     {/* Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className={`flex items-center gap-1 flex-shrink-0 ${currentViewMode === 'grid' ? 'w-full justify-center' : ''}`}>
                       {showPreview && document.url && (
                         <button
                           type="button"
                           onClick={() => window.open(document.url, '_blank')}
-                          className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                          className="p-2 text-gray-500 hover:text-blue-600 transition-colors rounded"
                           title="Preview document"
                         >
                           <Eye className="w-4 h-4" />
@@ -475,7 +957,7 @@ export default function DocumentUpload({
                             link.download = document.file.name;
                             link.click();
                           }}
-                          className="p-2 text-gray-500 hover:text-green-600 transition-colors"
+                          className="p-2 text-gray-500 hover:text-green-600 transition-colors rounded"
                           title="Download document"
                         >
                           <Download className="w-4 h-4" />
@@ -486,20 +968,64 @@ export default function DocumentUpload({
                         <button
                           type="button"
                           onClick={() => uploadDocument(document)}
-                          className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                          className="p-2 text-gray-500 hover:text-blue-600 transition-colors rounded"
                           title="Upload document"
                         >
                           <Upload className="w-4 h-4" />
                         </button>
                       )}
                       
+                      {document.uploadStatus === 'uploading' && (
+                        <button
+                          type="button"
+                          onClick={() => pauseUpload(document.id)}
+                          className="p-2 text-gray-500 hover:text-yellow-600 transition-colors rounded"
+                          title="Pause upload"
+                        >
+                          <Pause className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {(document.uploadStatus === 'paused' || document.uploadStatus === 'error') && enableRetry && (
+                        <button
+                          type="button"
+                          onClick={() => retryUpload(document.id)}
+                          className="p-2 text-gray-500 hover:text-blue-600 transition-colors rounded"
+                          title="Retry upload"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {currentViewMode === 'list' && index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderDocument(index, index - 1)}
+                          className="p-2 text-gray-500 hover:text-gray-700 transition-colors rounded"
+                          title="Move up"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {currentViewMode === 'list' && index < documents.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => reorderDocument(index, index + 1)}
+                          className="p-2 text-gray-500 hover:text-gray-700 transition-colors rounded"
+                          title="Move down"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      )}
+                      
                       <button
                         type="button"
                         onClick={() => removeDocument(document.id)}
-                        className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                        className="p-2 text-gray-500 hover:text-red-600 transition-colors rounded"
                         title="Remove document"
                       >
-                        <X className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -512,12 +1038,20 @@ export default function DocumentUpload({
       
       {/* Empty State */}
       {documents.length === 0 && (
-        <div className="text-center py-8">
-          <FileIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents uploaded</h3>
-          <p className="text-gray-600">
-            Upload scripts, treatments, pitch decks, and supporting materials to complete your pitch
+        <div className="text-center py-12">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FolderOpen className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents uploaded yet</h3>
+          <p className="text-gray-600 max-w-md mx-auto mb-4">
+            Upload scripts, treatments, pitch decks, visual lookbooks, and supporting materials to enhance your pitch presentation.
           </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-w-lg mx-auto text-xs text-gray-500">
+            <span className="bg-gray-50 px-2 py-1 rounded">Scripts</span>
+            <span className="bg-gray-50 px-2 py-1 rounded">Treatments</span>
+            <span className="bg-gray-50 px-2 py-1 rounded">Pitch Decks</span>
+            <span className="bg-gray-50 px-2 py-1 rounded">Lookbooks</span>
+          </div>
         </div>
       )}
     </div>

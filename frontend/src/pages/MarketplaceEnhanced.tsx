@@ -9,7 +9,8 @@ import { useToast } from '../components/Toast/ToastProvider';
 import Pagination from '../components/Pagination';
 import { configService } from '../services/config.service';
 import FormatDisplay from '../components/FormatDisplay';
-import FilterBar, { FilterState, SortOption } from '../components/FilterBar';
+import FilterBar, { type FilterState, type SortOption } from '../components/FilterBar';
+import MobileFilterBar from '../components/MobileFilterBar';
 import { API_URL } from '../config';
 import { 
   Eye, 
@@ -66,6 +67,9 @@ export default function MarketplaceEnhanced() {
     order: 'desc'
   });
 
+  // Browse tabs state
+  const [activeTab, setActiveTab] = useState<'trending' | 'new' | 'all'>('all');
+
   // Load configuration on mount
   useEffect(() => {
     const loadConfig = async () => {
@@ -87,37 +91,52 @@ export default function MarketplaceEnhanced() {
       
       // Build query parameters
       const params = new URLSearchParams();
-      params.set('sort', sortOption.field);
-      params.set('order', sortOption.order);
+      
+      // Set sort based on active tab
+      if (activeTab === 'trending') {
+        params.set('sort', 'views');
+        params.set('order', 'desc');
+        // Add trending algorithm parameters
+        params.set('trending', 'true');
+        params.set('timeframe', '7d'); // Last 7 days for trending
+      } else if (activeTab === 'new') {
+        params.set('sort', 'date');
+        params.set('order', 'desc');
+      } else {
+        params.set('sort', sortOption.field);
+        params.set('order', sortOption.order);
+      }
+      
       params.set('limit', itemsPerPage.toString());
       params.set('offset', ((currentPage - 1) * itemsPerPage).toString());
       
-      // Add filters
-      if (filters.genres.length > 0) {
+      // Add filters only when they have actual values
+      // Empty arrays should not be sent as they mean "no filter" not "filter to nothing"
+      if (filters.genres && filters.genres.length > 0) {
         filters.genres.forEach(genre => params.append('genre', genre));
       }
-      if (filters.formats.length > 0) {
+      if (filters.formats && filters.formats.length > 0) {
         filters.formats.forEach(format => params.append('format', format));
       }
-      if (filters.developmentStages.length > 0) {
+      if (filters.developmentStages && filters.developmentStages.length > 0) {
         filters.developmentStages.forEach(stage => params.append('stage', stage));
       }
-      if (filters.searchQuery) {
-        params.set('q', filters.searchQuery);
+      if (filters.searchQuery && filters.searchQuery.trim()) {
+        params.set('q', filters.searchQuery.trim());
       }
-      if (filters.budgetMin !== undefined) {
+      if (filters.budgetMin !== undefined && filters.budgetMin !== null) {
         params.set('budgetMin', filters.budgetMin.toString());
       }
-      if (filters.budgetMax !== undefined) {
+      if (filters.budgetMax !== undefined && filters.budgetMax !== null) {
         params.set('budgetMax', filters.budgetMax.toString());
       }
       if (filters.creatorTypes && filters.creatorTypes.length > 0) {
         filters.creatorTypes.forEach(type => params.append('creatorType', type));
       }
-      if (filters.hasNDA !== undefined) {
+      if (filters.hasNDA !== undefined && filters.hasNDA !== null) {
         params.set('hasNDA', filters.hasNDA.toString());
       }
-      if (filters.seekingInvestment !== undefined) {
+      if (filters.seekingInvestment !== undefined && filters.seekingInvestment !== null) {
         params.set('seekingInvestment', filters.seekingInvestment.toString());
       }
       
@@ -130,10 +149,11 @@ export default function MarketplaceEnhanced() {
       
       if (response.ok) {
         const data = await response.json();
-        setPitches(data.pitches || []);
-        setTotalPages(data.pagination?.totalPages || 1);
-        setTotalResults(data.pagination?.total || data.pagination?.totalCount || data.totalCount || 0);
-      } else {
+        const payload = data?.data || data; // Worker returns { success, data: { pitches, pagination } }
+        setPitches(payload.pitches || []);
+        setTotalPages(payload.pagination?.totalPages || 1);
+        setTotalResults(payload.pagination?.total || payload.pagination?.totalCount || payload.totalCount || (payload.pitches?.length || 0));
+      } else if (response.status === 404 || response.status === 401) {
         // Fallback to general browse endpoint
         const generalParams = new URLSearchParams();
         generalParams.set('sort', sortOption.field);
@@ -160,15 +180,83 @@ export default function MarketplaceEnhanced() {
           setPitches(fallbackData.pitches || []);
           setTotalPages(fallbackData.pagination?.totalPages || 1);
           setTotalResults(fallbackData.pagination?.totalCount || fallbackData.totalCount || 0);
+        } else {
+          // Final fallback: use simple public pitches endpoint
+          try {
+            const { pitches: publicPitches } = await pitchService.getPublicPitches();
+            if (publicPitches && publicPitches.length > 0) {
+              // Apply client-side filtering and sorting
+              let filtered = [...publicPitches];
+              
+              // Apply search filter
+              if (filters.searchQuery && filters.searchQuery.trim()) {
+                const query = filters.searchQuery.toLowerCase();
+                filtered = filtered.filter(p => 
+                  p.title?.toLowerCase().includes(query) ||
+                  p.logline?.toLowerCase().includes(query) ||
+                  p.genre?.toLowerCase().includes(query)
+                );
+              }
+              
+              // Apply genre filter
+              if (filters.genres && filters.genres.length > 0) {
+                filtered = filtered.filter(p => 
+                  filters.genres.some(g => p.genre?.toLowerCase() === g.toLowerCase())
+                );
+              }
+              
+              // Apply format filter  
+              if (filters.formats && filters.formats.length > 0) {
+                filtered = filtered.filter(p => 
+                  filters.formats.some(f => p.format?.toLowerCase() === f.toLowerCase())
+                );
+              }
+              
+              // Sort
+              filtered.sort((a, b) => {
+                const order = sortOption.order === 'asc' ? 1 : -1;
+                switch (sortOption.field) {
+                  case 'date':
+                    return order * (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                  case 'views':
+                    return order * ((b.viewCount || 0) - (a.viewCount || 0));
+                  case 'title':
+                    return order * (a.title || '').localeCompare(b.title || '');
+                  default:
+                    return 0;
+                }
+              });
+              
+              // Paginate client-side
+              const start = (currentPage - 1) * itemsPerPage;
+              const paginatedPitches = filtered.slice(start, start + itemsPerPage);
+              
+              setPitches(paginatedPitches);
+              setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+              setTotalResults(filtered.length);
+            } else {
+              setPitches([]);
+              setTotalPages(1);
+              setTotalResults(0);
+            }
+          } catch (fallbackError) {
+            console.error('All fallbacks failed:', fallbackError);
+            setPitches([]);
+            setTotalPages(1);
+            setTotalResults(0);
+          }
         }
       }
     } catch (error) {
       console.error('Failed to fetch pitches:', error);
-      toast.error('Failed to load pitches. Please try again.');
+      // Don't show error toast on initial load
+      if (currentPage > 1 || filters.searchQuery || filters.genres.length > 0) {
+        toast.error('Failed to load pitches. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filters, sortOption, toast]);
+  }, [currentPage, filters, sortOption, activeTab, toast]);
 
   // Fetch pitches when dependencies change
   useEffect(() => {
@@ -178,7 +266,7 @@ export default function MarketplaceEnhanced() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, sortOption]);
+  }, [filters, sortOption, activeTab]);
 
   const handleFiltersChange = (newFilters: FilterState) => {
     setFilters(newFilters);
@@ -229,7 +317,7 @@ export default function MarketplaceEnhanced() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Header */}
-      <nav className="bg-white shadow-sm border-b">
+      <nav className="bg-white shadow-sm border-b" data-testid="marketplace-navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-8">
@@ -270,6 +358,16 @@ export default function MarketplaceEnhanced() {
                   >
                     Dashboard
                   </button>
+                  
+                  {/* Role-specific action buttons */}
+                  {userType === 'creator' && (
+                    <button
+                      onClick={() => navigate('/creator/create-pitch')}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+                    >
+                      Create Pitch
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
@@ -294,15 +392,70 @@ export default function MarketplaceEnhanced() {
         </div>
       </nav>
 
-      {/* Filter Bar */}
-      <FilterBar
-        genres={config?.genres}
-        formats={config?.formats}
-        budgetRanges={config?.budgetRanges}
-        developmentStages={config?.developmentStages}
-        onFiltersChange={handleFiltersChange}
-        onSortChange={handleSortChange}
-      />
+      {/* Filter Bar - Desktop */}
+      <div className="hidden lg:block">
+        <FilterBar
+          genres={config?.genres}
+          formats={config?.formats}
+          budgetRanges={config?.budgetRanges}
+          developmentStages={config?.developmentStages}
+          onFiltersChange={handleFiltersChange}
+          onSortChange={handleSortChange}
+        />
+      </div>
+      
+      {/* Filter Bar - Mobile */}
+      <div className="lg:hidden">
+        <MobileFilterBar
+          genres={config?.genres}
+          formats={config?.formats}
+          onFiltersChange={handleFiltersChange}
+          onSortChange={handleSortChange}
+        />
+      </div>
+
+      {/* Browse Tabs */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center space-x-8">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'all'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              data-testid="tab-all-pitches"
+            >
+              All Pitches
+            </button>
+            <button
+              onClick={() => setActiveTab('trending')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === 'trending'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              data-testid="tab-trending"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Trending
+            </button>
+            <button
+              onClick={() => setActiveTab('new')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
+                activeTab === 'new'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              data-testid="tab-latest"
+            >
+              <Star className="w-4 h-4" />
+              Latest
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Results Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -312,7 +465,11 @@ export default function MarketplaceEnhanced() {
             <h2 className="text-2xl font-bold text-gray-900">
               {filters.searchQuery 
                 ? `Search Results for "${filters.searchQuery}"`
-                : 'All Pitches'}
+                : activeTab === 'trending' 
+                  ? 'Trending Pitches'
+                  : activeTab === 'new'
+                    ? 'Latest Pitches'
+                    : 'All Pitches'}
             </h2>
             <p className="text-gray-600 mt-1">
               {totalResults} {totalResults === 1 ? 'pitch' : 'pitches'} found
@@ -327,9 +484,9 @@ export default function MarketplaceEnhanced() {
 
         {/* Loading State */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-testid="loading-grid">
             {[...Array(8)].map((_, i) => (
-              <PitchCardSkeleton key={i} />
+              <PitchCardSkeleton key={i} data-testid={`skeleton-${i}`} />
             ))}
           </div>
         ) : pitches.length === 0 ? (
@@ -352,12 +509,13 @@ export default function MarketplaceEnhanced() {
         ) : (
           <>
             {/* Pitch Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-testid="pitch-grid">
               {pitches.map((pitch) => (
                 <div
                   key={pitch.id}
                   className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer group"
                   onClick={() => navigate(`/pitch/${pitch.id}`)}
+                  data-testid={`pitch-card-${pitch.id}`}
                 >
                   {/* Pitch Thumbnail */}
                   <div className="aspect-video bg-gradient-to-br from-purple-400 to-indigo-600 relative overflow-hidden">

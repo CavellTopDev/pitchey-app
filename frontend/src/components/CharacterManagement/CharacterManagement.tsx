@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from 'react';
-import { Plus, Users, AlertCircle, ArrowUpDown } from 'lucide-react';
-import { Character } from '../../types/character';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Plus, Users, AlertCircle, ArrowUpDown, Info } from 'lucide-react';
+import type { Character } from '../../types/character';
 import { CharacterCard } from './CharacterCard';
 import { CharacterForm } from './CharacterForm';
+import { getCharacterStats } from '../../utils/characterUtils';
 
 interface CharacterManagementProps {
   characters: Character[];
@@ -20,6 +21,9 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   const [isReordering, setIsReordering] = useState(false);
   const [draggedItem, setDraggedItem] = useState<number | null>(null);
   const [dragOverItem, setDragOverItem] = useState<number | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const lastCharacterRef = useRef<HTMLDivElement>(null);
 
   // Ensure characters have unique IDs
   const normalizedCharacters = characters.map((char, index) => ({
@@ -36,6 +40,16 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
     setEditingCharacter(undefined);
     setIsFormOpen(true);
   };
+
+  // Auto-scroll to newly added character
+  useEffect(() => {
+    if (lastCharacterRef.current && !isFormOpen && normalizedCharacters.length > 0) {
+      const timeoutId = setTimeout(() => {
+        lastCharacterRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [normalizedCharacters.length, isFormOpen]);
 
   const handleEditCharacter = (character: Character) => {
     setEditingCharacter(character);
@@ -142,7 +156,37 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   const handleCancel = () => {
     setIsFormOpen(false);
     setEditingCharacter(undefined);
+    // Return focus to add button after form closes
+    setTimeout(() => {
+      addButtonRef.current?.focus();
+    }, 100);
   };
+
+  // Calculate character statistics
+  const stats = getCharacterStats(normalizedCharacters);
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((event: React.KeyboardEvent, action: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      action();
+    }
+  }, []);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isReordering) {
+        event.preventDefault();
+        setIsReordering(false);
+      }
+    };
+
+    if (isReordering) {
+      document.addEventListener('keydown', handleGlobalKeyDown);
+      return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+    }
+  }, [isReordering]);
 
   return (
     <div className="space-y-4">
@@ -174,22 +218,32 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
           )}
           
           <button
+            ref={addButtonRef}
             type="button"
             onClick={handleAddCharacter}
+            onKeyDown={(e) => handleKeyDown(e, handleAddCharacter)}
             disabled={normalizedCharacters.length >= maxCharacters}
-            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
               normalizedCharacters.length >= maxCharacters
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-purple-600 text-white hover:bg-purple-700'
             }`}
+            aria-describedby="add-character-help"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" aria-hidden="true" />
             Add Character
           </button>
+          
+          <div id="add-character-help" className="sr-only">
+            {normalizedCharacters.length >= maxCharacters 
+              ? `Maximum of ${maxCharacters} characters reached` 
+              : `Add a new character to your pitch. ${maxCharacters - normalizedCharacters.length} slots remaining.`
+            }
+          </div>
         </div>
       </div>
 
-      {/* Instructions */}
+      {/* Instructions and Stats */}
       <div className={`p-4 border rounded-lg transition-colors ${
         isReordering 
           ? 'bg-orange-50 border-orange-200' 
@@ -199,57 +253,102 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
           <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
             isReordering ? 'text-orange-600' : 'text-blue-600'
           }`} />
-          <div className={`text-sm ${
-            isReordering ? 'text-orange-800' : 'text-blue-800'
-          }`}>
-            <p className="font-medium mb-1">
-              {isReordering ? 'Reordering Mode:' : 'Character Management Tips:'}
-            </p>
-            <ul className={`space-y-1 ${
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-2">
+              <p className={`font-medium text-sm ${
+                isReordering ? 'text-orange-800' : 'text-blue-800'
+              }`}>
+                {isReordering ? 'Reordering Mode:' : 'Character Management Tips:'}
+              </p>
+              {normalizedCharacters.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowStats(!showStats)}
+                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                    isReordering 
+                      ? 'text-orange-700 hover:bg-orange-100' 
+                      : 'text-blue-700 hover:bg-blue-100'
+                  }`}
+                  title="Toggle character statistics"
+                >
+                  <Info className="w-3 h-3" />
+                  {showStats ? 'Hide' : 'Show'} Stats
+                </button>
+              )}
+            </div>
+            <ul className={`text-sm space-y-1 ${
               isReordering ? 'text-orange-700' : 'text-blue-700'
             }`}>
               {isReordering ? (
                 <>
                   <li>• Drag and drop characters to reorder them</li>
                   <li>• Use up/down arrows for precise positioning</li>
-                  <li>• Click "Done" when finished reordering</li>
+                  <li>• Press Escape or click "Done" when finished</li>
                 </>
               ) : (
                 <>
                   <li>• Add key characters that drive your story forward</li>
-                  <li>• Click "Reorder" to drag and drop characters</li>
-                  <li>• Click the edit button to modify character details</li>
-                  <li>• Characters help investors understand your story's scope</li>
+                  <li>• Include main characters, antagonists, and important supporting roles</li>
+                  <li>• Use the reorder mode to arrange characters by importance</li>
+                  <li>• Rich character details help investors understand your story's scope</li>
                 </>
               )}
             </ul>
+            
+            {/* Character Statistics */}
+            {showStats && normalizedCharacters.length > 0 && (
+              <div className={`mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-xs ${
+                isReordering ? 'border-orange-300' : 'border-blue-300'
+              }`}>
+                <div className={isReordering ? 'text-orange-700' : 'text-blue-700'}>
+                  <span className="font-medium">Total:</span> {stats.total}
+                </div>
+                <div className={isReordering ? 'text-orange-700' : 'text-blue-700'}>
+                  <span className="font-medium">With Roles:</span> {stats.withRole}
+                </div>
+                <div className={isReordering ? 'text-orange-700' : 'text-blue-700'}>
+                  <span className="font-medium">With Ages:</span> {stats.withAge}
+                </div>
+                <div className={isReordering ? 'text-orange-700' : 'text-blue-700'}>
+                  <span className="font-medium">With Actors:</span> {stats.withActors}
+                </div>
+                <div className={`col-span-2 ${isReordering ? 'text-orange-700' : 'text-blue-700'}`}>
+                  <span className="font-medium">Avg. Description:</span> {stats.avgDescriptionLength} chars
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Character List */}
       {normalizedCharacters.length > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-3" role="list" aria-label="Character list">
           {normalizedCharacters.map((character, index) => (
-            <CharacterCard
+            <div 
               key={character.id}
-              character={character}
-              index={index}
-              totalCharacters={normalizedCharacters.length}
-              onEdit={handleEditCharacter}
-              onDelete={handleDeleteCharacter}
-              onMoveUp={handleMoveUp}
-              onMoveDown={handleMoveDown}
-              isReordering={isReordering}
-              isDragging={draggedItem === index}
-              isDragOver={dragOverItem === index}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragOver={handleDragOver}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            />
+              ref={index === normalizedCharacters.length - 1 ? lastCharacterRef : undefined}
+              role="listitem"
+            >
+              <CharacterCard
+                character={character}
+                index={index}
+                totalCharacters={normalizedCharacters.length}
+                onEdit={handleEditCharacter}
+                onDelete={handleDeleteCharacter}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+                isReordering={isReordering}
+                isDragging={draggedItem === index}
+                isDragOver={dragOverItem === index}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              />
+            </div>
           ))}
         </div>
       ) : (

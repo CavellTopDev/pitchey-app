@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SavedFilters from './SavedFilters';
 import EmailAlerts from './EmailAlerts';
@@ -72,6 +72,11 @@ export default function FilterBar({
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
+  // Dropdown refs for click-outside handling
+  const genreRef = useRef<HTMLDivElement>(null);
+  const formatRef = useRef<HTMLDivElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
+  
   // Filter state
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
@@ -117,6 +122,23 @@ export default function FilterBar({
     if (sortParam) setSortField(sortParam as SortOption['field']);
     if (orderParam) setSortOrder(orderParam as SortOption['order']);
   }, []);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    if (!activeDropdown) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        (activeDropdown === 'genre' && genreRef.current && !genreRef.current.contains(target)) ||
+        (activeDropdown === 'format' && formatRef.current && !formatRef.current.contains(target)) ||
+        (activeDropdown === 'sort' && sortRef.current && !sortRef.current.contains(target))
+      ) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [activeDropdown]);
 
   // Update URL params when filters change
   useEffect(() => {
@@ -222,12 +244,12 @@ export default function FilterBar({
     (seekingInvestment ? 1 : 0);
 
   return (
-    <div className={`bg-white border-b sticky top-0 z-30 ${className}`}>
+    <div className={`bg-white border-b sticky top-0 z-30 ${className}`} data-testid="filter-bar">
       {/* Main Filter Bar */}
       <div className="px-6 py-4">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           {/* Search Input */}
-          <div className="flex-1 max-w-md">
+          <div className="flex-1 max-w-md w-full sm:w-auto">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -236,21 +258,23 @@ export default function FilterBar({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search pitches..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                data-testid="search-input"
               />
             </div>
           </div>
 
           {/* Quick Filters */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-end">
             {/* Genre Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={genreRef}>
               <button
-                onClick={() => setActiveDropdown(activeDropdown === 'genre' ? null : 'genre')}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === 'genre' ? null : 'genre'); }}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 border rounded-lg transition-colors text-sm ${
                   selectedGenres.length > 0 
                     ? 'bg-blue-50 border-blue-300 text-blue-700' 
                     : 'border-gray-200 hover:bg-gray-50'
                 }`}
+                data-testid="genre-filter-button"
               >
                 <Film className="w-4 h-4" />
                 <span>Genre</span>
@@ -263,11 +287,11 @@ export default function FilterBar({
               </button>
 
               {activeDropdown === 'genre' && (
-                <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] max-h-[300px] overflow-y-auto">
+                <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] max-h-[300px] overflow-y-auto z-50">
                   {genres.map(genre => (
                     <button
                       key={genre}
-                      onClick={() => handleGenreToggle(genre)}
+                      onClick={(e) => { e.stopPropagation(); handleGenreToggle(genre); }}
                       className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50 rounded-md transition-colors"
                     >
                       <span className="text-sm">{genre}</span>
@@ -281,14 +305,15 @@ export default function FilterBar({
             </div>
 
             {/* Format Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={formatRef}>
               <button
-                onClick={() => setActiveDropdown(activeDropdown === 'format' ? null : 'format')}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === 'format' ? null : 'format'); }}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 border rounded-lg transition-colors text-sm ${
                   selectedFormats.length > 0 
                     ? 'bg-blue-50 border-blue-300 text-blue-700' 
                     : 'border-gray-200 hover:bg-gray-50'
                 }`}
+                data-testid="format-filter-button"
               >
                 <Layers className="w-4 h-4" />
                 <span>Format</span>
@@ -301,11 +326,11 @@ export default function FilterBar({
               </button>
 
               {activeDropdown === 'format' && (
-                <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] max-h-[300px] overflow-y-auto">
+                <div className="absolute top-full mt-2 left-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] max-h-[300px] overflow-y-auto z-50">
                   {formats.map(format => (
                     <button
                       key={format}
-                      onClick={() => handleFormatToggle(format)}
+                      onClick={(e) => { e.stopPropagation(); handleFormatToggle(format); }}
                       className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50 rounded-md transition-colors"
                     >
                       <span className="text-sm">{format}</span>
@@ -319,10 +344,11 @@ export default function FilterBar({
             </div>
 
             {/* Sort Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={sortRef}>
               <button
-                onClick={() => setActiveDropdown(activeDropdown === 'sort' ? null : 'sort')}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === 'sort' ? null : 'sort'); }}
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                data-testid="sort-button"
               >
                 <TrendingUp className="w-4 h-4" />
                 <span>Sort</span>
@@ -330,7 +356,7 @@ export default function FilterBar({
               </button>
 
               {activeDropdown === 'sort' && (
-                <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px]">
+                <div className="absolute top-full mt-2 right-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] z-50">
                   <div className="space-y-1">
                     <button
                       onClick={() => { setSortField('date'); setSortOrder('desc'); setActiveDropdown(null); }}
@@ -471,11 +497,12 @@ export default function FilterBar({
             {/* Advanced Filters Toggle */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 border rounded-lg transition-colors text-sm ${
                 isExpanded || activeFilterCount > 0
                   ? 'bg-blue-50 border-blue-300 text-blue-700' 
                   : 'border-gray-200 hover:bg-gray-50'
               }`}
+              data-testid="advanced-filters-button"
             >
               <SlidersHorizontal className="w-4 h-4" />
               <span>Advanced</span>
@@ -490,7 +517,8 @@ export default function FilterBar({
             {activeFilterCount > 0 && (
               <button
                 onClick={clearAllFilters}
-                className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                data-testid="clear-filters-button"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>Clear</span>
@@ -501,7 +529,7 @@ export default function FilterBar({
 
         {/* Active Filters Tags */}
         {activeFilterCount > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mt-3">
+          <div className="flex flex-wrap items-center gap-2 mt-3" data-testid="active-filters">
             <span className="text-sm text-gray-500">Active filters:</span>
             {selectedGenres.map(genre => (
               <span
@@ -714,13 +742,6 @@ export default function FilterBar({
         </div>
       )}
 
-      {/* Click outside to close dropdowns */}
-      {activeDropdown && (
-        <div
-          className="fixed inset-0 z-20"
-          onClick={() => setActiveDropdown(null)}
-        />
-      )}
     </div>
   );
 }

@@ -4,6 +4,8 @@ export interface UploadProgress {
   loaded: number;
   total: number;
   percentage: number;
+  speed?: number;
+  estimatedTimeRemaining?: number;
 }
 
 export interface UploadResult {
@@ -11,12 +13,19 @@ export interface UploadResult {
   filename: string;
   size: number;
   type: string;
+  id?: string;
+  uploadedAt?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface UploadOptions {
   onProgress?: (progress: UploadProgress) => void;
   signal?: AbortSignal;
   timeout?: number;
+  retryCount?: number;
+  metadata?: Record<string, any>;
+  chunkSize?: number;
+  priority?: 'low' | 'normal' | 'high';
 }
 
 class UploadService {
@@ -42,6 +51,90 @@ class UploadService {
   }
 
   /**
+   * Upload multiple documents with enhanced features
+   */
+  async uploadMultipleDocumentsEnhanced(
+    files: Array<{
+      file: File;
+      documentType: string;
+      title: string;
+      description?: string;
+    }>,
+    options: UploadOptions = {}
+  ): Promise<{ results: UploadResult[]; errors: any[] }> {
+    const formData = new FormData();
+    
+    files.forEach((fileData, index) => {
+      formData.append('files', fileData.file);
+      formData.append('documentTypes', fileData.documentType);
+      formData.append('titles', fileData.title);
+      formData.append('descriptions', fileData.description || '');
+    });
+
+    const response = await fetch(`${this.baseUrl}/api/upload/documents`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      },
+      body: formData,
+      signal: options.signal
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Upload failed: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+    return {
+      results: result.results || [],
+      errors: result.errors || []
+    };
+  }
+
+  /**
+   * Upload multiple media files with enhanced features
+   */
+  async uploadMultipleMediaEnhanced(
+    files: Array<{
+      file: File;
+      title: string;
+      description?: string;
+      metadata?: Record<string, any>;
+    }>,
+    options: UploadOptions = {}
+  ): Promise<{ results: UploadResult[]; errors: any[] }> {
+    const formData = new FormData();
+    
+    files.forEach((fileData, index) => {
+      formData.append('files', fileData.file);
+      formData.append('titles', fileData.title);
+      formData.append('descriptions', fileData.description || '');
+      formData.append('metadata', JSON.stringify(fileData.metadata || {}));
+    });
+
+    const response = await fetch(`${this.baseUrl}/api/upload/media-batch`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      },
+      body: formData,
+      signal: options.signal
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Upload failed: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+    return {
+      results: result.results || [],
+      errors: result.errors || []
+    };
+  }
+
+  /**
    * Upload media files for a specific pitch
    */
   async uploadPitchMedia(
@@ -58,52 +151,120 @@ class UploadService {
   }
 
   /**
-   * Upload multiple files in batch
+   * Upload multiple files with enhanced progress tracking (legacy method)
    */
   async uploadMultipleDocuments(
     files: File[],
     documentTypes: string[] = [],
     options: UploadOptions = {}
   ): Promise<UploadResult[]> {
-    const uploads = files.map((file, index) => {
-      const type = documentTypes[index] || 'document';
-      return this.uploadDocument(file, type, {
-        ...options,
-        onProgress: options.onProgress ? (progress) => {
-          // Calculate overall progress across all files
-          const overallProgress = {
-            ...progress,
-            percentage: ((index / files.length) * 100) + (progress.percentage / files.length)
-          };
-          options.onProgress!(overallProgress);
-        } : undefined
-      });
-    });
-
-    return Promise.all(uploads);
+    // Use the new enhanced method for better performance
+    const fileData = files.map((file, index) => ({
+      file,
+      documentType: documentTypes[index] || 'document',
+      title: file.name.replace(/\.[^/.]+$/, "")
+    }));
+    
+    const result = await this.uploadMultipleDocumentsEnhanced(fileData, options);
+    
+    if (result.errors.length > 0) {
+      console.warn('Some uploads failed:', result.errors);
+    }
+    
+    return result.results;
   }
 
   /**
-   * Core upload method with progress tracking
+   * Upload multiple files with concurrency control
+   */
+  async uploadMultipleDocumentsConcurrent(
+    files: File[],
+    documentTypes: string[] = [],
+    options: UploadOptions & { maxConcurrent?: number } = {}
+  ): Promise<UploadResult[]> {
+    const { maxConcurrent = 3, ...uploadOptions } = options;
+    const results: UploadResult[] = [];
+    const queue = [...files];
+    const active = new Set<Promise<UploadResult>>();
+
+    while (queue.length > 0 || active.size > 0) {
+      // Start new uploads up to the concurrency limit
+      while (queue.length > 0 && active.size < maxConcurrent) {
+        const file = queue.shift()!;
+        const index = files.indexOf(file);
+        const type = documentTypes[index] || 'document';
+        
+        const uploadPromise = this.uploadDocument(file, type, uploadOptions)
+          .then(result => {
+            results[index] = result;
+            return result;
+          })
+          .finally(() => {
+            active.delete(uploadPromise);
+          });
+        
+        active.add(uploadPromise);
+      }
+
+      // Wait for at least one upload to complete
+      if (active.size > 0) {
+        await Promise.race(active);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Core upload method with enhanced progress tracking and retry logic
    */
   private uploadFile(
     endpoint: string, 
     formData: FormData, 
     options: UploadOptions = {}
   ): Promise<UploadResult> {
+    const {
+      onProgress, 
+      signal, 
+      timeout = 300000, 
+      retryCount = 0,
+      metadata
+    } = options;
+    
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      const { onProgress, signal, timeout = 300000 } = options; // 5 minute default timeout
+      let startTime = Date.now();
+      let lastLoaded = 0;
+      let lastTime = startTime;
 
-      // Set up progress tracking
+      // Enhanced progress tracking with speed calculation
       if (onProgress) {
         xhr.upload.addEventListener('progress', (event) => {
           if (event.lengthComputable) {
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000; // seconds
+            const loadedDiff = event.loaded - lastLoaded;
+            
+            let speed = 0;
+            let estimatedTimeRemaining = 0;
+            
+            if (timeDiff > 0.5 && loadedDiff > 0) { // Update every 500ms
+              speed = loadedDiff / timeDiff; // bytes per second
+              const remainingBytes = event.total - event.loaded;
+              estimatedTimeRemaining = remainingBytes / speed; // seconds
+              
+              lastLoaded = event.loaded;
+              lastTime = now;
+            }
+            
             const progress: UploadProgress = {
               loaded: event.loaded,
               total: event.total,
-              percentage: Math.round((event.loaded / event.total) * 100)
+              percentage: Math.round((event.loaded / event.total) * 100),
+              speed: speed > 0 ? speed : undefined,
+              estimatedTimeRemaining: estimatedTimeRemaining > 0 ? estimatedTimeRemaining : undefined
             };
+            
             onProgress(progress);
           }
         });
@@ -114,27 +275,61 @@ class UploadService {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const response = JSON.parse(xhr.responseText);
-            resolve(response);
+            resolve({
+              ...response,
+              uploadedAt: new Date().toISOString(),
+              metadata
+            });
           } catch (error) {
             reject(new Error('Invalid response format'));
           }
         } else {
           try {
             const errorResponse = JSON.parse(xhr.responseText);
-            reject(new Error(errorResponse.message || `Upload failed: ${xhr.status}`));
+            const errorMessage = errorResponse.message || `Upload failed: ${xhr.status}`;
+            
+            // Retry logic for certain error conditions
+            if (retryCount > 0 && (xhr.status >= 500 || xhr.status === 429)) {
+              setTimeout(() => {
+                this.uploadFile(endpoint, formData, {
+                  ...options,
+                  retryCount: retryCount - 1
+                }).then(resolve).catch(reject);
+              }, Math.pow(2, 3 - retryCount) * 1000); // Exponential backoff
+            } else {
+              reject(new Error(errorMessage));
+            }
           } catch {
             reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
           }
         }
       });
 
-      // Handle errors
+      // Handle errors with retry logic
       xhr.addEventListener('error', () => {
-        reject(new Error('Upload failed: Network error'));
+        if (retryCount > 0) {
+          setTimeout(() => {
+            this.uploadFile(endpoint, formData, {
+              ...options,
+              retryCount: retryCount - 1
+            }).then(resolve).catch(reject);
+          }, Math.pow(2, 3 - retryCount) * 1000);
+        } else {
+          reject(new Error('Upload failed: Network error'));
+        }
       });
 
       xhr.addEventListener('timeout', () => {
-        reject(new Error('Upload failed: Request timeout'));
+        if (retryCount > 0) {
+          setTimeout(() => {
+            this.uploadFile(endpoint, formData, {
+              ...options,
+              retryCount: retryCount - 1
+            }).then(resolve).catch(reject);
+          }, Math.pow(2, 3 - retryCount) * 1000);
+        } else {
+          reject(new Error('Upload failed: Request timeout'));
+        }
       });
 
       xhr.addEventListener('abort', () => {
@@ -156,6 +351,13 @@ class UploadService {
       const token = localStorage.getItem('auth_token');
       if (token) {
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      // Add metadata as headers if provided
+      if (metadata) {
+        Object.entries(metadata).forEach(([key, value]) => {
+          xhr.setRequestHeader(`X-Upload-Metadata-${key}`, String(value));
+        });
       }
 
       // Start upload
@@ -249,7 +451,7 @@ class UploadService {
   }
 
   /**
-   * Get upload status/info
+   * Get enhanced upload status/info
    */
   async getUploadInfo(): Promise<{
     maxFileSize: number;
@@ -257,6 +459,24 @@ class UploadService {
     maxFiles: number;
     totalStorage: number;
     usedStorage: number;
+    remainingStorage: number;
+    uploadLimits: {
+      hourly: number;
+      daily: number;
+      monthly: number;
+    };
+    currentUsage: {
+      hourly: number;
+      daily: number;
+      monthly: number;
+    };
+    features: {
+      concurrentUploads: boolean;
+      chunkUpload: boolean;
+      deduplication: boolean;
+      previewGeneration: boolean;
+    };
+    provider?: string;
   }> {
     const response = await fetch(`${this.baseUrl}/api/upload/info`, {
       headers: {
@@ -267,6 +487,31 @@ class UploadService {
 
     if (!response.ok) {
       throw new Error('Failed to get upload info');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get upload analytics
+   */
+  async getUploadAnalytics(timeframe: 'day' | 'week' | 'month' = 'week'): Promise<{
+    totalUploads: number;
+    totalSize: number;
+    averageFileSize: number;
+    successRate: number;
+    popularTypes: Array<{ type: string; count: number }>;
+    uploadTrends: Array<{ date: string; count: number; size: number }>;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/upload/analytics?timeframe=${timeframe}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get upload analytics');
     }
 
     return response.json();
@@ -293,6 +538,208 @@ class UploadService {
     const nameWithoutExt = originalName.replace(/\.[^/.]+$/, "");
     return `${nameWithoutExt}_${timestamp}_${random}.${extension}`;
   }
+
+  /**
+   * Calculate file hash for deduplication
+   */
+  async calculateFileHash(file: File): Promise<string> {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /**
+   * Check if file already exists (by hash)
+   */
+  async checkFileExists(hash: string): Promise<{ exists: boolean; url?: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/files/check/${hash}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+      
+      return { exists: false };
+    } catch {
+      return { exists: false };
+    }
+  }
+
+  /**
+   * Upload with deduplication check
+   */
+  async uploadWithDeduplication(
+    file: File,
+    documentType: string = 'document',
+    options: UploadOptions = {}
+  ): Promise<UploadResult> {
+    try {
+      // Calculate file hash
+      const hash = await this.calculateFileHash(file);
+      
+      // Check if file already exists
+      const existingFile = await this.checkFileExists(hash);
+      
+      if (existingFile.exists && existingFile.url) {
+        // File already exists, return existing URL
+        return {
+          url: existingFile.url,
+          filename: file.name,
+          size: file.size,
+          type: documentType,
+          id: hash,
+          uploadedAt: new Date().toISOString(),
+          metadata: { ...options.metadata, deduplicated: true }
+        };
+      }
+      
+      // File doesn't exist, upload normally
+      return this.uploadDocument(file, documentType, {
+        ...options,
+        metadata: { ...options.metadata, hash }
+      });
+    } catch (error) {
+      // If deduplication fails, fall back to normal upload
+      console.warn('Deduplication check failed, proceeding with normal upload:', error);
+      return this.uploadDocument(file, documentType, options);
+    }
+  }
+
+  /**
+   * Pause/Resume upload (for future chunked upload implementation)
+   */
+  pauseUpload(uploadId: string): void {
+    // Implementation for pausing uploads
+    // This would work with chunked uploads
+    console.log('Pause upload:', uploadId);
+  }
+
+  resumeUpload(uploadId: string): void {
+    // Implementation for resuming uploads
+    // This would work with chunked uploads
+    console.log('Resume upload:', uploadId);
+  }
+
+  /**
+   * Upload files with comprehensive progress tracking for UI components
+   */
+  async uploadFilesWithProgress(
+    files: Array<{
+      file: File;
+      type: 'document' | 'media';
+      documentType?: string;
+      title: string;
+      description?: string;
+      metadata?: Record<string, any>;
+    }>,
+    onFileProgress?: (fileIndex: number, progress: UploadProgress) => void,
+    onFileComplete?: (fileIndex: number, result: UploadResult) => void,
+    onFileError?: (fileIndex: number, error: string) => void
+  ): Promise<{ results: UploadResult[]; errors: Array<{ index: number; error: string }> }> {
+    const results: UploadResult[] = [];
+    const errors: Array<{ index: number; error: string }> = [];
+    
+    // Separate files by type
+    const documentFiles = files
+      .map((f, index) => ({ ...f, originalIndex: index }))
+      .filter(f => f.type === 'document');
+    const mediaFiles = files
+      .map((f, index) => ({ ...f, originalIndex: index }))
+      .filter(f => f.type === 'media');
+    
+    // Upload documents
+    if (documentFiles.length > 0) {
+      try {
+        const docData = documentFiles.map(f => ({
+          file: f.file,
+          documentType: f.documentType || 'document',
+          title: f.title,
+          description: f.description
+        }));
+        
+        const docResult = await this.uploadMultipleDocumentsEnhanced(docData);
+        
+        docResult.results.forEach((result, index) => {
+          const originalIndex = documentFiles[index].originalIndex;
+          results[originalIndex] = result;
+          onFileComplete?.(originalIndex, result);
+        });
+        
+        docResult.errors.forEach((error, index) => {
+          const originalIndex = documentFiles[index].originalIndex;
+          errors.push({ index: originalIndex, error: error.error });
+          onFileError?.(originalIndex, error.error);
+        });
+      } catch (error) {
+        documentFiles.forEach(f => {
+          errors.push({ index: f.originalIndex, error: error.message || 'Upload failed' });
+          onFileError?.(f.originalIndex, error.message || 'Upload failed');
+        });
+      }
+    }
+    
+    // Upload media files
+    if (mediaFiles.length > 0) {
+      try {
+        const mediaData = mediaFiles.map(f => ({
+          file: f.file,
+          title: f.title,
+          description: f.description,
+          metadata: f.metadata
+        }));
+        
+        const mediaResult = await this.uploadMultipleMediaEnhanced(mediaData);
+        
+        mediaResult.results.forEach((result, index) => {
+          const originalIndex = mediaFiles[index].originalIndex;
+          results[originalIndex] = result;
+          onFileComplete?.(originalIndex, result);
+        });
+        
+        mediaResult.errors.forEach((error, index) => {
+          const originalIndex = mediaFiles[index].originalIndex;
+          errors.push({ index: originalIndex, error: error.error });
+          onFileError?.(originalIndex, error.error);
+        });
+      } catch (error) {
+        mediaFiles.forEach(f => {
+          errors.push({ index: f.originalIndex, error: error.message || 'Upload failed' });
+          onFileError?.(f.originalIndex, error.message || 'Upload failed');
+        });
+      }
+    }
+    
+    return { results, errors };
+  }
 }
 
+// Create and export the upload service instance
 export const uploadService = new UploadService();
+
+// Export utility functions
+export { UploadService };
+
+// Export types for use in other components
+export type {
+  UploadProgress,
+  UploadResult,
+  UploadOptions
+};
+
+// Re-export enhanced upload result type for better integration
+export interface EnhancedUploadResult extends UploadResult {
+  id?: string;
+  title?: string;
+  description?: string;
+  documentType?: string;
+  uploadedBy?: number;
+  provider?: string;
+  cdnUrl?: string;
+  key?: string;
+}

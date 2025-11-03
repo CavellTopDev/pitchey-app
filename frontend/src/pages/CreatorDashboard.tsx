@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, LogOut, Plus, Shield, CreditCard, Coins } from 'lucide-react';
+import { TrendingUp, Eye, MessageSquare, Upload, BarChart3, Calendar, LogOut, Plus, Shield, CreditCard, Coins, DollarSign, Users } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI, apiClient } from '../lib/apiServices';
 import { NDANotificationBadge, NDANotificationPanel } from '../components/NDANotifications';
+import { QuickNDAStatus } from '../components/NDA/NDADashboardIntegration';
 import { getSubscriptionTier, SUBSCRIPTION_TIERS } from '../config/subscription-plans';
+import { InvestmentService } from '../services/investment.service';
+import FundingOverview from '../components/Investment/FundingOverview';
+import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreatorAnalytics';
+import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
+import { NotificationBell } from '../components/NotificationBell';
 
 export default function CreatorDashboard() {
   const navigate = useNavigate();
@@ -20,6 +26,10 @@ export default function CreatorDashboard() {
   const [avgRating, setAvgRating] = useState<number>(0);
   const [totalViews, setTotalViews] = useState<number>(0);
   const [followers, setFollowers] = useState<number>(0);
+  
+  // Investment tracking state
+  const [fundingMetrics, setFundingMetrics] = useState<any>(null);
+  const [investmentLoading, setInvestmentLoading] = useState(true);
 
   useEffect(() => {
     // Load user data immediately on mount
@@ -41,7 +51,25 @@ export default function CreatorDashboard() {
     }
     
     fetchDashboardData();
+    fetchFundingData(); // Fetch funding data in parallel
   }, [authUser]);
+
+  const fetchFundingData = async () => {
+    try {
+      setInvestmentLoading(true);
+      
+      // Fetch creator funding overview
+      const fundingResponse = await InvestmentService.getCreatorFunding();
+      if (fundingResponse.success) {
+        setFundingMetrics(fundingResponse.data);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching funding data:', error);
+    } finally {
+      setInvestmentLoading(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -217,6 +245,9 @@ export default function CreatorDashboard() {
                 )}
               </button>
               
+              {/* Notifications */}
+              <NotificationBell size="md" />
+              
               <Link
                 to="/creator/following"
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -329,6 +360,30 @@ export default function CreatorDashboard() {
             </p>
             <p className="text-xs text-purple-500 mt-1">Interest per pitch</p>
           </div>
+        </div>
+
+        {/* Funding Overview */}
+        {fundingMetrics && !investmentLoading && (
+          <FundingOverview 
+            metrics={fundingMetrics}
+            className="mb-8"
+          />
+        )}
+
+        {/* Enhanced Analytics Section */}
+        <div className="mb-8">
+          <EnhancedCreatorAnalytics 
+            pitchPerformance={{
+              totalViews: totalViews,
+              viewsChange: 15, // You can calculate this from historical data
+              totalLikes: stats?.totalLikes || 0,
+              likesChange: 12,
+              totalShares: stats?.totalShares || 0,
+              sharesChange: 8,
+              potentialInvestment: fundingMetrics?.totalFunding || 0,
+              investmentChange: fundingMetrics?.growth || 0
+            }}
+          />
         </div>
 
         {/* Creator Milestones Section */}
@@ -470,8 +525,13 @@ export default function CreatorDashboard() {
         
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2">
+          {/* Left Column - Recent Activity & Notifications */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Notifications Widget */}
+            <NotificationWidget maxNotifications={5} />
+            
+            {/* Recent Activity */}
+            <div>
             <div className="bg-white rounded-xl shadow-sm">
               <div className="px-6 py-4 border-b">
                 <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
@@ -510,6 +570,7 @@ export default function CreatorDashboard() {
                   </div>
                 )}
               </div>
+            </div>
             </div>
           </div>
 
@@ -598,6 +659,11 @@ export default function CreatorDashboard() {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* NDA Quick Status */}
+            <div className="mt-6">
+              <QuickNDAStatus userType="creator" />
             </div>
 
             {/* Subscription Info */}

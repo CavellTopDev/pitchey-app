@@ -151,19 +151,24 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Enhanced error UI
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div 
+          className="min-h-screen bg-gray-50 flex items-center justify-center p-4"
+          data-testid="error-boundary"
+          role="alert"
+          aria-live="assertive"
+        >
           <div className="max-w-2xl w-full bg-white rounded-lg shadow-lg p-6">
             <div className="text-center mb-6">
-              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-3" aria-hidden="true" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2" data-testid="error-title">
                 Something went wrong
               </h2>
-              <p className="text-gray-600 text-sm mb-2">
+              <p className="text-gray-600 text-sm mb-2" data-testid="error-message">
                 We encountered an unexpected error. Please try refreshing the page or go back to the home page.
               </p>
               
               {/* Error ID for reference */}
-              <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-xs text-gray-600 mt-2">
+              <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-xs text-gray-600 mt-2" data-testid="error-id">
                 <span>Error ID: {this.state.errorId}</span>
                 <span>•</span>
                 <span>{new Date(this.state.timestamp).toLocaleString()}</span>
@@ -178,7 +183,9 @@ export class ErrorBoundary extends Component<Props, State> {
                     <h3 className="text-sm font-medium text-red-800">Error Details</h3>
                     <button
                       onClick={this.copyErrorDetails}
-                      className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                      data-testid="copy-error-button"
+                      aria-label="Copy error details to clipboard"
                     >
                       <Copy className="w-3 h-3" />
                       Copy Details
@@ -230,14 +237,16 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleRetry}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                data-testid="retry-button"
               >
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </button>
               <button
                 onClick={this.handleGoHome}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                data-testid="go-home-button"
               >
                 <Home className="w-4 h-4" />
                 Go Home

@@ -1,9 +1,10 @@
-import { useEffect, useState, Suspense, lazy } from 'react';
+import { useEffect, useState, Suspense, lazy, startTransition } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from './store/authStore';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
+import { NotificationToastProvider } from './components/Toast/NotificationToastContainer';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { configService } from './services/config.service';
@@ -20,12 +21,18 @@ console.log('🚀 Pitchey App Environment:', {
 
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
-import Homepage from './pages/Homepage';
+import { NotificationInitializer } from './components/NotificationInitializer';
+import { TestNotifications } from './components/TestNotifications';
 // TestSentry component removed
 
-// Lazy loaded pages
-const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
+// Lazy load Homepage with prefetch
+const Homepage = lazy(() => 
+  import('./pages/Homepage' /* webpackPrefetch: true */)
+)
+
+// Lazy loaded pages with prefetch for critical paths
+const Login = lazy(() => import('./pages/Login' /* webpackPrefetch: true */));
+const Register = lazy(() => import('./pages/Register' /* webpackPrefetch: true */));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 
 // Multi-Portal Pages
@@ -64,6 +71,7 @@ const ProductionPitchView = lazy(() => import('./pages/production/ProductionPitc
 // Common Pages
 const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
+const NotificationCenter = lazy(() => import('./pages/NotificationCenter'));
 
 // Investor Pages
 const InvestorBrowse = lazy(() => import('./pages/InvestorBrowse'));
@@ -94,7 +102,16 @@ const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 // Error Pages
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 // Component to handle pitch routing - now always shows public view
 function PitchRouter() {
@@ -112,11 +129,15 @@ function App() {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        await configService.getConfiguration();
-        console.log('Configuration loaded successfully');
+        // Use startTransition for non-urgent update
+        startTransition(() => {
+          configService.getConfiguration().then(() => {
+            console.log('Configuration loaded successfully');
+            setConfigLoaded(true);
+          });
+        });
       } catch (error) {
         console.warn('Failed to load configuration, using fallback:', error);
-      } finally {
         setConfigLoaded(true);
       }
     };
@@ -126,7 +147,9 @@ function App() {
   useEffect(() => {
     // Only fetch profile once when authenticated and not yet fetched
     if (isAuthenticated && !profileFetched) {
-      fetchProfile().finally(() => setProfileFetched(true));
+      startTransition(() => {
+        fetchProfile().finally(() => setProfileFetched(true));
+      });
     }
   }, [isAuthenticated, profileFetched, fetchProfile]);
 
@@ -136,12 +159,18 @@ function App() {
     <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
       <QueryClientProvider client={queryClient}>
         <WebSocketProvider>
-          <ToastProvider>
+          <NotificationToastProvider>
+            <ToastProvider>
             {/* TestSentry component removed */}
+            <NotificationInitializer />
+            <TestNotifications />
             <Router>
             <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center">
-                <LoadingSpinner size="lg" text="Loading..." />
+              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="text-center">
+                  <LoadingSpinner size="lg" text="Loading..." />
+                  <p className="mt-4 text-gray-600">Optimizing your experience...</p>
+                </div>
               </div>
             }>
               <Routes>
@@ -348,6 +377,7 @@ function App() {
           {/* Common Protected Routes - Available to all user types */}
           <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/portals" />} />
           <Route path="/settings" element={isAuthenticated ? <Settings /> : <Navigate to="/portals" />} />
+          <Route path="/notifications" element={isAuthenticated ? <NotificationCenter /> : <Navigate to="/portals" />} />
           
           {/* Billing Routes - Available to all authenticated users */}
           <Route path="/billing" element={isAuthenticated ? <Billing /> : <Navigate to="/portals" />} />
@@ -382,7 +412,8 @@ function App() {
               </Routes>
             </Suspense>
           </Router>
-        </ToastProvider>
+            </ToastProvider>
+          </NotificationToastProvider>
         </WebSocketProvider>
       </QueryClientProvider>
     </ErrorBoundary>

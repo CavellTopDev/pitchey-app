@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { API_URL } from '../config';
 import { useToast } from './Toast/ToastProvider';
-import { FilterState } from './FilterBar';
+import type { FilterState } from './FilterBar';
 import { useAuthStore } from '../store/authStore';
 
 interface SavedFilter {

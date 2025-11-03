@@ -6,9 +6,10 @@ import { uploadService } from '../services/upload.service';
 import type { Pitch, UpdatePitchInput } from '../types/api';
 import { getGenresSync } from '../constants/pitchConstants';
 import { CharacterManagement } from '../components/CharacterManagement';
-import { Character } from '../types/character';
+import type { Character } from '../types/character';
 import { normalizeCharacters, serializeCharacters } from '../utils/characterUtils';
-import { DocumentUpload, DocumentFile } from '../components/DocumentUpload';
+import { DocumentUpload } from '../components/DocumentUpload';
+import type { DocumentFile } from '../components/DocumentUpload';
 
 interface PitchFormData {
   title: string;

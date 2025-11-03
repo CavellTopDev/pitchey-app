@@ -1,3 +1,39 @@
+
+---
+
+## Edge/Cloudflare Deployment
+
+- Frontend (Pages): https://pitchey.pages.dev
+- Worker API: https://pitchey-api-production.cavelltheleaddev.workers.dev (proxies to Deno at https://pitchey-backend-fresh.deno.dev during migration)
+- Storage: R2 bucket `pitchey-uploads`
+- Cache: KV namespace `CACHE` (ID: 98c88a185eb448e4868fcc87e458b3ac)
+- Hyperdrive (Neon pooling) ID: 983d4a1818264b5dbdca26bacf167dee
+
+### Common Commands
+```bash
+# Local development
+cd frontend && npm run dev                 # Vite dev server (5173)
+PORT=8001 deno run --allow-all working-server.ts  # Deno backend (must be 8001)
+wrangler dev                               # Worker locally
+
+# Deploy
+wrangler deploy --env production           # Worker deploy
+npx wrangler pages deploy frontend/dist \
+  --project-name=pitchey --branch=main     # Pages deploy
+```
+
+## Key Configuration Files
+- `wrangler.toml` — Worker config (KV, R2, Durable Objects, Hyperdrive)
+- `deno.json` — Deno config and import maps
+- `frontend/vite.config.ts` — Vite build (chunking, prod flags)
+- `frontend/.env.production` — Frontend env pointing to Worker API
+
+## Known Issues (from CLIENT_FEEDBACK_REQUIREMENTS.md)
+- Investor portal sign-out issues
+- Browse section tab filtering needs fixes
+- NDA workflow needs complete implementation
+- Access control: Investors shouldn’t create pitches
+
 # Pitchey Platform
 
 ## Overview
@@ -280,6 +316,9 @@ cat frontend/.env
 
 # Restart frontend after .env changes
 cd frontend && npm run dev
+
+# Run the Worker locally with bindings
+wrangler dev
 ```
 
 #### 2. WebSocket Connection Issues

@@ -6,6 +6,7 @@ import type { Pitch } from '../services/pitch.service';
 import { useAuthStore } from '../store/authStore';
 import BackButton from '../components/BackButton';
 import NDAWizard from '../components/NDAWizard';
+import EnhancedNDARequest from '../components/NDA/EnhancedNDARequest';
 import FormatDisplay from '../components/FormatDisplay';
 
 export default function PitchDetail() {
@@ -18,6 +19,7 @@ export default function PitchDetail() {
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [showNDAWizard, setShowNDAWizard] = useState(false);
+  const [showEnhancedNDARequest, setShowEnhancedNDARequest] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
   
   // Check if current user owns this pitch
@@ -252,7 +254,7 @@ export default function PitchDetail() {
                 <>
                   {!hasSignedNDA && !isOwner && (
                     <button
-                      onClick={() => setShowNDAWizard(true)}
+                      onClick={() => setShowEnhancedNDARequest(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                     >
                       <Shield className="w-4 h-4" />
@@ -357,7 +359,7 @@ export default function PitchDetail() {
                       </li>
                     </ul>
                     <button
-                      onClick={() => setShowNDAWizard(true)}
+                      onClick={() => setShowEnhancedNDARequest(true)}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                     >
                       <Shield className="w-5 h-5" />
@@ -567,7 +569,7 @@ export default function PitchDetail() {
                     ) : (
                       // Viewer actions (non-owner)
                       <button
-                        onClick={() => setShowNDAWizard(true)}
+                        onClick={() => setShowEnhancedNDARequest(true)}
                         disabled={hasSignedNDA}
                         className={`w-full flex items-center gap-2 px-4 py-2 rounded-lg transition ${
                           hasSignedNDA 
@@ -576,7 +578,7 @@ export default function PitchDetail() {
                         }`}
                       >
                         <FileText className="w-4 h-4" />
-                        {hasSignedNDA ? 'NDA Signed' : 'Sign NDA'}
+                        {hasSignedNDA ? 'NDA Signed' : 'Request NDA Access'}
                       </button>
                     )}
                     <button className="w-full flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
@@ -605,7 +607,20 @@ export default function PitchDetail() {
         </div>
       </div>
 
-      {/* NDA Modal */}
+      {/* Enhanced NDA Request Modal */}
+      {pitch && (
+        <EnhancedNDARequest
+          isOpen={showEnhancedNDARequest}
+          onClose={() => setShowEnhancedNDARequest(false)}
+          pitchId={pitch.id}
+          pitchTitle={pitch.title}
+          creatorName={pitch.creator?.username || pitch.creator?.companyName || 'Creator'}
+          creatorType={pitch.creator?.userType || 'creator'}
+          onSuccess={handleNDASigned}
+        />
+      )}
+
+      {/* Legacy NDA Wizard (backup) */}
       {pitch && (
         <NDAWizard
           isOpen={showNDAWizard}
