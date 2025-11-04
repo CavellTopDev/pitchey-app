@@ -115,6 +115,9 @@ export default defineConfig(({ mode }) => {
           propertyReadSideEffects: false,
           tryCatchDeoptimization: false
         },
+        // Prevent variable hoisting issues
+        preserveEntrySignatures: 'strict',
+        external: [],
       },
       // CSS optimization
       cssCodeSplit: true,
@@ -140,6 +143,8 @@ export default defineConfig(({ mode }) => {
       minifyIdentifiers: isProduction,
       minifySyntax: isProduction,
       minifyWhitespace: isProduction,
+      target: 'es2020',
+      keepNames: true, // Prevents variable name conflicts
     },
     
     // Optimizations
