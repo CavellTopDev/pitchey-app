@@ -44,8 +44,9 @@ const getUserId = (): string | null => {
   }
 };
 
-// Export the new robust API client for new code
-export { apiClient, authAPI, getUserId };
+// Note: apiClient should be imported directly from './api-client' to avoid circular deps
+// DO NOT re-export apiClient here
+export { getUserId };
 
 // NDA Services (Updated to use robust API client)
 export const ndaAPI = {
