@@ -40,13 +40,13 @@ const DEFAULT_OPTIONS: Required<UseWebSocketAdvancedOptions> = {
   onError: () => {},
   onReconnect: () => {},
   autoConnect: true,
-  maxReconnectAttempts: 5,  // Reduced from 10 to prevent excessive retries
-  reconnectInterval: 3000,
-  maxReconnectInterval: 30000,  // Reduced from 45000 for faster failure detection
-  maxQueueSize: 100,
+  maxReconnectAttempts: 3,  // Further reduced to prevent API spam
+  reconnectInterval: 5000,  // Increased initial interval
+  maxReconnectInterval: 60000,  // Increased max interval (1 minute)
+  maxQueueSize: 50,  // Reduced queue size
   enablePersistence: true,
   rateLimit: {
-    maxMessages: 120,
+    maxMessages: 30,  // Reduced message rate
     windowMs: 60000, // 1 minute
   },
 };
@@ -54,6 +54,20 @@ const DEFAULT_OPTIONS: Required<UseWebSocketAdvancedOptions> = {
 const STORAGE_KEYS = {
   QUEUE: 'pitchey_ws_queue',
   RATE_LIMIT: 'pitchey_ws_ratelimit',
+  CIRCUIT_BREAKER: 'pitchey_ws_circuit_breaker',
+};
+
+interface CircuitBreakerState {
+  failureCount: number;
+  lastFailureTime: number;
+  state: 'closed' | 'open' | 'half-open';
+  nextAttemptTime: number;
+}
+
+const CIRCUIT_BREAKER_CONFIG = {
+  failureThreshold: 3,  // Open circuit after 3 consecutive failures
+  openStateDuration: 300000,  // Stay open for 5 minutes
+  halfOpenMaxAttempts: 1,  // Only 1 attempt in half-open state
 };
 
 export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) {
@@ -89,7 +103,75 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     blocked: false,
     nextReset: Date.now() + opts.rateLimit.windowMs,
   });
+  const circuitBreakerRef = useRef<CircuitBreakerState>({
+    failureCount: 0,
+    lastFailureTime: 0,
+    state: 'closed',
+    nextAttemptTime: 0,
+  });
   
+  // Circuit breaker functions
+  const checkCircuitBreakerState = useCallback(() => {
+    const now = Date.now();
+    const breaker = circuitBreakerRef.current;
+    
+    switch (breaker.state) {
+      case 'open':
+        if (now >= breaker.nextAttemptTime) {
+          breaker.state = 'half-open';
+          console.log('Circuit breaker: Transitioning to half-open state');
+        }
+        break;
+      case 'half-open':
+        // Half-open state allows limited attempts
+        break;
+      default:
+        // Closed state - normal operation
+        break;
+    }
+    
+    return breaker.state;
+  }, []);
+  
+  const recordCircuitBreakerFailure = useCallback(() => {
+    const now = Date.now();
+    const breaker = circuitBreakerRef.current;
+    
+    breaker.failureCount++;
+    breaker.lastFailureTime = now;
+    
+    if (breaker.failureCount >= CIRCUIT_BREAKER_CONFIG.failureThreshold) {
+      breaker.state = 'open';
+      breaker.nextAttemptTime = now + CIRCUIT_BREAKER_CONFIG.openStateDuration;
+      console.warn(`Circuit breaker: OPENED after ${breaker.failureCount} failures. Next attempt in ${CIRCUIT_BREAKER_CONFIG.openStateDuration / 1000}s`);
+      
+      // Persist circuit breaker state
+      if (opts.enablePersistence) {
+        try {
+          localStorage.setItem(STORAGE_KEYS.CIRCUIT_BREAKER, JSON.stringify(breaker));
+        } catch (error) {
+          console.warn('Failed to persist circuit breaker state:', error);
+        }
+      }
+    }
+  }, [opts.enablePersistence]);
+  
+  const recordCircuitBreakerSuccess = useCallback(() => {
+    const breaker = circuitBreakerRef.current;
+    breaker.failureCount = 0;
+    breaker.state = 'closed';
+    console.log('Circuit breaker: CLOSED after successful connection');
+    
+    // Clear persisted circuit breaker state
+    if (opts.enablePersistence) {
+      try {
+        localStorage.removeItem(STORAGE_KEYS.CIRCUIT_BREAKER);
+      } catch (error) {
+        console.warn('Failed to clear circuit breaker state:', error);
+      }
+    }
+  }, [opts.enablePersistence]);
+
   // Load persisted data
   useEffect(() => {
     if (opts.enablePersistence) {
@@ -108,6 +190,15 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           const parsed = JSON.parse(rateLimitSaved);
           if (Date.now() - parsed.windowStart < opts.rateLimit.windowMs) {
             rateLimitRef.current = parsed;
+          }
+        }
+        
+        const circuitBreakerSaved = localStorage.getItem(STORAGE_KEYS.CIRCUIT_BREAKER);
+        if (circuitBreakerSaved) {
+          const parsed = JSON.parse(circuitBreakerSaved);
+          // Only restore if it's not too old
+          if (Date.now() - parsed.lastFailureTime < CIRCUIT_BREAKER_CONFIG.openStateDuration * 2) {
+            circuitBreakerRef.current = parsed;
           }
         }
       } catch (error) {
@@ -230,8 +321,21 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     }
   }, [isRateLimited, updateQueueStatus, persistData]);
   
-  // Connect function with bundling-loop protection
+  // Connect function with circuit breaker and bundling-loop protection
   const connect = useCallback(() => {
+    // Check circuit breaker state first
+    const circuitState = checkCircuitBreakerState();
+    if (circuitState === 'open') {
+      const breaker = circuitBreakerRef.current;
+      const waitTime = Math.ceil((breaker.nextAttemptTime - Date.now()) / 1000);
+      console.log(`WebSocket: Circuit breaker OPEN - next attempt in ${waitTime}s`);
+      setConnectionStatus(prev => ({
+        ...prev,
+        error: `Connection blocked by circuit breaker. Retry in ${waitTime}s`,
+      }));
+      return;
+    }
+    
     if (wsRef.current && 
         (wsRef.current.readyState === WebSocket.CONNECTING || 
          wsRef.current.readyState === WebSocket.OPEN)) {
@@ -242,7 +346,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     // Prevent rapid connection attempts caused by bundling stale closures
     const lastAttempt = localStorage.getItem('pitchey_last_ws_attempt');
     const now = Date.now();
-    if (lastAttempt && (now - parseInt(lastAttempt)) < 1000) {
+    if (lastAttempt && (now - parseInt(lastAttempt)) < 2000) { // Increased to 2 seconds
       console.log('WebSocket: Rate limiting connection attempt (preventing bundling loop)');
       return;
     }
@@ -296,6 +400,9 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       
       ws.onopen = () => {
         console.log('WebSocket: Connection opened successfully');
+        
+        // Record successful connection in circuit breaker
+        recordCircuitBreakerSuccess();
         
         // If we have a token but connected without it (fallback scenario), 
         // try to authenticate via first message
@@ -438,7 +545,26 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         // Attempt reconnect if not a clean close or auth failure
         // Auth failure codes: 1008 (Policy Violation), 4001-4003 (Custom auth errors)
         const isAuthFailure = event.code === 1008 || (event.code >= 4001 && event.code <= 4003);
-        if (event.code !== 1000 && event.code !== 1001 && !isAuthFailure &&
+        const isCleanClose = event.code === 1000 || event.code === 1001;
+        
+        // Record failure in circuit breaker for unexpected disconnections
+        if (!isCleanClose && !isAuthFailure) {
+          recordCircuitBreakerFailure();
+        }
+        
+        // Check circuit breaker before attempting reconnection
+        const circuitState = checkCircuitBreakerState();
+        if (circuitState === 'open') {
+          console.log('WebSocket: Circuit breaker OPEN - not attempting reconnection');
+          setConnectionStatus(prev => ({
+            ...prev,
+            reconnecting: false,
+            error: 'Connection attempts blocked by circuit breaker. Will retry automatically.',
+          }));
+          return;
+        }
+        
+        if (!isCleanClose && !isAuthFailure &&
             connectionStatus.reconnectAttempts < opts.maxReconnectAttempts) {
           
           const attempt = connectionStatus.reconnectAttempts + 1;
@@ -491,6 +617,12 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           error: error
         });
         
+        // Record failure in circuit breaker for connection errors
+        if (ws.readyState === WebSocket.CONNECTING) {
+          recordCircuitBreakerFailure();
+          console.log('WebSocket failed to connect - recorded in circuit breaker');
+        }
+        
         // Don't immediately set error state - let onclose handle reconnection logic
         // This prevents error loops when the server is unreachable
         if (ws.readyState === WebSocket.CONNECTING) {
@@ -510,7 +642,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         error: 'Failed to create connection',
       }));
     }
-  }, [opts, connectionStatus.reconnectAttempts, processQueue]);
+  }, [opts, connectionStatus.reconnectAttempts, processQueue, checkCircuitBreakerState, recordCircuitBreakerSuccess, recordCircuitBreakerFailure]);
   
   // Disconnect function
   const disconnect = useCallback(() => {
@@ -611,6 +743,19 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       disconnect();
     };
   }, [opts.autoConnect]); // Don't include connect/disconnect to avoid reconnections
+  
+  // Circuit breaker automatic retry mechanism
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const circuitState = checkCircuitBreakerState();
+      if (circuitState === 'half-open' && !connectionStatus.connected && !connectionStatus.connecting) {
+        console.log('Circuit breaker: Auto-retry in half-open state');
+        connect();
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [checkCircuitBreakerState, connect, connectionStatus.connected, connectionStatus.connecting]);
   
   // Cleanup on unmount
   useEffect(() => {
