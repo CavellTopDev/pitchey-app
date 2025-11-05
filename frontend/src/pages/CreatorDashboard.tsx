@@ -193,38 +193,38 @@ export default function CreatorDashboard() {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3 sm:gap-6">
               {/* Pitchey Logo - Links to Homepage */}
               <Link 
                 to="/" 
                 className="flex items-center hover:opacity-80 transition-opacity"
                 title="Go to Homepage"
               >
-                <span className="text-xl font-bold text-gray-900">Pitchey</span>
+                <span className="text-lg sm:text-xl font-bold text-gray-900">Pitchey</span>
               </Link>
               
-              {/* Divider */}
-              <div className="h-8 w-px bg-gray-300"></div>
+              {/* Divider - Hidden on small screens */}
+              <div className="hidden sm:block h-8 w-px bg-gray-300"></div>
               
               {/* Dashboard Info */}
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Creator Dashboard</h1>
-                <p className="text-xs text-gray-500">Welcome back, {user?.username || 'Creator'}</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Creator Dashboard</h1>
+                <p className="text-xs text-gray-500 truncate">Welcome back, {user?.username || 'Creator'}</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {/* Credits Display */}
               <button
                 onClick={() => navigate('/creator/billing?tab=credits')}
-                className="flex items-center gap-3 px-4 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
+                className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
               >
-                <Coins className="w-5 h-5 text-purple-600" />
-                <div className="text-sm">
+                <Coins className="w-4 sm:w-5 h-4 sm:h-5 text-purple-600" />
+                <div className="text-xs sm:text-sm">
                   <div className="font-semibold text-purple-900">
                     {credits?.balance?.credits || 0} Credits
                   </div>
-                  <div className="text-xs text-purple-600 group-hover:text-purple-700">
+                  <div className="hidden sm:block text-xs text-purple-600 group-hover:text-purple-700">
                     Click to manage
                   </div>
                 </div>
@@ -233,21 +233,21 @@ export default function CreatorDashboard() {
               {/* Subscription Status */}
               <button
                 onClick={() => navigate('/creator/billing?tab=subscription')}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
               >
-                <span className="font-medium text-gray-700">
+                <span className="font-medium text-gray-700 truncate max-w-20">
                   {(() => {
                     const tier = getSubscriptionTier(subscription?.tier || '');
                     return tier?.name || 'The Watcher';
                   })()}
                 </span>
                 {subscription?.status === 'active' && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                 )}
               </button>
               
               {/* Notifications */}
-              <NotificationBell size="md" />
+              <NotificationBell size="sm" className="sm:size-md" />
               
               <Link
                 to="/creator/following"
@@ -300,7 +300,7 @@ export default function CreatorDashboard() {
 
       {/* Stats Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-500 text-sm">Total Pitches</span>

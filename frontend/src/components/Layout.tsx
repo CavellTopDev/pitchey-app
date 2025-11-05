@@ -193,8 +193,10 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
 
       {/* Main content */}
-      <main>
-        {children || <Outlet />}
+      <main className="pt-4 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {children || <Outlet />}
+        </div>
       </main>
     </div>
   );
