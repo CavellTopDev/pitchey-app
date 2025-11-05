@@ -1325,15 +1325,12 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
     
-    // Get trending pitches
+    // Get trending pitches (using cached service)
     if (url.pathname === "/api/pitches/trending" && method === "GET") {
       try {
         const limit = parseInt(url.searchParams.get('limit') || '10');
         
-        const allPitches = await PitchService.getPublicPitchesWithUserType(limit * 2);
-        const trendingPitches = allPitches
-          .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
-          .slice(0, limit);
+        const trendingPitches = await DashboardCacheService.getTrendingPitches(limit);
         
         return successResponse(
           { pitches: trendingPitches },

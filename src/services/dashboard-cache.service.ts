@@ -89,11 +89,13 @@ export class DashboardCacheService {
     const cacheKey = `dashboard:${userType}:${userId}`;
     
     try {
-      // Try cache first
-      const cached = await this.redis.get(cacheKey);
-      if (cached) {
-        console.log(`📊 Dashboard metrics retrieved from cache for ${userType} ${userId}`);
-        return JSON.parse(cached);
+          // Try cache first
+      if (this.redis?.isEnabled()) {
+        const cached = await this.redis.get(cacheKey);
+        if (cached) {
+          console.log(`📊 Dashboard metrics retrieved from cache for ${userType} ${userId}`);
+          return cached;
+        }
       }
 
       // Generate fresh metrics
@@ -112,14 +114,16 @@ export class DashboardCacheService {
 
       if (metrics) {
         // Cache the results
-        if (this.redis?.setex) {
+        if (this.redis?.isEnabled()) {
           try {
-            await this.redis.setex(cacheKey, this.TTL.DASHBOARD, JSON.stringify(metrics));
+            await this.redis.set(cacheKey, metrics, this.TTL.DASHBOARD);
+            console.log(`📊 Dashboard metrics cached for ${userType} ${userId}`);
           } catch (redisError) {
             console.warn('⚠️ Redis caching failed for dashboard metrics:', redisError);
           }
+        } else {
+          console.log(`📊 Dashboard metrics generated for ${userType} ${userId} - Redis not available`);
         }
-        console.log(`📊 Dashboard metrics generated and cached for ${userType} ${userId}`);
       }
 
       return metrics;
@@ -322,11 +326,11 @@ export class DashboardCacheService {
   static async updateRealTimeMetric(userId: number, userType: string, metric: string, value: any): Promise<void> {
     try {
       const cacheKey = `realtime:${userType}:${userId}:${metric}`;
-      if (this.redis?.setex) {
+      if (this.redis?.isEnabled()) {
         try {
-          await this.redis.setex(cacheKey, this.TTL.REALTIME, JSON.stringify(value));
+          await this.redis.set(cacheKey, value, this.TTL.REALTIME);
         } catch (redisError) {
-          console.warn('⚠️ Redis caching failed for views over time:', redisError);
+          console.warn('⚠️ Redis caching failed for real-time metric:', redisError);
         }
       }
 
@@ -353,10 +357,12 @@ export class DashboardCacheService {
     const cacheKey = `trending:pitches:${limit}`;
     
     try {
-      const cached = await this.redis.get(cacheKey);
-      if (cached) {
-        console.log(`🔥 Trending pitches retrieved from cache (limit: ${limit})`);
-        return JSON.parse(cached);
+      if (this.redis?.isEnabled()) {
+        const cached = await this.redis.get(cacheKey);
+        if (cached) {
+          console.log(`🔥 Trending pitches retrieved from cache (limit: ${limit})`);
+          return cached;
+        }
       }
 
       // Calculate trending pitches (views in last 24 hours + likes)
@@ -381,15 +387,15 @@ export class DashboardCacheService {
       });
 
       // Cache for 3 minutes (only if Redis is available)
-      if (this.redis?.setex) {
+      if (this.redis?.isEnabled()) {
         try {
-          await this.redis.setex(cacheKey, this.TTL.TRENDING, JSON.stringify(trendingPitches));
-          console.log(`🔥 Trending pitches generated and cached (${trendingPitches.length} pitches)`);
+          await this.redis.set(cacheKey, trendingPitches, this.TTL.TRENDING);
+          console.log(`🔥 Trending pitches cached (${trendingPitches.length} pitches)`);
         } catch (redisError) {
           console.warn('⚠️ Redis caching failed, continuing without cache:', redisError);
         }
       } else {
-        console.log(`📦 Trending pitches generated (${trendingPitches.length} pitches) - no Redis cache available`);
+        console.log(`📦 Trending pitches generated (${trendingPitches.length} pitches) - Redis not available`);
       }
 
       return trendingPitches;

@@ -60,6 +60,11 @@ class NativeRedisService {
    * Load configuration from environment variables
    */
   private loadConfig(): RedisConfig {
+    // Determine environment - prioritize DENO_ENV for Deno Deploy
+    const denoEnv = Deno.env.get("DENO_ENV");
+    const nodeEnv = Deno.env.get("NODE_ENV");
+    const environment = (denoEnv === "production" || nodeEnv === "production") ? "production" : "development";
+    
     return {
       local: {
         hostname: Deno.env.get("REDIS_HOST") || "localhost",
@@ -75,7 +80,7 @@ class NativeRedisService {
       defaultTTL: parseInt(Deno.env.get("CACHE_TTL") || "300"),
       maxRetries: parseInt(Deno.env.get("REDIS_MAX_RETRIES") || "3"),
       retryDelay: parseInt(Deno.env.get("REDIS_RETRY_DELAY") || "1000"),
-      environment: (Deno.env.get("NODE_ENV") || "development") as 'development' | 'production',
+      environment: environment as 'development' | 'production',
     };
   }
 
@@ -102,6 +107,13 @@ class NativeRedisService {
    * Connect to Redis (native client for local development)
    */
   async connect(): Promise<boolean> {
+    // Reload configuration to pick up any environment changes
+    this.config = this.loadConfig();
+    
+    console.log(`Redis config - enabled: ${this.config.enabled}, env: ${this.config.environment}`);
+    console.log(`Upstash URL: ${this.config.upstash.url ? 'configured' : 'missing'}`);
+    console.log(`Upstash Token: ${this.config.upstash.token ? 'configured' : 'missing'}`);
+    
     if (!this.config.enabled) {
       console.log("Redis is disabled");
       return false;
