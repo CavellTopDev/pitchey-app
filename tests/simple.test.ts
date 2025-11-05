@@ -1,4 +1,4 @@
-import { assertEquals } from "$std/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { db } from "@/db/client.ts";
 import { users, pitches } from "@/db/schema.ts";
 import { PitchService } from "@/services/pitch.service.ts";

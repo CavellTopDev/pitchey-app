@@ -83,7 +83,6 @@ export class AnalyticsService {
       await this.trackEvent({
         eventType: "view",
         userId: data.viewerId,
-        pitchId: data.pitchId,
         sessionId: data.sessionId,
         eventData: {
           viewType: data.viewType
@@ -136,19 +135,19 @@ export class AnalyticsService {
 
       // Calculate metrics
       const totalViews = views.length;
-      const uniqueViewers = new Set(views.filter(v => v.viewerId).map(v => v.viewerId)).size;
-      const anonymousViews = views.filter(v => !v.viewerId).length;
+      const uniqueViewers = new Set(views.filter((v: any) => v.viewerId).map((v: any) => v.viewerId)).size;
+      const anonymousViews = views.filter((v: any) => !v.viewerId).length;
 
       // Group views by date
       const viewsByDate: Record<string, number> = {};
-      views.forEach(view => {
+      views.forEach((view: any) => {
         const date = view.viewedAt.toISOString().split('T')[0];
         viewsByDate[date] = (viewsByDate[date] || 0) + 1;
       });
 
       // Group views by viewer type
       const viewsByType: Record<string, number> = {};
-      views.forEach(view => {
+      views.forEach((view: any) => {
         viewsByType[view.viewType || 'unknown'] = (viewsByType[view.viewType || 'unknown'] || 0) + 1;
       });
 
@@ -186,9 +185,9 @@ export class AnalyticsService {
       });
 
       // Get total views across all pitches
-      const totalViews = userPitches.reduce((sum, pitch) => sum + (pitch.viewCount || 0), 0);
-      const totalLikes = userPitches.reduce((sum, pitch) => sum + (pitch.likeCount || 0), 0);
-      const totalNDAs = userPitches.reduce((sum, pitch) => sum + (pitch.ndaCount || 0), 0);
+      const totalViews = userPitches.reduce((sum: any, pitch: any) => sum + (pitch.viewCount || 0), 0);
+      const totalLikes = userPitches.reduce((sum: any, pitch: any) => sum + (pitch.likeCount || 0), 0);
+      const totalNDAs = userPitches.reduce((sum: any, pitch: any) => sum + (pitch.ndaCount || 0), 0);
 
       // Get recent events for user's pitches
       const recentEvents = await db.query.analyticsEvents.findMany({
@@ -202,7 +201,7 @@ export class AnalyticsService {
 
       // Group events by type
       const eventsByType: Record<string, number> = {};
-      recentEvents.forEach(event => {
+      recentEvents.forEach((event: any) => {
         eventsByType[event.eventType] = (eventsByType[event.eventType] || 0) + 1;
       });
 
@@ -230,7 +229,7 @@ export class AnalyticsService {
         .orderBy(desc(pitchViews.viewedAt))
         .limit(20);
 
-      const recentViews = recentViewsResult.map(row => ({
+      const recentViews = recentViewsResult.map((row: any) => ({
         ...row.view,
         pitch: row.pitch,
         viewer: row.viewer,
@@ -282,7 +281,7 @@ export class AnalyticsService {
           ...analytics,
           pitchCount: creatorPitches.length,
           weeklyViews: totalViews[0]?.count || 0,
-          totalViews: creatorPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0)
+          totalViews: creatorPitches.reduce((sum: any, p: any) => sum + (p.viewCount || 0), 0)
         };
       } else if (userType === "investor" || userType === "production") {
         // Investor/Production analytics

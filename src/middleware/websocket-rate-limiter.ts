@@ -208,7 +208,7 @@ export class WebSocketRateLimiter {
 
     } catch (error) {
       console.error("[WebSocket Rate Limiter] Error checking rate limit:", error);
-      captureException(error, { service: 'WebSocketRateLimiter' });
+      captureException(error as Error, { service: 'WebSocketRateLimiter' });
       // Allow message in case of error to avoid blocking legitimate users
       return { allowed: true };
     }
@@ -304,16 +304,11 @@ export class WebSocketRateLimiter {
 
       await redisService.set(violationKey, violationData, 3600); // 1 hour TTL
 
-      // Log to Sentry for monitoring
-      sentryService.addBreadcrumb({
-        category: "websocket.rate_limit",
-        message: `Rate limit violation`,
-        level: "warning",
-        data: {
-          userId: session.userId,
-          messageType,
-          violationCount
-        }
+      // Log for monitoring
+      console.warn(`Rate limit violation`, {
+        userId: session.userId,
+        messageType,
+        violationCount
       });
 
     } catch (error) {
@@ -370,7 +365,7 @@ export class WebSocketRateLimiter {
    */
   getRateLimitStatus(sessionId: string): Record<WSMessageType, Partial<RateLimitState>> {
     const sessionStates = this.sessionStates.get(sessionId);
-    if (!sessionStates) return {};
+    if (!sessionStates) return {} as Record<WSMessageType, Partial<RateLimitState>>;
 
     const status: Record<string, any> = {};
     for (const [messageType, state] of sessionStates.entries()) {
