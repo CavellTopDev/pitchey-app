@@ -102,6 +102,9 @@ interface WebSocketContextType {
   
   // General message subscription for custom hooks
   subscribeToMessages: (callback: (message: WebSocketMessage) => void) => () => void;
+  
+  // Notification permission (must be called from user interaction)
+  requestNotificationPermission: () => Promise<NotificationPermission>;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -564,11 +567,19 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
   }, []);
 
-  // Request browser notification permission
-  useEffect(() => {
+  // Function to request notification permission (must be called from user interaction)
+  const requestNotificationPermission = useCallback(async () => {
     if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+      try {
+        const permission = await Notification.requestPermission();
+        console.log('Notification permission:', permission);
+        return permission;
+      } catch (error) {
+        console.warn('Failed to request notification permission:', error);
+        return 'denied';
+      }
     }
+    return Notification.permission;
   }, []);
   
   const contextValue: WebSocketContextType = {
@@ -612,6 +623,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     subscribeToUploads,
     subscribeToPitchViews,
     subscribeToMessages,
+    
+    // Notification permission
+    requestNotificationPermission,
   };
   
   return (
