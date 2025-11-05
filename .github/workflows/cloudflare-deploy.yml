@@ -214,8 +214,8 @@ jobs:
       - name: Build for testing
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-api-production.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-api-production.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-backend-fresh.deno.dev
+          VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
           NODE_ENV: production
         run: npm run build
         
@@ -266,8 +266,8 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-api-production.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-api-production.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-backend-fresh.deno.dev
+          VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
           NODE_ENV: production
         run: npm run build
       
