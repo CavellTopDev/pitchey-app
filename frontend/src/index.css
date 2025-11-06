@@ -56,10 +56,34 @@
   @media (max-width: 768px) {
     :root {
       /* Mobile - Specific mobile sizes */
-      --font-size-hero-main: 40px;
-      --font-size-hero-sub: 18px;
-      --font-size-section-title: 28px;
-      --font-size-body: 16px;
+      --font-size-hero-main: 32px;
+      --font-size-hero-sub: 16px;
+      --font-size-section-title: 24px;
+      --font-size-body: 14px;
+      --font-size-card-title: 16px;
+      --font-size-nav-link: 14px;
+      --font-size-button: 14px;
+      --font-size-metadata: 12px;
+      
+      /* Adjust line heights for mobile to prevent overlap */
+      --line-height-tight: 1.3;
+      --line-height-normal: 1.5;
+    }
+  }
+
+  @media (max-width: 480px) {
+    :root {
+      /* Extra small mobile screens */
+      --font-size-hero-main: 28px;
+      --font-size-hero-sub: 14px;
+      --font-size-section-title: 20px;
+      --font-size-body: 14px;
+      --font-size-card-title: 14px;
+      --font-size-metadata: 11px;
+      
+      /* More spacing for very small screens */
+      --line-height-tight: 1.4;
+      --line-height-normal: 1.6;
     }
   }
 }
@@ -200,6 +224,18 @@
     animation: float 20s ease-in-out infinite;
   }
 
+  .animate-float-delayed {
+    animation: float 22s ease-in-out infinite 2s;
+  }
+
+  .animate-float-slow {
+    animation: float 25s ease-in-out infinite;
+  }
+
+  .animate-float-slow-delayed {
+    animation: float 28s ease-in-out infinite 3s;
+  }
+
   .animate-fade-in {
     animation: fade-in 1s ease-out forwards;
   }
@@ -210,5 +246,101 @@
 
   .animate-spin-slow {
     animation: spin-slow 30s linear infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Fix text overlapping with proper line heights and spacing */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+    max-height: 3em;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.5;
+    max-height: 4.5em;
+  }
+
+  /* Prevent overlapping in hero section */
+  .hero-content {
+    position: relative;
+    z-index: 20;
+  }
+
+  /* Ensure floating elements don't overlap content */
+  .floating-decoration {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Fix button text spacing */
+  .text-button {
+    white-space: nowrap;
+    min-height: 44px; /* Ensure touch-friendly size */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  /* Prevent text overflow in cards */
+  .pitch-card {
+    overflow: hidden;
+  }
+
+  .pitch-card h3 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  /* Mobile-specific text fixes */
+  @media (max-width: 768px) {
+    /* Ensure proper spacing on mobile */
+    .text-hero-main {
+      margin-bottom: 1rem;
+      word-spacing: normal;
+    }
+    
+    .text-hero-sub {
+      margin-bottom: 1.5rem;
+    }
+
+    /* Prevent button text wrapping */
+    .text-button {
+      font-size: 14px;
+      padding: 0.75rem 1rem;
+    }
+
+    /* Hide decorative elements on small screens to prevent overlap */
+    .floating-decoration {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    /* Extra protection for very small screens */
+    .text-hero-main {
+      font-size: 24px !important;
+      line-height: 1.2 !important;
+      margin-bottom: 0.75rem;
+    }
+    
+    .text-hero-sub {
+      font-size: 14px !important;
+      line-height: 1.4 !important;
+      margin-bottom: 1rem;
+    }
   }
 }

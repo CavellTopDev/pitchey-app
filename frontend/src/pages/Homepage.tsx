@@ -166,26 +166,26 @@ export default function Homepage() {
         </div>
 
         {/* Film Reel Decorations */}
-        <div className="absolute top-10 left-10 opacity-20 animate-float">
+        <div className="floating-decoration absolute top-10 left-10 opacity-20 animate-float">
           <Film className="w-24 h-24 text-white" />
         </div>
-        <div className="absolute bottom-10 right-10 opacity-20 animate-float-delayed">
+        <div className="floating-decoration absolute bottom-10 right-10 opacity-20 animate-float-delayed">
           <Film className="w-32 h-32 text-white" />
         </div>
-        <div className="absolute top-1/2 left-20 opacity-15 animate-float-slow">
+        <div className="floating-decoration absolute top-1/2 left-20 opacity-15 animate-float-slow">
           <Sparkles className="w-16 h-16 text-white" />
         </div>
-        <div className="absolute top-1/3 right-20 opacity-15 animate-float-slow-delayed">
+        <div className="floating-decoration absolute top-1/3 right-20 opacity-15 animate-float-slow-delayed">
           <Star className="w-20 h-20 text-white" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 hero-content">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg animate-fade-in">
+            <h1 className="text-hero-main mb-6 drop-shadow-lg animate-fade-in">
               Where Stories
               <span className="bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-300"> Find Life</span>
             </h1>
-            <p className="text-xl md:text-2xl mb-12 max-w-3xl mx-auto opacity-90 drop-shadow animate-fade-in-delay">
+            <p className="text-hero-sub mb-12 max-w-3xl mx-auto opacity-90 drop-shadow animate-fade-in-delay">
               The premier marketplace where pitching meets opportunity. 
               Share your vision, discover original stories, and connect with producers and investors shaping the future of film, television, and new media.
             </p>
@@ -265,7 +265,7 @@ export default function Homepage() {
                 <div
                   key={pitch.id}
                   onClick={() => navigate(`/pitch/${pitch.id}`)}
-                  className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-purple-300 shadow-sm hover:shadow-md transition cursor-pointer group"
+                  className="pitch-card bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-purple-300 shadow-sm hover:shadow-md transition cursor-pointer group"
                 >
                   <div className="h-40 bg-gradient-to-br from-purple-100 to-pink-100 relative">
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -280,13 +280,13 @@ export default function Homepage() {
                       />
                     </div>
                   </div>
-                  <div className="p-4">
+                  <div className="p-4 space-y-2">
                     <h3 className="text-card-title mb-1 group-hover:text-purple-600 transition">
                       {pitch.title}
                     </h3>
                     <p className="text-metadata text-purple-600 mb-2">{pitch.genre}</p>
                     <p className="text-metadata mb-3 line-clamp-2">{pitch.logline}</p>
-                    <div className="flex items-center justify-between text-metadata">
+                    <div className="flex items-center justify-between text-metadata pt-2">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <Eye className="w-3 h-3" />
@@ -340,13 +340,13 @@ export default function Homepage() {
                 <div
                   key={pitch.id}
                   onClick={() => navigate(`/pitch/${pitch.id}`)}
-                  className="bg-white/5 backdrop-blur-md rounded-xl overflow-hidden border border-yellow-500/20 hover:border-yellow-500/40 transition cursor-pointer group"
+                  className="pitch-card bg-white/95 backdrop-blur-md rounded-xl overflow-hidden border border-yellow-500/20 hover:border-yellow-500/40 transition cursor-pointer group"
                 >
                   <div className="h-40 bg-gradient-to-br from-yellow-600/20 to-orange-600/20 relative">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Film className="w-16 h-16 text-purple-200" />
                     </div>
-                    <div className="absolute top-2 left-2 bg-yellow-500/80 backdrop-blur-md px-2 py-1 rounded text-xs text-white">
+                    <div className="absolute top-2 left-2 bg-yellow-500/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-white font-medium">
                       NEW
                     </div>
                     <div className="absolute top-2 right-2 bg-purple-600 px-2 py-1 rounded text-xs text-white">
@@ -358,13 +358,13 @@ export default function Homepage() {
                       />
                     </div>
                   </div>
-                  <div className="p-4">
+                  <div className="p-4 space-y-2">
                     <h3 className="text-card-title text-black mb-1 group-hover:text-purple-600 transition">
                       {pitch.title}
                     </h3>
                     <p className="text-metadata text-gray-600 mb-2">{pitch.genre}</p>
                     <p className="text-metadata text-gray-700 mb-3 line-clamp-2">{pitch.logline}</p>
-                    <div className="flex items-center justify-between text-metadata text-gray-600">
+                    <div className="flex items-center justify-between text-metadata text-gray-600 pt-2">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
                           <Eye className="w-3 h-3" />
