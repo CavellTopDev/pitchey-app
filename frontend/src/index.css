@@ -282,6 +282,7 @@
     position: absolute;
     z-index: 1;
     pointer-events: none;
+    display: block; /* Ensure they're visible by default */
   }
 
   /* Fix button text spacing */
@@ -357,9 +358,9 @@
       padding: 0.75rem 1rem;
     }
 
-    /* Hide decorative elements on small screens to prevent overlap */
+    /* Reduce size of decorative elements on tablets to prevent overlap */
     .floating-decoration {
-      display: none;
+      transform: scale(0.7);
     }
   }
 
@@ -375,6 +376,11 @@
       font-size: 14px !important;
       line-height: 1.4 !important;
       margin-bottom: 1rem;
+    }
+
+    /* Hide decorative elements only on very small screens */
+    .floating-decoration {
+      display: none;
     }
   }
 }
