@@ -1896,85 +1896,53 @@ const handler = async (request: Request): Promise<Response> => {
         const result = await redisService.cached(
           cacheKey,
           async () => {
-            // Build the query using the same approach as the featured pitches endpoint
-            let query = db.select({
-              id: pitches.id,
-              title: pitches.title,
-              logline: pitches.logline,
-              genre: pitches.genre,
-              format: pitches.format,
-              formatCategory: pitches.formatCategory,
-              formatSubtype: pitches.formatSubtype,
-              viewCount: pitches.viewCount,
-              likeCount: pitches.likeCount,
-              createdAt: pitches.createdAt,
-              creator: {
-                id: users.id,
-                username: users.username,
-                companyName: users.companyName,
-                userType: users.userType
+            // Use the working SQL-based method as a foundation
+            const allPitches = await PitchService.getPublicPitchesWithUserType(limit * 3);
+            
+            // Apply client-side filtering
+            let filteredPitches = allPitches.filter(pitch => {
+              // Always include published pitches only
+              if (pitch.status !== 'published') return false;
+              
+              // Apply genre filter
+              if (genre && pitch.genre?.toLowerCase() !== genre.toLowerCase()) {
+                return false;
               }
-            })
-            .from(pitches)
-            .leftJoin(users, eq(pitches.userId, users.id));
-            
-            // Apply filters - build conditions array
-            const conditions = [eq(pitches.status, "published")];
-            
-            if (genre) {
-              conditions.push(eq(pitches.genre, genre));
-            }
-            
-            if (format) {
-              conditions.push(eq(pitches.format, format));
-            }
-            
-            // Apply all conditions at once
-            query = query.where(and(...conditions));
+              
+              // Apply format filter
+              if (format && pitch.format?.toLowerCase() !== format.toLowerCase()) {
+                return false;
+              }
+              
+              return true;
+            });
             
             // Apply sorting
-            switch (sortBy) {
-              case 'alphabetical':
-                query = order === 'asc' 
-                  ? query.orderBy(asc(pitches.title))
-                  : query.orderBy(desc(pitches.title));
-                break;
-              case 'date':
-                query = order === 'asc' 
-                  ? query.orderBy(asc(pitches.createdAt))
-                  : query.orderBy(desc(pitches.createdAt));
-                break;
-              case 'budget':
-                query = order === 'asc' 
-                  ? query.orderBy(asc(pitches.estimatedBudget))
-                  : query.orderBy(desc(pitches.estimatedBudget));
-                break;
-              case 'views':
-                query = order === 'asc' 
-                  ? query.orderBy(asc(pitches.viewCount))
-                  : query.orderBy(desc(pitches.viewCount));
-                break;
-              case 'likes':
-                query = order === 'asc' 
-                  ? query.orderBy(asc(pitches.likeCount))
-                  : query.orderBy(desc(pitches.likeCount));
-                break;
-            }
+            filteredPitches.sort((a, b) => {
+              const orderMultiplier = order === 'asc' ? 1 : -1;
+              
+              switch (sortBy) {
+                case 'alphabetical':
+                  return orderMultiplier * (a.title || '').localeCompare(b.title || '');
+                case 'date':
+                  return orderMultiplier * (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                case 'budget':
+                  return orderMultiplier * ((b.estimatedBudget || 0) - (a.estimatedBudget || 0));
+                case 'views':
+                  return orderMultiplier * ((b.viewCount || 0) - (a.viewCount || 0));
+                case 'likes':
+                  return orderMultiplier * ((b.likeCount || 0) - (a.likeCount || 0));
+                default:
+                  return orderMultiplier * (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              }
+            });
             
-            // Add pagination
-            query = query.limit(limit).offset(offset);
-            
-            const pitchResults = await query.execute();
-            
-            // Get total count for pagination using same conditions
-            const countQuery = db.select({ count: count() })
-              .from(pitches)
-              .where(and(...conditions));
-            
-            const [{ count: totalCount }] = await countQuery.execute();
+            // Apply pagination
+            const totalCount = filteredPitches.length;
+            const paginatedPitches = filteredPitches.slice(offset, offset + limit);
             
             return {
-              pitches: pitchResults,
+              pitches: paginatedPitches,
               totalCount,
               pagination: {
                 limit,
@@ -2068,145 +2036,96 @@ const handler = async (request: Request): Promise<Response> => {
         const result = await redisService.cached(
           cacheKey,
           async () => {
-            // Build the query
-            let query = db.select({
-              id: pitches.id,
-              title: pitches.title,
-              logline: pitches.logline,
-              genre: pitches.genre,
-              format: pitches.format,
-              formatCategory: pitches.formatCategory,
-              formatSubtype: pitches.formatSubtype,
-              estimatedBudget: pitches.estimatedBudget,
-              requireNda: pitches.requireNda,
-              seekingInvestment: pitches.seekingInvestment,
-              viewCount: pitches.viewCount,
-              likeCount: pitches.likeCount,
-              createdAt: pitches.createdAt,
-              posterUrl: pitches.posterUrl,
-              creator: {
-                id: users.id,
-                username: users.username,
-                companyName: users.companyName,
-                userType: users.userType
+            // Use the working SQL-based method as a foundation
+            const allPitches = await PitchService.getPublicPitchesWithUserType(limit * 5);
+            
+            // Apply client-side filtering with enhanced multi-select support
+            let filteredPitches = allPitches.filter(pitch => {
+              // Always include published pitches only
+              if (pitch.status !== 'published') return false;
+              
+              // Apply multi-genre filter
+              if (genres.length > 0) {
+                if (!genres.some(g => pitch.genre?.toLowerCase() === g.toLowerCase())) {
+                  return false;
+                }
               }
-            })
-            .from(pitches)
-            .leftJoin(users, eq(pitches.userId, users.id));
-            
-            // Build conditions array
-            const conditions = [eq(pitches.status, "published")];
-            
-            // Apply multi-genre filter using inArray
-            if (genres.length > 0) {
-              conditions.push(inArray(pitches.genre, genres));
-            }
-            
-            // Apply multi-format filter using inArray
-            if (formats.length > 0) {
-              conditions.push(inArray(pitches.format, formats));
-            }
-            
-            // Apply multi-stage filter - commented out as productionStage field doesn't exist
-            // TODO: Add productionStage field to database or remove this filter
-            // if (stages.length > 0) {
-            //   conditions.push(inArray(pitches.productionStage, stages));
-            // }
-            
-            // Apply creator type filter
-            if (creatorTypes.length > 0) {
-              conditions.push(inArray(users.userType, creatorTypes));
-            }
-            
-            // Apply NDA filter
-            if (hasNDA === 'true') {
-              conditions.push(eq(pitches.requireNda, true));
-            }
-            
-            // Apply seeking investment filter
-            if (seekingInvestment === 'true') {
-              conditions.push(eq(pitches.seekingInvestment, true));
-            }
-            
-            // Apply budget range filter
-            let minBudget = 0;
-            let maxBudget = 999999999;
-            if (budgetMin || budgetMax) {
-              minBudget = parseInt(budgetMin || '0');
-              maxBudget = parseInt(budgetMax || '999999999');
-              conditions.push(
-                and(
-                  gte(pitches.estimatedBudget, minBudget),
-                  lte(pitches.estimatedBudget, maxBudget)
-                )
-              );
-            }
-            
-            // Apply search filter using ilike for case-insensitive search
-            if (searchQuery) {
-              conditions.push(
-                or(
-                  ilike(pitches.title, `%${searchQuery}%`),
-                  ilike(pitches.logline, `%${searchQuery}%`),
-                  ilike(pitches.shortSynopsis, `%${searchQuery}%`)
-                )
-              );
-            }
-            
-            // Apply all conditions
-            query = query.where(and(...conditions));
+              
+              // Apply multi-format filter
+              if (formats.length > 0) {
+                if (!formats.some(f => pitch.format?.toLowerCase() === f.toLowerCase())) {
+                  return false;
+                }
+              }
+              
+              // Apply creator type filter
+              if (creatorTypes.length > 0) {
+                if (!creatorTypes.some(t => pitch.creator?.userType?.toLowerCase() === t.toLowerCase())) {
+                  return false;
+                }
+              }
+              
+              // Apply NDA filter
+              if (hasNDA === 'true' && !pitch.requireNDA) {
+                return false;
+              }
+              
+              // Apply seeking investment filter
+              if (seekingInvestment === 'true' && !pitch.seekingInvestment) {
+                return false;
+              }
+              
+              // Apply budget range filter
+              if (budgetMin || budgetMax) {
+                const minBudget = parseInt(budgetMin || '0');
+                const maxBudget = parseInt(budgetMax || '999999999');
+                const pitchBudget = pitch.estimatedBudget || 0;
+                if (pitchBudget < minBudget || pitchBudget > maxBudget) {
+                  return false;
+                }
+              }
+              
+              // Apply search filter
+              if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                const titleMatch = pitch.title?.toLowerCase().includes(query);
+                const loglineMatch = pitch.logline?.toLowerCase().includes(query);
+                const synopsisMatch = pitch.shortSynopsis?.toLowerCase().includes(query);
+                if (!titleMatch && !loglineMatch && !synopsisMatch) {
+                  return false;
+                }
+              }
+              
+              return true;
+            });
             
             // Apply sorting using the mapped values
-            switch (actualSortBy) {
-              case 'alphabetical':
-                query = actualOrder === 'asc' 
-                  ? query.orderBy(asc(pitches.title))
-                  : query.orderBy(desc(pitches.title));
-                break;
-              case 'date':
-                query = actualOrder === 'asc' 
-                  ? query.orderBy(asc(pitches.createdAt))
-                  : query.orderBy(desc(pitches.createdAt));
-                break;
-              case 'budget':
-                query = actualOrder === 'asc' 
-                  ? query.orderBy(asc(pitches.estimatedBudget))
-                  : query.orderBy(desc(pitches.estimatedBudget));
-                break;
-              case 'views':
-                query = actualOrder === 'asc' 
-                  ? query.orderBy(asc(pitches.viewCount))
-                  : query.orderBy(desc(pitches.viewCount));
-                break;
-              case 'likes':
-                query = actualOrder === 'asc' 
-                  ? query.orderBy(asc(pitches.likeCount))
-                  : query.orderBy(desc(pitches.likeCount));
-                break;
-              default:
-                // Default to newest
-                query = query.orderBy(desc(pitches.createdAt));
-                break;
-            }
-            
-            // Get total count for pagination (include join if filtering by creator type)
-            let countQuery = db.select({ count: sql<number>`count(*)::int` })
-              .from(pitches);
+            filteredPitches.sort((a, b) => {
+              const orderMultiplier = actualOrder === 'asc' ? 1 : -1;
               
-            if (creatorTypes.length > 0) {
-              countQuery = countQuery.leftJoin(users, eq(pitches.userId, users.id));
-            }
+              switch (actualSortBy) {
+                case 'alphabetical':
+                  return orderMultiplier * (a.title || '').localeCompare(b.title || '');
+                case 'date':
+                  return orderMultiplier * (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                case 'budget':
+                  return orderMultiplier * ((b.estimatedBudget || 0) - (a.estimatedBudget || 0));
+                case 'views':
+                  return orderMultiplier * ((b.viewCount || 0) - (a.viewCount || 0));
+                case 'likes':
+                  return orderMultiplier * ((b.likeCount || 0) - (a.likeCount || 0));
+                default:
+                  // Default to newest
+                  return orderMultiplier * (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              }
+            });
             
-            countQuery = countQuery.where(and(...conditions));
-            const [{ count: total }] = await countQuery;
-            
-            // Add pagination
-            query = query.limit(limit).offset(offset);
-            
-            const results = await query;
+            // Apply pagination
+            const total = filteredPitches.length;
+            const paginatedPitches = filteredPitches.slice(offset, offset + limit);
             
             return {
-              pitches: results,
+              pitches: paginatedPitches,
               pagination: {
                 total,
                 page: Math.floor(offset / limit) + 1,
@@ -2219,8 +2138,8 @@ const handler = async (request: Request): Promise<Response> => {
                 formats,
                 stages,
                 searchQuery,
-                budgetMin: minBudget,
-                budgetMax: maxBudget
+                budgetMin: parseInt(budgetMin || '0'),
+                budgetMax: parseInt(budgetMax || '999999999')
               }
             };
           },
