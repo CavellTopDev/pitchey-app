@@ -41,6 +41,12 @@ export class WebSocketIntegrationService {
       // Initialize all WebSocket services
       console.log("[WebSocket Integration] Initializing WebSocket services...");
 
+      // Initialize Redis WebSocket service (delay to allow Redis connection)
+      setTimeout(async () => {
+        await webSocketRedisService.initialize(pitcheyWebSocketServer);
+        console.log("[WebSocket Integration] Redis WebSocket service initialized");
+      }, 3000); // 3 second delay
+
       // Services are already initialized in their constructors
       // This is where we could add any additional setup if needed
 

@@ -38,17 +38,34 @@ export class WebSocketRedisService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  private webSocketService: any = null;
 
   constructor() {
-    this.setupRedisSubscriptions();
+    // Don't setup subscriptions immediately - wait for Redis connection
+  }
+
+  /**
+   * Initialize Redis WebSocket service with main WebSocket service
+   */
+  async initialize(webSocketService?: any): Promise<void> {
+    this.webSocketService = webSocketService;
+    await this.setupRedisSubscriptions();
   }
 
   /**
    * Setup Redis Pub/Sub subscriptions
    */
   private async setupRedisSubscriptions(): Promise<void> {
+    // Wait for Redis to connect
+    let retries = 0;
+    while (!redisService.isEnabled() && retries < 10) {
+      console.log(`[WebSocket Redis] Waiting for Redis connection... (${retries + 1}/10)`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      retries++;
+    }
+
     if (!redisService.isEnabled()) {
-      console.warn("[WebSocket Redis] Redis not enabled, pub/sub features will be limited");
+      console.warn("[WebSocket Redis] Redis not available after waiting, pub/sub features will be limited");
       return;
     }
 
@@ -74,21 +91,63 @@ export class WebSocketRedisService {
   }
 
   /**
-   * Subscribe to a Redis channel
+   * Subscribe to a Redis channel (using message polling for Upstash compatibility)
    */
   async subscribe(channel: string, callback: (message: WSMessage) => Promise<void>, pattern = false): Promise<void> {
     try {
       this.subscriptions.set(channel, { channel, callback, pattern });
       
-      // In a real Redis implementation, you would use:
-      // await redis.subscribe(channel, callback);
-      // For now, we'll simulate the subscription
+      // Start polling for messages on this channel
+      this.startChannelPolling(channel, callback);
       
       console.log(`[WebSocket Redis] Subscribed to channel: ${channel}`);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to subscribe to ${channel}:`, error);
       captureException(error, { service: 'WebSocketRedis' });
     }
+  }
+
+  /**
+   * Start polling for messages on a channel (Upstash-compatible approach)
+   */
+  private async startChannelPolling(channel: string, callback: (message: WSMessage) => Promise<void>): Promise<void> {
+    const pollInterval = 5000; // 5 seconds
+    
+    const poll = async () => {
+      if (!this.subscriptions.has(channel)) {
+        return; // Subscription was removed
+      }
+
+      try {
+        // Get messages from channel using key pattern matching
+        const messagePattern = `pitchey:message:${channel}:*`;
+        const messageKeys = await redisService.keys(messagePattern);
+        
+        if (messageKeys.length > 0) {
+          // Process messages in chronological order
+          const sortedKeys = messageKeys.sort();
+          
+          for (const key of sortedKeys) {
+            const messageData = await redisService.get(key);
+            if (messageData && messageData.message) {
+              await callback(messageData.message);
+              // Remove processed message
+              await redisService.del(key);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`[WebSocket Redis] Error polling channel ${channel}:`, error);
+      }
+
+      // Schedule next poll if still subscribed
+      if (this.subscriptions.has(channel)) {
+        setTimeout(poll, pollInterval);
+      }
+    };
+
+    // Start polling
+    setTimeout(poll, pollInterval);
   }
 
   /**
@@ -118,14 +177,19 @@ export class WebSocketRedisService {
     }
 
     try {
-      // In a real Redis implementation:
-      // await redis.publish(channel, JSON.stringify(message));
+      // Use Redis native publish for real Pub/Sub
+      const subscriberCount = await redisService.publish(channel, message);
       
-      // For demonstration, we'll use Redis set operation
-      const publishKey = `pitchey:pubsub:${channel}:${Date.now()}`;
-      await redisService.set(publishKey, message, 60); // 1 minute TTL
+      // Also store in Redis cache for message queuing when no subscribers
+      const messageKey = `pitchey:message:${channel}:${Date.now()}`;
+      await redisService.set(messageKey, {
+        channel,
+        message,
+        timestamp: Date.now(),
+        subscriberCount
+      }, 300); // 5 minutes TTL
       
-      console.log(`[WebSocket Redis] Published message to ${channel}:`, message.type);
+      console.log(`[WebSocket Redis] Published to ${channel} (${subscriberCount} subscribers):`, message.type);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to publish to ${channel}:`, error);
       captureException(error, { service: 'WebSocketRedis' });
@@ -158,7 +222,10 @@ export class WebSocketRedisService {
     console.log("[WebSocket Redis] Received global announcement:", message.payload);
     
     // Forward to WebSocket server for broadcasting to all connected clients
-    // This would be handled by the WebSocket server instance
+    if (this.webSocketService && this.webSocketService.broadcastToAll) {
+      await this.webSocketService.broadcastToAll(message);
+      console.log("[WebSocket Redis] Broadcasted global announcement to all clients");
+    }
   }
 
   /**
@@ -176,6 +243,12 @@ export class WebSocketRedisService {
     
     // Update local presence cache and broadcast to relevant clients
     await this.updatePresenceCache(userId, status, timestamp);
+    
+    // Broadcast presence update to all connected clients
+    if (this.webSocketService && this.webSocketService.broadcastToAll) {
+      await this.webSocketService.broadcastToAll(message);
+      console.log(`[WebSocket Redis] Broadcasted presence update for user ${userId}: ${status}`);
+    }
   }
 
   /**
