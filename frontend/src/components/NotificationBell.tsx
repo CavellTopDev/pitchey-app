@@ -113,7 +113,7 @@ export function NotificationBell({
         {unreadCount > 0 && (
           <div className={`
             absolute -top-1 -right-1 bg-red-500 text-white text-xs font-medium rounded-full 
-            flex items-center justify-center font-mono
+            flex items-center justify-center font-mono z-10
             ${badgeSizeClasses[size]}
             ${isAnimating ? 'animate-bounce' : ''}
           `}>
@@ -122,9 +122,9 @@ export function NotificationBell({
         )}
         
         {/* Animated ping indicator for new notifications */}
-        {hasNewNotifications && (
+        {hasNewNotifications && !unreadCount && (
           <div className={`
-            absolute -top-1 -right-1 bg-blue-400 rounded-full animate-ping
+            absolute -top-1 -right-1 bg-blue-400 rounded-full animate-ping z-5
             ${badgeSizeClasses[size]}
           `} />
         )}
@@ -132,13 +132,15 @@ export function NotificationBell({
 
       {/* Label for desktop */}
       {showLabel && (
-        <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 mt-1">
-          <span className="text-xs text-gray-500">Notifications</span>
-          {unreadCount > 0 && (
-            <div className="text-xs text-red-600 font-medium text-center">
-              {unreadCount} new
-            </div>
-          )}
+        <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 mt-2 top-full">
+          <div className="whitespace-nowrap text-center">
+            <span className="text-xs text-gray-500 block">Notifications</span>
+            {unreadCount > 0 && (
+              <span className="text-xs text-red-600 font-medium block">
+                {unreadCount} new
+              </span>
+            )}
+          </div>
         </div>
       )}
 

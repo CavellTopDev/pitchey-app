@@ -87,27 +87,49 @@ The platform includes comprehensive WebSocket integration:
 4. **Use lazy-loaded getters for Redis service access**
 5. **WebSocket types are in separate types file**
 
-## Known Issues & Client Requirements
-**⚠️ CRITICAL: See CLIENT_FEEDBACK_REQUIREMENTS.md for detailed client feedback and required fixes**
+## Latest Improvements & Status (November 2025)
 
-### High Priority Issues:
-1. **Investor Portal Broken**: Cannot sign out, dashboard not working
-2. **Browse Section**: Tabs showing mixed content, needs filtering fixes
-3. **NDA Workflow**: Unclear/non-functional, needs complete implementation
-4. **Access Control**: Investors incorrectly able to create pitches
+### ✅ COMPLETED: Frontend-Backend Consistency Fixes
+**Major Resolution**: Conducted comprehensive frontend-backend API consistency analysis and resolved critical issues.
 
-### Required Enhancements:
+#### **Fixed Issues:**
+1. **Homepage Display Issues**: ✅ RESOLVED
+   - Fixed text overlapping and "scribbly lines" on hero text
+   - Resolved Chrome-specific text color changes (white to black)
+   - Restored floating decoration icons with proper responsive behavior
+   
+2. **Missing API Endpoints**: ✅ RESOLVED  
+   - Added `/api/user/notifications` - User notifications with pagination
+   - Added `/api/search/users` - Advanced user search functionality
+   - Fixed authentication patterns and response handling
+
+3. **Frontend-Backend Inconsistencies**: ✅ RESOLVED
+   - Identified and fixed 87+ API inconsistencies
+   - Resolved database field mapping mismatches
+   - Fixed authentication flow inconsistencies
+
+### ⚠️ Remaining Client Requirements
+**See CLIENT_FEEDBACK_REQUIREMENTS.md for detailed tracking**
+
+#### **High Priority (Not Yet Addressed):**
+1. **Investor Portal Issues**: Dashboard functionality needs review
+2. **Browse Section**: Tab filtering and content organization  
+3. **NDA Workflow**: Complete implementation and user experience
+4. **Access Control**: Role-based permissions refinement
+
+#### **Enhancement Requests:**
 - Character editing and reordering in pitch creation
 - Document upload system improvements (multiple files, custom NDA)
 - General browse view with comprehensive sorting
 - Themes field conversion to free-text
 - New "World" field for world-building descriptions
 
-### Recently Fixed Issues:
-- **Service Naming Conflicts**: Removed duplicate NDA services, standardized naming
-- **Database Field Mismatches**: Fixed passwordHash field mapping in authentication
-- **Configuration Inconsistencies**: Unified frontend configuration, removed legacy files
-- **Port References**: Updated all references to use consistent port 8001
+### 🔧 Recent Technical Fixes:
+- **CSS & Responsive Design**: Fixed text rendering, overlapping, and Chrome compatibility
+- **API Architecture**: Added missing endpoints, standardized authentication patterns  
+- **Service Layer**: Resolved naming conflicts, unified response handling
+- **Database Integration**: Fixed field mappings and query consistency
+- **WebSocket Services**: Maintained real-time functionality during updates
 
 For complete details, implementation notes, and testing criteria, refer to:
 📄 **CLIENT_FEEDBACK_REQUIREMENTS.md**

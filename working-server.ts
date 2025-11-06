@@ -11782,6 +11782,158 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // === MISSING USER/DASHBOARD ENDPOINTS === 
+    // Added to fix frontend-backend inconsistencies
+
+    // GET /api/user/notifications - Get user notifications
+    if (url.pathname === "/api/user/notifications" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+        const unreadOnly = url.searchParams.get('unread') === 'true';
+
+        // Get notifications for the user
+        const notificationsQuery = db
+          .select({
+            id: notifications.id,
+            type: notifications.type,
+            title: notifications.title,
+            message: notifications.message,
+            relatedId: notifications.relatedId,
+            relatedType: notifications.relatedType,
+            isRead: notifications.isRead,
+            createdAt: notifications.createdAt
+          })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, authResult.user.id),
+              unreadOnly ? eq(notifications.isRead, false) : undefined
+            )
+          )
+          .orderBy(desc(notifications.createdAt))
+          .limit(limit)
+          .offset(offset);
+
+        const results = await notificationsQuery;
+        
+        // Get total count
+        const totalQuery = await db
+          .select({ count: sql`count(*)::integer` })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, authResult.user.id),
+              unreadOnly ? eq(notifications.isRead, false) : undefined
+            )
+          );
+
+        const total = totalQuery[0]?.count || 0;
+
+        return successResponse({
+          notifications: results,
+          total,
+          page,
+          limit,
+          unreadCount: unreadOnly ? total : results.filter(n => !n.isRead).length
+        });
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+        return errorResponse("Failed to fetch notifications");
+      }
+    }
+
+    // GET /api/search/users - Search users
+    if (url.pathname === "/api/search/users" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        const query = url.searchParams.get('q') || '';
+        const userTypes = url.searchParams.get('userTypes')?.split(',') || [];
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+
+        // Build search query
+        const usersQuery = db
+          .select({
+            id: users.id,
+            email: users.email,
+            username: users.username,
+            userType: users.userType,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            companyName: users.companyName,
+            bio: users.bio,
+            location: users.location,
+            profileImageUrl: users.profileImageUrl,
+            emailVerified: users.emailVerified,
+            createdAt: users.createdAt
+          })
+          .from(users)
+          .where(
+            and(
+              query ? or(
+                ilike(users.username, `%${query}%`),
+                ilike(users.firstName, `%${query}%`),
+                ilike(users.lastName, `%${query}%`),
+                ilike(users.companyName, `%${query}%`)
+              ) : undefined,
+              userTypes.length > 0 ? inArray(users.userType, userTypes) : undefined,
+              eq(users.isActive, true)
+            )
+          )
+          .orderBy(desc(users.createdAt))
+          .limit(limit)
+          .offset(offset);
+
+        const results = await usersQuery;
+        
+        // Get total count
+        const totalQuery = await db
+          .select({ count: sql`count(*)::integer` })
+          .from(users)
+          .where(
+            and(
+              query ? or(
+                ilike(users.username, `%${query}%`),
+                ilike(users.firstName, `%${query}%`),
+                ilike(users.lastName, `%${query}%`),
+                ilike(users.companyName, `%${query}%`)
+              ) : undefined,
+              userTypes.length > 0 ? inArray(users.userType, userTypes) : undefined,
+              eq(users.isActive, true)
+            )
+          );
+
+        const total = totalQuery[0]?.count || 0;
+
+        return successResponse({
+          result: {
+            items: results.map(user => ({
+              ...user,
+              verified: user.emailVerified
+            })),
+            total,
+            page,
+            pageSize: limit,
+            hasMore: page * limit < total
+          }
+        });
+      } catch (error) {
+        console.error("Error searching users:", error);
+        return errorResponse("Failed to search users");
+      }
+    }
 
     // === DEFAULT: Route not found ===
     return notFoundResponse(`Endpoint ${method} ${url.pathname} not found`);
