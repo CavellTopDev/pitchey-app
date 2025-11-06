@@ -6671,7 +6671,7 @@ const handler = async (request: Request): Promise<Response> => {
         if (status) filters.status = status;
         if (requestType) filters.requestType = requestType;
 
-        let allRequests = [];
+        const allRequests = [];
 
         if (!role || role === 'all' || role === 'incoming') {
           const incomingRequests = await InfoRequestService.getIncomingRequests(user.id, filters);
@@ -7413,7 +7413,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
 
         return createdResponse({
-          message: newMessage,
+          data: newMessage,
           message: "Message sent successfully"
         });
       } catch (error) {
@@ -7682,7 +7682,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
 
         return createdResponse({
-          message: message[0],
+          data: message[0],
           message: "Message sent successfully"
         });
       } catch (error) {
@@ -8210,7 +8210,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         // Calculate time range for real-time data
         const now = new Date();
-        let startTime = new Date();
+        const startTime = new Date();
         
         switch (timeRange) {
           case '1h':
@@ -8235,7 +8235,7 @@ const handler = async (request: Request): Promise<Response> => {
           
           const pitchIds = userPitches.map(p => p.id);
           
-          let realtimeData = {
+          const realtimeData = {
             totalViews: 0,
             totalLikes: 0,
             totalNDARequests: 0,

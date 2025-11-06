@@ -29,10 +29,11 @@ export interface ErrorDetails {
 
 // CORS configuration - centralized
 const ALLOWED_ORIGINS = [
-  'https://pitchey.netlify.app',
-  'https://pitchey.com',
-  'http://localhost:5173',
-  'http://localhost:3000'
+  'https://pitchey.pages.dev',     // Primary production (Cloudflare Pages)
+  'https://pitchey.netlify.app',   // Legacy production (Netlify)
+  'https://pitchey.com',           // Custom domain (future)
+  'http://localhost:5173',         // Local development (Vite)
+  'http://localhost:3000'          // Local development (alternative)
 ];
 
 // Global context to store the current request origin
@@ -55,7 +56,7 @@ export function getCorsHeaders(origin?: string): Record<string, string> {
   const isAllowedOrigin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin);
   
   return {
-    "Access-Control-Allow-Origin": isAllowedOrigin ? requestOrigin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Origin": isAllowedOrigin ? requestOrigin : ALLOWED_ORIGINS[0], // defaults to pitchey.pages.dev
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Credentials": "true",

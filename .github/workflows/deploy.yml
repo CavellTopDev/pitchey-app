@@ -119,7 +119,7 @@ jobs:
             --token="$DENO_DEPLOY_TOKEN" \
             --env="DATABASE_URL=$DATABASE_URL" \
             --env="JWT_SECRET=$JWT_SECRET" \
-            --env="FRONTEND_URL=https://pitchey.netlify.app" \
+            --env="FRONTEND_URL=https://pitchey.pages.dev" \
             --env="UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" \
             --env="UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" \
             --env="CACHE_ENABLED=true" \
