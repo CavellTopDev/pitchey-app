@@ -95,7 +95,7 @@
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-tight);
     letter-spacing: var(--letter-spacing-tight);
-    color: var(--color-text-primary);
+    color: white; /* Force white for hero section */
   }
   
   .text-hero-sub {
@@ -103,7 +103,7 @@
     font-weight: var(--font-weight-normal);
     line-height: var(--line-height-normal);
     letter-spacing: var(--letter-spacing-normal);
-    color: var(--color-text-secondary);
+    color: rgba(255, 255, 255, 0.95); /* Force white with slight transparency for hero section */
   }
   
   .text-section-title {
@@ -308,14 +308,26 @@
   /* Clean text shadows for better readability on gradients */
   .text-shadow-clean {
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    -webkit-text-stroke: 0; /* Chrome-specific fix */
   }
 
   .text-shadow-strong {
     text-shadow: 0 4px 8px rgba(0,0,0,0.6);
+    -webkit-text-stroke: 0; /* Chrome-specific fix */
   }
 
   .text-shadow-none {
     text-shadow: none;
+    -webkit-text-stroke: 0;
+  }
+
+  /* Browser-specific hero text fixes */
+  @supports (-webkit-text-stroke: 0) {
+    /* Chrome and Safari specific fixes */
+    .text-hero-main, .text-hero-sub {
+      -webkit-text-fill-color: white !important;
+      -webkit-text-stroke: 0;
+    }
   }
 
   /* Override problematic drop-shadow utilities */

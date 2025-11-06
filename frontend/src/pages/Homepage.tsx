@@ -185,7 +185,7 @@ export default function Homepage() {
               Where Stories
               <span className="bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-300"> Find Life</span>
             </h1>
-            <p className="text-hero-sub mb-12 max-w-3xl mx-auto text-white/95 text-shadow-clean animate-fade-in-delay">
+            <p className="text-hero-sub mb-12 max-w-3xl mx-auto text-shadow-clean animate-fade-in-delay">
               The premier marketplace where pitching meets opportunity. 
               Share your vision, discover original stories, and connect with producers and investors shaping the future of film, television, and new media.
             </p>
