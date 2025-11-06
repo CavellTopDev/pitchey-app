@@ -305,6 +305,28 @@
     hyphens: auto;
   }
 
+  /* Clean text shadows for better readability on gradients */
+  .text-shadow-clean {
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  }
+
+  .text-shadow-strong {
+    text-shadow: 0 4px 8px rgba(0,0,0,0.6);
+  }
+
+  .text-shadow-none {
+    text-shadow: none;
+  }
+
+  /* Override problematic drop-shadow utilities */
+  .drop-shadow-clean {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  .drop-shadow-strong {
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+  }
+
   /* Mobile-specific text fixes */
   @media (max-width: 768px) {
     /* Ensure proper spacing on mobile */
