@@ -107,7 +107,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: denoland/setup-deno@v1
+      - uses: denoland/setup-deno@v2
         with:
           deno-version: ${{ env.DENO_VERSION }}
       
@@ -291,9 +291,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: denoland/setup-deno@v1
+      - uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: v2.5.0
       
       - name: Install deployctl
         run: deno install -A --global jsr:@deno/deployctl@1.x
