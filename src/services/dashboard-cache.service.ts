@@ -352,7 +352,7 @@ export class DashboardCacheService {
     }
   }
 
-  // Get trending pitches with caching
+  // Get trending pitches with caching - FIXED: Uses working PitchService method and sorts by engagement
   static async getTrendingPitches(limit: number = 10): Promise<any[]> {
     const cacheKey = `trending:pitches:${limit}`;
     
@@ -365,27 +365,25 @@ export class DashboardCacheService {
         }
       }
 
-      // Calculate trending pitches (views in last 24 hours + likes)
-      const oneDayAgo = new Date();
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      console.log("🔥 TRENDING v2.0: Using working PitchService method + trending sort");
+      
+      // Import PitchService here to avoid circular dependencies
+      const { PitchService } = await import('./pitch.service.ts');
+      
+      // Use the working PitchService method to get all published pitches
+      const allPitches = await PitchService.getPublicPitchesWithUserType(limit * 3); // Get more to sort
+      
+      // Sort by engagement score: (view_count + like_count * 2) for trending algorithm
+      const trendingPitches = allPitches
+        .sort((a, b) => {
+          const scoreA = (a.viewCount || 0) + (a.likeCount || 0) * 2;
+          const scoreB = (b.viewCount || 0) + (b.likeCount || 0) * 2;
+          return scoreB - scoreA;
+        })
+        .slice(0, limit);
 
-      const trendingPitches = await db.query.pitches.findMany({
-        where: eq(pitches.status, 'published'),
-        orderBy: [desc(sql`(view_count + like_count * 2)`)],
-        limit,
-        with: {
-          creator: {
-            columns: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-              userType: true,
-            },
-          },
-        },
-      });
-
+      console.log(`🔥 Generated ${trendingPitches.length} trending pitches from ${allPitches.length} total pitches`);
+      
       // Cache for 3 minutes (only if Redis is available)
       if (this.redis?.isEnabled()) {
         try {

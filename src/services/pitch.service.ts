@@ -501,84 +501,87 @@ export class PitchService {
     }
   }
 
-  // NEW METHOD - bypass any caching issues
+  // SQL-BASED METHOD - bypasses Drizzle ORM schema issues
   static async getPublicPitchesWithUserType(limit = 10) {
-    console.log("🚀 FORCE NEW METHOD v4.0: Getting pitches with proper userTypes");
+    console.log("🚀 SQL-BASED METHOD v5.0: Getting pitches with direct SQL");
     
     try {
-      const results = await db
-        .select({
-          id: pitches.id,
-          title: pitches.title,
-          logline: pitches.logline,
-          genre: pitches.genre,
-          format: pitches.format,
-          formatCategory: pitches.formatCategory,
-          formatSubtype: pitches.formatSubtype,
-          customFormat: pitches.customFormat,
-          estimatedBudget: pitches.estimatedBudget,
-          status: pitches.status,
-          userId: pitches.userId,
-          viewCount: pitches.viewCount,
-          likeCount: pitches.likeCount,
-          ndaCount: pitches.ndaCount,
-          shortSynopsis: pitches.shortSynopsis,
-          requireNda: pitches.requireNda,
-          productionStage: pitches.productionStage,
-          seekingInvestment: pitches.seekingInvestment,
-          createdAt: pitches.createdAt,
-          updatedAt: pitches.updatedAt,
-          publishedAt: pitches.publishedAt,
-          // User join for proper creator info
-          creatorId: users.id,
-          creatorUsername: users.username,
-          creatorCompanyName: users.companyName,
-          creatorUserType: users.userType
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(eq(pitches.status, "published"))
-        .orderBy(desc(pitches.publishedAt))
-        .limit(limit);
+      const results = await db.execute(sql`
+        SELECT 
+          p.id,
+          p.title,
+          p.logline,
+          p.genre,
+          p.format,
+          p.format_category,
+          p.format_subtype,
+          p.custom_format,
+          p.estimated_budget,
+          p.status,
+          p.user_id,
+          p.view_count,
+          p.like_count,
+          p.nda_count,
+          p.short_synopsis,
+          p.require_nda,
+          p.production_stage,
+          p.seeking_investment,
+          p.created_at,
+          p.updated_at,
+          p.published_at,
+          u.id as creator_id,
+          u.username as creator_username,
+          u.company_name as creator_company_name,
+          u.user_type as creator_user_type
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.status = 'published'
+        ORDER BY p.published_at DESC
+        LIMIT ${limit}
+      `);
 
-      console.log(`Found ${results.length} pitches for public view`);
+      console.log(`Found ${results.rows.length} pitches for public view`);
       
-      const formatted = results.map(p => ({
+      const formatted = results.rows.map(p => ({
         id: p.id,
         title: p.title,
         logline: p.logline,
         genre: p.genre,
         format: p.format,
-        formatCategory: p.formatCategory,
-        formatSubtype: p.formatSubtype,
-        customFormat: p.customFormat,
-        estimatedBudget: p.estimatedBudget,
+        formatCategory: p.format_category,
+        formatSubtype: p.format_subtype,
+        customFormat: p.custom_format,
+        estimatedBudget: p.estimated_budget,
         status: p.status,
-        userId: p.userId,
-        viewCount: p.viewCount || 0,
-        likeCount: p.likeCount || 0,
-        ndaCount: p.ndaCount || 0,
-        shortSynopsis: p.shortSynopsis,
-        requireNDA: p.requireNda || false,
-        productionStage: p.productionStage || 'concept',
-        seekingInvestment: p.seekingInvestment !== null ? p.seekingInvestment : false,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        publishedAt: p.publishedAt,
+        userId: p.user_id,
+        viewCount: p.view_count || 0,
+        likeCount: p.like_count || 0,
+        ndaCount: p.nda_count || 0,
+        shortSynopsis: p.short_synopsis,
+        requireNDA: p.require_nda || false,
+        productionStage: p.production_stage || 'concept',
+        seekingInvestment: p.seeking_investment !== null ? p.seeking_investment : false,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        publishedAt: p.published_at,
         creator: {
-          id: p.creatorId,
-          username: p.creatorUsername,
-          companyName: p.creatorCompanyName,
-          userType: p.creatorUserType // This is the key for PURPLE glow!
+          id: p.creator_id,
+          username: p.creator_username,
+          companyName: p.creator_company_name,
+          userType: p.creator_user_type
         }
       }));
       
       // Debug logging
       if (formatted.length > 0) {
-        console.log("First pitch creator:", JSON.stringify(formatted[0].creator, null, 2));
+        console.log("✅ First pitch sample:", {
+          id: formatted[0].id,
+          title: formatted[0].title,
+          creator: formatted[0].creator
+        });
         const productionCount = formatted.filter(p => p.creator.userType === "production").length;
         const creatorCount = formatted.filter(p => p.creator.userType === "creator").length;
-        console.log(`Production pitches (PURPLE): ${productionCount}, Creator pitches (BLUE): ${creatorCount}`);
+        console.log(`🎨 Production pitches (PURPLE): ${productionCount}, Creator pitches (BLUE): ${creatorCount}`);
       }
       
       return formatted;
