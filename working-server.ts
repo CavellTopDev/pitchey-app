@@ -3850,6 +3850,94 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // GET /api/creator/funding/overview - Get funding overview for creator
+    if (url.pathname === "/api/creator/funding/overview" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+
+        const user = authResult.user;
+
+        // Mock funding data for now - can be enhanced later with real funding table
+        const fundingData = {
+          totalRaised: 0,
+          currentCampaigns: 0,
+          completedCampaigns: 0,
+          pendingWithdrawals: 0,
+          recentTransactions: [],
+          fundingSources: [
+            { source: 'Direct Investment', amount: 0, percentage: 0 },
+            { source: 'Crowdfunding', amount: 0, percentage: 0 },
+            { source: 'Grants', amount: 0, percentage: 0 }
+          ],
+          monthlyProgress: []
+        };
+
+        return successResponse(fundingData);
+      } catch (error) {
+        console.error("Error fetching funding overview:", error);
+        return serverErrorResponse("Failed to fetch funding overview");
+      }
+    }
+
+    // GET /api/analytics/user - Get user analytics with presets
+    if (url.pathname === "/api/analytics/user" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+
+        const user = authResult.user;
+        const preset = url.searchParams.get('preset') || 'week';
+
+        // Mock analytics data based on preset
+        const analyticsData = {
+          period: preset,
+          totalViews: 0,
+          totalLikes: 0,
+          totalShares: 0,
+          engagementRate: 0,
+          viewsData: [],
+          likesData: [],
+          sharesData: [],
+          topContent: [],
+          audienceInsights: {
+            demographics: [],
+            interests: [],
+            locations: []
+          }
+        };
+
+        return successResponse(analyticsData);
+      } catch (error) {
+        console.error("Error fetching user analytics:", error);
+        return serverErrorResponse("Failed to fetch user analytics");
+      }
+    }
+
+    // GET /api/ndas/stats - Get NDA statistics
+    if (url.pathname === "/api/ndas/stats" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+
+        const user = authResult.user;
+
+        // Get NDA stats from database
+        const ndaStats = await NDAService.getUserNDAStats(user.id);
+
+        return successResponse(ndaStats);
+      } catch (error) {
+        console.error("Error fetching NDA stats:", error);
+        return serverErrorResponse("Failed to fetch NDA stats");
+      }
+    }
+
     // GET /api/creator/followers - Get list of followers
     if (url.pathname === "/api/creator/followers" && method === "GET") {
       try {
