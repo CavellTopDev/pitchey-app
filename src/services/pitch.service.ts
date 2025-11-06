@@ -436,52 +436,92 @@ export class PitchService {
         return null;
       }
       
-      const [pitch] = await db
-        .select({
-          id: pitches.id,
-          title: pitches.title,
-          logline: pitches.logline,
-          genre: pitches.genre,
-          format: pitches.format,
-          formatCategory: pitches.formatCategory,
-          formatSubtype: pitches.formatSubtype,
-          customFormat: pitches.customFormat,
-          budgetBracket: pitches.budgetBracket,
-          estimatedBudget: pitches.estimatedBudget,
-          status: pitches.status,
-          userId: pitches.userId,
-          viewCount: pitches.viewCount,
-          likeCount: pitches.likeCount,
-          ndaCount: pitches.ndaCount,
-          shortSynopsis: pitches.shortSynopsis,
-          longSynopsis: pitches.longSynopsis,
-          requireNDA: pitches.requireNda,
-          createdAt: pitches.createdAt,
-          updatedAt: pitches.updatedAt,
-          publishedAt: pitches.publishedAt,
-          targetAudience: pitches.targetAudience,
-          characters: pitches.characters,
-          themes: pitches.themes,
-          productionTimeline: pitches.productionTimeline,
-          titleImage: pitches.titleImage,
-          lookbookUrl: pitches.lookbookUrl,
-          pitchDeckUrl: pitches.pitchDeckUrl,
-          scriptUrl: pitches.scriptUrl,
-          trailerUrl: pitches.trailerUrl,
-          creator: {
-            id: users.id,
-            username: users.username,
-            companyName: users.companyName,
-            userType: users.userType,
-          },
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(and(
-          eq(pitches.id, pitchId),
-          eq(pitches.status, "published")
-        ))
-        .limit(1);
+      // Use SQL-based approach to avoid Drizzle ORM array column issues
+      const result = await db.execute(sql`
+        SELECT 
+          p.id,
+          p.title,
+          p.logline,
+          p.genre,
+          p.format,
+          p.format_category as "formatCategory",
+          p.format_subtype as "formatSubtype",
+          p.custom_format as "customFormat",
+          p.budget_bracket as "budgetBracket",
+          p.estimated_budget as "estimatedBudget",
+          p.status,
+          p.user_id as "userId",
+          p.view_count as "viewCount",
+          p.like_count as "likeCount",
+          p.nda_count as "ndaCount",
+          p.short_synopsis as "shortSynopsis",
+          p.long_synopsis as "longSynopsis",
+          p.require_nda as "requireNDA",
+          p.created_at as "createdAt",
+          p.updated_at as "updatedAt",
+          p.published_at as "publishedAt",
+          p.target_audience as "targetAudience",
+          COALESCE(p.characters, '[]'::jsonb) as characters,
+          p.themes,
+          p.production_timeline as "productionTimeline",
+          p.title_image as "titleImage",
+          p.lookbook_url as "lookbookUrl",
+          p.pitch_deck_url as "pitchDeckUrl",
+          p.script_url as "scriptUrl",
+          p.trailer_url as "trailerUrl",
+          u.id as "creator_id",
+          u.username as "creator_username", 
+          u.company_name as "creator_companyName",
+          u.user_type as "creator_userType"
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.id = ${pitchId} AND p.status = 'published'
+        LIMIT 1
+      `);
+      
+      if (!result.rows || result.rows.length === 0) {
+        return null;
+      }
+      
+      const row = result.rows[0] as any;
+      const pitch = {
+        id: row.id,
+        title: row.title,
+        logline: row.logline,
+        genre: row.genre,
+        format: row.format,
+        formatCategory: row.formatCategory,
+        formatSubtype: row.formatSubtype,
+        customFormat: row.customFormat,
+        budgetBracket: row.budgetBracket,
+        estimatedBudget: row.estimatedBudget,
+        status: row.status,
+        userId: row.userId,
+        viewCount: row.viewCount,
+        likeCount: row.likeCount,
+        ndaCount: row.ndaCount,
+        shortSynopsis: row.shortSynopsis,
+        longSynopsis: row.longSynopsis,
+        requireNDA: row.requireNDA,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        publishedAt: row.publishedAt,
+        targetAudience: row.targetAudience,
+        characters: row.characters || [],
+        themes: row.themes,
+        productionTimeline: row.productionTimeline,
+        titleImage: row.titleImage,
+        lookbookUrl: row.lookbookUrl,
+        pitchDeckUrl: row.pitchDeckUrl,
+        scriptUrl: row.scriptUrl,
+        trailerUrl: row.trailerUrl,
+        creator: {
+          id: row.creator_id,
+          username: row.creator_username,
+          companyName: row.creator_companyName,
+          userType: row.creator_userType,
+        },
+      };
 
       // Additional validation of returned data
       if (pitch && (!pitch.id || !pitch.userId || !pitch.title)) {
@@ -763,15 +803,78 @@ export class PitchService {
   
   static async getUserPitches(userId: number, includeStats = false) {
     try {
-      // Simple query without joins to avoid relation issues
-      const userPitches = await db
-        .select()
-        .from(pitches)
-        .where(eq(pitches.userId, userId))
-        .orderBy(desc(pitches.updatedAt));
+      // Use SQL-based approach to avoid Drizzle ORM array column issues
+      const result = await db.execute(sql`
+        SELECT 
+          p.id,
+          p.title,
+          p.logline,
+          p.genre,
+          p.format,
+          p.format_category as "formatCategory",
+          p.format_subtype as "formatSubtype",
+          p.custom_format as "customFormat",
+          p.budget_bracket as "budgetBracket",
+          p.estimated_budget as "estimatedBudget",
+          p.status,
+          p.user_id as "userId",
+          p.view_count as "viewCount",
+          p.like_count as "likeCount",
+          p.nda_count as "ndaCount",
+          p.short_synopsis as "shortSynopsis",
+          p.long_synopsis as "longSynopsis",
+          p.require_nda as "requireNDA",
+          p.created_at as "createdAt",
+          p.updated_at as "updatedAt",
+          p.published_at as "publishedAt",
+          p.target_audience as "targetAudience",
+          COALESCE(p.characters, '[]'::jsonb) as characters,
+          COALESCE(p.additional_media, '[]'::jsonb) as "additionalMedia",
+          p.themes,
+          p.production_timeline as "productionTimeline",
+          p.title_image as "titleImage",
+          p.lookbook_url as "lookbookUrl",
+          p.pitch_deck_url as "pitchDeckUrl",
+          p.script_url as "scriptUrl",
+          p.trailer_url as "trailerUrl"
+        FROM pitches p
+        WHERE p.user_id = ${userId}
+        ORDER BY p.updated_at DESC
+      `);
       
-      // Parse JSON fields for all pitches
-      const parsedPitches = userPitches.map(parsePitchJsonFields);
+      const parsedPitches = result.rows.map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        logline: row.logline,
+        genre: row.genre,
+        format: row.format,
+        formatCategory: row.formatCategory,
+        formatSubtype: row.formatSubtype,
+        customFormat: row.customFormat,
+        budgetBracket: row.budgetBracket,
+        estimatedBudget: row.estimatedBudget,
+        status: row.status,
+        userId: row.userId,
+        viewCount: row.viewCount,
+        likeCount: row.likeCount,
+        ndaCount: row.ndaCount,
+        shortSynopsis: row.shortSynopsis,
+        longSynopsis: row.longSynopsis,
+        requireNDA: row.requireNDA,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        publishedAt: row.publishedAt,
+        targetAudience: row.targetAudience,
+        characters: row.characters || [],
+        additionalMedia: row.additionalMedia || [],
+        themes: row.themes,
+        productionTimeline: row.productionTimeline,
+        titleImage: row.titleImage,
+        lookbookUrl: row.lookbookUrl,
+        pitchDeckUrl: row.pitchDeckUrl,
+        scriptUrl: row.scriptUrl,
+        trailerUrl: row.trailerUrl,
+      }));
       
       if (!includeStats) {
         return parsedPitches;
