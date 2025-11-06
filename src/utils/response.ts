@@ -30,7 +30,6 @@ export interface ErrorDetails {
 // CORS configuration - centralized
 const ALLOWED_ORIGINS = [
   'https://pitchey.pages.dev',     // Primary production (Cloudflare Pages)
-  'https://pitchey.netlify.app',   // Legacy production (Netlify)
   'https://pitchey.com',           // Custom domain (future)
   'http://localhost:5173',         // Local development (Vite)
   'http://localhost:3000'          // Local development (alternative)

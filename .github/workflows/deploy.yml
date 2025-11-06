@@ -155,29 +155,12 @@ jobs:
           NODE_ENV: production
         run: npm run build
 
-      - name: Netlify preflight diagnostics
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        run: |
-          npm i -g netlify-cli@17
-          echo "Netlify CLI: $(netlify --version)"
-          test -n "$NETLIFY_AUTH_TOKEN" || (echo "Missing NETLIFY_AUTH_TOKEN" && exit 1)
-          test -n "$NETLIFY_SITE_ID" || (echo "Missing NETLIFY_SITE_ID" && exit 1)
-          netlify api getSite --data '{"site_id": "'"$NETLIFY_SITE_ID"'"}' || true
-          netlify sites:info --json --site "$NETLIFY_SITE_ID" || true
-
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v3.0
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
         with:
-          publish-dir: './frontend/dist'
-          production-branch: main
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "Deploy from GitHub Actions"
-          enable-pull-request-comment: false
-          enable-commit-comment: true
-          overwrites-pull-request-comment: true
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 10
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: pitchey
+          directory: ./frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          wranglerVersion: '3'

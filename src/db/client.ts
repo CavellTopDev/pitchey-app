@@ -79,7 +79,7 @@ if (isLocalDb) {
   // Neon serverless with optimized HTTP client
   const neonClient = neon(connectionString, {
     fullResults: true,
-    fetchConnectionCache: true,  // Enable connection caching
+    // fetchConnectionCache: true,  // Removed - not supported in current version
   });
   
   // Wrap client with query monitoring
@@ -92,12 +92,12 @@ if (isLocalDb) {
       return result;
     } catch (error) {
       const duration = performance.now() - start;
-      DatabaseMetrics.recordQuery(query, duration, error.message);
+      DatabaseMetrics.recordQuery(query, duration, error instanceof Error ? error.message : String(error));
       throw error;
     }
   };
   
-  db = drizzleNeon(monitoredClient, { 
+  db = drizzleNeon(neonClient, { 
     schema,
     logger: process.env.NODE_ENV === "development"
   });

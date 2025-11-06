@@ -15,6 +15,7 @@ export class AnalyticsService {
   static async trackEvent(data: {
     eventType: string;
     userId?: number;
+    pitchId?: number;
     sessionId?: string;
     eventCategory?: string;
     eventData?: any;
@@ -27,6 +28,7 @@ export class AnalyticsService {
         .values({
           eventType: data.eventType,
           userId: data.userId,
+          pitchId: data.pitchId,
           sessionId: data.sessionId,
           eventCategory: data.eventCategory || 'general',
           eventData: data.eventData || {},
@@ -325,13 +327,10 @@ export class AnalyticsService {
     try {
       const [session] = await db.insert(userSessions)
         .values({
-          sessionId: data.sessionId,
+          id: data.sessionId,
           userId: data.userId,
           ipAddress: data.ipAddress,
           userAgent: data.userAgent,
-          entryPage: data.entryPage,
-          referrer: data.referrer,
-          startTime: new Date(),
           lastActivity: new Date()
         })
         .returning();
@@ -347,10 +346,9 @@ export class AnalyticsService {
     try {
       await db.update(userSessions)
         .set({ 
-          lastActivity: new Date(),
-          isActive: true 
+          lastActivity: new Date()
         })
-        .where(eq(userSessions.sessionId, sessionId));
+        .where(eq(userSessions.id, sessionId));
     } catch (error) {
       console.error("Error updating session activity:", error);
     }
@@ -359,19 +357,15 @@ export class AnalyticsService {
   static async endSession(sessionId: string) {
     try {
       const session = await db.query.userSessions.findFirst({
-        where: eq(userSessions.sessionId, sessionId)
+        where: eq(userSessions.id, sessionId)
       });
 
-      if (session) {
-        const duration = Math.floor((Date.now() - session.startTime.getTime()) / 1000);
-        
+      if (session) {        
         await db.update(userSessions)
           .set({
-            endTime: new Date(),
-            duration,
-            isActive: false
+            endedAt: new Date()
           })
-          .where(eq(userSessions.sessionId, sessionId));
+          .where(eq(userSessions.id, sessionId));
       }
     } catch (error) {
       console.error("Error ending session:", error);
@@ -432,7 +426,7 @@ export class AnalyticsService {
       return { success: true, isLiked };
     } catch (error) {
       console.error("Error toggling like:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
