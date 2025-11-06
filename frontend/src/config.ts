@@ -10,6 +10,7 @@ interface AppConfig {
   IS_PRODUCTION: boolean;
   IS_DEVELOPMENT: boolean;
   MODE: string;
+  WEBSOCKET_ENABLED: boolean;
 }
 
 /**
@@ -48,7 +49,9 @@ function createConfig(): AppConfig {
     NODE_ENV: nodeEnv,
     IS_PRODUCTION: mode === 'production',
     IS_DEVELOPMENT: mode === 'development',
-    MODE: mode
+    MODE: mode,
+    // Disable WebSocket in production on Deno Deploy due to reliability issues
+    WEBSOCKET_ENABLED: mode !== 'production' || import.meta.env.VITE_FORCE_WEBSOCKET === 'true'
   };
 
   // Log configuration in development

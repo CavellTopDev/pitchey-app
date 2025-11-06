@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import { useWebSocketAdvanced } from '../hooks/useWebSocketAdvanced';
 import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus } from '../types/websocket';
 import { useAuthStore } from '../store/authStore';
+import { config } from '../config';
 
 interface NotificationData {
   id: string;
@@ -151,7 +152,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     onMessage: handleMessage,
     onConnect: handleConnect,
     onDisconnect: handleDisconnect,
-    autoConnect: isAuthenticated && !isWebSocketDisabled,
+    autoConnect: isAuthenticated && !isWebSocketDisabled && config.WEBSOCKET_ENABLED,
     maxReconnectAttempts: 5,  // Reduced to prevent infinite loops
     reconnectInterval: 5000,  // Increased initial delay
     maxReconnectInterval: 30000,  // Reduced max interval
@@ -510,7 +511,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   // Handle authentication state changes
   useEffect(() => {
-    if (isAuthenticated && !isConnected && !isWebSocketDisabled) {
+    if (isAuthenticated && !isConnected && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
       console.log('User authenticated, connecting WebSocket...');
       connect();
     } else if (!isAuthenticated && isConnected) {
@@ -538,7 +539,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     console.log('WebSocket manually enabled - allowing connections');
     setIsWebSocketDisabled(false);
     localStorage.removeItem('pitchey_websocket_disabled');
-    if (isAuthenticated) {
+    if (isAuthenticated && config.WEBSOCKET_ENABLED) {
       setTimeout(connect, 1000); // Small delay before reconnecting
     }
   }, [connect, isAuthenticated]);
