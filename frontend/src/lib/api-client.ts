@@ -298,6 +298,30 @@ export const authAPI = {
     return response;
   },
 
+  async loginCreator(email: string, password: string) {
+    const response = await apiClient.post('/api/auth/creator/login', { email, password });
+    if (response.success && response.data?.token) {
+      localStorage.setItem('authToken', response.data.token);
+    }
+    return response;
+  },
+
+  async loginInvestor(email: string, password: string) {
+    const response = await apiClient.post('/api/auth/investor/login', { email, password });
+    if (response.success && response.data?.token) {
+      localStorage.setItem('authToken', response.data.token);
+    }
+    return response;
+  },
+
+  async loginProduction(email: string, password: string) {
+    const response = await apiClient.post('/api/auth/production/login', { email, password });
+    if (response.success && response.data?.token) {
+      localStorage.setItem('authToken', response.data.token);
+    }
+    return response;
+  },
+
   async register(data: {
     email: string;
     username: string;

@@ -22,8 +22,19 @@ interface AuthState {
   updateProfile: (data: Partial<User>) => Promise<void>;
 }
 
+// Helper function to safely get from localStorage
+const getStoredUser = (): User | null => {
+  try {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.warn('Failed to parse stored user:', error);
+    return null;
+  }
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+  user: getStoredUser(),
   isAuthenticated: !!localStorage.getItem('authToken'),
   loading: false,
   error: null,
@@ -45,11 +56,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginCreator: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const { user } = await authAPI.loginCreator(email, password);
+      const response = await authAPI.loginCreator(email, password);
+      const user = response.data?.user || response.user;
+      if (!user) {
+        throw new Error('User data not received from server');
+      }
+      // Store user data and type in localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userType', 'creator');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || 'Login failed',
+        error: error.response?.data?.error || error.message || 'Login failed',
         loading: false 
       });
       throw error;
@@ -59,11 +77,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginInvestor: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const { user } = await authAPI.loginInvestor(email, password);
+      const response = await authAPI.loginInvestor(email, password);
+      const user = response.data?.user || response.user;
+      if (!user) {
+        throw new Error('User data not received from server');
+      }
+      // Store user data and type in localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userType', 'investor');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || 'Login failed',
+        error: error.response?.data?.error || error.message || 'Login failed',
         loading: false 
       });
       throw error;
@@ -73,11 +98,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginProduction: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const { user } = await authAPI.loginProduction(email, password);
+      const response = await authAPI.loginProduction(email, password);
+      const user = response.data?.user || response.user;
+      if (!user) {
+        throw new Error('User data not received from server');
+      }
+      // Store user data and type in localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userType', 'production');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || 'Login failed',
+        error: error.response?.data?.error || error.message || 'Login failed',
         loading: false 
       });
       throw error;
@@ -87,11 +119,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (data) => {
     set({ loading: true, error: null });
     try {
-      const { user } = await authAPI.register(data);
+      const response = await authAPI.register(data);
+      const user = response.data?.user || response.user;
+      if (!user) {
+        throw new Error('User data not received from server');
+      }
+      // Store user data and type in localStorage for persistence
+      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('userType', data.userType);
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || 'Registration failed',
+        error: error.response?.data?.error || error.message || 'Registration failed',
         loading: false 
       });
       throw error;
@@ -130,12 +169,29 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchProfile: async () => {
     set({ loading: true });
     try {
-      const user = await authAPI.getProfile();
+      const response = await authAPI.getProfile();
+      const user = response.data?.user || response.user || response.data;
+      if (!user) {
+        throw new Error('User profile data not received from server');
+      }
+      // Update localStorage with fresh user data
+      localStorage.setItem('user', JSON.stringify(user));
+      if (user.userType) {
+        localStorage.setItem('userType', user.userType);
+      }
       set({ user, isAuthenticated: true, loading: false });
     } catch (error) {
-      // Don't change isAuthenticated here - let the user stay "logged in"
-      // until they explicitly log out or the token is removed
-      set({ loading: false });
+      // If profile fetch fails and we have no stored user, consider them unauthenticated
+      const storedUser = getStoredUser();
+      if (!storedUser) {
+        set({ isAuthenticated: false, loading: false });
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userType');
+      } else {
+        // Keep them authenticated with stored data if available
+        set({ loading: false });
+      }
       console.error('Failed to fetch profile:', error);
     }
   },
@@ -143,11 +199,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   updateProfile: async (data) => {
     set({ loading: true, error: null });
     try {
-      const { user } = await authAPI.updateProfile(data);
+      const response = await authAPI.updateProfile(data);
+      const user = response.data?.user || response.user || response.data;
+      if (!user) {
+        throw new Error('Updated user data not received from server');
+      }
+      // Update localStorage with new user data
+      localStorage.setItem('user', JSON.stringify(user));
       set({ user, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || 'Update failed',
+        error: error.response?.data?.error || error.message || 'Update failed',
         loading: false 
       });
       throw error;
