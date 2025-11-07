@@ -6060,6 +6060,50 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === NDA ENDPOINTS ===
 
+    // GET /api/ndas - Frontend compatibility endpoint for NDA requests with query parameters
+    if (url.pathname === "/api/ndas" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          return unauthorizedResponse(authResult.error);
+        }
+        const user = authResult.user;
+
+        const urlSearchParams = new URL(request.url).searchParams;
+        const status = urlSearchParams.get('status') || 'pending';
+        const creatorId = parseInt(urlSearchParams.get('creatorId') || user.id.toString());
+        const limit = parseInt(urlSearchParams.get('limit') || '10');
+
+        // Get NDAs based on status
+        let ndaRequests = [];
+        
+        if (status === 'pending') {
+          const requests = await NDAService.getIncomingRequests(user.id);
+          ndaRequests = requests.map(req => ({
+            id: req.request.id,
+            pitchId: req.request.pitchId,
+            pitchTitle: req.pitch.title,
+            requesterName: req.requester.username,
+            requesterEmail: req.requester.email,
+            companyInfo: req.request.companyInfo,
+            requestMessage: req.request.requestMessage,
+            requestedAt: req.request.requestedAt,
+            status: req.request.status
+          })).slice(0, limit);
+        }
+        
+        return successResponse({
+          ndas: ndaRequests,
+          total: ndaRequests.length,
+          status: status,
+          message: `${status.charAt(0).toUpperCase() + status.slice(1)} NDAs retrieved successfully`
+        });
+      } catch (error) {
+        console.error("Error fetching NDAs:", error);
+        return serverErrorResponse("Failed to fetch NDAs");
+      }
+    }
+
     // Get incoming NDA requests for current user
     if (url.pathname === "/api/nda/pending" && method === "GET") {
       try {
