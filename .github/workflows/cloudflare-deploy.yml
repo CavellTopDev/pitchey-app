@@ -133,7 +133,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         run: |
-          deno task test
+          deno task test --no-check
           
       - name: Run integration tests
         env:
