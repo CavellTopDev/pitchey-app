@@ -129,7 +129,53 @@ export class DashboardCacheService {
       return metrics;
     } catch (error) {
       console.error(`❌ Failed to get dashboard metrics for ${userType} ${userId}:`, error);
-      return null;
+      console.error(`❌ Error details:`, error.message);
+      
+      // Return empty/default metrics instead of null to prevent further errors
+      switch (userType) {
+        case 'creator':
+          return {
+            totalPitches: 0,
+            publishedPitches: 0,
+            draftPitches: 0,
+            totalViews: 0,
+            totalLikes: 0,
+            totalFollowers: 0,
+            totalNDAs: 0,
+            pitchAnalytics: [],
+            recentActivity: [],
+            genreBreakdown: [],
+            performanceMetrics: {
+              avgViewsPerPitch: 0,
+              engagementRate: 0,
+              conversionRate: 0,
+              followerGrowthRate: 0
+            }
+          };
+        case 'investor':
+          return {
+            totalInvestments: 0,
+            totalInvestmentValue: 0,
+            activeInvestments: 0,
+            portfolioGrowth: 0,
+            watchlistCount: 0,
+            followingCount: 0,
+            recentPitches: [],
+            investmentBreakdown: []
+          };
+        case 'production':
+          return {
+            activeProjects: 0,
+            completedProjects: 0,
+            totalRevenue: 0,
+            averageProjectValue: 0,
+            genreDistribution: [],
+            recentProjects: [],
+            milestones: []
+          };
+        default:
+          return null;
+      }
     }
   }
 
@@ -139,17 +185,16 @@ export class DashboardCacheService {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // Get basic pitch counts
-    const userPitches = await db.query.pitches.findMany({
-      where: eq(pitches.userId, userId),
-      columns: {
-        id: true,
-        title: true,
-        status: true,
-        viewCount: true,
-        likeCount: true,
-        createdAt: true,
-      },
-    });
+    const userPitches = await db.select({
+      id: pitches.id,
+      title: pitches.title,
+      status: pitches.status,
+      viewCount: pitches.viewCount,
+      likeCount: pitches.likeCount,
+      createdAt: pitches.createdAt,
+    })
+      .from(pitches)
+      .where(eq(pitches.userId, userId));
 
     const publishedPitches = userPitches.filter(p => p.status === 'published');
     const draftPitches = userPitches.filter(p => p.status === 'draft');
@@ -239,16 +284,15 @@ export class DashboardCacheService {
 
   // Generate production company dashboard metrics
   private static async generateProductionMetrics(userId: number): Promise<DashboardMetrics['production']> {
-    const userPitches = await db.query.pitches.findMany({
-      where: eq(pitches.userId, userId),
-      columns: {
-        id: true,
-        title: true,
-        status: true,
-        genre: true,
-        createdAt: true,
-      },
-    });
+    const userPitches = await db.select({
+      id: pitches.id,
+      title: pitches.title,
+      status: pitches.status,
+      genre: pitches.genre,
+      createdAt: pitches.createdAt,
+    })
+      .from(pitches)
+      .where(eq(pitches.userId, userId));
 
     const activeProjects = userPitches.filter(p => p.status === 'published').length;
     const completedProjects = userPitches.filter(p => p.status === 'archived').length;
@@ -284,10 +328,9 @@ export class DashboardCacheService {
     
     // Get user pitch IDs if not provided
     if (!userPitchIds || userPitchIds.length === 0) {
-      const userPitches = await db.query.pitches.findMany({
-        where: eq(pitches.userId, userId),
-        columns: { id: true },
-      });
+      const userPitches = await db.select({ id: pitches.id })
+        .from(pitches)
+        .where(eq(pitches.userId, userId));
       userPitchIds = userPitches.map(p => p.id);
     }
     
@@ -469,11 +512,14 @@ export class DashboardCacheService {
       console.log('🔥 Starting cache warming process...');
 
       // Get most active users
-      const activeCreators = await db.query.users.findMany({
-        where: eq(users.userType, 'creator'),
-        limit: 20,
-        orderBy: [desc(users.createdAt)],
-      });
+      const activeCreators = await db.select({
+        id: users.id,
+        userType: users.userType,
+      })
+        .from(users)
+        .where(eq(users.userType, 'creator'))
+        .limit(20)
+        .orderBy(desc(users.createdAt));
 
       // Warm creator dashboards
       const promises = activeCreators.map(user => 

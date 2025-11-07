@@ -461,7 +461,7 @@ export class PitchService {
           p.updated_at as "updatedAt",
           p.published_at as "publishedAt",
           p.target_audience as "targetAudience",
-          COALESCE(p.characters, '[]'::jsonb) as characters,
+          COALESCE(p.characters, '[]') as characters,
           p.themes,
           p.production_timeline as "productionTimeline",
           p.title_image as "titleImage",
@@ -828,7 +828,7 @@ export class PitchService {
           p.updated_at as "updatedAt",
           p.published_at as "publishedAt",
           p.target_audience as "targetAudience",
-          COALESCE(p.characters, '[]'::jsonb) as characters,
+          COALESCE(p.characters, '[]') as characters,
           COALESCE(p.additional_media, '[]'::jsonb) as "additionalMedia",
           p.themes,
           p.production_timeline as "productionTimeline",
@@ -906,8 +906,13 @@ export class PitchService {
           .from(pitches)
           .where(eq(pitches.userId, userId));
         
-        console.log(`Fallback query returned ${fallbackPitches.length} pitches`);
-        return fallbackPitches.map(parsePitchJsonFields);
+        if (fallbackPitches && Array.isArray(fallbackPitches)) {
+          console.log(`Fallback query returned ${fallbackPitches.length} pitches`);
+          return fallbackPitches.map(parsePitchJsonFields);
+        } else {
+          console.log("Fallback query returned invalid data");
+          return [];
+        }
       } catch (fallbackError) {
         console.error("Drizzle fallback also failed:", fallbackError);
       }
