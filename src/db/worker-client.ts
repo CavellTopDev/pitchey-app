@@ -12,7 +12,7 @@
  * - Edge-optimized query execution
  */
 
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzle } from "npm:drizzle-orm/postgres-js";
 import { Pool } from '@neondatabase/serverless';
 import * as schema from './schema';
 

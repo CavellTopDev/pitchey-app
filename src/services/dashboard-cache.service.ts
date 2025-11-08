@@ -129,7 +129,8 @@ export class DashboardCacheService {
       return metrics;
     } catch (error) {
       console.error(`❌ Failed to get dashboard metrics for ${userType} ${userId}:`, error);
-      console.error(`❌ Error details:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Error details:`, errorMessage);
       
       // Return empty/default metrics instead of null to prevent further errors
       switch (userType) {
@@ -142,15 +143,9 @@ export class DashboardCacheService {
             totalLikes: 0,
             totalFollowers: 0,
             totalNDAs: 0,
-            pitchAnalytics: [],
-            recentActivity: [],
-            genreBreakdown: [],
-            performanceMetrics: {
-              avgViewsPerPitch: 0,
-              engagementRate: 0,
-              conversionRate: 0,
-              followerGrowthRate: 0
-            }
+            recentViews: 0,
+            topPitches: [],
+            viewsOverTime: []
           };
         case 'investor':
           return {
@@ -165,13 +160,14 @@ export class DashboardCacheService {
           };
         case 'production':
           return {
+            totalProjects: 0,
             activeProjects: 0,
             completedProjects: 0,
-            totalRevenue: 0,
-            averageProjectValue: 0,
-            genreDistribution: [],
-            recentProjects: [],
-            milestones: []
+            totalBudget: 0,
+            teamSize: 0,
+            collaborations: 0,
+            projectTimeline: [],
+            genreDistribution: []
           };
         default:
           return null;
@@ -196,9 +192,9 @@ export class DashboardCacheService {
       .from(pitches)
       .where(eq(pitches.userId, userId));
 
-    const publishedPitches = userPitches.filter(p => p.status === 'published');
-    const draftPitches = userPitches.filter(p => p.status === 'draft');
-    const userPitchIds = userPitches.map(p => p.id);
+    const publishedPitches = userPitches.filter((p: any) => p.status === 'published');
+    const draftPitches = userPitches.filter((p: any) => p.status === 'draft');
+    const userPitchIds = userPitches.map((p: any) => p.id);
 
     // Get follower count
     const followerCount = await db.select({ count: count() })
@@ -227,14 +223,14 @@ export class DashboardCacheService {
     }
 
     // Calculate totals
-    const totalViews = userPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0);
-    const totalLikes = userPitches.reduce((sum, p) => sum + (p.likeCount || 0), 0);
+    const totalViews = userPitches.reduce((sum: number, p: any) => sum + (p.viewCount || 0), 0);
+    const totalLikes = userPitches.reduce((sum: number, p: any) => sum + (p.likeCount || 0), 0);
 
     // Get top pitches
     const topPitches = publishedPitches
-      .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+      .sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0))
       .slice(0, 5)
-      .map(p => ({
+      .map((p: any) => ({
         id: p.id,
         title: p.title,
         views: p.viewCount || 0,
@@ -243,7 +239,7 @@ export class DashboardCacheService {
       }));
 
     // Generate views over time with user pitch IDs
-    const viewsOverTime = await this.generateViewsOverTime(userId, userPitches.map(p => p.id));
+    const viewsOverTime = await this.generateViewsOverTime(userId, userPitches.map((p: any) => p.id));
 
     return {
       totalPitches: userPitches.length,
@@ -294,13 +290,13 @@ export class DashboardCacheService {
       .from(pitches)
       .where(eq(pitches.userId, userId));
 
-    const activeProjects = userPitches.filter(p => p.status === 'published').length;
-    const completedProjects = userPitches.filter(p => p.status === 'archived').length;
+    const activeProjects = userPitches.filter((p: any) => p.status === 'published').length;
+    const completedProjects = userPitches.filter((p: any) => p.status === 'archived').length;
 
     // Genre distribution
-    const genreDistribution = userPitches.reduce((acc, pitch) => {
+    const genreDistribution = userPitches.reduce((acc: any, pitch: any) => {
       const genre = pitch.genre || 'Other';
-      const existing = acc.find(g => g.genre === genre);
+      const existing = acc.find((g: any) => g.genre === genre);
       if (existing) {
         existing.count++;
       } else {
@@ -327,11 +323,14 @@ export class DashboardCacheService {
     const now = new Date();
     
     // Get user pitch IDs if not provided
+    let validUserPitchIds: number[];
     if (!userPitchIds || userPitchIds.length === 0) {
       const userPitches = await db.select({ id: pitches.id })
         .from(pitches)
         .where(eq(pitches.userId, userId));
-      userPitchIds = userPitches.map(p => p.id);
+      validUserPitchIds = userPitches.map((p: any) => p.id);
+    } else {
+      validUserPitchIds = userPitchIds;
     }
     
     for (let i = 6; i >= 0; i--) {
@@ -346,11 +345,11 @@ export class DashboardCacheService {
       
       let dayViews = [{ count: 0 }];
       
-      if (userPitchIds.length > 0) {
+      if (validUserPitchIds.length > 0) {
         dayViews = await db.select({ count: count() })
           .from(pitchViews)
           .where(and(
-            sql`${pitchViews.pitchId} = ANY(ARRAY[${sql.raw(userPitchIds.join(','))}]::integer[])`,
+            sql`${pitchViews.pitchId} = ANY(ARRAY[${sql.raw(validUserPitchIds.join(','))}]::integer[])`,
             gte(pitchViews.viewedAt, dayStart),
             lte(pitchViews.viewedAt, dayEnd)
           ));
@@ -418,7 +417,7 @@ export class DashboardCacheService {
       
       // Sort by engagement score: (view_count + like_count * 2) for trending algorithm
       const trendingPitches = allPitches
-        .sort((a, b) => {
+        .sort((a: any, b: any) => {
           const scoreA = (a.viewCount || 0) + (a.likeCount || 0) * 2;
           const scoreB = (b.viewCount || 0) + (b.likeCount || 0) * 2;
           return scoreB - scoreA;
@@ -459,7 +458,9 @@ export class DashboardCacheService {
         if (pattern.includes('*')) {
           const keys = await this.redis.keys(pattern);
           if (keys.length > 0) {
-            await this.redis.del(...keys);
+            for (const key of keys) {
+              await this.redis.del(key);
+            }
           }
         } else {
           await this.redis.del(pattern);
@@ -480,7 +481,9 @@ export class DashboardCacheService {
       if (this.redis && typeof this.redis.keys === 'function') {
         const keys = await this.redis.keys('trending:*');
         if (keys.length > 0) {
-          await this.redis.del(...keys);
+          for (const key of keys) {
+            await this.redis.del(key);
+          }
           console.log(`🗑️ Trending cache invalidated (${keys.length} keys)`);
         }
       } else {
@@ -522,7 +525,7 @@ export class DashboardCacheService {
         .orderBy(desc(users.createdAt));
 
       // Warm creator dashboards
-      const promises = activeCreators.map(user => 
+      const promises = activeCreators.map((user: any) => 
         this.getDashboardMetrics(user.id, user.userType)
       );
 
@@ -553,10 +556,10 @@ export class DashboardCacheService {
       }
 
       // Get Redis memory info
-      const memoryInfo = await this.redis.info('memory');
+      const memoryInfo = await this.redis.info();
       stats.memory = {
-        used: memoryInfo.split('\r\n').find(line => line.startsWith('used_memory_human:'))?.split(':')[1] || 'unknown',
-        peak: memoryInfo.split('\r\n').find(line => line.startsWith('used_memory_peak_human:'))?.split(':')[1] || 'unknown',
+        used: memoryInfo.split('\r\n').find((line: string) => line.startsWith('used_memory_human:'))?.split(':')[1] || 'unknown',
+        peak: memoryInfo.split('\r\n').find((line: string) => line.startsWith('used_memory_peak_human:'))?.split(':')[1] || 'unknown',
       };
 
       return stats;

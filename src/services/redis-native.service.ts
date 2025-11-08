@@ -6,6 +6,14 @@
 
 import { connect } from "redis";
 
+// Helper function to safely extract error messages
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 interface RedisConfig {
   // Connection settings
   local: {
@@ -139,7 +147,7 @@ class NativeRedisService {
         console.log(`✅ Connected to Redis at ${this.config.local.hostname}:${this.config.local.port}`);
         return true;
       } catch (error) {
-        console.error("❌ Failed to connect to local Redis:", error.message);
+        console.error("❌ Failed to connect to local Redis:", getErrorMessage(error));
         this.isConnected = false;
         return false;
       }
@@ -195,7 +203,7 @@ class NativeRedisService {
         return result;
       } catch (error) {
         this.stats.errors++;
-        console.error(`Redis ${command} error:`, error.message);
+        console.error(`Redis ${command} error:`, getErrorMessage(error));
         return null;
       }
     }
@@ -236,7 +244,7 @@ class NativeRedisService {
       return result.result;
     } catch (error) {
       this.stats.errors++;
-      console.error("Upstash error:", error.message);
+      console.error("Upstash error:", getErrorMessage(error));
       return null;
     }
   }
@@ -259,7 +267,7 @@ class NativeRedisService {
       }
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache GET error:", error.message);
+      console.error("Cache GET error:", getErrorMessage(error));
       return null;
     }
   }
@@ -278,7 +286,7 @@ class NativeRedisService {
       return result === "OK";
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache SET error:", error.message);
+      console.error("Cache SET error:", getErrorMessage(error));
       return false;
     }
   }
@@ -294,7 +302,7 @@ class NativeRedisService {
       return result === 1;
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache DEL error:", error.message);
+      console.error("Cache DEL error:", getErrorMessage(error));
       return false;
     }
   }
@@ -322,7 +330,7 @@ class NativeRedisService {
       return 0;
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache DEL pattern error:", error.message);
+      console.error("Cache DEL pattern error:", getErrorMessage(error));
       return 0;
     }
   }
@@ -337,7 +345,7 @@ class NativeRedisService {
       return Array.isArray(result) ? result : [result];
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache KEYS error:", error.message);
+      console.error("Cache KEYS error:", getErrorMessage(error));
       return [];
     }
   }
@@ -353,7 +361,7 @@ class NativeRedisService {
       return result === 1;
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache EXISTS error:", error.message);
+      console.error("Cache EXISTS error:", getErrorMessage(error));
       return false;
     }
   }
@@ -368,7 +376,7 @@ class NativeRedisService {
       return result === 1;
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache HSET error:", error.message);
+      console.error("Cache HSET error:", getErrorMessage(error));
       return false;
     }
   }
@@ -379,7 +387,7 @@ class NativeRedisService {
       return result ? JSON.parse(result) : null;
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache HGET error:", error.message);
+      console.error("Cache HGET error:", getErrorMessage(error));
       return null;
     }
   }
@@ -400,7 +408,7 @@ class NativeRedisService {
       return parsed;
     } catch (error) {
       this.stats.errors++;
-      console.error("Cache HGETALL error:", error.message);
+      console.error("Cache HGETALL error:", getErrorMessage(error));
       return null;
     }
   }
@@ -415,7 +423,7 @@ class NativeRedisService {
       return result || 0;
     } catch (error) {
       this.stats.errors++;
-      console.error("Redis PUBLISH error:", error.message);
+      console.error("Redis PUBLISH error:", getErrorMessage(error));
       return 0;
     }
   }
@@ -429,7 +437,7 @@ class NativeRedisService {
       return result || 0;
     } catch (error) {
       this.stats.errors++;
-      console.error("Redis INCR error:", error.message);
+      console.error("Redis INCR error:", getErrorMessage(error));
       return 0;
     }
   }
@@ -443,7 +451,65 @@ class NativeRedisService {
       return result === 1;
     } catch (error) {
       this.stats.errors++;
-      console.error("Redis EXPIRE error:", error.message);
+      console.error("Redis EXPIRE error:", getErrorMessage(error));
+      return false;
+    }
+  }
+
+  /**
+   * Push elements to the left of a list
+   */
+  async lpush(key: string, ...values: any[]): Promise<number> {
+    try {
+      const serializedValues = values.map(v => typeof v === 'string' ? v : JSON.stringify(v));
+      const result = await this.executeCommand("LPUSH", key, ...serializedValues);
+      return result;
+    } catch (error) {
+      this.stats.errors++;
+      console.error("Redis LPUSH error:", getErrorMessage(error));
+      return 0;
+    }
+  }
+
+  /**
+   * Trim list to specified range
+   */
+  async ltrim(key: string, start: number, stop: number): Promise<boolean> {
+    try {
+      await this.executeCommand("LTRIM", key, start, stop);
+      return true;
+    } catch (error) {
+      this.stats.errors++;
+      console.error("Redis LTRIM error:", getErrorMessage(error));
+      return false;
+    }
+  }
+
+  /**
+   * Get range of elements from list
+   */
+  async lrange(key: string, start: number, stop: number): Promise<string[]> {
+    try {
+      const result = await this.executeCommand("LRANGE", key, start, stop);
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      this.stats.errors++;
+      console.error("Redis LRANGE error:", getErrorMessage(error));
+      return [];
+    }
+  }
+
+  /**
+   * Set key with expiration time in seconds
+   */
+  async setex(key: string, seconds: number, value: any): Promise<boolean> {
+    try {
+      const serializedValue = typeof value === 'string' ? value : JSON.stringify(value);
+      await this.executeCommand("SETEX", key, seconds, serializedValue);
+      return true;
+    } catch (error) {
+      this.stats.errors++;
+      console.error("Redis SETEX error:", getErrorMessage(error));
       return false;
     }
   }
@@ -472,7 +538,7 @@ class NativeRedisService {
       const result = await this.executeCommand("PING");
       return result === "PONG";
     } catch (error) {
-      console.error("Redis PING error:", error.message);
+      console.error("Redis PING error:", getErrorMessage(error));
       return false;
     }
   }
@@ -485,7 +551,7 @@ class NativeRedisService {
       const result = await this.executeCommand("INFO");
       return result;
     } catch (error) {
-      console.error("Redis INFO error:", error.message);
+      console.error("Redis INFO error:", getErrorMessage(error));
       return null;
     }
   }

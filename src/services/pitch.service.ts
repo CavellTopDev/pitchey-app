@@ -258,7 +258,7 @@ export class PitchService {
               lastName: users.lastName,
               companyName: users.companyName,
               userType: users.userType,
-              profileImage: users.profileImage,
+              profileImageUrl: users.profileImageUrl,
             },
           })
           .from(pitches)

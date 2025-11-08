@@ -159,7 +159,8 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error(`[Message Queue] Failed to queue message for user ${userId}:`, error);
-      captureException(error, { service: 'MessageQueue' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'MessageQueue' });
       throw error;
     }
   }
@@ -230,7 +231,8 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error(`[Message Queue] Failed to deliver queued messages to user ${userId}:`, error);
-      captureException(error, { service: 'MessageQueue' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'MessageQueue' });
       return [];
     }
   }
@@ -320,7 +322,7 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error(`[Message Queue] Delivery attempt failed for message ${queuedMessage.id}:`, error);
-      queuedMessage.errorMessage = error.message;
+      queuedMessage.errorMessage = error instanceof Error ? error.message : String(error);
       return false;
     }
   }
@@ -377,7 +379,8 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error("[Message Queue] Error processing queued messages:", error);
-      captureException(error, { service: 'MessageQueue' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'MessageQueue' });
     }
   }
 
@@ -481,7 +484,8 @@ export class MessageQueueService {
 
     } catch (error) {
       console.error("[Message Queue] Failed to cleanup expired messages:", error);
-      captureException(error, { service: 'MessageQueue' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'MessageQueue' });
     }
   }
 

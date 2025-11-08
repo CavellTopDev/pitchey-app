@@ -57,7 +57,7 @@ export const users = pgTable('users', {
   phone: varchar('phone', { length: 30 }),
   location: varchar('location', { length: 200 }),
   bio: text('bio'),
-  profileImage: text('profile_image'),
+  profileImageUrl: text('profile_image_url'),
   
   // Company info
   companyName: varchar('company_name', { length: 200 }),

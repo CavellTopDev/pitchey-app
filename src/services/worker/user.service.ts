@@ -7,7 +7,7 @@ import { eq, and, or, like, desc, asc, sql } from 'drizzle-orm';
 import { users } from '../../db/schema';
 import type { WorkerDatabase } from '../../db/worker-client';
 import { QueryCache } from '../../db/worker-client';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 
 export interface UserFilters {
   userType?: string;

@@ -591,7 +591,8 @@ Deno.test({
       assertEquals(result, "connected", "WebSocket should connect successfully");
     } catch (error) {
       // WebSocket might not be available in test environment
-      console.log("WebSocket test skipped:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log("WebSocket test skipped:", errorMessage);
       assert(true, "WebSocket test completed (may be skipped in test environment)");
     }
   },

@@ -433,9 +433,36 @@ export const emailQueue = pgTable("email_queue", {
   textContent: text("text_content"),
   status: varchar("status", { length: 50 }).default("queued"),
   attempts: integer("attempts").default(0),
+  maxAttempts: integer("max_attempts").default(3),
   lastAttemptAt: timestamp("last_attempt_at"),
   scheduledFor: timestamp("scheduled_for"),
+  priority: varchar("priority", { length: 20 }).default("medium"),
+  providerMessageId: varchar("provider_message_id", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const emailEvents = pgTable("email_events", {
+  id: serial("id").primaryKey(),
+  emailQueueId: integer("email_queue_id").references(() => emailQueue.id, { onDelete: "cascade" }),
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  eventData: jsonb("event_data").default("{}"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const emailSuppression = pgTable("email_suppression", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  reason: varchar("reason", { length: 50 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const unsubscribeTokens = pgTable("unsubscribe_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
 });
 
 export const digestHistory = pgTable("digest_history", {
@@ -699,6 +726,9 @@ export type Payment = typeof payments.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type EmailPreference = typeof emailPreferences.$inferSelect;
 export type EmailQueue = typeof emailQueue.$inferSelect;
+export type EmailEvent = typeof emailEvents.$inferSelect;
+export type EmailSuppression = typeof emailSuppression.$inferSelect;
+export type UnsubscribeToken = typeof unsubscribeTokens.$inferSelect;
 export type DigestHistory = typeof digestHistory.$inferSelect;
 export type ContentType = typeof contentTypes.$inferSelect;
 export type ContentItem = typeof contentItems.$inferSelect;

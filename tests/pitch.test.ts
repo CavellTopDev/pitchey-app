@@ -1,15 +1,15 @@
 import { setupTestDB, assertEquals } from "./setup.ts";
 import { PitchService } from "@/services/pitch.service.ts";
 import { db } from "@/db/client.ts";
-import { users, pitches } from "@/db/schema.ts";
+import { users, pitches, type User } from "@/db/schema.ts";
 
 Deno.test("Pitch Service Tests", async (t) => {
   await setupTestDB();
   
   // Get existing users from seeded data
   const allUsers = await db.select().from(users);
-  const creator = allUsers.find(u => u.userType === 'creator');
-  const viewer = allUsers.find(u => u.userType === 'production');
+  const creator = allUsers.find((u: User) => u.userType === 'creator');
+  const viewer = allUsers.find((u: User) => u.userType === 'production');
   
   await t.step("should create a pitch", async () => {
     const pitch = await PitchService.create(creator!.id, {

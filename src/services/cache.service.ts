@@ -1,6 +1,14 @@
 // Cache service with support for both Redis and in-memory fallback
 // Supports Upstash Redis for Deno Deploy and standard Redis for self-hosted
 
+// Helper function to safely extract error messages
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 interface CacheClient {
   set(key: string, value: string): Promise<void>;
   get(key: string): Promise<string | null>;
@@ -157,7 +165,8 @@ async function initCache() {
         return;
       }
     } catch (error) {
-      console.warn("⚠️ Redis cluster connection failed:", error.message);
+      const errorMessage = getErrorMessage(error);
+      console.warn("⚠️ Redis cluster connection failed:", errorMessage);
     }
   }
   
@@ -201,7 +210,8 @@ async function initCache() {
         return;
       }
     } catch (error) {
-      console.warn("⚠️ Native Redis connection failed:", error.message);
+      const errorMessage = getErrorMessage(error);
+      console.warn("⚠️ Native Redis connection failed:", errorMessage);
     }
   }
   
@@ -219,7 +229,8 @@ async function initCache() {
       console.log("✅ Connected to Upstash Redis (serverless)");
       return;
     } catch (error) {
-      console.warn("⚠️ Upstash Redis connection failed:", error.message);
+      const errorMessage = getErrorMessage(error);
+      console.warn("⚠️ Upstash Redis connection failed:", errorMessage);
     }
   }
 
@@ -249,7 +260,7 @@ export class CacheService {
       await cacheClient.set(`pitch:${pitchId}`, JSON.stringify(data));
       await cacheClient.expire(`pitch:${pitchId}`, ttl);
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -258,7 +269,7 @@ export class CacheService {
       const cached = await cacheClient.get(`pitch:${pitchId}`);
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
   }
@@ -267,7 +278,7 @@ export class CacheService {
     try {
       await cacheClient.del(`pitch:${pitchId}`);
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -277,7 +288,7 @@ export class CacheService {
       await cacheClient.set(`session:user:${userId}`, JSON.stringify(data));
       await cacheClient.expire(`session:user:${userId}`, ttl);
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -286,7 +297,7 @@ export class CacheService {
       const cached = await cacheClient.get(`session:user:${userId}`);
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
   }
@@ -295,7 +306,7 @@ export class CacheService {
     try {
       await cacheClient.del(`session:user:${userId}`);
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -313,7 +324,7 @@ export class CacheService {
       
       return false; // Already viewed recently
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
       return true; // Default to counting views on error
     }
   }
@@ -324,7 +335,7 @@ export class CacheService {
       await cacheClient.set("homepage:data", JSON.stringify(data));
       await cacheClient.expire("homepage:data", ttl);
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -333,7 +344,7 @@ export class CacheService {
       const cached = await cacheClient.get("homepage:data");
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
   }
@@ -342,7 +353,7 @@ export class CacheService {
     try {
       await cacheClient.del("homepage:data");
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -353,7 +364,7 @@ export class CacheService {
       await cacheClient.set(key, JSON.stringify(results));
       await cacheClient.expire(key, ttl);
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -363,7 +374,7 @@ export class CacheService {
       const cached = await cacheClient.get(key);
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
   }
@@ -376,7 +387,7 @@ export class CacheService {
       await cacheClient.incrby(key, value);
       await cacheClient.expire(key, 86400 * 7); // Keep for 7 days
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -387,7 +398,7 @@ export class CacheService {
       const value = await cacheClient.get(key);
       return value ? parseInt(value) : 0;
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
       return 0;
     }
   }
@@ -398,7 +409,7 @@ export class CacheService {
       await cacheClient.set("pitches:public", JSON.stringify(data));
       await cacheClient.expire("pitches:public", ttl);
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -407,7 +418,7 @@ export class CacheService {
       const cached = await cacheClient.get("pitches:public");
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
   }
@@ -418,7 +429,7 @@ export class CacheService {
       await cacheClient.del("pitches:trending");
       await cacheClient.del("pitches:new");
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
 
@@ -454,11 +465,11 @@ export class CacheService {
         try {
           await cacheClient.del(key);
         } catch (error) {
-          console.warn(`Failed to clear browse cache key ${key}:`, error.message);
+          console.warn(`Failed to clear browse cache key ${key}:`, getErrorMessage(error));
         }
       }
     } catch (error) {
-      console.warn("Browse cache invalidation error:", error.message);
+      console.warn("Browse cache invalidation error:", getErrorMessage(error));
     }
   }
 
@@ -469,7 +480,7 @@ export class CacheService {
       await this.invalidateHomepage();
       await this.invalidateBrowseCache(); // Add browse cache invalidation
     } catch (error) {
-      console.warn("Cache error:", error.message);
+      console.warn("Cache error:", getErrorMessage(error));
     }
   }
   
@@ -516,7 +527,7 @@ export class CacheService {
           ...baseHealth,
           cluster: {
             enabled: true,
-            error: error.message,
+            error: getErrorMessage(error),
             status: "unhealthy"
           }
         };
@@ -550,7 +561,7 @@ export class CacheService {
           ...baseHealth,
           redis: {
             enabled: false,
-            error: error.message,
+            error: getErrorMessage(error),
             status: "unhealthy"
           }
         };
@@ -581,7 +592,7 @@ export class CacheService {
       const { redisClusterService } = await import("./redis-cluster.service.ts");
       return redisClusterService.getClusterInfo();
     } catch (error) {
-      return { error: error.message };
+      return { error: getErrorMessage(error) };
     }
   }
 
@@ -594,7 +605,7 @@ export class CacheService {
       const { redisClusterService } = await import("./redis-cluster.service.ts");
       return redisClusterService.getStats();
     } catch (error) {
-      return { error: error.message };
+      return { error: getErrorMessage(error) };
     }
   }
 }

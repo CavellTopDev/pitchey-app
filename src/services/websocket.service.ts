@@ -289,7 +289,8 @@ export class PitcheyWebSocketServer {
         url: request.url
       });
       
-      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'WebSocket', method: 'handleConnection' });
       
       // Send detailed error message to client before closing
       if (socket.readyState === WebSocket.OPEN) {
@@ -392,7 +393,8 @@ export class PitcheyWebSocketServer {
         await this.handleMessage(session, event.data);
       } catch (error) {
         console.error(`[WebSocket] Message handling error for session ${session.id}:`, error);
-        captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'WebSocket', method: 'handleConnection' });
         await this.sendError(session, "Message processing failed");
       }
     };
@@ -532,7 +534,8 @@ export class PitcheyWebSocketServer {
 
     } catch (error) {
       console.error(`[WebSocket] Error handling message type ${message.type}:`, error);
-      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'WebSocket', method: 'handleConnection' });
       await this.sendError(session, "Message handling failed");
     }
   }
@@ -901,13 +904,14 @@ export class PitcheyWebSocketServer {
         .where(eq(conversationParticipants.conversationId, conversationId));
 
       const promises = participants
-        .filter(p => p.userId !== excludeUserId)
-        .map(p => this.broadcastToUser(p.userId, message));
+        .filter((p: { userId: number }) => p.userId !== excludeUserId)
+        .map((p: { userId: number }) => this.broadcastToUser(p.userId, message));
 
       await Promise.allSettled(promises);
     } catch (error) {
       console.error(`[WebSocket] Failed to broadcast to conversation ${conversationId}:`, error);
-      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 
@@ -936,7 +940,8 @@ export class PitcheyWebSocketServer {
 
     } catch (error) {
       console.error(`[WebSocket] Failed to update presence for user ${userId}:`, error);
-      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 
@@ -965,32 +970,35 @@ export class PitcheyWebSocketServer {
       // Remove from sessions
       this.sessions.delete(session.id);
       
-      // Remove from user sessions
-      const userSessionIds = this.userSessions.get(session.userId);
-      if (userSessionIds) {
-        userSessionIds.delete(session.id);
-        if (userSessionIds.size === 0) {
-          this.userSessions.delete(session.userId);
-          // User is completely offline
-          await this.updateUserPresence(session.userId, PresenceStatus.OFFLINE);
+      // Remove from user sessions if userId exists
+      if (session.userId !== null) {
+        const userSessionIds = this.userSessions.get(session.userId);
+        if (userSessionIds) {
+          userSessionIds.delete(session.id);
+          if (userSessionIds.size === 0) {
+            this.userSessions.delete(session.userId);
+            // User is completely offline
+            await this.updateUserPresence(session.userId, PresenceStatus.OFFLINE);
+          }
         }
-      }
 
-      // Track disconnection analytics
-      await this.trackAnalyticsEvent({
-        eventType: "websocket_disconnected",
-        userId: session.userId,
-        eventData: {
-          sessionId: session.id,
-          code,
-          reason: reason || "Unknown",
-          duration: Date.now() - session.lastActivity
-        }
-      });
+        // Track disconnection analytics
+        await this.trackAnalyticsEvent({
+          eventType: "websocket_disconnected",
+          userId: session.userId,
+          eventData: {
+            sessionId: session.id,
+            code,
+            reason: reason || "Unknown",
+            duration: Date.now() - session.lastActivity
+          }
+        });
+      }
 
     } catch (error) {
       console.error(`[WebSocket] Error handling disconnection for session ${session.id}:`, error);
-      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 
@@ -1038,7 +1046,8 @@ export class PitcheyWebSocketServer {
       }
     } catch (error) {
       console.error(`[WebSocket] Failed to publish to Redis channel ${channel}:`, error);
-      captureException(error, { service: 'WebSocket', method: 'handleConnection' });
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      captureException(errorObj, { service: 'WebSocket', method: 'handleConnection' });
     }
   }
 

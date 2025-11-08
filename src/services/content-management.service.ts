@@ -10,6 +10,14 @@ import {
 } from "../db/schema.ts";
 import { eq, and, desc, sql, or, isNull } from "drizzle-orm";
 
+// Helper function to safely extract error messages
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 export interface ContentItemData {
   contentTypeId?: number;
   key: string;
@@ -46,7 +54,7 @@ export class ContentManagementService {
       
       return contentType;
     } catch (error) {
-      throw new Error(`Failed to create content type: ${error.message}`);
+      throw new Error(`Failed to create content type: ${getErrorMessage(error)}`);
     }
   }
 
@@ -54,7 +62,7 @@ export class ContentManagementService {
     try {
       return await db.select().from(contentTypes).orderBy(desc(contentTypes.createdAt));
     } catch (error) {
-      throw new Error(`Failed to get content types: ${error.message}`);
+      throw new Error(`Failed to get content types: ${getErrorMessage(error)}`);
     }
   }
 
@@ -63,7 +71,7 @@ export class ContentManagementService {
       const [contentType] = await db.select().from(contentTypes).where(eq(contentTypes.id, id));
       return contentType || null;
     } catch (error) {
-      throw new Error(`Failed to get content type: ${error.message}`);
+      throw new Error(`Failed to get content type: ${getErrorMessage(error)}`);
     }
   }
 
@@ -85,10 +93,10 @@ export class ContentManagementService {
       
       return contentItem;
     } catch (error) {
-      if (error.message.includes('duplicate key')) {
+      if (getErrorMessage(error).includes('duplicate key')) {
         throw new Error(`Content item with key "${data.key}" already exists for this portal and locale`);
       }
-      throw new Error(`Failed to create content item: ${error.message}`);
+      throw new Error(`Failed to create content item: ${getErrorMessage(error)}`);
     }
   }
 
@@ -124,7 +132,7 @@ export class ContentManagementService {
       
       return await query.orderBy(desc(contentItems.updatedAt));
     } catch (error) {
-      throw new Error(`Failed to get content items: ${error.message}`);
+      throw new Error(`Failed to get content items: ${getErrorMessage(error)}`);
     }
   }
 
@@ -133,7 +141,7 @@ export class ContentManagementService {
       const [contentItem] = await db.select().from(contentItems).where(eq(contentItems.id, id));
       return contentItem || null;
     } catch (error) {
-      throw new Error(`Failed to get content item: ${error.message}`);
+      throw new Error(`Failed to get content item: ${getErrorMessage(error)}`);
     }
   }
 
@@ -156,7 +164,7 @@ export class ContentManagementService {
       
       return contentItem || null;
     } catch (error) {
-      throw new Error(`Failed to get content by key: ${error.message}`);
+      throw new Error(`Failed to get content by key: ${getErrorMessage(error)}`);
     }
   }
 
@@ -173,7 +181,7 @@ export class ContentManagementService {
       
       return contentItem;
     } catch (error) {
-      throw new Error(`Failed to update content item: ${error.message}`);
+      throw new Error(`Failed to update content item: ${getErrorMessage(error)}`);
     }
   }
 
@@ -185,7 +193,7 @@ export class ContentManagementService {
       
       return deleted;
     } catch (error) {
-      throw new Error(`Failed to delete content item: ${error.message}`);
+      throw new Error(`Failed to delete content item: ${getErrorMessage(error)}`);
     }
   }
 
@@ -203,7 +211,7 @@ export class ContentManagementService {
       
       return contentMap;
     } catch (error) {
-      throw new Error(`Failed to get portal content: ${error.message}`);
+      throw new Error(`Failed to get portal content: ${getErrorMessage(error)}`);
     }
   }
 
@@ -230,7 +238,7 @@ export class ContentManagementService {
       
       return results;
     } catch (error) {
-      throw new Error(`Failed to update portal content: ${error.message}`);
+      throw new Error(`Failed to update portal content: ${getErrorMessage(error)}`);
     }
   }
 
@@ -255,7 +263,7 @@ export class ContentManagementService {
       
       return newVersion;
     } catch (error) {
-      throw new Error(`Failed to create content version: ${error.message}`);
+      throw new Error(`Failed to create content version: ${getErrorMessage(error)}`);
     }
   }
 
@@ -271,7 +279,7 @@ export class ContentManagementService {
       
       return approval;
     } catch (error) {
-      throw new Error(`Failed to request content approval: ${error.message}`);
+      throw new Error(`Failed to request content approval: ${getErrorMessage(error)}`);
     }
   }
 
@@ -296,7 +304,7 @@ export class ContentManagementService {
       
       return approval;
     } catch (error) {
-      throw new Error(`Failed to approve content: ${error.message}`);
+      throw new Error(`Failed to approve content: ${getErrorMessage(error)}`);
     }
   }
 
@@ -314,7 +322,7 @@ export class ContentManagementService {
       
       return approval;
     } catch (error) {
-      throw new Error(`Failed to reject content: ${error.message}`);
+      throw new Error(`Failed to reject content: ${getErrorMessage(error)}`);
     }
   }
 
@@ -354,7 +362,7 @@ export class ContentManagementService {
       
       return await query.orderBy(desc(contentItems.updatedAt));
     } catch (error) {
-      throw new Error(`Failed to search content: ${error.message}`);
+      throw new Error(`Failed to search content: ${getErrorMessage(error)}`);
     }
   }
 }

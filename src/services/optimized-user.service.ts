@@ -72,7 +72,7 @@ export class OptimizedUserService {
             phone: true,
             location: true,
             bio: true,
-            profileImage: true,
+            profileImageUrl: true,
             companyName: true,
             companyWebsite: true,
             companyAddress: true,
@@ -190,7 +190,7 @@ export class OptimizedUserService {
         phone: users.phone,
         location: users.location,
         bio: users.bio,
-        profileImage: users.profileImage,
+        profileImageUrl: users.profileImageUrl,
         companyName: users.companyName,
         companyWebsite: users.companyWebsite,
         companyAddress: users.companyAddress,
@@ -503,7 +503,7 @@ export class OptimizedUserService {
               username: users.username,
               companyName: users.companyName,
               userType: users.userType,
-              profileImage: users.profileImage,
+              profileImageUrl: users.profileImageUrl,
             },
           })
           .from(follows)

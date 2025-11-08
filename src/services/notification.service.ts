@@ -3,6 +3,14 @@ import { notifications, users, pitches } from "../db/schema.ts";
 import { eq, and, desc, isNull } from "npm:drizzle-orm";
 import { nativeRedisService } from "./redis-native.service.ts";
 
+// Helper function to safely extract error messages
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 export interface CreateNotificationData {
   userId: number;
   type: "message" | "investment" | "follow" | "pitch_update" | "nda_request" | "system" | "pitch_view" | "like" | "nda_approved" | "nda_rejected";
@@ -82,7 +90,8 @@ export class NotificationService {
       return { success: true, notification };
     } catch (error) {
       console.error("❌ Error creating notification:", error);
-      return { success: false, error: error.message };
+      const errorMessage = getErrorMessage(error);
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -92,10 +101,10 @@ export class NotificationService {
       // Try Redis cache first for recent notifications
       if (!onlyUnread) {
         const cacheKey = `user:${userId}:notifications`;
-        const cached = await this.redis.lrange(cacheKey, 0, limit - 1);
+        const cached = await (this.redis.lrange ? this.redis.lrange(cacheKey, 0, limit - 1) : []);
         
         if (cached.length > 0) {
-          const parsed = cached.map(n => JSON.parse(n)).slice(0, limit);
+          const parsed = cached.map((n: string) => JSON.parse(n)).slice(0, limit);
           console.log(`📋 Retrieved ${parsed.length} notifications from cache for user ${userId}`);
           return {
             success: true,
@@ -147,7 +156,8 @@ export class NotificationService {
       };
     } catch (error) {
       console.error("❌ Error fetching notifications:", error);
-      return { success: false, error: error.message, notifications: [] };
+      const errorMessage = getErrorMessage(error);
+      return { success: false, error: errorMessage, notifications: [] };
     }
   }
 
@@ -164,13 +174,13 @@ export class NotificationService {
 
       const counts = {
         total: allNotifications.length,
-        unread: allNotifications.filter(n => !n.isRead).length,
-        messages: allNotifications.filter(n => n.type === "message" && !n.isRead).length,
-        investments: allNotifications.filter(n => n.type === "investment" && !n.isRead).length,
-        follows: allNotifications.filter(n => n.type === "follow" && !n.isRead).length,
-        updates: allNotifications.filter(n => n.type === "pitch_update" && !n.isRead).length,
-        ndas: allNotifications.filter(n => n.type === "nda_request" && !n.isRead).length,
-        system: allNotifications.filter(n => n.type === "system" && !n.isRead).length,
+        unread: allNotifications.filter((n: any) => !n.isRead).length,
+        messages: allNotifications.filter((n: any) => n.type === "message" && !n.isRead).length,
+        investments: allNotifications.filter((n: any) => n.type === "investment" && !n.isRead).length,
+        follows: allNotifications.filter((n: any) => n.type === "follow" && !n.isRead).length,
+        updates: allNotifications.filter((n: any) => n.type === "pitch_update" && !n.isRead).length,
+        ndas: allNotifications.filter((n: any) => n.type === "nda_request" && !n.isRead).length,
+        system: allNotifications.filter((n: any) => n.type === "system" && !n.isRead).length,
       };
 
       return {
@@ -181,7 +191,7 @@ export class NotificationService {
       console.error("Error fetching notification counts:", error);
       return {
         success: false,
-        error: error.message,
+        error: getErrorMessage(error),
         counts: {
           total: 0,
           unread: 0,
@@ -213,7 +223,7 @@ export class NotificationService {
       return { success: true, notification: updated };
     } catch (error) {
       console.error("Error marking notification as read:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error) };
     }
   }
 
@@ -233,7 +243,7 @@ export class NotificationService {
       return { success: true };
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error) };
     }
   }
 
@@ -249,7 +259,7 @@ export class NotificationService {
       return { success: true };
     } catch (error) {
       console.error("Error deleting notification:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error) };
     }
   }
 

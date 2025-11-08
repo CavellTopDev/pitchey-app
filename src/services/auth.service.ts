@@ -5,6 +5,14 @@ import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
+// Helper function to safely extract error messages
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 // Validation schemas
 export const RegisterSchema = z.object({
   email: z.string().email(),
@@ -304,7 +312,7 @@ export class AuthService {
     } catch (error) {
       return {
         success: false,
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   }

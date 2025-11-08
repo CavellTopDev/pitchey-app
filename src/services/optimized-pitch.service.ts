@@ -170,7 +170,7 @@ export class OptimizedPitchService {
               companyName: users.companyName,
               firstName: users.firstName,
               lastName: users.lastName,
-              profileImage: users.profileImage
+              profileImageUrl: users.profileImageUrl
             }
           })
           .from(pitches)

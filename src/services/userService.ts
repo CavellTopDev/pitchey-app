@@ -11,7 +11,7 @@ export const UpdateProfileSchema = z.object({
   phone: z.string().optional(),
   location: z.string().optional(),
   bio: z.string().optional(),
-  profileImage: z.string().optional(),
+  profileImageUrl: z.string().optional(),
   companyName: z.string().optional(),
   companyWebsite: z.string().optional(),
   companyAddress: z.string().optional(),
@@ -68,7 +68,7 @@ export class UserService {
         phone: users.phone,
         location: users.location,
         bio: users.bio,
-        profileImage: users.profileImage,
+        profileImageUrl: users.profileImageUrl,
         companyName: users.companyName,
         companyWebsite: users.companyWebsite,
         companyAddress: users.companyAddress,
@@ -258,7 +258,7 @@ export class UserService {
         creator: {
           username: users.username,
           companyName: users.companyName,
-          profileImage: users.profileImage,
+          profileImageUrl: users.profileImageUrl,
         },
       })
       .from(follows)
