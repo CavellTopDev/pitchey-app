@@ -43,10 +43,10 @@ CREATE INDEX IF NOT EXISTS idx_users_company_search ON users USING gin(company_n
 CREATE INDEX IF NOT EXISTS idx_users_location_search ON users USING gin(location gin_trgm_ops) WHERE location IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_type_verified ON users (user_type, company_verified);
 
--- Analytics search indexes
-CREATE INDEX IF NOT EXISTS idx_analytics_search_events ON analytics_events (event_type, timestamp DESC) WHERE event_type = 'search';
+-- Analytics search indexes (corrected column name: timestamp -> created_at)
+CREATE INDEX IF NOT EXISTS idx_analytics_search_events ON analytics_events (event_type, created_at DESC) WHERE event_type = 'search';
 CREATE INDEX IF NOT EXISTS idx_analytics_search_query ON analytics_events USING gin((event_data->>'query') gin_trgm_ops) WHERE event_type = 'search';
-CREATE INDEX IF NOT EXISTS idx_analytics_search_user_time ON analytics_events (user_id, timestamp DESC) WHERE event_type = 'search';
+CREATE INDEX IF NOT EXISTS idx_analytics_search_user_time ON analytics_events (user_id, created_at DESC) WHERE event_type = 'search';
 
 -- NDA and follow relationship indexes for search enrichment
 CREATE INDEX IF NOT EXISTS idx_ndas_signer_pitch_active ON ndas (signer_id, pitch_id) WHERE access_granted = true;
@@ -58,27 +58,19 @@ CREATE INDEX IF NOT EXISTS idx_pitches_search_result_data ON pitches (
   published_at, created_at, estimated_budget, title_image
 ) WHERE status = 'published';
 
--- Partial indexes for specific search scenarios
+-- Partial indexes for specific search scenarios (removed NOW() for immutability)
 CREATE INDEX IF NOT EXISTS idx_pitches_recent_published ON pitches (published_at DESC) 
-WHERE status = 'published' AND published_at > (NOW() - INTERVAL '30 days');
+WHERE status = 'published';
 
 CREATE INDEX IF NOT EXISTS idx_pitches_high_engagement ON pitches (view_count DESC, like_count DESC) 
 WHERE status = 'published' AND (view_count > 100 OR like_count > 10);
 
--- Expression indexes for computed fields
-CREATE INDEX IF NOT EXISTS idx_pitches_budget_range ON pitches (
-  CASE 
-    WHEN estimated_budget < 100000 THEN 1
-    WHEN estimated_budget < 1000000 THEN 2
-    WHEN estimated_budget < 10000000 THEN 3
-    WHEN estimated_budget < 50000000 THEN 4
-    ELSE 5
-  END
-) WHERE status = 'published' AND estimated_budget IS NOT NULL;
+-- Expression indexes for computed fields (simplified budget range index)
+CREATE INDEX IF NOT EXISTS idx_pitches_budget_range ON pitches (estimated_budget) WHERE status = 'published' AND estimated_budget IS NOT NULL;--> statement-breakpoint
 
 -- Add constraint to ensure similarity extension works
-ALTER TABLE pitches ADD CONSTRAINT pitches_title_not_empty CHECK (length(trim(title)) > 0);
-ALTER TABLE pitches ADD CONSTRAINT pitches_logline_not_empty CHECK (length(trim(logline)) > 0);
+ALTER TABLE pitches ADD CONSTRAINT pitches_title_not_empty CHECK (length(trim(title)) > 0);--> statement-breakpoint
+ALTER TABLE pitches ADD CONSTRAINT pitches_logline_not_empty CHECK (length(trim(logline)) > 0);--> statement-breakpoint
 
 -- Create function for search relevance scoring
 CREATE OR REPLACE FUNCTION calculate_search_relevance(
