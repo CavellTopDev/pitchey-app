@@ -125,6 +125,31 @@ jobs:
         
       - name: Run type checking
         run: deno check working-server.ts
+      
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://postgres:password@localhost:5432/pitchey_test
+        run: |
+          # Wait for postgres to be ready
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then echo "Postgres is ready"; break; fi; sleep 1; done
+          
+          # Ensure drizzle folder exists and is accessible
+          if [ ! -d "drizzle" ]; then
+            echo "❌ Drizzle migration folder not found"
+            ls -la
+            exit 1
+          fi
+          
+          echo "✅ Found drizzle migrations folder with $(ls drizzle/*.sql | wc -l) migration files"
+          
+          # Run migrations if migrate script exists
+          if [ -f src/db/migrate.ts ]; then
+            echo "🚀 Running database migrations..."
+            deno run --allow-env --allow-net --allow-read src/db/migrate.ts
+          else
+            echo "No migration script found, skipping..."
+          fi
         
       - name: Run tests
         env:
