@@ -9,7 +9,7 @@
 import pg from "npm:pg@8.11.3";
 const { Client } = pg;
 
-const DATABASE_URL = Deno.env.get("DATABASE_URL") || "postgresql://postgres:password@localhost:5432/pitchey";
+const DATABASE_URL = Deno.env.get("DATABASE_URL") || "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 const BACKUP_RETENTION_DAYS = 7;
 const isLocalDb = DATABASE_URL.includes("localhost") || DATABASE_URL.includes("127.0.0.1");
 

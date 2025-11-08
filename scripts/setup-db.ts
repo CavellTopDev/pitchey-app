@@ -6,7 +6,7 @@ import { config } from "https://deno.land/x/dotenv@v3.2.2/mod.ts";
 
 config({ export: true });
 
-const connectionString = Deno.env.get("DATABASE_URL") || "postgresql://postgres:password@localhost:5432/pitchey";
+const connectionString = Deno.env.get("DATABASE_URL") || "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 const sql = postgres(connectionString);
 const db = drizzle(sql);
 
