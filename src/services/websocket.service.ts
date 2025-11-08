@@ -89,7 +89,10 @@ export enum WSMessageType {
   
   // System events
   SYSTEM_ANNOUNCEMENT = "system_announcement",
-  MAINTENANCE_MODE = "maintenance_mode"
+  MAINTENANCE_MODE = "maintenance_mode",
+  
+  // Initial data
+  INITIAL_DATA = "initial_data"
 }
 
 // WebSocket connection status
@@ -261,7 +264,9 @@ export class PitcheyWebSocketServer {
       });
 
       // Update user presence
-      await this.updateUserPresence(session.userId, PresenceStatus.ONLINE);
+      if (session.userId != null) {
+        await this.updateUserPresence(session.userId, PresenceStatus.ONLINE);
+      }
       
       // Send queued messages
       await this.sendQueuedMessages(session);
@@ -569,6 +574,8 @@ export class PitcheyWebSocketServer {
    * Handle request for initial data
    */
   private async handleInitialDataRequest(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) return;
+    
     try {
       // Fetch initial data for the user
       const [recentNotifications, unreadMessages, activeConversations] = await Promise.all([
@@ -620,6 +627,8 @@ export class PitcheyWebSocketServer {
    * Handle notification read
    */
   private async handleNotificationRead(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) return;
+    
     const { notificationId } = message.payload || {};
     
     if (!notificationId) {
@@ -647,6 +656,8 @@ export class PitcheyWebSocketServer {
    * Handle draft synchronization
    */
   private async handleDraftSync(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) return;
+    
     const { draftData, pitchId } = message.payload || {};
     
     if (!draftData || !pitchId) {
@@ -674,6 +685,8 @@ export class PitcheyWebSocketServer {
    * Handle presence update
    */
   private async handlePresenceUpdate(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) return;
+    
     const { status } = message.payload || {};
     
     if (!Object.values(PresenceStatus).includes(status)) {
@@ -689,6 +702,8 @@ export class PitcheyWebSocketServer {
    * Handle typing indicators
    */
   private async handleTypingIndicator(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) return;
+    
     const { conversationId } = message.payload || {};
     
     if (!conversationId) {

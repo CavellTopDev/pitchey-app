@@ -76,7 +76,8 @@ const DEFAULT_RATE_LIMITS: Record<WSMessageType, RateLimitRule> = {
   [WSMessageType.ACTIVITY_UPDATE]: { maxMessages: Infinity, windowMs: 0 },
   [WSMessageType.NEW_MESSAGE]: { maxMessages: Infinity, windowMs: 0 },
   [WSMessageType.SYSTEM_ANNOUNCEMENT]: { maxMessages: Infinity, windowMs: 0 },
-  [WSMessageType.MAINTENANCE_MODE]: { maxMessages: Infinity, windowMs: 0 }
+  [WSMessageType.MAINTENANCE_MODE]: { maxMessages: Infinity, windowMs: 0 },
+  [WSMessageType.INITIAL_DATA]: { maxMessages: 5, windowMs: 60000 } // 5 per minute
 };
 
 // Violation thresholds and penalties

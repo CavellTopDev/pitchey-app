@@ -17,6 +17,7 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_PASSWORD: password
+          POSTGRES_DB: pitchey
         options: >-
           --health-cmd pg_isready
           --health-interval 10s

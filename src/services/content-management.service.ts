@@ -152,7 +152,7 @@ export class ContentManagementService {
       if (portalType) {
         conditions.push(or(
           eq(contentItems.portalType, portalType),
-          isNull(contentItems.portalType)
+          sql`${contentItems.portalType} IS NULL`
         ));
       }
       

@@ -10751,7 +10751,7 @@ const handler = async (request: Request): Promise<Response> => {
           .select({ count: sql`count(*)::integer` })
           .from(ndas)
           .where(and(
-            eq(ndas.productionId, userId),
+            eq(ndas.userId, userId),
             gte(ndas.signedAt, startDate)
           ));
         
@@ -10807,7 +10807,7 @@ const handler = async (request: Request): Promise<Response> => {
           .from(ndas)
           .where(and(
             eq(ndas.pitchId, pitchId),
-            eq(ndas.productionId, userId),
+            eq(ndas.userId, userId),
             eq(ndas.status, 'signed')
           ))
           .limit(1);
@@ -10960,26 +10960,26 @@ const handler = async (request: Request): Promise<Response> => {
         const [total, pending, approved, rejected] = await Promise.all([
           db.select({ count: sql`count(*)::integer` })
             .from(ndas)
-            .where(eq(ndas.productionId, userId)),
+            .where(eq(ndas.userId, userId)),
           
           db.select({ count: sql`count(*)::integer` })
             .from(ndas)
             .where(and(
-              eq(ndas.productionId, userId),
+              eq(ndas.userId, userId),
               eq(ndas.status, 'pending')
             )),
           
           db.select({ count: sql`count(*)::integer` })
             .from(ndas)
             .where(and(
-              eq(ndas.productionId, userId),
+              eq(ndas.userId, userId),
               eq(ndas.status, 'signed')
             )),
           
           db.select({ count: sql`count(*)::integer` })
             .from(ndas)
             .where(and(
-              eq(ndas.productionId, userId),
+              eq(ndas.userId, userId),
               eq(ndas.status, 'rejected')
             ))
         ]);
@@ -11271,7 +11271,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Get creator usernames for the trending pitches
         const pitchesWithCreators = await Promise.all(
-          trendingPitches.map(async (pitch) => {
+          trendingPitches.map(async (pitch: any) => {
             const [creator] = await db
               .select({ username: users.username, userType: users.userType })
               .from(users)
@@ -11331,7 +11331,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Get creator usernames for the saved pitches
         const pitchesWithCreators = await Promise.all(
-          savedPitches.map(async (pitch) => {
+          savedPitches.map(async (pitch: any) => {
             const [creator] = await db
               .select({ username: users.username, userType: users.userType })
               .from(users)
@@ -11409,7 +11409,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Get creator usernames for the recommendations
         const recommendationsWithCreators = await Promise.all(
-          recommendations.map(async (pitch) => {
+          recommendations.map(async (pitch: any) => {
             const [creator] = await db
               .select({ 
                 username: users.username, 
@@ -11770,7 +11770,7 @@ const handler = async (request: Request): Promise<Response> => {
         let ndaDetails = null;
         if (hasSignedNDA) {
           const userNDAs = await NDAService.getUserSignedNDAs(authResult.user.id);
-          const pitchNDA = userNDAs.find(record => record.nda.pitchId === pitchId);
+          const pitchNDA = userNDAs.find((record: any) => record.nda.pitchId === pitchId);
           if (pitchNDA) {
             ndaDetails = {
               id: pitchNDA.nda.id,
@@ -11905,7 +11905,7 @@ const handler = async (request: Request): Promise<Response> => {
           total,
           page,
           limit,
-          unreadCount: unreadOnly ? total : results.filter(n => !n.isRead).length
+          unreadCount: unreadOnly ? total : results.filter((n: any) => !n.isRead).length
         });
       } catch (error) {
         console.error("Error fetching notifications:", error);
@@ -11983,7 +11983,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         return successResponse({
           result: {
-            items: results.map(user => ({
+            items: results.map((user: any) => ({
               ...user,
               verified: user.emailVerified
             })),
@@ -12007,8 +12007,8 @@ const handler = async (request: Request): Promise<Response> => {
     
     // Determine if this is a client error (400) or server error (500)
     if (isClientError(error)) {
-      console.log("Client error detected:", error.message);
-      const response = validationErrorResponse(error.message || "Bad request");
+      console.log("Client error detected:", error instanceof Error ? error.message : String(error));
+      const response = validationErrorResponse(error instanceof Error ? error.message : "Bad request");
       response.headers.set('X-Response-Time', `${Date.now() - startTime}ms`);
       return response;
     }
@@ -12088,7 +12088,7 @@ async function handleWebSocketMessage(socket: WebSocket, data: any) {
             .from(conversationParticipants)
             .where(eq(conversationParticipants.conversationId, conversationId));
             
-          participants.forEach(participant => {
+          participants.forEach((participant: any) => {
             if (participant.userId !== session.userId) {
               broadcastToUser(participant.userId, {
                 type: 'user_typing',
@@ -12351,7 +12351,7 @@ async function loadSSLCertificates() {
     const keyFile = await Deno.readTextFile(SSL_KEY_PATH);
     return { cert: certFile, key: keyFile };
   } catch (error) {
-    console.error("❌ Failed to load SSL certificates:", error.message);
+    console.error("❌ Failed to load SSL certificates:", error instanceof Error ? error.message : String(error));
     console.error(`   Certificate path: ${SSL_CERT_PATH}`);
     console.error(`   Key path: ${SSL_KEY_PATH}`);
     console.error("   Run: ./ssl/generate-dev-certs.sh to create development certificates");

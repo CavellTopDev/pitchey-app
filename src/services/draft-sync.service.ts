@@ -177,7 +177,7 @@ export class DraftSyncService {
       return { success: true };
     } catch (error) {
       console.error("❌ Failed to save draft to database:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
@@ -192,9 +192,9 @@ export class DraftSyncService {
       };
 
       // Try to set lock with NX (only if not exists)
-      const result = await this.redis.set(lockKey, JSON.stringify(lockData), "EX", this.TTL.LOCK, "NX");
+      const result = await this.redis.set(lockKey, JSON.stringify(lockData), this.TTL.LOCK);
       
-      if (result === "OK") {
+      if (result) {
         // Broadcast lock acquisition
         await this.broadcastFieldLock(pitchId, field, lockData);
         console.log(`🔒 Field '${field}' locked by user ${userId} (device: ${deviceId})`);
@@ -449,7 +449,7 @@ export class DraftSyncService {
       
       console.log('🧹 Draft sync cleanup completed');
     } catch (error) {
-      console.warn('⚠️ Draft cleanup skipped (Redis not available):', error.message);
+      console.warn('⚠️ Draft cleanup skipped (Redis not available):', error instanceof Error ? error.message : String(error));
     }
   }
 
