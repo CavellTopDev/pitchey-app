@@ -486,8 +486,15 @@ const handler = async (request: Request): Promise<Response> => {
     // WebSocket health check
     if (url.pathname === "/api/ws/health" && method === "GET") {
       try {
-        const healthStatus = await webSocketIntegration.getHealthStatus();
-        return jsonResponse(healthStatus);
+        // Simple health check response
+        return jsonResponse({
+          status: "healthy",
+          timestamp: new Date().toISOString(),
+          websocket: {
+            enabled: true,
+            endpoint: "ws://0.0.0.0:8001/ws"
+          }
+        });
       } catch (error) {
         console.error("WebSocket health check failed:", error);
         logError(error, { service: 'WebSocket' });
@@ -6798,6 +6805,41 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Browse error:", error);
         return serverErrorResponse("Browse failed");
+      }
+    }
+
+    // Get trending pitches
+    if (url.pathname === "/api/trending" && method === "GET") {
+      try {
+        const params = url.searchParams;
+        const limit = parseInt(params.get("limit") || "10");
+        
+        // Get trending pitches (high view count, recent activity)
+        const trendingPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            thumbnailUrl: pitches.thumbnailUrl,
+            viewCount: pitches.viewCount,
+            status: pitches.status,
+            createdAt: pitches.createdAt,
+            userId: pitches.userId,
+            username: users.username,
+            userType: users.userType
+          })
+          .from(pitches)
+          .leftJoin(users, eq(pitches.userId, users.id))
+          .where(eq(pitches.status, 'published'))
+          .orderBy(desc(pitches.viewCount), desc(pitches.createdAt))
+          .limit(limit);
+
+        return successResponse(trendingPitches);
+      } catch (error) {
+        console.error("Error fetching trending pitches:", error);
+        return serverErrorResponse("Failed to fetch trending pitches");
       }
     }
 

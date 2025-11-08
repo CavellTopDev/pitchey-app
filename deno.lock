@@ -8,6 +8,7 @@
     "npm:@aws-sdk/s3-request-presigner@*": "3.913.0",
     "npm:@neondatabase/serverless@0.9.5": "0.9.5",
     "npm:bcrypt@*": "6.0.0",
+    "npm:bcryptjs@2.4.3": "2.4.3",
     "npm:drizzle-kit@~0.31.5": "0.31.5_esbuild@0.25.10",
     "npm:drizzle-orm@*": "0.33.0_@neondatabase+serverless@0.9.5_postgres@3.4.7_postgres@3.3.5",
     "npm:drizzle-orm@0.33": "0.33.0_@neondatabase+serverless@0.9.5_postgres@3.4.7_postgres@3.3.5",
@@ -1379,6 +1380,9 @@
         "node-gyp-build"
       ],
       "scripts": true
+    },
+    "bcryptjs@2.4.3": {
+      "integrity": "sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ=="
     },
     "bowser@2.12.1": {
       "integrity": "sha512-z4rE2Gxh7tvshQ4hluIT7XcFrgLIQaw9X3A+kTTRdovCz5PMukm/0QC/BKSYPj3omF5Qfypn9O/c5kgpmvYUCw=="
