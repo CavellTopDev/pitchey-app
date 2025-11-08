@@ -103,7 +103,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Subscribed to channel: ${channel}`);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to subscribe to ${channel}:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -163,7 +163,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Unsubscribed from channel: ${channel}`);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to unsubscribe from ${channel}:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -192,7 +192,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Published to ${channel} (${subscriberCount} subscribers):`, message.type);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to publish to ${channel}:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -275,7 +275,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to update presence for user ${userId}:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -302,7 +302,7 @@ export class WebSocketRedisService {
       
       return Object.values(allPresence).filter((presence: any) => 
         presence.status === "online" || presence.status === "away"
-      );
+      ) as PresenceInfo[];
     } catch (error) {
       console.error("[WebSocket Redis] Failed to get online users:", error);
       return [];
@@ -337,7 +337,7 @@ export class WebSocketRedisService {
       console.log(`[WebSocket Redis] Queued message for offline user ${userId}`);
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to queue message for user ${userId}:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -392,7 +392,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to store draft sync:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -434,7 +434,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to store upload progress:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -462,7 +462,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to update pitch stats:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -499,7 +499,7 @@ export class WebSocketRedisService {
 
     } catch (error) {
       console.error(`[WebSocket Redis] Failed to set typing indicator:`, error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 
@@ -547,7 +547,7 @@ export class WebSocketRedisService {
       console.log("[WebSocket Redis] Cleanup completed");
     } catch (error) {
       console.error("[WebSocket Redis] Failed to cleanup expired data:", error);
-      captureException(error, { service: 'WebSocketRedis' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketRedis' });
     }
   }
 

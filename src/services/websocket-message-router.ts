@@ -170,16 +170,17 @@ export class WebSocketMessageRouter {
 
     } catch (error) {
       console.error(`[WebSocket Router] Error routing message ${message.type}:`, error);
-      captureException(error, { service: 'WebSocketMessageRouter' });
+      captureException(error instanceof Error ? error : new Error(String(error)), { service: 'WebSocketMessageRouter' });
       
       // Track failed message processing
-      await this.trackMessageAnalytics(session, message, 'error', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await this.trackMessageAnalytics(session, message, 'error', errorMessage);
       
       // Return error response
       return {
         type: WSMessageType.ERROR,
         payload: {
-          error: error.message,
+          error: errorMessage,
           originalMessageId: message.messageId,
           timestamp: Date.now()
         },
@@ -252,6 +253,10 @@ export class WebSocketMessageRouter {
    * Handle notification read
    */
   private async handleNotificationRead(session: WSSession, message: WSMessage): Promise<WSMessage[]> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { notificationId } = message.payload;
 
     // Update notification in database
@@ -292,6 +297,10 @@ export class WebSocketMessageRouter {
    * Handle draft synchronization
    */
   private async handleDraftSync(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { pitchId, draftData } = message.payload;
 
     // Verify user owns the pitch
@@ -317,6 +326,10 @@ export class WebSocketMessageRouter {
    * Handle presence update
    */
   private async handlePresenceUpdate(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { status } = message.payload;
 
     // Update session presence
@@ -332,6 +345,10 @@ export class WebSocketMessageRouter {
    * Handle typing start
    */
   private async handleTypingStart(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { conversationId } = message.payload;
 
     // Verify user is participant in conversation
@@ -357,6 +374,10 @@ export class WebSocketMessageRouter {
    * Handle typing stop
    */
   private async handleTypingStop(session: WSSession, message: WSMessage): Promise<void> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { conversationId } = message.payload;
 
     // Verify user is participant in conversation
@@ -377,6 +398,10 @@ export class WebSocketMessageRouter {
    * Handle send message
    */
   private async handleSendMessage(session: WSSession, message: WSMessage): Promise<WSMessage[]> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { content, conversationId, recipientId, pitchId } = message.payload;
 
     let targetConversationId = conversationId;
@@ -436,6 +461,10 @@ export class WebSocketMessageRouter {
    * Handle message read receipt
    */
   private async handleMessageRead(session: WSSession, message: WSMessage): Promise<WSMessage[]> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { messageId } = message.payload;
 
     // Verify message exists and user has access
@@ -503,6 +532,10 @@ export class WebSocketMessageRouter {
    * Handle pitch view subscription
    */
   private async handlePitchViewSubscription(session: WSSession, message: WSMessage): Promise<WSMessage> {
+    if (session.userId == null) {
+      throw new Error('User session required');
+    }
+    
     const { pitchId } = message.payload;
 
     // Verify pitch exists and user has access
@@ -650,6 +683,10 @@ export class WebSocketMessageRouter {
     status: 'success' | 'error',
     errorMessage?: string
   ): Promise<void> {
+    if (session.userId == null) {
+      return;
+    }
+    
     try {
       await AnalyticsService.trackEvent({
         eventType: 'websocket_message_processed',

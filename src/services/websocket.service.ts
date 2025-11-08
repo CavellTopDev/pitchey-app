@@ -33,7 +33,7 @@ async function verifySimpleToken(token: string): Promise<any | null> {
     const payload = await verify(token, key);
     return payload;
   } catch (error) {
-    console.error("[WebSocket] Token verification failed:", error.message);
+    console.error("[WebSocket] Token verification failed:", error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -92,7 +92,8 @@ export enum WSMessageType {
   MAINTENANCE_MODE = "maintenance_mode",
   
   // Initial data
-  INITIAL_DATA = "initial_data"
+  INITIAL_DATA = "initial_data",
+  REQUEST_INITIAL_DATA = "request_initial_data"
 }
 
 // WebSocket connection status
@@ -136,6 +137,7 @@ export interface WSSession {
   rateLimitLastRefill: number;
   messageQueue: WSMessage[];
   authenticated: boolean;
+  connectionLatency?: number;
   clientInfo: {
     userAgent?: string;
     ip?: string;
@@ -272,14 +274,16 @@ export class PitcheyWebSocketServer {
       await this.sendQueuedMessages(session);
       
       // Track connection analytics
-      await this.trackAnalyticsEvent({
-        eventType: "websocket_connected",
-        userId: session.userId,
-        eventData: {
-          sessionId: session.id,
-          userType: session.userType
-        }
-      });
+      if (session.userId != null) {
+        await this.trackAnalyticsEvent({
+          eventType: "websocket_connected",
+          userId: session.userId,
+          eventData: {
+            sessionId: session.id,
+            userType: session.userType
+          }
+        });
+      }
 
       console.log(`[WebSocket] User ${session.userId} connected (session: ${session.id})`);
       
@@ -436,7 +440,9 @@ export class PitcheyWebSocketServer {
     }
 
     // Add default properties
-    message.userId = session.userId;
+    if (session.userId != null) {
+      message.userId = session.userId;
+    }
     message.timestamp = Date.now();
     if (!message.messageId) {
       message.messageId = crypto.randomUUID();
@@ -513,7 +519,7 @@ export class PitcheyWebSocketServer {
           await this.handlePong(session, message);
           break;
         
-        case 'request_initial_data':
+        case WSMessageType.REQUEST_INITIAL_DATA:
           // Client requests initial data
           await this.handleInitialDataRequest(session, message);
           break;
@@ -527,15 +533,17 @@ export class PitcheyWebSocketServer {
       }
 
       // Track analytics for all message types
-      await this.trackAnalyticsEvent({
-        eventType: "websocket_message",
-        userId: session.userId,
-        eventData: {
-          messageType: message.type,
-          sessionId: session.id,
-          messageId: message.messageId
-        }
-      });
+      if (session.userId != null) {
+        await this.trackAnalyticsEvent({
+          eventType: "websocket_message",
+          userId: session.userId,
+          eventData: {
+            messageType: message.type,
+            sessionId: session.id,
+            messageId: message.messageId
+          }
+        });
+      }
 
     } catch (error) {
       console.error(`[WebSocket] Error handling message type ${message.type}:`, error);
@@ -607,7 +615,7 @@ export class PitcheyWebSocketServer {
 
       // Send initial data to client
       await this.sendMessage(session, {
-        type: 'initial_data',
+        type: WSMessageType.INITIAL_DATA,
         payload: {
           userId: session.userId,
           notifications: recentNotifications,
@@ -998,16 +1006,18 @@ export class PitcheyWebSocketServer {
         }
 
         // Track disconnection analytics
-        await this.trackAnalyticsEvent({
-          eventType: "websocket_disconnected",
-          userId: session.userId,
-          eventData: {
-            sessionId: session.id,
-            code,
-            reason: reason || "Unknown",
-            duration: Date.now() - session.lastActivity
-          }
-        });
+        if (session.userId != null) {
+          await this.trackAnalyticsEvent({
+            eventType: "websocket_disconnected",
+            userId: session.userId,
+            eventData: {
+              sessionId: session.id,
+              code,
+              reason: reason || "Unknown",
+              duration: Date.now() - session.lastActivity
+            }
+          });
+        }
       }
 
     } catch (error) {
