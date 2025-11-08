@@ -484,7 +484,7 @@ const handler = async (request: Request): Promise<Response> => {
     // === WEBSOCKET ENDPOINTS ===
     
     // WebSocket health check
-    if (url.pathname === "/api/ws/health") {
+    if (url.pathname === "/api/ws/health" && method === "GET") {
       try {
         const healthStatus = await webSocketIntegration.getHealthStatus();
         return jsonResponse(healthStatus);
@@ -1178,33 +1178,22 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const user = authResult.user;
         
-        // Get user from database using Drizzle
-        const userResult = await db
-          .select({
-            id: users.id,
-            email: users.email,
-            username: users.username,
-            userType: users.userType,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            bio: users.bio,
-            profileImageUrl: users.profileImageUrl,
-            companyName: users.companyName,
-            emailVerified: users.emailVerified,
-            subscriptionTier: users.subscriptionTier,
-            createdAt: users.createdAt
-          })
-          .from(users)
-          .where(eq(users.id, user.id))
-          .limit(1);
-
-        if (!userResult.length) {
-          return errorResponse("User not found", 404);
-        }
-
-        return jsonResponse({
-          success: true,
-          user: userResult[0]
+        // Return the authenticated user profile directly
+        return successResponse({
+          user: {
+            id: user.id,
+            email: user.email,
+            username: user.username || user.email.split('@')[0],
+            userType: user.userType,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            bio: user.bio,
+            profileImageUrl: user.profileImageUrl,
+            companyName: user.companyName,
+            emailVerified: user.emailVerified,
+            subscriptionTier: user.subscriptionTier,
+            createdAt: user.createdAt
+          }
         });
       } catch (error) {
         console.error("Profile error:", error);
@@ -2447,6 +2436,11 @@ const handler = async (request: Request): Promise<Response> => {
         return authErrorResponse("Authentication required");
       }
       const user = authResult.user;
+      
+      // Check if user is a production company
+      if (user.userType !== 'production') {
+        return forbiddenResponse("Access denied. Production company access required.");
+      }
       console.log("User:", user?.id, user?.email, user?.userType);
       try {
         // Temporarily use mock data to bypass database issues
@@ -3351,6 +3345,10 @@ const handler = async (request: Request): Promise<Response> => {
     // Creator dashboard (main dashboard endpoint with caching)
     if (url.pathname === "/api/creator/dashboard" && method === "GET") {
       try {
+        // Check if user is a creator
+        if (user.userType !== 'creator') {
+          return forbiddenResponse("Access denied. Creator access required.");
+        }
         // Get cached dashboard metrics first
         const cachedMetrics = await DashboardCacheService.getDashboardMetrics(user.id, user.userType);
         
@@ -4914,6 +4912,10 @@ const handler = async (request: Request): Promise<Response> => {
     // Investor dashboard
     if (url.pathname === "/api/investor/dashboard" && method === "GET") {
       try {
+        // Check if user is an investor
+        if (user.userType !== 'investor') {
+          return forbiddenResponse("Access denied. Investor access required.");
+        }
         // Get portfolio summary data
         const investments = await db
           .select()
@@ -6087,11 +6089,15 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Invalid pitch ID", 400);
         }
 
-        // First try to get user's own pitch
-        let pitch = await PitchService.getPitchById(pitchId, user.id);
+        // Try to authenticate (optional for public pitches)
+        const authResult = await authenticateRequest(request);
+        const user = authResult.success ? authResult.user : null;
+        
+        // First try to get user's own pitch if authenticated
+        let pitch = user ? await PitchService.getPitchById(pitchId, user.id) : null;
         
         // If not found and user is an investor, try to get public pitch
-        if (!pitch && user.userType === 'investor') {
+        if (!pitch && user && user.userType === 'investor') {
           const publicPitch = await db
             .select()
             .from(pitches)
@@ -6129,7 +6135,7 @@ const handler = async (request: Request): Promise<Response> => {
         // Add isOwner flag to indicate if the current user owns this pitch
         const pitchWithOwnership = {
           ...pitch,
-          isOwner: pitch.userId === user.id
+          isOwner: user ? pitch.userId === user.id : false
         };
 
         return successResponse({
@@ -6150,6 +6156,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Update pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/pitches/") && method === "PUT") {
+      // Authenticate user first
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
+      
       // SECURITY: Only creators can update pitches
       if (user.userType !== 'creator') {
         console.warn(`[SECURITY VIOLATION] User ${user.id} (${user.userType}) attempted to update pitch`);
@@ -6194,6 +6207,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Delete pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname.startsWith("/api/pitches/") && method === "DELETE") {
+      // Authenticate user first
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
+      
       // SECURITY: Only creators can delete their own pitches
       if (user.userType !== 'creator') {
         console.warn(`[SECURITY VIOLATION] User ${user.id} (${user.userType}) attempted to delete pitch`);
@@ -6595,6 +6615,191 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // ==========================================
+    // SEARCH AND BROWSE ENDPOINTS
+    // ==========================================
+
+    // Search pitches with filters
+    if (url.pathname === "/api/search" && method === "GET") {
+      try {
+        const params = url.searchParams;
+        const query = params.get("q") || params.get("query") || "";
+        const genre = params.get("genre");
+        const format = params.get("format");
+        const page = parseInt(params.get("page") || "1");
+        const limit = parseInt(params.get("limit") || "20");
+        const offset = (page - 1) * limit;
+
+        // Build search query
+        let searchQuery = db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            thumbnailUrl: pitches.thumbnailUrl,
+            viewCount: pitches.viewCount,
+            status: pitches.status,
+            createdAt: pitches.createdAt,
+            userId: pitches.userId,
+            username: users.username,
+            userType: users.userType
+          })
+          .from(pitches)
+          .leftJoin(users, eq(pitches.userId, users.id))
+          .where(eq(pitches.status, 'published'));
+
+        // Apply search filter
+        if (query) {
+          searchQuery = searchQuery.where(
+            or(
+              sql`${pitches.title} ILIKE ${`%${query}%`}`,
+              sql`${pitches.logline} ILIKE ${`%${query}%`}`,
+              sql`${pitches.shortSynopsis} ILIKE ${`%${query}%`}`
+            )
+          );
+        }
+
+        // Apply genre filter
+        if (genre && genre !== 'all') {
+          searchQuery = searchQuery.where(eq(pitches.genre, genre));
+        }
+
+        // Apply format filter
+        if (format && format !== 'all') {
+          searchQuery = searchQuery.where(eq(pitches.format, format));
+        }
+
+        // Get total count for pagination
+        const countQuery = await db
+          .select({ count: sql`count(*)::int` })
+          .from(pitches)
+          .where(eq(pitches.status, 'published'));
+        
+        const totalCount = countQuery[0]?.count || 0;
+
+        // Get paginated results
+        const results = await searchQuery
+          .orderBy(desc(pitches.createdAt))
+          .limit(limit)
+          .offset(offset);
+
+        return successResponse({
+          results,
+          totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit)
+        });
+
+      } catch (error) {
+        console.error("Search error:", error);
+        return serverErrorResponse("Search failed");
+      }
+    }
+
+    // Browse pitches with category filters
+    if (url.pathname === "/api/browse" && method === "GET") {
+      try {
+        const params = url.searchParams;
+        const category = params.get("category") || "all";
+        const genre = params.get("genre");
+        const format = params.get("format");
+        const sortBy = params.get("sortBy") || "recent";
+        const page = parseInt(params.get("page") || "1");
+        const limit = parseInt(params.get("limit") || "20");
+        const offset = (page - 1) * limit;
+
+        // Build browse query
+        let browseQuery = db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            logline: pitches.logline,
+            genre: pitches.genre,
+            format: pitches.format,
+            thumbnailUrl: pitches.thumbnailUrl,
+            viewCount: pitches.viewCount,
+            status: pitches.status,
+            createdAt: pitches.createdAt,
+            userId: pitches.userId,
+            username: users.username,
+            userType: users.userType
+          })
+          .from(pitches)
+          .leftJoin(users, eq(pitches.userId, users.id))
+          .where(eq(pitches.status, 'published'));
+
+        // Apply category filter
+        if (category === 'trending') {
+          // Get pitches with high view count in last 7 days
+          browseQuery = browseQuery.where(
+            sql`${pitches.createdAt} > NOW() - INTERVAL '7 days'`
+          );
+        } else if (category === 'featured') {
+          // Featured pitches (you can add a featured flag to the database)
+          browseQuery = browseQuery.where(eq(pitches.isFeatured, true));
+        } else if (category === 'new') {
+          // New releases - last 30 days
+          browseQuery = browseQuery.where(
+            sql`${pitches.createdAt} > NOW() - INTERVAL '30 days'`
+          );
+        }
+
+        // Apply genre filter
+        if (genre && genre !== 'all') {
+          browseQuery = browseQuery.where(eq(pitches.genre, genre));
+        }
+
+        // Apply format filter
+        if (format && format !== 'all') {
+          browseQuery = browseQuery.where(eq(pitches.format, format));
+        }
+
+        // Apply sorting
+        let orderByClause;
+        switch (sortBy) {
+          case 'popular':
+            orderByClause = desc(pitches.viewCount);
+            break;
+          case 'oldest':
+            orderByClause = asc(pitches.createdAt);
+            break;
+          case 'recent':
+          default:
+            orderByClause = desc(pitches.createdAt);
+            break;
+        }
+
+        // Get total count for pagination
+        const countQuery = await db
+          .select({ count: sql`count(*)::int` })
+          .from(pitches)
+          .where(eq(pitches.status, 'published'));
+        
+        const totalCount = countQuery[0]?.count || 0;
+
+        // Get paginated results
+        const results = await browseQuery
+          .orderBy(orderByClause)
+          .limit(limit)
+          .offset(offset);
+
+        return successResponse({
+          results,
+          category,
+          totalCount,
+          page,
+          limit,
+          totalPages: Math.ceil(totalCount / limit)
+        });
+
+      } catch (error) {
+        console.error("Browse error:", error);
+        return serverErrorResponse("Browse failed");
+      }
+    }
 
     // Track pitch view
     if (url.pathname.match(/^\/api\/pitches\/\d+\/view$/) && method === "POST") {
@@ -6869,18 +7074,20 @@ const handler = async (request: Request): Promise<Response> => {
     // Request NDA
     if (url.pathname === "/api/ndas/request" && method === "POST") {
       try {
+        // Parse and validate body BEFORE authentication
+        const body = await request.json();
+        const { pitchId, ndaType, requestMessage, companyInfo } = body;
+
+        if (!pitchId) {
+          return validationErrorResponse("pitchId is required", undefined, origin);
+        }
+
+        // NOW check authentication after validation
         const authResult = await authenticate(request);
         if (authResult.error) {
           return unauthorizedResponse(authResult.error);
         }
         const user = authResult.user;
-        
-        const body = await request.json();
-        const { pitchId, ndaType, requestMessage, companyInfo } = body;
-
-        if (!pitchId) {
-          return validationErrorResponse("Pitch ID is required");
-        }
 
         const requestData = {
           pitchId: parseInt(pitchId),
