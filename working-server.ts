@@ -6236,6 +6236,13 @@ const handler = async (request: Request): Promise<Response> => {
     // POST /api/pitches/:id/characters - Add character to pitch
     if (url.pathname.match(/^\/api\/pitches\/\d+\/characters$/) && method === "POST") {
       try {
+        // Authenticate user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         const pitchId = parseInt(url.pathname.split('/')[3]);
         if (isNaN(pitchId) || pitchId <= 0) {
           return errorResponse("Invalid pitch ID", 400);
@@ -6314,6 +6321,13 @@ const handler = async (request: Request): Promise<Response> => {
     // POST /api/pitches/:id/characters/reorder - Reorder characters in pitch
     if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/reorder$/) && method === "POST") {
       try {
+        // Authenticate user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         const pitchId = parseInt(url.pathname.split('/')[3]);
         if (isNaN(pitchId) || pitchId <= 0) {
           return errorResponse("Invalid pitch ID", 400);
@@ -6382,6 +6396,202 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error reordering characters:", error);
         return serverErrorResponse("Failed to reorder characters");
+      }
+    }
+
+    // GET /api/pitches/:id/characters - Get characters for a pitch
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters$/) && method === "GET") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[3]);
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+
+        // Get pitch with characters (public endpoint, but may need NDA)
+        const [pitch] = await db
+          .select({ 
+            id: pitches.id, 
+            characters: pitches.characters,
+            visibility: pitches.visibility,
+            userId: pitches.userId
+          })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch) {
+          return errorResponse("Pitch not found", 404);
+        }
+
+        // Parse characters
+        let characters = [];
+        if (pitch.characters && typeof pitch.characters === 'string') {
+          try {
+            characters = JSON.parse(pitch.characters);
+          } catch (error) {
+            characters = [];
+          }
+        }
+
+        return successResponse({
+          characters,
+          message: "Characters retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error getting characters:", error);
+        return serverErrorResponse("Failed to get characters");
+      }
+    }
+
+    // PUT /api/pitches/:id/characters/:charId - Update a character
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/[\w-]+$/) && method === "PUT") {
+      try {
+        // Authenticate user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        const characterId = pathParts[5];
+        
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+
+        // Verify pitch exists and user owns it
+        const [pitch] = await db
+          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch) {
+          return errorResponse("Pitch not found", 404);
+        }
+
+        if (pitch.userId !== user.id) {
+          return errorResponse("Unauthorized to modify this pitch", 403);
+        }
+
+        // Parse request body
+        const body = await request.json();
+        const { name, description } = body;
+
+        // Parse existing characters
+        let characters = [];
+        if (pitch.characters && typeof pitch.characters === 'string') {
+          try {
+            characters = JSON.parse(pitch.characters);
+          } catch (error) {
+            characters = [];
+          }
+        }
+
+        // Find and update the character
+        const characterIndex = characters.findIndex(char => char.id === characterId);
+        if (characterIndex === -1) {
+          return errorResponse("Character not found", 404);
+        }
+
+        // Update character fields
+        if (name !== undefined) {
+          characters[characterIndex].name = name;
+        }
+        if (description !== undefined) {
+          characters[characterIndex].description = description;
+        }
+
+        // Update pitch with modified characters
+        await db
+          .update(pitches)
+          .set({
+            characters: JSON.stringify(characters),
+            updatedAt: new Date()
+          })
+          .where(eq(pitches.id, pitchId));
+
+        return successResponse({
+          character: characters[characterIndex],
+          message: "Character updated successfully"
+        });
+
+      } catch (error) {
+        console.error("Error updating character:", error);
+        return serverErrorResponse("Failed to update character");
+      }
+    }
+
+    // DELETE /api/pitches/:id/characters/:charId - Delete a character
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/[\w-]+$/) && method === "DELETE") {
+      try {
+        // Authenticate user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        const characterId = pathParts[5];
+        
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+
+        // Verify pitch exists and user owns it
+        const [pitch] = await db
+          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch) {
+          return errorResponse("Pitch not found", 404);
+        }
+
+        if (pitch.userId !== user.id) {
+          return errorResponse("Unauthorized to modify this pitch", 403);
+        }
+
+        // Parse existing characters
+        let characters = [];
+        if (pitch.characters && typeof pitch.characters === 'string') {
+          try {
+            characters = JSON.parse(pitch.characters);
+          } catch (error) {
+            characters = [];
+          }
+        }
+
+        // Find and remove the character
+        const characterIndex = characters.findIndex(char => char.id === characterId);
+        if (characterIndex === -1) {
+          return errorResponse("Character not found", 404);
+        }
+
+        // Remove character
+        characters.splice(characterIndex, 1);
+
+        // Update pitch with modified characters
+        await db
+          .update(pitches)
+          .set({
+            characters: JSON.stringify(characters),
+            updatedAt: new Date()
+          })
+          .where(eq(pitches.id, pitchId));
+
+        return successResponse({
+          message: "Character deleted successfully"
+        });
+
+      } catch (error) {
+        console.error("Error deleting character:", error);
+        return serverErrorResponse("Failed to delete character");
       }
     }
 
