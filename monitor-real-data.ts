@@ -35,7 +35,7 @@ class DataMonitor {
   private checkInterval: number = 5000; // 5 seconds
   private issues: Map<string, Set<string>> = new Map();
 
-  constructor(apiBase: string = "http://localhost:8000") {
+  constructor(apiBase: string = "http://localhost:8001") {
     this.apiBase = apiBase;
   }
 

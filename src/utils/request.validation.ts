@@ -3,7 +3,7 @@
  * Provides safe JSON parsing and request validation with proper error handling
  */
 
-import { badRequestResponse, validationErrorResponse } from "./response.ts";
+import { badRequestResponse } from "./response.ts";
 
 export interface ParseJsonResult<T = any> {
   success: boolean;
@@ -51,7 +51,7 @@ export async function safeParseJson<T = any>(request: Request): Promise<ParseJso
     // Other errors (likely network/stream related)
     return {
       success: false,
-      error: validationErrorResponse("Failed to read request body")
+      error: badRequestResponse("Failed to read request body")
     };
   }
 }
@@ -66,7 +66,7 @@ export function validateRequiredFields(
   if (!data || typeof data !== 'object') {
     return {
       isValid: false,
-      error: validationErrorResponse("Request body must be a valid JSON object")
+      error: badRequestResponse("Request body must be a valid JSON object")
     };
   }
 
@@ -78,7 +78,7 @@ export function validateRequiredFields(
   if (missingFields.length > 0) {
     return {
       isValid: false,
-      error: validationErrorResponse(`Missing required fields: ${missingFields.join(', ')}`)
+      error: badRequestResponse(`Missing required fields: ${missingFields.join(', ')}`)
     };
   }
 

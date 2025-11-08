@@ -1,6 +1,6 @@
 import { assertEquals, assertExists } from "https://deno.land/std@0.208.0/assert/mod.ts";
 
-const API_URL = "http://localhost:8000";
+const API_URL = "http://localhost:8001";
 let authToken: string;
 let userId: number;
 let pitchId: number;

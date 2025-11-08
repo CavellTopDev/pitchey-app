@@ -60,6 +60,7 @@ export class AuthService {
       .values({
         email: validated.email,
         username: validated.username,
+        password: validated.password, // Legacy password field - required by database
         passwordHash: passwordHash, // Database column is 'password_hash' mapped to 'passwordHash'
         userType: validated.userType as any,
         companyName: validated.companyName,

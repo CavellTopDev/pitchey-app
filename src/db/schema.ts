@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull(),
   username: varchar("username", { length: 100 }).notNull(),
+  password: varchar("password", { length: 255 }).notNull(), // Legacy password field - still required by database
   passwordHash: text("password_hash").notNull(),
   userType: varchar("user_type", { length: 50 }).notNull().default("viewer"),
   firstName: varchar("first_name", { length: 100 }),

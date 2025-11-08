@@ -7,7 +7,7 @@
 
 // We'll use environment variables directly instead of loading .env file
 
-const BACKEND_URL = Deno.env.get("BACKEND_URL") || "http://localhost:8000";
+const BACKEND_URL = Deno.env.get("BACKEND_URL") || "http://localhost:8001";
 const WS_URL = BACKEND_URL.replace("http", "ws") + "/ws";
 
 console.log("🧪 Starting WebSocket Integration Tests");

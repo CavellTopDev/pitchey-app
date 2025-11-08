@@ -13,7 +13,7 @@ from typing import Dict, List, Tuple
 import sys
 
 # Configuration
-API_BASE = "http://localhost:8000"
+API_BASE = "http://localhost:8001"
 
 # Use demo login credentials
 DEMO_USERS = {

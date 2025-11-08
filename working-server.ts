@@ -216,7 +216,7 @@ const demoAccounts = {
     companyName: "Independent Films"
   },
   investor: {
-    id: 2,  // Fixed to match actual database
+    id: 15,  // Fixed to match actual database
     email: "sarah.investor@demo.com",
     username: "sarahinvestor",
     password: "Demo123",
@@ -224,7 +224,7 @@ const demoAccounts = {
     companyName: "Johnson Ventures"
   },
   production: {
-    id: 3,  // Fixed to match actual database
+    id: 16,  // Fixed to match actual database
     email: "stellar.production@demo.com",
     username: "stellarproduction",
     password: "Demo123",
@@ -259,8 +259,8 @@ async function authenticate(request: Request): Promise<{ user: any; error?: stri
     
     console.log(`JWT verification successful! Payload:`, payload);
     
-    // Check if it's a demo account (IDs 1, 2, or 3)
-    if (payload && (payload.userId === 1 || payload.userId === 2 || payload.userId === 3)) {
+    // Check if it's a demo account (IDs 1, 15, or 16)
+    if (payload && (payload.userId === 1 || payload.userId === 15 || payload.userId === 16)) {
       // Return demo user data
       const demoUser = {
         id: payload.userId,
@@ -323,6 +323,90 @@ try {
 } catch (error) {
   console.error("❌ Failed to initialize real-time services:", error);
   logError(error, { service: 'WebSocket' });
+}
+
+// ====== MIDDLEWARE FUNCTIONS ======
+
+/**
+ * Validation middleware - ALWAYS runs FIRST for route-specific validation
+ * Returns validation error (400) if input is invalid, otherwise continues
+ */
+async function validateRequest(
+  request: Request, 
+  requiredFields: string[] = [],
+  validateFunction?: (data: any) => { isValid: boolean; error?: Response }
+): Promise<{ success: boolean; data?: any; error?: Response }> {
+  // Only validate POST/PUT/PATCH requests with JSON bodies
+  if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
+    const validationResult = await validateJsonRequest(request, requiredFields);
+    if (!validationResult.success) {
+      return validationResult;
+    }
+
+    // Run custom validation if provided
+    if (validateFunction && validationResult.data) {
+      const customValidation = validateFunction(validationResult.data);
+      if (!customValidation.isValid) {
+        return {
+          success: false,
+          error: customValidation.error
+        };
+      }
+    }
+
+    return {
+      success: true,
+      data: validationResult.data
+    };
+  }
+
+  // For GET/DELETE requests, no body validation needed
+  return { success: true };
+}
+
+/**
+ * Authentication middleware - runs AFTER validation
+ * Returns authentication error (401) if not authenticated
+ */
+async function authenticateRequest(request: Request): Promise<{ success: boolean; user?: any; error?: Response }> {
+  const authResult = await authenticate(request);
+  if (authResult.error || !authResult.user) {
+    return {
+      success: false,
+      error: authErrorResponse(authResult.error || "Authentication required")
+    };
+  }
+  
+  return {
+    success: true,
+    user: authResult.user
+  };
+}
+
+/**
+ * Authorization middleware - runs AFTER authentication
+ * Returns forbidden error (403) if user doesn't have required permissions
+ */
+function authorizeRequest(
+  user: any, 
+  requiredRole?: string,
+  customAuthCheck?: (user: any) => boolean
+): { success: boolean; error?: Response } {
+  if (requiredRole && user.userType !== requiredRole) {
+    return {
+      success: false,
+      error: forbiddenResponse(`${requiredRole} access required`)
+    };
+  }
+
+  if (customAuthCheck && !customAuthCheck(user)) {
+    return {
+      success: false,
+      error: forbiddenResponse("Insufficient permissions")
+    };
+  }
+
+  return { success: true };
 }
 
 // Main request handler
@@ -853,12 +937,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Universal login endpoint
     if (url.pathname === "/api/auth/login" && method === "POST") {
       try {
-        const result = await validateJsonRequest(request, ["email", "password"]);
-        if (!result.success) {
-          return result.error!;
+        // 1. VALIDATION FIRST - Check input before doing anything else
+        const validationResult = await validateRequest(request, ["email", "password"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
         }
 
-        const { email, password } = result.data;
+        const { email, password } = validationResult.data;
 
         // Check demo accounts first
         const demoAccount = Object.values(demoAccounts).find(acc => acc.email === email);
@@ -919,8 +1004,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Portal-specific login endpoints
     if (url.pathname === "/api/auth/creator/login" && method === "POST") {
       try {
-        const body = await request.json();
-        const { email, password } = body;
+        // 1. VALIDATION FIRST - Check input before authentication
+        const validationResult = await validateRequest(request, ["email", "password"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const { email, password } = validationResult.data;
 
         const demoAccount = demoAccounts.creator;
         if (email === demoAccount.email && password === demoAccount.password) {
@@ -957,8 +1047,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     if (url.pathname === "/api/auth/investor/login" && method === "POST") {
       try {
-        const body = await request.json();
-        const { email, password } = body;
+        // 1. VALIDATION FIRST - Check input before authentication
+        const validationResult = await validateRequest(request, ["email", "password"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const { email, password } = validationResult.data;
 
         const demoAccount = demoAccounts.investor;
         if (email === demoAccount.email && password === demoAccount.password) {
@@ -995,8 +1090,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     if (url.pathname === "/api/auth/production/login" && method === "POST") {
       try {
-        const body = await request.json();
-        const { email, password } = body;
+        // 1. VALIDATION FIRST - Check input before authentication
+        const validationResult = await validateRequest(request, ["email", "password"]);
+        if (!validationResult.success) {
+          return validationResult.error!;
+        }
+
+        const { email, password } = validationResult.data;
 
         const demoAccount = demoAccounts.production;
         if (email === demoAccount.email && password === demoAccount.password) {
@@ -2436,29 +2536,32 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // From here, require authentication
-    const authResult = await authenticate(request);
-    if (!authResult.user) {
-      return authErrorResponse("Authentication required");
-    }
-
-    const user = authResult.user;
-
-    // === AUTHENTICATED ENDPOINTS ===
+    // === AUTHENTICATED ENDPOINTS (VALIDATION FIRST, THEN AUTH) ===
 
     // === ADMIN CONTENT MANAGEMENT ENDPOINTS ===
     
     // POST /api/admin/content - Create or update content item (admin only)
     if (url.pathname === "/api/admin/content" && method === "POST") {
       try {
-        if (user.userType !== "admin") {
-          return forbiddenResponse("Admin access required");
-        }
-        
-        const validationResult = await validateJsonRequest(request, ["key", "content"]);
+        // 1. VALIDATION FIRST - Check input before authentication
+        const validationResult = await validateRequest(request, ["key", "content"]);
         if (!validationResult.success) {
           return validationResult.error!;
         }
+        
+        // 2. AUTHENTICATION SECOND - Check if user is authenticated
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        
+        // 3. AUTHORIZATION THIRD - Check if user has proper role
+        const authCheck = authorizeRequest(authResult.user, "admin");
+        if (!authCheck.success) {
+          return authCheck.error!;
+        }
+        
+        const user = authResult.user;
         
         const { key, content, portalType, locale, metadata, status } = validationResult.data;
         
@@ -2484,19 +2587,30 @@ const handler = async (request: Request): Promise<Response> => {
     // PUT /api/admin/content/{id} - Update content item (admin only)
     if (url.pathname.startsWith("/api/admin/content/") && method === "PUT") {
       try {
-        if (user.userType !== "admin") {
-          return forbiddenResponse("Admin access required");
-        }
-        
+        // 1. VALIDATION FIRST - Check path parameter and input
         const contentId = parseInt(url.pathname.split("/")[4]);
         if (!contentId) {
-          return errorResponse("Invalid content ID", 400);
+          return validationErrorResponse("Invalid content ID");
         }
         
-        const validationResult = await validateJsonRequest(request, []);
+        const validationResult = await validateRequest(request, []);
         if (!validationResult.success) {
           return validationResult.error!;
         }
+        
+        // 2. AUTHENTICATION SECOND
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        
+        // 3. AUTHORIZATION THIRD - Check admin role
+        const authCheck = authorizeRequest(authResult.user, "admin");
+        if (!authCheck.success) {
+          return authCheck.error!;
+        }
+        
+        const user = authResult.user;
         
         const updateData = validationResult.data;
         
@@ -2520,14 +2634,25 @@ const handler = async (request: Request): Promise<Response> => {
     // POST /api/admin/features - Create or update feature flag (admin only)
     if (url.pathname === "/api/admin/features" && method === "POST") {
       try {
-        if (user.userType !== "admin") {
-          return forbiddenResponse("Admin access required");
-        }
-        
-        const validationResult = await validateJsonRequest(request, ["name"]);
+        // 1. VALIDATION FIRST
+        const validationResult = await validateRequest(request, ["name"]);
         if (!validationResult.success) {
           return validationResult.error!;
         }
+        
+        // 2. AUTHENTICATION SECOND
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        
+        // 3. AUTHORIZATION THIRD - Check admin role
+        const authCheck = authorizeRequest(authResult.user, "admin");
+        if (!authCheck.success) {
+          return authCheck.error!;
+        }
+        
+        const user = authResult.user;
         
         const flagData = validationResult.data;
         
@@ -2545,8 +2670,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // PUT /api/admin/features/{name}/toggle - Toggle feature flag (admin only)
     if (url.pathname.includes("/api/admin/features/") && url.pathname.endsWith("/toggle") && method === "PUT") {
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      
       try {
-        if (user.userType !== "admin") {
+        if (authResult.user.userType !== "admin") {
           return forbiddenResponse("Admin access required");
         }
         
@@ -2574,8 +2704,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // GET /api/admin/stats - Dashboard statistics
     if (url.pathname === "/api/admin/stats" && method === "GET") {
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      
       try {
-        if (user.userType !== "admin") {
+        if (authResult.user.userType !== "admin") {
           return forbiddenResponse("Admin access required");
         }
 
@@ -2623,8 +2758,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // GET /api/admin/activity - Recent activity
     if (url.pathname === "/api/admin/activity" && method === "GET") {
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      
       try {
-        if (user.userType !== "admin") {
+        if (authResult.user.userType !== "admin") {
           return forbiddenResponse("Admin access required");
         }
 
@@ -2688,8 +2828,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // GET /api/admin/users - List users with filters
     if (url.pathname === "/api/admin/users" && method === "GET") {
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      
       try {
-        if (user.userType !== "admin") {
+        if (authResult.user.userType !== "admin") {
           return forbiddenResponse("Admin access required");
         }
 
@@ -2763,8 +2908,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // PUT /api/admin/users/:id - Update user
     if (url.pathname.startsWith("/api/admin/users/") && method === "PUT") {
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      
       try {
-        if (user.userType !== "admin") {
+        if (authResult.user.userType !== "admin") {
           return forbiddenResponse("Admin access required");
         }
 
@@ -2806,8 +2956,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // GET /api/admin/pitches - List pitches for moderation
     if (url.pathname === "/api/admin/pitches" && method === "GET") {
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      
       try {
-        if (user.userType !== "admin") {
+        if (authResult.user.userType !== "admin") {
           return forbiddenResponse("Admin access required");
         }
 
@@ -2873,8 +3028,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // PUT /api/admin/pitches/:id/approve - Approve pitch
     if (url.pathname.includes("/api/admin/pitches/") && url.pathname.endsWith("/approve") && method === "PUT") {
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      
       try {
-        if (user.userType !== "admin") {
+        if (authResult.user.userType !== "admin") {
           return forbiddenResponse("Admin access required");
         }
 
@@ -5997,6 +6157,158 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // POST /api/pitches/:id/characters - Add character to pitch
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters$/) && method === "POST") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[3]);
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+
+        // Verify pitch exists and user owns it
+        const [pitch] = await db
+          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch) {
+          return errorResponse("Pitch not found", 404);
+        }
+
+        if (pitch.userId !== user.id) {
+          return errorResponse("Unauthorized to modify this pitch", 403);
+        }
+
+        // Parse request body
+        const body = await request.json();
+        const { name, description } = body;
+
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+          return errorResponse("Character name is required", 400);
+        }
+
+        if (!description || typeof description !== 'string' || description.trim().length === 0) {
+          return errorResponse("Character description is required", 400);
+        }
+
+        // Get existing characters
+        let existingCharacters = [];
+        if (pitch.characters && typeof pitch.characters === 'string') {
+          try {
+            existingCharacters = JSON.parse(pitch.characters);
+          } catch (error) {
+            existingCharacters = [];
+          }
+        }
+
+        // Add new character
+        const newCharacter = {
+          id: Date.now().toString(), // Simple ID generation
+          name: name.trim(),
+          description: description.trim()
+        };
+
+        existingCharacters.push(newCharacter);
+
+        // Update pitch with new characters
+        await db
+          .update(pitches)
+          .set({
+            characters: JSON.stringify(existingCharacters),
+            updatedAt: new Date()
+          })
+          .where(eq(pitches.id, pitchId));
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: { character: newCharacter },
+          message: "Character added successfully"
+        }), {
+          status: 201,
+          headers: corsHeaders
+        });
+
+      } catch (error) {
+        console.error("Error adding character:", error);
+        return serverErrorResponse("Failed to add character");
+      }
+    }
+
+    // POST /api/pitches/:id/characters/reorder - Reorder characters in pitch
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/reorder$/) && method === "POST") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[3]);
+        if (isNaN(pitchId) || pitchId <= 0) {
+          return errorResponse("Invalid pitch ID", 400);
+        }
+
+        // Verify pitch exists and user owns it
+        const [pitch] = await db
+          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch) {
+          return errorResponse("Pitch not found", 404);
+        }
+
+        if (pitch.userId !== user.id) {
+          return errorResponse("Unauthorized to modify this pitch", 403);
+        }
+
+        // Parse request body
+        const body = await request.json();
+        const { characterIds } = body;
+
+        if (!Array.isArray(characterIds)) {
+          return errorResponse("characterIds must be an array", 400);
+        }
+
+        // Get existing characters
+        let existingCharacters = [];
+        if (pitch.characters && typeof pitch.characters === 'string') {
+          try {
+            existingCharacters = JSON.parse(pitch.characters);
+          } catch (error) {
+            return errorResponse("Invalid character data in pitch", 400);
+          }
+        }
+
+        // Validate that all provided IDs exist
+        const existingIds = existingCharacters.map(char => char.id);
+        for (const id of characterIds) {
+          if (!existingIds.includes(id)) {
+            return errorResponse(`Character with ID ${id} not found`, 400);
+          }
+        }
+
+        // Reorder characters based on provided IDs
+        const reorderedCharacters = characterIds.map(id => 
+          existingCharacters.find(char => char.id === id)
+        ).filter(Boolean); // Remove any undefined entries
+
+        // Update pitch with reordered characters
+        await db
+          .update(pitches)
+          .set({
+            characters: JSON.stringify(reorderedCharacters),
+            updatedAt: new Date()
+          })
+          .where(eq(pitches.id, pitchId));
+
+        return successResponse({
+          characters: reorderedCharacters,
+          message: "Characters reordered successfully"
+        });
+
+      } catch (error) {
+        console.error("Error reordering characters:", error);
+        return serverErrorResponse("Failed to reorder characters");
+      }
+    }
+
 
     // Track pitch view
     if (url.pathname.match(/^\/api\/pitches\/\d+\/view$/) && method === "POST") {
@@ -6313,6 +6625,31 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error('Error creating NDA request:', error);
+        
+        // Handle specific error cases with appropriate status codes
+        if (error.message === 'Pitch not found') {
+          return notFoundResponse("Pitch not found");
+        }
+        
+        if (error.message === 'An NDA request is already pending for this pitch') {
+          return errorResponse("NDA request already exists for this pitch", 409);
+        }
+        
+        if (error.message === 'User not found or invalid') {
+          return authErrorResponse("User not found or invalid");
+        }
+        
+        // Handle foreign key constraint errors
+        if (error.message.includes('violates foreign key constraint')) {
+          if (error.message.includes('requester_id_fkey')) {
+            return authErrorResponse("User not found or invalid");
+          }
+          if (error.message.includes('pitch_id_fkey')) {
+            return notFoundResponse("Pitch not found");
+          }
+          return validationErrorResponse("Invalid reference in request data");
+        }
+        
         return serverErrorResponse(error.message || "Failed to request NDA");
       }
     }
@@ -10374,10 +10711,17 @@ const handler = async (request: Request): Promise<Response> => {
 
     // === ADMIN ENDPOINTS ===
 
-    if (user.userType === 'admin' || user.id <= 3) { // Demo accounts can access admin features
+    // Admin dashboard
+    if (url.pathname === "/api/admin/dashboard" && method === "GET") {
+      // First authenticate the user
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
 
-      // Admin dashboard
-      if (url.pathname === "/api/admin/dashboard" && method === "GET") {
+      // Then check admin privileges
+      if (user.userType === 'admin' || user.id <= 3) { // Demo accounts can access admin features
         try {
           const stats = {
             totalUsers: 156,
@@ -10447,6 +10791,13 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     // === PRODUCTION COMPANY SPECIFIC ENDPOINTS ===
+
+    // First authenticate for all production endpoints
+    const authResult = await authenticateRequest(request);
+    if (!authResult.success) {
+      return authResult.error!;
+    }
+    const user = authResult.user;
 
     // Production submissions
     if (url.pathname === "/api/production/submissions" && method === "GET") {

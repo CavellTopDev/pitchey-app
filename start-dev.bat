@@ -20,7 +20,7 @@ start "Pitchey Frontend" cmd /k "cd frontend && npm run dev"
 echo.
 echo Development environment started!
 echo    Frontend: http://localhost:5173
-echo    Backend:  http://localhost:8000
+echo    Backend:  http://localhost:8001
 echo    Database: PostgreSQL on port 5432
 echo.
 echo Close this window to keep services running

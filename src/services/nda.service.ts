@@ -110,6 +110,17 @@ export class NDAService {
       return newRequest;
     } catch (error) {
       console.error('Error creating NDA request:', error);
+      
+      // Handle specific database constraint errors
+      if (error.message && error.message.includes('violates foreign key constraint')) {
+        if (error.message.includes('requester_id_fkey')) {
+          throw new Error('User not found or invalid');
+        }
+        if (error.message.includes('pitch_id_fkey')) {
+          throw new Error('Pitch not found');
+        }
+      }
+      
       throw error;
     }
   }

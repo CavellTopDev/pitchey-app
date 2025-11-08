@@ -4,8 +4,8 @@
  * Simple WebSocket Test
  */
 
-const BACKEND_URL = "http://localhost:8000";
-const WS_URL = "ws://localhost:8000/ws";
+const BACKEND_URL = "http://localhost:8001";
+const WS_URL = "ws://localhost:8001/ws";
 
 console.log("🧪 Simple WebSocket Test");
 

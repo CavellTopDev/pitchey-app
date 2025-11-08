@@ -7,7 +7,7 @@
  * with realistic pitch data, bypassing direct database connection issues.
  */
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8001";
 const DEMO_USER = {
   email: "alex.creator@demo.com",
   password: "Demo123"
