@@ -1,34 +1,22 @@
-import { db } from './src/db/client.ts';
-import { sql } from 'npm:drizzle-orm';
+import { neon } from 'npm:@neondatabase/serverless@0.9.5';
+
+const client = neon(Deno.env.get('DATABASE_URL')!);
 
 try {
-  console.log('Checking database schema...');
+  console.log('Checking estimated_budget column type...');
   
-  // Check for credit-related tables
-  const tables = await db.execute(sql`
-    SELECT table_name 
-    FROM information_schema.tables 
-    WHERE table_schema = 'public' 
-    AND table_name LIKE '%credit%'
-  `);
-  console.log('Credit-related tables:', tables.rows);
-  
-  // Check user_credits table structure if it exists
-  const userCreditsColumns = await db.execute(sql`
-    SELECT column_name, data_type, is_nullable 
+  const result = await client`
+    SELECT column_name, data_type, character_maximum_length
     FROM information_schema.columns 
-    WHERE table_name = 'user_credits'
-  `);
-  console.log('user_credits columns:', userCreditsColumns.rows);
+    WHERE table_name = 'pitches' AND column_name = 'estimated_budget';
+  `;
   
-  // Check credit_transactions table structure if it exists
-  const creditTransColumns = await db.execute(sql`
-    SELECT column_name, data_type, is_nullable 
-    FROM information_schema.columns 
-    WHERE table_name = 'credit_transactions'
-  `);
-  console.log('credit_transactions columns:', creditTransColumns.rows);
-  
+  if (result.length === 0) {
+    console.log('❌ estimated_budget column does not exist');
+  } else {
+    console.log('estimated_budget column info:');
+    result.forEach(row => console.log(`- ${row.column_name}: ${row.data_type} (${row.character_maximum_length})`));
+  }
 } catch (error) {
-  console.error('Error checking schema:', error);
+  console.error('Error:', error);
 }

@@ -6,61 +6,61 @@ DO $$ BEGIN
  CREATE TYPE "aggregation_period" AS ENUM('hourly', 'daily', 'weekly', 'monthly', 'yearly');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "credit_transaction_type" AS ENUM('purchase', 'usage', 'refund', 'bonus');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "email_status" AS ENUM('pending', 'sent', 'delivered', 'bounced', 'failed', 'unsubscribed');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "event_type" AS ENUM('view', 'click', 'scroll', 'video_play', 'video_pause', 'video_complete', 'download', 'signup', 'login', 'logout', 'nda_request', 'nda_signed', 'follow', 'unfollow', 'message_sent', 'profile_update', 'search', 'filter');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "funnel_stage" AS ENUM('view', 'engagement', 'nda_request', 'nda_signed', 'contact', 'deal');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "invoice_status" AS ENUM('draft', 'sent', 'paid', 'overdue', 'void');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "notification_frequency" AS ENUM('instant', 'daily', 'weekly', 'never');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "subscription_tier_new" AS ENUM('BASIC', 'PRO', 'ENTERPRISE');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "transaction_status" AS ENUM('pending', 'completed', 'failed', 'refunded');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 DO $$ BEGIN
  CREATE TYPE "transaction_type" AS ENUM('subscription', 'credits', 'success_fee', 'refund');
 EXCEPTION
  WHEN duplicate_object THEN null;
-END $$;
+END $$;--> statement-breakpoint
 
 -- Create missing core tables
 
