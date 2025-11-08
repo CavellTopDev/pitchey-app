@@ -5457,6 +5457,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Enhanced investments list with detailed information
     if (url.pathname === "/api/investor/investments" && method === "GET") {
       try {
+        // Authenticate the user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         const page = parseInt(url.searchParams.get('page') || '1');
         const limit = parseInt(url.searchParams.get('limit') || '10');
         const status = url.searchParams.get('status'); // 'active', 'completed', 'pending'
@@ -5581,6 +5588,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // User profile and preferences
     if (url.pathname === "/api/user/profile" && method === "GET") {
+      // Authenticate the user first
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
+      
       return successResponse({
         user: {
           id: user.id,
@@ -5596,6 +5610,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Get user settings
     if (url.pathname === "/api/user/settings" && method === "GET") {
       try {
+        // Authenticate the user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         // Get user with settings
         const userSettings = {
           id: user.id,
@@ -5624,6 +5645,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Update user settings
     if (url.pathname === "/api/user/settings" && method === "PATCH") {
       try {
+        // Authenticate the user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         const updates = await request.json();
         
         // Mock successful update (in real app, you'd update the database)
@@ -5646,6 +5674,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Alternative profile endpoint
     if (url.pathname === "/api/profile" && method === "GET") {
+      // Authenticate the user first
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
+      
       return successResponse({
         user: {
           id: user.id,
@@ -5661,6 +5696,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Update profile endpoint
     if (url.pathname === "/api/profile" && method === "PUT") {
       try {
+        // Authenticate the user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         const body = await request.json();
         // Mock profile update
         return successResponse({
@@ -5674,6 +5716,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     if (url.pathname === "/api/user/profile" && method === "PUT") {
       try {
+        // Authenticate the user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         const body = await request.json();
         // Mock profile update
         return successResponse({
@@ -5699,6 +5748,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     if (url.pathname === "/api/user/preferences" && method === "PUT") {
       try {
+        // Authenticate the user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
         const body = await request.json();
         return successResponse({
           preferences: body,
@@ -5713,6 +5769,13 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Create pitch - ROLE RESTRICTED TO CREATORS ONLY
     if (url.pathname === "/api/pitches" && method === "POST") {
+      // First authenticate the user
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
+
       // SECURITY: Enforce strict role-based access control
       // Only creators can create pitches - investors and production companies are blocked
       if (user.userType !== 'creator') {
@@ -5761,15 +5824,28 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Get user's pitches
+    // Get pitches - can be public or user-specific
     if (url.pathname === "/api/pitches" && method === "GET") {
       try {
-        const pitches = await PitchService.getUserPitches(user.id);
+        // Check if user is authenticated (optional for this endpoint)
+        const authResult = await authenticateRequest(request);
+        
+        let pitches;
+        if (authResult.success && authResult.user) {
+          // If authenticated, get user's pitches
+          const user = authResult.user;
+          pitches = await PitchService.getUserPitches(user.id);
+        } else {
+          // If not authenticated, get public pitches
+          pitches = await PitchService.getPublicPitchesWithUserType(20);
+        }
+        
         return successResponse({
           pitches,
           message: "Pitches retrieved successfully"
         });
       } catch (error) {
+        console.error("Failed to fetch pitches:", error);
         return serverErrorResponse("Failed to fetch pitches");
       }
     }
