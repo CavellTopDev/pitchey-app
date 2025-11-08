@@ -71,7 +71,7 @@ fi
 echo ""
 echo "📋 Test 6: GET /api/ws/health"
 echo "Expected: 200 OK with health status"
-curl -s "http://localhost:8001/api/ws/health" | jq -r '.status' | grep -q "healthy" && echo "✅ PASS: WebSocket health check works" || echo "❌ FAIL: WebSocket health check failed"
+curl -s "http://localhost:8001/api/ws/health" | jq -r '.data.status' | grep -q "healthy" && echo "✅ PASS: WebSocket health check works" || echo "❌ FAIL: WebSocket health check failed"
 
 # Test 7: NDA request endpoint
 echo ""
