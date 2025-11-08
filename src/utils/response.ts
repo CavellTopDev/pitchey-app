@@ -30,11 +30,27 @@ export interface ErrorDetails {
 // CORS configuration - centralized
 const ALLOWED_ORIGINS = [
   'https://pitchey.pages.dev',     // Primary production (Cloudflare Pages)
-  'https://0ba4ecf4.pitchey.pages.dev', // Latest deployment (Cloudflare Pages)
   'https://pitchey.com',           // Custom domain (future)
   'http://localhost:5173',         // Local development (Vite)
   'http://localhost:3000'          // Local development (alternative)
 ];
+
+// Function to check if origin is allowed (includes Cloudflare Pages subdomains)
+function isOriginAllowed(origin: string | null): boolean {
+  if (!origin) return false;
+  
+  // Check exact matches first
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return true;
+  }
+  
+  // Allow all Cloudflare Pages preview deployments (*.pitchey.pages.dev)
+  if (origin.match(/^https:\/\/[a-z0-9]+\.pitchey\.pages\.dev$/)) {
+    return true;
+  }
+  
+  return false;
+}
 
 // Global context to store the current request origin
 let currentRequestOrigin: string | null = null;
@@ -53,7 +69,7 @@ export function setRequestOrigin(origin: string | null) {
 export function getCorsHeaders(origin?: string): Record<string, string> {
   // Use provided origin, or fall back to current request origin, or default
   const requestOrigin = origin || currentRequestOrigin;
-  const isAllowedOrigin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin);
+  const isAllowedOrigin = isOriginAllowed(requestOrigin);
   
   return {
     "Access-Control-Allow-Origin": isAllowedOrigin ? requestOrigin : ALLOWED_ORIGINS[0], // defaults to pitchey.pages.dev
