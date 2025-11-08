@@ -345,4 +345,4 @@ COMMENT ON TABLE "translations" IS 'Translated content for different locales';
 COMMENT ON TABLE "navigation_menus" IS 'Dynamic navigation menu management';
 COMMENT ON TABLE "content_approvals" IS 'Content approval workflow tracking';
 
-COMMENT ON MIGRATION IS 'Content Management System tables with initial seed data for portal management, feature flags, and internationalization';
+-- Content Management System tables with initial seed data for portal management, feature flags, and internationalization
