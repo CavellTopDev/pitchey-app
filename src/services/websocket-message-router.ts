@@ -109,16 +109,16 @@ export class WebSocketMessageRouter {
 
     this.validators.set(WSMessageType.SEND_MESSAGE, {
       required: ['content'],
-      optional: ['conversationId', 'recipientId', 'pitchId'],
+      optional: ['conversationId', 'receiverId', 'pitchId'],
       types: { 
         content: 'string', 
         conversationId: 'number', 
-        recipientId: 'number',
+        receiverId: 'number',
         pitchId: 'number'
       },
       custom: (payload) => {
-        if (!payload.conversationId && !payload.recipientId) {
-          return 'Either conversationId or recipientId must be provided';
+        if (!payload.conversationId && !payload.receiverId) {
+          return 'Either conversationId or receiverId must be provided';
         }
         if (payload.content.length > 5000) {
           return 'Message content too long (max 5000 characters)';
@@ -402,13 +402,13 @@ export class WebSocketMessageRouter {
       throw new Error('User session required');
     }
     
-    const { content, conversationId, recipientId, pitchId } = message.payload;
+    const { content, conversationId, receiverId, pitchId } = message.payload;
 
     let targetConversationId = conversationId;
 
     // If no conversation ID, create or find conversation with recipient
-    if (!targetConversationId && recipientId) {
-      targetConversationId = await this.getOrCreateConversation(session.userId, recipientId);
+    if (!targetConversationId && receiverId) {
+      targetConversationId = await this.getOrCreateConversation(session.userId, receiverId);
     }
 
     if (!targetConversationId) {
@@ -422,7 +422,7 @@ export class WebSocketMessageRouter {
     const [newMessage] = await db.insert(messages)
       .values({
         senderId: session.userId,
-        recipientId,
+        receiverId,
         content,
         pitchId,
         createdAt: new Date()
@@ -471,7 +471,7 @@ export class WebSocketMessageRouter {
     const [messageInfo] = await db.select({
       id: messages.id,
       senderId: messages.senderId,
-      recipientId: messages.recipientId
+      receiverId: messages.receiverId
     })
     .from(messages)
     .where(eq(messages.id, messageId))
@@ -482,7 +482,7 @@ export class WebSocketMessageRouter {
     }
 
     // Verify user is recipient or sender
-    if (messageInfo.senderId !== session.userId && messageInfo.recipientId !== session.userId) {
+    if (messageInfo.senderId !== session.userId && messageInfo.receiverId !== session.userId) {
       throw new Error('Access denied');
     }
 

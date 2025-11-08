@@ -155,7 +155,9 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error(`[Presence Service] Failed to set presence for user ${userId}:`, error);
-      captureException(error, { service: 'PresenceTracking' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'PresenceTracking' });
+      }
     }
   }
 
@@ -228,7 +230,9 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to get multiple users presence:", error);
-      captureException(error, { service: 'PresenceTracking' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'PresenceTracking' });
+      }
     }
 
     return presenceMap;
@@ -244,7 +248,7 @@ export class PresenceTrackingService {
         .from(follows)
         .where(eq(follows.followerId, userId));
 
-      const followingIds = following.map(f => f.creatorId);
+      const followingIds = following.map((f: any) => f.creatorId);
       if (followingIds.length === 0) {
         return [];
       }
@@ -273,7 +277,7 @@ export class PresenceTrackingService {
       
       return Object.values(globalPresence).filter((presence: any) =>
         presence.status === PresenceStatus.ONLINE || presence.status === PresenceStatus.AWAY
-      );
+      ) as PresenceInfo[];
 
     } catch (error) {
       console.error("[Presence Service] Failed to get all online users:", error);
@@ -317,7 +321,9 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error(`[Presence Service] Failed to set activity for user ${userId}:`, error);
-      captureException(error, { service: 'PresenceTracking' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'PresenceTracking' });
+      }
     }
   }
 
@@ -461,7 +467,9 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to process batch updates:", error);
-      captureException(error, { service: 'PresenceTracking' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'PresenceTracking' });
+      }
     }
   }
 
@@ -495,7 +503,9 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to update inactive users:", error);
-      captureException(error, { service: 'PresenceTracking' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'PresenceTracking' });
+      }
     }
   }
 
@@ -530,7 +540,9 @@ export class PresenceTrackingService {
 
     } catch (error) {
       console.error("[Presence Service] Failed to cleanup stale presence:", error);
-      captureException(error, { service: 'PresenceTracking' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'PresenceTracking' });
+      }
     }
   }
 

@@ -175,7 +175,7 @@ export class WebSocketErrorHandlerService {
   private circuitBreakers = new Map<string, CircuitBreaker>();
   private errorCounts = new Map<string, number>();
   private suppressedErrors = new Set<string>();
-  private cleanupInterval: number;
+  private cleanupInterval: number = 0;
 
   // Configuration
   private readonly MAX_ERROR_LOG_SIZE = 10000;
@@ -314,7 +314,9 @@ export class WebSocketErrorHandlerService {
 
     } catch (handlingError) {
       console.error("[WebSocket Error Handler] Error while handling error:", handlingError);
-      captureException(handlingError, { service: 'WebSocketErrorHandler' });
+      if (handlingError instanceof Error) {
+        captureException(handlingError, { service: 'WebSocketErrorHandler' });
+      }
       
       // Return basic error response
       return {

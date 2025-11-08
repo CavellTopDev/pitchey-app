@@ -55,7 +55,9 @@ export class WebSocketIntegrationService {
 
     } catch (error) {
       console.error("[WebSocket Integration] Failed to initialize:", error);
-      captureException(error, { service: 'WebSocketIntegration' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'WebSocketIntegration' });
+      }
       throw error;
     }
   }
@@ -171,9 +173,11 @@ export class WebSocketIntegrationService {
         url: request.url
       });
       
-      const wsError = await webSocketErrorHandler.handleError(error, {
-        operation: "websocket_upgrade"
-      });
+      if (error instanceof Error) {
+        const wsError = await webSocketErrorHandler.handleError(error, {
+          operation: "websocket_upgrade"
+        });
+      }
 
       return new Response(
         JSON.stringify({ 
@@ -331,7 +335,9 @@ export class WebSocketIntegrationService {
         // This is just a pass-through
       } catch (error) {
         console.error("[WebSocket Integration] Message handling failed:", error);
-        await this.sendErrorToSocket(socket, error);
+        if (error instanceof Error) {
+          await this.sendErrorToSocket(socket, error);
+        }
       }
     };
 
@@ -343,7 +349,9 @@ export class WebSocketIntegrationService {
         }
       } catch (error) {
         console.error("[WebSocket Integration] Disconnect cleanup failed:", error);
-        captureException(error, { service: 'WebSocketIntegration' });
+        if (error instanceof Error) {
+          captureException(error, { service: 'WebSocketIntegration' });
+        }
       }
     };
 
@@ -357,8 +365,10 @@ export class WebSocketIntegrationService {
         new Error(`WebSocket error occurred: ${event.type}`),
         { 
           operation: "socket_error",
-          eventType: event.type,
-          timeStamp: event.timeStamp
+          additionalContext: {
+            eventType: event.type,
+            timeStamp: event.timeStamp
+          }
         }
       );
     };
@@ -401,7 +411,9 @@ export class WebSocketIntegrationService {
 
     } catch (error) {
       console.error(`[WebSocket Integration] Session cleanup failed for ${sessionId}:`, error);
-      captureException(error, { service: 'WebSocketIntegration' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'WebSocketIntegration' });
+      }
     }
   }
 
@@ -432,10 +444,12 @@ export class WebSocketIntegrationService {
 
     } catch (error) {
       console.error(`[WebSocket Integration] Failed to send notification to user ${userId}:`, error);
-      await webSocketErrorHandler.handleError(error, {
-        userId,
-        operation: "send_notification"
-      });
+      if (error instanceof Error) {
+        await webSocketErrorHandler.handleError(error, {
+          userId,
+          operation: "send_notification"
+        });
+      }
       return false;
     }
   }
@@ -679,7 +693,8 @@ export class WebSocketIntegrationService {
 
     try {
       // Check Redis service
-      const redisEnabled = webSocketRedisService.getRedisStats();
+      const redisStats = await webSocketRedisService.getRedisStats();
+      const redisEnabled = redisStats && Object.keys(redisStats).length > 0;
       services.redis = {
         status: redisEnabled ? 'up' : 'down',
         lastCheck: new Date()
@@ -766,7 +781,9 @@ export class WebSocketIntegrationService {
 
     } catch (error) {
       console.error("[WebSocket Integration] Error during shutdown:", error);
-      captureException(error, { service: 'WebSocketIntegration' });
+      if (error instanceof Error) {
+        captureException(error, { service: 'WebSocketIntegration' });
+      }
     }
   }
 
