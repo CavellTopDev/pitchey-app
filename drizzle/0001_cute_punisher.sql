@@ -226,8 +226,27 @@ ALTER TABLE "messages" ADD COLUMN "is_edited" boolean DEFAULT false;--> statemen
 ALTER TABLE "messages" ADD COLUMN "is_deleted" boolean DEFAULT false;--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "edited_at" timestamp;--> statement-breakpoint
 ALTER TABLE "messages" ADD COLUMN "deleted_at" timestamp;--> statement-breakpoint
-ALTER TABLE "pitches" ADD COLUMN "budget_breakdown_url" text;--> statement-breakpoint
-ALTER TABLE "pitches" ADD COLUMN "production_timeline_url" text;--> statement-breakpoint
+-- Conditional column additions to prevent duplicates
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='pitches' AND column_name='budget_breakdown_url'
+  ) THEN
+    ALTER TABLE "pitches" ADD COLUMN "budget_breakdown_url" text;
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='pitches' AND column_name='production_timeline_url'
+  ) THEN
+    ALTER TABLE "pitches" ADD COLUMN "production_timeline_url" text;
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "conversation_participants_conversation_id_idx" ON "conversation_participants" ("conversation_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "conversation_participants_user_id_idx" ON "conversation_participants" ("user_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "conversations_pitch_id_idx" ON "conversations" ("pitch_id");--> statement-breakpoint

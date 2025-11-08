@@ -1,6 +1,5 @@
--- Add new columns for production company media
-ALTER TABLE pitches ADD COLUMN budget_breakdown_url TEXT;
-ALTER TABLE pitches ADD COLUMN production_timeline_url TEXT;
+-- Note: budget_breakdown_url and production_timeline_url columns already exist
+-- Skipping column additions to prevent duplicate column errors
 
 -- Update the additional_media column to support enhanced type system
 -- Note: This won't change the column type but documents the expected structure
