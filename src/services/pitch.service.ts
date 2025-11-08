@@ -91,7 +91,7 @@ export class PitchService {
         themes: validated.themes || null,
         worldDescription: validated.worldDescription || null,
         budgetBracket: validated.budgetBracket || null,
-        estimatedBudget: validated.budget || validated.estimatedBudget?.toString() || null,
+        estimatedBudget: validated.estimatedBudget?.toString() || null,
         productionTimeline: validated.productionTimeline || null,
         aiUsed: validated.aiUsed || false,
         requireNda: validated.requireNDA || false,
@@ -151,9 +151,9 @@ export class PitchService {
     };
     
     // Remove undefined values
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key];
+    Object.keys(updateData).forEach((key: string) => {
+      if ((updateData as any)[key] === undefined) {
+        delete (updateData as any)[key];
       }
     });
     
@@ -419,7 +419,7 @@ export class PitchService {
       .orderBy(desc(pitches.likeCount), desc(pitches.viewCount))
       .limit(limit);
     
-    return results.map(row => ({
+    return results.map((row: any) => ({
       ...row.pitch,
       formatCategory: row.pitch.formatCategory,
       formatSubtype: row.pitch.formatSubtype,
@@ -681,7 +681,7 @@ export class PitchService {
       console.log(`getNewPitches: Found ${results.length} pitches`);
       
       // Transform to expected format with proper creator info
-      const formatted = results.map(p => ({
+      const formatted = results.map((p: any) => ({
         id: p.id,
         title: p.title,
         logline: p.logline,
@@ -744,13 +744,14 @@ export class PitchService {
     // Add text search for query parameter
     if (params.query && params.query.trim() !== '') {
       const searchTerm = `%${params.query.toLowerCase()}%`;
-      conditions.push(
-        or(
-          sql`LOWER(${pitches.title}) LIKE ${searchTerm}`,
-          sql`LOWER(${pitches.logline}) LIKE ${searchTerm}`,
-          sql`LOWER(${pitches.shortSynopsis}) LIKE ${searchTerm}`
-        )
+      const searchCondition = or(
+        sql`LOWER(${pitches.title}) LIKE ${searchTerm}`,
+        sql`LOWER(${pitches.logline}) LIKE ${searchTerm}`,
+        sql`LOWER(${pitches.shortSynopsis}) LIKE ${searchTerm}`
       );
+      if (searchCondition) {
+        conditions.push(searchCondition);
+      }
     }
     
     const [searchResults, totalCount] = await Promise.all([
@@ -770,7 +771,7 @@ export class PitchService {
         .limit(params.limit || 20)
         .offset(params.offset || 0)
         .orderBy(desc(pitches.publishedAt))
-        .then(results => results.map(row => ({
+        .then((results: any) => results.map((row: any) => ({
           ...row.pitch,
           formatCategory: row.pitch.formatCategory,
           formatSubtype: row.pitch.formatSubtype,
@@ -780,7 +781,7 @@ export class PitchService {
       db.select({ count: sql<number>`count(*)` })
         .from(pitches)
         .where(and(...conditions))
-        .then(result => result[0]?.count || 0)
+        .then((result: any) => result[0]?.count || 0)
     ]);
     
     return {
@@ -891,10 +892,10 @@ export class PitchService {
       // Calculate stats
       const stats = {
         totalPitches: parsedPitches.length,
-        publishedPitches: parsedPitches.filter(p => p.status === "published").length,
-        totalViews: parsedPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0),
-        totalLikes: parsedPitches.reduce((sum, p) => sum + (p.likeCount || 0), 0),
-        totalNDAs: parsedPitches.reduce((sum, p) => sum + (p.ndaCount || 0), 0),
+        publishedPitches: parsedPitches.filter((p: any) => p.status === "published").length,
+        totalViews: parsedPitches.reduce((sum: number, p: any) => sum + (p.viewCount || 0), 0),
+        totalLikes: parsedPitches.reduce((sum: number, p: any) => sum + (p.likeCount || 0), 0),
+        totalNDAs: parsedPitches.reduce((sum: number, p: any) => sum + (p.ndaCount || 0), 0),
       };
       
       return {
@@ -903,7 +904,8 @@ export class PitchService {
       };
     } catch (error) {
       console.error("Error fetching user pitches:", error);
-      console.error("Error details:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Error details:", errorMessage);
       console.error("User ID was:", userId);
       
       // Try simplified Drizzle query as fallback
@@ -987,27 +989,18 @@ export class PitchService {
       try {
         // Import dashboard cache service dynamically
         const dashboardCacheModule = await import('./dashboard-cache.service.ts');
-        const cacheService = dashboardCacheModule.dashboardCacheService || dashboardCacheModule.default;
+        const DashboardCacheService = dashboardCacheModule.DashboardCacheService;
         
-        if (cacheService && typeof cacheService.invalidateCache === 'function') {
+        if (DashboardCacheService) {
           // Invalidate trending cache
-          await cacheService.invalidateCache('trending_pitches');
+          await DashboardCacheService.invalidateTrendingCache();
           
-          // Invalidate user's pitch cache
-          await cacheService.invalidateCache(`user:${userId}:pitches`);
+          // Get user type to invalidate dashboard cache properly
+          const userResult = await db.select({ userType: users.userType }).from(users).where(eq(users.id, userId));
+          const userType = userResult[0]?.userType || 'creator';
           
-          // Invalidate dashboard cache
-          await cacheService.invalidateCache(`dashboard:user:${userId}`);
-          await cacheService.invalidateCache(`dashboard:creator:${userId}`);
-          
-          // Invalidate public pitches cache patterns
-          if (typeof cacheService.invalidatePattern === 'function') {
-            await cacheService.invalidatePattern('pitchey:pitches:public');
-            await cacheService.invalidatePattern(`pitchey:pitch:${pitchId}:*`);
-            
-            // Invalidate user-specific caches
-            await cacheService.invalidatePattern(`pitchey:user:${userId}:*`);
-          }
+          // Invalidate user dashboard cache
+          await DashboardCacheService.invalidateDashboardCache(userId, userType);
           
           console.log('✅ Caches invalidated');
         } else {
@@ -1020,11 +1013,13 @@ export class PitchService {
       
       // Broadcast deletion via WebSocket if available
       try {
-        const { websocketIntegrationService } = await import('./websocket-integration.service.ts');
-        if (websocketIntegrationService) {
-          websocketIntegrationService.broadcast({
-            type: 'pitch_deleted',
-            data: { pitchId, userId }
+        const websocketModule = await import('./websocket-integration.service.ts');
+        const websocketIntegrationService = new websocketModule.WebSocketIntegrationService();
+        if (websocketIntegrationService && typeof websocketIntegrationService.broadcastSystemAnnouncement === 'function') {
+          await websocketIntegrationService.broadcastSystemAnnouncement({
+            title: 'Pitch Deleted',
+            message: `Pitch ${pitchId} has been deleted`,
+            type: 'pitch_deleted'
           });
           console.log('📡 WebSocket notification sent');
         }
@@ -1151,7 +1146,7 @@ export class PitchService {
         .offset(offset);
 
       // Transform to expected format
-      const formattedPitches = allPitches.map(p => ({
+      const formattedPitches = allPitches.map((p: any) => ({
         id: p.id,
         title: p.title,
         logline: p.logline,
@@ -1221,7 +1216,7 @@ export class PitchService {
         .orderBy(desc(pitches.publishedAt))
         .limit(50);
 
-      return productionPitches.map(row => ({
+      return productionPitches.map((row: any) => ({
         ...row.pitch,
         formatCategory: row.pitch.formatCategory,
         formatSubtype: row.pitch.formatSubtype,

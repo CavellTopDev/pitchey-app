@@ -32,8 +32,9 @@ try {
     console.error(`❌ Migrations folder not found at ${migrationsFolder}`);
     Deno.exit(1);
   }
-} catch (error) {
-  console.error(`❌ Migrations folder not accessible: ${error.message}`);
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`❌ Migrations folder not accessible: ${errorMessage}`);
   Deno.exit(1);
 }
 
@@ -46,8 +47,9 @@ try {
     }
   }
   migrationFiles.sort(); // Ensure they run in order
-} catch (error) {
-  console.error(`❌ Error reading migration files: ${error.message}`);
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`❌ Error reading migration files: ${errorMessage}`);
   Deno.exit(1);
 }
 
@@ -165,7 +167,8 @@ try {
       
       console.log(`✅ Applied ${fileName}`);
     } catch (error) {
-      console.error(`❌ Error applying ${fileName}:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Error applying ${fileName}:`, errorMessage);
       throw error;
     }
   }
@@ -173,7 +176,8 @@ try {
   console.log("✅ All migrations completed successfully!");
 
 } catch (error) {
-  console.error("❌ Migration failed:", error.message);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error("❌ Migration failed:", errorMessage);
   Deno.exit(1);
 } finally {
   // Clean up connection
@@ -181,7 +185,8 @@ try {
     try {
       await client.end();
     } catch (error) {
-      console.warn("⚠️  Warning: Error closing database connection:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn("⚠️  Warning: Error closing database connection:", errorMessage);
     }
   }
 }

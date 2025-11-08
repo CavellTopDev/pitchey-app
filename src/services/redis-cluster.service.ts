@@ -262,7 +262,8 @@ class RedisClusterService {
       
       return true;
     } catch (error) {
-      console.error("❌ Failed to connect to single Redis node:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("❌ Failed to connect to single Redis node:", errorMessage);
       return false;
     }
   }
@@ -306,7 +307,8 @@ class RedisClusterService {
       
       return true;
     } catch (error) {
-      console.error(`❌ Failed to connect to Redis node ${nodeKey}:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Failed to connect to Redis node ${nodeKey}:`, errorMessage);
       return false;
     }
   }
@@ -374,7 +376,8 @@ class RedisClusterService {
 
         return result;
       } catch (error) {
-        console.error(`Redis command ${command} failed on ${node.host}:${node.port}:`, error.message);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Redis command ${command} failed on ${node.host}:${node.port}:`, errorMessage);
         
         // Mark node as potentially unhealthy
         node.failureCount++;
@@ -456,7 +459,8 @@ class RedisClusterService {
       const result = await this.executeCommand("GET", fullKey);
       return result ? JSON.parse(result) : null;
     } catch (error) {
-      console.error("Cache GET error:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Cache GET error:", errorMessage);
       return null;
     }
   }
@@ -470,7 +474,8 @@ class RedisClusterService {
       const result = await this.executeCommand("SETEX", fullKey, ttl, serialized);
       return result === "OK";
     } catch (error) {
-      console.error("Cache SET error:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Cache SET error:", errorMessage);
       return false;
     }
   }
@@ -481,7 +486,8 @@ class RedisClusterService {
       const result = await this.executeCommand("DEL", fullKey);
       return result === 1;
     } catch (error) {
-      console.error("Cache DEL error:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Cache DEL error:", errorMessage);
       return false;
     }
   }
@@ -492,7 +498,8 @@ class RedisClusterService {
       const result = await this.executeCommand("EXISTS", fullKey);
       return result === 1;
     } catch (error) {
-      console.error("Cache EXISTS error:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Cache EXISTS error:", errorMessage);
       return false;
     }
   }
@@ -503,7 +510,8 @@ class RedisClusterService {
       const result = await this.executeCommand("INCR", fullKey);
       return result || 0;
     } catch (error) {
-      console.error("Cache INCR error:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Cache INCR error:", errorMessage);
       return 0;
     }
   }
@@ -514,7 +522,8 @@ class RedisClusterService {
       const result = await this.executeCommand("EXPIRE", fullKey, seconds);
       return result === 1;
     } catch (error) {
-      console.error("Cache EXPIRE error:", error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Cache EXPIRE error:", errorMessage);
       return false;
     }
   }
@@ -609,7 +618,8 @@ class RedisClusterService {
         }
         console.log(`Disconnected from Redis node ${node.host}:${node.port}`);
       } catch (error) {
-        console.error(`Error disconnecting from ${node.host}:${node.port}:`, error.message);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`Error disconnecting from ${node.host}:${node.port}:`, errorMessage);
       }
     });
 
