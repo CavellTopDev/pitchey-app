@@ -211,6 +211,12 @@ CREATE INDEX IF NOT EXISTS "user_sessions_device_type_idx" ON "user_sessions" ("
 CREATE INDEX IF NOT EXISTS "user_sessions_converted_idx" ON "user_sessions" ("converted");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "user_sessions_is_active_idx" ON "user_sessions" ("is_active");--> statement-breakpoint
 DO $$ BEGIN
+ ALTER TABLE "analytics_events" ADD CONSTRAINT "analytics_events_event_id_unique" UNIQUE ("event_id");
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
  ALTER TABLE "analytics_aggregates" ADD CONSTRAINT "analytics_aggregates_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
