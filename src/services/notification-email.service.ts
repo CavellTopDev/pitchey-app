@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { users, emailPreferences, pitches } from "../db/schema.ts";
-import { eq, and } from "npm:drizzle-orm";
+import { eq, and } from "npm:drizzle-orm@0.35.3";
 import { getEmailQueueService } from "./email-queue.service.ts";
 
 export interface WelcomeEmailOptions {

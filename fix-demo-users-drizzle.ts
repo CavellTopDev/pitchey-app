@@ -1,6 +1,6 @@
 import { db } from './src/db/client.ts';
 import { users, pitches } from './src/db/schema.ts';
-import { eq } from "npm:drizzle-orm@0.33.0";
+import { eq } from "npm:drizzle-orm@0.35.3";
 
 async function fixDemoUsersWithDrizzle() {
   console.log('🔧 Fixing demo user IDs using Drizzle ORM...');

@@ -2,7 +2,7 @@ import { getEmailQueueService } from "./email-queue.service.ts";
 import { getNotificationEmailService } from "./notification-email.service.ts";
 import { db } from "../db/client.ts";
 import { users, emailPreferences, digestHistory, pitches, pitchViews, follows, messages } from "../db/schema.ts";
-import { eq, gte, lt, and, sql, desc } from "npm:drizzle-orm";
+import { eq, gte, lt, and, sql, desc } from "npm:drizzle-orm@0.35.3";
 
 export class EmailCronService {
   private emailQueue = getEmailQueueService();

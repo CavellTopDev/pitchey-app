@@ -23,7 +23,7 @@ import {
   isNotNull,
   count,
   exists
-} from "drizzle-orm";
+} from "npm:drizzle-orm@0.35.3";
 import { searchCache, SearchCacheService } from "./search-cache.service.ts";
 
 // Define search interfaces

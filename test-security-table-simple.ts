@@ -2,7 +2,7 @@
 
 import { db } from './src/db/client.ts';
 import { securityEvents } from './src/db/schema.ts';
-import { eq } from 'npm:drizzle-orm';
+import { eq } from 'npm:drizzle-orm@0.35.3';
 
 console.log('🔍 Testing Security Events Table for Rate Limiting...\n');
 

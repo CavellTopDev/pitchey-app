@@ -15,7 +15,7 @@ import {
   desc, 
   count,
   isNotNull 
-} from "drizzle-orm";
+} from "npm:drizzle-orm@0.35.3";
 
 export interface SearchAnalyticsData {
   totalSearches: number;

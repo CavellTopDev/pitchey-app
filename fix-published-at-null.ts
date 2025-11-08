@@ -1,6 +1,6 @@
 // Fix null publishedAt values that are breaking Drizzle ORDER BY
 import { db } from "./src/db/client.ts";
-import { sql } from "drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 async function fixPublishedAtNull() {
   console.log("🔧 Fixing null publishedAt values...");

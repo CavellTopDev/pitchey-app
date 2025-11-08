@@ -5,7 +5,7 @@
 import { neon } from "npm:@neondatabase/serverless";
 import { drizzle } from "npm:drizzle-orm/neon-http";
 import { users, pitches } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 import { hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL");

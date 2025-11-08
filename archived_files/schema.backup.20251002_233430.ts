@@ -14,8 +14,8 @@ import {
   pgEnum,
   time,
   date,
-} from "npm:drizzle-orm/pg-core";
-import { relations, sql } from "npm:drizzle-orm";
+} from "npm:drizzle-orm@0.35.3/pg-core";
+import { relations, sql } from "npm:drizzle-orm@0.35.3";
 
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["creator", "production", "investor", "viewer"]);

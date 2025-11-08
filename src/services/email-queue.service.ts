@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { emailQueue, emailPreferences, emailEvents, emailSuppression, unsubscribeTokens } from "../db/schema.ts";
-import { eq, and, gte, lt, lte, isNull, inArray, desc, asc, sql, or } from "npm:drizzle-orm";
+import { eq, and, gte, lt, lte, isNull, inArray, desc, asc, sql, or } from "npm:drizzle-orm@0.35.3";
 import { getEmailService, EmailData, EmailResult } from "./email.service.ts";
 import { EmailTemplates } from "./email-templates.service.ts";
 

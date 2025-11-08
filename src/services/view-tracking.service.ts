@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { pitchViews, users, pitches } from "../db/schema.ts";
-import { and, eq, desc, gte, sql, count } from "npm:drizzle-orm";
+import { and, eq, desc, gte, sql, count } from "npm:drizzle-orm@0.35.3";
 
 export class ViewTrackingService {
   static async trackView(

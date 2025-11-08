@@ -3,7 +3,7 @@
 
 import { db } from "../db/client.ts";
 import { users, pitches, follows, ndas, messages, notifications } from "../db/schema.ts";
-import { eq, and, desc, sql, count, isNull } from "npm:drizzle-orm";
+import { eq, and, desc, sql, count, isNull } from "npm:drizzle-orm@0.35.3";
 import { databaseCacheService, CacheConfigs, CacheHelpers } from "./database-cache.service.ts";
 import { AuthService } from "./auth.service.ts";
 

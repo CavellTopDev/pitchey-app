@@ -1,7 +1,7 @@
 // Test simple Drizzle queries to isolate the issue
 import { db } from "./src/db/client.ts";
 import { pitches, users } from "./src/db/schema.ts";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc } from "npm:drizzle-orm@0.35.3";
 
 async function testSimpleDrizzleQuery() {
   console.log("🧪 Testing simple Drizzle queries...");

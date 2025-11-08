@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { realtimeAnalytics } from "../db/schema.ts";
-import { eq, lt } from "drizzle-orm";
+import { eq, lt } from "npm:drizzle-orm@0.35.3";
 
 export interface CacheEntry {
   key: string;

@@ -1,5 +1,5 @@
 // MINIMAL WORKING SCHEMA - Matches Neon Database Exactly
-import { pgTable, serial, integer, varchar, text, boolean, timestamp, decimal } from "npm:drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, boolean, timestamp, decimal } from "npm:drizzle-orm@0.35.3/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),

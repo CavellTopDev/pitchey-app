@@ -3,7 +3,7 @@
 // Test script to check NDA data for testing info requests
 import { db } from './src/db/client.ts';
 import { ndas, pitches, users } from './src/db/schema.ts';
-import { eq } from 'drizzle-orm';
+import { eq } from 'npm:drizzle-orm@0.35.3';
 
 async function checkNDAData() {
   try {

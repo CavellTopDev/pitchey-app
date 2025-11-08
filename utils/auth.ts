@@ -1,6 +1,6 @@
 import { db } from "../src/db/client.ts";
 import { sessions, users } from "../src/db/schema.ts";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte } from "npm:drizzle-orm@0.35.3";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { create, verify } from "https://deno.land/x/djwt@v3.0.1/mod.ts";
 

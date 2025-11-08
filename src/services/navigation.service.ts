@@ -1,7 +1,7 @@
 // Navigation Service - Dynamic navigation menus and structures
 import { db } from "../db/client.ts";
 import { navigationMenus, NavigationMenu } from "../db/schema.ts";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc } from "npm:drizzle-orm@0.35.3";
 
 export interface NavigationItem {
   id: string;

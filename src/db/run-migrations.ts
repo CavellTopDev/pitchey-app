@@ -1,5 +1,5 @@
 import { db } from "./client.ts";
-import { sql } from "npm:drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 async function runMigrations() {
   console.log("🚀 Starting database migrations...");

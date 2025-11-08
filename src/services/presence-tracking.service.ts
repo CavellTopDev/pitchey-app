@@ -9,7 +9,7 @@ import { AnalyticsService } from "./analytics.service.ts";
 import { captureException } from "./logging.service.ts";
 import { db } from "../db/client.ts";
 import { users, userSessions, follows } from "../db/schema.ts";
-import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte } from "npm:drizzle-orm@0.35.3";
 
 // Presence status enum
 export enum PresenceStatus {

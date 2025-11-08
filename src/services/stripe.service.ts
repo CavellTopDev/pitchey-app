@@ -7,7 +7,7 @@ import {
   creditTransactions, 
   userCredits
 } from "../db/schema.ts";
-import { eq } from "npm:drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 import { getTierFromPriceId, getCreditsFromPriceId, SUBSCRIPTION_TIERS } from "../../utils/stripe.ts";
 import { getMockStripeService, shouldUseMockStripe } from "./stripe-mock.service.ts";
 

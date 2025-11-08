@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { pitches, users } from "../db/schema.ts";
-import { eq, and, desc, sql, gte, lte } from "npm:drizzle-orm";
+import { eq, and, desc, sql, gte, lte } from "npm:drizzle-orm@0.35.3";
 import { NotificationService } from "./notification.service.ts";
 
 // Production interface (until we have the table in schema)

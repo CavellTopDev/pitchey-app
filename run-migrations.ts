@@ -1,4 +1,4 @@
-import { sql } from "npm:drizzle-orm@0.33.0";
+import { sql } from "npm:drizzle-orm@0.35.3";
 import { db } from "./src/db/client.ts";
 
 console.log("🔄 Running all Drizzle migrations in order...");

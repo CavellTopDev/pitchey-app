@@ -6,7 +6,7 @@ import {
   TranslationKey, 
   Translation 
 } from "../db/schema.ts";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "npm:drizzle-orm@0.35.3";
 
 export interface TranslationKeyData {
   keyPath: string;

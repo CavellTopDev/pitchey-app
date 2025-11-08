@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { pitches, ndas, pitchViews, follows, users } from "../db/schema.ts";
-import { eq, and, desc, sql, or } from "npm:drizzle-orm";
+import { eq, and, desc, sql, or } from "npm:drizzle-orm@0.35.3";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { CacheService } from "./cache.service.ts";
 
@@ -580,12 +580,20 @@ export class PitchService {
         LIMIT ${limit}
       `);
 
-      console.log(`Found ${results.rows.length} pitches for public view`);
+      // Handle different result formats from different database clients
+      const rows = results?.rows || results || [];
+      console.log(`Found ${rows.length} pitches for public view`);
       
-      const formatted = results.rows.map(p => ({
-        id: p.id,
-        title: p.title,
-        logline: p.logline,
+      // Additional safety check for rows array
+      if (!Array.isArray(rows)) {
+        console.warn("⚠️ Expected array from database query, got:", typeof rows);
+        return [];
+      }
+      
+      const formatted = rows.filter(p => p && p.id).map(p => ({
+        id: p?.id || 0,
+        title: p?.title || 'Untitled',
+        logline: p?.logline || '',
         genre: p.genre,
         format: p.format,
         formatCategory: p.format_category,
@@ -605,10 +613,10 @@ export class PitchService {
         updatedAt: p.updated_at,
         publishedAt: p.published_at,
         creator: {
-          id: p.creator_id,
-          username: p.creator_username,
-          companyName: p.creator_company_name,
-          userType: p.creator_user_type
+          id: p?.creator_id || p?.user_id || 0,
+          username: p?.creator_username || p?.username || 'Unknown',
+          companyName: p?.creator_company_name || p?.company_name,
+          userType: p?.creator_user_type || p?.user_type || 'creator'
         }
       }));
       

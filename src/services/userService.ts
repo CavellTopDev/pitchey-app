@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { users, pitches, follows } from "../db/schema.ts";
-import { eq, and, sql, desc } from "npm:drizzle-orm";
+import { eq, and, sql, desc } from "npm:drizzle-orm@0.35.3";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { AuthService } from "./auth.service.ts";
 import { CacheService } from "./cache.service.ts";

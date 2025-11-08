@@ -1,6 +1,6 @@
 import { db } from '../db/client.ts';
 import { pitches, pitchViews, users } from '../db/schema.ts';
-import { eq, sql, count, desc, gte, and } from 'npm:drizzle-orm';
+import { eq, sql, count, desc, gte, and } from 'npm:drizzle-orm@0.35.3';
 
 // Simple view tracking service using Drizzle ORM
 export class ViewTrackingServiceSimple {

@@ -1,7 +1,7 @@
 // Feature Flag Service - Dynamic feature management
 import { db } from "../db/client.ts";
 import { featureFlags, FeatureFlag } from "../db/schema.ts";
-import { eq, and, sql, or, isNull } from "drizzle-orm";
+import { eq, and, sql, or, isNull } from "npm:drizzle-orm@0.35.3";
 
 export interface FeatureFlagData {
   name: string;

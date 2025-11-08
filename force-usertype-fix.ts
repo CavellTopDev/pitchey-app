@@ -3,7 +3,7 @@
 // Force update userType for Stellar Productions pitches to show PURPLE glow
 import { db } from "./src/db/client.ts";
 import { pitches } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 
 console.log("Force updating Stellar Productions pitches to show PURPLE glow...");
 

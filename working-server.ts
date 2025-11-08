@@ -94,7 +94,7 @@ import {
   infoRequests, infoRequestAttachments, pitchDocuments,
   savedFilters, emailAlerts, alertSentPitches
 } from "./src/db/schema.ts";
-import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "npm:drizzle-orm@0.35.3";
 
 const port = Deno.env.get("PORT") || "8001";
 

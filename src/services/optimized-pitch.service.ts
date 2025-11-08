@@ -3,7 +3,7 @@
 
 import { db } from "../db/client.ts";
 import { pitches, ndas, pitchViews, follows, users, pitchLikes } from "../db/schema.ts";
-import { eq, and, desc, sql, or, inArray, gte, count } from "npm:drizzle-orm";
+import { eq, and, desc, sql, or, inArray, gte, count } from "npm:drizzle-orm@0.35.3";
 import { databaseCacheService, CacheConfigs, CacheHelpers } from "./database-cache.service.ts";
 
 export interface OptimizedPitchQuery {

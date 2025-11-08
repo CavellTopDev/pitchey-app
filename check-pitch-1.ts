@@ -1,6 +1,6 @@
 import { db } from './src/db/client.ts';
 import { pitches } from './src/db/schema.ts';
-import { eq } from 'drizzle-orm';
+import { eq } from 'npm:drizzle-orm@0.35.3';
 
 const result = await db.select().from(pitches).where(eq(pitches.id, 1)).limit(1);
 console.log('Pitch ID 1 exists:', result.length > 0);

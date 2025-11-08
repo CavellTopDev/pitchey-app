@@ -1,6 +1,6 @@
 // COMPLETE SCHEMA - Matches Neon Database with All Tables
-import { pgTable, serial, integer, varchar, text, boolean, timestamp, decimal, jsonb, unique, pgEnum, index } from "npm:drizzle-orm/pg-core";
-import { relations } from "npm:drizzle-orm";
+import { pgTable, serial, integer, varchar, text, boolean, timestamp, decimal, jsonb, unique, pgEnum, index } from "npm:drizzle-orm@0.35.3/pg-core";
+import { relations } from "npm:drizzle-orm@0.35.3";
 
 // Define the event_type enum to match the database
 export const eventTypeEnum = pgEnum("event_type", [

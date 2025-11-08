@@ -12,7 +12,7 @@ import {
   users, notifications, analyticsEvents, pitchViews, sessions,
   conversations, conversationParticipants, messages, messageReadReceipts, typingIndicators
 } from "../db/schema.ts";
-import { eq, and, desc, sql, inArray, gte, or } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte, or } from "npm:drizzle-orm@0.35.3";
 
 // Constants
 const MAX_QUEUE_SIZE = 100;

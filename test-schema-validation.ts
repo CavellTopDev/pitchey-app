@@ -1,5 +1,5 @@
 import { db } from './src/db/client.ts';
-import { sql } from "npm:drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 console.log('=== DATABASE SCHEMA VALIDATION TEST ===');
 

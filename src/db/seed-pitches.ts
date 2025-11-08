@@ -1,6 +1,6 @@
 import { db } from "./client.ts";
 import { users, pitches } from "./schema.ts";
-import { eq } from "drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 
 // Professional pitch data for seeding
 const realisticPitches = [

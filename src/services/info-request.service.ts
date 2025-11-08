@@ -1,7 +1,7 @@
 // Information Request Service - Post-NDA Communication System
 import { db } from '../db/client.ts';
 import { infoRequests, infoRequestAttachments, ndas, pitches, users, notifications } from '../db/schema.ts';
-import { eq, and, or, desc, sql } from 'drizzle-orm';
+import { eq, and, or, desc, sql } from 'npm:drizzle-orm@0.35.3';
 import { z } from 'npm:zod@3.22.4';
 
 // Validation schemas

@@ -1,6 +1,6 @@
 import { assertEquals, assertExists, assert } from "jsr:@std/assert";
 import { db } from "../src/db/client.ts";
-import { sql } from "drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 // Test configuration
 export const TEST_CONFIG = {

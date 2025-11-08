@@ -2,7 +2,7 @@
 
 import { db } from "./src/db/client.ts";
 import { pitches, users } from "./src/db/schema.ts";
-import { eq, or } from "npm:drizzle-orm";
+import { eq, or } from "npm:drizzle-orm@0.35.3";
 
 console.log("Getting pitch IDs from demo accounts...");
 

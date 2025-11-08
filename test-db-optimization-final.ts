@@ -4,7 +4,7 @@
 import { db, DatabaseMetrics } from "./src/db/client.ts";
 import { OptimizedPitchService } from "./src/services/optimized-pitch.service.ts";
 import { databaseCacheService } from "./src/services/database-cache.service.ts";
-import { sql } from "npm:drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 async function testDatabaseOptimizations() {
   console.log("🎯 PITCHEY DATABASE OPTIMIZATION TEST SUITE");

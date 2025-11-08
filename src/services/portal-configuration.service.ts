@@ -1,7 +1,7 @@
 // Portal Configuration Service - Dynamic portal settings and branding
 import { db } from "../db/client.ts";
 import { portalConfigurations, PortalConfiguration } from "../db/schema.ts";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc } from "npm:drizzle-orm@0.35.3";
 
 export interface PortalConfigData {
   portalType: string;

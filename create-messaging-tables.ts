@@ -1,6 +1,6 @@
 // Create all messaging tables with Drizzle
 import { db } from "./src/db/client.ts";
-import { sql } from "drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 async function createMessagingTables() {
   try {

@@ -3,7 +3,7 @@
  * Migrated from Deno to Workers with Hyperdrive optimization
  */
 
-import { eq, and, or, like, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, or, like, desc, asc, sql } from 'npm:drizzle-orm@0.35.3';
 import { users } from '../../db/schema';
 import type { WorkerDatabase } from '../../db/worker-client';
 import { QueryCache } from '../../db/worker-client';

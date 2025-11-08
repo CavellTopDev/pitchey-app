@@ -13,7 +13,7 @@ import {
   creditTransactions, 
   userCredits
 } from "../../db/schema.ts";
-import { eq } from "npm:drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 import {
   PaymentProvider,
   PaymentService,

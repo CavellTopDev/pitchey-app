@@ -11,7 +11,7 @@ import { PresenceStatus } from "./presence-tracking.service.ts";
 import { MessagePriority } from "./message-queue.service.ts";
 import { db } from "../db/client.ts";
 import { analyticsEvents, users, pitches } from "../db/schema.ts";
-import { eq, and, desc, sql, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte, lte } from "npm:drizzle-orm@0.35.3";
 
 // Analytics event types
 export enum WSAnalyticsEventType {

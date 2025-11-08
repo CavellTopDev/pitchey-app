@@ -4,7 +4,7 @@
 
 import { db } from "../src/db/client.ts";
 import { users, pitches } from "../src/db/schema.ts";
-import { eq } from "drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 
 async function addDemoPitches() {
   console.log("🎬 Adding Pitches for Existing Demo Accounts");

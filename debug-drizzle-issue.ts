@@ -1,7 +1,7 @@
 // Debug the exact Drizzle issue by testing smaller parts
 import { db } from "./src/db/client.ts";
 import { pitches } from "./src/db/schema.ts";
-import { sql } from "drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 async function debugDrizzleIssue() {
   console.log("🔍 Debugging Drizzle ORM issue step by step...");

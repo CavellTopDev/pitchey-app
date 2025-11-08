@@ -5,7 +5,7 @@ import { nativeRedisService } from './redis-native.service.ts';
 import { wrapRedisClient } from '../utils/redis-fallback.ts';
 import { db } from '../db/client.ts';
 import { pitches } from '../db/schema.ts';
-import { eq, and } from 'npm:drizzle-orm';
+import { eq, and } from 'npm:drizzle-orm@0.35.3';
 
 export interface DraftData {
   userId: number;

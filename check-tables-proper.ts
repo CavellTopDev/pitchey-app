@@ -7,7 +7,7 @@
 
 import { db } from "./src/db/client.ts";
 import { users, pitches, ndaRequests, conversations, analyticsEvents, notifications, follows, messages, securityEvents } from "./src/db/schema.ts";
-import { count, sql } from "drizzle-orm";
+import { count, sql } from "npm:drizzle-orm@0.35.3";
 
 console.log("🔍 Checking tables with proper drizzle syntax...");
 

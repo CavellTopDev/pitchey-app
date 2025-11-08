@@ -7,7 +7,7 @@ import {
   users,
   pitches 
 } from "../db/schema.ts";
-import { eq, and, or, desc, sql } from "npm:drizzle-orm";
+import { eq, and, or, desc, sql } from "npm:drizzle-orm@0.35.3";
 
 export class MessageService {
   static async getUserMessages(userId: number) {

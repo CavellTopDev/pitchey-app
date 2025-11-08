@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { ndas, ndaRequests, messages, conversations, conversationParticipants, pitches, users } from "../db/schema.ts";
-import { eq, and, or } from "npm:drizzle-orm";
+import { eq, and, or } from "npm:drizzle-orm@0.35.3";
 
 export class NDAMessagingService {
   /**

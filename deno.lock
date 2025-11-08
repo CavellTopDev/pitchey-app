@@ -9,6 +9,7 @@
     "npm:drizzle-orm@*": "0.33.0_@neondatabase+serverless@0.9.5_postgres@3.4.7_postgres@3.3.5",
     "npm:drizzle-orm@0.33": "0.33.0_@neondatabase+serverless@0.9.5_postgres@3.4.7_postgres@3.3.5",
     "npm:drizzle-orm@0.33.0": "0.33.0_@neondatabase+serverless@0.9.5_postgres@3.4.7_postgres@3.3.5",
+    "npm:drizzle-orm@0.35.3": "0.35.3_@libsql+client-wasm@0.15.15_@neondatabase+serverless@0.9.5_postgres@3.3.5",
     "npm:postgres@3.3.5": "3.3.5",
     "npm:postgres@^3.4.0": "3.4.7",
     "npm:stripe@*": "19.1.0",
@@ -873,6 +874,19 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
+    "@libsql/client-wasm@0.15.15": {
+      "integrity": "sha512-ah71HHAsywWRSinJg7SKbJc+mTIgw7wHPYLE9DfW79wa+CSQXX1rEbrDNQx0HvHC1YFd2IpVpVASBFlqh54vVA==",
+      "dependencies": [
+        "@libsql/core",
+        "js-base64"
+      ]
+    },
+    "@libsql/core@0.15.15": {
+      "integrity": "sha512-C88Z6UKl+OyuKKPwz224riz02ih/zHYI3Ho/LAcVOgjsunIRZoBw7fjRfaH9oPMmSNeQfhGklSG2il1URoOIsA==",
+      "dependencies": [
+        "js-base64"
+      ]
+    },
     "@neondatabase/serverless@0.9.5": {
       "integrity": "sha512-siFas6gItqv6wD/pZnvdu34wEqgG3nSE6zWZdq5j2DEsa+VvX8i/5HXJOo06qrw5axPXn+lGCxeR+NLaSPIXug==",
       "dependencies": [
@@ -1402,6 +1416,18 @@
         "postgres@3.3.5"
       ]
     },
+    "drizzle-orm@0.35.3_@libsql+client-wasm@0.15.15_@neondatabase+serverless@0.9.5_postgres@3.3.5": {
+      "integrity": "sha512-Uv6N+b36x4BaZlxc96e+ag7RnMapBLGhc4SSi2F7RDwqYJipWjaU/P68RUp1FbW9r+mxoDp8nMz2Eece8PJxfA==",
+      "dependencies": [
+        "@libsql/client-wasm",
+        "@neondatabase/serverless",
+        "postgres@3.3.5"
+      ],
+      "optionalPeers": [
+        "@neondatabase/serverless",
+        "postgres@3.3.5"
+      ]
+    },
     "dunder-proto@1.0.1": {
       "integrity": "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==",
       "dependencies": [
@@ -1540,6 +1566,9 @@
       "dependencies": [
         "function-bind"
       ]
+    },
+    "js-base64@3.7.8": {
+      "integrity": "sha512-hNngCeKxIUQiEUN3GPJOkz4wF/YvdUdbNL9hsBcMQTkKzboD7T/q3OYOuuPZLUE6dBxSGpwhk5mwuDud7JVAow=="
     },
     "math-intrinsics@1.1.0": {
       "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="

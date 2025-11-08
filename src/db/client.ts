@@ -1,5 +1,5 @@
-import { drizzle } from "npm:drizzle-orm@0.33.0/postgres-js";
-import { drizzle as drizzleNeon } from "npm:drizzle-orm@0.33.0/neon-http";
+import { drizzle } from "npm:drizzle-orm@0.35.3/postgres-js";
+import { drizzle as drizzleNeon } from "npm:drizzle-orm@0.35.3/neon-http";
 import { neon } from "npm:@neondatabase/serverless@0.9.5";
 import postgres from "npm:postgres@^3.4.0";
 import * as schema from "./schema.ts";

@@ -1,6 +1,6 @@
 // Test minimal pitch query using SQL to bypass schema issues temporarily
 import { db } from "./src/db/client.ts";
-import { sql } from "drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 async function testMinimalPitchQuery() {
   console.log("🔧 Creating temporary solution with SQL queries...");

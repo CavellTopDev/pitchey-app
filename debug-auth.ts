@@ -2,7 +2,7 @@
 
 import { db } from "./src/db/client.ts";
 import { sessions } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 
 const JWT_SECRET = Deno.env.get("JWT_SECRET") || "test-secret-key-for-development";

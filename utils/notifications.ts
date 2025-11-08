@@ -1,6 +1,6 @@
 import { db } from "../src/db/client.ts";
 import { notifications, users, pitches } from "../src/db/schema.ts";
-import { eq } from "drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 
 // WebSocket connections store
 const wsConnections = new Map<number, WebSocket>();

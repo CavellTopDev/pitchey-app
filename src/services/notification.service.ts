@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { notifications, users, pitches } from "../db/schema.ts";
-import { eq, and, desc, isNull } from "npm:drizzle-orm";
+import { eq, and, desc, isNull } from "npm:drizzle-orm@0.35.3";
 import { nativeRedisService } from "./redis-native.service.ts";
 
 // Helper function to safely extract error messages

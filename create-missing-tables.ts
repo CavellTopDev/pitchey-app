@@ -1,7 +1,7 @@
 // Create missing tables before adding columns
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { sql } from 'drizzle-orm';
+import { sql } from 'npm:drizzle-orm@0.35.3';
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL") || "postgresql://postgres:password@localhost:5432/pitchey";
 

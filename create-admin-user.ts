@@ -1,7 +1,7 @@
 // Script to create admin user by updating existing user
 import { db } from "./src/db/client.ts";
 import { users } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 import { hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 async function createAdminUser() {

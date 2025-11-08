@@ -1,6 +1,6 @@
 import { db } from "../db/client.ts";
 import { sessions, users } from "../db/schema.ts";
-import { eq, and, lt } from "npm:drizzle-orm";
+import { eq, and, lt } from "npm:drizzle-orm@0.35.3";
 import { AuthService } from "./auth.service.ts";
 
 export class SessionService {

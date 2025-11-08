@@ -7,7 +7,7 @@
 
 import { db } from "./src/db/client.ts";
 import { users, conversations, messages } from "./src/db/schema.ts";
-import { eq } from "drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 
 // Test configuration
 const TEST_SERVER_URL = "http://localhost:8000";

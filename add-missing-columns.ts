@@ -1,7 +1,7 @@
 // Migration to add missing columns to the database using Drizzle
 import { drizzle } from "npm:drizzle-orm/postgres-js";
 import postgres from "npm:postgres";
-import { sql } from "npm:drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL") || "postgresql://postgres:password@localhost:5432/pitchey";
 

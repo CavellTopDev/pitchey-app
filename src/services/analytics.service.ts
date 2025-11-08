@@ -9,7 +9,7 @@ import {
   ndas,
   messages
 } from "../db/schema.ts";
-import { eq, and, gte, lte, desc, sql, count } from "npm:drizzle-orm";
+import { eq, and, gte, lte, desc, sql, count } from "npm:drizzle-orm@0.35.3";
 
 export class AnalyticsService {
   static async trackEvent(data: {

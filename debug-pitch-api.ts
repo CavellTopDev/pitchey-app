@@ -1,7 +1,7 @@
 // Debug script to test the pitch service directly
 import { db } from "./src/db/client.ts";
 import { pitches, users } from "./src/db/schema.ts";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc } from "npm:drizzle-orm@0.35.3";
 
 async function debugPitchService() {
   console.log("🔍 Testing pitch service query directly...");

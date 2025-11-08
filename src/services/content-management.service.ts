@@ -8,7 +8,7 @@ import {
   ContentItem,
   ContentApproval
 } from "../db/schema.ts";
-import { eq, and, desc, sql, or, isNull } from "drizzle-orm";
+import { eq, and, desc, sql, or, isNull } from "npm:drizzle-orm@0.35.3";
 
 // Helper function to safely extract error messages
 function getErrorMessage(error: unknown): string {

@@ -4,7 +4,7 @@
 import { nativeRedisService } from './redis-native.service.ts';
 import { db } from '../db/client.ts';
 import { pitches, users, pitchViews, follows, notifications, ndas } from '../db/schema.ts';
-import { eq, and, count, desc, gte, lte, sql } from 'npm:drizzle-orm';
+import { eq, and, count, desc, gte, lte, sql } from 'npm:drizzle-orm@0.35.3';
 
 export interface DashboardMetrics {
   creator: {

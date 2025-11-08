@@ -1,7 +1,7 @@
 // Enhanced browse endpoint with proper multi-select filtering
 import { db } from "../db/index.ts";
 import { pitches, users } from "../db/schema.ts";
-import { eq, and, or, desc, asc, sql, ilike, gte, lte } from "drizzle-orm";
+import { eq, and, or, desc, asc, sql, ilike, gte, lte } from "npm:drizzle-orm@0.35.3";
 import { redisService } from "../services/redis-native.service.ts";
 
 export async function handleEnhancedBrowse(url: URL) {

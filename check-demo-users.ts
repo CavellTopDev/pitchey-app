@@ -3,7 +3,7 @@
 // Check demo user userTypes in database
 import { db } from "./src/db/client.ts";
 import { users, pitches } from "./src/db/schema.ts";
-import { eq, or } from "npm:drizzle-orm";
+import { eq, or } from "npm:drizzle-orm@0.35.3";
 
 console.log("Checking demo user userTypes...");
 

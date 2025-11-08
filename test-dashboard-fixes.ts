@@ -2,7 +2,7 @@
 
 import { db } from "./src/db/client.ts";
 import { pitches, users, watchlist, portfolio, analytics, ndaRequests, securityEvents, notifications } from "./src/db/schema.ts";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql } from "npm:drizzle-orm@0.35.3";
 
 async function testDashboardQueries() {
   console.log("🧪 Testing Dashboard SQL Queries After Fixes\n");

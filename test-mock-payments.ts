@@ -10,7 +10,7 @@
 import { getPaymentService, initializePayments } from "./src/services/payment/index.ts";
 import { db } from "./src/db/client.ts";
 import { users, userCredits, creditTransactions, payments } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm";
+import { eq } from "npm:drizzle-orm@0.35.3";
 
 // Test configuration
 const TEST_USER_EMAIL = "alex.creator@demo.com"; // Use existing demo user

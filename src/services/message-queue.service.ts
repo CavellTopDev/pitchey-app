@@ -11,7 +11,7 @@ import { captureException } from "./logging.service.ts";
 import { WSMessage, WSMessageType } from "./websocket.service.ts";
 import { db } from "../db/client.ts";
 import { notifications, messages, users } from "../db/schema.ts";
-import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte } from "npm:drizzle-orm@0.35.3";
 
 // Message priority levels
 export enum MessagePriority {

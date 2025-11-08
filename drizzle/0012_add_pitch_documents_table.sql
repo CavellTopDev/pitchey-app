@@ -17,20 +17,20 @@ CREATE TABLE IF NOT EXISTS "pitch_documents" (
 	"download_count" integer DEFAULT 0,
 	"metadata" jsonb DEFAULT '{}'
 );
-
+--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "pitch_documents" ADD CONSTRAINT "pitch_documents_pitch_id_pitches_id_fk" FOREIGN KEY ("pitch_id") REFERENCES "pitches"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
-
+--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "pitch_documents" ADD CONSTRAINT "pitch_documents_uploaded_by_users_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "users"("id") ON DELETE set null ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
-
+--> statement-breakpoint
 -- Create index for faster lookups
-CREATE INDEX IF NOT EXISTS "idx_pitch_documents_pitch_id" ON "pitch_documents" ("pitch_id");
-CREATE INDEX IF NOT EXISTS "idx_pitch_documents_document_type" ON "pitch_documents" ("document_type");
+CREATE INDEX IF NOT EXISTS "idx_pitch_documents_pitch_id" ON "pitch_documents" ("pitch_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_pitch_documents_document_type" ON "pitch_documents" ("document_type");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_pitch_documents_uploaded_by" ON "pitch_documents" ("uploaded_by");

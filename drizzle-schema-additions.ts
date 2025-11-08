@@ -1,6 +1,6 @@
 // Add these to src/db/schema.ts for the missing tables
 
-import { pgTable, serial, integer, varchar, text, timestamp, jsonb, decimal, boolean, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, timestamp, jsonb, decimal, boolean, unique, index } from "drizzle-orm@0.35.3/pg-core";
 
 // ============================================
 // NEW TABLES FOR CRITICAL ENDPOINTS

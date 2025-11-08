@@ -13,7 +13,7 @@ import {
   users, pitches, notifications, messages, conversations, conversationParticipants,
   messageReadReceipts, typingIndicators, pitchViews, analyticsEvents
 } from "../db/schema.ts";
-import { eq, and, desc, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, desc, sql, inArray, gte } from "npm:drizzle-orm@0.35.3";
 
 // Message handler function type
 type MessageHandler = (session: WSSession, message: WSMessage) => Promise<WSMessage | WSMessage[] | void>;

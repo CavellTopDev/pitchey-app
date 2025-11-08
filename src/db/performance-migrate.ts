@@ -2,7 +2,7 @@
 // Handles running performance optimization migrations
 
 import { db } from "./client.ts";
-import { sql } from "npm:drizzle-orm";
+import { sql } from "npm:drizzle-orm@0.35.3";
 
 interface MigrationResult {
   success: boolean;
