@@ -179,22 +179,33 @@ jobs:
         working-directory: frontend
         run: npm ci
       
-      - name: Clear Vite cache
+      - name: Clear all caches and build artifacts
         working-directory: frontend
         run: |
           rm -rf node_modules/.vite
           rm -rf dist
+          rm -rf .turbo
+          rm -rf .cache
+          rm -f tsconfig.tsbuildinfo
+      
+      - name: Create production environment file
+        working-directory: frontend
+        run: |
+          cat > .env.production << 'EOF'
+          VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+          VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev/ws
+          VITE_NODE_ENV=production
+          EOF
+          echo "Created .env.production with Worker API URL"
+          cat .env.production
       
       - name: Build frontend
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-api-production.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev/ws
           NODE_ENV: production
         run: |
-          echo "Building with API URL: $VITE_API_URL"
-          echo "NODE_ENV: $NODE_ENV"
-          npm run build -- --mode production --force
+          echo "Building in production mode..."
+          npm run build -- --mode production
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
