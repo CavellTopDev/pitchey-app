@@ -3420,6 +3420,20 @@ const handler = async (request: Request): Promise<Response> => {
     // Creator dashboard (main dashboard endpoint with caching)
     if (url.pathname === "/api/creator/dashboard" && method === "GET") {
       try {
+        // CRITICAL FIX: Authenticate first!
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+          console.error('❌ Creator dashboard auth failed:', authResult.error);
+          return authErrorResponse(authResult.error);
+        }
+        
+        const user = authResult.user;
+        
+        if (!user) {
+          console.error('❌ No user found for creator dashboard');
+          return authErrorResponse("Not authenticated");
+        }
+        
         // Check if user is a creator
         if (user.userType !== 'creator') {
           return forbiddenResponse("Access denied. Creator access required.");
@@ -4714,13 +4728,40 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Creator profile
     if (url.pathname === "/api/creator/profile" && method === "GET") {
+      console.log('🎬 Creator profile request');
+      
+      // CRITICAL FIX: Authenticate first!
+      const authResult = await authenticate(request);
+      if (authResult.error) {
+        console.error('❌ Creator profile auth failed:', authResult.error);
+        return authErrorResponse(authResult.error);
+      }
+      
+      const user = authResult.user;
+      
+      if (!user) {
+        console.error('❌ No user found in auth result for creator profile');
+        return authErrorResponse("Not authenticated");
+      }
+      
+      console.log('✅ Creator profile - User found:', { 
+        id: user.id, 
+        email: user.email,
+        userType: user.userType 
+      });
+      
+      // Check if user is a creator
+      if (user.userType !== 'creator') {
+        return forbiddenResponse("Access denied. Creator access required.");
+      }
+      
       return successResponse({
         user: {
           id: user.id,
           email: user.email,
-          username: user.username,
+          username: user.username || user.email?.split('@')[0] || 'user',
           userType: user.userType,
-          companyName: user.companyName
+          companyName: user.companyName || ''
         },
         message: "Creator profile retrieved successfully"
       });
