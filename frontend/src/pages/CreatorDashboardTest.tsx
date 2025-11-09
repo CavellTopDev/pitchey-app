@@ -184,6 +184,51 @@ export default function CreatorDashboardTest() {
             </button>
           </div>
         </div>
+
+        {/* Creator Milestones & Goals (UI-only, no API) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          {/* Milestones */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Creator Milestones</h2>
+            <div className="space-y-4">
+              {/* First Pitch */}
+              <div className={`p-4 rounded-lg border-2 ${ (stats?.totalPitches || 0) > 0 ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-gray-50' }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-900">First Pitch</span>
+                  {(stats?.totalPitches || 0) > 0 && (
+                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                  )}
+                </div>
+                <p className="text-xs text-gray-600">{(stats?.totalPitches || 0) > 0 ? 'Completed' : 'Upload your first pitch'}</p>
+              </div>
+
+              {/* 100 Views */}
+              <div className="p-4 rounded-lg border-2 border-blue-200 bg-blue-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-900">100 Views</span>
+                  <span className="text-xs text-blue-700">{Math.min(totalViews, 100)}/100</span>
+                </div>
+                <div className="w-full h-2 bg-blue-100 rounded">
+                  <div className="h-2 bg-blue-600 rounded" style={{ width: `${Math.min((totalViews/100)*100, 100)}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tips & Links */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tips & Resources</h2>
+            <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
+              <li>Keep titles clear and compelling to improve views.</li>
+              <li>Share your pitch link to reach early followers.</li>
+              <li>Add a strong logline and visuals to increase engagement.</li>
+            </ul>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <button onClick={() => navigate('/creator/analytics')} className="px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg border">View Analytics</button>
+              <button onClick={() => navigate('/creator/portfolio')} className="px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg border">My Portfolio</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
