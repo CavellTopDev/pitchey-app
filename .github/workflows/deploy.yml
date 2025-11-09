@@ -179,6 +179,12 @@ jobs:
         working-directory: frontend
         run: npm ci
       
+      - name: Clear Vite cache
+        working-directory: frontend
+        run: |
+          rm -rf node_modules/.vite
+          rm -rf dist
+      
       - name: Build frontend
         working-directory: frontend
         env:
