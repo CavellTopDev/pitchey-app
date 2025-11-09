@@ -8,7 +8,7 @@ Successfully deployed Pitchey application to production with full functionality.
 
 | Component | Status | URL/Details |
 |-----------|--------|-------------|
-| **Frontend** | ✅ LIVE | https://pitchey.netlify.app |
+| **Frontend** | ✅ LIVE | https://pitchey.pages.dev |
 | **Backend** | ✅ LIVE | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev |
 | **Database** | ✅ CONNECTED | Neon PostgreSQL (eu-west-2) |
 | **Authentication** | ✅ WORKING | All portals functional |
@@ -65,7 +65,7 @@ mv .env.example.backup .env.example
 ```bash
 cd frontend
 VITE_API_URL=https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev npm run build
-netlify deploy --prod --dir=dist
+cloudflare-pages deploy --prod --dir=dist
 ```
 
 ### Monitor Health
@@ -122,7 +122,7 @@ curl -X POST https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/auth/creato
 | Service | Dashboard URL |
 |---------|--------------|
 | **Deno Deploy** | https://dash.deno.com/projects/pitchey-backend-fresh |
-| **Netlify** | https://app.netlify.com/sites/pitchey |
+| **cloudflare-pages** | https://app.cloudflare-pages.com/sites/pitchey |
 | **Neon Database** | https://console.neon.tech |
 | **GitHub** | https://github.com/CavellTopDev/pitchey-app |
 

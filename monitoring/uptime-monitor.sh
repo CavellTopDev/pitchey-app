@@ -3,8 +3,8 @@
 # Continuous uptime monitoring with immediate alerts
 source monitoring/.env.alerts 2>/dev/null || true
 
-BACKEND_URL="https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev"
-FRONTEND_URL="https://pitchey.netlify.app"
+BACKEND_URL="https://pitchey-backend-fresh.deno.dev"
+FRONTEND_URL="https://pitchey.pages.dev"
 CHECK_INTERVAL=60  # seconds
 ALERT_COOLDOWN=3600  # 1 hour between same alerts
 

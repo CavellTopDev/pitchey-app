@@ -177,7 +177,7 @@ crontab -l
 
 ### External Monitoring
 - **Deno Deploy**: https://dash.deno.com/projects/pitchey-backend-fresh/logs
-- **Netlify**: https://app.netlify.com/sites/pitchey/overview
+- **cloudflare-pages**: https://app.cloudflare-pages.com/sites/pitchey/overview
 - **Neon Database**: https://console.neon.tech
 
 ### Recommended Third-Party Services
@@ -191,7 +191,7 @@ crontab -l
 #### Setup UptimeRobot (Recommended)
 1. Sign up at https://uptimerobot.com
 2. Add monitor for: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
-3. Add monitor for: https://pitchey.netlify.app
+3. Add monitor for: https://pitchey.pages.dev
 4. Configure email/webhook alerts
 
 ## Maintenance
@@ -227,7 +227,7 @@ crontab -l
 
 ### Platform Support
 - **Deno Deploy**: support@deno.com
-- **Netlify**: https://www.netlify.com/support/
+- **cloudflare-pages**: https://www.cloudflare-pages.com/support/
 - **Neon**: https://neon.tech/support
 
 ### Alert Configuration Help

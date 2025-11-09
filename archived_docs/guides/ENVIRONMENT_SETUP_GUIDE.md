@@ -7,7 +7,7 @@ Your application has a **3-tier architecture**:
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
 │   Frontend      │────▶│    Backend API    │────▶│   Database       │
-│   (Netlify)     │     │  (Deno Deploy)    │     │    (Neon)        │
+│   (cloudflare-pages)     │     │  (Deno Deploy)    │     │    (Neon)        │
 └─────────────────┘     └──────────────────┘     └──────────────────┘
      Static              Serverless Runtime        PostgreSQL Cloud
 ```
@@ -45,7 +45,7 @@ Your application has a **3-tier architecture**:
    ```bash
    DATABASE_URL=postgresql://[from-neon]?sslmode=require
    JWT_SECRET=[your-generated-secret]
-   FRONTEND_URL=https://pitchey.netlify.app
+   FRONTEND_URL=https://pitchey.pages.dev
    
    # Set these as empty to prevent deployment errors
    UPSTASH_REDIS_REST_URL=
@@ -130,7 +130,7 @@ deployctl deploy \
 ```bash
 cd frontend
 npm run build
-netlify deploy --prod
+cloudflare-pages deploy --prod
 ```
 
 ### Step 4: Verify Production

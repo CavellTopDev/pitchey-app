@@ -1,7 +1,7 @@
 # ✅ RESOLVED: WebSocket Infinite Loop Issue in Production
 
 ## 🎯 Issue Summary
-**Problem**: Critical WebSocket infinite retry loops causing console spam at https://pitchey.netlify.app/
+**Problem**: Critical WebSocket infinite retry loops causing console spam at https://pitchey.pages.dev/
 **Status**: ✅ **RESOLVED**
 **Date**: 2025-10-14
 **Total Resolution Time**: ~4 hours
@@ -97,7 +97,7 @@ if (!decodedPayload.userId || !decodedPayload.exp || decodedPayload.exp < now) {
 ```
 
 ### Live Site Status:
-- **URL**: https://pitchey.netlify.app/
+- **URL**: https://pitchey.pages.dev/
 - **Backend**: https://pitchey-backend-fresh.deno.dev/
 - **WebSocket**: wss://pitchey-backend-fresh.deno.dev/ws
 - **Status**: ✅ Fully operational

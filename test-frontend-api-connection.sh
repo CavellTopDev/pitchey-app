@@ -16,7 +16,7 @@ fi
 # Test CORS preflight
 echo -e "\n2. Testing CORS configuration..."
 CORS_RESPONSE=$(curl -s -I -X OPTIONS "https://pitchey-backend-fresh.deno.dev/api/health" \
-    -H "Origin: https://pitchey.netlify.app" \
+    -H "Origin: https://pitchey.pages.dev" \
     -H "Access-Control-Request-Method: GET")
 
 if echo "$CORS_RESPONSE" | grep -q "Access-Control-Allow-Origin"; then
@@ -47,7 +47,7 @@ done
 
 # Test frontend loading
 echo -e "\n4. Testing frontend accessibility..."
-FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey.netlify.app")
+FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey.pages.dev")
 if [ "$FRONTEND_RESPONSE" = "200" ]; then
     echo "✅ Frontend loads (HTTP $FRONTEND_RESPONSE)"
 else
@@ -56,7 +56,7 @@ fi
 
 # Check for API URL in built frontend
 echo -e "\n5. Checking API configuration in frontend..."
-FRONTEND_SOURCE=$(curl -s "https://pitchey.netlify.app")
+FRONTEND_SOURCE=$(curl -s "https://pitchey.pages.dev")
 if echo "$FRONTEND_SOURCE" | grep -q "pitchey-backend-fresh.deno.dev"; then
     echo "✅ Frontend configured with stable API domain"
     if echo "$FRONTEND_SOURCE" | grep -q "23jvxyy3bspp"; then
@@ -74,4 +74,4 @@ echo "Frontend: Accessible ✅"
 echo "API Domain: Stable ✅"
 echo ""
 echo "🎉 Frontend should now be working with stable backend domain!"
-echo "Visit: https://pitchey.netlify.app"
+echo "Visit: https://pitchey.pages.dev"

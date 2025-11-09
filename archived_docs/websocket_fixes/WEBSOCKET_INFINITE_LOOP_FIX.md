@@ -83,7 +83,7 @@ interface JWTPayload {
 ## 🧪 Testing Strategy
 1. Deploy fix to production
 2. Run automated WebSocket analysis
-3. Test frontend at https://pitchey.netlify.app/
+3. Test frontend at https://pitchey.pages.dev/
 4. Verify no more console errors/infinite loops
 5. Confirm real-time features working
 

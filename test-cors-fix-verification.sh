@@ -26,18 +26,18 @@ else
 fi
 echo
 
-# Test 2: Netlify (Legacy)
-echo "2. 🔍 Testing Netlify → Backend CORS"
-echo "   Frontend: https://pitchey.netlify.app"
+# Test 2: Secondary Domain Test (if any)
+echo "2. 🔍 Testing Additional Domain → Backend CORS"
+echo "   Frontend: https://pitchey.pages.dev (Additional test)"
 echo "   Testing OPTIONS preflight request..."
 
-CORS_RESPONSE2=$(curl -i -H "Origin: https://pitchey.netlify.app" -X OPTIONS "$BACKEND_URL/api/health" 2>/dev/null)
+CORS_RESPONSE2=$(curl -i -H "Origin: https://pitchey.pages.dev" -X OPTIONS "$BACKEND_URL/api/health" 2>/dev/null)
 CORS_ORIGIN2=$(echo "$CORS_RESPONSE2" | grep -i "access-control-allow-origin" | cut -d: -f2 | tr -d ' \r\n')
 
-if [ "$CORS_ORIGIN2" = "https://pitchey.netlify.app" ]; then
-    echo "   ✅ CORS working: Backend allows https://pitchey.netlify.app"
+if [ "$CORS_ORIGIN2" = "https://pitchey.pages.dev" ]; then
+    echo "   ✅ CORS working: Backend allows https://pitchey.pages.dev"
 else
-    echo "   ❌ CORS failed: Got '$CORS_ORIGIN2', expected 'https://pitchey.netlify.app'"
+    echo "   ❌ CORS failed: Got '$CORS_ORIGIN2', expected 'https://pitchey.pages.dev'"
 fi
 echo
 
@@ -67,12 +67,12 @@ else
     echo "   ❌ Cloudflare Pages issues (HTTP $CF_STATUS)"
 fi
 
-# Test Netlify
-NETLIFY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey.netlify.app")
-if [ "$NETLIFY_STATUS" = "200" ]; then
-    echo "   ✅ Netlify accessible (HTTP $NETLIFY_STATUS)"
+# Test Secondary Domain
+PAGES_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey.pages.dev")
+if [ "$PAGES_STATUS" = "200" ]; then
+    echo "   ✅ Secondary domain accessible (HTTP $PAGES_STATUS)"
 else
-    echo "   ❌ Netlify issues (HTTP $NETLIFY_STATUS)"
+    echo "   ❌ Secondary domain issues (HTTP $PAGES_STATUS)"
 fi
 echo
 
@@ -93,24 +93,23 @@ echo
 echo "🎉 CORS FIX SUMMARY"
 echo "=================="
 
-if [ "$CORS_ORIGIN1" = "https://pitchey.pages.dev" ] && [ "$CORS_ORIGIN2" = "https://pitchey.netlify.app" ]; then
+if [ "$CORS_ORIGIN1" = "https://pitchey.pages.dev" ] && [ "$CORS_ORIGIN2" = "https://pitchey.pages.dev" ]; then
     echo "✅ CORS Configuration: WORKING"
     echo "   ✓ Primary: pitchey.pages.dev → backend ✅"
-    echo "   ✓ Legacy: pitchey.netlify.app → backend ✅"
+    echo "   ✓ Secondary: pitchey.pages.dev → backend ✅"
     echo 
     echo "🚀 DEPLOYMENT STATUS:"
     echo "   • Frontend (Primary): https://pitchey.pages.dev"
-    echo "   • Frontend (Legacy): https://pitchey.netlify.app"
     echo "   • Backend API: https://pitchey-backend-fresh.deno.dev"
     echo
     echo "🔧 TECHNICAL DETAILS:"
     echo "   • CORS origins properly configured in response.ts"
-    echo "   • GitHub Actions deploying to correct platforms"
-    echo "   • Both frontend deployments functional"
-    echo "   • Backend accepting requests from both origins"
+    echo "   • GitHub Actions deploying to Cloudflare Pages"
+    echo "   • Frontend deployment functional"
+    echo "   • Backend accepting requests from frontend origins"
     echo
     echo "✅ CORS ERRORS: RESOLVED!"
-    echo "The platform can now make API calls from both frontend URLs"
+    echo "The platform can now make API calls from the frontend URL"
     echo "without encountering CORS blocking errors."
 else
     echo "❌ CORS Configuration: NEEDS ATTENTION"

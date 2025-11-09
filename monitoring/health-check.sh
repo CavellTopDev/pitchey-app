@@ -10,8 +10,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-BACKEND_URL="https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev"
-FRONTEND_URL="https://pitchey.netlify.app"
+BACKEND_URL="https://pitchey-backend-fresh.deno.dev"
+FRONTEND_URL="https://pitchey.pages.dev"
 LOG_FILE="monitoring/health-check.log"
 ALERT_FILE="monitoring/alerts.log"
 

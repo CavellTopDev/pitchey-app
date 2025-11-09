@@ -50,7 +50,7 @@ Free external monitoring for your services:
 **Frontend Monitor**
 - Monitor Type: HTTP(s)
 - Friendly Name: "Pitchey Frontend"
-- URL: `https://pitchey.netlify.app`
+- URL: `https://pitchey.pages.dev`
 - Monitoring Interval: 5 minutes
 
 **Database Health Monitor**
@@ -220,7 +220,7 @@ done
 
 Check your security score:
 - Visit https://securityheaders.com
-- Enter: https://pitchey.netlify.app
+- Enter: https://pitchey.pages.dev
 - Aim for A+ rating
 
 ## 📈 Monitoring Dashboard
@@ -229,7 +229,7 @@ Check your security score:
 
 1. **Sentry Issues**: https://pitchey.sentry.io/issues/
 2. **UptimeRobot**: https://uptimerobot.com/dashboard
-3. **Netlify Deploys**: https://app.netlify.com/sites/pitchey/deploys
+3. **cloudflare-pages Deploys**: https://app.cloudflare-pages.com/sites/pitchey/deploys
 4. **Deno Logs**: https://dash.deno.com/projects/pitchey-backend-fresh/logs
 5. **Neon Metrics**: https://console.neon.tech/app/projects
 
@@ -293,9 +293,9 @@ function checkRateLimit(ip: string): boolean {
 4. Check Sentry for errors
 
 ### If Frontend is Down:
-1. Check https://pitchey.netlify.app
-2. Check Netlify deploy logs
-3. Redeploy: `cd frontend && npm run build && netlify deploy --prod`
+1. Check https://pitchey.pages.dev
+2. Check cloudflare-pages deploy logs
+3. Redeploy: `cd frontend && npm run build && cloudflare-pages deploy --prod`
 
 ### If Database is Down:
 1. Check Neon console
@@ -332,7 +332,7 @@ function checkRateLimit(ip: string): boolean {
 | Service | Free Tier Limit | Current Usage | Cost |
 |---------|----------------|---------------|------|
 | Deno Deploy | Unlimited | ~1K req/day | $0 |
-| Netlify | 100GB bandwidth | ~1GB/month | $0 |
+| cloudflare-pages | 100GB bandwidth | ~1GB/month | $0 |
 | Neon DB | 3GB storage | 500MB | $0 |
 | Sentry | 5K errors/month | <100/month | $0 |
 | Upstash | 10K commands/day | 0 (not set up) | $0 |
@@ -342,7 +342,7 @@ function checkRateLimit(ip: string): boolean {
 
 ### When to Upgrade:
 - Deno Deploy: >1M requests/month
-- Netlify: >100GB bandwidth
+- cloudflare-pages: >100GB bandwidth
 - Neon: >3GB data or need production SLA
 - Sentry: >5K errors (indicates problems!)
 - Upstash: >10K cache operations/day

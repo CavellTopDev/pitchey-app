@@ -3,17 +3,17 @@
 ## Overview
 Your Pitchey platform uses a **dual-platform deployment strategy** with automated CI/CD via GitHub Actions:
 
-- **Frontend**: Deployed to **Netlify** (React/Vite SPA)
+- **Frontend**: Deployed to **cloudflare-pages** (React/Vite SPA)
 - **Backend**: Deployed to **Deno Deploy** (Deno/TypeScript API)
 
 ## Architecture
 
 ```
 ┌─────────────────┐    API Calls     ┌──────────────────────┐
-│   Netlify       │ ──────────────► │   Deno Deploy        │
+│   cloudflare-pages       │ ──────────────► │   Deno Deploy        │
 │                 │                 │                      │
 │ Frontend (SPA)  │                 │ Backend API          │
-│ pitchey.netlify │                 │ pitchey-backend-     │
+│ pitchey.cloudflare-pages │                 │ pitchey-backend-     │
 │ .app            │                 │ fresh.deno.dev       │
 └─────────────────┘                 └──────────────────────┘
                                                │
@@ -26,7 +26,7 @@ Your Pitchey platform uses a **dual-platform deployment strategy** with automate
 
 ## Production URLs
 
-- **Frontend**: https://pitchey.netlify.app
+- **Frontend**: https://pitchey.pages.dev
 - **Backend API**: https://pitchey-backend-fresh.deno.dev
 - **Database**: Neon PostgreSQL (managed)
 
@@ -46,7 +46,7 @@ git push origin main
 1. GitHub Actions workflow triggers (`.github/workflows/deploy.yml`)
 2. Runs tests on backend with PostgreSQL/Redis
 3. Deploys backend to Deno Deploy
-4. Netlify auto-deploys frontend on detecting changes
+4. cloudflare-pages auto-deploys frontend on detecting changes
 
 ### 2. Manual Backend Deployment
 
@@ -68,16 +68,16 @@ DENO_DEPLOY_TOKEN="your_token" deployctl deploy \
 cd frontend
 npm run build
 
-# Deploy to Netlify (automatic via git or manual drag-drop)
-# Or use Netlify CLI:
-netlify deploy --prod --dir=dist
+# Deploy to cloudflare-pages (automatic via git or manual drag-drop)
+# Or use cloudflare-pages CLI:
+cloudflare-pages deploy --prod --dir=dist
 ```
 
 ## Environment Configuration
 
-### Frontend Environment Variables (Netlify)
+### Frontend Environment Variables (cloudflare-pages)
 
-**File**: `frontend/netlify.toml`
+**File**: `frontend/cloudflare-pages.toml`
 ```toml
 [build.environment]
   VITE_API_URL = "https://pitchey-backend-fresh.deno.dev"
@@ -105,14 +105,14 @@ VITE_NODE_ENV=production
 ```bash
 DATABASE_URL=${{ secrets.DATABASE_URL }}
 JWT_SECRET=${{ secrets.JWT_SECRET }}
-FRONTEND_URL=https://pitchey.netlify.app
+FRONTEND_URL=https://pitchey.pages.dev
 CACHE_ENABLED=true
 PORT=8000
 NODE_ENV=production
 DENO_ENV=production
 ```
 
-## Netlify Configuration
+## cloudflare-pages Configuration
 
 ### Build Settings
 - **Build Command**: `npm run build`
@@ -169,18 +169,18 @@ DENO_ENV=production
 - **Backend**: Console logging (Sentry temporarily disabled)
 
 ### Performance
-- **Netlify**: Built-in analytics and performance metrics
+- **cloudflare-pages**: Built-in analytics and performance metrics
 - **Deno Deploy**: Built-in logs and metrics dashboard
 
 ## Development vs Production
 
 | Aspect | Development | Production |
 |--------|-------------|------------|
-| Frontend | http://localhost:5173 | https://pitchey.netlify.app |
+| Frontend | http://localhost:5173 | https://pitchey.pages.dev |
 | Backend | http://localhost:8001 | https://pitchey-backend-fresh.deno.dev |
 | Database | Local PostgreSQL | Neon PostgreSQL |
 | WebSocket | ws://localhost:8001 | wss://pitchey-backend-fresh.deno.dev |
-| Environment | .env files | GitHub Secrets + Netlify vars |
+| Environment | .env files | GitHub Secrets + cloudflare-pages vars |
 
 ## Deployment Checklist
 
@@ -192,7 +192,7 @@ DENO_ENV=production
 - [ ] Backend starts without errors
 
 ### After Deployment
-- [ ] Frontend loads at https://pitchey.netlify.app
+- [ ] Frontend loads at https://pitchey.pages.dev
 - [ ] API endpoints responding (check /api/health)
 - [ ] WebSocket connections working
 - [ ] Database connections successful
@@ -204,7 +204,7 @@ DENO_ENV=production
 
 1. **API calls failing from frontend**
    - Check CORS settings in backend
-   - Verify VITE_API_URL in Netlify environment
+   - Verify VITE_API_URL in cloudflare-pages environment
 
 2. **WebSocket connection failures**
    - Ensure WSS protocol for production
@@ -240,7 +240,7 @@ wscat -c wss://pitchey-backend-fresh.deno.dev/ws
 
 ## Cost Optimization
 
-- **Netlify**: Free tier for frontend hosting
+- **cloudflare-pages**: Free tier for frontend hosting
 - **Deno Deploy**: Pay-per-request serverless
 - **Neon**: Managed PostgreSQL with free tier
 - **Upstash Redis**: Optional caching layer

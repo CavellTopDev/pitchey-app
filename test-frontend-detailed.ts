@@ -7,7 +7,7 @@ async function testFrontendDetailed() {
   
   // Test 1: HTML Structure
   console.log('\n📄 Step 1: HTML Structure Analysis');
-  const htmlResponse = await fetch('https://pitchey.netlify.app/');
+  const htmlResponse = await fetch('https://pitchey.pages.dev/');
   const html = await htmlResponse.text();
   
   console.log(`HTML size: ${html.length} bytes`);
@@ -38,7 +38,7 @@ async function testFrontendDetailed() {
     scriptMatches.forEach(match => {
       const url = match.match(/src="([^"]*)"/)[1];
       if (!url.startsWith('http')) {
-        assetUrls.push('https://pitchey.netlify.app' + url);
+        assetUrls.push('https://pitchey.pages.dev' + url);
       } else {
         assetUrls.push(url);
       }
@@ -49,7 +49,7 @@ async function testFrontendDetailed() {
     cssMatches.forEach(match => {
       const url = match.match(/href="([^"]*)"/)[1];
       if (!url.startsWith('http')) {
-        assetUrls.push('https://pitchey.netlify.app' + url);
+        assetUrls.push('https://pitchey.pages.dev' + url);
       } else {
         assetUrls.push(url);
       }
@@ -133,7 +133,7 @@ async function testFrontendDetailed() {
   
   // Simulate what happens when a browser loads the page
   try {
-    const response = await fetch('https://pitchey.netlify.app/', {
+    const response = await fetch('https://pitchey.pages.dev/', {
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',

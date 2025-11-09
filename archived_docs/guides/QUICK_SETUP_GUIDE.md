@@ -64,7 +64,7 @@ VITE_SENTRY_DSN=https://YOUR_FRONTEND_DSN@o123456.ingest.sentry.io/PROJECT_ID
 cd frontend
 VITE_API_URL=https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev \
 VITE_SENTRY_DSN=YOUR_DSN npm run build
-netlify deploy --prod --dir=dist
+cloudflare-pages deploy --prod --dir=dist
 ```
 
 ## 3. Upstash Redis Cache (5 minutes)
@@ -109,7 +109,7 @@ CACHE_ENABLED=true
    
    - Add another for frontend:
    - Name: `Pitchey Frontend`
-   - URL: `https://pitchey.netlify.app`
+   - URL: `https://pitchey.pages.dev`
 
 3. **Set up alerts**:
    - Add your email
@@ -147,7 +147,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK
 # Frontend
 cd frontend
 npm run build
-netlify deploy --prod --dir=dist
+cloudflare-pages deploy --prod --dir=dist
 
 # Test deployment
 curl https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
@@ -197,13 +197,13 @@ After optimizations:
 ## 🔗 Important URLs
 
 ### Your Production URLs
-- **Frontend**: https://pitchey.netlify.app
+- **Frontend**: https://pitchey.pages.dev
 - **Backend**: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev
 - **Health**: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
 
 ### Service Dashboards
 - **Deno Deploy**: https://dash.deno.com/projects/pitchey-backend-fresh
-- **Netlify**: https://app.netlify.com/sites/pitchey
+- **cloudflare-pages**: https://app.cloudflare-pages.com/sites/pitchey
 - **Neon DB**: https://console.neon.tech
 - **GitHub**: https://github.com/CavellTopDev/pitchey-app
 
@@ -220,7 +220,7 @@ After optimizations:
 ./deploy-secure.sh
 
 # If frontend is down
-cd frontend && npm run build && netlify deploy --prod --dir=dist
+cd frontend && npm run build && cloudflare-pages deploy --prod --dir=dist
 
 # Check what's wrong
 ./monitoring/health-check.sh

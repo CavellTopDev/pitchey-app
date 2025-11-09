@@ -115,7 +115,7 @@ deployctl deploy --project=pitchey working-server.ts
 
 # 3. Deploy frontend
 cd frontend && npm run build
-netlify deploy --prod --dir=dist
+cloudflare-pages deploy --prod --dir=dist
 
 # 4. Done! Platform is live
 ```

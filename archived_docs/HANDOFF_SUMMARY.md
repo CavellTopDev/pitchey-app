@@ -3,12 +3,12 @@
 ## Current Status: Production Deployment Complete ✅
 
 ### Live Platform URLs
-- **Frontend**: https://pitchey.netlify.app  
+- **Frontend**: https://pitchey.pages.dev  
 - **Backend**: https://pitchey-backend-fresh.deno.dev
 
 ### Major Accomplishments
 1. **Successful Production Deployment**
-   - Fixed Netlify build issues (Node 20.19.5)
+   - Fixed cloudflare-pages build issues (Node 20.19.5)
    - Optimized build commands and module resolution
    - Deployed both frontend and backend successfully
 
@@ -41,7 +41,7 @@
    - NDA workflow refinements
 
 ### Tech Stack
-- Frontend: React 19 + TypeScript + Vite (Netlify)
+- Frontend: React 19 + TypeScript + Vite (cloudflare-pages)
 - Backend: Deno 2.x + PostgreSQL + Redis (Deno Deploy)
 - Project Location: `/home/supremeisbeing/pitcheymovie/pitchey_v0.2`
 
@@ -51,8 +51,8 @@
 - Backend port: Always 8001
 
 ### Recent Deployment Commits
-- 19b0741: Deploy frontend with Netlify credentials
-- 750562f: Regenerate package-lock.json for Netlify compatibility
+- 19b0741: Deploy frontend with cloudflare-pages credentials
+- 750562f: Regenerate package-lock.json for cloudflare-pages compatibility
 - fa04ba7: Use explicit path to vite binary
 - f6bdfc4: Simplify build process
 

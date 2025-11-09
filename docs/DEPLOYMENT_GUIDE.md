@@ -4,7 +4,7 @@
 This guide covers deployment procedures for the Pitchey platform across development, staging, and production environments.
 
 ## Architecture Overview
-- **Frontend**: React/Vite application deployed on Netlify
+- **Frontend**: React/Vite application deployed on cloudflare-pages
 - **Backend**: Deno server deployed on Deno Deploy  
 - **Database**: PostgreSQL hosted on Neon
 - **Cache**: Redis on Upstash (production) / Docker (development)
@@ -117,7 +117,7 @@ cd frontend && npm run build && npm run preview
 # Required variables
 DATABASE_URL=postgresql://user:pass@host:port/db?sslmode=require
 JWT_SECRET=<secure-random-string>
-FRONTEND_URL=https://pitchey.netlify.app
+FRONTEND_URL=https://pitchey.pages.dev
 
 # Optional variables
 REDIS_URL=<upstash-redis-url>
@@ -125,7 +125,7 @@ SENTRY_DSN=<sentry-dsn>
 CACHE_ENABLED=true
 ```
 
-#### Frontend (Netlify)
+#### Frontend (cloudflare-pages)
 ```bash
 # Build-time variables
 VITE_API_URL=https://pitchey-backend-fresh.deno.dev
@@ -168,7 +168,7 @@ jobs:
 cat > .env.deploy << EOF
 DATABASE_URL=$NEON_DATABASE_URL
 JWT_SECRET=$JWT_SECRET
-FRONTEND_URL=https://pitchey.netlify.app
+FRONTEND_URL=https://pitchey.pages.dev
 EOF
 
 # Deploy using deployctl
@@ -178,10 +178,10 @@ DENO_DEPLOY_TOKEN=$DENO_DEPLOY_TOKEN deployctl deploy \
   --env-file=".env.deploy"
 ```
 
-### Frontend Deployment (Netlify)
+### Frontend Deployment (cloudflare-pages)
 
 #### Automatic Deployment
-Netlify automatically deploys from the `main` branch when connected to GitHub.
+cloudflare-pages automatically deploys from the `main` branch when connected to GitHub.
 
 #### Manual Deployment
 ```bash
@@ -190,8 +190,8 @@ cd frontend
 # Build for production
 VITE_API_URL=https://pitchey-backend-fresh.deno.dev npm run build
 
-# Deploy to Netlify
-netlify deploy --prod --dir=dist
+# Deploy to cloudflare-pages
+cloudflare-pages deploy --prod --dir=dist
 ```
 
 ### Database Setup (Neon)
@@ -456,7 +456,7 @@ DATABASE_URL=postgresql://neondb_owner:npg_xyz@ep-xyz.neon.tech/neondb?sslmode=r
 JWT_SECRET=<64-character-random-string>
 
 # CORS
-FRONTEND_URL=https://pitchey.netlify.app
+FRONTEND_URL=https://pitchey.pages.dev
 
 # Redis (Upstash)
 REDIS_URL=redis://default:password@redis-host:port
@@ -486,7 +486,7 @@ openssl rand -hex 32
 const corsOptions = {
   origin: [
     'http://localhost:5173',  // Development
-    'https://pitchey.netlify.app',  // Production
+    'https://pitchey.pages.dev',  // Production
   ],
   credentials: true,
   optionsSuccessStatus: 200
@@ -617,9 +617,9 @@ const CACHE_TTL = {
 
 ### CDN & Asset Optimization
 
-#### Netlify Configuration
+#### cloudflare-pages Configuration
 ```toml
-# netlify.toml
+# cloudflare-pages.toml
 [build]
   publish = "frontend/dist"
   command = "cd frontend && npm run build"
@@ -705,10 +705,10 @@ deployctl deployments promote <deployment-id> --project="pitchey-backend-fresh"
 
 ### Frontend Rollback
 ```bash
-# Netlify rollback
-netlify sites:list
-netlify api listSiteDeploys --siteId=<site-id>
-netlify api restoreSiteDeploy --siteId=<site-id> --deployId=<deploy-id>
+# cloudflare-pages rollback
+cloudflare-pages sites:list
+cloudflare-pages api listSiteDeploys --siteId=<site-id>
+cloudflare-pages api restoreSiteDeploy --siteId=<site-id> --deployId=<deploy-id>
 ```
 
 ### Database Rollback

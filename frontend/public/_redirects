@@ -1,4 +1,4 @@
-# Netlify _redirects file for SPA routing
+# Cloudflare Pages _redirects file for SPA routing
 # This ensures all routes are handled by React Router instead of returning 404
 
 # Handle all routes by serving index.html

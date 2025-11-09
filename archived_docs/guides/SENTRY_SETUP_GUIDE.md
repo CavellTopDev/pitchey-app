@@ -20,10 +20,10 @@ SENTRY_SERVER_NAME=pitchey-backend-fresh.deno.dev
 - Add `pitchey-backend-fresh.deno.dev` to allowed domains
 - Set environment to `production`
 
-## Frontend Configuration (Netlify)
+## Frontend Configuration (cloudflare-pages)
 
 ### 1. Environment Variables to Set
-In your Netlify dashboard for the Pitchey site, add these environment variables:
+In your cloudflare-pages dashboard for the Pitchey site, add these environment variables:
 
 ```bash
 VITE_SENTRY_DSN=https://1fdc8fab855b4b6b2f44f15034bdbb30@o4510137537396736.ingest.de.sentry.io/4510138262945872
@@ -33,7 +33,7 @@ VITE_SENTRY_RELEASE=pitchey-frontend-v1.0
 
 ### 2. Sentry Project Settings
 - **Project URL**: https://o4510137537396736.sentry.io/projects/4510138262945872/settings/
-- Add `pitchey.netlify.app` to allowed domains
+- Add `pitchey.pages.dev` to allowed domains
 - Set environment to `production`
 
 ## Testing Sentry Integration

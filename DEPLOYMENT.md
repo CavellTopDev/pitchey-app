@@ -66,24 +66,36 @@ UPSTASH_REDIS_REST_TOKEN=your-token
 
 ### 3. Deploy to Production
 
-#### Frontend (Netlify)
+#### Frontend (Cloudflare Pages)
 ```bash
 cd frontend
 npm install
 npm run build
 
-# Option 1: Netlify CLI
-netlify deploy --prod --dir=dist
+# Option 1: Wrangler CLI
+wrangler pages deploy dist \
+  --project-name=pitchey \
+  --branch=main
 
 # Option 2: Git integration (automatic)
+# Connect repository in Cloudflare Pages dashboard
 git push origin main
+```
+
+#### API Worker (Cloudflare Workers)
+```bash
+# Set secrets
+wrangler secret put JWT_SECRET
+
+# Deploy Worker
+wrangler deploy --env production
 ```
 
 #### Backend (Deno Deploy)
 ```bash
 # Option 1: deployctl CLI
 deployctl deploy \
-  --project=pitchey-backend \
+  --project=pitchey-backend-fresh \
   --entrypoint=working-server.ts
 
 # Option 2: GitHub integration (automatic)
@@ -92,23 +104,43 @@ git push origin main
 
 ## Service Configuration
 
-### Netlify (Frontend)
+### Cloudflare Pages (Frontend)
 
-#### Build Settings
-```toml
-[build]
-  command = "npm run build"
-  publish = "dist"
-  
-[build.environment]
-  NODE_VERSION = "20.19.5"
-  VITE_API_URL = "https://pitchey-backend-fresh.deno.dev"
+#### Build Configuration
+```yaml
+Framework preset: React
+Build command: npm run build
+Build output directory: dist
+Root directory: frontend
+Node version: 20.19.5
 ```
 
 #### Environment Variables
-Set in Netlify Dashboard:
-- `VITE_API_URL`: https://pitchey-backend-fresh.deno.dev
+Set in Cloudflare Pages Dashboard:
+- `VITE_API_URL`: https://pitchey-api-production.cavelltheleaddev.workers.dev
 - `VITE_WS_URL`: wss://pitchey-backend-fresh.deno.dev
+- `VITE_ENV`: production
+
+### Cloudflare Workers (API Gateway)
+
+#### Configuration (wrangler.toml)
+```toml
+name = "pitchey-api"
+main = "src/worker-simple.ts"
+compatibility_date = "2024-11-01"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "983d4a1818264b5dbdca26bacf167dee"
+```
 
 ### Deno Deploy (Backend)
 
@@ -120,7 +152,7 @@ Set in Netlify Dashboard:
   JWT_SECRET=...
   UPSTASH_REDIS_REST_URL=...
   UPSTASH_REDIS_REST_TOKEN=...
-  FRONTEND_URL=https://pitchey.netlify.app
+  FRONTEND_URL=https://pitchey.pages.dev
   ```
 
 ### Upstash Redis Setup
@@ -180,7 +212,7 @@ curl https://pitchey-backend-fresh.deno.dev/api/cache/status
 ```
 
 ### Logs
-- **Netlify**: Dashboard → Functions → Logs
+- **Cloudflare Pages**: Dashboard → Deployment Logs
 - **Deno Deploy**: Dashboard → Logs
 - **Upstash**: Console → Metrics
 
@@ -205,7 +237,7 @@ curl https://pitchey-backend-fresh.deno.dev/api/cache/status
 ```bash
 # Check CORS configuration
 # Ensure FRONTEND_URL is set in backend env
-FRONTEND_URL=https://pitchey.netlify.app
+FRONTEND_URL=https://pitchey.pages.dev
 ```
 
 #### WebSocket Connection Failed
@@ -253,7 +285,7 @@ Production: stellar.production@demo.com
 
 ### Automated Deployment
 Push to `main` branch triggers:
-1. Netlify auto-builds frontend
+1. Cloudflare Pages auto-builds frontend
 2. Deno Deploy auto-deploys backend
 3. No manual intervention required
 
@@ -261,7 +293,7 @@ Push to `main` branch triggers:
 ```bash
 # Frontend
 cd frontend && npm run build
-netlify deploy --prod --dir=dist
+npx wrangler pages deploy dist --project-name=pitchey
 
 # Backend
 deployctl deploy --project=pitchey-backend
@@ -285,7 +317,7 @@ psql $DATABASE_URL < backup.sql
 ## Cost Management
 
 ### Free Tier Limits
-- **Netlify**: 100GB bandwidth, 300 build minutes
+- **Cloudflare Pages**: Unlimited bandwidth, unlimited builds
 - **Deno Deploy**: 100,000 requests/day
 - **Neon**: 3GB storage, 1 compute hour/day
 - **Upstash**: 10,000 commands/day
@@ -297,7 +329,7 @@ psql $DATABASE_URL < backup.sql
 
 ## Support & Resources
 
-- **Netlify Docs**: https://docs.netlify.com
+- **Cloudflare Pages Docs**: https://developers.cloudflare.com/pages/
 - **Deno Deploy Docs**: https://deno.com/deploy/docs
 - **Neon Docs**: https://neon.tech/docs
 - **Upstash Docs**: https://docs.upstash.com

@@ -69,7 +69,7 @@ npm install @sentry/react
 
 ### Production
 - **Deno Deploy**: https://dash.deno.com/projects/pitchey-backend-fresh/logs
-- **Netlify**: https://app.netlify.com/sites/pitchey/deploys
+- **cloudflare-pages**: https://app.cloudflare-pages.com/sites/pitchey/deploys
 
 ### Local Monitoring
 - Health checks: `monitoring/health-check.log`
@@ -142,5 +142,5 @@ watch -n 300 ./monitoring/health-check.sh
 ## Contact for Issues
 
 - **Deno Deploy Support**: support@deno.com
-- **Netlify Support**: https://www.netlify.com/support/
+- **cloudflare-pages Support**: https://www.cloudflare-pages.com/support/
 - **Database (Neon)**: https://neon.tech/support

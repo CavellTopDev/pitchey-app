@@ -6,7 +6,7 @@
 ## Current Production URLs
 | Service | URL | Status | Version |
 |---------|-----|--------|---------|
-| Frontend | https://pitchey.netlify.app | ✅ LIVE | Latest |
+| Frontend | https://pitchey.pages.dev | ✅ LIVE | Latest |
 | Backend | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev | ✅ LIVE | 3.3-neon-fixed |
 | Health Check | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health | ✅ HEALTHY | - |
 | Database | Neon PostgreSQL (eu-west-2) | ✅ CONNECTED | - |
@@ -32,9 +32,9 @@
    - Backend responding on new URL
 
 3. **Frontend Update & Deployment**
-   - Updated `netlify.toml` with new backend URL
+   - Updated `cloudflare-pages.toml` with new backend URL
    - Built frontend with correct API endpoint
-   - Deployed to Netlify production
+   - Deployed to cloudflare-pages production
 
 4. **GitHub Actions Fix**
    - Added OIDC permissions
@@ -55,7 +55,7 @@
 - ✅ `FRONTEND_URL` - CORS configuration
 - ⏸️ Optional services set as empty (Redis, Email, S3, Stripe)
 
-**Frontend (Netlify)**
+**Frontend (cloudflare-pages)**
 - ✅ `VITE_API_URL` - Points to correct backend
 
 ### GitHub Secrets ✅
@@ -163,13 +163,13 @@ curl -X POST https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/auth/creato
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
 # Check frontend
-curl -I https://pitchey.netlify.app
+curl -I https://pitchey.pages.dev
 
 # View Deno Deploy logs
 # Visit: https://dash.deno.com/projects/pitchey-backend-fresh/logs
 
-# View Netlify logs
-# Visit: https://app.netlify.com/sites/pitchey/overview
+# View cloudflare-pages logs
+# Visit: https://app.cloudflare-pages.com/sites/pitchey/overview
 ```
 
 ## Deployment Commands
@@ -193,12 +193,12 @@ mv .env.example.backup .env.example
 ```bash
 cd frontend
 VITE_API_URL=https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev npm run build
-netlify deploy --prod --dir=dist
+cloudflare-pages deploy --prod --dir=dist
 ```
 
 ## Support & Resources
 - **Deno Deploy Dashboard**: https://dash.deno.com/projects/pitchey-backend-fresh
-- **Netlify Dashboard**: https://app.netlify.com/sites/pitchey
+- **cloudflare-pages Dashboard**: https://app.cloudflare-pages.com/sites/pitchey
 - **Neon Dashboard**: https://console.neon.tech
 - **GitHub Repository**: https://github.com/CavellTopDev/pitchey-app
 

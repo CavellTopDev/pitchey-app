@@ -2,12 +2,12 @@
 
 ## Overview
 This application uses a modern JAMstack architecture:
-- **Frontend**: React/Vite app deployed on Netlify
+- **Frontend**: React/Vite app deployed on cloudflare-pages
 - **Backend**: Deno server deployed on Deno Deploy
 - **Database**: PostgreSQL hosted on Neon
 
 ## Production URLs (LIVE as of 2025-10-05)
-- Frontend: https://pitchey.netlify.app
+- Frontend: https://pitchey.pages.dev
 - Backend: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev
 - Database: Neon PostgreSQL (cloud-hosted)
 - Health Check: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
@@ -84,12 +84,12 @@ mv .env.example.backup .env.example
 - Version: 3.3-neon-fixed
 - Status: ✅ HEALTHY
 
-### 3. Manual Frontend Deployment (Netlify)
+### 3. Manual Frontend Deployment (cloudflare-pages)
 
 ```bash
 cd frontend
 npm run build
-netlify deploy --prod
+cloudflare-pages deploy --prod
 ```
 
 ## Environment Variables
@@ -98,10 +98,10 @@ netlify deploy --prod
 Set these in the Deno Deploy dashboard:
 - `DATABASE_URL`: PostgreSQL connection string from Neon
 - `JWT_SECRET`: Secret key for JWT authentication
-- `FRONTEND_URL`: https://pitchey.netlify.app (for CORS)
+- `FRONTEND_URL`: https://pitchey.pages.dev (for CORS)
 
-### Frontend (Netlify)
-Set in `frontend/.env.production` or Netlify dashboard:
+### Frontend (cloudflare-pages)
+Set in `frontend/.env.production` or cloudflare-pages dashboard:
 - `VITE_API_URL`: https://pitchey-backend-fresh.deno.dev
 
 ### Local Development
@@ -122,7 +122,7 @@ PORT=8001
 
 ### After Deploying:
 - [ ] Test health endpoint: `curl https://pitchey-backend-fresh.deno.dev/api/health`
-- [ ] Verify frontend loads: https://pitchey.netlify.app
+- [ ] Verify frontend loads: https://pitchey.pages.dev
 - [ ] Test demo login functionality
 - [ ] Check CORS is working properly
 
@@ -150,10 +150,10 @@ For testing after deployment (password: Demo123):
 
 ## Monitoring
 - Deno Deploy Dashboard: https://dash.deno.com/projects/pitchey-backend-fresh
-- Netlify Dashboard: https://app.netlify.com
+- cloudflare-pages Dashboard: https://app.cloudflare-pages.com
 - Neon Dashboard: https://console.neon.tech
 
 ## Support
 - GitHub Issues: https://github.com/CavellTopDev/pitchey-app/issues
 - Deno Deploy Docs: https://deno.com/deploy/docs
-- Netlify Docs: https://docs.netlify.com
+- cloudflare-pages Docs: https://docs.cloudflare-pages.com

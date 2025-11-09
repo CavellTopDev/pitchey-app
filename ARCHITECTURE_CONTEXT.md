@@ -22,7 +22,7 @@ You are working with a production movie pitch marketplace platform called "Pitch
 - CLAUDE.md - Project-specific instructions
 
 ## CI/CD Pipeline
-- GitHub Actions workflows: deploy.yml (Deno/Netlify), deploy-cloudflare.yml (Cloudflare)
+- GitHub Actions workflows: deploy.yml (Deno/cloudflare-pages), deploy-cloudflare.yml (Cloudflare)
 - Auto-deploys to Cloudflare on push to main branch
 - Separate deployment stages for Worker and Pages
 - Preview deployments on pull requests

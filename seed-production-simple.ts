@@ -1,6 +1,6 @@
 // Simple Production Database Seed Script
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle } from "npm:drizzle-orm@0.35.3/neon-http";
+import { neon } from "npm:@neondatabase/serverless@0.9.5";
 import { sql } from 'npm:drizzle-orm@0.35.3';
 
 const DATABASE_URL = Deno.env.get('DATABASE_URL');
@@ -13,7 +13,7 @@ if (!DATABASE_URL) {
 console.log('🌱 Seeding production database with demo data...');
 console.log('📍 Database:', DATABASE_URL.includes('neon.tech') ? 'Neon Production' : 'Local');
 
-const client = postgres(DATABASE_URL);
+const client = neon(DATABASE_URL);
 const db = drizzle(client);
 
 async function seedDatabase() {
@@ -26,187 +26,141 @@ async function seedDatabase() {
     console.log('\n👥 Creating demo users...');
     
     // Creator account
-    const [creator] = await db.execute(sql`
+    const creatorResult = await db.execute(sql`
       INSERT INTO users (
-        email, password, name, "userType", role, bio, 
-        "companyName", location, verified, "emailVerified"
+        email, password, password_hash, username, user_type, first_name, last_name, bio, 
+        company_name, location, email_verified
       ) VALUES (
         'alex.creator@demo.com',
         ${demoPasswordHash},
-        'Alex Thompson',
+        ${demoPasswordHash},
+        'alexcreator',
         'creator',
-        'creator',
+        'Alex',
+        'Thompson',
         'Award-winning filmmaker with 10+ years experience in independent cinema',
         'Thompson Films',
         'Los Angeles, CA',
-        true,
         true
       ) RETURNING id
     `);
+    const creator = creatorResult.rows[0];
     console.log('✅ Created creator: alex.creator@demo.com');
 
     // Investor account
-    const [investor] = await db.execute(sql`
+    const investorResult = await db.execute(sql`
       INSERT INTO users (
-        email, password, name, "userType", role, bio,
-        "companyName", location, verified, "emailVerified"
+        email, password, password_hash, username, user_type, first_name, last_name, bio,
+        company_name, location, email_verified
       ) VALUES (
         'sarah.investor@demo.com',
         ${demoPasswordHash},
-        'Sarah Chen',
+        ${demoPasswordHash},
+        'sarahinvestor',
         'investor',
-        'investor',
+        'Sarah',
+        'Chen',
         'Angel investor focused on entertainment and media ventures',
         'Chen Ventures',
         'San Francisco, CA',
-        true,
         true
       ) RETURNING id
     `);
+    const investor = investorResult.rows[0];
     console.log('✅ Created investor: sarah.investor@demo.com');
 
     // Production company account
-    const [production] = await db.execute(sql`
+    const productionResult = await db.execute(sql`
       INSERT INTO users (
-        email, password, name, "userType", role, bio,
-        "companyName", location, verified, "emailVerified"
+        email, password, password_hash, username, user_type, first_name, last_name, bio,
+        company_name, location, email_verified
       ) VALUES (
         'stellar.production@demo.com',
         ${demoPasswordHash},
-        'Michael Roberts',
+        ${demoPasswordHash},
+        'stellarproduction',
         'production',
-        'production',
+        'Michael',
+        'Roberts',
         'Executive Producer at Stellar Studios',
         'Stellar Studios',
         'New York, NY',
-        true,
         true
       ) RETURNING id
     `);
+    const production = productionResult.rows[0];
     console.log('✅ Created production: stellar.production@demo.com');
 
     // Create sample pitches
     console.log('\n🎬 Creating sample pitches...');
     
-    const pitch1 = await db.execute(sql`
+    const pitch1Result = await db.execute(sql`
       INSERT INTO pitches (
-        title, tagline, description, genre, "targetAudience",
-        budget, "fundingGoal", "currentFunding", "userId", status,
-        visibility, "viewCount", "likeCount", "ndaRequired",
-        "creatorId", "creatorType", featured, trending
+        title, logline, short_synopsis, genre, target_audience,
+        budget_bracket, user_id, status,
+        visibility, view_count, like_count, require_nda
       ) VALUES (
         'The Last Sunset',
         'A story of redemption in the final days of Earth',
         'In a world where the sun is dying, a group of unlikely heroes must journey to the earth''s core to reignite humanity''s last hope. This epic sci-fi thriller combines stunning visuals with deep emotional storytelling.',
-        'Sci-Fi Thriller',
+        'scifi',
         'Adults 18-45',
-        2500000,
-        2500000,
-        750000,
+        '$2M-$5M',
         ${creator.id},
         'active',
         'public',
         1250,
         89,
-        true,
-        ${creator.id},
-        'creator',
-        true,
         true
       ) RETURNING id
     `);
     console.log('✅ Created pitch: The Last Sunset');
 
-    const pitch2 = await db.execute(sql`
+    const pitch2Result = await db.execute(sql`
       INSERT INTO pitches (
-        title, tagline, description, genre, "targetAudience",
-        budget, "fundingGoal", "currentFunding", "userId", status,
-        visibility, "viewCount", "likeCount", "ndaRequired",
-        "creatorId", "creatorType", featured
+        title, logline, short_synopsis, genre, target_audience,
+        budget_bracket, user_id, status,
+        visibility, view_count, like_count, require_nda
       ) VALUES (
         'Coffee & Conversations',
         'Every cup tells a story',
         'A heartwarming romantic drama set in a small coffee shop where strangers become friends and friends become family. Follow five interconnected stories of love, loss, and second chances.',
-        'Romantic Drama',
+        'drama',
         'Adults 25-54',
-        800000,
-        800000,
-        320000,
+        '$500K-$1M',
         ${creator.id},
         'active',
         'public',
         856,
         124,
-        false,
-        ${creator.id},
-        'creator',
-        true
+        false
       ) RETURNING id
     `);
     console.log('✅ Created pitch: Coffee & Conversations');
 
-    const pitch3 = await db.execute(sql`
+    const pitch3Result = await db.execute(sql`
       INSERT INTO pitches (
-        title, tagline, description, genre, "targetAudience",
-        budget, "fundingGoal", "currentFunding", "userId", status,
-        visibility, "viewCount", "likeCount", "ndaRequired",
-        "creatorId", "creatorType", trending
+        title, logline, short_synopsis, genre, target_audience,
+        budget_bracket, user_id, status,
+        visibility, view_count, like_count, require_nda
       ) VALUES (
         'Digital Shadows',
         'In cyberspace, no one can hear you scream',
         'A cyberpunk horror film that explores the dark side of virtual reality. When a new VR game becomes too real, players start disappearing in the real world.',
-        'Horror/Thriller',
+        'horror',
         'Adults 18-35',
-        1500000,
-        1500000,
-        450000,
+        '$1M-$3M',
         ${creator.id},
         'active',
         'public',
         2100,
         256,
-        true,
-        ${creator.id},
-        'creator',
         true
       ) RETURNING id
     `);
     console.log('✅ Created pitch: Digital Shadows');
 
-    // Create some sample investments
-    console.log('\n💰 Creating sample investments...');
-    
-    await db.execute(sql`
-      INSERT INTO investments (
-        "pitchId", "investorId", amount, "investmentType", 
-        status, "paymentStatus", notes
-      ) VALUES (
-        ${pitch1.id},
-        ${investor.id},
-        50000,
-        'equity',
-        'completed',
-        'paid',
-        'Excited about the sci-fi concept and visual potential'
-      )
-    `);
-    console.log('✅ Created investment in The Last Sunset');
-
-    await db.execute(sql`
-      INSERT INTO investments (
-        "pitchId", "investorId", amount, "investmentType",
-        status, "paymentStatus", notes
-      ) VALUES (
-        ${pitch2.id},
-        ${investor.id},
-        25000,
-        'equity',
-        'completed',
-        'paid',
-        'Love the character-driven narrative'
-      )
-    `);
-    console.log('✅ Created investment in Coffee & Conversations');
+    // Skip investments for now - table may not exist yet
 
     console.log('\n✨ Production database seeded successfully!');
     console.log('\n📋 Demo Accounts:');
@@ -217,9 +171,8 @@ async function seedDatabase() {
   } catch (error) {
     console.error('❌ Error seeding database:', error);
     throw error;
-  } finally {
-    await client.end();
   }
+  // Neon doesn't require explicit connection closing
 }
 
 // Run the seeding

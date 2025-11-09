@@ -7,7 +7,7 @@
 - **Version**: v0.2 Production Release
 
 ### Live Environment URLs
-- **Frontend**: https://pitchey.netlify.app
+- **Frontend**: https://pitchey.pages.dev
 - **Backend**: https://pitchey-backend-fresh.deno.dev
 
 ## Technical Stack Overview
@@ -16,7 +16,7 @@
 - **Technology**: React 19
 - **Language**: TypeScript
 - **Build Tool**: Vite
-- **Hosting**: Netlify
+- **Hosting**: cloudflare-pages
 - **Node Version**: 20.19.5
 
 ### Backend
@@ -28,7 +28,7 @@
 ## Deployment Achievements
 
 ### Build Configuration
-- **Resolved Netlify Build Issues**:
+- **Resolved cloudflare-pages Build Issues**:
   - Updated Node version to 20.19.5
   - Optimized build command
   - Simplified Vite module resolution
@@ -55,7 +55,7 @@
 ## Deployment Checklist
 
 ### Completed Tasks
-- [x] Netlify build configuration
+- [x] cloudflare-pages build configuration
 - [x] Frontend deployment
 - [x] Backend deployment
 - [x] Demo account setup
@@ -105,7 +105,7 @@
 
 ## Version Control
 - **Current Branch**: main
-- **Last Commit**: Netlify credential configuration
+- **Last Commit**: cloudflare-pages credential configuration
 - **Commit Hash**: 19b0741
 
 ## Contact and Support

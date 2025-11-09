@@ -1,42 +1,63 @@
 
 ---
 
-## Edge/Cloudflare Deployment
+## Production Deployment Architecture
 
-- Frontend (Pages): https://pitchey.pages.dev
-- Worker API: https://pitchey-api-production.cavelltheleaddev.workers.dev (proxies to Deno at https://pitchey-backend-fresh.deno.dev during migration)
-- Storage: R2 bucket `pitchey-uploads`
-- Cache: KV namespace `CACHE` (ID: 98c88a185eb448e4868fcc87e458b3ac)
-- Hyperdrive (Neon pooling) ID: 983d4a1818264b5dbdca26bacf167dee
+Pitchey uses a modern serverless architecture with edge computing for optimal performance and scalability.
 
-### Common Commands
+### Production URLs
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Frontend** | https://pitchey.pages.dev | React application (Cloudflare Pages) |
+| **Worker API** | https://pitchey-api-production.cavelltheleaddev.workers.dev | Edge API proxy (Cloudflare Workers) |
+| **Backend API** | https://pitchey-backend-fresh.deno.dev | Full API implementation (Deno Deploy) |
+| **Database** | Neon PostgreSQL | Serverless PostgreSQL with Hyperdrive pooling |
+| **Cache** | Upstash Redis | Global distributed cache |
+| **Storage** | Cloudflare R2 | Object storage for uploads |
+
+### Infrastructure Components
+
+- **Edge Layer**: Cloudflare Workers with KV cache, R2 storage, and Durable Objects
+- **Application Layer**: Deno Deploy with automatic scaling
+- **Data Layer**: Neon PostgreSQL with Hyperdrive connection pooling
+- **Cache Layer**: Upstash Redis for distributed caching
+- **CDN**: Cloudflare's global network (200+ PoPs)
+
+### Quick Commands
+
 ```bash
-# Local development
-cd frontend && npm run dev                 # Vite dev server (5173)
-PORT=8001 deno run --allow-all working-server.ts  # Deno backend (must be 8001)
-wrangler dev                               # Worker locally
+# Local Development
+cd frontend && npm run dev                        # Frontend (http://localhost:5173)
+PORT=8001 deno run --allow-all working-server.ts # Backend (http://localhost:8001)
+wrangler dev                                      # Worker locally
 
-# Deploy
-wrangler deploy --env production           # Worker deploy
-npx wrangler pages deploy frontend/dist \
-  --project-name=pitchey --branch=main     # Pages deploy
+# Production Deployment
+wrangler deploy --env production                  # Deploy Worker
+wrangler pages deploy frontend/dist --project-name=pitchey # Deploy Frontend
+deno deploy --project=pitchey-backend             # Deploy Backend
 ```
 
-## Key Configuration Files
-- `wrangler.toml` — Worker config (KV, R2, Durable Objects, Hyperdrive)
-- `deno.json` — Deno config and import maps
-- `frontend/vite.config.ts` — Vite build (chunking, prod flags)
-- `frontend/.env.production` — Frontend env pointing to Worker API
+### Documentation
+
+- **[Cloudflare Deployment Guide](./CLOUDFLARE_DEPLOYMENT_GUIDE.md)**: Complete deployment instructions
+- **[Deployment Architecture](./DEPLOYMENT_ARCHITECTURE.md)**: Technical architecture details
+- **[API Documentation](./docs/API_DOCUMENTATION.md)**: API endpoints and usage
 
 ## Recent Improvements (November 2025)
-- ✅ **Fixed homepage display issues**: Text overlapping, Chrome compatibility, visual artifacts
+
+- ✅ **Cloudflare Integration**: Full edge deployment with Workers and Pages
+- ✅ **Performance Optimization**: Hyperdrive connection pooling, KV caching
+- ✅ **Fixed homepage display issues**: Text overlapping, Chrome compatibility
 - ✅ **Added critical API endpoints**: Creator funding, user analytics, NDA stats
 - ✅ **Enhanced authentication**: Standardized error handling and JWT validation
-- ✅ **Frontend-backend consistency**: Resolved 87+ potential API inconsistencies
+- ✅ **Frontend-backend consistency**: Resolved 87+ API inconsistencies
 
-## Remaining Known Issues (from CLIENT_FEEDBACK_REQUIREMENTS.md)
+## Remaining Known Issues
+
+See [CLIENT_FEEDBACK_REQUIREMENTS.md](./CLIENT_FEEDBACK_REQUIREMENTS.md) for detailed tracking:
 - Investor portal sign-out functionality
-- Browse section tab filtering (trending/new separation)
+- Browse section tab filtering
 - Complete NDA workflow implementation
 - Role-based access control improvements
 

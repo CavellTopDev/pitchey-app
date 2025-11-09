@@ -24,7 +24,7 @@ Monitor Timeout: 30 seconds
 ```
 Monitor Type: HTTP(s)
 Friendly Name: Pitchey Frontend
-URL: https://pitchey.netlify.app
+URL: https://pitchey.pages.dev
 Monitoring Interval: 5 minutes
 Monitor Timeout: 30 seconds
 ```

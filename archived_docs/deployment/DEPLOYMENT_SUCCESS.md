@@ -19,16 +19,16 @@ curl https://pitchey-backend-fresh.deno.dev/api/pitches
 
 Your frontend is built and ready! Choose one option:
 
-### Option 1: Deploy to Netlify (Recommended)
+### Option 1: Deploy to cloudflare-pages (Recommended)
 1. **Manual Deploy (Easiest)**:
-   - Go to https://app.netlify.com/drop
+   - Go to https://app.cloudflare-pages.com/drop
    - Drag the `dist` folder to the browser
    - Your site will be live in seconds!
 
 2. **CLI Deploy**:
    ```bash
-   netlify login
-   netlify deploy --prod --dir=dist
+   cloudflare-pages login
+   cloudflare-pages deploy --prod --dir=dist
    ```
 
 ### Option 2: Deploy to Vercel
@@ -62,15 +62,15 @@ git subtree push --prefix frontend/dist origin gh-pages
 - **Investor**: sarah.investor@demo.com  
 - **Production**: stellar.production@demo.com
 
-## 🚀 Quick Deploy to Netlify (No Account Needed!)
+## 🚀 Quick Deploy to cloudflare-pages (No Account Needed!)
 
-1. Open https://app.netlify.com/drop in your browser
+1. Open https://app.cloudflare-pages.com/drop in your browser
 2. Open your file manager to `/home/supremeisbeing/pitcheymovie/pitchey_v0.2/frontend/dist`
 3. Drag the entire `dist` folder to the browser
 4. Your site will be live immediately!
 
-Netlify will give you:
-- A URL like: `https://amazing-einstein-123456.netlify.app`
+cloudflare-pages will give you:
+- A URL like: `https://amazing-einstein-123456.cloudflare-pages.app`
 - HTTPS automatically
 - Global CDN
 - All for FREE!
@@ -82,7 +82,7 @@ Netlify will give you:
 │     Your Pitchey App (LIVE)     │
 ├─────────────────────────────────┤
 │                                 │
-│  Frontend (Netlify/Vercel)      │
+│  Frontend (cloudflare-pages/Vercel)      │
 │  • React + Vite                 │
 │  • Global CDN                   │
 │  • Auto HTTPS                   │
@@ -103,7 +103,7 @@ Netlify will give you:
 ## 🔄 Next Steps
 
 1. **Deploy Frontend** (2 minutes):
-   - Drag `dist` folder to https://app.netlify.com/drop
+   - Drag `dist` folder to https://app.cloudflare-pages.com/drop
 
 2. **Set up Cloud Database** (optional):
    - Create free account at https://neon.tech
@@ -111,7 +111,7 @@ Netlify will give you:
    - Update backend environment variable
 
 3. **Custom Domain** (optional):
-   - Add your domain in Netlify/Vercel settings
+   - Add your domain in cloudflare-pages/Vercel settings
    - Point DNS to their servers
 
 ## 💰 Current Costs
@@ -119,14 +119,14 @@ Netlify will give you:
 **Total: $0/month** 🎉
 
 - Deno Deploy: FREE (1M requests/month)
-- Netlify: FREE (100GB bandwidth/month)
+- cloudflare-pages: FREE (100GB bandwidth/month)
 - Database: FREE with Neon (3GB storage)
 - Redis: Optional (Upstash free tier)
 
 ## 🎯 Your App is 95% Deployed!
 
 Just need to:
-1. Drag the `dist` folder to Netlify (30 seconds)
+1. Drag the `dist` folder to cloudflare-pages (30 seconds)
 2. Share your live URL!
 
 ---

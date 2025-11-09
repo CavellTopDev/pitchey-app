@@ -342,8 +342,8 @@ pm2 start "deno run --allow-all working-server.ts" --name pitchey
 cd frontend
 npm run build
 
-# Deploy to CDN (Netlify/Vercel/Cloudflare)
-netlify deploy --prod --dir=dist
+# Deploy to CDN (cloudflare-pages/Vercel/Cloudflare)
+cloudflare-pages deploy --prod --dir=dist
 ```
 
 ---

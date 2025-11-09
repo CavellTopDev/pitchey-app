@@ -11,18 +11,18 @@ The Pitchey platform consists of:
 
 ## Deployment Route Options
 
-### Route 1: Current Hybrid Approach (Netlify + Deno Deploy)
+### Route 1: Current Hybrid Approach (Cloudflare Pages + Deno Deploy)
 
 **Current Configuration:**
 ```yaml
-Frontend: Netlify (deployed successfully)
+Frontend: Cloudflare Pages (deployed successfully)
 Backend: Deno Deploy (deployment configured, secrets set)
 Database: Neon PostgreSQL (external service)
 Cache: Upstash Redis (external service)
 ```
 
 **Pros:**
-- ✅ **Frontend Already Working**: Netlify deployment is stable and fast
+- ✅ **Frontend Already Working**: Cloudflare Pages deployment is stable and fast
 - ✅ **Serverless Backend**: Deno Deploy provides automatic scaling
 - ✅ **Zero Infrastructure Management**: Both platforms handle scaling/monitoring
 - ✅ **Cost Efficient**: Pay-per-use pricing, free tiers available
@@ -39,7 +39,7 @@ Cache: Upstash Redis (external service)
 
 **Technical Details:**
 ```bash
-Frontend URL: https://pitchey.netlify.app
+Frontend URL: https://pitchey.pages.dev
 Backend URL: https://pitchey-backend-fresh.deno.dev
 Build Time: ~2-3 minutes
 Deployment: Automatic on git push
@@ -147,7 +147,7 @@ Cache: Fly.io Redis
 
 ## Detailed Comparison Matrix
 
-| Factor | Netlify+Deno | Single Cloud | Self-Hosted | Container Platform |
+| Factor | Cloudflare+Deno | Single Cloud | Self-Hosted | Container Platform |
 |--------|--------------|--------------|-------------|-------------------|
 | **Setup Time** | ✅ Already Done | ⚠️ 1-2 weeks | ❌ 2-4 weeks | ⚠️ 1 week |
 | **Monthly Cost** | 💰 $0-50 | 💰💰 $50-200 | 💰 $20-100 | 💰💰 $30-150 |
@@ -160,9 +160,9 @@ Cache: Fly.io Redis
 
 ## Current Platform Status
 
-### Frontend (Netlify) - ✅ WORKING
+### Frontend (Cloudflare Pages) - ✅ WORKING
 ```bash
-URL: https://pitchey.netlify.app
+URL: https://pitchey.pages.dev
 Status: Successfully deployed
 Features: All 17 client requirements implemented
 Build: Automated via GitHub Actions
@@ -188,10 +188,10 @@ All features functional and tested
 
 ## Recommendation Analysis
 
-### 🥇 Recommended: Stick with Current Hybrid (Netlify + Deno Deploy)
+### 🥇 Recommended: Stick with Current Hybrid (Cloudflare Pages + Deno Deploy)
 
 **Reasoning:**
-1. **Frontend Already Deployed**: Netlify deployment is working perfectly
+1. **Frontend Already Deployed**: Cloudflare Pages deployment is working perfectly
 2. **Minimal Risk**: Backend secrets are configured, likely to work
 3. **Time to Market**: No migration needed, can focus on features
 4. **Cost Effective**: Both platforms have generous free tiers
@@ -217,7 +217,7 @@ All features functional and tested
 ### 🥉 Fallback: Fly.io (For Maximum Control)
 
 **When to Consider:**
-- If both Netlify and Deno Deploy have limitations
+- If both Cloudflare Pages and Deno Deploy have limitations
 - If container deployment is preferred
 - If global edge deployment is critical
 
@@ -227,7 +227,7 @@ All features functional and tested
 
 ### Phase 1: Validate Current Setup (Recommended)
 ```bash
-✅ Frontend deployed on Netlify
+✅ Frontend deployed on Cloudflare Pages
 ✅ Backend secrets configured for Deno Deploy
 🔄 Test backend deployment
 🔄 Verify end-to-end functionality
@@ -266,7 +266,7 @@ All features functional and tested
 
 ## Conclusion
 
-**The current hybrid approach (Netlify + Deno Deploy) is the best path forward because:**
+**The current hybrid approach (Cloudflare Pages + Deno Deploy) is the best path forward because:**
 
 1. **Minimal Risk**: Frontend is already working, backend is configured
 2. **Fast Time-to-Market**: No migration delays

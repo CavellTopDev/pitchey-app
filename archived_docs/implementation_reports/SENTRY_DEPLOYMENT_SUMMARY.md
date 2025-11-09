@@ -8,7 +8,7 @@ Both frontend and backend are now **LIVE IN PRODUCTION** with full Sentry error 
 
 | Service | Production URL | Status | Sentry Project |
 |---------|---------------|---------|----------------|
-| **Frontend** | https://pitchey.netlify.app | ✅ LIVE | pitchey-frontend |
+| **Frontend** | https://pitchey.pages.dev | ✅ LIVE | pitchey-frontend |
 | **Backend** | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev | ✅ LIVE | pitchey-backend |
 | **Health Check** | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health | ✅ HEALTHY | - |
 
@@ -84,7 +84,7 @@ curl -X POST https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/test-error
 ```
 
 ### Frontend Testing
-1. Visit https://pitchey.netlify.app
+1. Visit https://pitchey.pages.dev
 2. Open browser console
 3. Look for: "✅ Sentry initialized for React frontend"
 4. Any JavaScript errors will automatically be tracked
@@ -97,7 +97,7 @@ curl -X POST https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/test-error
 - **Frontend Project**: https://pitchey.sentry.io/projects/pitchey-frontend
 
 ### Platform Dashboards
-- **Netlify**: https://app.netlify.com/sites/pitchey
+- **cloudflare-pages**: https://app.cloudflare-pages.com/sites/pitchey
 - **Deno Deploy**: https://dash.deno.com/projects/pitchey-backend-fresh
 - **Neon Database**: https://console.neon.tech
 

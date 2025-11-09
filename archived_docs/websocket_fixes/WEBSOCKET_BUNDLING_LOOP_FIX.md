@@ -153,7 +153,7 @@ if (loopDetected) {
 
 ### Production Verification
 
-- **URL**: https://pitchey.netlify.app/
+- **URL**: https://pitchey.pages.dev/
 - **WebSocket**: wss://pitchey-backend-fresh.deno.dev/ws
 - **Status**: ✅ Fully operational with no infinite loops
 - **Connection Success Rate**: 100%

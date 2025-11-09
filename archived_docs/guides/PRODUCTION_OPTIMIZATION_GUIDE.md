@@ -199,7 +199,7 @@ function checkRateLimit(ip: string, limit = 100): boolean {
 
 #### CDN Configuration
 ```yaml
-# Netlify CDN rules (_headers file)
+# cloudflare-pages CDN rules (_headers file)
 /*
   Cache-Control: public, max-age=0, must-revalidate
 /static/*
@@ -294,7 +294,7 @@ function validatePitch(data: unknown) {
 | Service | Free Tier | Usage | Cost Optimization |
 |---------|-----------|-------|-------------------|
 | **Deno Deploy** | Unlimited requests | ✅ Within limits | Use edge caching |
-| **Netlify** | 100GB bandwidth | ✅ ~10GB/month | Optimize images |
+| **cloudflare-pages** | 100GB bandwidth | ✅ ~10GB/month | Optimize images |
 | **Neon** | 3GB storage | ✅ ~500MB used | Archive old data |
 | **Upstash** | 10k commands/day | ⚠️ Monitor usage | Selective caching |
 | **Sentry** | 5k errors/month | ✅ <100/month | Filter non-critical |
@@ -413,7 +413,7 @@ deployctl deploy --project=pitchey-backend-fresh --version=v3.2
 ### Documentation
 - [Web Vitals](https://web.dev/vitals/)
 - [Deno Deploy Best Practices](https://deno.com/deploy/docs/best-practices)
-- [Netlify Optimization](https://docs.netlify.com/configure-builds/common-configurations/)
+- [cloudflare-pages Optimization](https://docs.cloudflare-pages.com/configure-builds/common-configurations/)
 - [PostgreSQL Performance](https://wiki.postgresql.org/wiki/Performance_Optimization)
 
 ## Conclusion

@@ -57,7 +57,7 @@ echo "2️⃣  Testing Frontend Headers File..."
 echo "-------------------------------------"
 
 if [ -f "frontend/public/_headers" ]; then
-    echo -e "${GREEN}✅ Netlify _headers file exists${NC}"
+    echo -e "${GREEN}✅ Cloudflare Pages _headers file exists${NC}"
     ((PASSED++))
     
     # Check for key security directives
@@ -85,7 +85,7 @@ if [ -f "frontend/public/_headers" ]; then
         ((FAILED++))
     fi
 else
-    echo -e "${RED}❌ Netlify _headers file not found${NC}"
+    echo -e "${RED}❌ Cloudflare Pages _headers file not found${NC}"
     ((FAILED++))
 fi
 
@@ -137,7 +137,7 @@ echo "5️⃣  Testing CORS Configuration..."
 echo "---------------------------------"
 
 # Test CORS headers
-CORS_HEADERS=$(curl -I -H "Origin: https://pitchey.netlify.app" -s "$BACKEND_URL/api/health" 2>/dev/null)
+CORS_HEADERS=$(curl -I -H "Origin: https://pitchey.pages.dev" -s "$BACKEND_URL/api/health" 2>/dev/null)
 
 if echo "$CORS_HEADERS" | grep -qi "access-control-allow-origin:"; then
     echo -e "${GREEN}✅ CORS headers present${NC}"

@@ -484,7 +484,7 @@ Redis:    localhost:6379 (Docker container)
 #### Production Environment
 ```bash
 # Production deployment
-Frontend: https://pitchey.netlify.app (Netlify)
+Frontend: https://pitchey.pages.dev (cloudflare-pages)
 Backend:  https://pitchey-backend-fresh.deno.dev (Deno Deploy)
 Database: Neon PostgreSQL (cloud-hosted)
 Redis:    Upstash Redis (cloud-hosted)
@@ -495,7 +495,7 @@ Redis:    Upstash Redis (cloud-hosted)
 # Required environment variables
 DATABASE_URL=postgresql://user:pass@host:port/db?sslmode=require
 JWT_SECRET=your-secret-key
-FRONTEND_URL=https://pitchey.netlify.app
+FRONTEND_URL=https://pitchey.pages.dev
 REDIS_URL=redis://localhost:6379
 PORT=8001
 ```
