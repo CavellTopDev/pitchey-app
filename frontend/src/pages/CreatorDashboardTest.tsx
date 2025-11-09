@@ -101,6 +101,23 @@ export default function CreatorDashboardTest() {
                   </div>
                 </div>
               </button>
+
+              {/* Subscription Chip */}
+              <button
+                onClick={() => navigate('/creator/billing?tab=subscription')}
+                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                title="Manage subscription"
+              >
+                <span className="font-medium text-gray-700 truncate max-w-24">
+                  {(() => {
+                    const tier = getSubscriptionTier(subscription?.tier || '');
+                    return tier?.name || 'The Watcher';
+                  })()}
+                </span>
+                {subscription?.status === 'active' && (
+                  <span className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0" />
+                )}
+              </button>
               
               <NotificationBell size="sm" className="sm:size-md" />
               
@@ -166,23 +183,79 @@ export default function CreatorDashboardTest() {
 
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => navigate('/creator/pitch/new')}
-              className="flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
-            >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button onClick={() => navigate('/creator/pitch/new')} className="flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition">
               <Upload className="w-5 h-5 text-purple-600" />
               <span className="text-sm font-medium text-purple-900">Upload New Pitch</span>
             </button>
-            
-            <button
-              onClick={() => navigate('/creator/pitches')}
-              className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
-            >
+            <button onClick={() => navigate('/creator/pitches')} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
               <BarChart3 className="w-5 h-5 text-gray-600" />
               <span className="text-sm font-medium text-gray-900">Manage Pitches</span>
             </button>
+            <button onClick={() => navigate('/creator/analytics')} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
+              <span className="text-sm font-medium text-gray-900">View Analytics</span>
+            </button>
+            <button onClick={() => navigate('/creator/ndas')} className="flex items-center gap-3 p-3 bg-amber-50 hover:bg-amber-100 rounded-lg transition">
+              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span className="text-sm font-medium text-gray-900">NDA Management</span>
+            </button>
+            <button onClick={() => navigate('/creator/portfolio')} className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              <span className="text-sm font-medium text-gray-900">View My Portfolio</span>
+            </button>
+            <button onClick={() => navigate('/creator/following')} className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 rounded-lg transition">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              <span className="text-sm font-medium text-gray-900">Following</span>
+            </button>
+            <button onClick={() => navigate('/creator/messages')} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h6m-6 4h8l4-4V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12l4-4z" /></svg>
+              <span className="text-sm font-medium text-gray-900">Messages</span>
+            </button>
+            <button onClick={() => navigate('/creator/calendar')} className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              <span className="text-sm font-medium text-gray-900">Calendar</span>
+            </button>
+            <button onClick={() => navigate('/creator/billing')} className="flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 rounded-lg transition">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3v1H7a1 1 0 100 2h2v1a3 3 0 106 0v-1h2a1 1 0 100-2h-2v-1c0-1.657-1.343-3-3-3z" /></svg>
+              <span className="text-sm font-medium text-blue-900">Billing & Payments</span>
+            </button>
           </div>
+        </div>
+
+        {/* Subscription Card */}
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-sm p-6 mt-6">
+          {(() => {
+            const tier = getSubscriptionTier(subscription?.tier || '');
+            const tierName = tier?.name || 'The Watcher';
+            const isActive = subscription?.status === 'active';
+            const isUnlimited = tier?.credits === -1;
+            const monthlyCredits = tier?.credits || 0;
+            
+            return (
+              <>
+                <h3 className="text-white font-semibold mb-2">Your Plan: {tierName}</h3>
+                <div className="text-purple-100 text-sm mb-4">
+                  {isActive ? (
+                    <div>
+                      <p>{isUnlimited ? 'Unlimited Credits' : `${monthlyCredits} Credits`} per month</p>
+                      {subscription?.subscription?.currentPeriodEnd && (
+                        <p>Next payment: {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p>{tierName === 'The Watcher' ? 'Free tier - Create pitches but cannot upload files. Upgrade to start uploading!' : 'Choose a Creator plan to unlock uploads and advanced features'}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => navigate('/creator/billing?tab=subscription')}
+                  className="w-full py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition"
+                >
+                  {isActive ? 'Manage Subscription' : 'Choose Plan'}
+                </button>
+              </>
+            );
+          })()}
         </div>
 
         {/* Creator Milestones & Goals (UI-only, no API) */}
