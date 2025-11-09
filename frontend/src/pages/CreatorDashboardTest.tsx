@@ -17,6 +17,10 @@ export default function CreatorDashboardTest() {
   const [totalViews, setTotalViews] = useState<number>(0);
   const [credits, setCredits] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
+  // Additional UI-only state
+  const [followers, setFollowers] = useState<number>(0);
+  const [avgRating, setAvgRating] = useState<number>(0);
+  const [recentActivity, setRecentActivity] = useState<Array<{ id: string; title: string; description: string }>>([]);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -51,6 +55,21 @@ export default function CreatorDashboardTest() {
           totalViews: data.totalViews || 0,
         });
         setTotalViews(data.totalViews || 0);
+        // Derive avg rating if pitches array exists
+        if (Array.isArray(data.pitches) && data.pitches.length > 0) {
+          const sum = data.pitches.reduce((acc: number, p: any) => acc + (p.rating || 0), 0);
+          setAvgRating(Number((sum / data.pitches.length).toFixed(1)));
+        }
+        // Use activity if provided, otherwise keep empty
+        if (Array.isArray(data.recentActivity)) {
+          setRecentActivity(data.recentActivity.map((a: any, idx: number) => ({
+            id: a.id?.toString() || String(idx),
+            title: a.title || 'Activity',
+            description: a.description || ''
+          })));
+        }
+        // Followers placeholder (0 by default)
+        setFollowers(data.followersCount || 0);
       }
       
       setCredits(creditsData);
@@ -119,6 +138,24 @@ export default function CreatorDashboardTest() {
                 )}
               </button>
               
+              <button
+                onClick={() => navigate('/creator/following')}
+                className="hidden md:flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Following
+              </button>
+
+              <button
+                onClick={() => navigate('/marketplace')}
+                className="hidden md:flex items-center gap-2 px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition"
+              >
+                <Eye className="w-4 h-4" />
+                Browse Marketplace
+              </button>
+
               <NotificationBell size="sm" className="sm:size-md" />
               
               <button
@@ -161,6 +198,34 @@ export default function CreatorDashboardTest() {
               <Eye className="w-5 h-5 text-blue-500" />
             </div>
             <p className="text-2xl font-bold text-gray-900">{totalViews}</p>
+          </div>
+        </div>
+
+        {/* Extra Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-500 text-sm">Avg Rating</span>
+              <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{avgRating.toFixed(1)}</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-500 text-sm">Followers</span>
+              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{followers}</p>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-500 text-sm">Engagement Rate</span>
+              <TrendingUp className="w-5 h-5 text-purple-500" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900">0%</p>
+            <p className="text-xs text-purple-500 mt-1">Interest per pitch</p>
           </div>
         </div>
 
@@ -221,6 +286,30 @@ export default function CreatorDashboardTest() {
               <span className="text-sm font-medium text-blue-900">Billing & Payments</span>
             </button>
           </div>
+        </div>
+
+        {/* Recent Activity (UI-only) */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+          </div>
+          {recentActivity.length > 0 ? (
+            <div className="space-y-3">
+              {recentActivity.slice(0,5).map((a) => (
+                <div key={a.id} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center">•</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{a.title}</p>
+                    <p className="text-xs text-gray-500 mt-1">{a.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No recent activity</p>
+            </div>
+          )}
         </div>
 
         {/* Subscription Card */}
