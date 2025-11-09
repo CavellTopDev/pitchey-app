@@ -40,7 +40,7 @@ const PortalSelect = lazy(() => import('./pages/PortalSelect'));
 const CreatorLogin = lazy(() => import('./pages/CreatorLogin'));
 const InvestorLogin = lazy(() => import('./pages/InvestorLogin'));
 const ProductionLogin = lazy(() => import('./pages/ProductionLogin'));
-const CreatorDashboard = lazy(() => import('./pages/CreatorDashboardTest'));
+const CreatorDashboard = lazy(() => import('./pages/CreatorDashboard'));
 const InvestorDashboard = lazy(() => import('./pages/InvestorDashboard'));
 const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'));
 const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
