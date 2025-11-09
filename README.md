@@ -507,3 +507,4 @@ Copyright © 2025 Pitchey. All rights reserved.
 - For production deployment, AWS S3, Stripe, and email services need to be properly configured
 - See CLAUDE.md for detailed development instructions
 - See CLIENT_FEEDBACK_REQUIREMENTS.md for known issues and required fixes
+# Trigger rebuild
