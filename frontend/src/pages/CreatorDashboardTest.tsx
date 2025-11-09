@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { TrendingUp, Eye, Upload, BarChart3, LogOut, Plus, Coins } from 'lucide-react';
+import { TrendingUp, Eye, Upload, BarChart3, LogOut, Plus, Coins, Shield, Bell } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI } from '../lib/apiServices';
 import apiClient from '../lib/api-client';
@@ -388,6 +388,60 @@ export default function CreatorDashboardTest() {
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <button onClick={() => navigate('/creator/analytics')} className="px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg border">View Analytics</button>
               <button onClick={() => navigate('/creator/portfolio')} className="px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg border">My Portfolio</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Next Goals Progress (UI-only) */}
+        <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg">
+          <h4 className="text-sm font-semibold text-gray-900 mb-2">Your Next Goals</h4>
+          <div className="space-y-3">
+            {/* Views to 1000 */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min((totalViews / 1000) * 100, 100)}%` }} />
+              </div>
+              <span className="text-xs text-gray-600">{Math.min(totalViews, 1000)}/1000 views</span>
+            </div>
+            {/* Followers to 50 */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                <div className="bg-purple-600 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min((followers / 50) * 100, 100)}%` }} />
+              </div>
+              <span className="text-xs text-gray-600">{Math.min(followers, 50)}/50 followers</span>
+            </div>
+            {/* Pitches to 5 */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                <div className="bg-green-600 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(((stats?.totalPitches || 0) / 5) * 100, 100)}%` }} />
+              </div>
+              <span className="text-xs text-gray-600">{stats?.totalPitches || 0}/5 pitches</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick NDA Status (UI-only) */}
+        <div className="mt-6 p-4 bg-white rounded-xl shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-600" /> NDA Quick Status
+            </h3>
+            <button onClick={() => navigate('/creator/ndas')} className="text-sm text-purple-600 hover:text-purple-700">Manage</button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-amber-700">Pending</span>
+                <Bell className="w-4 h-4 text-amber-600" />
+              </div>
+              <p className="text-2xl font-bold text-amber-700 mt-1">0</p>
+            </div>
+            <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-green-700">Active</span>
+                <Shield className="w-4 h-4 text-green-600" />
+              </div>
+              <p className="text-2xl font-bold text-green-700 mt-1">0</p>
             </div>
           </div>
         </div>
