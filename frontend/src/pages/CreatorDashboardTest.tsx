@@ -6,6 +6,7 @@ import { paymentsAPI } from '../lib/apiServices';
 import apiClient from '../lib/api-client';
 import { NotificationBell } from '../components/NotificationBell';
 import { getSubscriptionTier } from '../config/subscription-plans';
+import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreatorAnalytics';
 
 export default function CreatorDashboardTest() {
   const navigate = useNavigate();
@@ -144,6 +145,22 @@ export default function CreatorDashboardTest() {
             </div>
             <p className="text-2xl font-bold text-gray-900">{totalViews}</p>
           </div>
+        </div>
+
+        {/* Enhanced Analytics Section (uses mock fallback if API not available) */}
+        <div className="mb-8">
+          <EnhancedCreatorAnalytics
+            pitchPerformance={{
+              totalViews: totalViews,
+              viewsChange: 15,
+              totalLikes: 0,
+              likesChange: 12,
+              totalShares: 0,
+              sharesChange: 8,
+              potentialInvestment: 0,
+              investmentChange: 0,
+            }}
+          />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6">
