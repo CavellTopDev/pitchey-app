@@ -3770,7 +3770,8 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     // Creator notifications
-    if (url.pathname === "/api/notifications" && method === "GET") {
+    // Skip this handler - the second one handles /api/notifications
+    if (url.pathname === "/api/notifications-legacy" && method === "GET") {
       // Enforce role-based access control: only creators may access
       if (!user || user.userType !== 'creator') {
         return forbiddenResponse(
@@ -4981,21 +4982,52 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Get notifications
     if (url.pathname === "/api/notifications" && method === "GET") {
+      // Properly authenticate the request first
+      const authResult = await authenticate(request);
+      if (!authResult.user) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Authentication required",
+          metadata: {
+            timestamp: new Date().toISOString(),
+            details: { code: "AUTH_REQUIRED" }
+          }
+        }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      
+      const user = authResult.user;
+      
       try {
         const params = new URLSearchParams(url.search);
         const limit = parseInt(params.get('limit') || '20');
         const onlyUnread = params.get('unread') === 'true';
 
-        const result = await NotificationService.getUserNotifications(user.id, limit, onlyUnread);
+        // Query real notifications from database
+        const results = await db
+          .select()
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, user.id),
+              onlyUnread ? eq(notifications.isRead, false) : undefined
+            )
+          )
+          .orderBy(desc(notifications.createdAt))
+          .limit(limit);
         
-        if (result.success) {
-          return successResponse({
-            notifications: result.notifications,
-            unreadCount: await NotificationService.getUnreadCount(user.id)
-          });
-        } else {
-          return serverErrorResponse("Failed to fetch notifications");
-        }
+        // Format the notifications for frontend compatibility
+        const formattedNotifications = results.map(notif => ({
+          ...notif,
+          createdAt: notif.createdAt instanceof Date ? notif.createdAt.toISOString() : notif.createdAt
+        }));
+        
+        return successResponse({
+          notifications: formattedNotifications,
+          message: "Notifications retrieved successfully"
+        });
       } catch (error) {
         console.error("Get notifications error:", error);
         return serverErrorResponse("Failed to get notifications");
@@ -5004,6 +5036,14 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Mark notifications as read
     if (url.pathname === "/api/notifications/read" && method === "POST") {
+      // Authenticate the request first
+      const authResult = await authenticate(request);
+      if (!authResult.user) {
+        return authErrorResponse("Authentication required");
+      }
+      
+      const user = authResult.user;
+      
       try {
         const body = await request.json();
         const { notificationIds } = body;

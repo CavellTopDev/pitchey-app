@@ -3,6 +3,8 @@ main = "src/worker-simple.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Cloudflare Pages config for static deployments
+pages_build_output_dir = "frontend/dist"
 
 [vars]
 # Used for CORS and redirects

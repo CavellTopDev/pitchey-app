@@ -92,6 +92,25 @@ export const handlers = [
   http.get(`${API_BASE}/api/creator/dashboard`, () => {
     return HttpResponse.json(mockDashboardStats)
   }),
+  // Funding overview used by CreatorDashboard
+  http.get(`${API_BASE}/api/creator/funding/overview`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        totalRaised: 50000,
+        fundingGoal: 100000,
+        activeInvestors: 3,
+        averageInvestment: 16666.67,
+        fundingProgress: 50,
+        monthlyGrowth: 12,
+        recentInvestments: [
+          { id: 1, amount: 10000, investorName: 'Investor A', date: new Date() },
+          { id: 2, amount: 20000, investorName: 'Investor B', date: new Date() },
+        ],
+        topInvestor: { name: 'Investor B', amount: 20000 },
+      }
+    })
+  }),
 
   http.get(`${API_BASE}/api/investor/dashboard`, () => {
     return HttpResponse.json({
@@ -149,6 +168,33 @@ export const handlers = [
   // NDA endpoints
   http.get(`${API_BASE}/api/nda/requests`, () => {
     return HttpResponse.json([mockNDARequest])
+  }),
+
+  // NDA stats endpoints used by dashboard components
+  http.get(`${API_BASE}/api/ndas/stats`, () => {
+    return HttpResponse.json({ success: true, data: { stats: {
+      total: 4,
+      pending: 1,
+      approved: 2,
+      rejected: 1,
+      expired: 0,
+      revoked: 0,
+      avgResponseTime: 24,
+      approvalRate: 0.66,
+    } } })
+  }),
+
+  http.get(`${API_BASE}/api/ndas`, () => {
+    return HttpResponse.json({ success: true, data: { ndas: [
+      {
+        id: 1,
+        status: 'pending',
+        pitch: { title: 'Test Pitch' },
+        requester: { username: 'Investor A', userType: 'investor' },
+        requestedAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-02T00:00:00Z',
+      }
+    ], total: 1 } })
   }),
 
   http.post(`${API_BASE}/api/nda/request`, () => {
@@ -225,17 +271,106 @@ export const handlers = [
   }),
 
   // Notifications endpoints
-  http.get(`${API_BASE}/api/notifications`, () => {
-    return HttpResponse.json([
-      {
-        id: '1',
-        type: 'nda_request',
-        title: 'New NDA Request',
-        message: 'You have a new NDA request for your pitch',
-        read: false,
-        createdAt: '2024-01-01T00:00:00Z',
+  http.get(`${API_BASE}/api/user/notifications`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        notifications: [
+          {
+            id: 1,
+            userId: 1,
+            type: 'nda_request',
+            title: 'New NDA Request',
+            message: 'You have a new NDA request for your pitch',
+            isRead: false,
+            createdAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        message: 'ok'
+      }
+    })
+  }),
+
+  http.get(`${API_BASE}/api/notifications/unread`, () => {
+    return HttpResponse.json({ success: true, data: [] })
+  }),
+
+  http.get(`${API_BASE}/api/notifications/:id/read`, ({ params }) => {
+    return HttpResponse.json({ success: true, id: params.id })
+  }),
+
+  // Analytics endpoints used by EnhancedCreatorAnalytics
+  http.get(`${API_BASE}/api/analytics/dashboard`, ({ request }) => {
+    return HttpResponse.json({
+      success: true,
+      metrics: {
+        overview: {
+          totalViews: 1200,
+          totalLikes: 340,
+          totalFollowers: 220,
+          totalPitches: 5,
+          viewsChange: 15,
+          likesChange: 8,
+          followersChange: 12,
+          pitchesChange: 1,
+        },
+        performance: {
+          topPitches: [],
+          recentActivity: [],
+          engagementTrend: Array.from({ length: 12 }, (_, i) => ({
+            date: new Date(2024, i, 1).toISOString().split('T')[0],
+            rate: Math.floor(Math.random() * 30) + 40,
+          })),
+        },
+        revenue: {
+          total: 50000,
+          subscriptions: 30000,
+          transactions: 20000,
+          growth: 12,
+        },
       },
-    ])
+    })
+  }),
+
+  http.get(`${API_BASE}/api/analytics/user`, ({ request }) => {
+    return HttpResponse.json({
+      success: true,
+      analytics: {
+        userId: 1,
+        username: 'testcreator',
+        totalPitches: 5,
+        publishedPitches: 3,
+        totalViews: 1200,
+        totalLikes: 340,
+        totalFollowers: 220,
+        totalNDAs: 10,
+        avgEngagement: 65,
+        topPitches: [
+          { id: 1, title: 'Test Pitch 1', views: 400, engagement: 78 },
+          { id: 2, title: 'Test Pitch 2', views: 300, engagement: 72 },
+        ],
+        growthMetrics: Array.from({ length: 6 }, (_, i) => ({
+          date: new Date(2024, i * 2, 1).toISOString().split('T')[0],
+          followers: 100 + i * 20,
+          views: 200 + i * 50,
+          engagement: 60 + i,
+        })),
+        audienceInsights: {
+          topLocations: [
+            { location: 'US', percentage: 40 },
+            { location: 'UK', percentage: 20 },
+          ],
+          topUserTypes: [
+            { type: 'Investors', percentage: 50 },
+            { type: 'Producers', percentage: 30 },
+          ],
+          peakActivity: [
+            { hour: 10, activity: 80 },
+            { hour: 20, activity: 60 },
+          ],
+        },
+      },
+    })
   }),
 
   http.put(`${API_BASE}/api/notifications/:id/read`, ({ params }) => {

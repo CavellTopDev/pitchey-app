@@ -10,7 +10,7 @@ import { getSubscriptionTier, SUBSCRIPTION_TIERS } from '../config/subscription-
 import { InvestmentService } from '../services/investment.service';
 import FundingOverview from '../components/Investment/FundingOverview';
 import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreatorAnalytics';
-import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
+// import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { NotificationBell } from '../components/NotificationBell';
 
 export default function CreatorDashboard() {
@@ -376,7 +376,7 @@ export default function CreatorDashboard() {
           <EnhancedCreatorAnalytics 
             pitchPerformance={{
               totalViews: totalViews,
-              viewsChange: 15, // You can calculate this from historical data
+              viewsChange: 15,
               totalLikes: stats?.totalLikes || 0,
               likesChange: 12,
               totalShares: stats?.totalShares || 0,
@@ -528,8 +528,8 @@ export default function CreatorDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Recent Activity & Notifications */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Notifications Widget */}
-            <NotificationWidget maxNotifications={5} />
+            {/* Notifications Widget - Temporarily disabled */}
+            {/* <NotificationWidget maxNotifications={5} /> */}
             
             {/* Recent Activity */}
             <div>

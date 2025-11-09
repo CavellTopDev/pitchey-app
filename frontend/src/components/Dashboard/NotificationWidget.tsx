@@ -32,6 +32,8 @@ export function NotificationWidget({
         setApiNotifications(notifications);
       } catch (error) {
         console.error('Failed to load notifications:', error);
+        // Fail gracefully - just show empty notifications
+        setApiNotifications([]);
       } finally {
         setLoading(false);
       }

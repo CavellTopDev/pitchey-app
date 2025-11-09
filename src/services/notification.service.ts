@@ -120,29 +120,12 @@ export class NotificationService {
         conditions.push(eq(notifications.isRead, false));
       }
 
-      const userNotifications = await db.query.notifications.findMany({
-        where: and(...conditions),
-        orderBy: [desc(notifications.createdAt)],
-        limit,
-        with: {
-          relatedUser: {
-            columns: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-              profileImageUrl: true,
-            },
-          },
-          relatedPitch: {
-            columns: {
-              id: true,
-              title: true,
-              thumbnailUrl: true,
-            },
-          },
-        },
-      });
+      // Query notifications without relations since relatedUser and relatedPitch don't exist
+      const userNotifications = await db.select()
+        .from(notifications)
+        .where(and(...conditions))
+        .orderBy(desc(notifications.createdAt))
+        .limit(limit);
 
       // Cache the result if it's the full recent list
       if (!onlyUnread && userNotifications.length > 0) {

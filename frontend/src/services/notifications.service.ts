@@ -34,7 +34,8 @@ export class NotificationsService {
    */
   static async getNotifications(limit: number = 20): Promise<Notification[]> {
     try {
-      const response = await apiClient.get<NotificationsResponse>(`/api/notifications?limit=${limit}`);
+      // Use the working /api/user/notifications endpoint
+      const response = await apiClient.get<any>(`/api/user/notifications?limit=${limit}`);
       
       if (response.success && response.data?.notifications) {
         return response.data.notifications;

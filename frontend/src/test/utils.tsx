@@ -2,7 +2,62 @@ import React, { type ReactElement } from 'react'
 import { render, RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { WebSocketProvider } from '../contexts/WebSocketContext'
+import { NotificationToastProvider } from '../components/Toast/NotificationToastContainer'
 import { vi } from 'vitest'
+
+// Mock WebSocket + Notifications context to avoid real sockets in tests
+vi.mock('../contexts/WebSocketContext', () => {
+  const React = require('react')
+  const fakeContextValue = {
+    // Connection state
+    connectionStatus: { status: 'disconnected', reconnectAttempts: 0 },
+    queueStatus: { size: 0, dropped: 0 },
+    isConnected: false,
+    // Real-time data
+    notifications: [],
+    dashboardMetrics: null,
+    onlineUsers: [],
+    typingIndicators: [],
+    uploadProgress: [],
+    pitchViews: new Map(),
+    // Actions
+    sendMessage: vi.fn(() => true),
+    markNotificationAsRead: vi.fn(),
+    clearAllNotifications: vi.fn(),
+    updatePresence: vi.fn(),
+    startTyping: vi.fn(),
+    stopTyping: vi.fn(),
+    trackPitchView: vi.fn(),
+    // Connection control
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    clearQueue: vi.fn(),
+    // Emergency controls
+    disableWebSocket: vi.fn(),
+    enableWebSocket: vi.fn(),
+    isWebSocketDisabled: true,
+    // Subscriptions
+    subscribeToNotifications: vi.fn(() => () => {}),
+    subscribeToDashboard: vi.fn(() => () => {}),
+    subscribeToPresence: vi.fn(() => () => {}),
+    subscribeToTyping: vi.fn(() => () => {}),
+    subscribeToUploads: vi.fn(() => () => {}),
+    subscribeToPitchViews: vi.fn(() => () => {}),
+    subscribeToMessages: vi.fn(() => () => {}),
+    // Notification permission
+    requestNotificationPermission: vi.fn(async () => 'denied'),
+  }
+  return {
+    WebSocketProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useWebSocket: () => fakeContextValue,
+    useNotifications: () => ({
+      notifications: [],
+      markNotificationAsRead: vi.fn(),
+      clearAllNotifications: vi.fn(),
+      subscribeToNotifications: vi.fn(() => () => {}),
+    }),
+  }
+})
 
 // Mock Zustand stores
 const mockAuthStore = {
@@ -120,7 +175,9 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <BrowserRouter>
       <MockWebSocketProvider>
-        {children}
+        <NotificationToastProvider>
+          {children}
+        </NotificationToastProvider>
       </MockWebSocketProvider>
     </BrowserRouter>
   )
