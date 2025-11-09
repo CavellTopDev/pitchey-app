@@ -9,6 +9,11 @@ on:
       - 'wrangler.toml'
   workflow_dispatch:
 
+# Grant GITHUB_TOKEN permissions so the Pages action can create deployments
+permissions:
+  contents: read
+  deployments: write
+
 concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: true
@@ -42,5 +47,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: pitchey
           directory: frontend/dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          # Use the automatically provided GITHUB_TOKEN with write deployments permission
+          gitHubToken: ${{ github.token }}
           branch: main
