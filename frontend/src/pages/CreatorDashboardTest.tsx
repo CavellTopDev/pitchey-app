@@ -150,6 +150,7 @@ export default function CreatorDashboardTest() {
         {/* Enhanced Analytics Section (uses mock fallback if API not available) */}
         <div className="mb-8">
           <EnhancedCreatorAnalytics
+            disableRemoteFetch={true}
             pitchPerformance={{
               totalViews: totalViews,
               viewsChange: 15,

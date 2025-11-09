@@ -39,6 +39,8 @@ interface CreatorAnalyticsProps {
     potentialInvestment: number;
     investmentChange: number;
   };
+  // When true, skip remote analytics API calls and use mock/fallback data only
+  disableRemoteFetch?: boolean;
 }
 
 interface CreatorAnalyticsData {
@@ -78,7 +80,8 @@ interface CreatorAnalyticsData {
 }
 
 export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({ 
-  pitchPerformance 
+  pitchPerformance,
+  disableRemoteFetch = false,
 }) => {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [analyticsData, setAnalyticsData] = useState<CreatorAnalyticsData | null>(null);
@@ -86,18 +89,25 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
+    if (disableRemoteFetch) {
+      // Use mock data only and avoid network calls
+      setAnalyticsData(getMockData());
+      setLoading(false);
+      return;
+    }
+
     fetchAnalyticsData();
     
     // Set up auto-refresh every 5 minutes if enabled
     let interval: NodeJS.Timeout;
-    if (autoRefresh) {
+    if (autoRefresh && !disableRemoteFetch) {
       interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
     }
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timeRange, autoRefresh]);
+  }, [timeRange, autoRefresh, disableRemoteFetch]);
 
   const fetchAnalyticsData = async () => {
     try {
