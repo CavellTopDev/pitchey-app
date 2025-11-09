@@ -1,0 +1,46 @@
+# Ignore test and utility files
+heartbeat_test.js
+complete-schema-fix.ts
+fix-user-ids.ts
+frontend-server.ts
+test-drizzle-conversion.ts
+update-test-nda.ts
+check-schema.ts
+create-analytics-table.ts
+fix-published-at-null.ts
+add-production-pitches.ts
+test-pitch-service.ts
+create-notifications.ts
+check-messages-table.ts
+seed-demo-users.ts
+test-*.ts
+test-*.sh
+*.test.ts
+*.spec.ts
+
+# Ignore archived and test directories
+archived_test_files/
+archived_docs/
+tests/
+test_scripts/
+
+# Ignore build outputs
+dist/
+build/
+.cache/
+
+# Ignore node modules and vendor directories
+node_modules/
+vendor/
+
+# Ignore frontend directory (has its own linting)
+frontend/
+
+# Ignore generated files
+*.generated.ts
+*.min.js
+*.min.css
+
+# Ignore documentation
+*.md
+docs/
