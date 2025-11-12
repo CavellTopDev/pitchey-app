@@ -1220,15 +1220,6 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
     
-    // Logout endpoint
-    if (url.pathname === "/api/auth/logout" && method === "POST") {
-      // For JWT-based auth, logout is handled client-side
-      // But we can still provide an endpoint for consistency
-      return jsonResponse({
-        success: true,
-        message: "Logged out successfully"
-      });
-    }
 
     // Get user profile
     if (url.pathname === "/api/auth/profile" && method === "GET") {
@@ -3420,164 +3411,105 @@ const handler = async (request: Request): Promise<Response> => {
     // Creator dashboard (main dashboard endpoint with caching)
     if (url.pathname === "/api/creator/dashboard" && method === "GET") {
       try {
-        // CRITICAL FIX: Authenticate first!
+        // Authenticate
         const authResult = await authenticate(request);
-        if (authResult.error) {
-          console.error('❌ Creator dashboard auth failed:', authResult.error);
-          return authErrorResponse(authResult.error);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
         }
-        
         const user = authResult.user;
-        
-        if (!user) {
-          console.error('❌ No user found for creator dashboard');
-          return authErrorResponse("Not authenticated");
-        }
-        
-        // Check if user is a creator
         if (user.userType !== 'creator') {
           return forbiddenResponse("Access denied. Creator access required.");
         }
-        // Get cached dashboard metrics first
-        const cachedMetrics = await DashboardCacheService.getDashboardMetrics(user.id, user.userType);
-        
-        if (cachedMetrics) {
-          console.log(`📊 Dashboard metrics served from cache for user ${user.id}`);
-          return successResponse(cachedMetrics);
+
+        // Try cache first
+        const cached = await DashboardCacheService.getDashboardMetrics(user.id, user.userType);
+        if (cached) {
+          return successResponse(cached);
         }
 
-        // Fallback to original logic if cache fails
-        let pitches = [];
+        // Load pitches
+        let userPitches: any[] = [];
+        try {
+          userPitches = await PitchService.getUserPitches(user.id);
+        } catch {
+          userPitches = [];
+        }
+
+        const totalViews = userPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0);
+        const totalLikes = userPitches.reduce((sum, p) => sum + (p.likeCount || p.likes || 0), 0);
+        const totalNDAs = userPitches.reduce((sum, p) => sum + (p.ndaCount || 0), 0);
+
+        // Followers count
         let followersCount = 0;
-        
-        // Try to fetch from database, fallback to mock data
         try {
-          const fetchedPitches = await PitchService.getUserPitches(user.id);
-          pitches = Array.isArray(fetchedPitches) ? fetchedPitches : [];
-        } catch (dbError) {
-          console.error("Database error, using mock data:", dbError);
-          // Use mock data for demo accounts
-          pitches = [
-            {
-              id: 1,
-              title: "Quantum Paradox",
-              status: "published",
-              viewCount: 1532,
-              likeCount: 89,
-              ndaCount: 12,
-              createdAt: new Date("2024-03-15"),
-              publishedAt: new Date("2024-03-16"),
-              thumbnailUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=quantum",
-              genre: "sci-fi",
-              format: "feature"
-            },
-            {
-              id: 2,
-              title: "The Last Colony",
-              status: "published",
-              viewCount: 987,
-              likeCount: 67,
-              ndaCount: 8,
-              createdAt: new Date("2024-03-10"),
-              publishedAt: new Date("2024-03-11"),
-              thumbnailUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=colony",
-              genre: "thriller",
-              format: "limited-series"
-            },
-            {
-              id: 3,
-              title: "Digital Minds",
-              status: "draft",
-              viewCount: 0,
-              likeCount: 0,
-              ndaCount: 0,
-              createdAt: new Date("2024-03-20"),
-              publishedAt: null,
-              thumbnailUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=digital",
-              genre: "documentary",
-              format: "feature"
-            }
-          ];
-        }
-        
-        const totalViews = pitches.reduce((sum, p) => sum + (p.viewCount || 0), 0);
-        const totalLikes = pitches.reduce((sum, p) => sum + (p.likeCount || 0), 0);
-        const totalNDAs = pitches.reduce((sum, p) => sum + (p.ndaCount || 0), 0);
-        
-        // Try to get followers count from database
+          const res = await db.select({ c: sql`count(*)::int` }).from(follows).where(eq(follows.creatorId, user.id));
+          followersCount = res[0]?.c || 0;
+        } catch {}
+
+        // Average rating (if available)
+        const rated = userPitches.filter(p => typeof p.rating === 'number');
+        const avgRating = rated.length > 0 ? Number((rated.reduce((s, p) => s + (p.rating || 0), 0) / rated.length).toFixed(2)) : 0;
+
+        // Engagement rate
+        const engagementRate = totalViews > 0 ? Number((((totalLikes || 0) + (totalNDAs || 0)) / totalViews * 100).toFixed(2)) : 0;
+
+        // Recent activity from analytics_events
+        let recentActivity: any[] = [];
         try {
-          const followersResult = await db
-            .select()
-            .from(follows)
-            .where(eq(follows.creatorId, user.id));
-          followersCount = followersResult.length;
-        } catch (error) {
-          console.error("Error fetching followers count:", error);
-          followersCount = 127; // Mock follower count
-        }
-        
+          const pitchIds = (await db.select({ id: pitches.id }).from(pitches).where(eq(pitches.userId, user.id))).map(p => p.id);
+          if (pitchIds.length > 0) {
+            const events = await db.select()
+              .from(analyticsEvents)
+              .where(inArray(analyticsEvents.pitchId, pitchIds))
+              .orderBy(desc(analyticsEvents.createdAt))
+              .limit(10);
+            recentActivity = events.map((e: any) => ({
+              id: e.id,
+              type: e.eventType,
+              title: e.eventType.replace(/_/g, ' '),
+              description: e.eventData?.description || '',
+              timestamp: e.createdAt,
+              metadata: {
+                pitchId: e.pitchId,
+                userId: e.userId,
+                pitchTitle: undefined
+              }
+            }));
+          }
+        } catch {}
+
+        // Milestones & next goals (basic calculation)
+        const milestones = {
+          firstPitch: { completed: userPitches.length > 0, date: userPitches[0]?.createdAt || null },
+          hundredViews: { completed: totalViews >= 100, progress: Math.min(totalViews, 100) },
+          thousandViews: { completed: totalViews >= 1000, progress: Math.min(totalViews, 1000) },
+          fiftyFollowers: { completed: followersCount >= 50, progress: Math.min(followersCount, 50) },
+          fivePitches: { completed: userPitches.length >= 5, progress: Math.min(userPitches.length, 5) }
+        };
+        const nextGoals = [
+          { type: 'views', target: 1000, current: Math.min(totalViews, 1000) },
+          { type: 'followers', target: 100, current: followersCount },
+          { type: 'pitches', target: 5, current: userPitches.length }
+        ];
+
         const dashboardData = {
           stats: {
-            totalPitches: pitches.length,
-            publishedPitches: pitches.filter(p => p.status === 'published').length,
-            draftPitches: pitches.filter(p => p.status === 'draft').length,
+            totalPitches: userPitches.length,
+            activePitches: userPitches.filter(p => (p.status || '').toLowerCase() === 'published').length,
             totalViews,
             totalLikes,
             totalNDAs,
-            totalFollowers: followersCount,
-            avgViewsPerPitch: pitches.length > 0 ? Math.round(totalViews / pitches.length) : 0,
-            avgEngagementRate: totalViews > 0 ? Math.round(((totalLikes + totalNDAs) / totalViews) * 100) : 0,
-            monthlyGrowth: 15.5
+            avgRating,
+            followersCount,
+            engagementRate
           },
-          recentPitches: pitches.slice(0, 5).map(p => ({
-            id: p.id,
-            title: p.title,
-            status: p.status,
-            viewCount: p.viewCount || 0,
-            likeCount: p.likeCount || 0,
-            ndaCount: p.ndaCount || 0,
-            createdAt: p.createdAt?.toISOString ? p.createdAt.toISOString() : p.createdAt,
-            publishedAt: p.publishedAt?.toISOString ? p.publishedAt.toISOString() : p.publishedAt,
-            thumbnailUrl: p.thumbnailUrl,
-            genre: p.genre,
-            format: p.format
-          })),
-          notifications: [
-            {
-              id: 1,
-              type: 'pitch_view',
-              title: 'New Views',
-              message: 'Your pitch "Quantum Paradox" received 25 new views',
-              relatedId: pitches[0]?.id || 1,
-              relatedType: 'pitch',
-              isRead: false,
-              createdAt: new Date().toISOString()
-            },
-            {
-              id: 2,
-              type: 'nda_request',
-              title: 'NDA Request',
-              message: 'An investor requested access to "The Last Colony"',
-              relatedId: pitches[1]?.id || 2,
-              relatedType: 'pitch',
-              isRead: false,
-              createdAt: new Date(Date.now() - 3600000).toISOString()
-            }
-          ],
-          activities: pitches.slice(0, 5).map((pitch, index) => ({
-            id: index + 1,
-            type: pitch.status === 'published' ? 'pitch_published' : 'pitch_created',
-            description: `${pitch.status === 'published' ? 'Published' : 'Created'} "${pitch.title}"`,
-            metadata: { pitchId: pitch.id, genre: pitch.genre },
-            createdAt: pitch.createdAt?.toISOString ? pitch.createdAt.toISOString() : pitch.createdAt
-          }))
+          pitches: userPitches.slice(0, 5),
+          recentActivity,
+          milestones,
+          nextGoals
         };
-        
-        return successResponse({
-          dashboard: dashboardData,
-          data: { dashboard: dashboardData }, // Also include in data for backward compatibility
-          message: "Creator dashboard retrieved successfully"
-        });
+
+        return successResponse(dashboardData);
       } catch (error) {
         console.error("Creator dashboard error:", error);
         return serverErrorResponse("Failed to fetch creator dashboard");
@@ -3745,27 +3677,64 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Creator activity
     if (url.pathname === "/api/creator/activity" && method === "GET") {
-      // Enforce role-based access control: only creators may access
-      if (!user || user.userType !== 'creator') {
-        return forbiddenResponse(
-          `Access denied. Only creators can access this endpoint. Current role: ${user?.userType ?? 'unknown'}`
-        );
+      const auth = await authenticate(request);
+      if (auth.error || !auth.user || auth.user.userType !== 'creator') {
+        return forbiddenResponse(`Access denied. Only creators can access this endpoint.`);
       }
       try {
-        const limit = parseInt(url.searchParams.get('limit') || '20');
-        // Mock recent activity
-        const recentActivity = [
-          { type: 'pitch_created', data: { title: 'New Horror Project' }, timestamp: new Date() },
-          { type: 'pitch_viewed', data: { title: 'Space Adventure', views: 15 }, timestamp: new Date() },
-          { type: 'nda_request', data: { investor: 'ABC Ventures' }, timestamp: new Date() }
-        ];
-        
-        return successResponse({
-          activities: recentActivity.slice(0, limit),
-          message: "Creator activity retrieved successfully"
-        });
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        const pitchIds = (await db.select({ id: pitches.id }).from(pitches).where(eq(pitches.userId, auth.user.id))).map(p => p.id);
+        let activities: any[] = [];
+        if (pitchIds.length > 0) {
+          const events = await db.select().from(analyticsEvents)
+            .where(inArray(analyticsEvents.pitchId, pitchIds))
+            .orderBy(desc(analyticsEvents.createdAt))
+            .limit(limit);
+          activities = events.map((e: any) => ({
+            id: e.id,
+            type: e.eventType,
+            title: e.eventType.replace(/_/g, ' '),
+            description: e.eventData?.description || '',
+            timestamp: e.createdAt,
+            metadata: { pitchId: e.pitchId, userId: e.userId, pitchTitle: undefined }
+          }));
+        }
+        return successResponse({ activities });
       } catch (error) {
+        console.error("Creator activity error:", error);
         return serverErrorResponse("Failed to fetch creator activity");
+      }
+    }
+
+    // Creator milestones & goals
+    if (url.pathname === "/api/creator/milestones" && method === "GET") {
+      try {
+        const auth = await authenticate(request);
+        if (auth.error || !auth.user || auth.user.userType !== 'creator') {
+          return authErrorResponse(auth.error || "Authentication required");
+        }
+        const userId = auth.user.id;
+        const userPitches = await db.select().from(pitches).where(eq(pitches.userId, userId));
+        const totalViews = userPitches.reduce((sum, p: any) => sum + (p.viewCount || 0), 0);
+        const [{ count: followersCount } = { count: 0 }] = await db.select({ count: sql`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.creatorId, userId));
+        const milestones = {
+          firstPitch: { completed: userPitches.length > 0, date: userPitches[0]?.createdAt || null },
+          hundredViews: { completed: totalViews >= 100, progress: Math.min(totalViews, 100) },
+          thousandViews: { completed: totalViews >= 1000, progress: Math.min(totalViews, 1000) },
+          fiftyFollowers: { completed: followersCount >= 50, progress: Math.min(followersCount, 50) },
+          fivePitches: { completed: userPitches.length >= 5, progress: Math.min(userPitches.length, 5) }
+        };
+        const nextGoals = [
+          { type: 'views', target: 1000, current: Math.min(totalViews, 1000) },
+          { type: 'followers', target: 100, current: followersCount },
+          { type: 'pitches', target: 5, current: userPitches.length }
+        ];
+        return successResponse({ milestones, nextGoals });
+      } catch (error) {
+        console.error("Creator milestones error:", error);
+        return serverErrorResponse("Failed to fetch milestones");
       }
     }
 
@@ -5269,51 +5238,6 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Investment history
-    if (url.pathname === "/api/investor/investments" && method === "GET") {
-      try {
-        // Mock investment history
-        const investments = [
-          {
-            id: 1,
-            pitchId: 11,
-            pitchTitle: "Space Adventure",
-            amount: 500000,
-            investmentDate: new Date("2024-06-15"),
-            status: "active",
-            currentValue: 625000,
-            roi: 25.0
-          },
-          {
-            id: 2,
-            pitchId: 12,
-            pitchTitle: "Horror Movie",
-            amount: 750000,
-            investmentDate: new Date("2024-08-20"),
-            status: "completed",
-            currentValue: 950000,
-            roi: 26.7
-          },
-          {
-            id: 3,
-            pitchId: 13,
-            pitchTitle: "Comedy Short",
-            amount: 250000,
-            investmentDate: new Date("2024-09-10"),
-            status: "active",
-            currentValue: 275000,
-            roi: 10.0
-          }
-        ];
-        
-        return successResponse({
-          investments,
-          message: "Investment history retrieved successfully"
-        });
-      } catch (error) {
-        return serverErrorResponse("Failed to fetch investment history");
-      }
-    }
 
     // ROI analytics
     if (url.pathname === "/api/investor/roi" && method === "GET") {
@@ -5920,6 +5844,372 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         return serverErrorResponse("Preferences update failed");
+      }
+    }
+
+    // GET /api/investor/opportunities - Investment opportunities with filtering
+    if (url.pathname === "/api/investor/opportunities" && method === "GET") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
+        // Check if user is an investor
+        if (user.userType !== 'investor') {
+          return forbiddenResponse("Access denied. Investor access required.");
+        }
+
+        // Get query parameters for filtering
+        const genre = url.searchParams.get('genre');
+        const budgetMin = url.searchParams.get('budgetMin');
+        const budgetMax = url.searchParams.get('budgetMax');
+        const format = url.searchParams.get('format');
+        const sortBy = url.searchParams.get('sortBy') || 'rating';
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+
+        // Build query conditions
+        const conditions = [
+          eq(pitches.visibility, 'public'),
+          eq(pitches.status, 'active')
+        ];
+
+        if (genre) {
+          conditions.push(eq(pitches.genre, genre));
+        }
+        if (format) {
+          conditions.push(eq(pitches.format, format));
+        }
+        if (budgetMin) {
+          conditions.push(gte(pitches.estimatedBudget, budgetMin));
+        }
+        if (budgetMax) {
+          conditions.push(lte(pitches.estimatedBudget, budgetMax));
+        }
+
+        // Get opportunities with creator information
+        const opportunities = await db
+          .select({
+            pitch: pitches,
+            creator: {
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              profileImageUrl: users.profileImageUrl,
+            },
+          })
+          .from(pitches)
+          .leftJoin(users, eq(pitches.userId, users.id))
+          .where(and(...conditions))
+          .orderBy(
+            sortBy === 'rating' ? desc(pitches.ratingAverage) :
+            sortBy === 'views' ? desc(pitches.viewCount) :
+            sortBy === 'budget' ? desc(pitches.estimatedBudget) :
+            desc(pitches.createdAt)
+          )
+          .limit(limit)
+          .offset(offset);
+
+        // Format the response
+        const formattedOpportunities = opportunities.map(row => ({
+          ...row.pitch,
+          creator: row.creator,
+          // Add investment metrics
+          investmentPotential: {
+            estimatedROI: Math.random() * 15 + 5, // Mock ROI between 5-20%
+            riskLevel: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
+            marketScore: Math.random() * 5 + 5, // Score between 5-10
+          }
+        }));
+
+        return successResponse({
+          opportunities: formattedOpportunities,
+          pagination: {
+            limit,
+            offset,
+            total: formattedOpportunities.length,
+            hasMore: formattedOpportunities.length === limit
+          },
+          filters: {
+            availableGenres: ['Action', 'Drama', 'Comedy', 'Thriller', 'Sci-Fi', 'Horror'],
+            availableFormats: ['Feature Film', 'TV Series', 'Short Film', 'Documentary'],
+            budgetRanges: [
+              { label: 'Under $100K', min: 0, max: 100000 },
+              { label: '$100K - $1M', min: 100000, max: 1000000 },
+              { label: '$1M - $10M', min: 1000000, max: 10000000 },
+              { label: 'Above $10M', min: 10000000, max: null }
+            ]
+          }
+        });
+
+      } catch (error) {
+        console.error("Error fetching investment opportunities:", error);
+        return serverErrorResponse("Failed to fetch investment opportunities");
+      }
+    }
+
+    // POST /api/investor/invest - Make an investment
+    if (url.pathname === "/api/investor/invest" && method === "POST") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
+        // Check if user is an investor
+        if (user.userType !== 'investor') {
+          return forbiddenResponse("Access denied. Investor access required.");
+        }
+
+        const body = await request.json();
+        
+        // Validate required fields
+        if (!body.pitchId || !body.amount || !body.investmentType) {
+          return badRequestResponse("Missing required fields: pitchId, amount, investmentType");
+        }
+
+        // Validate investment amount
+        const amount = parseFloat(body.amount);
+        if (isNaN(amount) || amount <= 0) {
+          return badRequestResponse("Investment amount must be a positive number");
+        }
+
+        // Validate investment type
+        const validTypes = ['equity', 'debt', 'revenue_share'];
+        if (!validTypes.includes(body.investmentType)) {
+          return badRequestResponse("Invalid investment type. Must be one of: " + validTypes.join(', '));
+        }
+
+        // Check if pitch exists and is available for investment
+        const pitch = await db.query.pitches.findFirst({
+          where: and(
+            eq(pitches.id, parseInt(body.pitchId)),
+            eq(pitches.visibility, 'public'),
+            eq(pitches.status, 'active')
+          ),
+          with: {
+            user: {
+              columns: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+              }
+            }
+          }
+        });
+
+        if (!pitch) {
+          return notFoundResponse("Pitch not found or not available for investment");
+        }
+
+        // Prevent self-investment
+        if (pitch.userId === user.id) {
+          return badRequestResponse("You cannot invest in your own pitch");
+        }
+
+        // Create investment record
+        const investment = await db.insert(investments).values({
+          investorId: user.id,
+          pitchId: parseInt(body.pitchId),
+          amount: amount.toString(),
+          status: 'pending',
+          terms: body.terms || null,
+          notes: body.notes || null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }).returning();
+
+        // Send notification to pitch creator
+        try {
+          await NotificationService.createNotification(
+            pitch.userId,
+            'investment_received',
+            `${user.firstName || user.username} has invested $${amount.toLocaleString()} in your pitch "${pitch.title}"`,
+            {
+              investmentId: investment[0].id,
+              pitchId: pitch.id,
+              investorId: user.id,
+              amount: amount
+            }
+          );
+        } catch (notificationError) {
+          console.error("Failed to send investment notification:", notificationError);
+          // Continue processing even if notification fails
+        }
+
+        return successResponse({
+          investment: {
+            id: investment[0].id,
+            pitchId: parseInt(body.pitchId),
+            pitchTitle: pitch.title,
+            amount: amount,
+            investmentType: body.investmentType,
+            status: 'pending',
+            createdAt: investment[0].createdAt,
+            expectedReturns: {
+              estimatedROI: Math.random() * 15 + 5, // Mock ROI
+              timeframe: '2-5 years',
+              riskLevel: body.riskLevel || 'Medium'
+            }
+          },
+          message: "Investment submitted successfully"
+        });
+
+      } catch (error) {
+        console.error("Error processing investment:", error);
+        return serverErrorResponse("Failed to process investment");
+      }
+    }
+
+    // GET /api/investor/analytics - Portfolio analytics
+    if (url.pathname === "/api/investor/analytics" && method === "GET") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
+        // Check if user is an investor
+        if (user.userType !== 'investor') {
+          return forbiddenResponse("Access denied. Investor access required.");
+        }
+
+        const timeframe = url.searchParams.get('timeframe') || '1y';
+
+        // Get all investor's investments
+        const userInvestments = await db
+          .select({
+            investment: investments,
+            pitch: {
+              id: pitches.id,
+              title: pitches.title,
+              genre: pitches.genre,
+              format: pitches.format,
+              budgetBracket: pitches.budgetBracket,
+            },
+            creator: {
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+            }
+          })
+          .from(investments)
+          .leftJoin(pitches, eq(investments.pitchId, pitches.id))
+          .leftJoin(users, eq(pitches.userId, users.id))
+          .where(eq(investments.investorId, user.id));
+
+        // Calculate portfolio metrics
+        const totalInvested = userInvestments.reduce((sum, inv) => {
+          const amount = parseFloat(inv.investment.amount || '0');
+          return sum + (isNaN(amount) ? 0 : amount);
+        }, 0);
+
+        const totalCurrentValue = userInvestments.reduce((sum, inv) => {
+          const current = parseFloat(inv.investment.currentValue || inv.investment.amount || '0');
+          return sum + (isNaN(current) ? 0 : current);
+        }, 0);
+
+        const totalReturns = totalCurrentValue - totalInvested;
+        const roiPercentage = totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0;
+
+        // Diversification analysis
+        const genreDiversification = userInvestments.reduce((acc, inv) => {
+          const genre = inv.pitch?.genre || 'Unknown';
+          const amount = parseFloat(inv.investment.amount || '0');
+          acc[genre] = (acc[genre] || 0) + amount;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const statusDistribution = userInvestments.reduce((acc, inv) => {
+          const status = inv.investment.status || 'unknown';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        // Performance over time (mock data for demonstration)
+        const performanceHistory = Array.from({ length: 12 }, (_, i) => {
+          const date = new Date();
+          date.setMonth(date.getMonth() - (11 - i));
+          return {
+            date: date.toISOString().slice(0, 7), // YYYY-MM format
+            portfolioValue: totalCurrentValue * (0.85 + (Math.random() * 0.3)), // Mock fluctuation
+            totalInvested: totalInvested * Math.min(1, (i + 1) / 12), // Gradual investment
+          };
+        });
+
+        // Top performing investments
+        const topPerformers = userInvestments
+          .map(inv => {
+            const invested = parseFloat(inv.investment.amount || '0');
+            const current = parseFloat(inv.investment.currentValue || inv.investment.amount || '0');
+            const returns = current - invested;
+            const roiPercent = invested > 0 ? (returns / invested) * 100 : 0;
+            
+            return {
+              ...inv,
+              returns,
+              roiPercent
+            };
+          })
+          .sort((a, b) => b.roiPercent - a.roiPercent)
+          .slice(0, 5);
+
+        return successResponse({
+          portfolioSummary: {
+            totalInvested,
+            currentValue: totalCurrentValue,
+            totalReturns,
+            roiPercentage,
+            activeInvestments: userInvestments.filter(inv => inv.investment.status === 'active').length,
+            totalInvestments: userInvestments.length,
+          },
+          diversification: {
+            byGenre: genreDiversification,
+            byStatus: statusDistribution,
+          },
+          performance: {
+            history: performanceHistory,
+            topPerformers: topPerformers.map(tp => ({
+              pitchId: tp.pitch?.id,
+              pitchTitle: tp.pitch?.title,
+              creatorName: `${tp.creator?.firstName || ''} ${tp.creator?.lastName || ''}`.trim() || tp.creator?.username,
+              invested: parseFloat(tp.investment.amount || '0'),
+              currentValue: parseFloat(tp.investment.currentValue || tp.investment.amount || '0'),
+              returns: tp.returns,
+              roiPercentage: tp.roiPercent,
+              status: tp.investment.status,
+            })),
+          },
+          insights: {
+            recommendations: [
+              totalInvested === 0 ? "Start building your portfolio with your first investment" :
+              Object.keys(genreDiversification).length < 3 ? "Consider diversifying across more genres" :
+              roiPercentage < 5 ? "Review your investment strategy for better returns" :
+              "Your portfolio is performing well. Consider increasing your investment capacity.",
+            ],
+            riskAnalysis: {
+              level: roiPercentage > 15 ? 'High' : roiPercentage > 8 ? 'Medium' : 'Low',
+              score: Math.min(10, Math.max(1, Math.round(roiPercentage / 2))),
+              factors: [
+                Object.keys(genreDiversification).length < 2 ? 'Low genre diversification' : 'Good diversification',
+                userInvestments.length < 5 ? 'Small portfolio size' : 'Adequate portfolio size',
+              ]
+            }
+          },
+          timeframe,
+          lastUpdated: new Date().toISOString(),
+        });
+
+      } catch (error) {
+        console.error("Error fetching portfolio analytics:", error);
+        return serverErrorResponse("Failed to fetch portfolio analytics");
       }
     }
 
@@ -7123,6 +7413,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         return successResponse({
           ndas: formattedRequests,
+          count: formattedRequests.length,
           message: "Pending NDA requests retrieved successfully"
         });
       } catch (error) {
@@ -7154,6 +7445,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         return successResponse({
           ndas: formattedNDAs,
+          count: formattedNDAs.length,
           message: "Active NDAs retrieved successfully"
         });
       } catch (error) {
@@ -12577,25 +12869,130 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // Additional follows stats endpoints for dashboard integration
+    if (url.pathname.startsWith("/api/follows/stats/") && method === "GET") {
+      try {
+        const auth = await authenticate(request);
+        if (auth.error || !auth.user) {
+          return authErrorResponse(auth.error || "Authentication required");
+        }
+        const userId = parseInt(url.pathname.split('/').pop() || '0');
+        if (!userId) {
+          return validationErrorResponse("Invalid user ID");
+        }
+        const [{ count: followersCount } = { count: 0 }] = await db.select({ count: sql`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.creatorId, userId));
+        const [{ count: followingCount } = { count: 0 }] = await db.select({ count: sql`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.followerId, userId));
+        return successResponse({ followersCount, followingCount });
+      } catch (error) {
+        console.error("/api/follows/stats error:", error);
+        return serverErrorResponse("Failed to fetch follows stats");
+      }
+    }
+
+    if (url.pathname.startsWith("/api/follows/followers/") && method === "GET") {
+      try {
+        const auth = await authenticate(request);
+        if (auth.error || !auth.user) {
+          return authErrorResponse(auth.error || "Authentication required");
+        }
+        const userId = parseInt(url.pathname.split('/').pop() || '0');
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+        const rows = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            userType: users.userType,
+            companyName: users.companyName,
+            profileImageUrl: users.profileImageUrl,
+            followedAt: follows.followedAt
+          })
+          .from(follows)
+          .innerJoin(users, eq(follows.followerId, users.id))
+          .where(eq(follows.creatorId, userId))
+          .orderBy(desc(follows.followedAt))
+          .limit(limit)
+          .offset(offset);
+        const [{ count: total } = { count: 0 }] = await db
+          .select({ count: sql`count(*)::int` })
+          .from(follows)
+          .where(eq(follows.creatorId, userId));
+        return successResponse({ data: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
+      } catch (error) {
+        console.error("/api/follows/followers/:userId error:", error);
+        return serverErrorResponse("Failed to fetch followers list");
+      }
+    }
+
     // === AUTH ENDPOINTS ===
     
-    // POST /api/auth/logout - Logout user
+    // POST /api/auth/logout - Logout user (enhanced)
     if (url.pathname === "/api/auth/logout" && method === "POST") {
       try {
+        // Attempt to authenticate - but allow logout even if token is invalid
         const authResult = await authenticate(request);
-        if (authResult.error) {
-          return authErrorResponse(authResult.error);
+        let userId = null;
+        let userType = null;
+
+        if (!authResult.error && authResult.user) {
+          userId = authResult.user.id;
+          userType = authResult.user.userType;
+
+          // Log successful logout for audit trail
+          try {
+            await db.insert(analytics).values({
+              userId: userId,
+              eventType: 'logout',
+              eventData: {
+                userType: userType,
+                timestamp: new Date().toISOString(),
+                userAgent: request.headers.get('user-agent') || 'Unknown',
+              },
+              createdAt: new Date(),
+            });
+          } catch (analyticsError) {
+            console.error("Failed to log logout event:", analyticsError);
+            // Don't fail logout if analytics fails
+          }
+
+          // Clear user session data if applicable
+          try {
+            // Update user's last logout time
+            await db.update(users)
+              .set({ 
+                lastLoginAt: new Date(), // This could be renamed to lastActivityAt in future
+                updatedAt: new Date() 
+              })
+              .where(eq(users.id, userId));
+          } catch (dbError) {
+            console.error("Failed to update user logout time:", dbError);
+            // Don't fail logout if DB update fails
+          }
         }
 
-        // For now, just return success - JWT tokens are stateless
-        // In production, you might want to maintain a blacklist of tokens
+        // Always return success - JWT tokens are stateless
+        // In production, you might want to maintain a blacklist of invalid tokens
         return successResponse({ 
           message: "Logged out successfully",
-          timestamp: new Date().toISOString()
+          userType: userType || 'unknown',
+          timestamp: new Date().toISOString(),
+          // Help frontend know to clear all local storage
+          clearSession: true
         });
+
       } catch (error) {
         console.error("Logout error:", error);
-        return serverErrorResponse("Logout failed");
+        // Even if there's an error, still return success for logout
+        return successResponse({ 
+          message: "Logged out successfully", 
+          timestamp: new Date().toISOString(),
+          clearSession: true
+        });
       }
     }
 

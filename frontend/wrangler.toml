@@ -1,0 +1,5 @@
+# Cloudflare Pages configuration for the frontend only
+# This file is intentionally minimal to avoid conflicts with the root Worker config.
+
+# Directory to deploy for Pages (relative to this file)
+pages_build_output_dir = "dist"

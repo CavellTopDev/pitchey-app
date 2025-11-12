@@ -1,0 +1,549 @@
+name: Test and Deploy Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test against'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      skip_deployment:
+        description: 'Skip deployment step'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DENO_VERSION: 1.41.0
+  NODE_VERSION: 18
+  API_URL: http://localhost:8001
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      test-environment: ${{ steps.set-env.outputs.test-environment }}
+      should-deploy: ${{ steps.set-env.outputs.should-deploy }}
+    steps:
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "test-environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "should-deploy=${{ !fromJSON(github.event.inputs.skip_deployment) }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "test-environment=production" >> $GITHUB_OUTPUT
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "test-environment=staging" >> $GITHUB_OUTPUT
+            echo "should-deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Lint backend code
+        run: |
+          deno lint --config deno.json
+
+      - name: Type check backend
+        run: |
+          deno check working-server.ts
+
+      - name: Lint frontend code
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Type check frontend
+        run: |
+          cd frontend
+          npm run type-check
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: lint-and-type-check
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: pitchey_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/pitchey_test
+          REDIS_URL: redis://localhost:6379
+        run: |
+          # Run database migrations for testing
+          deno run --allow-all scripts/setup-db.ts
+
+      - name: Run backend unit tests
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/pitchey_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-key-for-testing-only
+        run: |
+          deno test --allow-all tests/ --coverage=coverage/
+
+      - name: Run frontend unit tests
+        run: |
+          cd frontend
+          npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info,./frontend/coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: pitchey_integration
+          POSTGRES_USER: integration_user
+          POSTGRES_PASSWORD: integration_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Setup integration database
+        env:
+          DATABASE_URL: postgresql://integration_user:integration_password@localhost:5432/pitchey_integration
+          REDIS_URL: redis://localhost:6379
+        run: |
+          deno run --allow-all scripts/setup-db.ts
+          deno run --allow-all scripts/seed-db.ts
+
+      - name: Start backend server
+        env:
+          DATABASE_URL: postgresql://integration_user:integration_password@localhost:5432/pitchey_integration
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: integration-test-jwt-secret
+          PORT: 8001
+        run: |
+          deno run --allow-all working-server.ts &
+          echo $! > server.pid
+          
+          # Wait for server to start
+          timeout 60 bash -c 'until curl -f http://localhost:8001/health; do sleep 2; done'
+
+      - name: Run investor dashboard tests
+        env:
+          API_URL: http://localhost:8001
+        run: |
+          ./test-investor-dashboard-complete.sh
+        continue-on-error: true
+
+      - name: Run end-to-end platform tests
+        env:
+          API_URL: http://localhost:8001
+        run: |
+          ./test-platform-e2e.sh
+        continue-on-error: true
+
+      - name: Run performance benchmarks
+        env:
+          API_URL: http://localhost:8001
+          ALERT_THRESHOLD: 3000
+          MEMORY_THRESHOLD: 1024
+          CPU_THRESHOLD: 90
+        run: |
+          ./monitor-platform-performance.sh check
+        continue-on-error: true
+
+      - name: Stop backend server
+        run: |
+          if [[ -f server.pid ]]; then
+            kill $(cat server.pid) || true
+            rm server.pid
+          fi
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-reports
+          path: |
+            test-results/
+            monitoring/
+          retention-days: 30
+
+      - name: Parse test results
+        if: always()
+        run: |
+          echo "## Integration Test Summary" >> $GITHUB_STEP_SUMMARY
+          
+          # Parse investor dashboard test results
+          if [[ -d test-results ]]; then
+            latest_investor_dir=$(find test-results -name "investor-dashboard-*" -type d | sort | tail -1)
+            if [[ -n "$latest_investor_dir" && -f "$latest_investor_dir/test-summary.md" ]]; then
+              echo "### Investor Dashboard Tests" >> $GITHUB_STEP_SUMMARY
+              cat "$latest_investor_dir/test-summary.md" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            # Parse e2e test results
+            latest_e2e_dir=$(find test-results -name "platform-e2e-*" -type d | sort | tail -1)
+            if [[ -n "$latest_e2e_dir" && -f "$latest_e2e_dir/e2e-results.json" ]]; then
+              echo "### End-to-End Tests" >> $GITHUB_STEP_SUMMARY
+              jq -r '.summary | "- Total Tests: \(.total_tests)\n- Passed: \(.passed)\n- Failed: \(.failed)\n- Success Rate: \(.success_rate)"' "$latest_e2e_dir/e2e-results.json" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          
+          # Parse performance results
+          if [[ -f monitoring/reports/current-metrics.json ]]; then
+            echo "### Performance Metrics" >> $GITHUB_STEP_SUMMARY
+            jq -r '.metrics.api_performance.average_response_ms // "N/A" | "- Average API Response: \(.)ms"' monitoring/reports/current-metrics.json >> $GITHUB_STEP_SUMMARY
+          fi
+
+  security-tests:
+    runs-on: ubuntu-latest
+    needs: lint-and-type-check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Run security audit
+        run: |
+          # Backend security check
+          deno run --allow-all auth-security-audit.ts
+
+      - name: Frontend security audit
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: [lint-and-type-check, unit-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/dist/
+          retention-days: 30
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [setup, integration-tests, security-tests, build-frontend]
+    if: needs.setup.outputs.should-deploy == 'true' && (github.ref == 'refs/heads/develop' || needs.setup.outputs.test-environment == 'staging')
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/dist/
+
+      - name: Deploy to Deno Deploy (Staging)
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN_STAGING }}
+        run: |
+          deno install --allow-all --no-check -r -f https://deno.land/x/deploy/deployctl.ts
+          deployctl deploy --project=pitchey-backend-staging working-server.ts
+
+      - name: Deploy frontend to Cloudflare Pages (Staging)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd frontend
+          npx wrangler pages deploy dist --project-name=pitchey-staging
+
+      - name: Run post-deployment tests
+        env:
+          API_URL: https://pitchey-backend-staging.deno.dev
+        run: |
+          sleep 30  # Wait for deployment to be ready
+          ./monitor-platform-performance.sh health
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [setup, integration-tests, security-tests, build-frontend, deploy-staging]
+    if: needs.setup.outputs.should-deploy == 'true' && github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/dist/
+
+      - name: Deploy to Deno Deploy (Production)
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN_PRODUCTION }}
+        run: |
+          deno install --allow-all --no-check -r -f https://deno.land/x/deploy/deployctl.ts
+          deployctl deploy --project=pitchey-backend-fresh working-server.ts
+
+      - name: Deploy frontend to Cloudflare Pages (Production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd frontend
+          npx wrangler pages deploy dist --project-name=pitchey
+
+      - name: Deploy Worker API (Production)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          npx wrangler deploy --env production
+
+      - name: Run production health check
+        env:
+          API_URL: https://pitchey-backend-fresh.deno.dev
+        run: |
+          sleep 60  # Wait for deployment to be ready
+          ./monitor-platform-performance.sh health
+
+      - name: Notify deployment success
+        if: success()
+        env:
+          WEBHOOK_URL: ${{ secrets.DEPLOYMENT_WEBHOOK_URL }}
+        run: |
+          if [[ -n "$WEBHOOK_URL" ]]; then
+            curl -X POST -H "Content-Type: application/json" \
+                 -d '{"text": "🚀 Pitchey production deployment successful!", "timestamp": "'$(date -Iseconds)'"}' \
+                 "$WEBHOOK_URL"
+          fi
+
+  post-deployment-monitoring:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always() && needs.deploy-production.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc
+
+      - name: Run extended monitoring
+        env:
+          API_URL: https://pitchey-backend-fresh.deno.dev
+          MONITOR_INTERVAL: 30
+          ALERT_THRESHOLD: 2000
+        run: |
+          # Run monitoring for 10 minutes
+          timeout 600 ./monitor-platform-performance.sh monitor || true
+
+      - name: Upload monitoring reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: post-deployment-monitoring
+          path: monitoring/
+          retention-days: 7
+
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: [integration-tests, security-tests, deploy-staging, deploy-production]
+    if: always() && (needs.integration-tests.result == 'failure' || needs.security-tests.result == 'failure' || needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure')
+    steps:
+      - name: Send failure notification
+        env:
+          WEBHOOK_URL: ${{ secrets.FAILURE_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Prepare failure message
+          FAILURE_MSG="❌ Pitchey pipeline failed on ${{ github.ref_name }}"
+          DETAILS="
+          - Integration Tests: ${{ needs.integration-tests.result }}
+          - Security Tests: ${{ needs.security-tests.result }}
+          - Deploy Staging: ${{ needs.deploy-staging.result }}
+          - Deploy Production: ${{ needs.deploy-production.result }}
+          
+          Commit: ${{ github.sha }}
+          Actor: ${{ github.actor }}
+          "
+          
+          # Send to webhook if configured
+          if [[ -n "$WEBHOOK_URL" ]]; then
+            curl -X POST -H "Content-Type: application/json" \
+                 -d "{\"text\": \"$FAILURE_MSG\", \"details\": \"$DETAILS\"}" \
+                 "$WEBHOOK_URL"
+          fi
+          
+          # Send to Slack if configured
+          if [[ -n "$SLACK_WEBHOOK" ]]; then
+            curl -X POST -H "Content-Type: application/json" \
+                 -d "{\"text\": \"$FAILURE_MSG\", \"attachments\": [{\"text\": \"$DETAILS\", \"color\": \"danger\"}]}" \
+                 "$SLACK_WEBHOOK"
+          fi

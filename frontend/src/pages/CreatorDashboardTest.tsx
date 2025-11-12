@@ -1,12 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { TrendingUp, Eye, Upload, BarChart3, LogOut, Plus, Coins, Shield, Bell } from 'lucide-react';
+import { TrendingUp, Eye, Upload, BarChart3, LogOut, Plus, Coins, Shield, Bell, Wifi, WifiOff } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { paymentsAPI } from '../lib/apiServices';
 import apiClient from '../lib/api-client';
 import { NotificationBell } from '../components/NotificationBell';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreatorAnalytics';
+import { useWebSocket } from '../contexts/WebSocketContext';
+import type { WebSocketMessage } from '../types/websocket';
+
+// CSS for animations (using Tailwind's arbitrary value syntax)
+const styles = `
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+`;
 
 export default function CreatorDashboardTest() {
   const navigate = useNavigate();
@@ -21,6 +34,21 @@ export default function CreatorDashboardTest() {
   const [followers, setFollowers] = useState<number>(0);
   const [avgRating, setAvgRating] = useState<number>(0);
   const [recentActivity, setRecentActivity] = useState<Array<{ id: string; title: string; description: string }>>([]);
+  const [ndaStats, setNdaStats] = useState<{ pending: number; active: number }>({ pending: 0, active: 0 });
+  
+  // Animation states for real-time updates
+  const [animatingViews, setAnimatingViews] = useState(false);
+  const [animatingFollowers, setAnimatingFollowers] = useState(false);
+  const [animatingNdas, setAnimatingNdas] = useState(false);
+  
+  // WebSocket integration
+  const { 
+    isConnected, 
+    connectionStatus, 
+    subscribeToMessages, 
+    subscribeToDashboard,
+    subscribeToNotifications
+  } = useWebSocket();
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -38,39 +66,150 @@ export default function CreatorDashboardTest() {
     fetchDashboardData();
   }, [authUser]);
 
+  // Real-time dashboard message handler
+  const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
+    console.log('📨 Dashboard received WebSocket message:', message.type, message);
+    
+    switch (message.type) {
+      case 'view_update':
+      case 'view-update':
+        setAnimatingViews(true);
+        setTotalViews((prev) => {
+          const newViews = message.data?.totalViews ?? (prev + 1);
+          console.log('📊 Views updated:', prev, '->', newViews);
+          return newViews;
+        });
+        setTimeout(() => setAnimatingViews(false), 1000);
+        break;
+        
+      case 'new_follower':
+      case 'new-follower':
+        setAnimatingFollowers(true);
+        setFollowers((prev) => {
+          const newFollowers = message.data?.followerCount ?? (prev + 1);
+          console.log('👥 Followers updated:', prev, '->', newFollowers);
+          return newFollowers;
+        });
+        setTimeout(() => setAnimatingFollowers(false), 1000);
+        break;
+        
+      case 'nda_request':
+      case 'nda-request':
+        setAnimatingNdas(true);
+        setNdaStats((prev) => {
+          const newStats = {
+            ...prev,
+            pending: message.data?.pendingCount ?? (prev.pending + 1)
+          };
+          console.log('📝 NDA stats updated:', prev, '->', newStats);
+          return newStats;
+        });
+        setTimeout(() => setAnimatingNdas(false), 1000);
+        break;
+        
+      case 'activity':
+        if (message.data?.activity) {
+          const newActivity = {
+            id: message.data.activity.id || `activity_${Date.now()}`,
+            title: message.data.activity.title || 'New Activity',
+            description: message.data.activity.description || ''
+          };
+          setRecentActivity((prev) => [newActivity, ...prev].slice(0, 5));
+          console.log('🎯 Activity added:', newActivity);
+        }
+        break;
+        
+      case 'notification':
+        console.log('🔔 Notification received via dashboard WebSocket');
+        // NotificationBell component will handle this via its own subscription
+        break;
+        
+      case 'dashboard_update':
+        if (message.data) {
+          console.log('📊 Dashboard metrics update:', message.data);
+          if (message.data.totalViews !== undefined) {
+            setTotalViews(message.data.totalViews);
+          }
+          if (message.data.followersCount !== undefined) {
+            setFollowers(message.data.followersCount);
+          }
+          if (message.data.ndaStats) {
+            setNdaStats({
+              pending: message.data.ndaStats.pending ?? 0,
+              active: message.data.ndaStats.active ?? 0
+            });
+          }
+        }
+        break;
+        
+      default:
+        // Only log unknown messages in development
+        if (import.meta.env.DEV) {
+          console.log('🔍 Unhandled dashboard message:', message.type);
+        }
+    }
+  }, []);
+  
+  // Subscribe to WebSocket messages
+  useEffect(() => {
+    if (!isConnected) return;
+    
+    console.log('📡 Dashboard subscribing to WebSocket messages...');
+    const unsubscribeMessages = subscribeToMessages(handleWebSocketMessage);
+    const unsubscribeDashboard = subscribeToDashboard((metrics) => {
+      console.log('📊 Dashboard metrics received:', metrics);
+      if (metrics.pitchViews !== undefined) {
+        setTotalViews(metrics.pitchViews);
+      }
+      // Add more metric updates as needed
+    });
+    
+    return () => {
+      console.log('📡 Dashboard unsubscribing from WebSocket messages');
+      unsubscribeMessages();
+      unsubscribeDashboard();
+    };
+  }, [isConnected, subscribeToMessages, subscribeToDashboard, handleWebSocketMessage]);
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [dashboardResponse, creditsData, subscriptionData] = await Promise.all([
+      const currentUser = authUser || (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
+      const userId = currentUser?.id;
+
+      const [dashboardResponse, creditsData, subscriptionData, followersResponse, pendingNDAs, activeNDAs] = await Promise.all([
         apiClient.get('/api/creator/dashboard'),
         paymentsAPI.getCreditBalance(),
         paymentsAPI.getSubscriptionStatus(),
+        userId ? apiClient.get(`/api/follows/stats/${userId}`) : Promise.resolve({ success: true, data: { followersCount: 0, followingCount: 0 } }),
+        apiClient.get('/api/nda/pending'),
+        apiClient.get('/api/nda/active'),
       ]);
       
       if (dashboardResponse.success) {
-        const data = dashboardResponse.data;
+        const data = dashboardResponse.data || {};
+        const statsData = data.stats || {};
         setStats({
-          totalPitches: data.totalPitches || 0,
-          activePitches: data.publishedPitches || 0,
-          totalViews: data.totalViews || 0,
+          totalPitches: statsData.totalPitches || 0,
+          activePitches: statsData.activePitches || 0,
+          totalViews: statsData.totalViews || 0,
         });
-        setTotalViews(data.totalViews || 0);
-        // Derive avg rating if pitches array exists
-        if (Array.isArray(data.pitches) && data.pitches.length > 0) {
-          const sum = data.pitches.reduce((acc: number, p: any) => acc + (p.rating || 0), 0);
-          setAvgRating(Number((sum / data.pitches.length).toFixed(1)));
-        }
-        // Use activity if provided, otherwise keep empty
+        setTotalViews(statsData.totalViews || 0);
+        setAvgRating(Number((statsData.avgRating || 0).toFixed(1)));
         if (Array.isArray(data.recentActivity)) {
           setRecentActivity(data.recentActivity.map((a: any, idx: number) => ({
-            id: a.id?.toString() || String(idx),
+            id: (a.id ?? idx).toString(),
             title: a.title || 'Activity',
             description: a.description || ''
           })));
         }
-        // Followers placeholder (0 by default)
-        setFollowers(data.followersCount || 0);
+        setFollowers(statsData.followersCount || followersResponse.data?.followersCount || 0);
       }
+
+      setNdaStats({
+        pending: pendingNDAs.data?.count ?? (pendingNDAs.data?.ndas?.length ?? 0),
+        active: activeNDAs.data?.count ?? (activeNDAs.data?.ndas?.length ?? 0),
+      });
       
       setCredits(creditsData);
       setSubscription(subscriptionData);
@@ -95,6 +234,8 @@ export default function CreatorDashboardTest() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
+      {/* Inject custom CSS for animations */}
+      <style>{styles}</style>
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -108,6 +249,41 @@ export default function CreatorDashboardTest() {
             </div>
             
             <div className="flex items-center gap-4">
+              {/* WebSocket Connection Status */}
+              <div 
+                className={`flex items-center gap-2 px-2 py-1 rounded-lg text-xs transition-all duration-200 ${
+                  isConnected 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : connectionStatus.reconnecting
+                    ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}
+                title={`WebSocket: ${
+                  isConnected 
+                    ? 'Connected - Real-time updates active' 
+                    : connectionStatus.reconnecting 
+                    ? `Reconnecting... (attempt ${connectionStatus.reconnectAttempts})` 
+                    : 'Disconnected - Live updates unavailable'
+                }`}
+              >
+                {isConnected ? (
+                  <Wifi className="w-3 h-3" />
+                ) : (
+                  <WifiOff className="w-3 h-3" />
+                )}
+                <span className="hidden sm:inline">
+                  {isConnected 
+                    ? 'Live' 
+                    : connectionStatus.reconnecting 
+                    ? 'Reconnecting' 
+                    : 'Offline'
+                  }
+                </span>
+                {isConnected && (
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                )}
+              </div>
+              
               {/* Credits Display */}
               <button
                 onClick={() => navigate('/creator/billing?tab=credits')}
@@ -192,12 +368,25 @@ export default function CreatorDashboardTest() {
             <p className="text-2xl font-bold text-gray-900">{stats?.activePitches || 0}</p>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className={`bg-white rounded-xl shadow-sm p-6 transition-all duration-300 ${
+            animatingViews ? 'ring-2 ring-blue-400 ring-opacity-50 shadow-lg scale-105' : ''
+          }`}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-500 text-sm">Total Views</span>
-              <Eye className="w-5 h-5 text-blue-500" />
+              <Eye className={`w-5 h-5 text-blue-500 transition-transform duration-300 ${
+                animatingViews ? 'scale-110' : ''
+              }`} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">{totalViews}</p>
+            <p className={`text-2xl font-bold text-gray-900 transition-all duration-300 ${
+              animatingViews ? 'text-blue-600 scale-110' : ''
+            }`}>
+              {totalViews.toLocaleString()}
+            </p>
+            {animatingViews && (
+              <div className="text-xs text-blue-600 mt-1 animate-fade-in">
+                +1 view
+              </div>
+            )}
           </div>
         </div>
 
@@ -211,12 +400,25 @@ export default function CreatorDashboardTest() {
             <p className="text-2xl font-bold text-gray-900">{avgRating.toFixed(1)}</p>
           </div>
           
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className={`bg-white rounded-xl shadow-sm p-6 transition-all duration-300 ${
+            animatingFollowers ? 'ring-2 ring-purple-400 ring-opacity-50 shadow-lg scale-105' : ''
+          }`}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-500 text-sm">Followers</span>
-              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              <svg className={`w-5 h-5 text-blue-500 transition-transform duration-300 ${
+                animatingFollowers ? 'scale-110' : ''
+              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{followers}</p>
+            <p className={`text-2xl font-bold text-gray-900 transition-all duration-300 ${
+              animatingFollowers ? 'text-purple-600 scale-110' : ''
+            }`}>
+              {followers.toLocaleString()}
+            </p>
+            {animatingFollowers && (
+              <div className="text-xs text-purple-600 mt-1 animate-fade-in">
+                +1 follower
+              </div>
+            )}
           </div>
           
           <div className="bg-white rounded-xl shadow-sm p-6">
@@ -232,14 +434,14 @@ export default function CreatorDashboardTest() {
         {/* Enhanced Analytics Section (uses mock fallback if API not available) */}
         <div className="mb-8">
           <EnhancedCreatorAnalytics
-            disableRemoteFetch={true}
+            disableRemoteFetch={false}
             pitchPerformance={{
               totalViews: totalViews,
-              viewsChange: 15,
+              viewsChange: 0,
               totalLikes: 0,
-              likesChange: 12,
+              likesChange: 0,
               totalShares: 0,
-              sharesChange: 8,
+              sharesChange: 0,
               potentialInvestment: 0,
               investmentChange: 0,
             }}
@@ -429,19 +631,32 @@ export default function CreatorDashboardTest() {
             <button onClick={() => navigate('/creator/ndas')} className="text-sm text-purple-600 hover:text-purple-700">Manage</button>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <div className={`p-3 rounded-lg bg-amber-50 border border-amber-200 transition-all duration-300 ${
+              animatingNdas ? 'ring-2 ring-amber-400 ring-opacity-50 shadow-lg scale-105' : ''
+            }`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-amber-700">Pending</span>
-                <Bell className="w-4 h-4 text-amber-600" />
+                <Bell className={`w-4 h-4 text-amber-600 transition-transform duration-300 ${
+                  animatingNdas ? 'scale-110' : ''
+                }`} />
               </div>
-              <p className="text-2xl font-bold text-amber-700 mt-1">0</p>
+              <p className={`text-2xl font-bold text-amber-700 mt-1 transition-all duration-300 ${
+                animatingNdas ? 'text-amber-800 scale-110' : ''
+              }`}>
+                {ndaStats.pending}
+              </p>
+              {animatingNdas && (
+                <div className="text-xs text-amber-700 mt-1 animate-fade-in">
+                  New NDA request
+                </div>
+              )}
             </div>
             <div className="p-3 rounded-lg bg-green-50 border border-green-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-green-700">Active</span>
                 <Shield className="w-4 h-4 text-green-600" />
               </div>
-              <p className="text-2xl font-bold text-green-700 mt-1">0</p>
+              <p className="text-2xl font-bold text-green-700 mt-1">{ndaStats.active}</p>
             </div>
           </div>
         </div>
