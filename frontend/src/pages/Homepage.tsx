@@ -11,7 +11,7 @@ import FormatDisplay from '../components/FormatDisplay';
 export default function Homepage() {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuthStore();
-  const userType = localStorage.getItem('userType');
+  const userType = user?.userType || localStorage.getItem('userType');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [selectedFormat, setSelectedFormat] = useState('all');
