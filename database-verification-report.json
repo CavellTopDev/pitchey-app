@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-11-12T18:05:55Z",
+  "database": {
+    "host": "ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech",
+    "name": "neondb",
+    "status": "connected"
+  },
+  "statistics": {
+    "users": 3,
+    "pitches": 3,
+    "investments": 1,
+    "ndas": 0,
+    "follows": 1,
+    "notifications": 2
+  },
+  "demo_accounts": {
+    "creator": {
+      "id": 1,
+      "pitches": 3,
+      "status": "verified"
+    },
+    "investor": {
+      "id": 2,
+      "investments": 1,
+      "status": "verified"
+    }
+  }
+}

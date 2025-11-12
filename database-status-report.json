@@ -1,0 +1,8 @@
+{
+  "status": "error",
+  "connection": {
+    "success": false,
+    "error": "userTypes is not iterable"
+  },
+  "timestamp": "2025-11-12T01:45:44.477Z"
+}
