@@ -216,7 +216,7 @@ const demoAccounts = {
     companyName: "Independent Films"
   },
   investor: {
-    id: 15,  // Fixed to match actual database
+    id: 2,  // Fixed to match actual database
     email: "sarah.investor@demo.com",
     username: "sarahinvestor",
     password: "Demo123",
@@ -5128,10 +5128,10 @@ const handler = async (request: Request): Promise<Response> => {
           recommendations: await PitchService.getPublicPitchesWithUserType(5).catch(() => [])
         };
         
-        return successResponse({
-          data: dashboardData,
-          message: "Investor dashboard retrieved successfully"
-        });
+        return successResponse(
+          dashboardData,
+          "Investor dashboard retrieved successfully"
+        );
       } catch (error) {
         console.error("Error fetching investor dashboard:", error);
         // Fallback data if everything fails
@@ -5148,10 +5148,10 @@ const handler = async (request: Request): Promise<Response> => {
           recommendations: []
         };
         
-        return successResponse({
-          data: fallbackData,
-          message: "Investor dashboard retrieved successfully (fallback)"
-        });
+        return successResponse(
+          fallbackData,
+          "Investor dashboard retrieved successfully (fallback)"
+        );
       }
     }
 
@@ -5904,14 +5904,16 @@ const handler = async (request: Request): Promise<Response> => {
           .from(pitches)
           .leftJoin(users, eq(pitches.userId, users.id))
           .where(and(...conditions))
-          .orderBy(
-            sortBy === 'rating' ? desc(pitches.ratingAverage) :
-            sortBy === 'views' ? desc(pitches.viewCount) :
-            sortBy === 'budget' ? desc(pitches.estimatedBudget) :
-            desc(pitches.createdAt)
-          )
+          .orderBy(desc(pitches.createdAt))
           .limit(limit)
           .offset(offset);
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(pitches)
+          .where(and(...conditions))
+          .catch(() => [{ count: 0 }]);
 
         // Format the response
         const formattedOpportunities = opportunities.map(row => ({
@@ -5925,12 +5927,15 @@ const handler = async (request: Request): Promise<Response> => {
           }
         }));
 
+        const total = totalCount[0]?.count || 0;
+
         return successResponse({
           opportunities: formattedOpportunities,
+          total: total,
           pagination: {
             limit,
             offset,
-            total: formattedOpportunities.length,
+            total: total,
             hasMore: formattedOpportunities.length === limit
           },
           filters: {
@@ -10021,10 +10026,10 @@ const handler = async (request: Request): Promise<Response> => {
             recentActivity: []
           };
           
-          return successResponse({
-            success: true,
-            analytics: mockAnalytics
-          });
+          return successResponse(
+            mockAnalytics,
+            "Analytics retrieved successfully (demo data)"
+          );
         }
         
         // Get real analytics data from database for non-demo users
@@ -10119,11 +10124,10 @@ const handler = async (request: Request): Promise<Response> => {
           recentActivity
         };
         
-        return successResponse({
-          analytics: analyticsData,
-          success: true,
-          message: "Analytics retrieved successfully"
-        });
+        return successResponse(
+          analyticsData,
+          "Analytics retrieved successfully"
+        );
       } catch (error) {
         console.error("Analytics dashboard error:", error);
         return serverErrorResponse("Failed to fetch analytics");
