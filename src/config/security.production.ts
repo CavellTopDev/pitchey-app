@@ -222,6 +222,8 @@ export const productionSecurityConfig: SecurityConfig = {
           'wss://pitchey-api-production.cavelltheleaddev.workers.dev',
           'https://pitchey-backend-fresh.deno.dev',
           'wss://pitchey-backend-fresh.deno.dev',
+          'https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev',
+          'wss://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev',
           'https://api.stripe.com',
           'https://checkout.stripe.com',
           'https://www.google-analytics.com',
