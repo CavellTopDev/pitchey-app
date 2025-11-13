@@ -14,7 +14,7 @@ FRONTEND_URL = "https://pitchey.pages.dev"
 # JWT_SECRET is read from environment secrets at deploy time
 
 # Progressive migration: proxy unmatched API routes to existing Deno backend
-ORIGIN_URL = "https://pitchey-backend-fresh.deno.dev"
+ORIGIN_URL = "https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev"
 
 [[kv_namespaces]]
 binding = "CACHE"
@@ -46,7 +46,7 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 # Production-only vars; secrets still come from GitHub Actions or wrangler secrets
 [env.production.vars]
 FRONTEND_URL = "https://pitchey.pages.dev"
-ORIGIN_URL = "https://pitchey-backend-fresh.deno.dev"
+ORIGIN_URL = "https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev"
 
 # Re-declare bindings for the production environment (not inherited)
 [[env.production.kv_namespaces]]
