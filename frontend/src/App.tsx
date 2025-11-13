@@ -42,6 +42,7 @@ const InvestorLogin = lazy(() => import('./pages/InvestorLogin'));
 const ProductionLogin = lazy(() => import('./pages/ProductionLogin'));
 const CreatorDashboard = lazy(() => import('./pages/CreatorDashboardTest'));
 const InvestorDashboard = lazy(() => import('./pages/InvestorDashboard'));
+const InvestorDashboardDebug = lazy(() => import('./pages/InvestorDashboardDebug'));
 const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'));
 const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
 
@@ -286,6 +287,11 @@ function App() {
           } />
           <Route path="/investor/dashboard" element={
             isAuthenticated && userType === 'investor' ? <InvestorDashboard /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/investor" />
+          } />
+          <Route path="/investor/dashboard/debug" element={
+            isAuthenticated && userType === 'investor' ? <InvestorDashboardDebug /> : 
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/investor" />
           } />
