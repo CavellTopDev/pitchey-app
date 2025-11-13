@@ -8,12 +8,12 @@ import FollowButton from '../components/FollowButton';
 import { QuickNDAStatus } from '../components/NDA/NDADashboardIntegration';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { InvestmentService } from '../services/investment.service';
-import InvestmentPortfolioCard from '../components/Investment/InvestmentPortfolioCard';
+import InvestmentPortfolioCard from '../components/Investment/InvestmentPortfolioCardSafe';
 import InvestmentHistory from '../components/Investment/InvestmentHistory';
 import InvestmentOpportunities from '../components/Investment/InvestmentOpportunities';
 import { EnhancedInvestorAnalytics } from '../components/Analytics/EnhancedInvestorAnalytics';
-import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
-import { NotificationBell } from '../components/NotificationBell';
+import { NotificationWidgetSafe as NotificationWidget } from '../components/Dashboard/NotificationWidgetSafe';
+import { NotificationBellSafe } from '../components/NotificationBellSafe';
 
 export default function InvestorDashboard() {
   const navigate = useNavigate();
@@ -340,7 +340,7 @@ export default function InvestorDashboard() {
               </Link>
               
               {/* Notifications */}
-              <NotificationBell size="md" />
+              <NotificationBellSafe size="md" />
               
               <button
                 onClick={() => navigate('/investor/browse')}
