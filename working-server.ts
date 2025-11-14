@@ -1,17 +1,26 @@
 // COMPLETE Multi-portal authentication server for Pitchey v0.2 - ALL 29 TESTS COVERAGE
 import { serve, serveTls } from "https://deno.land/std@0.224.0/http/server.ts";
+// Telemetry system handles Sentry integration
+// Removed direct import - using src/utils/telemetry.ts instead
 import { serveFile } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // Import comprehensive telemetry and observability
 import { telemetry, withTelemetry, withDatabaseTelemetry } from "./src/utils/telemetry.ts";
+// Import Sentry for request tagging and user context
+import * as SentryDeno from "npm:@sentry/deno@8.55.0";
 
 // Global start time for uptime calculation
 const startTime = Date.now();
 
-// Initialize telemetry system
+// Initialize telemetry system with enhanced debugging
+console.log('🔧 Initializing telemetry system...');
+console.log('   SENTRY_DSN:', Deno.env.get("SENTRY_DSN") ? '✅ SET' : '❌ MISSING');
+console.log('   DENO_ENV:', Deno.env.get("DENO_ENV") || 'undefined');
+console.log('   NODE_ENV:', Deno.env.get("NODE_ENV") || 'undefined');
 telemetry.initialize();
+console.log('✅ Telemetry initialization complete');
 
 // Legacy error logging utility (kept for compatibility)
 function logError(error: any, context?: Record<string, any>) {
@@ -57,6 +66,7 @@ import { NotificationService } from "./src/services/notification.service.ts";
 import { InvestmentService } from "./src/services/investment.service.ts";
 import { DashboardCacheService } from "./src/services/dashboard-cache.service.ts";
 import { DraftSyncService } from "./src/services/draft-sync.service.ts";
+import { EnhancedAnalyticsService } from "./src/services/enhanced-analytics.service.ts";
 
 // Import Content Management Services
 import { contentManagementService } from "./src/services/content-management.service.ts";
@@ -120,6 +130,9 @@ import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, 
 
 const port = Deno.env.get("PORT") || "8001";
 
+// Sentry initialization moved to telemetry system
+// Telemetry handles Sentry init automatically on import above
+
 // SSL Configuration
 const SSL_ENABLED = Deno.env.get("SSL_ENABLED") === "true";
 const SSL_CERT_PATH = Deno.env.get("SSL_CERT_PATH") || "./ssl/dev-cert.pem";
@@ -132,7 +145,8 @@ const JWT_SECRET = Deno.env.get("JWT_SECRET") || (() => {
   if (isProduction) {
     console.error("CRITICAL SECURITY WARNING: JWT_SECRET is not set in production!");
     console.error("This is a severe security vulnerability. Set JWT_SECRET immediately.");
-    Deno.exit(1);
+    // In Deno Deploy, we can't use Deno.exit(), so throw an error instead
+    throw new Error("JWT_SECRET must be set in production environment");
   }
   console.warn("WARNING: Using default JWT_SECRET for development. Never use in production!");
   return "test-secret-key-for-development-only";
@@ -454,6 +468,13 @@ async function authenticateRequest(request: Request): Promise<{ success: boolean
       error: authErrorResponse(authResult.error || "Authentication required")
     };
   }
+
+  // Set Sentry user context for tracing
+  try {
+    const u = authResult.user;
+    SentryDeno.setUser({ id: String(u.id), email: u.email, username: u.username });
+    SentryDeno.setTag('portal', u.userType);
+  } catch (_) {}
   
   return {
     success: true,
@@ -493,6 +514,12 @@ const handler = async (request: Request): Promise<Response> => {
   const url = new URL(request.url);
   const method = request.method;
   const origin = request.headers.get("origin");
+
+  // Sentry basic tags per request
+  try {
+    SentryDeno.setTag('route', url.pathname);
+    SentryDeno.setTag('method', method);
+  } catch (_) {}
   
   // Set the current request origin for CORS handling
   setRequestOrigin(origin);
@@ -547,7 +574,15 @@ const handler = async (request: Request): Promise<Response> => {
           coverage: "29/29 tests",
           redis: redisHealth,
           environment: Deno.env.get("DENO_ENV") || "development",
-          telemetry: telemetry.getHealthStatus()
+          telemetry: {
+            ...telemetry.getHealthStatus(),
+            timestamp: new Date().toISOString(),
+            startupEnvironment: {
+              SENTRY_DSN_SET: !!Deno.env.get("SENTRY_DSN"),
+              DENO_ENV: Deno.env.get("DENO_ENV"),
+              NODE_ENV: Deno.env.get("NODE_ENV")
+            }
+          }
         });
       } catch (error) {
         console.error("Health check error:", error);
@@ -13189,6 +13224,77 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // === ENHANCED ANALYTICS ENDPOINTS ===
+    
+    // GET /api/dashboard/analytics/creator - Enhanced creator analytics
+    if (url.pathname === "/api/dashboard/analytics/creator" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const timeRange = url.searchParams.get("timeRange") as '7d' | '30d' | '90d' || '30d';
+        
+        const analytics = await EnhancedAnalyticsService.getCreatorAnalytics(user.id, timeRange);
+        
+        return successResponse({
+          analytics,
+          timeRange,
+          message: "Enhanced creator analytics retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching enhanced creator analytics:", error);
+        telemetry.logger.error("Enhanced creator analytics error", error, { userId: undefined });
+        return serverErrorResponse("Failed to fetch enhanced creator analytics");
+      }
+    }
+
+    // GET /api/dashboard/analytics/investor - Enhanced investor analytics  
+    if (url.pathname === "/api/dashboard/analytics/investor" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const timeRange = url.searchParams.get("timeRange") as '7d' | '30d' | '90d' || '30d';
+        
+        const analytics = await EnhancedAnalyticsService.getInvestorAnalytics(user.id, timeRange);
+        
+        return successResponse({
+          analytics,
+          timeRange,
+          message: "Enhanced investor analytics retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching enhanced investor analytics:", error);
+        telemetry.logger.error("Enhanced investor analytics error", error, { userId: undefined });
+        return serverErrorResponse("Failed to fetch enhanced investor analytics");
+      }
+    }
+
+    // GET /api/dashboard/analytics/production - Enhanced production analytics
+    if (url.pathname === "/api/dashboard/analytics/production" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+        
+        const analytics = await EnhancedAnalyticsService.getProductionAnalytics(user.id);
+        
+        return successResponse({
+          analytics,
+          message: "Enhanced production analytics retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching enhanced production analytics:", error);
+        telemetry.logger.error("Enhanced production analytics error", error, { userId: undefined });
+        return serverErrorResponse("Failed to fetch enhanced production analytics");
+      }
+    }
+
     // GET /api/saved-pitches - User's saved pitches
     if (url.pathname === "/api/saved-pitches" && method === "GET") {
       try {
@@ -14362,7 +14468,8 @@ async function loadSSLCertificates() {
     console.error(`   Certificate path: ${SSL_CERT_PATH}`);
     console.error(`   Key path: ${SSL_KEY_PATH}`);
     console.error("   Run: ./ssl/generate-dev-certs.sh to create development certificates");
-    Deno.exit(1);
+    // In Deno Deploy, we can't use Deno.exit(), so throw an error instead
+    throw new Error("SSL certificates could not be loaded");
   }
 }
 
@@ -14443,9 +14550,10 @@ function getLast30Days(): string[] {
 const shutdown = async () => {
   console.log("🔴 Shutting down server...");
   await webSocketIntegration.shutdown();
-  Deno.exit(0);
+  // In Deno Deploy, we can't use Deno.exit(), so just log the shutdown
+  console.log("🔴 Server shutdown complete");
 };
 
-// Listen for shutdown signals
-Deno.addSignalListener("SIGINT", shutdown);
-Deno.addSignalListener("SIGTERM", shutdown);
+// Listen for shutdown signals (not supported in Deno Deploy)
+// Deno.addSignalListener("SIGINT", shutdown);
+// Deno.addSignalListener("SIGTERM", shutdown);
