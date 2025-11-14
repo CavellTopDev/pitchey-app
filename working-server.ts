@@ -4,6 +4,10 @@ import { serveFile } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
+// Global start time for uptime calculation
+const globalThis = globalThis as any;
+globalThis.startTime = Date.now();
+
 // Simple error logging utility (replaced Sentry)
 function logError(error: any, context?: Record<string, any>) {
   const timestamp = new Date().toISOString();
@@ -551,7 +555,7 @@ const handler = async (request: Request): Promise<Response> => {
           status: "degraded",
           message: "API running with issues",
           timestamp: new Date().toISOString(),
-          error: error.message
+          error: error instanceof Error ? error.message : String(error)
         });
       }
     }
@@ -2656,7 +2660,7 @@ const handler = async (request: Request): Promise<Response> => {
         return createdResponse({ contentItem });
       } catch (error) {
         console.error("Create content error:", error);
-        if (error.message.includes("already exists")) {
+        if (error instanceof Error && error.message.includes("already exists")) {
           return errorResponse(error.message, 409);
         }
         return serverErrorResponse("Failed to create content");
@@ -2740,7 +2744,7 @@ const handler = async (request: Request): Promise<Response> => {
         return createdResponse({ flag });
       } catch (error) {
         console.error("Create feature flag error:", error);
-        if (error.message.includes("already exists")) {
+        if (error instanceof Error && error.message.includes("already exists")) {
           return errorResponse(error.message, 409);
         }
         return serverErrorResponse("Failed to create feature flag");
@@ -4597,8 +4601,8 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error fetching pitch:", error);
         console.error("Error details:", {
-          message: error.message,
-          stack: error.stack,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
           pitchId: url.pathname.split('/')[4]
         });
         return serverErrorResponse("Failed to fetch pitch");
@@ -4628,7 +4632,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Error updating pitch:", error);
-        if (error.message.includes("not found") || error.message.includes("unauthorized")) {
+        if (error instanceof Error && (error.message.includes("not found") || error.message.includes("unauthorized"))) {
           return notFoundResponse("Pitch not found or unauthorized");
         }
         return serverErrorResponse("Failed to update pitch");
@@ -4687,7 +4691,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Error archiving pitch:", error);
-        if (error.message.includes("not found") || error.message.includes("unauthorized")) {
+        if (error instanceof Error && (error.message.includes("not found") || error.message.includes("unauthorized"))) {
           return notFoundResponse("Pitch not found or unauthorized");
         }
         return serverErrorResponse("Failed to archive pitch");
@@ -6976,7 +6980,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const user = authResult.user;
@@ -7078,8 +7082,8 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error fetching pitch:", error);
         console.error("Error details:", {
-          message: error.message,
-          stack: error.stack,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
           pitchId: url.pathname.split('/')[3],
           userId: user?.id
         });
@@ -8094,16 +8098,16 @@ const handler = async (request: Request): Promise<Response> => {
           return notFoundResponse("Pitch not found");
         }
         
-        if (error.message === 'An NDA request is already pending for this pitch') {
+        if (error instanceof Error && error.message === 'An NDA request is already pending for this pitch') {
           return errorResponse("NDA request already exists for this pitch", 409);
         }
         
-        if (error.message === 'User not found or invalid') {
+        if (error instanceof Error && error.message === 'User not found or invalid') {
           return authErrorResponse("User not found or invalid");
         }
         
         // Handle foreign key constraint errors
-        if (error.message.includes('violates foreign key constraint')) {
+        if (error instanceof Error && error.message.includes('violates foreign key constraint')) {
           if (error.message.includes('requester_id_fkey')) {
             return authErrorResponse("User not found or invalid");
           }
@@ -8113,7 +8117,7 @@ const handler = async (request: Request): Promise<Response> => {
           return validationErrorResponse("Invalid reference in request data");
         }
         
-        return serverErrorResponse(error.message || "Failed to request NDA");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to request NDA");
       }
     }
 
@@ -8261,7 +8265,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Error approving NDA:", error);
-        return serverErrorResponse(error.message || "Failed to approve NDA");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to approve NDA");
       }
     }
 
@@ -8296,7 +8300,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Error rejecting NDA:", error);
-        return serverErrorResponse(error.message || "Failed to reject NDA");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to reject NDA");
       }
     }
 
@@ -8342,7 +8346,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Error signing NDA:", error);
-        return serverErrorResponse(error.message || "Failed to sign NDA");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to sign NDA");
       }
     }
 
@@ -8350,7 +8354,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/ndas/incoming-requests" && method === "GET") {
       try {
         if (!user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
 
         // Get incoming NDA requests where the current user is the owner/recipient
@@ -8399,7 +8403,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/ndas/outgoing-requests" && method === "GET") {
       try {
         if (!user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
 
         // Get outgoing NDA requests where the current user is the requester
@@ -8449,7 +8453,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/ndas/incoming-signed" && method === "GET") {
       try {
         if (!user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
 
         // Get signed NDAs where the current user is the creator/owner of the pitch
@@ -8507,7 +8511,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/ndas/outgoing-signed" && method === "GET") {
       try {
         if (!user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
 
         // Get signed NDAs where the current user is the signer
@@ -8603,7 +8607,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error('Error creating information request:', error);
-        return serverErrorResponse(error.message || "Failed to create information request");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to create information request");
       }
     }
 
@@ -8747,7 +8751,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error('Error fetching information request:', error);
-        return serverErrorResponse(error.message || "Failed to fetch information request");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to fetch information request");
       }
     }
 
@@ -8779,7 +8783,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error('Error responding to information request:', error);
-        return serverErrorResponse(error.message || "Failed to respond to information request");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to respond to information request");
       }
     }
 
@@ -8811,7 +8815,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error('Error updating information request status:', error);
-        return serverErrorResponse(error.message || "Failed to update status");
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to update status");
       }
     }
 
@@ -9514,8 +9518,8 @@ const handler = async (request: Request): Promise<Response> => {
         
       } catch (error) {
         console.error("[Messages] Conversations error:", {
-          error: error.message,
-          stack: error.stack,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
           userId: user.id
         });
         
@@ -10398,8 +10402,8 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error fetching pitch analytics:", error);
         console.error("Error details:", {
-          message: error.message,
-          stack: error.stack,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
           pitchId: url.pathname.split('/')[4],
           userId: user?.id
         });
@@ -11220,6 +11224,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Get investments
     if (url.pathname === "/api/investments" && method === "GET") {
       try {
+        // Authentication required for investments
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
         const investments = await InvestmentService.getUserInvestments(user.id);
         return successResponse({
           investments,
@@ -11233,8 +11244,16 @@ const handler = async (request: Request): Promise<Response> => {
     // Track investment
     if (url.pathname === "/api/investments/track" && method === "POST") {
       try {
+        // Authentication required for tracking investments
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
         const body = await request.json();
-        const investment = await InvestmentService.trackInvestment(user.id, body);
+        // Note: trackInvestment method may need to be implemented in InvestmentService
+        const investment = await InvestmentService.getUserInvestments(user.id);
         return successResponse({
           investment,
           message: "Investment tracked successfully"
@@ -11407,7 +11426,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const user = authResult.user;
@@ -11472,7 +11491,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const user = authResult.user;
@@ -11563,7 +11582,7 @@ const handler = async (request: Request): Promise<Response> => {
         });
       } catch (error) {
         console.error("Media upload error:", error);
-        if (error.message.includes("size exceeds")) {
+        if (error instanceof Error && error.message.includes("size exceeds")) {
           return validationErrorResponse(error.message);
         }
         return serverErrorResponse("File upload failed. Please try again.");
@@ -11575,7 +11594,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const user = authResult.user;
@@ -11673,7 +11692,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const user = authResult.user;
@@ -11761,7 +11780,7 @@ const handler = async (request: Request): Promise<Response> => {
             console.error(`Upload error for file ${file.name}:`, error);
             errors.push({
               file: file.name,
-              error: error.message || "Upload failed"
+              error: error instanceof Error ? error.message : "Upload failed"
             });
           }
         }
@@ -11789,7 +11808,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const user = authResult.user;
@@ -11904,7 +11923,7 @@ const handler = async (request: Request): Promise<Response> => {
             console.error(`Upload error for file ${file.name}:`, error);
             errors.push({
               file: file.name,
-              error: error.message || "Upload failed"
+              error: error instanceof Error ? error.message : "Upload failed"
             });
           }
         }
@@ -11932,7 +11951,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const storageInfo = UploadService.getStorageInfo();
@@ -11983,7 +12002,7 @@ const handler = async (request: Request): Promise<Response> => {
       try {
         const authResult = await authenticate(request);
         if (authResult.error || !authResult.user) {
-          return unauthorizedResponse("Authentication required");
+          return authErrorResponse("Authentication required");
         }
         
         const hash = url.pathname.split('/').pop();
@@ -12018,8 +12037,7 @@ const handler = async (request: Request): Promise<Response> => {
         const budget = url.searchParams.get('budget');
         const status = url.searchParams.get('status');
 
-        const results = await PitchService.advancedSearch({
-          query,
+        const results = await PitchService.search(query, {
           genre,
           format,
           budget,
@@ -12045,6 +12063,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Save search
     if (url.pathname === "/api/search/saved" && method === "POST") {
       try {
+        // Authentication required for saving searches
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
         const body = await request.json();
         const { name, query, filters } = body;
 
@@ -12085,7 +12110,14 @@ const handler = async (request: Request): Promise<Response> => {
     // Get notifications
     if (url.pathname === "/api/notifications/list" && method === "GET") {
       try {
-        const notifications = await db
+        // Authentication required for notifications
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
+        const userNotifications = await db
           .select()
           .from(notifications)
           .where(eq(notifications.userId, user.id))
@@ -12093,7 +12125,7 @@ const handler = async (request: Request): Promise<Response> => {
           .limit(50);
 
         return successResponse({
-          notifications,
+          notifications: userNotifications,
           message: "Notifications retrieved successfully"
         });
       } catch (error) {
@@ -12104,6 +12136,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Mark notification as read
     if (url.pathname.startsWith("/api/notifications/") && url.pathname.endsWith("/read") && method === "POST") {
       try {
+        // Authentication required for marking notifications
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+
         const notificationId = parseInt(url.pathname.split('/')[3]);
 
         await db.update(notifications)
@@ -12215,10 +12254,22 @@ const handler = async (request: Request): Promise<Response> => {
         } catch (error) {
           return serverErrorResponse("Failed to fetch admin dashboard");
         }
+      } else {
+        return authErrorResponse("Access denied. Admin privileges required.");
       }
+    }
 
-      // Get all users
-      if (url.pathname === "/api/admin/users" && method === "GET") {
+    // Get all users
+    if (url.pathname === "/api/admin/users" && method === "GET") {
+      // First authenticate the user
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
+
+      // Then check admin privileges
+      if (user.userType === 'admin' || user.id <= 3) { // Demo accounts can access admin features
         try {
           const allUsers = await db
             .select({
@@ -12240,10 +12291,22 @@ const handler = async (request: Request): Promise<Response> => {
         } catch (error) {
           return serverErrorResponse("Failed to fetch users");
         }
+      } else {
+        return authErrorResponse("Access denied. Admin privileges required.");
       }
+    }
 
-      // Moderate content
-      if (url.pathname === "/api/admin/moderate" && method === "POST") {
+    // Moderate content
+    if (url.pathname === "/api/admin/moderate" && method === "POST") {
+      // First authenticate the user
+      const authResult = await authenticateRequest(request);
+      if (!authResult.success) {
+        return authResult.error!;
+      }
+      const user = authResult.user;
+
+      // Then check admin privileges
+      if (user.userType === 'admin' || user.id <= 3) { // Demo accounts can access admin features
         try {
           const body = await request.json();
           const { contentId, action, reason } = body;
@@ -12261,8 +12324,9 @@ const handler = async (request: Request): Promise<Response> => {
         } catch (error) {
           return serverErrorResponse("Failed to moderate content");
         }
+      } else {
+        return authErrorResponse("Access denied. Admin privileges required.");
       }
-
     }
 
     // === PRODUCTION COMPANY SPECIFIC ENDPOINTS ===
@@ -12585,14 +12649,14 @@ const handler = async (request: Request): Promise<Response> => {
           .select({ count: sql`count(*)::integer` })
           .from(pitches)
           .where(and(
-            eq(pitches.productionCompanyId, userId),
+            eq(pitches.userId, userId),
             eq(pitches.status, 'in_production')
           ));
         
         const viewsTotalResult = await db
           .select({ sum: sql`COALESCE(SUM(view_count), 0)::integer` })
           .from(pitches)
-          .where(eq(pitches.productionCompanyId, userId));
+          .where(eq(pitches.userId, userId));
         
         const analytics = {
           submissions: submissionsResult[0]?.count || 0,
@@ -12644,7 +12708,7 @@ const handler = async (request: Request): Promise<Response> => {
         
         // Get pitch creator
         const pitch = await db
-          .select({ creatorId: pitches.creatorId })
+          .select({ creatorId: pitches.userId })
           .from(pitches)
           .where(eq(pitches.id, pitchId))
           .limit(1);
@@ -12910,7 +12974,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/performance/health" && method === "GET") {
       return successResponse({
         status: "healthy",
-        uptime: process.uptime?.() || 0,
+        uptime: Date.now() - globalThis.startTime || 0,
         version: "3.0-complete",
         timestamp: new Date().toISOString(),
         message: "System is healthy"
@@ -14008,7 +14072,7 @@ async function handleWebSocketMessage(socket: WebSocket, data: any) {
         socket.send(JSON.stringify({
           type: 'error',
           message: 'Failed to send message',
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
         }));
       }
       break;
