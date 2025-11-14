@@ -83,15 +83,12 @@ jobs:
         with:
           deno-version: ${{ env.DENO_VERSION }}
       
-      - name: Install Deno Deploy CLI
-        run: deno install --allow-all --no-check -r -f --global https://deno.land/x/deploy/deployctl.ts
-      
       - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
           echo "🚀 Deploying backend to Deno Deploy..."
-          deployctl deploy \
+          deno run --allow-all --no-check https://deno.land/x/deploy@1.12.0/deployctl.ts deploy \
             --project=pitchey-backend-fresh \
             --entrypoint=working-server.ts \
             --production
