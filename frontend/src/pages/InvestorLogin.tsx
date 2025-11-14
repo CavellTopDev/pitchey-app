@@ -16,7 +16,10 @@ export default function InvestorLogin() {
     e.preventDefault();
     try {
       await loginInvestor(formData.email, formData.password);
-      navigate('/investor/dashboard');
+      // Add small delay to ensure authentication state is properly set
+      setTimeout(() => {
+        navigate('/investor/dashboard');
+      }, 100);
     } catch (error) {
       console.error('Investor login failed:', error);
     }

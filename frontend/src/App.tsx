@@ -160,25 +160,47 @@ function App() {
       localStorage.removeItem(nsKey(key));
       localStorage.removeItem(key);
     };
+    
     const token = AuthService.getToken();
     if (token) {
       // Only validate token if user is trying to access protected routes
       // Don't clear tokens on login pages to prevent clearing valid session data
       const isOnLoginPage = window.location.pathname.includes('/login');
+      const isOnDashboardPage = window.location.pathname.includes('/dashboard');
+      
       if (!isOnLoginPage) {
-        AuthService.validateToken().then((res) => {
-          if (!res.valid) {
-            console.log('Token validation failed, clearing auth data');
-            removeBoth('authToken');
-            removeBoth('user');
-            removeBoth('userType');
-          }
-        }).catch((error) => {
-          console.log('Token validation error:', error);
-          removeBoth('authToken');
-          removeBoth('user');
-          removeBoth('userType');
-        });
+        // Add delay for dashboard routes to allow login process to complete
+        const delay = isOnDashboardPage ? 1000 : 0;
+        
+        setTimeout(() => {
+          AuthService.validateToken().then((res) => {
+            if (!res.valid) {
+              console.log('Token validation failed, clearing auth data');
+              removeBoth('authToken');
+              removeBoth('user');
+              removeBoth('userType');
+              // Only redirect if we're on a protected route
+              if (isOnDashboardPage) {
+                window.location.href = '/login/investor';
+              }
+            } else {
+              console.log('Token validation successful for user:', res.user?.email);
+            }
+          }).catch((error) => {
+            console.log('Token validation error:', error);
+            // Only clear tokens if this is a real validation failure, not a network error
+            if (error.response?.status === 401 || error.response?.status === 403) {
+              removeBoth('authToken');
+              removeBoth('user');
+              removeBoth('userType');
+              if (isOnDashboardPage) {
+                window.location.href = '/login/investor';
+              }
+            } else {
+              console.log('Network error during token validation, keeping token');
+            }
+          });
+        }, delay);
       }
     }
   }, []);

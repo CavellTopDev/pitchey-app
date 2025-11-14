@@ -744,6 +744,22 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     };
   }, [opts.autoConnect]); // Don't include connect/disconnect to avoid reconnections
   
+  // Guard against browser extension message channel errors
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // Suppress browser extension message channel errors to prevent console spam
+      if (event.reason?.message?.includes('message channel closed before a response was received')) {
+        console.debug('Browser extension message channel error suppressed:', event.reason.message);
+        event.preventDefault();
+        return;
+      }
+      // Allow other unhandled rejections to be logged normally
+    };
+    
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+  }, []);
+  
   // Circuit breaker automatic retry mechanism
   useEffect(() => {
     const interval = setInterval(() => {

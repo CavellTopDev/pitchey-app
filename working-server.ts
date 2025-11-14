@@ -6218,6 +6218,469 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // GET /api/investor/dashboard/stats - Dashboard overview statistics
+    if (url.pathname === "/api/investor/dashboard/stats" && method === "GET") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user!;
+
+        // Check if user is an investor
+        if (user.userType !== 'investor') {
+          return forbiddenResponse("Access denied. Investor access required.");
+        }
+
+        // Get portfolio data
+        const investments = await db
+          .select()
+          .from(portfolio)
+          .where(eq(portfolio.investorId, user.id))
+          .catch(() => []); // Fallback to empty array
+
+        // Calculate basic stats
+        const totalInvested = investments.reduce((sum, inv) => {
+          const amount = inv.amount ? parseFloat(inv.amount.toString()) : 0;
+          return sum + (isNaN(amount) ? 0 : amount);
+        }, 0);
+
+        const currentValue = investments.reduce((sum, inv) => {
+          const value = inv.currentValue ? parseFloat(inv.currentValue.toString()) : 
+                       inv.amount ? parseFloat(inv.amount.toString()) : 0;
+          return sum + (isNaN(value) ? 0 : value);
+        }, 0);
+
+        const activeDeals = investments.filter(inv => inv.status === 'active').length;
+        const totalInvestments = investments.length;
+        const roiPercentage = totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested * 100) : 0;
+
+        // Get watchlist count
+        const watchlistCount = await db
+          .select({ count: count() })
+          .from(watchlist)
+          .where(eq(watchlist.userId, user.id))
+          .catch(() => [{ count: 0 }]);
+
+        const pendingOpportunities = watchlistCount[0]?.count || 0;
+
+        // Get recent activity count (NDAs signed in last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const recentNDAs = await db
+          .select({ count: count() })
+          .from(ndas)
+          .where(and(
+            or(eq(ndas.userId, user.id), eq(ndas.signerId, user.id)),
+            eq(ndas.status, 'signed'),
+            gte(ndas.signedAt, thirtyDaysAgo)
+          ))
+          .catch(() => [{ count: 0 }]);
+
+        const stats = {
+          portfolio: {
+            totalInvestments,
+            activeDeals,
+            totalInvested,
+            currentValue,
+            roiPercentage: Math.round(roiPercentage * 10) / 10,
+            pendingOpportunities
+          },
+          activity: {
+            recentNDAs: recentNDAs[0]?.count || 0,
+            lastUpdated: new Date().toISOString()
+          }
+        };
+
+        return successResponse(stats, "Dashboard statistics retrieved successfully");
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+        return serverErrorResponse("Failed to fetch dashboard statistics");
+      }
+    }
+
+    // GET /api/investor/saved-pitches - User's saved/bookmarked pitches
+    if (url.pathname === "/api/investor/saved-pitches" && method === "GET") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user!;
+
+        // Check if user is an investor
+        if (user.userType !== 'investor') {
+          return forbiddenResponse("Access denied. Investor access required.");
+        }
+
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+
+        // Get saved pitches with details
+        const userSavedPitches = await db
+          .select({
+            id: pitches.id,
+            title: pitches.title,
+            genre: pitches.genre,
+            budgetBracket: pitches.budgetBracket,
+            estimatedBudget: pitches.estimatedBudget,
+            status: pitches.status,
+            savedAt: savedPitches.createdAt,
+            creator: {
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              companyName: users.companyName
+            }
+          })
+          .from(savedPitches)
+          .innerJoin(pitches, eq(savedPitches.pitchId, pitches.id))
+          .leftJoin(users, eq(pitches.creatorId, users.id))
+          .where(eq(savedPitches.userId, user.id))
+          .orderBy(desc(savedPitches.createdAt))
+          .limit(limit)
+          .offset(offset)
+          .catch(() => []); // Fallback to empty array
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(savedPitches)
+          .where(eq(savedPitches.userId, user.id))
+          .catch(() => [{ count: 0 }]);
+
+        const total = totalCount[0]?.count || 0;
+        const totalPages = Math.ceil(total / limit);
+
+        return paginatedResponse({
+          pitches: userSavedPitches,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+          }
+        }, "Saved pitches retrieved successfully");
+      } catch (error) {
+        console.error("Error fetching saved pitches:", error);
+        return serverErrorResponse("Failed to fetch saved pitches");
+      }
+    }
+
+    // GET /api/investor/investment-history - Investment transaction history
+    if (url.pathname === "/api/investor/investment-history" && method === "GET") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user!;
+
+        // Check if user is an investor
+        if (user.userType !== 'investor') {
+          return forbiddenResponse("Access denied. Investor access required.");
+        }
+
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+        const status = url.searchParams.get('status'); // Filter by status if provided
+
+        // Build where clause
+        let whereClause = eq(portfolio.investorId, user.id);
+        if (status) {
+          whereClause = and(whereClause, eq(portfolio.status, status));
+        }
+
+        // Get investment history with pitch and creator details
+        const investments = await db
+          .select({
+            id: portfolio.id,
+            amount: portfolio.amount,
+            currentValue: portfolio.currentValue,
+            status: portfolio.status,
+            investedAt: portfolio.createdAt,
+            updatedAt: portfolio.updatedAt,
+            pitch: {
+              id: pitches.id,
+              title: pitches.title,
+              genre: pitches.genre,
+              budgetBracket: pitches.budgetBracket
+            },
+            creator: {
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              companyName: users.companyName
+            }
+          })
+          .from(portfolio)
+          .leftJoin(pitches, eq(portfolio.pitchId, pitches.id))
+          .leftJoin(users, eq(pitches.creatorId, users.id))
+          .where(whereClause)
+          .orderBy(desc(portfolio.createdAt))
+          .limit(limit)
+          .offset(offset)
+          .catch(() => []); // Fallback to empty array
+
+        // Calculate returns for each investment
+        const investmentHistory = investments.map(inv => {
+          const invested = parseFloat(inv.amount?.toString() || '0');
+          const current = parseFloat(inv.currentValue?.toString() || inv.amount?.toString() || '0');
+          const returns = current - invested;
+          const roiPercentage = invested > 0 ? (returns / invested) * 100 : 0;
+
+          return {
+            id: inv.id,
+            amount: invested,
+            currentValue: current,
+            returns,
+            roiPercentage: Math.round(roiPercentage * 10) / 10,
+            status: inv.status,
+            investedAt: inv.investedAt,
+            updatedAt: inv.updatedAt,
+            pitch: inv.pitch,
+            creator: inv.creator
+          };
+        });
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(portfolio)
+          .where(whereClause)
+          .catch(() => [{ count: 0 }]);
+
+        const total = totalCount[0]?.count || 0;
+        const totalPages = Math.ceil(total / limit);
+
+        return paginatedResponse({
+          investments: investmentHistory,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+          }
+        }, "Investment history retrieved successfully");
+      } catch (error) {
+        console.error("Error fetching investment history:", error);
+        return serverErrorResponse("Failed to fetch investment history");
+      }
+    }
+
+    // GET /api/nda/requests - NDA requests (incoming/outgoing)
+    if (url.pathname === "/api/nda/requests" && method === "GET") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user!;
+
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+        const type = url.searchParams.get('type'); // 'incoming' or 'outgoing'
+
+        let whereClause;
+        if (type === 'incoming') {
+          // NDAs requested TO this user (they need to sign)
+          whereClause = eq(ndas.signerId, user.id);
+        } else if (type === 'outgoing') {
+          // NDAs requested BY this user (they initiated)
+          whereClause = eq(ndas.userId, user.id);
+        } else {
+          // All NDAs involving this user
+          whereClause = or(eq(ndas.signerId, user.id), eq(ndas.userId, user.id));
+        }
+
+        // Get NDA requests with pitch and user details
+        const ndaRequests = await db
+          .select({
+            id: ndas.id,
+            pitchId: ndas.pitchId,
+            status: ndas.status,
+            ndaType: ndas.ndaType,
+            requestedAt: ndas.createdAt,
+            signedAt: ndas.signedAt,
+            expiresAt: ndas.expiresAt,
+            userId: ndas.userId,
+            signerId: ndas.signerId,
+            pitch: {
+              id: pitches.id,
+              title: pitches.title,
+              genre: pitches.genre
+            },
+            requester: {
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              companyName: users.companyName
+            }
+          })
+          .from(ndas)
+          .leftJoin(pitches, eq(ndas.pitchId, pitches.id))
+          .leftJoin(users, eq(ndas.userId, users.id))
+          .where(whereClause)
+          .orderBy(desc(ndas.createdAt))
+          .limit(limit)
+          .offset(offset)
+          .catch(() => []); // Fallback to empty array
+
+        // Format response to include direction information
+        const formattedRequests = ndaRequests.map(nda => ({
+          id: nda.id,
+          pitchId: nda.pitchId,
+          status: nda.status,
+          ndaType: nda.ndaType || 'basic',
+          direction: nda.userId === user.id ? 'outgoing' : 'incoming',
+          requestedAt: nda.requestedAt,
+          signedAt: nda.signedAt,
+          expiresAt: nda.expiresAt,
+          pitch: nda.pitch,
+          requester: nda.requester,
+          canSign: nda.signerId === user.id && nda.status === 'pending'
+        }));
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(ndas)
+          .where(whereClause)
+          .catch(() => [{ count: 0 }]);
+
+        const total = totalCount[0]?.count || 0;
+        const totalPages = Math.ceil(total / limit);
+
+        return paginatedResponse({
+          requests: formattedRequests,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+          }
+        }, "NDA requests retrieved successfully");
+      } catch (error) {
+        console.error("Error fetching NDA requests:", error);
+        return serverErrorResponse("Failed to fetch NDA requests");
+      }
+    }
+
+    // GET /api/nda/signed - Signed NDAs list
+    if (url.pathname === "/api/nda/signed" && method === "GET") {
+      try {
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user!;
+
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = (page - 1) * limit;
+
+        // Get signed NDAs where user was either requester or signer
+        const signedNDAs = await db
+          .select({
+            id: ndas.id,
+            pitchId: ndas.pitchId,
+            status: ndas.status,
+            ndaType: ndas.ndaType,
+            requestedAt: ndas.createdAt,
+            signedAt: ndas.signedAt,
+            expiresAt: ndas.expiresAt,
+            userId: ndas.userId,
+            signerId: ndas.signerId,
+            pitch: {
+              id: pitches.id,
+              title: pitches.title,
+              genre: pitches.genre,
+              budgetBracket: pitches.budgetBracket
+            },
+            creator: {
+              id: users.id,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              companyName: users.companyName
+            }
+          })
+          .from(ndas)
+          .leftJoin(pitches, eq(ndas.pitchId, pitches.id))
+          .leftJoin(users, eq(pitches.creatorId, users.id))
+          .where(and(
+            or(eq(ndas.userId, user.id), eq(ndas.signerId, user.id)),
+            eq(ndas.status, 'signed')
+          ))
+          .orderBy(desc(ndas.signedAt))
+          .limit(limit)
+          .offset(offset)
+          .catch(() => []); // Fallback to empty array
+
+        // Format response with access information
+        const formattedNDAs = signedNDAs.map(nda => {
+          const now = new Date();
+          const expiresAt = nda.expiresAt ? new Date(nda.expiresAt) : null;
+          const isExpired = expiresAt ? now > expiresAt : false;
+          const direction = nda.userId === user.id ? 'outgoing' : 'incoming';
+
+          return {
+            id: nda.id,
+            pitchId: nda.pitchId,
+            ndaType: nda.ndaType || 'basic',
+            direction,
+            signedAt: nda.signedAt,
+            expiresAt: nda.expiresAt,
+            isExpired,
+            accessGranted: !isExpired,
+            pitch: nda.pitch,
+            creator: nda.creator
+          };
+        });
+
+        // Get total count for pagination
+        const totalCount = await db
+          .select({ count: count() })
+          .from(ndas)
+          .where(and(
+            or(eq(ndas.userId, user.id), eq(ndas.signerId, user.id)),
+            eq(ndas.status, 'signed')
+          ))
+          .catch(() => [{ count: 0 }]);
+
+        const total = totalCount[0]?.count || 0;
+        const totalPages = Math.ceil(total / limit);
+
+        return paginatedResponse({
+          ndas: formattedNDAs,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+          }
+        }, "Signed NDAs retrieved successfully");
+      } catch (error) {
+        console.error("Error fetching signed NDAs:", error);
+        return serverErrorResponse("Failed to fetch signed NDAs");
+      }
+    }
+
     // === PITCH MANAGEMENT ENDPOINTS ===
 
     // Create pitch - ROLE RESTRICTED TO CREATORS ONLY
