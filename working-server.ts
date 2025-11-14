@@ -16,6 +16,25 @@ function logError(error: any, context?: Record<string, any>) {
   }
 }
 
+// Global unhandled error handlers
+addEventListener("unhandledrejection", (event) => {
+  console.error("🚨 UNHANDLED PROMISE REJECTION:", event.reason);
+  logError(event.reason, { 
+    type: 'UnhandledPromiseRejection',
+    timestamp: new Date().toISOString()
+  });
+  // Don't prevent the default behavior - let the process crash in development
+  // but log the error for debugging
+});
+
+addEventListener("error", (event) => {
+  console.error("🚨 UNCAUGHT EXCEPTION:", event.error);
+  logError(event.error, { 
+    type: 'UncaughtException',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Import Redis for caching - using native Redis service for local development
 import { nativeRedisService as redisService, cacheKeys } from "./src/services/redis-native.service.ts";
 
@@ -11811,7 +11830,13 @@ const handler = async (request: Request): Promise<Response> => {
           const file = files[i];
           const title = titles[i] || file.name.replace(/\.[^/.]+$/, "");
           const description = descriptions[i] || '';
-          const fileMetadata = metadata[i] ? JSON.parse(metadata[i]) : {};
+          let fileMetadata = {};
+          try {
+            fileMetadata = metadata[i] ? JSON.parse(metadata[i]) : {};
+          } catch (parseError) {
+            console.error('Failed to parse file metadata:', parseError);
+            fileMetadata = {};
+          }
           
           try {
             // Determine file category
