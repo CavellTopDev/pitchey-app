@@ -1775,10 +1775,12 @@ const handler = async (request: Request): Promise<Response> => {
         const budget = url.searchParams.get('budget');
         const status = url.searchParams.get('status');
 
-        const results = await PitchService.searchPitches(query, {
-          genre,
-          format,
-          status: status || 'published'
+        const results = await PitchService.searchPitches({
+          query,
+          genre: genre || undefined,
+          format: format || undefined,
+          limit: 20,
+          offset: 0
         });
 
         return successResponse({
@@ -11231,7 +11233,7 @@ const handler = async (request: Request): Promise<Response> => {
         }
         const user = authResult.user;
 
-        const investments = await InvestmentService.getUserInvestments(user.id);
+        const investments = await InvestmentService.getInvestmentStats(user.id, user.userType);
         return successResponse({
           investments,
           message: "Investments retrieved successfully"
@@ -11253,7 +11255,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         const body = await request.json();
         // Note: trackInvestment method may need to be implemented in InvestmentService
-        const investment = await InvestmentService.getUserInvestments(user.id);
+        const investment = await InvestmentService.getInvestmentStats(user.id, user.userType);
         return successResponse({
           investment,
           message: "Investment tracked successfully"
@@ -12037,11 +12039,12 @@ const handler = async (request: Request): Promise<Response> => {
         const budget = url.searchParams.get('budget');
         const status = url.searchParams.get('status');
 
-        const results = await PitchService.search(query, {
-          genre,
-          format,
-          budget,
-          status
+        const results = await PitchService.searchPitches({
+          query,
+          genre: genre || undefined,
+          format: format || undefined,
+          limit: 20,
+          offset: 0
         });
 
         return successResponse({
