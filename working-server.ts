@@ -4,25 +4,25 @@ import { serveFile } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
+// Import comprehensive telemetry and observability
+import { telemetry, withTelemetry, withDatabaseTelemetry } from "./src/utils/telemetry.ts";
+
 // Global start time for uptime calculation
 const startTime = Date.now();
 
-// Simple error logging utility (replaced Sentry)
+// Initialize telemetry system
+telemetry.initialize();
+
+// Legacy error logging utility (kept for compatibility)
 function logError(error: any, context?: Record<string, any>) {
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}] ERROR:`, error.message || error);
-  if (error.stack) {
-    console.error('Stack trace:', error.stack);
-  }
-  if (context) {
-    console.error('Context:', context);
-  }
+  // Use new telemetry logger instead of console.error
+  telemetry.logger.error("Legacy logError called", error, context);
 }
 
-// Global unhandled error handlers
+// Enhanced global unhandled error handlers with Sentry integration
 addEventListener("unhandledrejection", (event) => {
   console.error("🚨 UNHANDLED PROMISE REJECTION:", event.reason);
-  logError(event.reason, { 
+  telemetry.logger.error("Unhandled promise rejection", event.reason, { 
     type: 'UnhandledPromiseRejection',
     timestamp: new Date().toISOString()
   });
@@ -32,7 +32,7 @@ addEventListener("unhandledrejection", (event) => {
 
 addEventListener("error", (event) => {
   console.error("🚨 UNCAUGHT EXCEPTION:", event.error);
-  logError(event.error, { 
+  telemetry.logger.error("Uncaught exception", event.error, { 
     type: 'UncaughtException',
     timestamp: new Date().toISOString()
   });
@@ -546,7 +546,8 @@ const handler = async (request: Request): Promise<Response> => {
           deployedAt: new Date().toISOString(),
           coverage: "29/29 tests",
           redis: redisHealth,
-          environment: Deno.env.get("DENO_ENV") || "development"
+          environment: Deno.env.get("DENO_ENV") || "development",
+          telemetry: telemetry.getHealthStatus()
         });
       } catch (error) {
         console.error("Health check error:", error);
@@ -14346,6 +14347,9 @@ let finalHandler = addWebSocketSupport(handler);
 if (FORCE_HTTPS) {
   finalHandler = addHttpsRedirect(finalHandler);
 }
+
+// Wrap final handler with telemetry for comprehensive observability
+finalHandler = withTelemetry(finalHandler);
 
 // SSL Certificate Loading
 async function loadSSLCertificates() {
