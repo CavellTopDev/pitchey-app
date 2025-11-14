@@ -84,7 +84,7 @@ jobs:
           deno-version: ${{ env.DENO_VERSION }}
       
       - name: Install Deno Deploy CLI
-        run: deno install --allow-all --no-check -r -f https://deno.land/x/deploy/deployctl.ts
+        run: deno install --allow-all --no-check -r -f --global https://deno.land/x/deploy/deployctl.ts
       
       - name: Deploy to Deno Deploy
         env:
