@@ -22,6 +22,36 @@ class ApiClient {
   private maxRetries: number = 3;
   private retryDelay: number = 1000; // 1 second
 
+  // Namespaced localStorage helpers to avoid cross-environment token collisions
+  private nsKey(key: string): string {
+    try {
+      const host = new URL(config.API_URL).host;
+      return `pitchey:${host}:${key}`;
+    } catch {
+      return `pitchey:${key}`;
+    }
+  }
+  private getItem(key: string): string | null {
+    try {
+      return localStorage.getItem(this.nsKey(key)) ?? localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+  private setItem(key: string, value: string): void {
+    try {
+      localStorage.setItem(this.nsKey(key), value);
+      // keep legacy key for backward compatibility
+      localStorage.setItem(key, value);
+    } catch {}
+  }
+  private removeItem(key: string): void {
+    try {
+      localStorage.removeItem(this.nsKey(key));
+      localStorage.removeItem(key);
+    } catch {}
+  }
+
   constructor(baseURL: string = config.API_URL) {
     this.baseURL = baseURL;
     this.defaultHeaders = {
@@ -31,7 +61,7 @@ class ApiClient {
 
   private getAuthToken(): string | null {
     try {
-      return localStorage.getItem('authToken');
+      return this.getItem('authToken');
     } catch (error) {
       console.warn('Failed to get auth token from localStorage:', error);
       return null;
@@ -293,7 +323,7 @@ export const authAPI = {
   async login(email: string, password: string) {
     const response = await apiClient.post('/api/auth/creator/login', { email, password });
     if (response.success && response.data?.token) {
-      localStorage.setItem('authToken', response.data.token);
+      (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
@@ -301,7 +331,7 @@ export const authAPI = {
   async loginCreator(email: string, password: string) {
     const response = await apiClient.post('/api/auth/creator/login', { email, password });
     if (response.success && response.data?.token) {
-      localStorage.setItem('authToken', response.data.token);
+      (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
@@ -309,7 +339,7 @@ export const authAPI = {
   async loginInvestor(email: string, password: string) {
     const response = await apiClient.post('/api/auth/investor/login', { email, password });
     if (response.success && response.data?.token) {
-      localStorage.setItem('authToken', response.data.token);
+      (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
@@ -317,7 +347,7 @@ export const authAPI = {
   async loginProduction(email: string, password: string) {
     const response = await apiClient.post('/api/auth/production/login', { email, password });
     if (response.success && response.data?.token) {
-      localStorage.setItem('authToken', response.data.token);
+      (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
@@ -345,11 +375,11 @@ export const authAPI = {
   },
 
   async getProfile() {
-    return apiClient.get('/api/profile');
+    return apiClient.get('/api/auth/profile');
   },
 
   async updateProfile(data: any) {
-    return apiClient.put('/api/profile', data);
+    return apiClient.put('/api/auth/profile', data);
   }
 };
 

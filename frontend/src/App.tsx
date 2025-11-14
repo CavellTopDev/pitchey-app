@@ -9,6 +9,7 @@ import LoadingSpinner from './components/Loading/LoadingSpinner';
 import { WebSocketProvider } from './contexts/WebSocketContext';
 import { configService } from './services/config.service';
 import { config } from './config';
+import { AuthService } from './services/auth.service';
 
 // Log environment on app load
 console.log('🚀 Pitchey App Environment:', {
@@ -145,6 +146,43 @@ function App() {
     loadConfig();
   }, []);
 
+  // On boot, if a token exists but is invalid for this backend, clear it to avoid loops
+  useEffect(() => {
+    const nsKey = (key: string) => {
+      try {
+        const host = new URL(config.API_URL).host;
+        return `pitchey:${host}:${key}`;
+      } catch {
+        return `pitchey:${key}`;
+      }
+    };
+    const removeBoth = (key: string) => {
+      localStorage.removeItem(nsKey(key));
+      localStorage.removeItem(key);
+    };
+    const token = AuthService.getToken();
+    if (token) {
+      // Only validate token if user is trying to access protected routes
+      // Don't clear tokens on login pages to prevent clearing valid session data
+      const isOnLoginPage = window.location.pathname.includes('/login');
+      if (!isOnLoginPage) {
+        AuthService.validateToken().then((res) => {
+          if (!res.valid) {
+            console.log('Token validation failed, clearing auth data');
+            removeBoth('authToken');
+            removeBoth('user');
+            removeBoth('userType');
+          }
+        }).catch((error) => {
+          console.log('Token validation error:', error);
+          removeBoth('authToken');
+          removeBoth('user');
+          removeBoth('userType');
+        });
+      }
+    }
+  }, []);
+
   useEffect(() => {
     // Only fetch profile once when authenticated and not yet fetched
     if (isAuthenticated && !profileFetched) {
@@ -154,7 +192,15 @@ function App() {
     }
   }, [isAuthenticated, profileFetched, fetchProfile]);
 
-  const userType = localStorage.getItem('userType');
+  const userType = (() => {
+    try {
+      const host = new URL(config.API_URL).host;
+      const ns = localStorage.getItem(`pitchey:${host}:userType`);
+      return ns ?? localStorage.getItem('userType');
+    } catch {
+      return localStorage.getItem('userType');
+    }
+  })();
 
   return (
     <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>

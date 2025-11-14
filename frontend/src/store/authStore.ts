@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { authAPI } from '../lib/api';
+import { config } from '../config';
 import type { User } from '../types';
 
 interface AuthState {
@@ -22,10 +23,29 @@ interface AuthState {
   updateProfile: (data: Partial<User>) => Promise<void>;
 }
 
+// LocalStorage helpers for namespacing
+const nsKey = (key: string) => {
+  try {
+    const host = new URL(config.API_URL).host;
+    return `pitchey:${host}:${key}`;
+  } catch {
+    return `pitchey:${key}`;
+  }
+};
+const getLS = (key: string) => localStorage.getItem(nsKey(key)) ?? localStorage.getItem(key);
+const setLS = (key: string, value: string) => {
+  localStorage.setItem(nsKey(key), value);
+  localStorage.setItem(key, value);
+};
+const removeLS = (key: string) => {
+  localStorage.removeItem(nsKey(key));
+  localStorage.removeItem(key);
+};
+
 // Helper function to safely get from localStorage
 const getStoredUser = (): User | null => {
   try {
-    const stored = localStorage.getItem('user');
+    const stored = getLS('user');
     return stored ? JSON.parse(stored) : null;
   } catch (error) {
     console.warn('Failed to parse stored user:', error);
@@ -35,7 +55,7 @@ const getStoredUser = (): User | null => {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: getStoredUser(),
-  isAuthenticated: !!localStorage.getItem('authToken'),
+  isAuthenticated: !!getLS('authToken'),
   loading: false,
   error: null,
 
@@ -61,9 +81,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userType', 'creator');
+      // Store user data and type in localStorage for persistence (namespaced + legacy)
+      setLS('user', JSON.stringify(user));
+      setLS('userType', 'creator');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -82,9 +102,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userType', 'investor');
+      // Store user data and type in localStorage for persistence (namespaced + legacy)
+      setLS('user', JSON.stringify(user));
+      setLS('userType', 'investor');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -103,9 +123,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userType', 'production');
+      // Store user data and type in localStorage for persistence (namespaced + legacy)
+      setLS('user', JSON.stringify(user));
+      setLS('userType', 'production');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -124,9 +144,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('userType', data.userType);
+      // Store user data and type in localStorage for persistence (namespaced + legacy)
+      setLS('user', JSON.stringify(user));
+      setLS('userType', data.userType);
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -147,7 +167,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Clear authentication state first
     set({ user: null, isAuthenticated: false, loading: false, error: null });
     
-    // Call the auth API logout to clear storage and backend session
+    // Proactively clear storage both namespaced and legacy, then call backend logout
+    removeLS('authToken');
+    removeLS('user');
+    removeLS('userType');
     authAPI.logout();
     
     // Navigate to appropriate login page if requested
@@ -174,10 +197,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('User profile data not received from server');
       }
-      // Update localStorage with fresh user data
-      localStorage.setItem('user', JSON.stringify(user));
+      // Update localStorage with fresh user data (namespaced + legacy)
+      setLS('user', JSON.stringify(user));
       if (user.userType) {
-        localStorage.setItem('userType', user.userType);
+        setLS('userType', user.userType);
       }
       set({ user, isAuthenticated: true, loading: false });
     } catch (error) {
@@ -185,9 +208,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       const storedUser = getStoredUser();
       if (!storedUser) {
         set({ isAuthenticated: false, loading: false });
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userType');
+        removeLS('authToken');
+        removeLS('user');
+        removeLS('userType');
       } else {
         // Keep them authenticated with stored data if available
         set({ loading: false });
@@ -204,8 +227,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('Updated user data not received from server');
       }
-      // Update localStorage with new user data
-      localStorage.setItem('user', JSON.stringify(user));
+      // Update localStorage with new user data (namespaced + legacy)
+      setLS('user', JSON.stringify(user));
       set({ user, loading: false });
     } catch (error: any) {
       set({ 

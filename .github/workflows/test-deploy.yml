@@ -25,8 +25,8 @@ on:
         type: boolean
 
 env:
-  DENO_VERSION: 1.41.0
-  NODE_VERSION: 18
+  DENO_VERSION: 2.0.0
+  NODE_VERSION: 20
   API_URL: http://localhost:8001
 
 jobs:
@@ -41,7 +41,12 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "test-environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-            echo "should-deploy=${{ !fromJSON(github.event.inputs.skip_deployment) }}" >> $GITHUB_OUTPUT
+            SKIP_DEPLOYMENT="${{ github.event.inputs.skip_deployment }}"
+            if [[ "$SKIP_DEPLOYMENT" == "true" ]]; then
+              echo "should-deploy=false" >> $GITHUB_OUTPUT
+            else
+              echo "should-deploy=true" >> $GITHUB_OUTPUT
+            fi
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "test-environment=production" >> $GITHUB_OUTPUT
             echo "should-deploy=true" >> $GITHUB_OUTPUT

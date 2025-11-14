@@ -10010,6 +10010,13 @@ const handler = async (request: Request): Promise<Response> => {
     // Get analytics dashboard
     if (url.pathname === "/api/analytics/dashboard" && method === "GET") {
       try {
+        // Authenticate user first
+        const authResult = await authenticate(request);
+        if (!authResult.success) {
+          return authErrorResponse("Authentication required");
+        }
+        const user = authResult.user;
+        
         // Check if demo user
         const isDemoUser = user.id >= 1 && user.id <= 3;
         
@@ -10038,7 +10045,7 @@ const handler = async (request: Request): Promise<Response> => {
           .where(eq(pitches.userId, user.id));
         
         const totalViews = userPitches.reduce((sum, p) => sum + (p.viewCount || 0), 0);
-        const totalLikes = userPitches.reduce((sum, p) => sum + (p.likes || 0), 0);
+        const totalLikes = userPitches.reduce((sum, p) => sum + (p.likeCount || 0), 0);
         
         // Count NDAs - safely handle if columns don't exist
         let totalNDAs = 0;

@@ -18,9 +18,35 @@ export interface TokenValidation {
   exp?: number;
 }
 
+// LocalStorage helpers (namespaced by API host, with legacy fallback)
+function nsKey(key: string): string {
+  try {
+    const host = new URL(config.API_URL).host;
+    return `pitchey:${host}:${key}`;
+  } catch {
+    return `pitchey:${key}`;
+  }
+}
+function getItem(key: string): string | null {
+  return localStorage.getItem(nsKey(key)) ?? localStorage.getItem(key);
+}
+function setItem(key: string, value: string): void {
+  localStorage.setItem(nsKey(key), value);
+  localStorage.setItem(key, value); // keep legacy for compatibility
+}
+function removeItem(key: string): void {
+  localStorage.removeItem(nsKey(key));
+  localStorage.removeItem(key);
+}
+
 export class AuthService {
   // Generic login for all user types
   static async login(credentials: LoginCredentials, userType: 'creator' | 'investor' | 'production'): Promise<AuthResponse> {
+    // Clear any existing auth data first to prevent conflicts
+    removeItem('authToken');
+    removeItem('user');
+    removeItem('userType');
+    
     const endpoint = `/api/auth/${userType}/login`;
     
     const response = await apiClient.post<AuthResponse>(endpoint, credentials);
@@ -29,10 +55,10 @@ export class AuthService {
       throw new Error(response.error?.message || 'Login failed');
     }
 
-    // Store auth data
-    localStorage.setItem('authToken', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    localStorage.setItem('userType', response.data.user.userType);
+    // Store auth data (namespaced + legacy)
+    setItem('authToken', response.data.token);
+    setItem('user', JSON.stringify(response.data.user));
+    setItem('userType', response.data.user.userType);
 
     return response.data;
   }
@@ -62,10 +88,10 @@ export class AuthService {
       throw new Error(response.error?.message || 'Registration failed');
     }
 
-    // Store auth data
-    localStorage.setItem('authToken', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    localStorage.setItem('userType', response.data.user.userType);
+    // Store auth data (namespaced + legacy)
+    setItem('authToken', response.data.token);
+    setItem('user', JSON.stringify(response.data.user));
+    setItem('userType', response.data.user.userType);
 
     return response.data;
   }
@@ -94,9 +120,9 @@ export class AuthService {
       // Ignore errors, still clear local storage
     } finally {
       // Clear all auth data
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('userType');
+      removeItem('authToken');
+      removeItem('user');
+      removeItem('userType');
       localStorage.clear();
 
       // Redirect to home
@@ -106,7 +132,7 @@ export class AuthService {
 
   // Validate token
   static async validateToken(): Promise<TokenValidation> {
-    const token = localStorage.getItem('authToken');
+    const token = getItem('authToken');
     
     if (!token) {
       return { valid: false };
@@ -136,8 +162,8 @@ export class AuthService {
 
   // Check if authenticated
   static isAuthenticated(): boolean {
-    const token = localStorage.getItem('authToken');
-    const user = localStorage.getItem('user');
+    const token = getItem('authToken');
+    const user = getItem('user');
     
     if (!token || !user) {
       return false;
@@ -159,7 +185,7 @@ export class AuthService {
 
   // Get current user
   static getCurrentUser(): User | null {
-    const userStr = localStorage.getItem('user');
+    const userStr = getItem('user');
     
     if (!userStr) {
       return null;
@@ -174,13 +200,13 @@ export class AuthService {
 
   // Get current user type
   static getUserType(): 'creator' | 'investor' | 'production' | null {
-    const userType = localStorage.getItem('userType');
+    const userType = getItem('userType');
     return userType as 'creator' | 'investor' | 'production' | null;
   }
 
   // Get auth token
   static getToken(): string | null {
-    return localStorage.getItem('authToken');
+    return getItem('authToken');
   }
 
   // Refresh token
@@ -192,7 +218,7 @@ export class AuthService {
       );
 
       if (response.success && response.data?.token) {
-        localStorage.setItem('authToken', response.data.token);
+        setItem('authToken', response.data.token);
         return response.data.token;
       }
     } catch {
@@ -359,11 +385,11 @@ export class AuthService {
     const user = params.get('user');
 
     if (token && user) {
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', decodeURIComponent(user));
+      setItem('authToken', token);
+      setItem('user', decodeURIComponent(user));
       
       const userData = JSON.parse(decodeURIComponent(user));
-      localStorage.setItem('userType', userData.userType);
+      setItem('userType', userData.userType);
 
       // Redirect to dashboard
       window.location.href = `/${userData.userType}`;
