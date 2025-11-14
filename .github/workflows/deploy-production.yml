@@ -87,12 +87,23 @@ jobs:
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          echo "🚀 Deploying backend to Deno Deploy..."
+          echo "🚀 Deploying backend to Deno Deploy with production environment..."
           deno run --allow-all --no-check https://deno.land/x/deploy@1.12.0/deployctl.ts deploy \
             --project=pitchey-backend-fresh \
             --entrypoint=working-server.ts \
+            --env="DENO_ENV=production" \
+            --env="NODE_ENV=production" \
+            --env="SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+            --env="SENTRY_ENVIRONMENT=production" \
+            --env="SENTRY_RELEASE=v${{ github.run_number }}" \
+            --env="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --env="JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --env="CACHE_ENABLED=true" \
+            --env="UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" \
+            --env="UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" \
+            --env="FRONTEND_URL=https://pitchey.pages.dev" \
             --production
-          echo "✅ Backend deployment complete!"
+          echo "✅ Backend deployment complete with production configuration!"
 
   # Frontend Build and Test
   test-frontend:
@@ -128,6 +139,7 @@ jobs:
         env:
           VITE_API_URL: https://pitchey-backend-fresh.deno.dev
           VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         run: npm run build
 
   # Frontend Deployment to Cloudflare Pages
@@ -159,6 +171,7 @@ jobs:
         env:
           VITE_API_URL: https://pitchey-backend-fresh.deno.dev
           VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
         run: npm run build
       
       - name: Deploy to Cloudflare Pages
