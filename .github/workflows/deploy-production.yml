@@ -17,7 +17,7 @@ on:
         type: boolean
 
 env:
-  DENO_VERSION: '2.0.0'
+  DENO_VERSION: '2.1.0'  # Updated to support lockfile version 5
   NODE_VERSION: '20'
 
 jobs:
@@ -58,7 +58,7 @@ jobs:
         continue-on-error: true
       
       - name: Type Check Backend
-        run: deno check working-server.ts
+        run: deno check --no-lock working-server.ts
       
       - name: Test Backend Health
         run: |
