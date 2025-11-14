@@ -5,8 +5,7 @@ import { create, verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // Global start time for uptime calculation
-const globalThis = globalThis as any;
-globalThis.startTime = Date.now();
+const startTime = Date.now();
 
 // Simple error logging utility (replaced Sentry)
 function logError(error: any, context?: Record<string, any>) {
@@ -12977,7 +12976,7 @@ const handler = async (request: Request): Promise<Response> => {
     if (url.pathname === "/api/performance/health" && method === "GET") {
       return successResponse({
         status: "healthy",
-        uptime: Date.now() - globalThis.startTime || 0,
+        uptime: Date.now() - startTime || 0,
         version: "3.0-complete",
         timestamp: new Date().toISOString(),
         message: "System is healthy"
