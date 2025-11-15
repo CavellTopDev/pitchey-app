@@ -1,0 +1,31 @@
+name = "pitchey-api-production"
+main = "src/worker-simple.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Used for CORS and redirects
+FRONTEND_URL = "https://pitchey.pages.dev"
+
+# Progressive migration: proxy unmatched API routes to existing Deno backend
+ORIGIN_URL = "https://pitchey-backend-fresh.deno.dev"
+
+# Set secrets with: wrangler secret put JWT_SECRET --config wrangler.worker.toml
+# JWT_SECRET is read from environment secrets at deploy time
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+
+[[durable_objects.bindings]]
+name = "WEBSOCKET_ROOM"
+class_name = "WebSocketRoom"
+
+# Database Configuration - Hyperdrive for Neon PostgreSQL
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "983d4a1818264b5dbdca26bacf167dee"

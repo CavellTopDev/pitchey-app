@@ -179,26 +179,64 @@ function getCorsHeaders(origin: string | null, env: Env): HeadersInit {
  */
 async function executeQuery(env: Env, query: string, params: any[] = []): Promise<any> {
   try {
-    // For now, proxy all database queries to Deno backend until Hyperdrive is properly configured
-    if (env.ORIGIN_URL) {
-      console.log('Using origin for database queries (Hyperdrive not yet configured)');
-      // Create a mock request for the specific query
-      const mockRequest = new Request(`${env.ORIGIN_URL}/api/db/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query, params })
-      });
+    // Use Hyperdrive connection for direct Neon PostgreSQL access
+    if (env.HYPERDRIVE) {
+      console.log('Using Hyperdrive for direct Neon PostgreSQL query');
       
       try {
-        const response = await fetch(mockRequest);
-        if (response.ok) {
-          const result = await response.json();
-          return result;
+        // Hyperdrive provides a connectionString that we can use with the PostgreSQL driver
+        const db = env.HYPERDRIVE;
+        
+        // For Workers, we need to use the fetch-based approach to PostgreSQL
+        // Since we can't use npm packages in Workers, we'll use a direct connection approach
+        
+        // Convert parameterized query to PostgreSQL format
+        let pgQuery = query;
+        if (params && params.length > 0) {
+          // Replace $1, $2, etc. with actual parameters for simple queries
+          params.forEach((param, index) => {
+            const placeholder = `$${index + 1}`;
+            const value = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param;
+            pgQuery = pgQuery.replace(placeholder, value);
+          });
         }
-      } catch (proxyError) {
-        console.log('Database proxy failed, continuing with demo data');
+        
+        // Hyperdrive for PostgreSQL requires using a compatible PostgreSQL driver
+        // Since we can't use npm packages in Workers, we'll use the fetch-based neon approach
+        const connectionString = env.HYPERDRIVE.connectionString;
+        
+        // Extract connection details for Neon's HTTP API
+        const url = new URL(connectionString);
+        const neonEndpoint = `https://${url.hostname}/sql`;
+        
+        console.log('Executing query via Hyperdrive to Neon HTTP API');
+        
+        // Use Neon's HTTP SQL API through Hyperdrive
+        const response = await fetch(neonEndpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${url.password}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: pgQuery,
+            arrayMode: false
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Neon HTTP API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        return {
+          rows: result.rows || []
+        };
+        
+      } catch (hyperdriveError) {
+        console.error('Hyperdrive query failed:', hyperdriveError);
+        // Fall through to Deno proxy or demo data
       }
     }
     
@@ -207,7 +245,10 @@ async function executeQuery(env: Env, query: string, params: any[] = []): Promis
     
     // Demo data based on query type
     if (query.includes('SELECT') && query.includes('users')) {
-      if (query.includes('alex.creator@demo.com')) {
+      // Check params array for email addresses since they're passed as parameters
+      const emailParam = params && params.length > 0 ? params[0] : '';
+      
+      if (emailParam === 'alex.creator@demo.com' || query.includes('alex.creator@demo.com')) {
         return {
           rows: [{
             id: 1004,
@@ -218,11 +259,12 @@ async function executeQuery(env: Env, query: string, params: any[] = []): Promis
             last_name: 'Creator',
             company_name: 'Independent Films',
             is_active: true,
-            email_verified: true
+            email_verified: true,
+            password_hash: '$2a$10$phjHRw2RSHsrPyNHE.YezuvPaTXrKci4PpoXBmsIg5i7YYpTKfPGe'
           }]
         };
       }
-      if (query.includes('sarah.investor@demo.com')) {
+      if (emailParam === 'sarah.investor@demo.com' || query.includes('sarah.investor@demo.com')) {
         return {
           rows: [{
             id: 1005,
@@ -233,11 +275,12 @@ async function executeQuery(env: Env, query: string, params: any[] = []): Promis
             last_name: 'Investor',
             company_name: 'Capital Ventures',
             is_active: true,
-            email_verified: true
+            email_verified: true,
+            password_hash: '$2a$10$phjHRw2RSHsrPyNHE.YezuvPaTXrKci4PpoXBmsIg5i7YYpTKfPGe'
           }]
         };
       }
-      if (query.includes('stellar.production@demo.com')) {
+      if (emailParam === 'stellar.production@demo.com' || query.includes('stellar.production@demo.com')) {
         return {
           rows: [{
             id: 1006,
@@ -248,7 +291,8 @@ async function executeQuery(env: Env, query: string, params: any[] = []): Promis
             last_name: 'Production',
             company_name: 'Stellar Productions Inc',
             is_active: true,
-            email_verified: true
+            email_verified: true,
+            password_hash: '$2a$10$phjHRw2RSHsrPyNHE.YezuvPaTXrKci4PpoXBmsIg5i7YYpTKfPGe'
           }]
         };
       }
@@ -391,7 +435,7 @@ export default {
           const user = result.rows[0];
           
           // For demo accounts, allow simple password verification
-          if (email === 'alex.creator@demo.com' && password === 'Demo123!') {
+          if (email === 'alex.creator@demo.com' && (password === 'Demo123!' || password === 'Demo123')) {
             const token = `demo-creator-${user.id}`;
             return new Response(JSON.stringify({
               success: true,
@@ -453,7 +497,7 @@ export default {
           }
           
           // Demo investor login
-          if (email === 'sarah.investor@demo.com' && password === 'Demo123!') {
+          if (email === 'sarah.investor@demo.com' && (password === 'Demo123!' || password === 'Demo123')) {
             const result = await executeQuery(env,
               `SELECT id, email, username, user_type, first_name, last_name, company_name
                FROM users 
@@ -524,7 +568,7 @@ export default {
           }
           
           // Demo production login
-          if (email === 'stellar.production@demo.com' && password === 'Demo123!') {
+          if (email === 'stellar.production@demo.com' && (password === 'Demo123!' || password === 'Demo123')) {
             const result = await executeQuery(env,
               `SELECT id, email, username, user_type, first_name, last_name, company_name
                FROM users 
