@@ -191,13 +191,15 @@ export class AdvancedRateLimiter {
       // Execute request
       const response = await next();
       
-      // Update metrics based on response
-      this.updateClientMetrics(clientKey, response.status);
-      this.updateClientReputation(clientKey, response.ok);
+      // Update metrics based on response (only if response exists)
+      if (response) {
+        this.updateClientMetrics(clientKey, response.status);
+        this.updateClientReputation(clientKey, response.ok);
+      }
       
       // Add rate limit headers
-      if (rule.config.headers) {
-        this.addRateLimitHeaders(response, limitResult);
+      if (response && rule.config.headers) {
+        return this.addRateLimitHeaders(response, limitResult);
       }
       
       return response;

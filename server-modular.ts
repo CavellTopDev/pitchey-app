@@ -7,7 +7,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { SimpleRouter } from "./src/router/router.ts";
 import { telemetry } from "./src/utils/telemetry.ts";
 import { validateEnvironment } from "./src/utils/env-validation.ts";
-import { getCorsHeaders, getSecurityHeaders } from "./src/utils/response.ts";
+import { getCorsHeaders, getSecurityHeaders, setRequestOrigin } from "./src/utils/response.ts";
 import { ErrorHandler } from "./src/middleware/error-handler.ts";
 import { MonitoringService } from "./src/services/monitoring.service.ts";
 
@@ -714,13 +714,12 @@ async function handler(request: Request): Promise<Response> {
   const shouldProfile = url.pathname.startsWith("/api/") && !url.pathname.includes("/health");
   const profileId = shouldProfile ? PerformanceProfiler.startProfile(`${request.method} ${url.pathname}`) : "";
   
-  // Add CORS headers for all requests
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key, x-user-id",
-    "Access-Control-Max-Age": "86400",
-  };
+  // Set request origin for proper CORS handling
+  const requestOrigin = request.headers.get("Origin");
+  setRequestOrigin(requestOrigin);
+  
+  // Get proper CORS headers based on origin
+  const corsHeaders = getCorsHeaders(requestOrigin);
 
   // Handle preflight requests
   if (request.method === "OPTIONS") {

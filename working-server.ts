@@ -24,8 +24,12 @@ console.log('✅ Telemetry initialization complete');
 
 // Legacy error logging utility (kept for compatibility)
 function logError(error: any, context?: Record<string, any>) {
-  // Use new telemetry logger instead of console.error
-  telemetry.logger.error("Legacy logError called", error, context);
+  // Safe fallback during initialization
+  try {
+    telemetry.logger.error("Legacy logError called", error, context);
+  } catch (initError) {
+    console.error("Legacy logError called (telemetry not ready):", error, context);
+  }
 }
 
 // Enhanced global unhandled error handlers with Sentry integration
@@ -537,7 +541,7 @@ const handler = async (request: Request): Promise<Response> => {
       });
     }
 
-    if (url.pathname === "/api/health") {
+    if (url.pathname === "/api/health" && (method === "GET" || method === "HEAD")) {
       try {
         // Check Redis cache health
         const redisHealth = {
@@ -564,7 +568,7 @@ const handler = async (request: Request): Promise<Response> => {
         const environmentHealth = getEnvironmentHealth();
         const overallStatus = environmentHealth.status === "error" ? "degraded" : "healthy";
 
-        return jsonResponse({ 
+        const healthData = { 
           status: overallStatus,
           message: "Complete Pitchey API is running",
           timestamp: new Date().toISOString(),
@@ -587,7 +591,21 @@ const handler = async (request: Request): Promise<Response> => {
             }
           },
           uptime: Math.floor((Date.now() - startTime) / 1000)
-        });
+        };
+
+        // For HEAD requests, return empty body but same headers
+        if (method === "HEAD") {
+          return new Response(null, {
+            status: overallStatus === "healthy" ? 200 : 503,
+            headers: {
+              "Content-Type": "application/json",
+              "Content-Length": JSON.stringify(healthData).length.toString(),
+              ...getCorsHeaders()
+            }
+          });
+        }
+
+        return jsonResponse(healthData);
       } catch (error) {
         console.error("Health check error:", error);
         return jsonResponse({ 

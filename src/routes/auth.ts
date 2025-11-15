@@ -102,7 +102,7 @@ export const login: RouteHandler = async (request, url) => {
       }
     }), {
       status: 200,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
 
   } catch (error) {
@@ -111,7 +111,7 @@ export const login: RouteHandler = async (request, url) => {
       error: "Internal server error" 
     }), { 
       status: 500,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
   }
 };
@@ -171,7 +171,7 @@ export const register: RouteHandler = async (request, url) => {
       }
     }), {
       status: 201,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
 
   } catch (error) {
@@ -180,7 +180,7 @@ export const register: RouteHandler = async (request, url) => {
       error: "Internal server error" 
     }), { 
       status: 500,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
   }
 };
@@ -220,7 +220,7 @@ export const validateToken: RouteHandler = async (request, url) => {
       }
     }), {
       status: 200,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
 
   } catch (error) {
@@ -229,7 +229,7 @@ export const validateToken: RouteHandler = async (request, url) => {
       error: "Invalid token" 
     }), { 
       status: 401,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
   }
 };
@@ -281,7 +281,7 @@ export const getProfile: RouteHandler = async (request, url) => {
       createdAt: user.created_at
     }), {
       status: 200,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
 
   } catch (error) {
@@ -290,7 +290,7 @@ export const getProfile: RouteHandler = async (request, url) => {
       error: "Internal server error" 
     }), { 
       status: 500,
-      headers: { ...getSanitizedHeaders(), ...getSecurityHeaders() }
+      headers: { ...getCorsHeaders(), ...getSecurityHeaders() }
     });
   }
 };

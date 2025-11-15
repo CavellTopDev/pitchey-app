@@ -76,10 +76,10 @@ export class TelemetryManager {
       });
 
       this.isInitialized = true;
-      this.logger.info("✅ Sentry telemetry initialized", { 
+      console.log("✅ Sentry telemetry initialized", JSON.stringify({ 
         environment: this.config.environment,
         version: this.config.version 
-      });
+      }));
     } catch (error) {
       console.error("❌ Failed to initialize Sentry:", error);
     }
