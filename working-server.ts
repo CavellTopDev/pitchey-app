@@ -67,6 +67,9 @@ import { InvestmentService } from "./src/services/investment.service.ts";
 import { DashboardCacheService } from "./src/services/dashboard-cache.service.ts";
 import { DraftSyncService } from "./src/services/draft-sync.service.ts";
 import { EnhancedAnalyticsService } from "./src/services/enhanced-analytics.service.ts";
+import { SmartRecommendationsService } from "./src/services/smart-recommendations.service.ts";
+import { AdvancedSearchService } from "./src/services/advanced-search.service.ts";
+import { WorkflowAutomationService } from "./src/services/workflow-automation.service.ts";
 
 // Import Content Management Services
 import { contentManagementService } from "./src/services/content-management.service.ts";
@@ -102,6 +105,7 @@ import {
   getSecurityHeaders,
   getCacheHeaders
 } from "./src/utils/response.ts";
+import { validateEnvironment, getEnvironmentHealth, type EnvConfig } from "./src/utils/env-validation.ts";
 import { validateAndMigrateFilters, sanitizeFilterValues } from "./src/utils/filter-validation.ts";
 import { 
   safeParseJson, 
@@ -128,7 +132,11 @@ import {
 } from "./src/db/schema.ts";
 import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "npm:drizzle-orm@0.35.3";
 
-const port = Deno.env.get("PORT") || "8001";
+// Validate environment variables at startup
+console.log('🔍 Validating environment variables...');
+const envConfig: EnvConfig = validateEnvironment();
+const JWT_SECRET = envConfig.JWT_SECRET;
+const port = envConfig.PORT || "8001";
 
 // Sentry initialization moved to telemetry system
 // Telemetry handles Sentry init automatically on import above
@@ -138,19 +146,6 @@ const SSL_ENABLED = Deno.env.get("SSL_ENABLED") === "true";
 const SSL_CERT_PATH = Deno.env.get("SSL_CERT_PATH") || "./ssl/dev-cert.pem";
 const SSL_KEY_PATH = Deno.env.get("SSL_KEY_PATH") || "./ssl/dev-key.pem";
 const FORCE_HTTPS = Deno.env.get("FORCE_HTTPS") === "true";
-
-const JWT_SECRET = Deno.env.get("JWT_SECRET") || (() => {
-  const isProduction = Deno.env.get("DENO_ENV") === "production" || 
-                       Deno.env.get("NODE_ENV") === "production";
-  if (isProduction) {
-    console.error("CRITICAL SECURITY WARNING: JWT_SECRET is not set in production!");
-    console.error("This is a severe security vulnerability. Set JWT_SECRET immediately.");
-    // In Deno Deploy, we can't use Deno.exit(), so throw an error instead
-    throw new Error("JWT_SECRET must be set in production environment");
-  }
-  console.warn("WARNING: Using default JWT_SECRET for development. Never use in production!");
-  return "test-secret-key-for-development-only";
-})();
 
 // WebSocket connections for real-time messaging
 const wsConnections = new Map<number, Set<WebSocket>>();
@@ -565,15 +560,23 @@ const handler = async (request: Request): Promise<Response> => {
           redisHealth.status = "disabled";
         }
         
+        // Get environment health status
+        const environmentHealth = getEnvironmentHealth();
+        const overallStatus = environmentHealth.status === "error" ? "degraded" : "healthy";
+
         return jsonResponse({ 
-          status: "healthy",
+          status: overallStatus,
           message: "Complete Pitchey API is running",
           timestamp: new Date().toISOString(),
-          version: "3.4-redis-cache",
+          version: "3.5-serverless-compatible",
           deployedAt: new Date().toISOString(),
           coverage: "29/29 tests",
           redis: redisHealth,
-          environment: Deno.env.get("DENO_ENV") || "development",
+          environment: {
+            ...environmentHealth,
+            deployment_id: Deno.env.get("DENO_DEPLOYMENT_ID"),
+            deno_deploy: Deno.env.get("DENO_DEPLOY") === "1"
+          },
           telemetry: {
             ...telemetry.getHealthStatus(),
             timestamp: new Date().toISOString(),
@@ -582,7 +585,8 @@ const handler = async (request: Request): Promise<Response> => {
               DENO_ENV: Deno.env.get("DENO_ENV"),
               NODE_ENV: Deno.env.get("NODE_ENV")
             }
-          }
+          },
+          uptime: Math.floor((Date.now() - startTime) / 1000)
         });
       } catch (error) {
         console.error("Health check error:", error);
@@ -13292,6 +13296,337 @@ const handler = async (request: Request): Promise<Response> => {
         console.error("Error fetching enhanced production analytics:", error);
         telemetry.logger.error("Enhanced production analytics error", error, { userId: undefined });
         return serverErrorResponse("Failed to fetch enhanced production analytics");
+      }
+    }
+
+    // === ADVANCED API ENDPOINTS ===
+
+    // GET /api/recommendations/personalized - Personalized pitch recommendations
+    if (url.pathname === "/api/recommendations/personalized" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+        const excludeViewed = url.searchParams.get("excludeViewed") !== "false";
+        
+        const recommendations = await SmartRecommendationsService.getPersonalizedRecommendations(
+          user.id, limit, excludeViewed
+        );
+        
+        return successResponse({
+          recommendations,
+          count: recommendations.length,
+          message: "Personalized recommendations retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching personalized recommendations:", error);
+        telemetry.logger.error("Personalized recommendations error", error, { userId: undefined });
+        return serverErrorResponse("Failed to fetch personalized recommendations");
+      }
+    }
+
+    // GET /api/recommendations/collaborative - Collaborative filtering recommendations
+    if (url.pathname === "/api/recommendations/collaborative" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+        
+        const recommendations = await SmartRecommendationsService.getCollaborativeRecommendations(
+          user.id, limit
+        );
+        
+        return successResponse({
+          recommendations,
+          message: "Collaborative recommendations retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching collaborative recommendations:", error);
+        telemetry.logger.error("Collaborative recommendations error", error, { userId: undefined });
+        return serverErrorResponse("Failed to fetch collaborative recommendations");
+      }
+    }
+
+    // GET /api/recommendations/matches - Smart user matching
+    if (url.pathname === "/api/recommendations/matches" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const targetUserType = url.searchParams.get("userType") as any || "any";
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+        
+        const matches = await SmartRecommendationsService.findSmartMatches(
+          user.id, targetUserType, limit
+        );
+        
+        return successResponse({
+          matches,
+          message: "Smart matches retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching smart matches:", error);
+        telemetry.logger.error("Smart matches error", error, { userId: undefined });
+        return serverErrorResponse("Failed to fetch smart matches");
+      }
+    }
+
+    // GET /api/insights/trending - Market trending insights
+    if (url.pathname === "/api/insights/trending" && method === "GET") {
+      try {
+        const timeframe = url.searchParams.get("timeframe") as any || "7d";
+        
+        const insights = await SmartRecommendationsService.getTrendingInsights(timeframe);
+        
+        return successResponse({
+          insights,
+          timeframe,
+          message: "Trending insights retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching trending insights:", error);
+        telemetry.logger.error("Trending insights error", error);
+        return serverErrorResponse("Failed to fetch trending insights");
+      }
+    }
+
+    // POST /api/search/advanced - Advanced search with multiple criteria
+    if (url.pathname === "/api/search/advanced" && method === "POST") {
+      try {
+        const body = await request.json();
+        const { user } = await authenticate(request); // Optional auth for personalized results
+        
+        const searchParams = {
+          query: body.query,
+          titleSearch: body.titleSearch,
+          loglineSearch: body.loglineSearch,
+          genres: body.genres,
+          formats: body.formats,
+          budgetRanges: body.budgetRanges,
+          stages: body.stages,
+          creatorTypes: body.creatorTypes,
+          experienceLevels: body.experienceLevels,
+          minViews: body.minViews,
+          maxViews: body.maxViews,
+          minLikes: body.minLikes,
+          maxLikes: body.maxLikes,
+          createdAfter: body.createdAfter,
+          createdBefore: body.createdBefore,
+          updatedAfter: body.updatedAfter,
+          hasNDA: body.hasNDA,
+          requiresInvestment: body.requiresInvestment,
+          availableForLicensing: body.availableForLicensing,
+          featuredOnly: body.featuredOnly,
+          sortBy: body.sortBy,
+          sortOrder: body.sortOrder,
+          page: body.page,
+          limit: body.limit,
+          includePrivate: body.includePrivate,
+          excludeViewed: body.excludeViewed,
+          similarTo: body.similarTo
+        };
+        
+        const results = await AdvancedSearchService.search(searchParams, user?.id);
+        
+        return successResponse({
+          results,
+          searchParams: { ...searchParams, query: body.query },
+          message: "Advanced search completed successfully"
+        });
+      } catch (error) {
+        console.error("Error performing advanced search:", error);
+        telemetry.logger.error("Advanced search error", error);
+        return serverErrorResponse("Failed to perform advanced search");
+      }
+    }
+
+    // GET /api/search/similar/:pitchId - Find similar content
+    if (url.pathname.match(/^\/api\/search\/similar\/(\d+)$/) && method === "GET") {
+      try {
+        const pitchId = parseInt(url.pathname.split('/')[4]);
+        const limit = parseInt(url.searchParams.get("limit") || "10");
+        
+        const similarContent = await AdvancedSearchService.findSimilarContent(pitchId, limit);
+        
+        return successResponse({
+          similarContent,
+          pitchId,
+          message: "Similar content retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error finding similar content:", error);
+        telemetry.logger.error("Similar content error", error);
+        return serverErrorResponse("Failed to find similar content");
+      }
+    }
+
+    // GET /api/search/trending - Trending searches and popular queries
+    if (url.pathname === "/api/search/trending" && method === "GET") {
+      try {
+        const timeframe = url.searchParams.get("timeframe") as any || "7d";
+        
+        const trendingData = await AdvancedSearchService.getTrendingSearches(timeframe);
+        
+        return successResponse({
+          trending: trendingData,
+          timeframe,
+          message: "Trending search data retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching trending searches:", error);
+        telemetry.logger.error("Trending searches error", error);
+        return serverErrorResponse("Failed to fetch trending search data");
+      }
+    }
+
+    // GET /api/search/facets - Dynamic faceted search
+    if (url.pathname === "/api/search/facets" && method === "GET") {
+      try {
+        const { user } = await authenticate(request); // Optional auth
+        const facetField = url.searchParams.get("field") as any;
+        
+        if (!facetField || !['genre', 'format', 'budgetRange', 'stage'].includes(facetField)) {
+          return errorResponse("Invalid facet field", 400);
+        }
+        
+        const baseParams = {
+          query: url.searchParams.get("query"),
+          genres: url.searchParams.get("genres")?.split(','),
+          formats: url.searchParams.get("formats")?.split(','),
+          budgetRanges: url.searchParams.get("budgetRanges")?.split(','),
+          stages: url.searchParams.get("stages")?.split(',')
+        };
+        
+        const facets = await AdvancedSearchService.facetedSearch(baseParams, facetField, user?.id);
+        
+        return successResponse({
+          facets,
+          field: facetField,
+          message: "Faceted search completed successfully"
+        });
+      } catch (error) {
+        console.error("Error performing faceted search:", error);
+        telemetry.logger.error("Faceted search error", error);
+        return serverErrorResponse("Failed to perform faceted search");
+      }
+    }
+
+    // POST /api/automation/trigger - Trigger workflow automation
+    if (url.pathname === "/api/automation/trigger" && method === "POST") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const body = await request.json();
+        const { triggerType, triggerData } = body;
+        
+        if (!triggerType) {
+          return errorResponse("Trigger type is required", 400);
+        }
+        
+        const result = await WorkflowAutomationService.processTrigger(
+          triggerType, triggerData, user.id
+        );
+        
+        return successResponse({
+          automation: result,
+          message: "Workflow automation triggered successfully"
+        });
+      } catch (error) {
+        console.error("Error triggering automation:", error);
+        telemetry.logger.error("Automation trigger error", error, { userId: undefined });
+        return serverErrorResponse("Failed to trigger automation");
+      }
+    }
+
+    // GET /api/automation/notifications - Get smart notifications
+    if (url.pathname === "/api/automation/notifications" && method === "GET") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+        
+        const notifications = await WorkflowAutomationService.generateSmartNotifications(user.id);
+        
+        return successResponse({
+          notifications,
+          count: notifications.length,
+          message: "Smart notifications retrieved successfully"
+        });
+      } catch (error) {
+        console.error("Error fetching smart notifications:", error);
+        telemetry.logger.error("Smart notifications error", error, { userId: undefined });
+        return serverErrorResponse("Failed to fetch smart notifications");
+      }
+    }
+
+    // POST /api/automation/schedule-followup - Schedule follow-up actions
+    if (url.pathname === "/api/automation/schedule-followup" && method === "POST") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const body = await request.json();
+        const { actionType, targetData } = body;
+        
+        if (!actionType) {
+          return errorResponse("Action type is required", 400);
+        }
+        
+        await WorkflowAutomationService.scheduleFollowUpActions(
+          user.id, actionType, targetData
+        );
+        
+        return successResponse({
+          message: "Follow-up actions scheduled successfully"
+        });
+      } catch (error) {
+        console.error("Error scheduling follow-up:", error);
+        telemetry.logger.error("Schedule follow-up error", error, { userId: undefined });
+        return serverErrorResponse("Failed to schedule follow-up actions");
+      }
+    }
+
+    // POST /api/automation/business-rules - Process business rules
+    if (url.pathname === "/api/automation/business-rules" && method === "POST") {
+      try {
+        const { user, error } = await authenticate(request);
+        if (!user) {
+          return authErrorResponse(error || "Authentication required");
+        }
+
+        const body = await request.json();
+        const { entityType, entityId, action } = body;
+        
+        if (!entityType || !entityId || !action) {
+          return errorResponse("Entity type, ID, and action are required", 400);
+        }
+        
+        const result = await WorkflowAutomationService.processBusinessRules(
+          entityType, entityId, action
+        );
+        
+        return successResponse({
+          businessRules: result,
+          message: "Business rules processed successfully"
+        });
+      } catch (error) {
+        console.error("Error processing business rules:", error);
+        telemetry.logger.error("Business rules error", error, { userId: undefined });
+        return serverErrorResponse("Failed to process business rules");
       }
     }
 

@@ -98,10 +98,7 @@ export default {
       return handleHealthCheck(context);
     }
     
-    // Database test endpoint
-    if (url.pathname === '/api/db-test') {
-      return handleDatabaseTest(context);
-    }
+    // Database test endpoint - REMOVED for security in production
     
     // API Routes
     try {
@@ -178,112 +175,7 @@ async function handleHealthCheck(context: RequestContext): Promise<Response> {
   }
 }
 
-/**
- * Database test endpoint
- */
-async function handleDatabaseTest(context: RequestContext): Promise<Response> {
-  const tests: any = {
-    timestamp: new Date().toISOString(),
-    tests: []
-  };
-  
-  // Test 1: Basic connectivity
-  try {
-    const result = await context.db.execute('SELECT 1 as test');
-    tests.tests.push({
-      name: 'Basic connectivity',
-      passed: result.rows[0]?.test === 1,
-      duration: 0
-    });
-  } catch (error) {
-    tests.tests.push({
-      name: 'Basic connectivity',
-      passed: false,
-      error: error.message
-    });
-  }
-  
-  // Test 2: Table access
-  try {
-    const start = Date.now();
-    const result = await context.db.execute('SELECT COUNT(*) as count FROM users');
-    const duration = Date.now() - start;
-    
-    tests.tests.push({
-      name: 'Table access',
-      passed: true,
-      userCount: result.rows[0]?.count,
-      duration: `${duration}ms`
-    });
-  } catch (error) {
-    tests.tests.push({
-      name: 'Table access',
-      passed: false,
-      error: error.message
-    });
-  }
-  
-  // Test 3: Complex query
-  try {
-    const start = Date.now();
-    const result = await context.db.execute(`
-      SELECT 
-        u.user_type,
-        COUNT(*) as count,
-        MAX(u.created_at) as latest
-      FROM users u
-      GROUP BY u.user_type
-      ORDER BY count DESC
-    `);
-    const duration = Date.now() - start;
-    
-    tests.tests.push({
-      name: 'Complex query',
-      passed: true,
-      results: result.rows,
-      duration: `${duration}ms`
-    });
-  } catch (error) {
-    tests.tests.push({
-      name: 'Complex query',
-      passed: false,
-      error: error.message
-    });
-  }
-  
-  // Test 4: Cache functionality
-  try {
-    const key = 'test:cache';
-    const value = { test: true, timestamp: Date.now() };
-    
-    await context.cache.set(key, value);
-    const retrieved = await context.cache.get(key);
-    
-    tests.tests.push({
-      name: 'Cache functionality',
-      passed: JSON.stringify(retrieved) === JSON.stringify(value),
-      cached: retrieved
-    });
-  } catch (error) {
-    tests.tests.push({
-      name: 'Cache functionality',
-      passed: false,
-      error: error.message
-    });
-  }
-  
-  // Summary
-  tests.summary = {
-    total: tests.tests.length,
-    passed: tests.tests.filter((t: any) => t.passed).length,
-    failed: tests.tests.filter((t: any) => !t.passed).length
-  };
-  
-  return new Response(JSON.stringify(tests, null, 2), {
-    status: tests.summary.failed > 0 ? 500 : 200,
-    headers: { 'Content-Type': 'application/json' }
-  });
-}
+// Database test endpoint - REMOVED for production security
 
 /**
  * User routes handler

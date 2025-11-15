@@ -1,0 +1,386 @@
+{
+  "alertRules": [
+    {
+      "name": "Enterprise Service Error Rate Alert",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+          "value": 10,
+          "time": "minute",
+          "comparison_type": "count"
+        },
+        {
+          "id": "sentry.rules.conditions.tagged_event.TaggedEventCondition",
+          "key": "service",
+          "match": "in",
+          "value": [
+            "machine-learning",
+            "data-science", 
+            "security-compliance",
+            "distributed-computing",
+            "edge-computing",
+            "automation-workflow"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.rules.actions.notify_event_service.SlackNotifyServiceAction",
+          "service": "slack",
+          "channel": "#pitchey-alerts",
+          "tags": "environment,service,level"
+        },
+        {
+          "id": "sentry.rules.actions.notify_event.NotifyEventAction",
+          "targetType": "Team",
+          "targetIdentifier": "enterprise-team"
+        }
+      ],
+      "actionMatch": "all",
+      "filterMatch": "all",
+      "frequency": 5
+    },
+    {
+      "name": "Performance Degradation Alert",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.event_attribute.EventAttributeCondition",
+          "attribute": "transaction.duration",
+          "match": "gte",
+          "value": 3000
+        },
+        {
+          "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition", 
+          "value": 50,
+          "time": "minute",
+          "comparison_type": "count"
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.rules.actions.notify_event_service.SlackNotifyServiceAction",
+          "service": "slack", 
+          "channel": "#pitchey-performance",
+          "tags": "transaction,duration,user"
+        }
+      ],
+      "actionMatch": "all",
+      "filterMatch": "all", 
+      "frequency": 5
+    },
+    {
+      "name": "Critical Security Event Alert",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.tagged_event.TaggedEventCondition",
+          "key": "level",
+          "match": "eq",
+          "value": "fatal"
+        },
+        {
+          "id": "sentry.rules.conditions.tagged_event.TaggedEventCondition",
+          "key": "component",
+          "match": "in", 
+          "value": ["security", "auth", "rbac"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.rules.actions.notify_event_service.SlackNotifyServiceAction",
+          "service": "slack",
+          "channel": "#pitchey-security-alerts",
+          "tags": "all"
+        },
+        {
+          "id": "sentry.rules.actions.notify_event.NotifyEventAction",
+          "targetType": "Team",
+          "targetIdentifier": "security-team"
+        }
+      ],
+      "actionMatch": "all",
+      "filterMatch": "all",
+      "frequency": 1
+    },
+    {
+      "name": "Database Connection Issues",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.event_attribute.EventAttributeCondition",
+          "attribute": "exception.value",
+          "match": "co",
+          "value": "database"
+        },
+        {
+          "id": "sentry.rules.conditions.event_frequency.EventFrequencyCondition",
+          "value": 5,
+          "time": "minute", 
+          "comparison_type": "count"
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.rules.actions.notify_event_service.SlackNotifyServiceAction",
+          "service": "slack",
+          "channel": "#pitchey-infrastructure",
+          "tags": "database,error,environment"
+        }
+      ],
+      "actionMatch": "all",
+      "filterMatch": "all",
+      "frequency": 5
+    },
+    {
+      "name": "Enterprise Service Deployment Alert",
+      "conditions": [
+        {
+          "id": "sentry.rules.conditions.tagged_event.TaggedEventCondition", 
+          "key": "deployment",
+          "match": "eq",
+          "value": "enterprise-services"
+        }
+      ],
+      "actions": [
+        {
+          "id": "sentry.rules.actions.notify_event_service.SlackNotifyServiceAction",
+          "service": "slack",
+          "channel": "#pitchey-deployments", 
+          "tags": "release,environment,service_count"
+        }
+      ],
+      "actionMatch": "all",
+      "filterMatch": "all",
+      "frequency": 30
+    }
+  ],
+  "dashboards": [
+    {
+      "title": "Enterprise Services Overview",
+      "widgets": [
+        {
+          "title": "Service Error Rates",
+          "displayType": "line",
+          "queries": [
+            {
+              "conditions": "event.type:error",
+              "fields": ["count()"],
+              "aggregates": ["count()"],
+              "columns": ["service"],
+              "orderby": "-count()"
+            }
+          ]
+        },
+        {
+          "title": "Performance by Service", 
+          "displayType": "table",
+          "queries": [
+            {
+              "conditions": "event.type:transaction",
+              "fields": ["service", "p75(transaction.duration)", "p95(transaction.duration)", "count()"],
+              "orderby": "-count()"
+            }
+          ]
+        },
+        {
+          "title": "User Actions by Portal",
+          "displayType": "bar",
+          "queries": [
+            {
+              "conditions": "transaction:*/api/*",
+              "fields": ["count()"],
+              "aggregates": ["count()"],
+              "columns": ["user.portal"],
+              "orderby": "-count()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Performance Monitoring",
+      "widgets": [
+        {
+          "title": "Response Time Trends",
+          "displayType": "line",
+          "queries": [
+            {
+              "conditions": "event.type:transaction",
+              "fields": ["p50(transaction.duration)", "p95(transaction.duration)"],
+              "interval": "5m"
+            }
+          ]
+        },
+        {
+          "title": "Throughput by Endpoint",
+          "displayType": "table", 
+          "queries": [
+            {
+              "conditions": "transaction:*/api/*",
+              "fields": ["transaction", "count()", "p75(transaction.duration)"],
+              "orderby": "-count()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Security Monitoring",
+      "widgets": [
+        {
+          "title": "Security Events",
+          "displayType": "line",
+          "queries": [
+            {
+              "conditions": "tags[component]:security OR tags[component]:auth",
+              "fields": ["count()"],
+              "columns": ["level"],
+              "interval": "1h"
+            }
+          ]
+        },
+        {
+          "title": "Authentication Failures",
+          "displayType": "number",
+          "queries": [
+            {
+              "conditions": "message:*authentication* AND level:error",
+              "fields": ["count()"]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "name": "enterprise_services_health",
+      "query": "rate(http_requests_total{service=~\"machine-learning|data-science|security|distributed|edge|automation\"}[5m])",
+      "alert_threshold": 0.95,
+      "description": "Health status of all 6 enterprise services"
+    },
+    {
+      "name": "api_response_time_p95",
+      "query": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+      "alert_threshold": 3.0,
+      "description": "95th percentile API response time"
+    },
+    {
+      "name": "database_connection_pool",
+      "query": "database_connections_active / database_connections_max",
+      "alert_threshold": 0.8,
+      "description": "Database connection pool utilization"
+    },
+    {
+      "name": "error_rate_by_service",
+      "query": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m])",
+      "alert_threshold": 0.05,
+      "description": "Error rate by enterprise service"
+    }
+  ],
+  "notifications": {
+    "slack": {
+      "channels": {
+        "#pitchey-alerts": "General alerts and system status",
+        "#pitchey-performance": "Performance degradation alerts",
+        "#pitchey-security-alerts": "Security incidents and authentication issues",
+        "#pitchey-infrastructure": "Infrastructure and database alerts",
+        "#pitchey-deployments": "Deployment notifications and releases"
+      },
+      "message_format": {
+        "title": "🚨 Pitchey Enterprise Alert",
+        "fields": [
+          "Service",
+          "Environment", 
+          "Error Count",
+          "First Seen",
+          "Last Seen"
+        ],
+        "footer": "Pitchey Monitoring System",
+        "color_mapping": {
+          "fatal": "#dc2626",
+          "error": "#ea580c", 
+          "warning": "#ca8a04",
+          "info": "#0284c7"
+        }
+      }
+    },
+    "email": {
+      "recipients": [
+        "alerts@pitchey.com",
+        "engineering@pitchey.com"
+      ],
+      "escalation_policy": {
+        "level_1": "5 minutes",
+        "level_2": "15 minutes", 
+        "level_3": "30 minutes"
+      }
+    }
+  },
+  "uptime_checks": [
+    {
+      "name": "Backend API Health",
+      "url": "https://pitchey-backend-fresh-649p3fw70ngb.deno.dev/api/health",
+      "method": "GET",
+      "expected_status": 200,
+      "frequency": "1m",
+      "timeout": "10s",
+      "regions": ["us-east-1", "us-west-2", "eu-west-1"]
+    },
+    {
+      "name": "Frontend Availability", 
+      "url": "https://72a15a37.pitchey.pages.dev",
+      "method": "GET",
+      "expected_status": 200,
+      "frequency": "2m",
+      "timeout": "15s",
+      "regions": ["us-east-1", "us-west-2", "eu-west-1"]
+    },
+    {
+      "name": "Enterprise ML Service",
+      "url": "https://pitchey-backend-fresh-649p3fw70ngb.deno.dev/api/ml/overview",
+      "method": "GET", 
+      "expected_status": 200,
+      "frequency": "5m",
+      "timeout": "10s"
+    },
+    {
+      "name": "Enterprise Data Science Service",
+      "url": "https://pitchey-backend-fresh-649p3fw70ngb.deno.dev/api/data-science/overview",
+      "method": "GET",
+      "expected_status": 200,
+      "frequency": "5m", 
+      "timeout": "10s"
+    },
+    {
+      "name": "Enterprise Security Service", 
+      "url": "https://pitchey-backend-fresh-649p3fw70ngb.deno.dev/api/security/overview",
+      "method": "GET",
+      "expected_status": 200,
+      "frequency": "5m",
+      "timeout": "10s"
+    },
+    {
+      "name": "Enterprise Distributed Computing",
+      "url": "https://pitchey-backend-fresh-649p3fw70ngb.deno.dev/api/distributed/overview", 
+      "method": "GET",
+      "expected_status": 200,
+      "frequency": "5m",
+      "timeout": "10s"
+    },
+    {
+      "name": "Enterprise Edge Computing",
+      "url": "https://pitchey-backend-fresh-649p3fw70ngb.deno.dev/api/edge/overview",
+      "method": "GET",
+      "expected_status": 200,
+      "frequency": "5m",
+      "timeout": "10s"
+    },
+    {
+      "name": "Enterprise Automation Service",
+      "url": "https://pitchey-backend-fresh-649p3fw70ngb.deno.dev/api/automation/overview",
+      "method": "GET",
+      "expected_status": 200,
+      "frequency": "5m",
+      "timeout": "10s"
+    }
+  ]
+}

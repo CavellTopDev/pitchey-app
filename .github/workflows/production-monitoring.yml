@@ -1,0 +1,416 @@
+name: Production Monitoring & Alerts
+
+on:
+  schedule:
+    # Run health checks every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'server-modular.ts'
+      - 'src/**'
+      - 'frontend/src/**'
+
+env:
+  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  BACKEND_URL: https://pitchey-backend-fresh-649p3fw70ngb.deno.dev
+  FRONTEND_URL: https://72a15a37.pitchey.pages.dev
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+jobs:
+  health-check:
+    name: Production Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.46.x
+      
+      - name: Backend Health Check
+        id: backend-health
+        run: |
+          echo "🔍 Checking backend health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/api/health)
+          if [ $response -eq 200 ]; then
+            echo "✅ Backend health check passed"
+            echo "backend_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Backend health check failed (HTTP $response)"
+            echo "backend_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      - name: Frontend Health Check
+        id: frontend-health
+        run: |
+          echo "🔍 Checking frontend health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.FRONTEND_URL }})
+          if [ $response -eq 200 ]; then
+            echo "✅ Frontend health check passed"
+            echo "frontend_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Frontend health check failed (HTTP $response)"
+            echo "frontend_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      - name: Test Enterprise Services
+        id: enterprise-test
+        run: |
+          echo "🧪 Testing enterprise services..."
+          
+          # Test Machine Learning Service
+          ml_response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/api/ml/overview)
+          echo "ML Service: HTTP $ml_response"
+          
+          # Test Data Science Service
+          ds_response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/api/data-science/overview)
+          echo "Data Science Service: HTTP $ds_response"
+          
+          # Test Security Service
+          sec_response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/api/security/overview)
+          echo "Security Service: HTTP $sec_response"
+          
+          # Test Distributed Computing Service
+          dist_response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/api/distributed/overview)
+          echo "Distributed Computing Service: HTTP $dist_response"
+          
+          # Test Edge Computing Service
+          edge_response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/api/edge/overview)
+          echo "Edge Computing Service: HTTP $edge_response"
+          
+          # Test Automation Service
+          auto_response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.BACKEND_URL }}/api/automation/overview)
+          echo "Automation Service: HTTP $auto_response"
+          
+          # Check if all services are responding
+          if [ $ml_response -eq 200 ] && [ $ds_response -eq 200 ] && [ $sec_response -eq 200 ] && [ $dist_response -eq 200 ] && [ $edge_response -eq 200 ] && [ $auto_response -eq 200 ]; then
+            echo "✅ All 6 enterprise services are operational"
+            echo "enterprise_services=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Some enterprise services are failing"
+            echo "enterprise_services=unhealthy" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Performance Metrics Check
+        id: performance-check
+        run: |
+          echo "📊 Collecting performance metrics..."
+          
+          # Backend response time
+          backend_time=$(curl -s -o /dev/null -w "%{time_total}" ${{ env.BACKEND_URL }}/api/health)
+          echo "Backend response time: ${backend_time}s"
+          
+          # Frontend response time
+          frontend_time=$(curl -s -o /dev/null -w "%{time_total}" ${{ env.FRONTEND_URL }})
+          echo "Frontend response time: ${frontend_time}s"
+          
+          # Check if response times are acceptable (< 2 seconds)
+          backend_ok=$(echo "${backend_time} < 2.0" | bc -l)
+          frontend_ok=$(echo "${frontend_time} < 2.0" | bc -l)
+          
+          if [ $backend_ok -eq 1 ] && [ $frontend_ok -eq 1 ]; then
+            echo "✅ Performance metrics within acceptable range"
+            echo "performance=good" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Performance issues detected"
+            echo "performance=degraded" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Database Connectivity Check
+        id: database-check
+        run: |
+          echo "🗄️ Testing database connectivity..."
+          
+          # Test database through API
+          db_response=$(curl -s ${{ env.BACKEND_URL }}/api/pitches/public)
+          
+          if echo "$db_response" | grep -q "pitches"; then
+            echo "✅ Database connectivity verified"
+            echo "database_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Database connectivity issues"
+            echo "database_status=unhealthy" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Sentry Error Monitoring
+        id: sentry-check
+        run: |
+          echo "🚨 Checking Sentry for recent errors..."
+          
+          # Install sentry-cli
+          curl -sL https://sentry.io/get-cli/ | bash
+          
+          # Check for recent errors (last 5 minutes)
+          recent_errors=$(sentry-cli issues list --query="is:unresolved" --query="firstSeen:-5m" --format=json | jq length)
+          
+          echo "Recent errors: $recent_errors"
+          
+          if [ $recent_errors -lt 5 ]; then
+            echo "✅ Error rate within acceptable limits"
+            echo "error_rate=low" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ High error rate detected"
+            echo "error_rate=high" >> $GITHUB_OUTPUT
+          fi
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      
+      - name: Send Success Notification
+        if: steps.backend-health.outputs.backend_status == 'healthy' && steps.frontend-health.outputs.frontend_status == 'healthy' && steps.enterprise-test.outputs.enterprise_services == 'healthy'
+        run: |
+          echo "✅ All systems operational - sending success notification"
+          
+          payload=$(cat <<EOF
+          {
+            "text": "🟢 Pitchey Production Health Check - ALL SYSTEMS OPERATIONAL",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🚀 Pitchey Enterprise Platform Status"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Backend:* ✅ Healthy (321 routes)"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Frontend:* ✅ Healthy"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Enterprise Services:* ✅ All 6 operational"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Performance:* ✅ ${{ steps.performance-check.outputs.performance }}"
+                  }
+                ]
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "plain_text",
+                    "text": "🕐 $(date '+%Y-%m-%d %H:%M:%S UTC')"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -X POST -H 'Content-type: application/json' \
+               --data "$payload" \
+               ${{ env.SLACK_WEBHOOK_URL }}
+      
+      - name: Send Alert Notification
+        if: failure() || steps.backend-health.outputs.backend_status == 'unhealthy' || steps.frontend-health.outputs.frontend_status == 'unhealthy' || steps.enterprise-test.outputs.enterprise_services == 'unhealthy'
+        run: |
+          echo "🚨 Issues detected - sending alert notification"
+          
+          payload=$(cat <<EOF
+          {
+            "text": "🔴 PITCHEY PRODUCTION ALERT - ISSUES DETECTED",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🚨 Production Alert - Immediate Attention Required"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Backend:* ${{ steps.backend-health.outputs.backend_status == 'healthy' && '✅' || '❌' }} ${{ steps.backend-health.outputs.backend_status }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Frontend:* ${{ steps.frontend-health.outputs.frontend_status == 'healthy' && '✅' || '❌' }} ${{ steps.frontend-health.outputs.frontend_status }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Enterprise Services:* ${{ steps.enterprise-test.outputs.enterprise_services == 'healthy' && '✅' || '❌' }} ${{ steps.enterprise-test.outputs.enterprise_services }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Database:* ${{ steps.database-check.outputs.database_status == 'healthy' && '✅' || '❌' }} ${{ steps.database-check.outputs.database_status }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "🔗 <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details> | 📊 <https://sentry.io|Sentry Dashboard>"
+                }
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -X POST -H 'Content-type: application/json' \
+               --data "$payload" \
+               ${{ env.SLACK_WEBHOOK_URL }}
+
+  sentry-release:
+    name: Create Sentry Release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create Sentry Release
+        run: |
+          # Install sentry-cli
+          curl -sL https://sentry.io/get-cli/ | bash
+          
+          # Create release
+          export SENTRY_RELEASE="enterprise-platform-$(date '+%Y%m%d%H%M%S')"
+          echo "Creating Sentry release: $SENTRY_RELEASE"
+          
+          sentry-cli releases new $SENTRY_RELEASE
+          sentry-cli releases set-commits $SENTRY_RELEASE --auto
+          sentry-cli releases finalize $SENTRY_RELEASE
+          
+          echo "✅ Sentry release created: $SENTRY_RELEASE"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Lighthouse CI
+        run: |
+          npm install -g @lhci/cli
+          
+          echo "🔍 Running Lighthouse performance audit..."
+          
+          # Run Lighthouse on frontend
+          lhci autorun --collect.url=${{ env.FRONTEND_URL }} --upload.target=temporary-public-storage
+          
+          echo "✅ Performance audit completed"
+      
+      - name: API Performance Test
+        run: |
+          echo "📊 Testing API performance..."
+          
+          # Test critical API endpoints
+          endpoints=(
+            "/api/health"
+            "/api/pitches/public"
+            "/api/ml/overview"
+            "/api/data-science/overview"
+            "/api/security/overview"
+            "/api/distributed/overview"
+            "/api/edge/overview"
+            "/api/automation/overview"
+          )
+          
+          for endpoint in "${endpoints[@]}"; do
+            echo "Testing: $endpoint"
+            time=$(curl -s -o /dev/null -w "%{time_total}" ${{ env.BACKEND_URL }}$endpoint)
+            echo "Response time: ${time}s"
+            
+            # Alert if response time > 3 seconds
+            slow=$(echo "${time} > 3.0" | bc -l)
+            if [ $slow -eq 1 ]; then
+              echo "⚠️ Slow response detected for $endpoint"
+            fi
+          done
+
+  security-monitoring:
+    name: Security Monitoring
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: SSL Certificate Check
+        run: |
+          echo "🔒 Checking SSL certificates..."
+          
+          # Check backend SSL
+          echo "Backend SSL check:"
+          echo | openssl s_client -servername $(echo ${{ env.BACKEND_URL }} | sed 's|https://||') -connect $(echo ${{ env.BACKEND_URL }} | sed 's|https://||'):443 2>/dev/null | openssl x509 -noout -dates
+          
+          # Check frontend SSL
+          echo "Frontend SSL check:"
+          echo | openssl s_client -servername $(echo ${{ env.FRONTEND_URL }} | sed 's|https://||') -connect $(echo ${{ env.FRONTEND_URL }} | sed 's|https://||'):443 2>/dev/null | openssl x509 -noout -dates
+      
+      - name: Security Headers Check
+        run: |
+          echo "🛡️ Checking security headers..."
+          
+          # Check backend security headers
+          echo "Backend security headers:"
+          curl -I ${{ env.BACKEND_URL }}/api/health | grep -E "(X-Frame-Options|Content-Security-Policy|X-Content-Type-Options|Strict-Transport-Security)"
+          
+          # Check frontend security headers  
+          echo "Frontend security headers:"
+          curl -I ${{ env.FRONTEND_URL }} | grep -E "(X-Frame-Options|Content-Security-Policy|X-Content-Type-Options|Strict-Transport-Security)"
+
+  database-monitoring:
+    name: Database Health Monitoring
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Database Performance Check
+        run: |
+          echo "🗄️ Checking database performance through API..."
+          
+          # Test database-heavy endpoints
+          start_time=$(date +%s.%N)
+          curl -s ${{ env.BACKEND_URL }}/api/pitches/public > /dev/null
+          end_time=$(date +%s.%N)
+          
+          duration=$(echo "$end_time - $start_time" | bc)
+          echo "Database query time: ${duration}s"
+          
+          # Alert if query time > 5 seconds
+          slow=$(echo "${duration} > 5.0" | bc -l)
+          if [ $slow -eq 1 ]; then
+            echo "⚠️ Slow database performance detected"
+          fi
+      
+      - name: Data Integrity Check
+        run: |
+          echo "✅ Running data integrity checks..."
+          
+          # Check if we can retrieve data from all major endpoints
+          endpoints=(
+            "/api/pitches/public"
+            "/api/pitches/trending"
+            "/api/pitches/featured"
+          )
+          
+          for endpoint in "${endpoints[@]}"; do
+            response=$(curl -s ${{ env.BACKEND_URL }}$endpoint)
+            if echo "$response" | jq -e '.success' > /dev/null 2>&1; then
+              echo "✅ $endpoint - Data retrieval successful"
+            else
+              echo "❌ $endpoint - Data retrieval failed"
+            fi
+          done

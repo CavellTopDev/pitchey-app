@@ -25,9 +25,16 @@
     "build:analyze": "vite build && node analyze-bundle.js",
     "build:prod": "NODE_ENV=production vite build --mode production",
     "analyze": "node analyze-bundle.js",
-    "serve:prod": "vite preview --port 4173"
+    "serve:prod": "vite preview --port 4173",
+    "release:sentry": "bash ./scripts/sentry-release.sh",
+    "release:sentry:finalize": "SENTRY_RELEASE=${SENTRY_RELEASE:-$(git rev-parse --short HEAD)} sentry-cli releases finalize \"$SENTRY_RELEASE\"",
+    "deploy:pages": "vite build --mode production && wrangler pages deploy dist",
+    "deploy:pages:with-sentry": "SENTRY_RELEASE=${SENTRY_RELEASE:-$(git rev-parse --short HEAD)} npm run release:sentry && SENTRY_RELEASE=$SENTRY_RELEASE vite build --mode production && wrangler pages deploy dist && npm run release:sentry:finalize"
   },
   "dependencies": {
+    "@sentry/react": "^10.25.0",
+    "@sentry/replay": "^7.116.0",
+    "@sentry/vite-plugin": "^4.6.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@tailwindcss/typography": "^0.5.18",

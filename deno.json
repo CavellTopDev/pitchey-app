@@ -62,7 +62,8 @@
     ]
   },
   "deploy": {
-    "project": "3041a504-7ecb-4753-ac3b-4c64560d9a00",
+    "org": "Cavell",
+    "app": "pitchey-backend-fresh",
     "exclude": [
       "**/node_modules"
     ],

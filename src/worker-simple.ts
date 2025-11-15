@@ -574,71 +574,7 @@ export default {
         }
       }
       
-      // Database test endpoint (PROTECTED - Remove in production)
-      if (url.pathname === '/api/db-test') {
-        // WARNING: This endpoint exposes sensitive information
-        // Remove or protect this endpoint in production!
-        console.warn('⚠️ Database test endpoint accessed - should be removed in production');
-        const tests: any = {
-          timestamp: new Date().toISOString(),
-          tests: []
-        };
-        
-        // Test basic connectivity
-        try {
-          const result = await executeQuery(env, 'SELECT 1 as test');
-          tests.tests.push({
-            name: 'Basic connectivity',
-            passed: true,
-            result: result.rows?.[0]
-          });
-        } catch (error: any) {
-          tests.tests.push({
-            name: 'Basic connectivity',
-            passed: false,
-            error: error.message
-          });
-        }
-        
-        // Test table access
-        try {
-          const result = await executeQuery(env, 'SELECT COUNT(*) as count FROM users');
-          tests.tests.push({
-            name: 'User table access',
-            passed: true,
-            userCount: result.rows?.[0]?.count
-          });
-        } catch (error: any) {
-          tests.tests.push({
-            name: 'User table access',
-            passed: false,
-            error: error.message
-          });
-        }
-        
-        // Test cache
-        try {
-          const testData = { test: true, time: Date.now() };
-          await env.CACHE.put('test:cache', JSON.stringify(testData), {
-            expirationTtl: 60
-          });
-          const retrieved = await env.CACHE.get('test:cache', 'json');
-          tests.tests.push({
-            name: 'KV cache',
-            passed: JSON.stringify(retrieved) === JSON.stringify(testData)
-          });
-        } catch (error: any) {
-          tests.tests.push({
-            name: 'KV cache',
-            passed: false,
-            error: error.message
-          });
-        }
-        
-        return new Response(JSON.stringify(tests, null, 2), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
+      // Database test endpoint - REMOVED for production security
       
       // Browse enhanced endpoint
       if (url.pathname === '/api/pitches/browse/enhanced' && method === 'GET') {

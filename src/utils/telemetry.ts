@@ -3,7 +3,7 @@
  * Integrates Sentry error tracking with Deno Deploy OpenTelemetry
  */
 
-import * as Sentry from "npm:@sentry/deno@^8.0.0";
+import * as Sentry from "npm:@sentry/deno@8.55.0";
 
 interface TelemetryConfig {
   sentryDsn?: string;
@@ -53,11 +53,7 @@ export class TelemetryManager {
         
         // Integrations
         integrations: [
-          // Automatic HTTP request tracing  
-          new Sentry.Integrations.Http({ tracing: this.config.enableTracing }),
-          // Deno-specific integrations
-          new Sentry.Integrations.OnUncaughtException(),
-          new Sentry.Integrations.OnUnhandledRejection(),
+          // Basic integrations for Deno
         ],
         
         // Data filtering for security

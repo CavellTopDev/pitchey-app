@@ -40,6 +40,8 @@ export const users = pgTable("users", {
   phone: varchar("phone", { length: 20 }),
   location: varchar("location", { length: 200 }),
   bio: text("bio"),
+  website: text("website"), // Added website field
+  avatar_url: text("avatar_url"), // Added for frontend compatibility
   profileImageUrl: text("profile_image_url"),
   companyName: text("company_name"),
   companyNumber: varchar("company_number", { length: 100 }),
@@ -59,6 +61,13 @@ export const users = pgTable("users", {
   passwordHistory: jsonb("password_history").default("[]"),
   requirePasswordChange: boolean("require_password_change").default(false),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  email_notifications: boolean("email_notifications").default(true),
+  marketing_emails: boolean("marketing_emails").default(false),
+  privacy_settings: jsonb("privacy_settings").default("{}"),
+  preferred_genres: varchar("preferred_genres", { length: 50 }).array().default([]),
+  preferred_formats: varchar("preferred_formats", { length: 50 }).array().default([]),
+  preferred_budget_ranges: varchar("preferred_budget_ranges", { length: 50 }).array().default([]),
+  notification_frequency: varchar("notification_frequency", { length: 50 }).default("daily"),
   subscriptionTier: varchar("subscription_tier", { length: 50 }).default("free"),
   subscriptionStartDate: timestamp("subscription_start_date"),
   subscriptionEndDate: timestamp("subscription_end_date"),
@@ -74,6 +83,7 @@ export const pitches = pgTable("pitches", {
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   logline: text("logline").notNull(),
+  description: text("description"), // Added for search functionality
   genre: varchar("genre", { length: 100 }),
   format: varchar("format", { length: 100 }),
   formatCategory: varchar("format_category", { length: 100 }),
@@ -88,8 +98,10 @@ export const pitches = pgTable("pitches", {
   themes: text("themes"),
   worldDescription: text("world_description"),
   episodeBreakdown: text("episode_breakdown"),
-  budgetBracket: varchar("budget_bracket", { length: 100 }),
+  budgetRange: varchar("budget_range", { length: 100 }), // Changed from budgetBracket to budgetRange
+  budgetBracket: varchar("budget_bracket", { length: 100 }), // Keep legacy field for compatibility
   estimatedBudget: decimal("estimated_budget", { precision: 15, scale: 2 }),
+  stage: varchar("stage", { length: 100 }), // Added stage field for production pipeline
   videoUrl: varchar("video_url", { length: 500 }),
   posterUrl: varchar("poster_url", { length: 500 }),
   pitchDeckUrl: varchar("pitch_deck_url", { length: 500 }),
@@ -127,9 +139,11 @@ export const pitches = pgTable("pitches", {
 export const follows = pgTable("follows", {
   id: serial("id").primaryKey(),
   followerId: integer("follower_id").references(() => users.id, { onDelete: "cascade" }),
+  followingId: integer("following_id").references(() => users.id, { onDelete: "cascade" }), // Added for user-to-user follows
   pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "cascade" }),
   creatorId: integer("creator_id").references(() => users.id, { onDelete: "cascade" }),
   followedAt: timestamp("followed_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const ndas = pgTable("ndas", {
@@ -149,16 +163,21 @@ export const ndas = pgTable("ndas", {
 
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").references(() => conversations.id, { onDelete: "cascade" }),
   senderId: integer("sender_id").references(() => users.id, { onDelete: "cascade" }),
   receiverId: integer("receiver_id").references(() => users.id, { onDelete: "cascade" }),
   subject: varchar("subject", { length: 255 }),
   content: text("content"),
+  messageType: varchar("message_type", { length: 50 }).default("text"),
   pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "set null" }),
-  isRead: boolean("is_read").default(false),
+  read: boolean("read").default(false), // Changed from isRead to read for consistency
+  isRead: boolean("is_read").default(false), // Keep legacy field
+  metadata: jsonb("metadata"),
   offPlatformRequested: boolean("off_platform_requested").default(false),
   offPlatformApproved: boolean("off_platform_approved").default(false),
   sentAt: timestamp("sent_at").defaultNow(),
   readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const pitchViews = pgTable("pitch_views", {
@@ -182,9 +201,12 @@ export const notifications = pgTable("notifications", {
   type: varchar("type", { length: 50 }),
   title: varchar("title", { length: 255 }),
   message: text("message"),
+  data: jsonb("data"), // Added for structured notification data
   relatedId: integer("related_id"),
   relatedType: varchar("related_type", { length: 50 }),
-  isRead: boolean("is_read").default(false),
+  read: boolean("read").default(false), // Added for consistency with routes
+  isRead: boolean("is_read").default(false), // Keep legacy field
+  readAt: timestamp("read_at"), // Added for when notification was read
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1037,6 +1059,273 @@ export const subscriptionHistoryRelations = relations(subscriptionHistory, ({ on
 export const paymentMethodsRelations = relations(paymentMethods, ({ one }) => ({
   user: one(users, {
     fields: [paymentMethods.userId],
+    references: [users.id],
+  }),
+}));
+
+// ============================================
+// ADVANCED FEATURES TABLES
+// ============================================
+
+// User Preferences for Smart Recommendations
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  preferredGenres: varchar("preferred_genres", { length: 50 }).array().default([]),
+  preferredFormats: varchar("preferred_formats", { length: 50 }).array().default([]),
+  preferredBudgetRange: varchar("preferred_budget_range", { length: 100 }),
+  investmentInterests: varchar("investment_interests", { length: 50 }).array().default([]),
+  collaborationTypes: varchar("collaboration_types", { length: 50 }).array().default([]),
+  notificationFrequency: varchar("notification_frequency", { length: 20 }).default("daily"),
+  recommendationStyle: varchar("recommendation_style", { length: 20 }).default("balanced"), // aggressive, balanced, conservative
+  marketingOptIn: boolean("marketing_opt_in").default(false),
+  dataProcessingConsent: boolean("data_processing_consent").default(true),
+  experienceLevel: varchar("experience_level", { length: 20 }).default("intermediate"),
+  industry: varchar("industry", { length: 100 }),
+  companySize: varchar("company_size", { length: 50 }),
+  location: varchar("location", { length: 200 }),
+  timezone: varchar("timezone", { length: 50 }).default("UTC"),
+  language: varchar("language", { length: 10 }).default("en"),
+  currency: varchar("currency", { length: 3 }).default("USD"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Smart Recommendation Cache
+export const recommendationCache = pgTable("recommendation_cache", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  cacheKey: varchar("cache_key", { length: 255 }).notNull(),
+  recommendations: jsonb("recommendations").notNull(),
+  algorithmVersion: varchar("algorithm_version", { length: 20 }).default("v1.0"),
+  confidence: decimal("confidence", { precision: 3, scale: 2 }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userCacheKeyIdx: index("recommendation_cache_user_cache_key_idx").on(table.userId, table.cacheKey),
+  expiresAtIdx: index("recommendation_cache_expires_at_idx").on(table.expiresAt),
+}));
+
+// User Interaction History for ML
+export const userInteractions = pgTable("user_interactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  interactionType: varchar("interaction_type", { length: 50 }).notNull(), // view, like, save, share, comment, nda_request
+  targetType: varchar("target_type", { length: 50 }).notNull(), // pitch, user, message
+  targetId: integer("target_id").notNull(),
+  duration: integer("duration"), // in seconds
+  metadata: jsonb("metadata").default("{}"),
+  sessionId: varchar("session_id", { length: 255 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userInteractionIdx: index("user_interactions_user_interaction_idx").on(table.userId, table.interactionType),
+  targetIdx: index("user_interactions_target_idx").on(table.targetType, table.targetId),
+  sessionIdx: index("user_interactions_session_idx").on(table.sessionId),
+  createdAtIdx: index("user_interactions_created_at_idx").on(table.createdAt),
+}));
+
+// Search Patterns for Advanced Search
+export const searchPatterns = pgTable("search_patterns", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  searchQuery: text("search_query").notNull(),
+  filters: jsonb("filters").default("{}"),
+  resultsCount: integer("results_count").default(0),
+  clickedResults: jsonb("clicked_results").default("[]"),
+  searchVector: text("search_vector"), // For semantic search
+  sessionId: varchar("session_id", { length: 255 }),
+  searchSource: varchar("search_source", { length: 50 }), // homepage, browse, dashboard, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userSearchIdx: index("search_patterns_user_idx").on(table.userId),
+  queryIdx: index("search_patterns_query_idx").on(table.searchQuery),
+  createdAtIdx: index("search_patterns_created_at_idx").on(table.createdAt),
+}));
+
+// Workflow Automation Rules
+export const workflowRules = pgTable("workflow_rules", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  triggerType: varchar("trigger_type", { length: 50 }).notNull(), // pitch_created, nda_signed, investment_made
+  triggerConditions: jsonb("trigger_conditions").notNull().default("{}"),
+  actions: jsonb("actions").notNull().default("[]"),
+  enabled: boolean("enabled").default(true),
+  priority: integer("priority").default(0),
+  userType: varchar("user_type", { length: 50 }), // creator, investor, production, admin
+  portalType: varchar("portal_type", { length: 50 }), // creator, investor, production, admin
+  executionCount: integer("execution_count").default(0),
+  lastExecutedAt: timestamp("last_executed_at"),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  triggerTypeIdx: index("workflow_rules_trigger_type_idx").on(table.triggerType),
+  enabledIdx: index("workflow_rules_enabled_idx").on(table.enabled),
+  priorityIdx: index("workflow_rules_priority_idx").on(table.priority),
+}));
+
+// Workflow Execution Log
+export const workflowExecutions = pgTable("workflow_executions", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("rule_id").references(() => workflowRules.id, { onDelete: "cascade" }).notNull(),
+  triggerEventId: integer("trigger_event_id"),
+  status: varchar("status", { length: 20 }).default("pending"), // pending, success, failed, skipped
+  executionData: jsonb("execution_data").default("{}"),
+  resultData: jsonb("result_data").default("{}"),
+  errorMessage: text("error_message"),
+  executionTimeMs: integer("execution_time_ms"),
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  ruleStatusIdx: index("workflow_executions_rule_status_idx").on(table.ruleId, table.status),
+  startedAtIdx: index("workflow_executions_started_at_idx").on(table.startedAt),
+}));
+
+// Smart Notifications Queue
+export const smartNotifications = pgTable("smart_notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  notificationType: varchar("notification_type", { length: 50 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  actionUrl: text("action_url"),
+  actionText: varchar("action_text", { length: 100 }),
+  priority: varchar("priority", { length: 20 }).default("medium"), // low, medium, high, urgent
+  channels: varchar("channels", { length: 20 }).array().default(["in_app"]), // in_app, email, push, sms
+  metadata: jsonb("metadata").default("{}"),
+  groupingKey: varchar("grouping_key", { length: 255 }), // For grouping similar notifications
+  status: varchar("status", { length: 20 }).default("pending"), // pending, sent, read, dismissed
+  scheduledFor: timestamp("scheduled_for"),
+  sentAt: timestamp("sent_at"),
+  readAt: timestamp("read_at"),
+  dismissedAt: timestamp("dismissed_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userStatusIdx: index("smart_notifications_user_status_idx").on(table.userId, table.status),
+  scheduledIdx: index("smart_notifications_scheduled_idx").on(table.scheduledFor),
+  groupingIdx: index("smart_notifications_grouping_idx").on(table.groupingKey),
+}));
+
+// User Similarity Scores (for collaborative filtering)
+export const userSimilarity = pgTable("user_similarity", {
+  id: serial("id").primaryKey(),
+  userId1: integer("user_id_1").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  userId2: integer("user_id_2").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  similarityScore: decimal("similarity_score", { precision: 5, scale: 4 }).notNull(),
+  algorithmVersion: varchar("algorithm_version", { length: 20 }).default("cosine_v1"),
+  commonInteractions: integer("common_interactions").default(0),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+}, (table) => ({
+  userPairIdx: index("user_similarity_pair_idx").on(table.userId1, table.userId2),
+  scoreIdx: index("user_similarity_score_idx").on(table.similarityScore),
+  calculatedAtIdx: index("user_similarity_calculated_at_idx").on(table.calculatedAt),
+  uniquePair: unique().on(table.userId1, table.userId2),
+}));
+
+// Trending Topics and Insights
+export const trendingTopics = pgTable("trending_topics", {
+  id: serial("id").primaryKey(),
+  topicType: varchar("topic_type", { length: 50 }).notNull(), // genre, format, budget, theme, keyword
+  topicValue: varchar("topic_value", { length: 255 }).notNull(),
+  trendScore: decimal("trend_score", { precision: 8, scale: 4 }).notNull(),
+  changePercent: decimal("change_percent", { precision: 5, scale: 2 }),
+  timeframe: varchar("timeframe", { length: 10 }).notNull(), // 24h, 7d, 30d
+  dataPoints: jsonb("data_points").default("[]"),
+  predictedPeak: timestamp("predicted_peak"),
+  marketOpportunity: decimal("market_opportunity", { precision: 3, scale: 2 }),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+}, (table) => ({
+  topicTypeValueIdx: index("trending_topics_type_value_idx").on(table.topicType, table.topicValue),
+  trendScoreIdx: index("trending_topics_trend_score_idx").on(table.trendScore),
+  timeframeIdx: index("trending_topics_timeframe_idx").on(table.timeframe),
+  calculatedAtIdx: index("trending_topics_calculated_at_idx").on(table.calculatedAt),
+}));
+
+// Advanced Search Filters and Facets
+export const searchFacets = pgTable("search_facets", {
+  id: serial("id").primaryKey(),
+  facetType: varchar("facet_type", { length: 50 }).notNull(), // genre, format, budget, location, etc.
+  facetValue: varchar("facet_value", { length: 255 }).notNull(),
+  count: integer("count").default(0),
+  percentage: decimal("percentage", { precision: 5, scale: 2 }),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+}, (table) => ({
+  facetTypeValueIdx: index("search_facets_type_value_idx").on(table.facetType, table.facetValue),
+  countIdx: index("search_facets_count_idx").on(table.count),
+  lastUpdatedIdx: index("search_facets_last_updated_idx").on(table.lastUpdated),
+  uniqueFacet: unique().on(table.facetType, table.facetValue),
+}));
+
+// Performance Metrics and Monitoring
+export const performanceMetrics = pgTable("performance_metrics", {
+  id: serial("id").primaryKey(),
+  metricType: varchar("metric_type", { length: 50 }).notNull(), // api_response_time, db_query_time, cache_hit_rate
+  metricName: varchar("metric_name", { length: 255 }).notNull(),
+  value: decimal("value", { precision: 10, scale: 4 }).notNull(),
+  unit: varchar("unit", { length: 20 }), // ms, seconds, percentage, count
+  tags: jsonb("tags").default("{}"),
+  endpoint: varchar("endpoint", { length: 255 }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  sessionId: varchar("session_id", { length: 255 }),
+  timestamp: timestamp("timestamp").defaultNow(),
+}, (table) => ({
+  metricTypeNameIdx: index("performance_metrics_type_name_idx").on(table.metricType, table.metricName),
+  timestampIdx: index("performance_metrics_timestamp_idx").on(table.timestamp),
+  endpointIdx: index("performance_metrics_endpoint_idx").on(table.endpoint),
+}));
+
+// Export additional types
+export type UserPreference = typeof userPreferences.$inferSelect;
+export type RecommendationCache = typeof recommendationCache.$inferSelect;
+export type UserInteraction = typeof userInteractions.$inferSelect;
+export type SearchPattern = typeof searchPatterns.$inferSelect;
+export type WorkflowRule = typeof workflowRules.$inferSelect;
+export type WorkflowExecution = typeof workflowExecutions.$inferSelect;
+export type SmartNotification = typeof smartNotifications.$inferSelect;
+export type UserSimilarity = typeof userSimilarity.$inferSelect;
+export type TrendingTopic = typeof trendingTopics.$inferSelect;
+export type SearchFacet = typeof searchFacets.$inferSelect;
+export type PerformanceMetric = typeof performanceMetrics.$inferSelect;
+
+// Additional Relations
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const userInteractionsRelations = relations(userInteractions, ({ one }) => ({
+  user: one(users, {
+    fields: [userInteractions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const workflowRulesRelations = relations(workflowRules, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [workflowRules.createdBy],
+    references: [users.id],
+  }),
+  executions: many(workflowExecutions),
+}));
+
+export const workflowExecutionsRelations = relations(workflowExecutions, ({ one }) => ({
+  rule: one(workflowRules, {
+    fields: [workflowExecutions.ruleId],
+    references: [workflowRules.id],
+  }),
+}));
+
+export const smartNotificationsRelations = relations(smartNotifications, ({ one }) => ({
+  user: one(users, {
+    fields: [smartNotifications.userId],
     references: [users.id],
   }),
 }));

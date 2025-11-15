@@ -1,20 +1,36 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production'
   
+  const sentryEnabled = !!(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT && process.env.SENTRY_AUTH_TOKEN)
+  const sentryRelease = process.env.SENTRY_RELEASE || process.env.CF_PAGES_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA
+
   return {
     plugins: [
-      react()
+      react(),
+      ...(sentryEnabled ? [
+        sentryVitePlugin({
+          org: process.env.SENTRY_ORG!,
+          project: process.env.SENTRY_PROJECT!,
+          authToken: process.env.SENTRY_AUTH_TOKEN!,
+          release: sentryRelease,
+          telemetry: false,
+          sourcemaps: {
+            filesToDeleteAfterUpload: isProduction ? 'dist/**/*.map' : undefined,
+          },
+        })
+      ] : [])
     ],
     
     base: '/',
     
     build: {
       outDir: 'dist',
-      sourcemap: isProduction ? 'hidden' : true, // Hidden sourcemaps in production
+      sourcemap: isProduction ? 'hidden' : true, // Hidden sourcemaps in production (Sentry plugin will upload)
       minify: 'esbuild', // Use esbuild for minification
       target: 'es2020', // Modern browsers support
       chunkSizeWarningLimit: 1000,
