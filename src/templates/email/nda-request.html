@@ -1,30 +1,32 @@
-<div class="greeting">New NDA Request</div>
+<h1>NDA Request for "{{pitchTitle}}"</h1>
 
-<div class="text">
-  Hi {{recipientName}},
+<p>Hi {{recipientName}},</p>
+
+<p>{{senderName}} has requested you sign a Non-Disclosure Agreement to view their pitch:</p>
+
+<div class="panel">
+    <div class="panel-content">
+        <h3>{{pitchTitle}}</h3>
+        {{#if requestMessage}}
+        <p><strong>Message from {{senderName}}:</strong></p>
+        <p style="font-style: italic; color: #4a5568;">{{requestMessage}}</p>
+        {{/if}}
+    </div>
 </div>
 
-<div class="text">
-  <strong>{{senderName}}</strong> has requested NDA access to your pitch 
-  "<strong>{{pitchTitle}}</strong>".
+<p>By signing this NDA, you agree to keep all information about this pitch confidential. This helps protect the creator's intellectual property while allowing you to evaluate potential investment opportunities.</p>
+
+<div class="text-center mt-4 mb-4">
+    <a href="{{actionUrl}}" class="button button--blue">Review & Sign NDA</a>
 </div>
 
-{{#if requestMessage}}
-<div class="highlight-box">
-  <strong>Message from {{senderName}}:</strong>
-  <p style="margin: 10px 0; font-style: italic;">"{{requestMessage}}"</p>
-</div>
-{{/if}}
+<p class="sub">
+    <strong>What happens next?</strong><br>
+    1. Click the button above to review the NDA terms<br>
+    2. Sign electronically if you agree<br>
+    3. You'll gain immediate access to the full pitch
+</p>
 
-<div class="text">
-  Please review the request and decide whether to approve or decline access. 
-  Once approved, they'll be able to view your protected content.
-</div>
-
-<div style="text-align: center; margin: 30px 0;">
-  <a href="{{actionUrl}}" class="button">Review NDA Request</a>
-</div>
-
-<div class="text" style="font-size: 14px; color: #6b7280;">
-  This request will expire in 7 days if no action is taken.
-</div>
+<p class="sub">
+    This NDA request expires in 30 days. If you have questions about this request, please contact {{senderName}} directly through the Pitchey platform.
+</p>

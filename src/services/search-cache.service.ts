@@ -1,5 +1,5 @@
 import { db } from "../db/client.ts";
-import { realtimeAnalytics } from "../db/schema.ts";
+import { analytics } from "../db/schema.ts";
 import { eq, lt } from "npm:drizzle-orm@0.35.3";
 
 export interface CacheEntry {
@@ -96,8 +96,8 @@ export class SearchCacheService {
     
     // Also delete from database
     try {
-      await db.delete(realtimeAnalytics)
-        .where(eq(realtimeAnalytics.cacheKey, key));
+      await db.delete(analytics)
+        .where(eq(analytics.cacheKey, key));
     } catch (error) {
       console.error('Failed to delete cache entry from database:', error);
     }
@@ -109,7 +109,7 @@ export class SearchCacheService {
     
     // Also clear database cache
     try {
-      await db.delete(realtimeAnalytics);
+      await db.delete(analytics);
     } catch (error) {
       console.error('Failed to clear database cache:', error);
     }
@@ -183,14 +183,14 @@ export class SearchCacheService {
   // Persist frequently used cache entries to database
   private async persistToDatabase(key: string, data: any, expiresAt: Date): Promise<void> {
     try {
-      await db.insert(realtimeAnalytics).values({
+      await db.insert(analytics).values({
         cacheKey: key,
         data,
         expiresAt,
         lastUpdated: new Date(),
         version: 1
       }).onConflictDoUpdate({
-        target: realtimeAnalytics.cacheKey,
+        target: analytics.cacheKey,
         set: {
           data,
           expiresAt,
@@ -206,8 +206,8 @@ export class SearchCacheService {
   // Cleanup expired database cache entries
   private async cleanupDatabase(): Promise<void> {
     try {
-      await db.delete(realtimeAnalytics)
-        .where(lt(realtimeAnalytics.expiresAt, new Date()));
+      await db.delete(analytics)
+        .where(lt(analytics.expiresAt, new Date()));
     } catch (error) {
       console.error('Failed to cleanup database cache:', error);
     }
@@ -231,9 +231,9 @@ export class SearchCacheService {
   async loadFromDatabase(): Promise<void> {
     try {
       const entries = await db.select()
-        .from(realtimeAnalytics)
+        .from(analytics)
         .where(
-          eq(realtimeAnalytics.expiresAt, new Date())
+          eq(analytics.expiresAt, new Date())
         )
         .limit(100); // Load top 100 most recent entries
 

@@ -197,7 +197,13 @@ export class NDAService {
         signerId: request.requesterId,
         status: 'signed',
         signedAt: new Date(),
+        documentUrl: `/api/nda/documents/${request.id}/download`, // Will be updated with real ID after creation
       }).returning();
+
+      // Update with correct document URL
+      await db.update(ndas)
+        .set({ documentUrl: `/api/nda/documents/${nda.id}/download` })
+        .where(eq(ndas.id, nda.id));
       
       // Create notification for requester
       await db.insert(notifications).values({
@@ -463,8 +469,15 @@ export class NDAService {
         signerId: validatedData.signerId,
         status: 'signed',
         signedAt: new Date(),
-        documentUrl: validatedData.customNdaUrl,
+        documentUrl: validatedData.customNdaUrl || `/api/nda/documents/temp/download`, // Will be updated after creation
       }).returning();
+
+      // Update with correct document URL if not custom
+      if (!validatedData.customNdaUrl) {
+        await db.update(ndas)
+          .set({ documentUrl: `/api/nda/documents/${nda.id}/download` })
+          .where(eq(ndas.id, nda.id));
+      }
       
       // Increment NDA count
       await db.update(pitches)

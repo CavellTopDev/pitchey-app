@@ -11,6 +11,7 @@ interface CharacterCardProps {
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   isReordering?: boolean;
+  isLoading?: boolean;
   isDragging?: boolean;
   isDragOver?: boolean;
   onDragStart?: (e: React.DragEvent, index: number) => void;
@@ -30,6 +31,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   onMoveUp,
   onMoveDown,
   isReordering = false,
+  isLoading = false,
   isDragging = false,
   isDragOver = false,
   onDragStart,
@@ -133,9 +135,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               <button
                 type="button"
                 onClick={() => onMoveUp(index)}
-                disabled={!canMoveUp || isDragging}
+                disabled={!canMoveUp || isDragging || isLoading}
                 className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-purple-500 ${
-                  canMoveUp && !isDragging
+                  canMoveUp && !isDragging && !isLoading
                     ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-200' 
                     : 'text-gray-300 cursor-not-allowed'
                 }`}
@@ -147,9 +149,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               <button
                 type="button"
                 onClick={() => onMoveDown(index)}
-                disabled={!canMoveDown || isDragging}
+                disabled={!canMoveDown || isDragging || isLoading}
                 className={`p-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-purple-500 ${
-                  canMoveDown && !isDragging
+                  canMoveDown && !isDragging && !isLoading
                     ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-200' 
                     : 'text-gray-300 cursor-not-allowed'
                 }`}
@@ -167,9 +169,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               <button
                 type="button"
                 onClick={() => onEdit(character)}
-                disabled={isDragging}
+                disabled={isDragging || isLoading}
                 className={`p-2 rounded transition-colors ${
-                  isDragging
+                  isDragging || isLoading
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1'
                 }`}
@@ -183,9 +185,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={isDragging}
+                disabled={isDragging || isLoading}
                 className={`p-2 rounded transition-colors ${
-                  isDragging
+                  isDragging || isLoading
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-red-600 hover:text-red-800 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1'
                 }`}

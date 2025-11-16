@@ -9,6 +9,7 @@ export type {
 // Storage providers
 export { LocalStorageProvider } from "./local-provider.ts";
 export { S3StorageProvider } from "./s3-provider.ts";
+export { R2StorageProvider } from "./r2-provider.ts";
 
 // Storage factory
 export { StorageFactory } from "./factory.ts";

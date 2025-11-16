@@ -4,14 +4,17 @@ import type { Character } from '../../types/character';
 import { CharacterCard } from './CharacterCard';
 import { CharacterForm } from './CharacterForm';
 import { getCharacterStats } from '../../utils/characterUtils';
+import { characterService } from '../../services/character.service';
 
 interface CharacterManagementProps {
+  pitchId: number;
   characters: Character[];
   onChange: (characters: Character[]) => void;
   maxCharacters?: number;
 }
 
 export const CharacterManagement: React.FC<CharacterManagementProps> = ({
+  pitchId,
   characters,
   onChange,
   maxCharacters = 10
@@ -22,6 +25,8 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   const [draggedItem, setDraggedItem] = useState<number | null>(null);
   const [dragOverItem, setDragOverItem] = useState<number | null>(null);
   const [showStats, setShowStats] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const lastCharacterRef = useRef<HTMLDivElement>(null);
 
@@ -56,60 +61,178 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
     setIsFormOpen(true);
   };
 
-  const handleSaveCharacter = (character: Character) => {
-    let updatedCharacters;
+  const handleSaveCharacter = async (character: Character) => {
+    if (!pitchId) return;
     
-    if (editingCharacter) {
-      // Update existing character
-      updatedCharacters = normalizedCharacters.map(char => 
-        char.id === character.id ? character : char
-      );
-    } else {
-      // Add new character
-      const newCharacter = {
-        ...character,
-        displayOrder: normalizedCharacters.length
-      };
-      updatedCharacters = [...normalizedCharacters, newCharacter];
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      let updatedCharacter: Character;
+      
+      if (editingCharacter && editingCharacter.id) {
+        // Update existing character
+        const characterData = {
+          name: character.name,
+          description: character.description,
+          age: character.age,
+          gender: character.gender,
+          actor: character.actor,
+          role: character.role,
+          relationship: character.relationship,
+        };
+        
+        updatedCharacter = await characterService.updateCharacter(
+          pitchId, 
+          parseInt(editingCharacter.id), 
+          characterData
+        );
+        
+        // Update local state
+        const updatedCharacters = normalizedCharacters.map(char => 
+          char.id === editingCharacter.id ? { ...updatedCharacter, id: updatedCharacter.id?.toString() } : char
+        );
+        onChange(updatedCharacters);
+      } else {
+        // Add new character
+        const characterData = {
+          name: character.name,
+          description: character.description,
+          age: character.age,
+          gender: character.gender,
+          actor: character.actor,
+          role: character.role,
+          relationship: character.relationship,
+        };
+        
+        updatedCharacter = await characterService.addCharacter(pitchId, characterData);
+        
+        // Add to local state
+        const newCharacter = { ...updatedCharacter, id: updatedCharacter.id?.toString() };
+        onChange([...normalizedCharacters, newCharacter]);
+      }
+      
+      setIsFormOpen(false);
+      setEditingCharacter(undefined);
+    } catch (error) {
+      console.error('Error saving character:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save character');
+    } finally {
+      setIsLoading(false);
     }
-
-    onChange(updatedCharacters);
-    setIsFormOpen(false);
-    setEditingCharacter(undefined);
   };
 
-  const handleDeleteCharacter = (id: string) => {
-    if (confirm('Are you sure you want to delete this character?')) {
-      const updatedCharacters = normalizedCharacters
-        .filter(char => char.id !== id)
-        .map((char, index) => ({ ...char, displayOrder: index }));
+  const handleDeleteCharacter = async (id: string) => {
+    if (!pitchId || !confirm('Are you sure you want to delete this character?')) {
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      await characterService.deleteCharacter(pitchId, parseInt(id));
+      
+      // Remove from local state
+      const updatedCharacters = normalizedCharacters.filter(char => char.id !== id);
       onChange(updatedCharacters);
+    } catch (error) {
+      console.error('Error deleting character:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete character');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleMoveCharacter = useCallback((fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= normalizedCharacters.length || fromIndex === toIndex) return;
+  const handleMoveCharacter = useCallback(async (fromIndex: number, toIndex: number) => {
+    if (!pitchId || toIndex < 0 || toIndex >= normalizedCharacters.length || fromIndex === toIndex) return;
     
-    const updatedCharacters = [...normalizedCharacters];
-    const [movedCharacter] = updatedCharacters.splice(fromIndex, 1);
-    updatedCharacters.splice(toIndex, 0, movedCharacter);
+    setIsLoading(true);
+    setError(null);
     
-    // Update display order
-    const reorderedCharacters = updatedCharacters.map((char, index) => ({
-      ...char,
-      displayOrder: index
-    }));
-    
-    onChange(reorderedCharacters);
-  }, [normalizedCharacters, onChange]);
+    try {
+      // Create optimistic update
+      const updatedCharacters = [...normalizedCharacters];
+      const [movedCharacter] = updatedCharacters.splice(fromIndex, 1);
+      updatedCharacters.splice(toIndex, 0, movedCharacter);
+      
+      // Update display orders for API
+      const characterOrders = updatedCharacters.map((char, index) => ({
+        id: parseInt(char.id || '0'),
+        displayOrder: index
+      }));
+      
+      // Call API
+      const reorderedCharacters = await characterService.reorderCharacters(pitchId, characterOrders);
+      
+      // Update with API response (convert IDs to strings for frontend compatibility)
+      const formattedCharacters = reorderedCharacters.map(char => ({
+        ...char,
+        id: char.id?.toString()
+      }));
+      
+      onChange(formattedCharacters);
+    } catch (error) {
+      console.error('Error reordering characters:', error);
+      setError(error instanceof Error ? error.message : 'Failed to reorder characters');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pitchId, normalizedCharacters, onChange]);
 
-  const handleMoveUp = useCallback((index: number) => {
-    handleMoveCharacter(index, index - 1);
-  }, [handleMoveCharacter]);
+  const handleMoveUp = useCallback(async (index: number) => {
+    if (!pitchId || index <= 0) return;
+    
+    const character = normalizedCharacters[index];
+    if (!character.id) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const updatedCharacters = await characterService.moveCharacter(pitchId, parseInt(character.id), 'up');
+      
+      // Update with API response
+      const formattedCharacters = updatedCharacters.map(char => ({
+        ...char,
+        id: char.id?.toString()
+      }));
+      
+      onChange(formattedCharacters);
+    } catch (error) {
+      console.error('Error moving character up:', error);
+      setError(error instanceof Error ? error.message : 'Failed to move character');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pitchId, normalizedCharacters, onChange]);
 
-  const handleMoveDown = useCallback((index: number) => {
-    handleMoveCharacter(index, index + 1);
-  }, [handleMoveCharacter]);
+  const handleMoveDown = useCallback(async (index: number) => {
+    if (!pitchId || index >= normalizedCharacters.length - 1) return;
+    
+    const character = normalizedCharacters[index];
+    if (!character.id) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const updatedCharacters = await characterService.moveCharacter(pitchId, parseInt(character.id), 'down');
+      
+      // Update with API response
+      const formattedCharacters = updatedCharacters.map(char => ({
+        ...char,
+        id: char.id?.toString()
+      }));
+      
+      onChange(formattedCharacters);
+    } catch (error) {
+      console.error('Error moving character down:', error);
+      setError(error instanceof Error ? error.message : 'Failed to move character');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pitchId, normalizedCharacters, onChange]);
 
   // Drag and drop handlers
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -205,7 +328,8 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
             <button
               type="button"
               onClick={() => setIsReordering(!isReordering)}
-              className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              disabled={isLoading}
+              className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 isReordering
                   ? 'bg-orange-100 text-orange-700 border border-orange-300'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -222,9 +346,9 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
             type="button"
             onClick={handleAddCharacter}
             onKeyDown={(e) => handleKeyDown(e, handleAddCharacter)}
-            disabled={normalizedCharacters.length >= maxCharacters}
+            disabled={normalizedCharacters.length >= maxCharacters || isLoading}
             className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
-              normalizedCharacters.length >= maxCharacters
+              normalizedCharacters.length >= maxCharacters || isLoading
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-purple-600 text-white hover:bg-purple-700'
             }`}
@@ -242,6 +366,38 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium text-red-800 mb-1">Error</p>
+              <p className="text-sm text-red-700">{error}</p>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="relative">
+          <div className="absolute inset-0 bg-white/70 rounded-lg z-10 flex items-center justify-center">
+            <div className="flex items-center gap-2 text-purple-600">
+              <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm font-medium">Updating characters...</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Instructions and Stats */}
       <div className={`p-4 border rounded-lg transition-colors ${
@@ -339,6 +495,7 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
                 isReordering={isReordering}
+                isLoading={isLoading}
                 isDragging={draggedItem === index}
                 isDragOver={dragOverItem === index}
                 onDragStart={handleDragStart}

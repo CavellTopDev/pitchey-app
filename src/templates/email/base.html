@@ -1,278 +1,297 @@
 <!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="x-apple-disable-message-reformatting">
-  <title>{{title}}</title>
-  {{#if preheader}}
-  <meta name="description" content="{{preheader}}">
-  {{/if}}
-  <!--[if mso]>
-  <noscript>
-    <xml>
-      <o:OfficeDocumentSettings>
-        <o:PixelsPerInch>96</o:PixelsPerInch>
-      </o:OfficeDocumentSettings>
-    </xml>
-  </noscript>
-  <![endif]-->
-  <style>
-    @media screen and (max-width: 600px) {
-      .container { width: 100% !important; }
-      .content { padding: 20px !important; }
-      .header { padding: 20px !important; }
-      .footer { padding: 20px !important; }
-      .button { width: 100% !important; padding: 15px !important; }
-      .stats-grid { flex-direction: column !important; }
-      .stat-item { margin-bottom: 10px !important; }
-      .recommendations { flex-direction: column !important; }
-      .recommendation-item { width: 100% !important; margin-bottom: 20px !important; }
-    }
-    
-    * { box-sizing: border-box; }
-    body { 
-      margin: 0; 
-      padding: 0; 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      line-height: 1.6;
-      color: #374151;
-      background-color: #f9fafb;
-    }
-    
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background-color: #ffffff;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    
-    .header {
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      padding: 30px;
-      text-align: center;
-    }
-    
-    .logo {
-      color: #ffffff;
-      font-size: 28px;
-      font-weight: bold;
-      text-decoration: none;
-      letter-spacing: -0.5px;
-    }
-    
-    .content {
-      padding: 40px 30px;
-    }
-    
-    .greeting {
-      font-size: 18px;
-      font-weight: 600;
-      color: #111827;
-      margin-bottom: 20px;
-    }
-    
-    .text {
-      font-size: 16px;
-      line-height: 1.7;
-      color: #374151;
-      margin-bottom: 20px;
-    }
-    
-    .button {
-      display: inline-block;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      color: #ffffff;
-      text-decoration: none;
-      padding: 12px 32px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 16px;
-      margin: 20px 0;
-      text-align: center;
-      transition: transform 0.2s ease;
-    }
-    
-    .button:hover {
-      transform: translateY(-1px);
-    }
-    
-    .button-secondary {
-      background: #f3f4f6;
-      color: #374151;
-      border: 2px solid #e5e7eb;
-    }
-    
-    .button-success {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    }
-    
-    .button-danger {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    }
-    
-    .highlight-box {
-      background-color: #f8fafc;
-      border-left: 4px solid #6366f1;
-      padding: 20px;
-      margin: 20px 0;
-      border-radius: 0 8px 8px 0;
-    }
-    
-    .stats-grid {
-      display: flex;
-      gap: 20px;
-      margin: 30px 0;
-    }
-    
-    .stat-item {
-      flex: 1;
-      text-align: center;
-      padding: 20px;
-      background-color: #f8fafc;
-      border-radius: 8px;
-      border: 1px solid #e5e7eb;
-    }
-    
-    .stat-number {
-      font-size: 32px;
-      font-weight: bold;
-      color: #6366f1;
-      display: block;
-    }
-    
-    .stat-label {
-      font-size: 14px;
-      color: #6b7280;
-      margin-top: 5px;
-    }
-    
-    .recommendations {
-      display: flex;
-      gap: 20px;
-      margin: 30px 0;
-    }
-    
-    .recommendation-item {
-      flex: 1;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    
-    .recommendation-image {
-      width: 100%;
-      height: 120px;
-      background-color: #f3f4f6;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #9ca3af;
-      font-size: 14px;
-    }
-    
-    .recommendation-content {
-      padding: 15px;
-    }
-    
-    .recommendation-title {
-      font-weight: 600;
-      color: #111827;
-      margin-bottom: 5px;
-      font-size: 14px;
-    }
-    
-    .recommendation-creator {
-      font-size: 12px;
-      color: #6b7280;
-    }
-    
-    .footer {
-      background-color: #f9fafb;
-      padding: 30px;
-      text-align: center;
-      border-top: 1px solid #e5e7eb;
-    }
-    
-    .footer-text {
-      font-size: 14px;
-      color: #6b7280;
-      margin-bottom: 10px;
-    }
-    
-    .footer-links {
-      font-size: 12px;
-      color: #9ca3af;
-    }
-    
-    .footer-links a {
-      color: #6366f1;
-      text-decoration: none;
-      margin: 0 10px;
-    }
-    
-    .unsubscribe {
-      margin-top: 20px;
-      font-size: 12px;
-      color: #9ca3af;
-    }
-    
-    .unsubscribe a {
-      color: #6b7280;
-      text-decoration: underline;
-    }
-    
-    .alert-warning {
-      background-color: #fef3c7;
-      border-left: 4px solid #f59e0b;
-      color: #92400e;
-    }
-    
-    .alert-success {
-      background-color: #d1fae5;
-      border-left: 4px solid #10b981;
-      color: #065f46;
-    }
-    
-    .alert-danger {
-      background-color: #fee2e2;
-      border-left: 4px solid #ef4444;
-      color: #991b1b;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{{title}}</title>
+    <style>
+        /* Reset styles */
+        body, table, td, p, a, li, blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+        
+        /* Base styles */
+        body {
+            background-color: #f6f9fc;
+            margin: 0;
+            padding: 0;
+            width: 100% !important;
+            min-width: 100%;
+            -webkit-font-smoothing: antialiased;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif;
+        }
+        
+        .email-wrapper {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f6f9fc;
+        }
+        
+        .email-content {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .email-masthead {
+            padding: 25px 0;
+            text-align: center;
+        }
+        
+        .email-masthead_logo {
+            max-width: 400px;
+        }
+        
+        .email-masthead_name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d3748;
+            text-decoration: none;
+        }
+        
+        .email-body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #ffffff;
+        }
+        
+        .email-body_inner {
+            width: 570px;
+            margin: 0 auto;
+            padding: 0;
+        }
+        
+        .email-body_cell {
+            padding: 35px;
+        }
+        
+        .email-footer {
+            width: 570px;
+            margin: 0 auto;
+            padding: 0;
+            text-align: center;
+        }
+        
+        .email-footer_cell {
+            color: #718096;
+            padding: 35px;
+            text-align: center;
+        }
+        
+        /* Typography */
+        h1 {
+            margin-top: 0;
+            color: #2d3748;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: left;
+        }
+        
+        h2 {
+            margin-top: 0;
+            color: #2d3748;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: left;
+        }
+        
+        h3 {
+            margin-top: 0;
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: left;
+        }
+        
+        p {
+            margin-top: 0;
+            color: #718096;
+            font-size: 16px;
+            line-height: 1.5em;
+            text-align: left;
+        }
+        
+        p.sub {
+            font-size: 12px;
+        }
+        
+        p.center {
+            text-align: center;
+        }
+        
+        /* Buttons */
+        .button {
+            display: inline-block;
+            width: 200px;
+            background-color: #667eea;
+            border-radius: 3px;
+            color: #ffffff;
+            font-size: 15px;
+            line-height: 45px;
+            text-align: center;
+            text-decoration: none;
+            -webkit-text-size-adjust: none;
+            mso-hide: all;
+        }
+        
+        .button--green {
+            background-color: #48bb78;
+        }
+        
+        .button--red {
+            background-color: #f56565;
+        }
+        
+        .button--blue {
+            background-color: #4299e1;
+        }
+        
+        /* Panels */
+        .panel {
+            margin: 0 0 21px;
+        }
+        
+        .panel-content {
+            background-color: #f7fafc;
+            padding: 16px;
+        }
+        
+        .panel-item {
+            padding: 0 0 21px;
+        }
+        
+        /* Utilities */
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .mt-4 {
+            margin-top: 16px;
+        }
+        
+        .mb-4 {
+            margin-bottom: 16px;
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .email-wrapper {
+                background-color: #1a202c !important;
+            }
+            .email-body {
+                background-color: #2d3748 !important;
+                border-top: 1px solid #4a5568 !important;
+                border-bottom: 1px solid #4a5568 !important;
+            }
+            h1, h2, h3 {
+                color: #f7fafc !important;
+            }
+            p {
+                color: #e2e8f0 !important;
+            }
+            .panel-content {
+                background-color: #4a5568 !important;
+            }
+        }
+        
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-body_inner,
+            .email-footer {
+                width: 100% !important;
+            }
+            .email-body_cell {
+                padding: 20px !important;
+            }
+            .email-footer_cell {
+                padding: 20px !important;
+            }
+        }
+    </style>
+    <!--[if mso]>
+    <style type="text/css">
+        .f-fallback {
+            font-family: Arial, sans-serif;
+        }
+    </style>
+    <![endif]-->
 </head>
-<body>
-  {{#if preheader}}
-  <div style="display: none; max-height: 0; overflow: hidden; font-size: 1px; line-height: 1px; color: #ffffff;">
-    {{preheader}}
-  </div>
-  {{/if}}
-  
-  <div class="container">
-    <div class="header">
-      <a href="https://pitchey.com" class="logo">Pitchey</a>
-    </div>
-    
-    <div class="content">
-      {{content}}
-    </div>
-    
-    <div class="footer">
-      <div class="footer-text">
-        © {{currentYear}} Pitchey. All rights reserved.
-      </div>
-      <div class="footer-links">
-        <a href="https://pitchey.com">Home</a>
-        <a href="https://pitchey.com/help">Help</a>
-        <a href="https://pitchey.com/privacy">Privacy</a>
-        <a href="https://pitchey.com/terms">Terms</a>
-      </div>
-      {{#if unsubscribeUrl}}
-      <div class="unsubscribe">
-        <a href="{{unsubscribeUrl}}">Unsubscribe</a>
-      </div>
-      {{/if}}
-    </div>
-  </div>
+<body class="f-fallback">
+    <span class="preheader" style="color: transparent; display: none; height: 0; max-height: 0; max-width: 0; opacity: 0; overflow: hidden; mso-hide: all; visibility: hidden; width: 0;">{{preheader}}</span>
+    <table class="email-wrapper" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+            <td align="center">
+                <table class="email-content" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                    <!-- Email Header -->
+                    <tr>
+                        <td class="email-masthead">
+                            <a href="https://pitchey.pages.dev" class="email-masthead_name">
+                                <img src="https://pitchey.pages.dev/logo.png" alt="Pitchey" class="email-masthead_logo" style="width: 120px; height: auto;">
+                            </a>
+                        </td>
+                    </tr>
+                    <!-- Email Body -->
+                    <tr>
+                        <td class="email-body" width="100%">
+                            <table class="email-body_inner" align="center" width="570" cellpadding="0" cellspacing="0" role="presentation">
+                                <tr>
+                                    <td class="email-body_cell">
+                                        {{content}}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Email Footer -->
+                    <tr>
+                        <td>
+                            <table class="email-footer" align="center" width="570" cellpadding="0" cellspacing="0" role="presentation">
+                                <tr>
+                                    <td class="email-footer_cell">
+                                        <p class="sub center">
+                                            You're receiving this email because you have an account with Pitchey.
+                                            {{#if unsubscribeUrl}}
+                                            <br>
+                                            <a href="{{unsubscribeUrl}}" style="color: #718096;">Unsubscribe</a> from these emails.
+                                            {{/if}}
+                                        </p>
+                                        <p class="sub center">
+                                            © {{currentYear}} Pitchey. All rights reserved.
+                                            <br>
+                                            <a href="https://pitchey.pages.dev" style="color: #718096;">Pitchey</a> • 
+                                            <a href="https://pitchey.pages.dev/privacy" style="color: #718096;">Privacy Policy</a> • 
+                                            <a href="https://pitchey.pages.dev/terms" style="color: #718096;">Terms of Service</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

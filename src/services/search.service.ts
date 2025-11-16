@@ -23,7 +23,7 @@ import {
   isNotNull,
   count,
   exists
-} from "npm:drizzle-orm@0.35.3";
+} from "drizzle-orm";
 import { searchCache, SearchCacheService } from "./search-cache.service.ts";
 
 // Define search interfaces
@@ -1029,5 +1029,63 @@ export class SearchService {
   // Get cache statistics
   static getCacheStats() {
     return searchCache.getCacheStats();
+  }
+
+  // Get search filters metadata
+  static async getFiltersMetadata(type: 'pitch' | 'user'): Promise<{
+    genres?: string[];
+    formats?: string[];
+    userTypes?: string[];
+    locations?: string[];
+    specialties?: string[];
+    budgetRanges?: { min: number; max: number; label: string }[];
+  }> {
+    try {
+      if (type === 'pitch') {
+        // Get unique values from database
+        const [genres, formats] = await Promise.all([
+          db.select({ genre: pitches.genre })
+            .from(pitches)
+            .where(eq(pitches.status, 'published'))
+            .groupBy(pitches.genre),
+          db.select({ format: pitches.format })
+            .from(pitches)
+            .where(eq(pitches.status, 'published'))
+            .groupBy(pitches.format)
+        ]);
+
+        return {
+          genres: genres.map(g => g.genre).filter(Boolean),
+          formats: formats.map(f => f.format).filter(Boolean),
+          budgetRanges: [
+            { min: 0, max: 100000, label: 'Under $100K' },
+            { min: 100000, max: 1000000, label: '$100K - $1M' },
+            { min: 1000000, max: 10000000, label: '$1M - $10M' },
+            { min: 10000000, max: 50000000, label: '$10M - $50M' },
+            { min: 50000000, max: 999999999, label: '$50M+' }
+          ]
+        };
+      } else if (type === 'user') {
+        const userTypes = await db.select({ userType: users.userType })
+          .from(users)
+          .where(eq(users.isActive, true))
+          .groupBy(users.userType);
+
+        const locations = await db.select({ location: users.location })
+          .from(users)
+          .where(and(eq(users.isActive, true), isNotNull(users.location)))
+          .groupBy(users.location);
+
+        return {
+          userTypes: userTypes.map(u => u.userType).filter(Boolean),
+          locations: locations.map(l => l.location).filter(Boolean).slice(0, 50) // Limit to 50 locations
+        };
+      }
+
+      return {};
+    } catch (error) {
+      console.error('Error getting filters metadata:', error);
+      return {};
+    }
   }
 }

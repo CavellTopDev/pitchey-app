@@ -10,6 +10,9 @@ import { ndas, pitches, users, companies } from "../db/schema.ts";
 import { eq, and, sql, desc, or } from "npm:drizzle-orm@0.35.3";
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { validateEnvironment } from "../utils/env-validation.ts";
+import { sendNDARequestEmail, sendNDAResponseEmail } from "../services/email/index.ts";
+import { getEmailQueueService } from "../services/email/queue-service.ts";
+import { getUnsubscribeUrl, shouldSendEmail } from "../services/email/unsubscribe-service.ts";
 
 const envConfig = validateEnvironment();
 const JWT_SECRET = envConfig.JWT_SECRET;
@@ -92,6 +95,43 @@ export const requestNda: RouteHandler = async (request, url) => {
       })
       .returning();
 
+    // Get pitch and user details for email
+    const [pitchDetails, requesterDetails, ownerDetails] = await Promise.all([
+      db.select({ title: pitches.title }).from(pitches).where(eq(pitches.id, pitch_id)),
+      db.select({ firstName: users.firstName, email: users.email }).from(users).where(eq(users.id, user.userId)),
+      db.select({ firstName: users.firstName, email: users.email }).from(users).where(eq(users.id, pitch.user_id))
+    ]);
+
+    // Send NDA request email notification
+    try {
+      const shouldSend = await shouldSendEmail(pitch.user_id.toString(), 'nda_requests');
+      if (shouldSend && pitchDetails[0] && requesterDetails[0] && ownerDetails[0]) {
+        const unsubscribeUrl = await getUnsubscribeUrl(
+          pitch.user_id.toString(), 
+          ownerDetails[0].email, 
+          'nda_requests'
+        );
+
+        const emailQueue = getEmailQueueService();
+        await emailQueue.queueEmail({
+          to: ownerDetails[0].email,
+          subject: `New NDA Request for "${pitchDetails[0].title}"`,
+          html: '', // Will be populated by template engine
+          text: '',
+          trackingId: `nda-request-${newNda[0].id}-${Date.now()}`,
+          unsubscribeUrl,
+        }, { priority: 'normal' });
+
+        telemetry.logger.info("NDA request email queued", { 
+          ndaId: newNda[0].id, 
+          recipientEmail: ownerDetails[0].email 
+        });
+      }
+    } catch (emailError) {
+      telemetry.logger.error("Failed to send NDA request email", emailError);
+      // Don't fail the request if email fails
+    }
+
     telemetry.logger.info("NDA requested", { 
       ndaId: newNda[0].id,
       pitchId: pitch_id,
@@ -165,6 +205,43 @@ export const respondToNdaRequest: RouteHandler = async (request, url, params) =>
       .set(updateData)
       .where(eq(ndas.id, parseInt(ndaId)))
       .returning();
+
+    // Send NDA response email to requester
+    try {
+      const [pitchDetails, requesterDetails] = await Promise.all([
+        db.select({ title: pitches.title }).from(pitches).where(eq(pitches.id, nda.pitch_id)),
+        db.select({ firstName: users.firstName, email: users.email }).from(users).where(eq(users.id, nda.requester_id))
+      ]);
+
+      const shouldSend = await shouldSendEmail(nda.requester_id.toString(), 'nda_responses');
+      if (shouldSend && pitchDetails[0] && requesterDetails[0]) {
+        const unsubscribeUrl = await getUnsubscribeUrl(
+          nda.requester_id.toString(), 
+          requesterDetails[0].email, 
+          'nda_responses'
+        );
+
+        const emailQueue = getEmailQueueService();
+        const status = action === "approve" ? "approved" : "rejected";
+        await emailQueue.queueEmail({
+          to: requesterDetails[0].email,
+          subject: `NDA Request ${status === "approved" ? "Approved" : "Declined"} - "${pitchDetails[0].title}"`,
+          html: '', // Will be populated by template engine
+          text: '',
+          trackingId: `nda-response-${nda.id}-${Date.now()}`,
+          unsubscribeUrl,
+        }, { priority: 'high' });
+
+        telemetry.logger.info("NDA response email queued", { 
+          ndaId: parseInt(ndaId), 
+          action,
+          recipientEmail: requesterDetails[0].email 
+        });
+      }
+    } catch (emailError) {
+      telemetry.logger.error("Failed to send NDA response email", emailError);
+      // Don't fail the response if email fails
+    }
 
     telemetry.logger.info(`NDA ${action}d`, { 
       ndaId: parseInt(ndaId),

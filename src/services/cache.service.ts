@@ -609,3 +609,182 @@ export class CacheService {
     }
   }
 }
+
+// Initialize cache service
+let cacheServiceInstance: CacheService | null = null;
+
+export function getCacheService(): CacheService {
+  if (!cacheServiceInstance) {
+    cacheServiceInstance = new CacheService();
+  }
+  return cacheServiceInstance;
+}
+
+// Redis connection helper for email services
+export async function getRedisConnection(): Promise<any> {
+  try {
+    const cacheService = getCacheService();
+    
+    // Return a Redis-like interface that wraps the cache service
+    return {
+      async hset(key: string, field: string, value: string): Promise<void> {
+        const cacheKey = `${key}:${field}`;
+        await cacheService.set(cacheKey, value);
+      },
+      
+      async hget(key: string, field: string): Promise<string | null> {
+        const cacheKey = `${key}:${field}`;
+        return await cacheService.get(cacheKey);
+      },
+      
+      async hgetall(key: string): Promise<Record<string, string>> {
+        // Note: This is a simplified implementation
+        // In a real Redis setup, this would get all hash fields
+        try {
+          const value = await cacheService.get(key);
+          return value ? JSON.parse(value) : {};
+        } catch {
+          return {};
+        }
+      },
+      
+      async hincrby(key: string, field: string, increment: number): Promise<void> {
+        const cacheKey = `${key}:${field}`;
+        const current = await cacheService.get(cacheKey);
+        const currentValue = current ? parseInt(current) : 0;
+        await cacheService.set(cacheKey, String(currentValue + increment));
+      },
+      
+      async set(key: string, value: string): Promise<void> {
+        await cacheService.set(key, value);
+      },
+      
+      async get(key: string): Promise<string | null> {
+        return await cacheService.get(key);
+      },
+      
+      async del(key: string): Promise<void> {
+        await cacheService.delete(key);
+      },
+      
+      async expire(key: string, seconds: number): Promise<void> {
+        await cacheService.setWithTTL(key, await cacheService.get(key) || '', seconds);
+      },
+      
+      async zadd(key: string, score: number, value: string): Promise<void> {
+        // Simplified sorted set implementation using JSON
+        const existingData = await cacheService.get(key);
+        const sortedSet: Array<{score: number, value: string}> = existingData ? JSON.parse(existingData) : [];
+        
+        // Remove existing entry with same value
+        const filtered = sortedSet.filter(item => item.value !== value);
+        
+        // Add new entry
+        filtered.push({score, value});
+        
+        // Sort by score
+        filtered.sort((a, b) => a.score - b.score);
+        
+        await cacheService.set(key, JSON.stringify(filtered));
+      },
+      
+      async zrangebyscore(key: string, min: number, max: number, ...args: string[]): Promise<string[]> {
+        const data = await cacheService.get(key);
+        if (!data) return [];
+        
+        try {
+          const sortedSet: Array<{score: number, value: string}> = JSON.parse(data);
+          return sortedSet
+            .filter(item => item.score >= min && item.score <= max)
+            .map(item => item.value);
+        } catch {
+          return [];
+        }
+      },
+      
+      async zrem(key: string, value: string): Promise<void> {
+        const data = await cacheService.get(key);
+        if (!data) return;
+        
+        try {
+          const sortedSet: Array<{score: number, value: string}> = JSON.parse(data);
+          const filtered = sortedSet.filter(item => item.value !== value);
+          await cacheService.set(key, JSON.stringify(filtered));
+        } catch {
+          // Ignore parsing errors
+        }
+      },
+      
+      async zcard(key: string): Promise<number> {
+        const data = await cacheService.get(key);
+        if (!data) return 0;
+        
+        try {
+          const sortedSet: Array<{score: number, value: string}> = JSON.parse(data);
+          return sortedSet.length;
+        } catch {
+          return 0;
+        }
+      },
+      
+      async lpush(key: string, value: string): Promise<void> {
+        const data = await cacheService.get(key);
+        const list: string[] = data ? JSON.parse(data) : [];
+        list.unshift(value);
+        await cacheService.set(key, JSON.stringify(list));
+      },
+      
+      async ltrim(key: string, start: number, stop: number): Promise<void> {
+        const data = await cacheService.get(key);
+        if (!data) return;
+        
+        try {
+          const list: string[] = JSON.parse(data);
+          const trimmed = list.slice(start, stop + 1);
+          await cacheService.set(key, JSON.stringify(trimmed));
+        } catch {
+          // Ignore parsing errors
+        }
+      },
+      
+      async lrange(key: string, start: number, stop: number): Promise<string[]> {
+        const data = await cacheService.get(key);
+        if (!data) return [];
+        
+        try {
+          const list: string[] = JSON.parse(data);
+          return stop === -1 ? list.slice(start) : list.slice(start, stop + 1);
+        } catch {
+          return [];
+        }
+      },
+      
+      async sadd(key: string, member: string): Promise<void> {
+        const data = await cacheService.get(key);
+        const set: string[] = data ? JSON.parse(data) : [];
+        if (!set.includes(member)) {
+          set.push(member);
+          await cacheService.set(key, JSON.stringify(set));
+        }
+      },
+      
+      async sismember(key: string, member: string): Promise<number> {
+        const data = await cacheService.get(key);
+        if (!data) return 0;
+        
+        try {
+          const set: string[] = JSON.parse(data);
+          return set.includes(member) ? 1 : 0;
+        } catch {
+          return 0;
+        }
+      }
+    };
+  } catch (error) {
+    console.warn("Redis connection fallback to null:", error);
+    return null;
+  }
+}
+
+// Export the default cache service instance
+export const cacheService = getCacheService();

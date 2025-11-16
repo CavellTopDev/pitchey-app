@@ -1,17 +1,15 @@
 name = "pitchey"
-main = "src/worker-simple.ts"
+main = "src/worker-neon-hyperdrive.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare Pages config for static deployments
-pages_build_output_dir = "frontend/dist"
+# Worker deployment (not Pages)
+# pages_build_output_dir = "frontend/dist"
 
 [vars]
 # Used for CORS and redirects
 FRONTEND_URL = "https://pitchey.pages.dev"
-
-# Set secrets with: wrangler secret put JWT_SECRET
-# JWT_SECRET is read from environment secrets at deploy time
+JWT_SECRET = "demo-jwt-secret-for-development"
 
 # Progressive migration: proxy unmatched API routes to existing Deno backend
 ORIGIN_URL = "https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev"
@@ -35,6 +33,7 @@ binding = "HYPERDRIVE"
 # Run ./hyperdrive-setup.sh to get your Hyperdrive ID
 # Then replace this with the actual ID from the setup script
 id = "983d4a1818264b5dbdca26bacf167dee"
+localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
 
 # 2) D1 (SQLite at the edge)
 # [[d1_databases]]
@@ -43,10 +42,11 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 # database_id = "REPLACE_WITH_D1_ID"
 
 [env.production]
-# Production-only vars; secrets still come from GitHub Actions or wrangler secrets
+# Production-only vars
 [env.production.vars]
 FRONTEND_URL = "https://pitchey.pages.dev"
 ORIGIN_URL = "https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev"
+JWT_SECRET = "demo-jwt-secret-for-production"
 
 # Re-declare bindings for the production environment (not inherited)
 [[env.production.kv_namespaces]]
@@ -66,6 +66,7 @@ class_name = "WebSocketRoom"
 binding = "HYPERDRIVE"
 # Same ID as development - Hyperdrive handles environment separation
 id = "983d4a1818264b5dbdca26bacf167dee"
+localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
 
 [[migrations]]
 tag = "v1"

@@ -1,0 +1,64 @@
+<h1>{{projectTitle}} - Project Update</h1>
+
+<p>Hi {{investorName}},</p>
+
+<p>We have an important {{updateType}} update for <strong>{{projectTitle}}</strong>:</p>
+
+<div class="panel">
+    <div class="panel-content">
+        {{#if (eq updateType "milestone")}}
+        <h3>🎯 Milestone Achieved!</h3>
+        {{else if (eq updateType "funding")}}
+        <h3>💰 Funding Update</h3>
+        {{else if (eq updateType "production")}}
+        <h3>🎬 Production Progress</h3>
+        {{else if (eq updateType "release")}}
+        <h3>🚀 Release Announcement</h3>
+        {{else}}
+        <h3>📢 Project Update</h3>
+        {{/if}}
+        
+        <div style="background: #f7fafc; padding: 16px; border-radius: 4px; margin: 16px 0;">
+            <p style="margin: 0; color: #2d3748; line-height: 1.6;">{{updateMessage}}</p>
+        </div>
+    </div>
+</div>
+
+{{#if (eq updateType "milestone")}}
+<p>This milestone represents significant progress toward the project's completion. Thank you for your continued support as we move forward with production.</p>
+{{else if (eq updateType "funding")}}
+<p>This funding update may impact project timelines, scope, or investment terms. Please review the details carefully and reach out if you have any questions.</p>
+{{else if (eq updateType "production")}}
+<p>Production is moving forward! These updates help keep you informed about the creative and logistical progress of your investment.</p>
+{{else if (eq updateType "release")}}
+<p>We're excited to share this release information with you as one of our valued investors. Your support made this moment possible!</p>
+{{else}}
+<p>We believe in keeping our investors informed about all aspects of the project's development. Your investment and trust are important to us.</p>
+{{/if}}
+
+<div class="text-center mt-4 mb-4">
+    <a href="{{projectUrl}}" class="button button--blue">View Full Project Details</a>
+</div>
+
+<h3>📊 Quick Project Stats:</h3>
+<div class="panel">
+    <div class="panel-content" style="font-size: 14px;">
+        {{#if (eq updateType "funding")}}
+        <p><strong>Funding Status:</strong> Current round details available in project dashboard</p>
+        <p><strong>Timeline:</strong> Updated milestones and delivery dates</p>
+        {{else if (eq updateType "production")}}
+        <p><strong>Production Phase:</strong> Check dashboard for current stage</p>
+        <p><strong>Completion:</strong> Percentage complete and timeline updates</p>
+        {{else if (eq updateType "release")}}
+        <p><strong>Release Date:</strong> Official announcement and distribution plans</p>
+        <p><strong>Marketing:</strong> Promotion strategy and campaign launch</p>
+        {{else}}
+        <p><strong>Status:</strong> Current phase and next milestones</p>
+        <p><strong>Team:</strong> Updates on key personnel and roles</p>
+        {{/if}}
+    </div>
+</div>
+
+<p class="sub">
+    For detailed financial reports, production schedules, and additional resources, please visit the investor portal. If you have questions about this update, the project team is available to answer them directly through the platform.
+</p>

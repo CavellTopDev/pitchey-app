@@ -9,6 +9,10 @@ import {
   MessageEmailData, 
   PasswordResetEmailData, 
   PaymentConfirmationEmailData,
+  WeeklyDigestEmailData,
+  PitchViewEmailData,
+  InvestorInviteEmailData,
+  ProjectUpdateEmailData,
   EMAIL_TEMPLATES 
 } from './interface.ts';
 
@@ -44,26 +48,64 @@ export class EmailTemplateEngine {
   private processTemplate(template: string, data: Record<string, any>): string {
     let processed = template;
 
-    // Simple template processing - replace {{variable}} with data values
-    for (const [key, value] of Object.entries(data)) {
-      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-      processed = processed.replace(regex, String(value || ''));
-    }
+    // Handle each loops {{#each array}}...{{/each}}
+    processed = processed.replace(/\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (match, arrayName, content) => {
+      const arrayData = data[arrayName];
+      if (!Array.isArray(arrayData)) return '';
+      
+      return arrayData.map((item, index) => {
+        let itemContent = content;
+        // Replace {{this}} with current item if it's a string
+        if (typeof item === 'string') {
+          itemContent = itemContent.replace(/\{\{this\}\}/g, item);
+        } else if (typeof item === 'object') {
+          // Replace {{property}} with item properties
+          for (const [prop, value] of Object.entries(item)) {
+            const regex = new RegExp(`\\{\\{${prop}\\}\\}`, 'g');
+            itemContent = itemContent.replace(regex, String(value || ''));
+          }
+        }
+        // Add index support
+        itemContent = itemContent.replace(/\{\{@index\}\}/g, String(index));
+        return itemContent;
+      }).join('');
+    });
+
+    // Handle equality conditionals {{#if (eq var "value")}}...{{/if}}
+    processed = processed.replace(/\{\{#if\s+\(eq\s+(\w+)\s+"([^"]+)"\)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, varName, value, content) => {
+      return data[varName] === value ? content : '';
+    });
 
     // Handle conditional blocks {{#if variable}}...{{/if}}
-    processed = processed.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
-      return data[condition] ? content : '';
+    processed = processed.replace(/\{\{#if\s+([^}]+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, content) => {
+      // Support nested property access like stats.newPitches
+      const value = this.getNestedValue(data, condition.trim());
+      return value ? content : '';
     });
 
     // Handle conditional blocks {{#unless variable}}...{{/unless}}
-    processed = processed.replace(/\{\{#unless\s+(\w+)\}\}([\s\S]*?)\{\{\/unless\}\}/g, (match, condition, content) => {
-      return !data[condition] ? content : '';
+    processed = processed.replace(/\{\{#unless\s+([^}]+)\}\}([\s\S]*?)\{\{\/unless\}\}/g, (match, condition, content) => {
+      const value = this.getNestedValue(data, condition.trim());
+      return !value ? content : '';
     });
 
-    // Clean up any remaining template syntax
-    processed = processed.replace(/\{\{[^}]+\}\}/g, '');
+    // Handle else blocks {{#if variable}}...{{else}}...{{/if}}
+    processed = processed.replace(/\{\{#if\s+([^}]+)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, condition, ifContent, elseContent) => {
+      const value = this.getNestedValue(data, condition.trim());
+      return value ? ifContent : elseContent;
+    });
+
+    // Simple template processing - replace {{variable}} with data values
+    processed = processed.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
+      const value = this.getNestedValue(data, variable.trim());
+      return String(value || '');
+    });
 
     return processed;
+  }
+
+  private getNestedValue(data: Record<string, any>, path: string): any {
+    return path.split('.').reduce((obj, key) => obj?.[key], data);
   }
 
   private generateTextFromHtml(html: string): string {
@@ -283,6 +325,125 @@ export class EmailTemplateEngine {
       text: this.generateTextFromHtml(html),
       unsubscribeUrl: data.unsubscribeUrl,
       templateName: EMAIL_TEMPLATES.PAYMENT_CONFIRMATION,
+    };
+  }
+
+  async buildWeeklyDigestEmail(data: WeeklyDigestEmailData): Promise<EmailData> {
+    const templateData = {
+      ...data,
+      hasNewPitches: data.stats.newPitches > 0,
+      hasActivity: data.stats.newFollowers > 0 || data.stats.messages > 0 || data.stats.views > 0,
+      currentYear: new Date().getFullYear(),
+    };
+
+    const contentTemplate = await this.loadTemplate('weekly-digest');
+    const baseTemplate = await this.loadBaseTemplate();
+    
+    const content = this.processTemplate(contentTemplate, templateData);
+    const html = this.processTemplate(baseTemplate, {
+      ...templateData,
+      title: `Your Weekly Digest - ${data.weekRange}`,
+      preheader: `${data.stats.newPitches} new pitches, ${data.stats.newFollowers} new followers`,
+      content,
+    });
+
+    return {
+      to: data.firstName, // This should be email
+      subject: `Your Weekly Digest - ${data.weekRange}`,
+      html,
+      text: this.generateTextFromHtml(html),
+      unsubscribeUrl: data.unsubscribeUrl,
+      templateName: EMAIL_TEMPLATES.WEEKLY_DIGEST,
+    };
+  }
+
+  async buildPitchViewEmail(data: PitchViewEmailData): Promise<EmailData> {
+    const templateData = {
+      ...data,
+      currentYear: new Date().getFullYear(),
+    };
+
+    const contentTemplate = await this.loadTemplate('pitch-view-notification');
+    const baseTemplate = await this.loadBaseTemplate();
+    
+    const content = this.processTemplate(contentTemplate, templateData);
+    const html = this.processTemplate(baseTemplate, {
+      ...templateData,
+      title: 'Your Pitch Was Viewed!',
+      preheader: `${data.viewerName} (${data.viewerType}) viewed "${data.pitchTitle}"`,
+      content,
+    });
+
+    return {
+      to: data.creatorName, // This should be email
+      subject: `Your pitch "${data.pitchTitle}" was viewed!`,
+      html,
+      text: this.generateTextFromHtml(html),
+      unsubscribeUrl: data.unsubscribeUrl,
+      templateName: EMAIL_TEMPLATES.PITCH_VIEW,
+    };
+  }
+
+  async buildInvestorInviteEmail(data: InvestorInviteEmailData): Promise<EmailData> {
+    const templateData = {
+      ...data,
+      hasMessage: !!data.inviteMessage,
+      currentYear: new Date().getFullYear(),
+    };
+
+    const contentTemplate = await this.loadTemplate('investor-invite');
+    const baseTemplate = await this.loadBaseTemplate();
+    
+    const content = this.processTemplate(contentTemplate, templateData);
+    const html = this.processTemplate(baseTemplate, {
+      ...templateData,
+      title: 'Investment Opportunity',
+      preheader: `${data.inviterName} invites you to invest in "${data.projectTitle}"`,
+      content,
+    });
+
+    return {
+      to: data.recipientName, // This should be email
+      subject: `Investment Opportunity: "${data.projectTitle}"`,
+      html,
+      text: this.generateTextFromHtml(html),
+      unsubscribeUrl: data.unsubscribeUrl,
+      templateName: EMAIL_TEMPLATES.INVESTOR_INVITE,
+    };
+  }
+
+  async buildProjectUpdateEmail(data: ProjectUpdateEmailData): Promise<EmailData> {
+    const updateTypeLabels = {
+      milestone: 'Milestone Update',
+      funding: 'Funding Update',
+      production: 'Production Update',
+      release: 'Release Update'
+    };
+
+    const templateData = {
+      ...data,
+      updateTypeLabel: updateTypeLabels[data.updateType],
+      currentYear: new Date().getFullYear(),
+    };
+
+    const contentTemplate = await this.loadTemplate('project-update');
+    const baseTemplate = await this.loadBaseTemplate();
+    
+    const content = this.processTemplate(contentTemplate, templateData);
+    const html = this.processTemplate(baseTemplate, {
+      ...templateData,
+      title: `Project Update: ${data.projectTitle}`,
+      preheader: `New ${updateTypeLabels[data.updateType].toLowerCase()} for "${data.projectTitle}"`,
+      content,
+    });
+
+    return {
+      to: data.investorName, // This should be email
+      subject: `${updateTypeLabels[data.updateType]}: "${data.projectTitle}"`,
+      html,
+      text: this.generateTextFromHtml(html),
+      unsubscribeUrl: data.unsubscribeUrl,
+      templateName: EMAIL_TEMPLATES.PROJECT_UPDATE,
     };
   }
 

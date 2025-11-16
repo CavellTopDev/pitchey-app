@@ -765,6 +765,7 @@ export type InfoRequest = typeof infoRequests.$inferSelect;
 export type InfoRequestAttachment = typeof infoRequestAttachments.$inferSelect;
 export type SubscriptionHistory = typeof subscriptionHistory.$inferSelect;
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type PitchCharacter = typeof pitchCharacters.$inferSelect;
 
 // ============= RELATIONS =============
 // Define all table relations for Drizzle ORM
@@ -791,6 +792,7 @@ export const pitchesRelations = relations(pitches, ({ one, many }) => ({
   ndaRequests: many(ndaRequests),
   messages: many(messages),
   views: many(pitchViews),
+  characters: many(pitchCharacters),
   // media: many(pitchMedia), // pitchMedia table not defined yet
   follows: many(follows),
 }));
@@ -1009,6 +1011,25 @@ export const pitchDocuments = pgTable("pitch_documents", {
   downloadCount: integer("download_count").default(0),
   metadata: jsonb("metadata").default("{}"), // For additional file metadata
 });
+
+// Pitch Characters table - normalized character management
+export const pitchCharacters = pgTable("pitch_characters", {
+  id: serial("id").primaryKey(),
+  pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  age: varchar("age", { length: 50 }),
+  gender: varchar("gender", { length: 50 }),
+  actor: varchar("actor", { length: 255 }),
+  role: varchar("role", { length: 255 }),
+  relationship: text("relationship"),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  pitchIdDisplayOrderIdx: index("pitch_characters_pitch_id_display_order_idx").on(table.pitchId, table.displayOrder),
+  pitchIdIdx: index("pitch_characters_pitch_id_idx").on(table.pitchId),
+}));
 
 // Saved Filter Presets Table
 export const savedFilters = pgTable("saved_filters", {
@@ -1327,5 +1348,12 @@ export const smartNotificationsRelations = relations(smartNotifications, ({ one 
   user: one(users, {
     fields: [smartNotifications.userId],
     references: [users.id],
+  }),
+}));
+
+export const pitchCharactersRelations = relations(pitchCharacters, ({ one }) => ({
+  pitch: one(pitches, {
+    fields: [pitchCharacters.pitchId],
+    references: [pitches.id],
   }),
 }));

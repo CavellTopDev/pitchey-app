@@ -11,6 +11,9 @@ import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { db } from "../db/client.ts";
 import { users } from "../db/schema.ts";
 import { eq } from "npm:drizzle-orm@0.35.3";
+import { sendWelcomeEmail } from "../services/email/index.ts";
+import { getEmailQueueService } from "../services/email/queue-service.ts";
+import { createUserEmailPreferences, getUnsubscribeUrl } from "../services/email/unsubscribe-service.ts";
 
 // Get JWT secret from environment
 const envConfig = validateEnvironment();
@@ -158,6 +161,36 @@ export const register: RouteHandler = async (request, url) => {
 
     // Generate token
     const token = await generateToken(newUser);
+
+    // Create email preferences and send welcome email
+    try {
+      const emailPreferences = await createUserEmailPreferences(
+        newUser.id.toString(), 
+        newUser.email, 
+        userType as 'creator' | 'investor' | 'production' | 'viewer'
+      );
+      
+      const unsubscribeUrl = await getUnsubscribeUrl(
+        newUser.id.toString(), 
+        newUser.email
+      );
+
+      // Queue welcome email
+      const emailQueue = getEmailQueueService();
+      await emailQueue.queueEmail({
+        to: newUser.email,
+        subject: 'Welcome to Pitchey!',
+        html: '', // Will be populated by template engine
+        text: '',
+        trackingId: `welcome-${Date.now()}-${newUser.email}`,
+        unsubscribeUrl,
+      }, { priority: 'high' });
+
+      telemetry.logger.info("Welcome email queued", { userId: newUser.id, email: newUser.email });
+    } catch (emailError) {
+      telemetry.logger.error("Failed to send welcome email", emailError);
+      // Don't fail registration if email fails
+    }
 
     telemetry.logger.info("User registered successfully", { userId: newUser.id, userType });
 

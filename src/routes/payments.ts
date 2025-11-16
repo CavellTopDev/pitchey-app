@@ -1,13 +1,14 @@
 /**
- * Payments Routes Module - Investment and transaction handling
+ * Payments Routes Module - Stripe payment processing and subscription management
  */
 
 import { RouteHandler } from "../router/types.ts";
 import { getCorsHeaders, getSecurityHeaders, successResponse, errorResponse } from "../utils/response.ts";
 import { telemetry } from "../utils/telemetry.ts";
+import { stripeService, SUBSCRIPTION_TIERS } from "../services/stripe-service.ts";
 import { db } from "../db/client.ts";
-import { investments, pitches, users } from "../db/schema.ts";
-import { eq, and, sql, desc } from "npm:drizzle-orm@0.35.3";
+import { users, payments, subscriptionHistory, paymentMethods } from "../db/schema.ts";
+import { eq, desc } from "drizzle-orm";
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { validateEnvironment } from "../utils/env-validation.ts";
 
@@ -36,473 +37,285 @@ async function getUserFromToken(request: Request): Promise<any> {
   return payload;
 }
 
-// Create investment (mock implementation - would integrate with payment processor)
-export const createInvestment: RouteHandler = async (request, url) => {
+// GET /api/payments/subscription-tiers - Get available subscription tiers
+export const getSubscriptionTiers: RouteHandler = async (request, url) => {
   try {
-    const user = await getUserFromToken(request);
-    const { pitch_id, amount, payment_method } = await request.json();
-
-    if (!pitch_id || !amount) {
-      return errorResponse("Pitch ID and amount are required", 400);
-    }
-
-    if (amount <= 0) {
-      return errorResponse("Investment amount must be positive", 400);
-    }
-
-    // Verify user is an investor
-    const userResult = await db
-      .select({ user_type: users.user_type })
-      .from(users)
-      .where(eq(users.id, user.userId));
-
-    if (userResult.length === 0 || userResult[0].user_type !== "investor") {
-      return errorResponse("Only investors can make investments", 403);
-    }
-
-    // Check if pitch exists and is published
-    const pitchResults = await db
-      .select({ 
-        id: pitches.id, 
-        user_id: pitches.user_id, 
-        status: pitches.status,
-        title: pitches.title 
-      })
-      .from(pitches)
-      .where(eq(pitches.id, pitch_id));
-
-    if (pitchResults.length === 0) {
-      return errorResponse("Pitch not found", 404);
-    }
-
-    const pitch = pitchResults[0];
-
-    if (pitch.status !== "published") {
-      return errorResponse("Can only invest in published pitches", 400);
-    }
-
-    if (pitch.user_id === user.userId) {
-      return errorResponse("Cannot invest in your own pitch", 400);
-    }
-
-    // Mock payment processing (in real implementation, integrate with Stripe/PayPal)
-    const payment_id = `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const userType = url.searchParams.get("userType");
     
-    // Create investment record
-    const newInvestment = await db
-      .insert(investments)
-      .values({
-        pitch_id,
-        investor_id: user.userId,
-        amount,
-        payment_method: payment_method || "card",
-        payment_id,
-        status: "pending",
-        created_at: new Date(),
-        updated_at: new Date(),
-      })
-      .returning();
+    let tiers = SUBSCRIPTION_TIERS;
+    if (userType) {
+      tiers = tiers.filter(tier => tier.userType === userType);
+    }
 
-    telemetry.logger.info("Investment created", {
-      investmentId: newInvestment[0].id,
-      pitchId: pitch_id,
-      investorId: user.userId,
-      amount
-    });
-
-    // Mock payment success (in real implementation, would be handled by webhook)
-    setTimeout(async () => {
-      try {
-        await db
-          .update(investments)
-          .set({
-            status: "completed",
-            processed_at: new Date(),
-            updated_at: new Date(),
-          })
-          .where(eq(investments.id, newInvestment[0].id));
-
-        telemetry.logger.info("Investment processed", {
-          investmentId: newInvestment[0].id
-        });
-      } catch (error) {
-        telemetry.logger.error("Failed to process investment", error);
-      }
-    }, 2000);
-
-    return successResponse({
-      investment: newInvestment[0],
-      message: "Investment created successfully"
-    });
-
+    return successResponse({ tiers });
   } catch (error) {
-    telemetry.logger.error("Create investment error", error);
-    return errorResponse("Failed to create investment", 500);
+    telemetry.logger.error("Error fetching subscription tiers:", error);
+    return errorResponse("Failed to fetch subscription tiers", 500);
   }
 };
 
-// Get user investments
-export const getUserInvestments: RouteHandler = async (request, url) => {
+// POST /api/payments/create-customer - Create Stripe customer
+export const createCustomer: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
-    const status = url.searchParams.get("status");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    const userId = user.userId;
 
-    let whereConditions = [eq(investments.investor_id, user.userId)];
-
-    if (status) {
-      whereConditions.push(eq(investments.status, status));
+    const userRecord = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!userRecord[0]) {
+      return errorResponse("User not found", 404);
     }
 
-    // Get investments with pitch details
-    const userInvestments = await db
-      .select({
-        id: investments.id,
-        pitch_id: investments.pitch_id,
-        amount: investments.amount,
-        status: investments.status,
-        payment_method: investments.payment_method,
-        created_at: investments.created_at,
-        processed_at: investments.processed_at,
-        pitch_title: pitches.title,
-        pitch_genre: pitches.genre,
-        pitch_format: pitches.format,
-        creator_name: users.firstName,
-      })
-      .from(investments)
-      .leftJoin(pitches, eq(investments.pitch_id, pitches.id))
-      .leftJoin(users, eq(pitches.user_id, users.id))
-      .where(and(...whereConditions))
-      .orderBy(desc(investments.created_at))
-      .limit(limit)
-      .offset(offset);
+    const customerId = await stripeService.createOrGetCustomer(
+      userId,
+      userRecord[0].email,
+      `${userRecord[0].firstName || ""} ${userRecord[0].lastName || ""}`.trim()
+    );
 
-    // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(investments)
-      .where(and(...whereConditions));
+    return successResponse({ customerId });
+  } catch (error) {
+    telemetry.logger.error("Error creating customer:", error);
+    return errorResponse("Failed to create customer", 500);
+  }
+};
 
-    const total = totalResult[0]?.count || 0;
+// POST /api/payments/create-subscription - Subscribe to plan
+export const createSubscription: RouteHandler = async (request, url) => {
+  try {
+    const user = await getUserFromToken(request);
+    const { tierID, paymentMethodId } = await request.json();
 
-    // Calculate summary statistics
-    const summaryResult = await db
-      .select({
-        total_invested: sql<number>`sum(${investments.amount})`,
-        completed_investments: sql<number>`sum(case when ${investments.status} = 'completed' then 1 else 0 end)`,
-        pending_investments: sql<number>`sum(case when ${investments.status} = 'pending' then 1 else 0 end)`,
-      })
-      .from(investments)
-      .where(eq(investments.investor_id, user.userId));
+    if (!tierID) {
+      return errorResponse("Subscription tier ID is required", 400);
+    }
+
+    // Validate tier exists
+    const tier = SUBSCRIPTION_TIERS.find(t => t.id === tierID);
+    if (!tier) {
+      return errorResponse("Invalid subscription tier", 400);
+    }
+
+    const result = await stripeService.createSubscription(user.userId, tierID, paymentMethodId);
 
     return successResponse({
-      investments: userInvestments,
-      summary: summaryResult[0] || {
-        total_invested: 0,
-        completed_investments: 0,
-        pending_investments: 0,
+      subscription: {
+        id: result.subscription.id,
+        status: result.subscription.status,
+        current_period_start: result.subscription.current_period_start,
+        current_period_end: result.subscription.current_period_end,
+        clientSecret: result.clientSecret
       },
-      filters: { status },
-      pagination: {
-        total,
-        limit,
-        offset,
-        hasMore: offset + limit < total
-      }
+      tier
     });
-
   } catch (error) {
-    telemetry.logger.error("Get user investments error", error);
-    return errorResponse("Failed to fetch investments", 500);
+    telemetry.logger.error("Error creating subscription:", error);
+    return errorResponse(error.message || "Failed to create subscription", 500);
   }
 };
 
-// Get investment by ID
-export const getInvestmentById: RouteHandler = async (request, url, params) => {
+// POST /api/payments/create-checkout - One-time payment checkout
+export const createCheckout: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
-    const investmentId = params?.id;
+    const { amount, description, successUrl, cancelUrl, metadata } = await request.json();
 
-    if (!investmentId) {
-      return errorResponse("Investment ID is required", 400);
+    if (!amount || amount <= 0) {
+      return errorResponse("Valid amount is required", 400);
     }
 
-    const investmentResults = await db
-      .select({
-        id: investments.id,
-        pitch_id: investments.pitch_id,
-        investor_id: investments.investor_id,
-        amount: investments.amount,
-        status: investments.status,
-        payment_method: investments.payment_method,
-        payment_id: investments.payment_id,
-        created_at: investments.created_at,
-        processed_at: investments.processed_at,
-        pitch_title: pitches.title,
-        pitch_logline: pitches.logline,
-        pitch_genre: pitches.genre,
-        pitch_format: pitches.format,
-        creator_name: users.firstName,
-      })
-      .from(investments)
-      .leftJoin(pitches, eq(investments.pitch_id, pitches.id))
-      .leftJoin(users, eq(pitches.user_id, users.id))
-      .where(eq(investments.id, parseInt(investmentId)));
-
-    if (investmentResults.length === 0) {
-      return errorResponse("Investment not found", 404);
+    if (!description) {
+      return errorResponse("Description is required", 400);
     }
 
-    const investment = investmentResults[0];
-
-    // Check if user owns this investment
-    if (investment.investor_id !== user.userId) {
-      return errorResponse("Access denied", 403);
+    if (!successUrl || !cancelUrl) {
+      return errorResponse("Success and cancel URLs are required", 400);
     }
 
-    return successResponse({ investment });
+    const session = await stripeService.createCheckoutSession(
+      user.userId,
+      amount,
+      description,
+      successUrl,
+      cancelUrl,
+      metadata
+    );
 
+    return successResponse({
+      sessionId: session.id,
+      url: session.url
+    });
   } catch (error) {
-    telemetry.logger.error("Get investment by ID error", error);
-    return errorResponse("Failed to fetch investment", 500);
+    telemetry.logger.error("Error creating checkout session:", error);
+    return errorResponse(error.message || "Failed to create checkout session", 500);
   }
 };
 
-// Get investments received by creator (for pitch owners)
-export const getReceivedInvestments: RouteHandler = async (request, url) => {
+// POST /api/payments/cancel-subscription - Cancel subscription
+export const cancelSubscription: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
-    const pitchId = url.searchParams.get("pitch_id");
-    const status = url.searchParams.get("status");
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
-    const offset = parseInt(url.searchParams.get("offset") || "0");
+    await stripeService.cancelSubscription(user.userId);
 
-    // Get pitches owned by user
-    let whereConditions = [eq(pitches.user_id, user.userId)];
+    return successResponse({ message: "Subscription canceled successfully" });
+  } catch (error) {
+    telemetry.logger.error("Error canceling subscription:", error);
+    return errorResponse(error.message || "Failed to cancel subscription", 500);
+  }
+};
 
-    if (pitchId) {
-      whereConditions.push(eq(investments.pitch_id, parseInt(pitchId)));
-    }
+// GET /api/payments/invoices - Get user invoices
+export const getInvoices: RouteHandler = async (request, url) => {
+  try {
+    const user = await getUserFromToken(request);
+    const limit = parseInt(url.searchParams.get("limit") || "10");
 
-    if (status) {
-      whereConditions.push(eq(investments.status, status));
-    }
-
-    // Get investments received for user's pitches
-    const receivedInvestments = await db
-      .select({
-        id: investments.id,
-        pitch_id: investments.pitch_id,
-        investor_id: investments.investor_id,
-        amount: investments.amount,
-        status: investments.status,
-        payment_method: investments.payment_method,
-        created_at: investments.created_at,
-        processed_at: investments.processed_at,
-        pitch_title: pitches.title,
-        investor_name: users.firstName,
-      })
-      .from(investments)
-      .leftJoin(pitches, eq(investments.pitch_id, pitches.id))
-      .leftJoin(users, eq(investments.investor_id, users.id))
-      .where(and(...whereConditions))
-      .orderBy(desc(investments.created_at))
-      .limit(limit)
-      .offset(offset);
-
-    // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(investments)
-      .leftJoin(pitches, eq(investments.pitch_id, pitches.id))
-      .where(and(...whereConditions));
-
-    const total = totalResult[0]?.count || 0;
-
-    // Get summary statistics for creator
-    const summaryResult = await db
-      .select({
-        total_received: sql<number>`sum(${investments.amount})`,
-        total_investors: sql<number>`count(distinct ${investments.investor_id})`,
-        completed_investments: sql<number>`sum(case when ${investments.status} = 'completed' then 1 else 0 end)`,
-      })
-      .from(investments)
-      .leftJoin(pitches, eq(investments.pitch_id, pitches.id))
-      .where(eq(pitches.user_id, user.userId));
+    const invoices = await stripeService.getUserInvoices(user.userId, limit);
 
     return successResponse({
-      investments: receivedInvestments,
-      summary: summaryResult[0] || {
-        total_received: 0,
-        total_investors: 0,
-        completed_investments: 0,
-      },
-      filters: { pitch_id: pitchId, status },
-      pagination: {
-        total,
-        limit,
-        offset,
-        hasMore: offset + limit < total
+      invoices: invoices.map(invoice => ({
+        id: invoice.id,
+        amount_paid: invoice.amount_paid,
+        amount_due: invoice.amount_due,
+        currency: invoice.currency,
+        status: invoice.status,
+        hosted_invoice_url: invoice.hosted_invoice_url,
+        invoice_pdf: invoice.invoice_pdf,
+        created: invoice.created,
+        due_date: invoice.due_date,
+        period_start: invoice.period_start,
+        period_end: invoice.period_end
+      }))
+    });
+  } catch (error) {
+    telemetry.logger.error("Error fetching invoices:", error);
+    return errorResponse(error.message || "Failed to fetch invoices", 500);
+  }
+};
+
+// GET /api/payments/subscription-status - Get user's current subscription
+export const getSubscriptionStatus: RouteHandler = async (request, url) => {
+  try {
+    const user = await getUserFromToken(request);
+
+    const userRecord = await db.select({
+      subscriptionTier: users.subscriptionTier,
+      subscriptionStartDate: users.subscriptionStartDate,
+      subscriptionEndDate: users.subscriptionEndDate,
+      stripeSubscriptionId: users.stripeSubscriptionId
+    }).from(users).where(eq(users.id, user.userId)).limit(1);
+
+    if (!userRecord[0]) {
+      return errorResponse("User not found", 404);
+    }
+
+    const currentTier = SUBSCRIPTION_TIERS.find(t => t.id === userRecord[0].subscriptionTier);
+
+    return successResponse({
+      subscription: {
+        tier: userRecord[0].subscriptionTier,
+        tierDetails: currentTier,
+        startDate: userRecord[0].subscriptionStartDate,
+        endDate: userRecord[0].subscriptionEndDate,
+        isActive: userRecord[0].subscriptionTier !== "free"
       }
     });
-
   } catch (error) {
-    telemetry.logger.error("Get received investments error", error);
-    return errorResponse("Failed to fetch received investments", 500);
+    telemetry.logger.error("Error fetching subscription status:", error);
+    return errorResponse("Failed to fetch subscription status", 500);
   }
 };
 
-// Handle payment webhook (mock implementation)
-export const handlePaymentWebhook: RouteHandler = async (request, url) => {
+// GET /api/payments/subscription-history - Get subscription history
+export const getSubscriptionHistory: RouteHandler = async (request, url) => {
   try {
-    // This would typically verify webhook signatures from payment processor
-    const { event_type, payment_id, status } = await request.json();
+    const user = await getUserFromToken(request);
 
-    if (!payment_id) {
-      return errorResponse("Payment ID is required", 400);
-    }
+    const history = await db.select()
+      .from(subscriptionHistory)
+      .where(eq(subscriptionHistory.userId, user.userId))
+      .orderBy(desc(subscriptionHistory.timestamp))
+      .limit(20);
 
-    // Find investment by payment ID
-    const investmentResults = await db
-      .select()
-      .from(investments)
-      .where(eq(investments.payment_id, payment_id));
-
-    if (investmentResults.length === 0) {
-      return errorResponse("Investment not found", 404);
-    }
-
-    const investment = investmentResults[0];
-
-    // Update investment status based on webhook
-    let newStatus;
-    let processedAt = null;
-
-    switch (status) {
-      case "succeeded":
-        newStatus = "completed";
-        processedAt = new Date();
-        break;
-      case "failed":
-        newStatus = "failed";
-        break;
-      case "pending":
-        newStatus = "pending";
-        break;
-      default:
-        newStatus = investment.status;
-    }
-
-    const updateData: any = {
-      status: newStatus,
-      updated_at: new Date(),
-    };
-
-    if (processedAt) {
-      updateData.processed_at = processedAt;
-    }
-
-    const updatedInvestment = await db
-      .update(investments)
-      .set(updateData)
-      .where(eq(investments.id, investment.id))
-      .returning();
-
-    telemetry.logger.info("Payment webhook processed", {
-      investmentId: investment.id,
-      paymentId: payment_id,
-      eventType: event_type,
-      newStatus
-    });
-
-    return successResponse({
-      status: "processed",
-      investment: updatedInvestment[0]
-    });
-
+    return successResponse({ history });
   } catch (error) {
-    telemetry.logger.error("Handle payment webhook error", error);
-    return errorResponse("Failed to process webhook", 500);
+    telemetry.logger.error("Error fetching subscription history:", error);
+    return errorResponse("Failed to fetch subscription history", 500);
   }
 };
 
-// Get payment methods (mock implementation)
+// GET /api/payments/payment-methods - Get user's payment methods
 export const getPaymentMethods: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
 
-    // Mock payment methods - in real implementation, would fetch from payment processor
-    const paymentMethods = [
-      {
-        id: "card_1",
-        type: "card",
-        last4: "4242",
-        brand: "visa",
-        exp_month: 12,
-        exp_year: 2025,
-        is_default: true,
-      },
-      {
-        id: "bank_1",
-        type: "bank_account",
-        last4: "6789",
-        bank_name: "Chase Bank",
-        is_default: false,
-      }
-    ];
+    const methods = await db.select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.userId, user.userId))
+      .orderBy(desc(paymentMethods.createdAt));
 
-    return successResponse({ payment_methods: paymentMethods });
-
+    return successResponse({
+      paymentMethods: methods.map(method => ({
+        id: method.id,
+        type: method.type,
+        brand: method.brand,
+        lastFour: method.lastFour,
+        expMonth: method.expMonth,
+        expYear: method.expYear,
+        isDefault: method.isDefault,
+        isActive: method.isActive,
+        createdAt: method.createdAt
+      }))
+    });
   } catch (error) {
-    telemetry.logger.error("Get payment methods error", error);
+    telemetry.logger.error("Error fetching payment methods:", error);
     return errorResponse("Failed to fetch payment methods", 500);
   }
 };
 
-// Get investment statistics
-export const getInvestmentStats: RouteHandler = async (request, url) => {
+// POST /api/payments/process-investment - Process investment transaction
+export const processInvestment: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
+    const { creatorId, pitchId, amount } = await request.json();
 
-    // Get investor stats
-    const investorStats = await db
-      .select({
-        total_invested: sql<number>`sum(${investments.amount})`,
-        total_investments: sql<number>`count(*)`,
-        active_investments: sql<number>`sum(case when ${investments.status} = 'completed' then 1 else 0 end)`,
-        pending_investments: sql<number>`sum(case when ${investments.status} = 'pending' then 1 else 0 end)`,
-      })
-      .from(investments)
-      .where(eq(investments.investor_id, user.userId));
+    if (!creatorId || !pitchId || !amount || amount <= 0) {
+      return errorResponse("Creator ID, pitch ID, and valid amount are required", 400);
+    }
 
-    // Get creator stats (investments received)
-    const creatorStats = await db
-      .select({
-        total_received: sql<number>`sum(${investments.amount})`,
-        total_investors: sql<number>`count(distinct ${investments.investor_id})`,
-        total_investments_received: sql<number>`count(*)`,
-      })
-      .from(investments)
-      .leftJoin(pitches, eq(investments.pitch_id, pitches.id))
-      .where(eq(pitches.user_id, user.userId));
+    const result = await stripeService.processInvestmentTransaction(
+      user.userId,
+      creatorId,
+      pitchId,
+      amount
+    );
 
     return successResponse({
-      as_investor: investorStats[0] || {
-        total_invested: 0,
-        total_investments: 0,
-        active_investments: 0,
-        pending_investments: 0,
-      },
-      as_creator: creatorStats[0] || {
-        total_received: 0,
-        total_investors: 0,
-        total_investments_received: 0,
-      }
+      transferId: result.transferId,
+      feeAmount: result.feeAmount,
+      creatorAmount: amount - result.feeAmount
     });
-
   } catch (error) {
-    telemetry.logger.error("Get investment stats error", error);
-    return errorResponse("Failed to fetch investment statistics", 500);
+    telemetry.logger.error("Error processing investment:", error);
+    return errorResponse(error.message || "Failed to process investment", 500);
+  }
+};
+
+// POST /api/payments/webhook - Handle Stripe webhooks (no auth required)
+export const handleWebhook: RouteHandler = async (request, url) => {
+  try {
+    const signature = request.headers.get("stripe-signature");
+
+    if (!signature) {
+      return errorResponse("Missing stripe-signature header", 400);
+    }
+
+    // Get raw body for webhook verification
+    const body = await request.text();
+
+    await stripeService.handleWebhook(body, signature);
+
+    return successResponse({ message: "Webhook processed successfully" });
+  } catch (error) {
+    telemetry.logger.error("Error processing webhook:", error);
+    return errorResponse("Webhook processing failed", 400);
   }
 };

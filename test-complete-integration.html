@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitchey - Complete Integration Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section { 
+            background: white;
+            margin: 20px 0; 
+            padding: 20px; 
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status { 
+            padding: 5px 10px; 
+            border-radius: 4px; 
+            margin: 5px 0;
+            display: inline-block;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background: #0056b3; }
+        .data-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .pitch-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎬 Pitchey Platform - Complete Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>🔌 System Status</h2>
+        <button onclick="checkHealth()">Check System Health</button>
+        <div id="health-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔐 Authentication Test</h2>
+        <button onclick="testLogin('creator')">Test Creator Login</button>
+        <button onclick="testLogin('investor')">Test Investor Login</button>
+        <button onclick="testLogin('production')">Test Production Login</button>
+        <div id="auth-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Data Integration</h2>
+        <button onclick="loadUsers()">Load Users</button>
+        <button onclick="loadPitches()">Load Pitches</button>
+        <button onclick="loadDashboard()">Load Creator Dashboard</button>
+        <div id="data-status"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎬 Pitches Display</h2>
+        <div id="pitches-display"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+        let authToken = null;
+
+        async function checkHealth() {
+            const statusEl = document.getElementById('health-status');
+            try {
+                const response = await fetch(`${API_URL}/api/health`);
+                const data = await response.json();
+                
+                statusEl.innerHTML = `
+                    <div class="status success">✅ System Online</div>
+                    <div class="data-display">
+                        <strong>Status:</strong> ${data.status}<br>
+                        <strong>Database:</strong> ${data.database}<br>
+                        <strong>User Count:</strong> ${data.userCount}<br>
+                        <strong>Environment:</strong> ${data.environment}<br>
+                        <strong>Hyperdrive:</strong> ${data.hyperdrive ? 'Enabled' : 'Disabled'}<br>
+                        <strong>Timestamp:</strong> ${data.timestamp}
+                    </div>
+                `;
+            } catch (error) {
+                statusEl.innerHTML = `
+                    <div class="status error">❌ System Offline</div>
+                    <div>Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function testLogin(userType) {
+            const statusEl = document.getElementById('auth-status');
+            const credentials = {
+                creator: { email: 'alex.creator@demo.com', password: 'Demo123' },
+                investor: { email: 'sarah.investor@demo.com', password: 'Demo123' },
+                production: { email: 'stellar.production@demo.com', password: 'Demo123' }
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/${userType}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(credentials[userType])
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.token;
+                    
+                    statusEl.innerHTML = `
+                        <div class="status success">✅ ${userType.charAt(0).toUpperCase() + userType.slice(1)} Login Successful</div>
+                        <div class="data-display">
+                            <strong>User:</strong> ${data.user.displayName}<br>
+                            <strong>Email:</strong> ${data.user.email}<br>
+                            <strong>Type:</strong> ${data.user.userType}<br>
+                            <strong>Source:</strong> ${data.user.source}<br>
+                            <strong>Token:</strong> ${data.token ? 'Received' : 'Missing'}
+                        </div>
+                    `;
+                } else {
+                    const error = await response.json();
+                    statusEl.innerHTML = `
+                        <div class="status error">❌ Login Failed</div>
+                        <div>Error: ${error.error}</div>
+                    `;
+                }
+            } catch (error) {
+                statusEl.innerHTML = `
+                    <div class="status error">❌ Login Error</div>
+                    <div>Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function loadUsers() {
+            const statusEl = document.getElementById('data-status');
+            try {
+                const response = await fetch(`${API_URL}/api/users`);
+                const data = await response.json();
+                
+                const usersHtml = data.users.map(user => `
+                    <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                        <strong>${user.displayName}</strong> (${user.email})<br>
+                        <small>Type: ${user.userType} | Verified: ${user.isVerified}</small>
+                    </div>
+                `).join('');
+
+                statusEl.innerHTML = `
+                    <div class="status success">✅ Users Loaded (${data.users.length})</div>
+                    <div class="info">Source: ${data.source}</div>
+                    <div class="data-display">${usersHtml}</div>
+                `;
+            } catch (error) {
+                statusEl.innerHTML = `
+                    <div class="status error">❌ Failed to load users</div>
+                    <div>Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function loadPitches() {
+            const statusEl = document.getElementById('data-status');
+            const displayEl = document.getElementById('pitches-display');
+            try {
+                const response = await fetch(`${API_URL}/api/pitches`);
+                const data = await response.json();
+                
+                const pitchesHtml = data.pitches.map(pitch => `
+                    <div class="pitch-card">
+                        <h3>${pitch.title || 'Untitled'}</h3>
+                        <p><strong>Genre:</strong> ${pitch.genre || 'N/A'}</p>
+                        <p><strong>Creator:</strong> ${pitch.creatorName || 'Unknown'}</p>
+                        <p><strong>Budget:</strong> ${pitch.budgetRange || 'N/A'}</p>
+                        <p><strong>Description:</strong> ${pitch.description || 'No description'}</p>
+                        <p><strong>Views:</strong> ${pitch.viewCount || 0} | <strong>Likes:</strong> ${pitch.likeCount || 0}</p>
+                        <small>Created: ${pitch.createdAt}</small>
+                    </div>
+                `).join('');
+
+                statusEl.innerHTML = `
+                    <div class="status success">✅ Pitches Loaded (${data.pitches.length})</div>
+                    <div class="info">Source: ${data.source}</div>
+                `;
+                
+                displayEl.innerHTML = pitchesHtml;
+            } catch (error) {
+                statusEl.innerHTML = `
+                    <div class="status error">❌ Failed to load pitches</div>
+                    <div>Error: ${error.message}</div>
+                `;
+                displayEl.innerHTML = '';
+            }
+        }
+
+        async function loadDashboard() {
+            const statusEl = document.getElementById('data-status');
+            try {
+                const headers = {};
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+
+                const response = await fetch(`${API_URL}/api/creator/dashboard`, { headers });
+                const data = await response.json();
+                
+                statusEl.innerHTML = `
+                    <div class="status success">✅ Dashboard Loaded</div>
+                    <div class="data-display">
+                        <h4>Stats:</h4>
+                        <p>Total Pitches: ${data.stats.totalPitches}</p>
+                        <p>Active Pitches: ${data.stats.activePitches}</p>
+                        <p>Total Views: ${data.stats.views || data.stats.totalViews}</p>
+                        <p>Interested Investors: ${data.stats.interestedInvestors}</p>
+                        <h4>Recent Pitches:</h4>
+                        ${data.recentPitches.map(pitch => `
+                            <p>• ${pitch.title} (${pitch.status}) - ${pitch.views || pitch.view_count} views</p>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                statusEl.innerHTML = `
+                    <div class="status error">❌ Failed to load dashboard</div>
+                    <div>Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Auto-run health check on load
+        window.onload = () => {
+            checkHealth();
+        };
+    </script>
+</body>
+</html>

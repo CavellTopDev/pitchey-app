@@ -1,0 +1,70 @@
+<h1>Your Weekly Pitchey Digest</h1>
+
+<p>Hi {{firstName}},</p>
+
+<p>Here's what happened in your Pitchey community during {{weekRange}}:</p>
+
+<div class="panel">
+    <div class="panel-content">
+        <h3>📊 Your Week in Numbers</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px 0; font-weight: bold;">New Pitches:</td>
+                <td style="padding: 8px 0; text-align: right;">{{stats.newPitches}}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; font-weight: bold;">New Followers:</td>
+                <td style="padding: 8px 0; text-align: right;">{{stats.newFollowers}}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Messages:</td>
+                <td style="padding: 8px 0; text-align: right;">{{stats.messages}}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Profile Views:</td>
+                <td style="padding: 8px 0; text-align: right;">{{stats.views}}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+{{#if topPitches}}
+<h3>🔥 Trending This Week</h3>
+{{#each topPitches}}
+<div class="panel-item">
+    <h4 style="margin: 0 0 8px 0; color: #2d3748;">{{title}}</h4>
+    <p style="margin: 0 0 8px 0; color: #718096; font-size: 14px;">{{views}} views this week</p>
+    <p style="margin: 0;"><a href="{{url}}" style="color: #4299e1; text-decoration: none;">View Pitch →</a></p>
+</div>
+{{/each}}
+{{/if}}
+
+{{#if recommendations}}
+<h3>💡 Recommended for You</h3>
+{{#each recommendations}}
+<div class="panel-item">
+    <table style="width: 100%;">
+        <tr>
+            {{#if imageUrl}}
+            <td style="width: 80px; vertical-align: top;">
+                <img src="{{imageUrl}}" alt="{{title}}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 4px;">
+            </td>
+            {{/if}}
+            <td style="vertical-align: top; padding-left: {{#if imageUrl}}16px{{else}}0{{/if}};">
+                <h4 style="margin: 0 0 8px 0; color: #2d3748;">{{title}}</h4>
+                <p style="margin: 0 0 8px 0; color: #718096; font-size: 14px;">by {{creator}}</p>
+                <p style="margin: 0;"><a href="{{url}}" style="color: #4299e1; text-decoration: none;">View Details →</a></p>
+            </td>
+        </tr>
+    </table>
+</div>
+{{/each}}
+{{/if}}
+
+<div class="text-center mt-4 mb-4">
+    <a href="https://pitchey.pages.dev/dashboard" class="button button--blue">Visit Your Dashboard</a>
+</div>
+
+<p class="sub">
+    You're receiving this weekly digest because you're an active member of the Pitchey community. To change your email preferences, visit your account settings.
+</p>

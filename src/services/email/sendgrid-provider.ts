@@ -115,11 +115,11 @@ export class SendGridEmailProvider implements EmailProvider {
 
   private async getSendGridClient(): Promise<any> {
     try {
-      // Try to import SendGrid - use dynamic import to handle missing dependency
+      // Import SendGrid using the configured deno import map
       const sgMail = await import('@sendgrid/mail');
       return sgMail.default || sgMail;
     } catch (error) {
-      console.warn('SendGrid package not installed. Run: npm install @sendgrid/mail');
+      console.warn('SendGrid package not available:', error);
       return null;
     }
   }

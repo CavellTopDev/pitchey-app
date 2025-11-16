@@ -1,0 +1,39 @@
+<h1>Investment Opportunity Invitation</h1>
+
+<p>Hi {{recipientName}},</p>
+
+<p><strong>{{inviterName}}</strong> has invited you to review an exclusive investment opportunity:</p>
+
+<div class="panel">
+    <div class="panel-content">
+        <h3>{{projectTitle}}</h3>
+        {{#if inviteMessage}}
+        <p><strong>Personal message from {{inviterName}}:</strong></p>
+        <p style="font-style: italic; color: #4a5568; background: #f7fafc; padding: 12px; border-radius: 4px; margin: 12px 0;">{{inviteMessage}}</p>
+        {{/if}}
+    </div>
+</div>
+
+<p>This invitation provides you with exclusive early access to review project details, financials, and investment terms before the opportunity becomes widely available.</p>
+
+<div class="text-center mt-4 mb-4">
+    <a href="{{actionUrl}}" class="button button--blue">Review Investment Details</a>
+</div>
+
+<h3>📋 What You'll Find:</h3>
+<ul style="color: #718096; font-size: 16px; line-height: 1.5em;">
+    <li><strong>Project Overview</strong> - Complete pitch deck and creative materials</li>
+    <li><strong>Financial Projections</strong> - Budget breakdown and revenue forecasts</li>
+    <li><strong>Investment Terms</strong> - Detailed terms, expected returns, and timeline</li>
+    <li><strong>Team Background</strong> - Creator profiles and production team experience</li>
+</ul>
+
+<p>All information is protected by our standard investment NDA. Your review of this opportunity does not constitute any commitment to invest.</p>
+
+<div class="text-center mt-4">
+    <a href="{{actionUrl}}" class="button button--green">Access Investment Details</a>
+</div>
+
+<p class="sub">
+    This exclusive invitation expires in 14 days. If you're not interested in this type of investment opportunity, you can update your investment preferences in your account settings.
+</p>

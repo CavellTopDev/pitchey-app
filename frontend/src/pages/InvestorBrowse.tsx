@@ -50,6 +50,7 @@ export default function InvestorBrowse() {
   const [sortBy, setSortBy] = useState<'latest' | 'popular' | 'budget' | 'roi'>('latest');
   const [showFilters, setShowFilters] = useState(false);
   const [config, setConfig] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'trending' | 'new' | 'popular'>('trending');
 
   useEffect(() => {
     // Load configuration and pitches in parallel
@@ -57,7 +58,7 @@ export default function InvestorBrowse() {
       try {
         const [configData] = await Promise.all([
           configService.getConfiguration(),
-          fetchPitches()
+          fetchPitches(activeTab)
         ]);
         setConfig(configData);
       } catch (error) {
@@ -71,36 +72,53 @@ export default function InvestorBrowse() {
     filterAndSortPitches();
   }, [pitches, searchTerm, filters, sortBy]);
 
-  const fetchPitches = async () => {
+  useEffect(() => {
+    fetchPitches(activeTab);
+  }, [activeTab, filters]);
+
+  const fetchPitches = async (tab: string = 'trending') => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/investor/browse`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        tab,
+        limit: '24',
+        page: '1',
+        ...filters
+      });
+
+      // Remove empty filter values
+      Object.keys(filters).forEach(key => {
+        if (!filters[key as keyof typeof filters]) {
+          params.delete(key);
         }
+      });
+
+      const response = await fetch(`${API_URL}/api/browse?${params}`, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {}
       });
       
       if (response.ok) {
         const data = await response.json();
-        // Handle both array response and object with pitches property
-        if (Array.isArray(data)) {
-          setPitches(data);
-        } else if (data && data.pitches) {
-          setPitches(data.pitches || []);
+        if (data.success && data.items) {
+          setPitches(data.items);
         } else {
           setPitches([]);
         }
       } else {
-        // Fallback to public marketplace API
+        // Fallback to old endpoint
         try {
-          const publicResponse = await fetch(`${API_URL}/api/pitches/public`);
-          if (publicResponse.ok) {
-            const publicData = await publicResponse.json();
-            // Handle both array response and object with pitches property
-            if (Array.isArray(publicData)) {
-              setPitches(publicData);
-            } else if (publicData && publicData.pitches) {
-              setPitches(publicData.pitches);
+          const fallbackResponse = await fetch(`${API_URL}/api/pitches/public`);
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            if (Array.isArray(fallbackData)) {
+              setPitches(fallbackData);
+            } else if (fallbackData && fallbackData.pitches) {
+              setPitches(fallbackData.pitches);
             } else {
               setPitches([]);
             }
@@ -117,6 +135,11 @@ export default function InvestorBrowse() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTabChange = (tab: 'trending' | 'new' | 'popular') => {
+    setActiveTab(tab);
+    setLoading(true);
   };
 
   const filterAndSortPitches = () => {
@@ -266,8 +289,58 @@ export default function InvestorBrowse() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Search and Filters */}
+        {/* Browse Tabs */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          {/* Tab Navigation */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => handleTabChange('trending')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
+                  ${activeTab === 'trending' 
+                    ? 'bg-white text-blue-700 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }
+                `}
+              >
+                <TrendingUp className="w-4 h-4" />
+                Trending
+              </button>
+              <button
+                onClick={() => handleTabChange('new')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
+                  ${activeTab === 'new' 
+                    ? 'bg-white text-blue-700 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }
+                `}
+              >
+                <Calendar className="w-4 h-4" />
+                New
+              </button>
+              <button
+                onClick={() => handleTabChange('popular')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
+                  ${activeTab === 'popular' 
+                    ? 'bg-white text-blue-700 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }
+                `}
+              >
+                <Star className="w-4 h-4" />
+                Popular
+              </button>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              Showing {filteredPitches.length} investment opportunities
+            </div>
+          </div>
+
+          {/* Search Bar */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input

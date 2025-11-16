@@ -58,6 +58,7 @@ import { nativeRedisService as redisService, cacheKeys } from "./src/services/re
 import { UserService } from "./src/services/userService.ts";
 import { PitchService } from "./src/services/pitch.service.ts";
 import { NDAService } from "./src/services/nda.service.ts";
+import { NDAFPDFGenerationService } from "./src/services/nda-pdf.service.ts";
 import InfoRequestService from "./src/services/info-request.service.ts";
 import { AuthService } from "./src/services/auth.service.ts";
 import { StripeService } from "./src/services/stripe.service.ts";
@@ -74,6 +75,41 @@ import { EnhancedAnalyticsService } from "./src/services/enhanced-analytics.serv
 import { SmartRecommendationsService } from "./src/services/smart-recommendations.service.ts";
 import { AdvancedSearchService } from "./src/services/advanced-search.service.ts";
 import { WorkflowAutomationService } from "./src/services/workflow-automation.service.ts";
+
+// Import Search Route Handlers
+import {
+  handlePitchSearch,
+  handleUserSearch,
+  handleBrowsePitches,
+  handleSearchSuggestions,
+  handleTrendingSearches,
+  handleSaveSearch,
+  handleGetSavedSearches,
+  handleUpdateSavedSearch,
+  handleDeleteSavedSearch,
+  handleRunSavedSearch,
+  handleSearchHistory,
+  handleAdvancedSearch,
+  handleSimilarContent,
+  handleFacetedSearch,
+  handleFiltersMetadata,
+  handleExportResults
+} from "./src/routes/search.routes.ts";
+
+// Import payment route handlers
+import {
+  getSubscriptionTiers,
+  createCustomer,
+  createSubscription,
+  createCheckout,
+  cancelSubscription,
+  getInvoices,
+  getSubscriptionStatus,
+  getSubscriptionHistory,
+  getPaymentMethods,
+  processInvestment,
+  handleWebhook
+} from "./src/routes/payments.ts";
 
 // Import Content Management Services
 import { contentManagementService } from "./src/services/content-management.service.ts";
@@ -131,7 +167,7 @@ import {
   contentTypes, contentItems, featureFlags, portalConfigurations,
   translationKeys, translations, navigationMenus, contentApprovals,
   savedPitches, reviews, calendarEvents, investments, investmentDocuments, investmentTimeline,
-  infoRequests, infoRequestAttachments, pitchDocuments,
+  infoRequests, infoRequestAttachments, pitchDocuments, pitchCharacters,
   savedFilters, emailAlerts, alertSentPitches
 } from "./src/db/schema.ts";
 import { eq, and, desc, sql, inArray, isNotNull, isNull, or, gte, ilike, count, ne, lte, asc } from "npm:drizzle-orm@0.35.3";
@@ -1639,98 +1675,123 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
-    // Search pitches endpoint (public and authenticated)
+    // COMPREHENSIVE SEARCH ENDPOINTS - New unified search system
+
+    // Search pitches with advanced filtering
     if (url.pathname === "/api/search/pitches" && method === "GET") {
       try {
-        const params = new URLSearchParams(url.search);
-        const query = params.get("q") || "";
-        const genre = params.get("genre");
-        const format = params.get("format");
-        const limit = parseInt(params.get("limit") || "20");
-        const offset = parseInt(params.get("offset") || "0");
-
-        // Check if user is authenticated (optional)
+        // Optional authentication
         const authResult = await authenticate(request);
-        const userId = authResult.user ? authResult.user.id : null;
-
-        // Build query conditions using Drizzle
-        const conditions = [];
+        const user = authResult.user;
         
-        // Only show public/active pitches
-        conditions.push(eq(pitches.status, "published"));
-        conditions.push(or(
-          eq(pitches.visibility, "public"),
-          isNull(pitches.visibility)
-        ));
-
-        // Add search query if provided
-        if (query) {
-          conditions.push(
-            sql`(
-              LOWER(title) LIKE LOWER(${'%' + query + '%'}) OR
-              LOWER(logline) LIKE LOWER(${'%' + query + '%'}) OR
-              LOWER(short_synopsis) LIKE LOWER(${'%' + query + '%'}) OR
-              LOWER(genre) LIKE LOWER(${'%' + query + '%'}) OR
-              LOWER(format) LIKE LOWER(${'%' + query + '%'})
-            )`
-          );
+        if (user) {
+          console.log(`Authenticated pitch search by user ${user.id}`);
+        } else {
+          console.log(`Public pitch search`);
         }
 
-        // Add genre filter if provided
-        if (genre) {
-          conditions.push(eq(pitches.genre, genre));
-        }
-
-        // Add format filter if provided
-        if (format) {
-          conditions.push(eq(pitches.format, format));
-        }
-
-        // Execute search query with Drizzle
-        const searchResults = await db
-          .select({
-            id: pitches.id,
-            title: pitches.title,
-            logline: pitches.logline,
-            genre: pitches.genre,
-            format: pitches.format,
-            shortSynopsis: pitches.shortSynopsis,
-            posterUrl: pitches.posterUrl,
-            viewCount: pitches.viewCount,
-            likeCount: pitches.likeCount,
-            createdAt: pitches.createdAt,
-            userId: pitches.userId,
-            budgetBracket: pitches.budgetBracket,
-            status: pitches.status
-          })
-          .from(pitches)
-          .where(and(...conditions))
-          .orderBy(desc(pitches.createdAt))
-          .limit(limit)
-          .offset(offset);
-
-        // Get total count for pagination
-        const countResult = await db
-          .select({ count: sql`count(*)::int` })
-          .from(pitches)
-          .where(and(...conditions));
-
-        const total = countResult[0]?.count || 0;
-
-        return jsonResponse({
-          success: true,
-          results: searchResults,
-          pagination: {
-            total,
-            limit,
-            offset,
-            hasMore: offset + limit < total
-          }
-        });
+        return await handlePitchSearch(request, user?.id);
 
       } catch (error) {
-        console.error("Search error:", error);
-        return serverErrorResponse("Search failed");
+        logError(error, { context: "search_pitches", query: url.searchParams.get('q') });
+        return errorResponse("Search failed", 500, { 
+          details: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    }
+
+    // Browse pitches with tabs (Trending, New, Popular)
+    if (url.pathname === "/api/browse" && method === "GET") {
+      try {
+        // Optional authentication
+        const authResult = await authenticate(request);
+        const user = authResult.user;
+        
+        if (user) {
+          console.log(`Authenticated browse by user ${user.id}`);
+        } else {
+          console.log(`Public browse`);
+        }
+
+        return await handleBrowsePitches(request, user?.id);
+
+      } catch (error) {
+        logError(error, { context: "browse_pitches", tab: url.searchParams.get('tab') });
+        return errorResponse("Browse failed", 500, { 
+          details: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    }
+
+    // Search users
+    if (url.pathname === "/api/search/users" && method === "GET") {
+      try {
+        // Optional authentication
+        const authResult = await authenticate(request);
+        const user = authResult.user;
+
+        return await handleUserSearch(request, user?.id);
+
+      } catch (error) {
+        logError(error, { context: "search_users", query: url.searchParams.get('q') });
+        return errorResponse("User search failed", 500, { 
+          details: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+    }
+
+    // Search suggestions and autocomplete
+    if (url.pathname === "/api/search/suggestions" && method === "GET") {
+      try {
+        return await handleSearchSuggestions(request);
+      } catch (error) {
+        logError(error, { context: "search_suggestions" });
+        return errorResponse("Failed to get suggestions", 500);
+      }
+    }
+
+    // Trending searches, genres, formats
+    if (url.pathname === "/api/search/trending" && method === "GET") {
+      try {
+        return await handleTrendingSearches(request);
+      } catch (error) {
+        logError(error, { context: "trending_searches" });
+        return errorResponse("Failed to get trending data", 500);
+      }
+    }
+
+    // Advanced search with AI
+    if (url.pathname === "/api/search/advanced" && method === "POST") {
+      try {
+        // Optional authentication
+        const authResult = await authenticate(request);
+        const user = authResult.user;
+
+        return await handleAdvancedSearch(request, user?.id);
+
+      } catch (error) {
+        logError(error, { context: "advanced_search" });
+        return errorResponse("Advanced search failed", 500);
+      }
+    }
+
+    // Find similar content
+    if (url.pathname.match(/^\/api\/search\/similar\/(\d+)$/) && method === "GET") {
+      try {
+        return await handleSimilarContent(request);
+      } catch (error) {
+        logError(error, { context: "similar_content" });
+        return errorResponse("Failed to find similar content", 500);
+      }
+    }
+
+    // Get filters metadata
+    if (url.pathname === "/api/search/filters" && method === "GET") {
+      try {
+        return await handleFiltersMetadata(request);
+      } catch (error) {
+        logError(error, { context: "filters_metadata" });
+        return errorResponse("Failed to get filters metadata", 500);
       }
     }
 
@@ -2679,6 +2740,120 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     // === AUTHENTICATED ENDPOINTS (VALIDATION FIRST, THEN AUTH) ===
+
+    // === AUTHENTICATED SEARCH ENDPOINTS ===
+    
+    // Save search for later use
+    if (url.pathname === "/api/search/saved" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        return await handleSaveSearch(request, authResult.user.id);
+
+      } catch (error) {
+        logError(error, { context: "save_search" });
+        return errorResponse("Failed to save search", 500);
+      }
+    }
+
+    // Get saved searches
+    if (url.pathname === "/api/search/saved" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        return await handleGetSavedSearches(request, authResult.user.id);
+
+      } catch (error) {
+        logError(error, { context: "get_saved_searches" });
+        return errorResponse("Failed to get saved searches", 500);
+      }
+    }
+
+    // Update saved search
+    if (url.pathname.match(/^\/api\/search\/saved\/(\d+)$/) && method === "PUT") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        return await handleUpdateSavedSearch(request, authResult.user.id);
+
+      } catch (error) {
+        logError(error, { context: "update_saved_search" });
+        return errorResponse("Failed to update search", 500);
+      }
+    }
+
+    // Delete saved search
+    if (url.pathname.match(/^\/api\/search\/saved\/(\d+)$/) && method === "DELETE") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        return await handleDeleteSavedSearch(request, authResult.user.id);
+
+      } catch (error) {
+        logError(error, { context: "delete_saved_search" });
+        return errorResponse("Failed to delete search", 500);
+      }
+    }
+
+    // Run saved search
+    if (url.pathname.match(/^\/api\/search\/saved\/(\d+)\/run$/) && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        return await handleRunSavedSearch(request, authResult.user.id);
+
+      } catch (error) {
+        logError(error, { context: "run_saved_search" });
+        return errorResponse("Failed to run saved search", 500);
+      }
+    }
+
+    // Get search history
+    if (url.pathname === "/api/search/history" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        return await handleSearchHistory(request, authResult.user.id);
+
+      } catch (error) {
+        logError(error, { context: "search_history" });
+        return errorResponse("Failed to get search history", 500);
+      }
+    }
+
+    // Export search results
+    if (url.pathname === "/api/search/export" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (authResult.error || !authResult.user) {
+          return authErrorResponse(authResult.error || "Authentication required");
+        }
+
+        return await handleExportResults(request, authResult.user.id);
+
+      } catch (error) {
+        logError(error, { context: "export_results" });
+        return errorResponse("Failed to export results", 500);
+      }
+    }
 
     // === ADMIN CONTENT MANAGEMENT ENDPOINTS ===
     
@@ -6982,6 +7157,606 @@ const handler = async (request: Request): Promise<Response> => {
       }
     }
 
+    // =============================================================================
+    // FILE UPLOAD ENDPOINTS
+    // =============================================================================
+
+    // Single file upload endpoint
+    if (url.pathname === "/api/upload" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (!authResult.success || !authResult.user) {
+          return authErrorResponse("Authentication required for file upload");
+        }
+        const user = authResult.user;
+
+        // Parse multipart form data
+        const formData = await request.formData();
+        const file = formData.get('file') as File;
+        const folder = (formData.get('folder') as string) || 'uploads';
+        const documentType = (formData.get('documentType') as string) || 'supporting';
+        const pitchId = formData.get('pitchId') as string;
+        const isPublic = formData.get('isPublic') === 'true';
+        const requiresNda = formData.get('requiresNda') === 'true';
+
+        if (!file) {
+          return validationErrorResponse("No file provided");
+        }
+
+        // Import validation service
+        const { FileValidationService } = await import("./src/services/file-validation.service.ts");
+        
+        // Determine file category
+        const fileCategory = file.type.startsWith('image/') ? 'image' 
+                           : file.type.startsWith('video/') ? 'video'
+                           : documentType === 'script' ? 'script' 
+                           : 'document';
+
+        // Validate file
+        const validationResult = await FileValidationService.validateFile(file, fileCategory, {
+          enforceSizeLimit: true,
+          validateSignature: true,
+          checkSecurity: true
+        });
+
+        if (!validationResult.isValid) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'File validation failed',
+            details: validationResult.errors
+          }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+          });
+        }
+
+        // Check user quota
+        const quotaCheck = await FileValidationService.checkUserQuota(user.id, file.size);
+        if (!quotaCheck.allowed) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Storage quota exceeded',
+            quota: quotaCheck
+          }), {
+            status: 409,
+            headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+          });
+        }
+
+        // Upload file using UploadService
+        const uploadResult = await UploadService.uploadFile(file, folder, {
+          publicRead: isPublic,
+          metadata: {
+            userId: user.id.toString(),
+            documentType,
+            originalName: file.name,
+            uploadedBy: user.email,
+            uploadedAt: new Date().toISOString()
+          }
+        });
+
+        // Save document metadata to database if pitch is specified
+        let documentRecord = null;
+        if (pitchId) {
+          const sanitizedFileName = FileValidationService.sanitizeFilename(file.name);
+          
+          const [newDocument] = await db.insert(pitchDocuments).values({
+            pitchId: parseInt(pitchId),
+            fileName: sanitizedFileName,
+            originalFileName: file.name,
+            fileUrl: uploadResult.url,
+            fileKey: uploadResult.key,
+            fileType: file.type,
+            mimeType: file.type,
+            fileSize: file.size,
+            documentType,
+            isPublic,
+            requiresNda,
+            uploadedBy: user.id,
+            uploadedAt: new Date(),
+            lastModified: new Date(),
+            downloadCount: 0,
+            metadata: {
+              validation: validationResult,
+              uploadResult,
+              cdnUrl: uploadResult.cdnUrl
+            }
+          }).returning();
+
+          documentRecord = newDocument;
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            file: uploadResult,
+            document: documentRecord,
+            validation: {
+              warnings: validationResult.warnings,
+              metadata: validationResult.metadata
+            }
+          }
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+        });
+
+      } catch (error: any) {
+        console.error('Upload error:', error);
+        return serverErrorResponse(`Upload failed: ${error.message}`);
+      }
+    }
+
+    // Multiple file upload endpoint
+    if (url.pathname === "/api/upload/multiple" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (!authResult.success || !authResult.user) {
+          return authErrorResponse("Authentication required for file upload");
+        }
+        const user = authResult.user;
+
+        const formData = await request.formData();
+        const files = formData.getAll('files') as File[];
+        const folder = (formData.get('folder') as string) || 'uploads';
+        const documentType = (formData.get('documentType') as string) || 'supporting';
+        const pitchId = formData.get('pitchId') as string;
+        const isPublic = formData.get('isPublic') === 'true';
+        const requiresNda = formData.get('requiresNda') === 'true';
+
+        if (!files || files.length === 0) {
+          return validationErrorResponse("No files provided");
+        }
+
+        const { FileValidationService } = await import("./src/services/file-validation.service.ts");
+
+        // Validate all files first
+        const validationResults = [];
+        let totalSize = 0;
+
+        for (const file of files) {
+          const fileCategory = file.type.startsWith('image/') ? 'image' 
+                             : file.type.startsWith('video/') ? 'video'
+                             : documentType === 'script' ? 'script' 
+                             : 'document';
+          const validation = await FileValidationService.validateFile(file, fileCategory);
+          validationResults.push({ file: file.name, validation });
+          totalSize += file.size;
+        }
+
+        // Check for validation errors
+        const invalidFiles = validationResults.filter(r => !r.validation.isValid);
+        if (invalidFiles.length > 0) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Some files failed validation',
+            details: invalidFiles.map(f => ({
+              file: f.file,
+              errors: f.validation.errors
+            }))
+          }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+          });
+        }
+
+        // Check total quota
+        const quotaCheck = await FileValidationService.checkUserQuota(user.id, totalSize);
+        if (!quotaCheck.allowed) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Total files size exceeds storage quota',
+            quota: quotaCheck
+          }), {
+            status: 409,
+            headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+          });
+        }
+
+        // Upload all files
+        const uploadResults = [];
+        const documentRecords = [];
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          
+          try {
+            const uploadResult = await UploadService.uploadFile(file, folder, {
+              publicRead: isPublic,
+              metadata: {
+                userId: user.id.toString(),
+                documentType,
+                originalName: file.name,
+                uploadedBy: user.email,
+                uploadedAt: new Date().toISOString(),
+                batchUpload: 'true',
+                batchIndex: i.toString()
+              }
+            });
+
+            uploadResults.push({
+              file: file.name,
+              success: true,
+              result: uploadResult
+            });
+
+            // Save to database if pitch is specified
+            if (pitchId) {
+              const sanitizedFileName = FileValidationService.sanitizeFilename(file.name);
+              
+              const [newDocument] = await db.insert(pitchDocuments).values({
+                pitchId: parseInt(pitchId),
+                fileName: sanitizedFileName,
+                originalFileName: file.name,
+                fileUrl: uploadResult.url,
+                fileKey: uploadResult.key,
+                fileType: file.type,
+                mimeType: file.type,
+                fileSize: file.size,
+                documentType,
+                isPublic,
+                requiresNda,
+                uploadedBy: user.id,
+                uploadedAt: new Date(),
+                lastModified: new Date(),
+                downloadCount: 0,
+                metadata: {
+                  validation: validationResults[i].validation,
+                  uploadResult,
+                  batchUpload: true,
+                  batchIndex: i
+                }
+              }).returning();
+
+              documentRecords.push(newDocument);
+            }
+
+          } catch (error: any) {
+            uploadResults.push({
+              file: file.name,
+              success: false,
+              error: error.message
+            });
+          }
+        }
+
+        const successful = uploadResults.filter(r => r.success).length;
+        const failed = uploadResults.filter(r => !r.success).length;
+
+        return new Response(JSON.stringify({
+          success: failed === 0,
+          data: {
+            summary: {
+              total: files.length,
+              successful,
+              failed
+            },
+            uploads: uploadResults,
+            documents: documentRecords,
+            validations: validationResults.map(v => ({
+              file: v.file,
+              warnings: v.validation.warnings
+            }))
+          }
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+        });
+
+      } catch (error: any) {
+        console.error('Multiple upload error:', error);
+        return serverErrorResponse(`Multiple upload failed: ${error.message}`);
+      }
+    }
+
+    // Delete document endpoint
+    if (url.pathname.match(/^\/api\/documents\/\d+$/) && method === "DELETE") {
+      try {
+        const authResult = await authenticate(request);
+        if (!authResult.success || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const user = authResult.user;
+
+        const documentId = parseInt(url.pathname.split('/')[3]);
+        if (!documentId || isNaN(documentId)) {
+          return validationErrorResponse("Invalid document ID");
+        }
+
+        // Get document info
+        const [document] = await db
+          .select()
+          .from(pitchDocuments)
+          .where(eq(pitchDocuments.id, documentId))
+          .limit(1);
+
+        if (!document) {
+          return notFoundResponse("Document not found");
+        }
+
+        // Check permissions - only owner or admin can delete
+        if (document.uploadedBy !== user.id && user.userType !== 'admin') {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Permission denied'
+          }), {
+            status: 403,
+            headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+          });
+        }
+
+        // Delete from storage
+        if (document.fileKey) {
+          try {
+            await UploadService.deleteFile(document.fileKey);
+          } catch (error) {
+            console.warn('Failed to delete file from storage:', error);
+            // Continue with database deletion even if storage deletion fails
+          }
+        }
+
+        // Delete from database
+        await db
+          .delete(pitchDocuments)
+          .where(eq(pitchDocuments.id, documentId));
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Document deleted successfully'
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+        });
+
+      } catch (error: any) {
+        console.error('Document deletion error:', error);
+        return serverErrorResponse(`Document deletion failed: ${error.message}`);
+      }
+    }
+
+    // Get presigned URL for document access
+    if (url.pathname.match(/^\/api\/documents\/\d+\/url$/) && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (!authResult.success || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const user = authResult.user;
+
+        const documentId = parseInt(url.pathname.split('/')[3]);
+        if (!documentId || isNaN(documentId)) {
+          return validationErrorResponse("Invalid document ID");
+        }
+
+        const urlParams = new URL(request.url).searchParams;
+        const expiresIn = parseInt(urlParams.get('expires') || '3600'); // 1 hour default
+
+        const [document] = await db
+          .select()
+          .from(pitchDocuments)
+          .where(eq(pitchDocuments.id, documentId))
+          .limit(1);
+
+        if (!document) {
+          return notFoundResponse("Document not found");
+        }
+
+        // Check access permissions
+        let hasAccess = false;
+        
+        // Document owner always has access
+        if (document.uploadedBy === user.id) {
+          hasAccess = true;
+        }
+        // Public documents are accessible to all
+        else if (document.isPublic) {
+          hasAccess = true;
+        }
+        // Check NDA requirements
+        else if (document.requiresNda) {
+          const [nda] = await db
+            .select()
+            .from(ndas)
+            .where(
+              and(
+                eq(ndas.pitchId, document.pitchId),
+                eq(ndas.signerId, user.id),
+                eq(ndas.status, 'signed'),
+                eq(ndas.accessGranted, true)
+              )
+            )
+            .limit(1);
+          hasAccess = !!nda;
+        }
+        // Check if user is the pitch owner
+        else {
+          const [pitch] = await db
+            .select({ userId: pitches.userId })
+            .from(pitches)
+            .where(eq(pitches.id, document.pitchId))
+            .limit(1);
+          hasAccess = pitch?.userId === user.id;
+        }
+
+        if (!hasAccess) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Access denied - NDA may be required'
+          }), {
+            status: 403,
+            headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+          });
+        }
+
+        // Generate presigned URL
+        const presignedUrl = await UploadService.getPresignedDownloadUrl(document.fileKey!, expiresIn);
+
+        // Track download
+        await db
+          .update(pitchDocuments)
+          .set({
+            downloadCount: db.raw('download_count + 1')
+          })
+          .where(eq(pitchDocuments.id, documentId));
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            url: presignedUrl,
+            expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+            document: {
+              id: document.id,
+              fileName: document.fileName,
+              fileSize: document.fileSize,
+              documentType: document.documentType
+            }
+          }
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+        });
+
+      } catch (error: any) {
+        console.error('Presigned URL generation error:', error);
+        return serverErrorResponse(`Failed to generate download URL: ${error.message}`);
+      }
+    }
+
+    // Get presigned upload URL for direct browser upload
+    if (url.pathname === "/api/upload/presigned" && method === "POST") {
+      try {
+        const authResult = await authenticate(request);
+        if (!authResult.success || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const user = authResult.user;
+
+        const body = await request.json();
+        const { fileName, contentType, folder = 'uploads', fileSize } = body;
+
+        if (!fileName || !contentType) {
+          return validationErrorResponse("Missing fileName or contentType");
+        }
+
+        // Basic validation
+        if (fileSize) {
+          const fileCategory = contentType.startsWith('image/') ? 'image' 
+                             : contentType.startsWith('video/') ? 'video'
+                             : 'document';
+
+          const maxSize = {
+            image: 10 * 1024 * 1024,
+            document: 100 * 1024 * 1024,
+            video: 2 * 1024 * 1024 * 1024,
+            script: 50 * 1024 * 1024
+          }[fileCategory];
+
+          if (fileSize > maxSize) {
+            return validationErrorResponse(`File size exceeds limit for ${fileCategory} files`);
+          }
+
+          // Check quota
+          const { FileValidationService } = await import("./src/services/file-validation.service.ts");
+          const quotaCheck = await FileValidationService.checkUserQuota(user.id, fileSize);
+          if (!quotaCheck.allowed) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Storage quota exceeded',
+              quota: quotaCheck
+            }), {
+              status: 409,
+              headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+            });
+          }
+        }
+
+        // Generate unique key
+        const key = UploadService.generateKey(folder, fileName);
+        
+        // Generate presigned upload URL
+        const presignedResult = await UploadService.getPresignedUploadUrl(
+          key,
+          contentType,
+          {
+            userId: user.id.toString(),
+            originalName: fileName,
+            uploadedBy: user.email,
+            uploadedAt: new Date().toISOString()
+          },
+          3600 // 1 hour expiry
+        );
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            uploadUrl: presignedResult.uploadUrl,
+            key: presignedResult.key,
+            expiresAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+            fields: {
+              'Content-Type': contentType,
+              'x-amz-meta-user-id': user.id.toString(),
+              'x-amz-meta-original-name': fileName
+            }
+          }
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+        });
+
+      } catch (error: any) {
+        console.error('Presigned upload URL error:', error);
+        return serverErrorResponse(`Failed to generate upload URL: ${error.message}`);
+      }
+    }
+
+    // Get user storage quota information
+    if (url.pathname === "/api/upload/quota" && method === "GET") {
+      try {
+        const authResult = await authenticate(request);
+        if (!authResult.success || !authResult.user) {
+          return authErrorResponse("Authentication required");
+        }
+        const user = authResult.user;
+        
+        const { FileValidationService } = await import("./src/services/file-validation.service.ts");
+        const quota = await FileValidationService.checkUserQuota(user.id, 0);
+        
+        // Helper function to format file size
+        function formatFileSize(bytes: number): string {
+          const units = ['B', 'KB', 'MB', 'GB'];
+          let size = bytes;
+          let unitIndex = 0;
+
+          while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+          }
+
+          return `${size.toFixed(1)} ${units[unitIndex]}`;
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            currentUsage: quota.currentUsage,
+            maxQuota: quota.maxQuota,
+            remainingQuota: quota.remainingQuota,
+            usagePercentage: Math.round((quota.currentUsage / quota.maxQuota) * 100),
+            formattedUsage: formatFileSize(quota.currentUsage),
+            formattedQuota: formatFileSize(quota.maxQuota),
+            formattedRemaining: formatFileSize(quota.remainingQuota)
+          }
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...getCorsHeaders() }
+        });
+
+      } catch (error: any) {
+        console.error('Quota check error:', error);
+        return serverErrorResponse(`Failed to check quota: ${error.message}`);
+      }
+    }
+
     // Get pitch documents (must come before general pitch endpoint)
     if (url.pathname.startsWith("/api/pitches/") && url.pathname.endsWith("/documents") && method === "GET") {
       try {
@@ -7266,7 +8041,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Verify pitch exists and user owns it
         const [pitch] = await db
-          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .select({ id: pitches.id, userId: pitches.userId })
           .from(pitches)
           .where(eq(pitches.id, pitchId))
           .limit(1);
@@ -7281,7 +8056,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Parse request body
         const body = await request.json();
-        const { name, description } = body;
+        const { name, description, age, gender, actor, role, relationship } = body;
 
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
           return errorResponse("Character name is required", 400);
@@ -7291,33 +8066,29 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Character description is required", 400);
         }
 
-        // Get existing characters
-        let existingCharacters = [];
-        if (pitch.characters && typeof pitch.characters === 'string') {
-          try {
-            existingCharacters = JSON.parse(pitch.characters);
-          } catch (error) {
-            existingCharacters = [];
-          }
-        }
+        // Get the next display order
+        const lastOrderResult = await db
+          .select({ maxOrder: sql<number>`COALESCE(MAX(display_order), -1)` })
+          .from(pitchCharacters)
+          .where(eq(pitchCharacters.pitchId, pitchId));
+          
+        const nextOrder = (lastOrderResult[0]?.maxOrder || -1) + 1;
 
-        // Add new character
-        const newCharacter = {
-          id: Date.now().toString(), // Simple ID generation
-          name: name.trim(),
-          description: description.trim()
-        };
-
-        existingCharacters.push(newCharacter);
-
-        // Update pitch with new characters
-        await db
-          .update(pitches)
-          .set({
-            characters: JSON.stringify(existingCharacters),
-            updatedAt: new Date()
+        // Insert character
+        const [newCharacter] = await db
+          .insert(pitchCharacters)
+          .values({
+            pitchId,
+            name: name.trim(),
+            description: description.trim(),
+            age: age?.trim() || null,
+            gender: gender?.trim() || null,
+            actor: actor?.trim() || null,
+            role: role?.trim() || null,
+            relationship: relationship?.trim() || null,
+            displayOrder: nextOrder,
           })
-          .where(eq(pitches.id, pitchId));
+          .returning();
 
         return new Response(JSON.stringify({
           success: true,
@@ -7351,7 +8122,7 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Verify pitch exists and user owns it
         const [pitch] = await db
-          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .select({ id: pitches.id, userId: pitches.userId })
           .from(pitches)
           .where(eq(pitches.id, pitchId))
           .limit(1);
@@ -7366,46 +8137,51 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Parse request body
         const body = await request.json();
-        const { characterIds } = body;
+        const { characterOrders } = body;
 
-        if (!Array.isArray(characterIds)) {
-          return errorResponse("characterIds must be an array", 400);
+        if (!Array.isArray(characterOrders)) {
+          return errorResponse("characterOrders must be an array", 400);
         }
 
-        // Get existing characters
-        let existingCharacters = [];
-        if (pitch.characters && typeof pitch.characters === 'string') {
-          try {
-            existingCharacters = JSON.parse(pitch.characters);
-          } catch (error) {
-            return errorResponse("Invalid character data in pitch", 400);
+        // Validate all character IDs belong to this pitch
+        const existingCharacters = await db
+          .select({ id: pitchCharacters.id })
+          .from(pitchCharacters)
+          .where(eq(pitchCharacters.pitchId, pitchId));
+
+        const existingIds = new Set(existingCharacters.map(c => c.id));
+        const providedIds = new Set(characterOrders.map(item => item.id));
+
+        if (existingIds.size !== providedIds.size || 
+            ![...existingIds].every(id => providedIds.has(id))) {
+          return errorResponse("Invalid character order data", 400);
+        }
+
+        // Update display orders in a transaction
+        await db.transaction(async (tx) => {
+          for (const item of characterOrders) {
+            await tx
+              .update(pitchCharacters)
+              .set({
+                displayOrder: item.displayOrder,
+                updatedAt: new Date(),
+              })
+              .where(and(
+                eq(pitchCharacters.id, item.id),
+                eq(pitchCharacters.pitchId, pitchId)
+              ));
           }
-        }
+        });
 
-        // Validate that all provided IDs exist
-        const existingIds = existingCharacters.map(char => char.id);
-        for (const id of characterIds) {
-          if (!existingIds.includes(id)) {
-            return errorResponse(`Character with ID ${id} not found`, 400);
-          }
-        }
-
-        // Reorder characters based on provided IDs
-        const reorderedCharacters = characterIds.map(id => 
-          existingCharacters.find(char => char.id === id)
-        ).filter(Boolean); // Remove any undefined entries
-
-        // Update pitch with reordered characters
-        await db
-          .update(pitches)
-          .set({
-            characters: JSON.stringify(reorderedCharacters),
-            updatedAt: new Date()
-          })
-          .where(eq(pitches.id, pitchId));
+        // Get updated characters
+        const updatedCharacters = await db
+          .select()
+          .from(pitchCharacters)
+          .where(eq(pitchCharacters.pitchId, pitchId))
+          .orderBy(pitchCharacters.displayOrder);
 
         return successResponse({
-          characters: reorderedCharacters,
+          characters: updatedCharacters,
           message: "Characters reordered successfully"
         });
 
@@ -7423,11 +8199,10 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Invalid pitch ID", 400);
         }
 
-        // Get pitch with characters (public endpoint, but may need NDA)
+        // Get pitch (to verify it exists)
         const [pitch] = await db
           .select({ 
             id: pitches.id, 
-            characters: pitches.characters,
             visibility: pitches.visibility,
             userId: pitches.userId
           })
@@ -7439,15 +8214,12 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Pitch not found", 404);
         }
 
-        // Parse characters
-        let characters = [];
-        if (pitch.characters && typeof pitch.characters === 'string') {
-          try {
-            characters = JSON.parse(pitch.characters);
-          } catch (error) {
-            characters = [];
-          }
-        }
+        // Get characters ordered by display_order
+        const characters = await db
+          .select()
+          .from(pitchCharacters)
+          .where(eq(pitchCharacters.pitchId, pitchId))
+          .orderBy(pitchCharacters.displayOrder);
 
         return successResponse({
           characters,
@@ -7460,7 +8232,7 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     // PUT /api/pitches/:id/characters/:charId - Update a character
-    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/[\w-]+$/) && method === "PUT") {
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/\d+$/) && method === "PUT") {
       try {
         // Authenticate user first
         const authResult = await authenticateRequest(request);
@@ -7471,15 +8243,15 @@ const handler = async (request: Request): Promise<Response> => {
         
         const pathParts = url.pathname.split('/');
         const pitchId = parseInt(pathParts[3]);
-        const characterId = pathParts[5];
+        const characterId = parseInt(pathParts[5]);
         
-        if (isNaN(pitchId) || pitchId <= 0) {
-          return errorResponse("Invalid pitch ID", 400);
+        if (isNaN(pitchId) || pitchId <= 0 || isNaN(characterId) || characterId <= 0) {
+          return errorResponse("Invalid pitch or character ID", 400);
         }
 
         // Verify pitch exists and user owns it
         const [pitch] = await db
-          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .select({ id: pitches.id, userId: pitches.userId })
           .from(pitches)
           .where(eq(pitches.id, pitchId))
           .limit(1);
@@ -7494,43 +8266,41 @@ const handler = async (request: Request): Promise<Response> => {
 
         // Parse request body
         const body = await request.json();
-        const { name, description } = body;
+        const { name, description, age, gender, actor, role, relationship } = body;
 
-        // Parse existing characters
-        let characters = [];
-        if (pitch.characters && typeof pitch.characters === 'string') {
-          try {
-            characters = JSON.parse(pitch.characters);
-          } catch (error) {
-            characters = [];
-          }
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+          return errorResponse("Character name is required", 400);
         }
 
-        // Find and update the character
-        const characterIndex = characters.findIndex(char => char.id === characterId);
-        if (characterIndex === -1) {
+        if (!description || typeof description !== 'string' || description.trim().length === 0) {
+          return errorResponse("Character description is required", 400);
+        }
+
+        // Update character
+        const [updatedCharacter] = await db
+          .update(pitchCharacters)
+          .set({
+            name: name.trim(),
+            description: description.trim(),
+            age: age?.trim() || null,
+            gender: gender?.trim() || null,
+            actor: actor?.trim() || null,
+            role: role?.trim() || null,
+            relationship: relationship?.trim() || null,
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(pitchCharacters.id, characterId),
+            eq(pitchCharacters.pitchId, pitchId)
+          ))
+          .returning();
+
+        if (!updatedCharacter) {
           return errorResponse("Character not found", 404);
         }
 
-        // Update character fields
-        if (name !== undefined) {
-          characters[characterIndex].name = name;
-        }
-        if (description !== undefined) {
-          characters[characterIndex].description = description;
-        }
-
-        // Update pitch with modified characters
-        await db
-          .update(pitches)
-          .set({
-            characters: JSON.stringify(characters),
-            updatedAt: new Date()
-          })
-          .where(eq(pitches.id, pitchId));
-
         return successResponse({
-          character: characters[characterIndex],
+          character: updatedCharacter,
           message: "Character updated successfully"
         });
 
@@ -7541,7 +8311,7 @@ const handler = async (request: Request): Promise<Response> => {
     }
 
     // DELETE /api/pitches/:id/characters/:charId - Delete a character
-    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/[\w-]+$/) && method === "DELETE") {
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/\d+$/) && method === "DELETE") {
       try {
         // Authenticate user first
         const authResult = await authenticateRequest(request);
@@ -7552,15 +8322,15 @@ const handler = async (request: Request): Promise<Response> => {
         
         const pathParts = url.pathname.split('/');
         const pitchId = parseInt(pathParts[3]);
-        const characterId = pathParts[5];
+        const characterId = parseInt(pathParts[5]);
         
-        if (isNaN(pitchId) || pitchId <= 0) {
-          return errorResponse("Invalid pitch ID", 400);
+        if (isNaN(pitchId) || pitchId <= 0 || isNaN(characterId) || characterId <= 0) {
+          return errorResponse("Invalid pitch or character ID", 400);
         }
 
         // Verify pitch exists and user owns it
         const [pitch] = await db
-          .select({ id: pitches.id, characters: pitches.characters, userId: pitches.userId })
+          .select({ id: pitches.id, userId: pitches.userId })
           .from(pitches)
           .where(eq(pitches.id, pitchId))
           .limit(1);
@@ -7573,33 +8343,39 @@ const handler = async (request: Request): Promise<Response> => {
           return errorResponse("Unauthorized to modify this pitch", 403);
         }
 
-        // Parse existing characters
-        let characters = [];
-        if (pitch.characters && typeof pitch.characters === 'string') {
-          try {
-            characters = JSON.parse(pitch.characters);
-          } catch (error) {
-            characters = [];
-          }
-        }
+        // Get the character's display order before deletion
+        const characterToDelete = await db
+          .select({ displayOrder: pitchCharacters.displayOrder })
+          .from(pitchCharacters)
+          .where(and(
+            eq(pitchCharacters.id, characterId),
+            eq(pitchCharacters.pitchId, pitchId)
+          ))
+          .limit(1);
 
-        // Find and remove the character
-        const characterIndex = characters.findIndex(char => char.id === characterId);
-        if (characterIndex === -1) {
+        if (!characterToDelete[0]) {
           return errorResponse("Character not found", 404);
         }
 
-        // Remove character
-        characters.splice(characterIndex, 1);
-
-        // Update pitch with modified characters
+        // Delete character
         await db
-          .update(pitches)
+          .delete(pitchCharacters)
+          .where(and(
+            eq(pitchCharacters.id, characterId),
+            eq(pitchCharacters.pitchId, pitchId)
+          ));
+
+        // Reorder remaining characters to fill gap
+        await db
+          .update(pitchCharacters)
           .set({
-            characters: JSON.stringify(characters),
-            updatedAt: new Date()
+            displayOrder: sql`display_order - 1`,
+            updatedAt: new Date(),
           })
-          .where(eq(pitches.id, pitchId));
+          .where(and(
+            eq(pitchCharacters.pitchId, pitchId),
+            sql`display_order > ${characterToDelete[0].displayOrder}`
+          ));
 
         return successResponse({
           message: "Character deleted successfully"
@@ -7608,6 +8384,116 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error deleting character:", error);
         return serverErrorResponse("Failed to delete character");
+      }
+    }
+
+    // PATCH /api/pitches/:id/characters/:charId/position - Update character position (move up/down)
+    if (url.pathname.match(/^\/api\/pitches\/\d+\/characters\/\d+\/position$/) && method === "PATCH") {
+      try {
+        // Authenticate user first
+        const authResult = await authenticateRequest(request);
+        if (!authResult.success) {
+          return authResult.error!;
+        }
+        const user = authResult.user;
+        
+        const pathParts = url.pathname.split('/');
+        const pitchId = parseInt(pathParts[3]);
+        const characterId = parseInt(pathParts[5]);
+        
+        if (isNaN(pitchId) || pitchId <= 0 || isNaN(characterId) || characterId <= 0) {
+          return errorResponse("Invalid pitch or character ID", 400);
+        }
+
+        // Verify pitch exists and user owns it
+        const [pitch] = await db
+          .select({ id: pitches.id, userId: pitches.userId })
+          .from(pitches)
+          .where(eq(pitches.id, pitchId))
+          .limit(1);
+        
+        if (!pitch) {
+          return errorResponse("Pitch not found", 404);
+        }
+
+        if (pitch.userId !== user.id) {
+          return errorResponse("Unauthorized to modify this pitch", 403);
+        }
+
+        const body = await request.json();
+        const { direction } = body; // 'up' or 'down'
+
+        if (!['up', 'down'].includes(direction)) {
+          return errorResponse("Direction must be 'up' or 'down'", 400);
+        }
+
+        // Get current character's position
+        const currentCharacter = await db
+          .select({ displayOrder: pitchCharacters.displayOrder })
+          .from(pitchCharacters)
+          .where(and(
+            eq(pitchCharacters.id, characterId),
+            eq(pitchCharacters.pitchId, pitchId)
+          ))
+          .limit(1);
+
+        if (!currentCharacter[0]) {
+          return errorResponse("Character not found", 404);
+        }
+
+        const currentOrder = currentCharacter[0].displayOrder;
+        const targetOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
+
+        // Find the character to swap with
+        const targetCharacter = await db
+          .select({ id: pitchCharacters.id })
+          .from(pitchCharacters)
+          .where(and(
+            eq(pitchCharacters.pitchId, pitchId),
+            eq(pitchCharacters.displayOrder, targetOrder)
+          ))
+          .limit(1);
+
+        if (!targetCharacter[0]) {
+          return errorResponse("Cannot move character in that direction", 400);
+        }
+
+        // Swap positions in a transaction
+        await db.transaction(async (tx) => {
+          // Move current character to target position
+          await tx
+            .update(pitchCharacters)
+            .set({ 
+              displayOrder: targetOrder,
+              updatedAt: new Date() 
+            })
+            .where(eq(pitchCharacters.id, characterId));
+
+          // Move target character to current position
+          await tx
+            .update(pitchCharacters)
+            .set({ 
+              displayOrder: currentOrder,
+              updatedAt: new Date() 
+            })
+            .where(eq(pitchCharacters.id, targetCharacter[0].id));
+        });
+
+        // Get updated characters
+        const updatedCharacters = await db
+          .select()
+          .from(pitchCharacters)
+          .where(eq(pitchCharacters.pitchId, pitchId))
+          .orderBy(pitchCharacters.displayOrder);
+
+        return successResponse({ 
+          characters: updatedCharacters,
+          message: `Character moved ${direction} successfully`
+        });
+
+      } catch (error) {
+        console.error("Error updating character position:", error);
+        return serverErrorResponse("Failed to update character position");
       }
     }
 
@@ -8621,6 +9507,136 @@ const handler = async (request: Request): Promise<Response> => {
       } catch (error) {
         console.error("Error fetching outgoing signed NDAs:", error);
         return serverErrorResponse("Failed to fetch outgoing signed NDAs");
+      }
+    }
+
+    // NDA PDF Download endpoint
+    if (url.pathname.match(/^\/api\/nda\/documents\/\d+\/download$/) && method === "GET") {
+      try {
+        if (!user) {
+          return authErrorResponse("Authentication required");
+        }
+
+        const ndaIdMatch = url.pathname.match(/\/api\/nda\/documents\/(\d+)\/download$/);
+        if (!ndaIdMatch) {
+          return validationErrorResponse("Invalid NDA document URL");
+        }
+
+        const ndaId = parseInt(ndaIdMatch[1]);
+        if (isNaN(ndaId)) {
+          return validationErrorResponse("Invalid NDA ID");
+        }
+
+        // Get NDA details first
+        const ndaRecord = await db
+          .select()
+          .from(ndas)
+          .where(eq(ndas.id, ndaId))
+          .limit(1);
+
+        if (ndaRecord.length === 0) {
+          return notFoundResponse("NDA document not found");
+        }
+
+        const nda = ndaRecord[0];
+
+        // Get pitch details
+        const pitchRecord = await db
+          .select()
+          .from(pitches)
+          .where(eq(pitches.id, nda.pitchId!))
+          .limit(1);
+
+        if (pitchRecord.length === 0) {
+          return notFoundResponse("Associated pitch not found");
+        }
+
+        const pitch = pitchRecord[0];
+
+        // Get creator (pitch owner) details
+        const creatorRecord = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, pitch.userId!))
+          .limit(1);
+
+        // Get signer details
+        const signerRecord = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, nda.signerId!))
+          .limit(1);
+
+        if (creatorRecord.length === 0 || signerRecord.length === 0) {
+          return notFoundResponse("User information not found");
+        }
+
+        const creator = creatorRecord[0];
+        const signer = signerRecord[0];
+        
+        // Verify access: user must be either the signer or the creator
+        if (nda.signerId !== user.id && pitch.userId !== user.id) {
+          return forbiddenResponse("You don't have permission to access this NDA document");
+        }
+
+        // Verify NDA is signed
+        if (nda.status !== 'signed' && nda.status !== 'approved') {
+          return forbiddenResponse("NDA document is not available for download");
+        }
+
+        // Prepare document data for PDF generation
+        const documentData = {
+          id: nda.id,
+          pitchTitle: pitch.title,
+          signerName: signer.firstName && signer.lastName 
+            ? `${signer.firstName} ${signer.lastName}` 
+            : signer.username,
+          signerEmail: signer.email,
+          signerCompany: signer.companyName || undefined,
+          creatorName: creator.firstName && creator.lastName 
+            ? `${creator.firstName} ${creator.lastName}` 
+            : creator.username,
+          creatorEmail: creator.email,
+          signedAt: new Date(nda.signedAt!),
+          ndaType: nda.ndaType as 'basic' | 'enhanced' | 'custom',
+          expiresAt: nda.expiresAt ? new Date(nda.expiresAt) : undefined,
+          pitchDescription: pitch.logline || undefined
+        };
+
+        // Validate the data
+        if (!NDAFPDFGenerationService.validateNDAData(documentData)) {
+          return serverErrorResponse("Invalid NDA data for document generation");
+        }
+
+        // Generate the document
+        const generatedDoc = await NDAFPDFGenerationService.generateNDADocument(documentData);
+
+        // For now, return HTML content that can be used by frontend to generate PDF
+        // In production, this would return a PDF file directly
+        const format = url.searchParams.get('format') || 'html';
+        
+        if (format === 'text') {
+          return new Response(generatedDoc.textContent, {
+            headers: {
+              'Content-Type': 'text/plain',
+              'Content-Disposition': `attachment; filename="NDA-${nda.id}-${pitch.title.replace(/[^a-zA-Z0-9]/g, '_')}.txt"`,
+              ...getCorsHeaders(request.headers.get('Origin')),
+            },
+          });
+        } else {
+          // Return HTML that can be converted to PDF on frontend
+          return new Response(generatedDoc.htmlContent, {
+            headers: {
+              'Content-Type': 'text/html',
+              'Content-Disposition': `attachment; filename="NDA-${nda.id}-${pitch.title.replace(/[^a-zA-Z0-9]/g, '_')}.html"`,
+              ...getCorsHeaders(request.headers.get('Origin')),
+            },
+          });
+        }
+
+      } catch (error) {
+        console.error('Error downloading NDA document:', error);
+        return serverErrorResponse(error instanceof Error ? error.message : "Failed to download NDA document");
       }
     }
 
@@ -9777,14 +10793,7 @@ const handler = async (request: Request): Promise<Response> => {
 
     // Get subscription status
     if (url.pathname === "/api/payments/subscription-status" && method === "GET") {
-      return successResponse({
-        subscription: {
-          active: true,
-          plan: "premium",
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        message: "Subscription status retrieved"
-      });
+      return await getSubscriptionStatus(request, url);
     }
 
     // Get credit balance
@@ -10127,6 +11136,58 @@ const handler = async (request: Request): Promise<Response> => {
         console.error("Error completing mock checkout:", error);
         return serverErrorResponse("Failed to complete mock payment");
       }
+    }
+
+    // === NEW STRIPE PAYMENT ENDPOINTS ===
+
+    // Get subscription tiers
+    if (url.pathname === "/api/payments/subscription-tiers" && method === "GET") {
+      return await getSubscriptionTiers(request, url);
+    }
+
+    // Create Stripe customer
+    if (url.pathname === "/api/payments/create-customer" && method === "POST") {
+      return await createCustomer(request, url);
+    }
+
+    // Create subscription
+    if (url.pathname === "/api/payments/create-subscription" && method === "POST") {
+      return await createSubscription(request, url);
+    }
+
+    // Create checkout session
+    if (url.pathname === "/api/payments/create-checkout" && method === "POST") {
+      return await createCheckout(request, url);
+    }
+
+    // Cancel subscription
+    if (url.pathname === "/api/payments/cancel-subscription" && method === "POST") {
+      return await cancelSubscription(request, url);
+    }
+
+    // Get invoices
+    if (url.pathname === "/api/payments/invoices" && method === "GET") {
+      return await getInvoices(request, url);
+    }
+
+    // Get subscription history
+    if (url.pathname === "/api/payments/subscription-history" && method === "GET") {
+      return await getSubscriptionHistory(request, url);
+    }
+
+    // Get payment methods (new Stripe version)
+    if (url.pathname === "/api/payments/payment-methods" && method === "GET") {
+      return await getPaymentMethods(request, url);
+    }
+
+    // Process investment transaction
+    if (url.pathname === "/api/payments/process-investment" && method === "POST") {
+      return await processInvestment(request, url);
+    }
+
+    // Handle Stripe webhooks (no auth required)
+    if (url.pathname === "/api/payments/webhook" && method === "POST") {
+      return await handleWebhook(request, url);
     }
 
     // === ANALYTICS ENDPOINTS ===

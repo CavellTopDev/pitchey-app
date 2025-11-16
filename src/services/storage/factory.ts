@@ -1,6 +1,7 @@
 import type { StorageProvider } from "./interface.ts";
 import { LocalStorageProvider } from "./local-provider.ts";
 import { S3StorageProvider } from "./s3-provider.ts";
+import { R2StorageProvider } from "./r2-provider.ts";
 
 /**
  * Storage factory that creates the appropriate storage provider based on environment configuration
@@ -31,9 +32,37 @@ export class StorageFactory {
       Deno.env.get("AWS_S3_BUCKET")
     );
 
-    console.log(`Storage Factory: Requested provider: ${storageProvider}, AWS credentials available: ${hasAwsCredentials}`);
+    // Check if R2 configuration is available
+    const hasR2Config = !!(
+      Deno.env.get("R2_BUCKET") || 
+      Deno.env.get("CLOUDFLARE_R2_BUCKET")
+    );
+
+    console.log(`Storage Factory: Requested provider: ${storageProvider}, AWS credentials available: ${hasAwsCredentials}, R2 config available: ${hasR2Config}`);
 
     switch (storageProvider) {
+      case "r2":
+        if (!hasR2Config) {
+          console.warn("Storage Factory: R2 provider requested but R2 configuration not available, falling back to local storage");
+          return new LocalStorageProvider();
+        }
+        try {
+          // For Deno environment, R2 bucket should be passed from environment
+          const bucketName = Deno.env.get("R2_BUCKET") || Deno.env.get("CLOUDFLARE_R2_BUCKET");
+          if (!bucketName) {
+            throw new Error("R2 bucket name not found in environment");
+          }
+          
+          console.log("Storage Factory: Creating R2 storage provider");
+          // Note: In Deno, we'll need to handle R2 bucket differently
+          // For now, fall back to local for Deno environment
+          console.warn("Storage Factory: R2 provider not yet supported in Deno environment, falling back to local storage");
+          return new LocalStorageProvider();
+        } catch (error) {
+          console.error("Storage Factory: Failed to create R2 provider, falling back to local storage:", error);
+          return new LocalStorageProvider();
+        }
+
       case "s3":
         if (!hasAwsCredentials) {
           console.warn("Storage Factory: S3 provider requested but AWS credentials not available, falling back to local storage");
@@ -52,7 +81,11 @@ export class StorageFactory {
         return new LocalStorageProvider();
 
       case "hybrid":
-        // Hybrid mode: try S3 first, fall back to local
+        // Hybrid mode: try R2 first, then S3, then local
+        if (hasR2Config) {
+          console.log("Storage Factory: R2 not yet supported in Deno environment for hybrid mode");
+        }
+        
         if (hasAwsCredentials) {
           try {
             console.log("Storage Factory: Creating S3 storage provider (hybrid mode)");
@@ -123,7 +156,7 @@ export class StorageFactory {
     const storageProvider = Deno.env.get("STORAGE_PROVIDER")?.toLowerCase() || "local";
 
     // Check if storage provider is valid
-    const validProviders = ["local", "s3", "hybrid"];
+    const validProviders = ["local", "s3", "r2", "hybrid"];
     if (!validProviders.includes(storageProvider)) {
       warnings.push(`Unknown storage provider '${storageProvider}', will default to 'local'`);
     }

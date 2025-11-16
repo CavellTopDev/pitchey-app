@@ -1,29 +1,57 @@
-<div class="greeting">Welcome to Pitchey, {{firstName}}! 🎬</div>
+<h1>Welcome to Pitchey, {{firstName}}!</h1>
 
-<div class="text">
-  Thank you for joining Pitchey as a <strong>{{userTypeLabel}}</strong>. 
-  You're now part of a growing community of creators, investors, and industry professionals.
+<p>Thank you for joining Pitchey as a <strong>{{userType}}</strong>. You're now part of a vibrant community connecting creative minds with industry professionals in the film and entertainment industry.</p>
+
+{{#if (eq userType "creator")}}
+<p>As a creator, you can showcase your projects, connect with investors, and bring your creative visions to life. Our platform provides the tools you need to present your ideas professionally and securely.</p>
+{{else if (eq userType "investor")}}
+<p>As an investor, you'll discover exciting new projects from talented creators, evaluate investment opportunities, and connect with the next generation of filmmakers.</p>
+{{else if (eq userType "production")}}
+<p>As a production company, you can scout for new talent, find promising projects, and collaborate with creators and investors on your next big production.</p>
+{{else}}
+<p>Welcome to the community! Explore amazing projects, connect with creative professionals, and be part of the future of entertainment.</p>
+{{/if}}
+
+<div class="panel">
+    <div class="panel-content">
+        <h3>🚀 Get Started in 3 Easy Steps:</h3>
+        <ol style="margin: 10px 0 0 20px; padding: 0;">
+            <li style="margin-bottom: 8px;"><strong>Complete your profile</strong> - Add your photo, bio, and professional information</li>
+            <li style="margin-bottom: 8px;"><strong>Explore the platform</strong> - Browse projects and discover what interests you</li>
+            <li style="margin-bottom: 8px;"><strong>Start connecting</strong> - Follow creators, investors, or production companies that align with your goals</li>
+        </ol>
+    </div>
 </div>
 
-<div class="text">
-  {{userTypeMessage}}
+<div class="text-center mt-4 mb-4">
+    <a href="{{profileSetupUrl}}" class="button button--green">Complete Your Profile</a>
 </div>
 
-<div class="highlight-box">
-  <strong>Get started in 3 easy steps:</strong>
-  <ol style="margin: 10px 0; padding-left: 20px;">
-    <li>Complete your profile setup</li>
-    <li>Explore the platform features</li>
-    <li>Start connecting with the community</li>
-  </ol>
+<div class="text-center mt-4 mb-4">
+    <a href="{{dashboardUrl}}" class="button button--blue">Explore Dashboard</a>
 </div>
 
-<div style="text-align: center; margin: 30px 0;">
-  <a href="{{profileSetupUrl}}" class="button">Complete Your Profile</a>
-  <br>
-  <a href="{{dashboardUrl}}" class="button button-secondary" style="margin-top: 10px;">Go to Dashboard</a>
-</div>
+<h3>What You Can Do Next:</h3>
+<ul style="color: #718096; font-size: 16px; line-height: 1.5em;">
+    {{#if (eq userType "creator")}}
+    <li>Create your first pitch and upload project materials</li>
+    <li>Set up NDA requirements for sensitive content</li>
+    <li>Browse investor profiles and connect with potential partners</li>
+    {{else if (eq userType "investor")}}
+    <li>Browse available pitches and projects</li>
+    <li>Set your investment preferences and criteria</li>
+    <li>Connect with creators whose vision aligns with your interests</li>
+    {{else if (eq userType "production")}}
+    <li>Search for projects ready for production</li>
+    <li>Set up your company profile and production capabilities</li>
+    <li>Connect with creators and investors in your genre</li>
+    {{else}}
+    <li>Explore the community and discover new projects</li>
+    <li>Follow interesting creators and industry professionals</li>
+    <li>Stay updated on the latest entertainment projects</li>
+    {{/if}}
+</ul>
 
-<div class="text">
-  If you have any questions, our team is here to help. Just reply to this email or visit our help center.
-</div>
+<p class="sub">
+    <strong>Need help?</strong> Our support team is here to assist you. Simply reply to this email or visit our help center. We're excited to see what you'll create and discover on Pitchey!
+</p>

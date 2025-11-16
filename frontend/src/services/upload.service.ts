@@ -36,22 +36,40 @@ class UploadService {
   }
 
   /**
-   * Upload a single document file
+   * Upload a single document file using the new API
    */
   async uploadDocument(
     file: File, 
     documentType: string = 'document',
-    options: UploadOptions = {}
+    options: UploadOptions & {
+      pitchId?: number;
+      isPublic?: boolean;
+      requiresNda?: boolean;
+      folder?: string;
+    } = {}
   ): Promise<UploadResult> {
+    const { pitchId, isPublic, requiresNda, folder, ...uploadOptions } = options;
+    
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('type', documentType);
+    formData.append('documentType', documentType);
+    formData.append('folder', folder || 'uploads');
+    
+    if (pitchId) {
+      formData.append('pitchId', pitchId.toString());
+    }
+    if (isPublic !== undefined) {
+      formData.append('isPublic', isPublic.toString());
+    }
+    if (requiresNda !== undefined) {
+      formData.append('requiresNda', requiresNda.toString());
+    }
 
-    return this.uploadFile('/api/upload/document', formData, options);
+    return this.uploadFile('/api/upload', formData, uploadOptions);
   }
 
   /**
-   * Upload multiple documents with enhanced features
+   * Upload multiple documents with enhanced features using new API
    */
   async uploadMultipleDocumentsEnhanced(
     files: Array<{
@@ -60,24 +78,43 @@ class UploadService {
       title: string;
       description?: string;
     }>,
-    options: UploadOptions = {}
+    options: UploadOptions & {
+      pitchId?: number;
+      isPublic?: boolean;
+      requiresNda?: boolean;
+      folder?: string;
+    } = {}
   ): Promise<{ results: UploadResult[]; errors: any[] }> {
+    const { pitchId, isPublic, requiresNda, folder, ...uploadOptions } = options;
+    
     const formData = new FormData();
     
-    files.forEach((fileData, index) => {
+    // Add all files
+    files.forEach((fileData) => {
       formData.append('files', fileData.file);
-      formData.append('documentTypes', fileData.documentType);
-      formData.append('titles', fileData.title);
-      formData.append('descriptions', fileData.description || '');
     });
+    
+    // Add metadata
+    formData.append('documentType', files[0]?.documentType || 'supporting');
+    formData.append('folder', folder || 'uploads');
+    
+    if (pitchId) {
+      formData.append('pitchId', pitchId.toString());
+    }
+    if (isPublic !== undefined) {
+      formData.append('isPublic', isPublic.toString());
+    }
+    if (requiresNda !== undefined) {
+      formData.append('requiresNda', requiresNda.toString());
+    }
 
-    const response = await fetch(`${this.baseUrl}/api/upload/documents`, {
+    const response = await fetch(`${this.baseUrl}/api/upload/multiple`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
       },
       body: formData,
-      signal: options.signal
+      signal: uploadOptions.signal
     });
 
     if (!response.ok) {
@@ -86,9 +123,13 @@ class UploadService {
     }
 
     const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Upload failed');
+    }
+    
     return {
-      results: result.results || [],
-      errors: result.errors || []
+      results: result.data?.uploads?.filter(u => u.success).map(u => u.result) || [],
+      errors: result.data?.uploads?.filter(u => !u.success).map(u => ({ error: u.error })) || []
     };
   }
 
@@ -433,7 +474,25 @@ class UploadService {
   }
 
   /**
-   * Delete uploaded file
+   * Delete uploaded document by ID
+   */
+  async deleteDocument(documentId: number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/documents/${documentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || 'Failed to delete document');
+    }
+  }
+
+  /**
+   * Delete uploaded file (legacy method)
    */
   async deleteFile(filename: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/api/files/${filename}`, {
@@ -448,6 +507,199 @@ class UploadService {
       const error = await response.text();
       throw new Error(error || 'Failed to delete file');
     }
+  }
+
+  /**
+   * Get presigned download URL for a document
+   */
+  async getDocumentDownloadUrl(documentId: number, expiresIn?: number): Promise<string> {
+    const url = `${this.baseUrl}/api/documents/${documentId}/url`;
+    const queryParams = expiresIn ? `?expires=${expiresIn}` : '';
+    
+    const response = await fetch(url + queryParams, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || 'Failed to get download URL');
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get download URL');
+    }
+
+    return result.data.url;
+  }
+
+  /**
+   * Get presigned upload URL for direct upload
+   */
+  async getPresignedUploadUrl(
+    fileName: string,
+    contentType: string,
+    options: {
+      folder?: string;
+      fileSize?: number;
+    } = {}
+  ): Promise<{
+    uploadUrl: string;
+    key: string;
+    expiresAt: string;
+    fields?: Record<string, string>;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/upload/presigned`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fileName,
+        contentType,
+        folder: options.folder || 'uploads',
+        fileSize: options.fileSize
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || 'Failed to get presigned URL');
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get presigned URL');
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Get user storage quota information
+   */
+  async getStorageQuota(): Promise<{
+    currentUsage: number;
+    maxQuota: number;
+    remainingQuota: number;
+    usagePercentage: number;
+    formattedUsage: string;
+    formattedQuota: string;
+    formattedRemaining: string;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/upload/quota`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || 'Failed to get storage quota');
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get storage quota');
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Upload file using presigned URL (direct to storage)
+   */
+  async uploadFileDirectly(
+    file: File,
+    presignedData: {
+      uploadUrl: string;
+      fields?: Record<string, string>;
+    },
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      let startTime = Date.now();
+      let lastLoaded = 0;
+      let lastTime = startTime;
+
+      // Progress tracking
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000;
+            const loadedDiff = event.loaded - lastLoaded;
+            
+            let speed = 0;
+            let estimatedTimeRemaining = 0;
+            
+            if (timeDiff > 0.5 && loadedDiff > 0) {
+              speed = loadedDiff / timeDiff;
+              const remainingBytes = event.total - event.loaded;
+              estimatedTimeRemaining = remainingBytes / speed;
+              
+              lastLoaded = event.loaded;
+              lastTime = now;
+            }
+            
+            const progress: UploadProgress = {
+              loaded: event.loaded,
+              total: event.total,
+              percentage: Math.round((event.loaded / event.total) * 100),
+              speed: speed > 0 ? speed : undefined,
+              estimatedTimeRemaining: estimatedTimeRemaining > 0 ? estimatedTimeRemaining : undefined
+            };
+            
+            onProgress(progress);
+          }
+        });
+      }
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Upload failed: Network error'));
+      });
+
+      xhr.addEventListener('timeout', () => {
+        reject(new Error('Upload failed: Request timeout'));
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload cancelled'));
+      });
+
+      // Prepare form data for direct upload
+      const formData = new FormData();
+      
+      // Add any required fields
+      if (presignedData.fields) {
+        Object.entries(presignedData.fields).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+      }
+      
+      // Add the file last
+      formData.append('file', file);
+
+      xhr.open('PUT', presignedData.uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.send(file); // For R2, send file directly
+    });
   }
 
   /**

@@ -2,7 +2,7 @@ export interface UploadResult {
   url: string;
   key: string;
   cdnUrl?: string;
-  provider: "s3" | "local";
+  provider: "s3" | "local" | "r2";
 }
 
 export interface UploadOptions {
@@ -59,7 +59,7 @@ export interface StorageProvider {
   /**
    * Get the provider type
    */
-  getProviderType(): "s3" | "local";
+  getProviderType(): "s3" | "local" | "r2";
 
   /**
    * Validate file constraints
