@@ -81,14 +81,19 @@ export class SimpleBrowseService {
       const userMap = new Map();
       
       if (userIds.length > 0) {
-        const userResults = await db
-          .select()
-          .from(users)
-          .where(inArray(users.id, userIds));
+        // Convert IDs to numbers to ensure proper type
+        const numericUserIds = userIds.map(id => Number(id)).filter(id => !isNaN(id));
         
-        userResults.forEach(user => {
-          userMap.set(user.id, user);
-        });
+        if (numericUserIds.length > 0) {
+          const userResults = await db
+            .select()
+            .from(users)
+            .where(inArray(users.id, numericUserIds));
+          
+          userResults.forEach(user => {
+            userMap.set(user.id, user);
+          });
+        }
       }
 
       const results = pitchResults.map(pitch => {
