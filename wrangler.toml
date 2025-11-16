@@ -12,7 +12,7 @@ FRONTEND_URL = "https://pitchey.pages.dev"
 JWT_SECRET = "demo-jwt-secret-for-development"
 
 # Progressive migration: proxy unmatched API routes to existing Deno backend
-ORIGIN_URL = "https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev"
+ORIGIN_URL = "https://pitchey-backend-fresh.deno.dev"
 
 [[kv_namespaces]]
 binding = "CACHE"
@@ -45,7 +45,7 @@ localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-
 # Production-only vars
 [env.production.vars]
 FRONTEND_URL = "https://pitchey.pages.dev"
-ORIGIN_URL = "https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev"
+ORIGIN_URL = "https://pitchey-backend-fresh.deno.dev"
 JWT_SECRET = "demo-jwt-secret-for-production"
 
 # Re-declare bindings for the production environment (not inherited)
