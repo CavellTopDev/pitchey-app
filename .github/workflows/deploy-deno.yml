@@ -1,0 +1,95 @@
+name: Deploy to Deno Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'working-server.ts'
+      - 'deno.json'
+      - '.github/workflows/deploy-deno.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Backend to Deno Deploy
+    runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write # Needed for auth with Deno Deploy
+      contents: read  # Needed to clone the repository
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Verify Deno installation
+        run: |
+          deno --version
+          echo "✅ Deno installed successfully"
+
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: "pitchey-backend-fresh"
+          entrypoint: "working-server.ts"
+          root: "."
+          env: |
+            DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            DENO_ENV=production
+            NODE_ENV=production
+            FRONTEND_URL=https://pitchey.pages.dev
+            
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to be available..."
+          sleep 15
+          
+      - name: Test deployment
+        run: |
+          echo "Testing Deno Deploy endpoint..."
+          
+          # Test health endpoint
+          echo "1. Testing health endpoint..."
+          response=$(curl -s -w "\n%{http_code}" "https://pitchey-backend-fresh.deno.dev/" | tail -1)
+          
+          if [ "$response" = "200" ]; then
+            echo "✅ Health check passed!"
+          else
+            echo "❌ Health check failed with status: $response"
+            
+            # Try to get error details
+            echo "Getting error details..."
+            curl -s "https://pitchey-backend-fresh.deno.dev/" | head -5
+          fi
+          
+          # Test browse endpoint
+          echo "2. Testing browse endpoint..."
+          browse_response=$(curl -s -w "\n%{http_code}" "https://pitchey-backend-fresh.deno.dev/api/browse?tab=trending" | tail -1)
+          
+          if [ "$browse_response" = "200" ]; then
+            echo "✅ Browse endpoint working!"
+            curl -s "https://pitchey-backend-fresh.deno.dev/api/browse?tab=trending" | python3 -m json.tool | head -10
+          else
+            echo "⚠️ Browse endpoint returned: $browse_response"
+            curl -s "https://pitchey-backend-fresh.deno.dev/api/browse?tab=trending" | head -3
+          fi
+          
+      - name: Update deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "🚀 Deployment successful!"
+            echo "Backend URL: https://pitchey-backend-fresh.deno.dev"
+            echo "Browse API: https://pitchey-backend-fresh.deno.dev/api/browse"
+            echo "📊 Dashboard: https://dash.deno.com/projects/pitchey-backend-fresh"
+          else
+            echo "❌ Deployment failed - check logs above"
+            echo "📊 Debug at: https://dash.deno.com/projects/pitchey-backend-fresh/logs"
+          fi
