@@ -34,17 +34,19 @@ jobs:
           echo "✅ Deno installed successfully"
 
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: "pitchey-backend-fresh"
-          entrypoint: "working-server.ts"
-          root: "."
-          env: |
-            DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            DENO_ENV=production
-            NODE_ENV=production
-            FRONTEND_URL=https://pitchey.pages.dev
+        run: |
+          deno install -A -f https://deno.land/x/deploy/deployctl.ts
+          
+          deployctl deploy \
+            --project=pitchey-backend-fresh \
+            --entrypoint=working-server.ts \
+            --token=${{ secrets.DENO_DEPLOY_TOKEN }} \
+            --env="DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}" \
+            --env="JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --env="DENO_ENV=production" \
+            --env="NODE_ENV=production" \
+            --env="FRONTEND_URL=https://pitchey.pages.dev" \
+            --production
             
       - name: Wait for deployment
         run: |
