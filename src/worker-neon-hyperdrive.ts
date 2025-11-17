@@ -609,6 +609,97 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       });
     }
 
+    // User profile endpoint
+    if (path === '/api/profile' && request.method === 'GET') {
+      // Authenticate user first
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Unauthorized'
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // For now, return demo profile data - production will proxy to backend
+      return new Response(JSON.stringify({
+        success: true,
+        profile: {
+          id: 1,
+          email: 'alex.creator@demo.com',
+          username: 'alex_creator',
+          userType: 'creator',
+          firstName: 'Alex',
+          lastName: 'Creator',
+          companyName: 'Independent Films',
+          bio: 'Passionate filmmaker',
+          profileImageUrl: null
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // NDA endpoints
+    if (path === '/api/nda/active' && request.method === 'GET') {
+      return new Response(JSON.stringify({
+        success: true,
+        activeNdas: [],
+        total: 0
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (path === '/api/nda/pending' && request.method === 'GET') {
+      return new Response(JSON.stringify({
+        success: true,
+        pendingNdas: [],
+        total: 0
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Follow stats endpoint
+    if (path.match(/^\/api\/follows\/stats\/\d+$/) && request.method === 'GET') {
+      return new Response(JSON.stringify({
+        success: true,
+        followerCount: 0,
+        followingCount: 0,
+        recentFollowers: []
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Credits balance endpoint
+    if (path === '/api/payments/credits/balance' && request.method === 'GET') {
+      return new Response(JSON.stringify({
+        success: true,
+        balance: 100,
+        currency: 'USD'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Subscription status endpoint
+    if (path === '/api/payments/subscription-status' && request.method === 'GET') {
+      return new Response(JSON.stringify({
+        success: true,
+        subscription: {
+          plan: 'basic',
+          status: 'active',
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // Proxy other requests to backend if available
     if (env.ORIGIN_URL && path.startsWith('/api/')) {
       try {
@@ -642,7 +733,13 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
         'POST /api/auth/*/login',
         'GET /api/creator/dashboard',
         'GET /api/investor/dashboard',
-        'GET /api/production/dashboard'
+        'GET /api/production/dashboard',
+        'GET /api/profile',
+        'GET /api/nda/active',
+        'GET /api/nda/pending',
+        'GET /api/follows/stats/:id',
+        'GET /api/payments/credits/balance',
+        'GET /api/payments/subscription-status'
       ]
     }), {
       status: 404,

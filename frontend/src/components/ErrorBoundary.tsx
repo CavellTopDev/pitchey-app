@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, Copy, ExternalLink } from 'lucide-react';
 import { config } from '../config';
+import * as Sentry from '@sentry/react';
 
 interface Props {
   children: ReactNode;
@@ -75,12 +76,46 @@ export class ErrorBoundary extends Component<Props, State> {
     console.table(errorReport);
     console.groupEnd();
 
-    // Send to error reporting service if enabled (Sentry removed, using console logging)
-    if (this.props.enableSentryReporting) {
+    // Send to error reporting service if enabled
+    if (this.props.enableSentryReporting || import.meta.env.VITE_SENTRY_DSN) {
       console.group('🚨 Error Boundary Report');
       console.error('Error caught by Error Boundary:', error);
       console.table(errorReport);
       console.groupEnd();
+      
+      // Send to Sentry with enhanced context
+      Sentry.withScope((scope) => {
+        scope.setTag('component', 'ErrorBoundary');
+        scope.setTag('errorId', this.state.errorId);
+        scope.setLevel('error');
+        
+        // Add dashboard-specific context
+        if (this.state.currentPath.includes('/dashboard')) {
+          scope.setTag('area', 'dashboard');
+          scope.setTag('dashboardType', this.state.currentPath.split('/')[1]); // creator, investor, etc.
+        }
+        
+        scope.setContext('errorBoundary', {
+          errorId: this.state.errorId,
+          componentStack: errorInfo.componentStack,
+          currentPath: this.state.currentPath,
+          timestamp: this.state.timestamp,
+          reactVersion: React.version,
+          buildInfo: {
+            mode: import.meta.env.MODE,
+            prod: import.meta.env.PROD,
+            dev: import.meta.env.DEV,
+          }
+        });
+        
+        scope.setContext('browser', {
+          userAgent: this.state.userAgent,
+          url: window.location.href,
+          referrer: document.referrer
+        });
+        
+        Sentry.captureException(error);
+      });
     }
 
     // Note: Client error logging endpoint not implemented yet
