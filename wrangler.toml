@@ -1,5 +1,5 @@
 name = "pitchey-production"
-main = "src/worker-neon-hyperdrive.ts"
+main = "src/worker-browse-fix.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -14,7 +14,7 @@ JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
 # Error tracking
 SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
 SENTRY_ENVIRONMENT = "production"
-SENTRY_RELEASE = "unified-worker-v1.0"
+SENTRY_RELEASE = "unified-worker-v1.4-auth-complete-token-validation-fixed"
 
 # KV for caching
 [[kv_namespaces]]
@@ -26,10 +26,10 @@ id = "98c88a185eb448e4868fcc87e458b3ac"
 binding = "R2_BUCKET"
 bucket_name = "pitchey-uploads"
 
-# Durable Objects for real-time features
-[[durable_objects.bindings]]
-name = "WEBSOCKET_ROOM"
-class_name = "WebSocketRoom"
+# Durable Objects for real-time features - Disabled for browse fix
+# [[durable_objects.bindings]]
+# name = "WEBSOCKET_ROOM"
+# class_name = "WebSocketRoom"
 
 # Neon PostgreSQL via Hyperdrive for optimal edge performance
 [[hyperdrive]]
@@ -38,5 +38,5 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
 
 [[migrations]]
-tag = "v1"
-new_sqlite_classes = ["WebSocketRoom"]
+tag = "v2"
+deleted_classes = ["WebSocketRoom"]
