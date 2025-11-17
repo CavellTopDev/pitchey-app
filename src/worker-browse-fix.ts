@@ -339,7 +339,7 @@ async function handleAuthEndpoint(request: Request, logger: SentryLogger, env: E
     }
     
     // Direct token validation endpoint (bypass auth module for debugging)
-    if (path === '/api/validate-token' && request.method === 'GET') {
+    if (path === '/api/validate-token' && (request.method === 'GET' || request.method === 'POST')) {
       const authHeader = request.headers.get('Authorization');
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return new Response(JSON.stringify({
@@ -1292,7 +1292,7 @@ export default {
       const pathSegments = url.pathname.split('/').filter(Boolean);
 
       // Handle token validation directly first (before auth module)
-      if (pathSegments[0] === 'api' && url.pathname === '/api/validate-token' && request.method === 'GET') {
+      if (pathSegments[0] === 'api' && url.pathname === '/api/validate-token' && (request.method === 'GET' || request.method === 'POST')) {
         await logger.captureMessage('Handling validate-token directly', 'info', {
           path: url.pathname,
           method: request.method
