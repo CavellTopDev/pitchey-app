@@ -2441,14 +2441,14 @@ const workerHandler = {
           throw new Error('Backend response is null or invalid');
         }
         
-        // Additional safety checks for response properties
-        const status = (backendResponse && typeof backendResponse.status === 'number') ? backendResponse.status : 500;
-        const statusText = (backendResponse && typeof backendResponse.statusText === 'string') ? backendResponse.statusText : 'Internal Server Error';
+        // Additional safety checks for response properties using optional chaining
+        const status = backendResponse?.status ?? 500;
+        const statusText = backendResponse?.statusText ?? 'Internal Server Error';
         
         // Safely get response body
         let responseBody: string;
         try {
-          responseBody = await backendResponse.text();
+          responseBody = await backendResponse?.text() ?? '';
         } catch (textError) {
           console.error('Failed to read response body:', textError);
           responseBody = JSON.stringify({
@@ -2460,7 +2460,7 @@ const workerHandler = {
         // Safely extract headers
         let responseHeaders: Record<string, string> = {};
         try {
-          if (backendResponse.headers) {
+          if (backendResponse?.headers) {
             responseHeaders = Object.fromEntries([...backendResponse.headers as any]);
           }
         } catch (headerError) {

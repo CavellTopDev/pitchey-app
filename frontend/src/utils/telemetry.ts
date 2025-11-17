@@ -58,6 +58,7 @@ export class FrontendTelemetryManager {
               "localhost",
               "pitchey.pages.dev",
               "pitchey-backend-fresh.deno.dev",
+              "pitchey-production.cavelltheleaddev.workers.dev",
               "pitchey-api-production.cavelltheleaddev.workers.dev",
             ],
           }),

@@ -1,70 +1,39 @@
-name = "pitchey"
+name = "pitchey-production"
 main = "src/worker-neon-hyperdrive.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Worker deployment (not Pages)
-# pages_build_output_dir = "frontend/dist"
+# Production Worker with Neon Hyperdrive - No More Proxy Needed!
+# All API endpoints run directly in Worker with edge database connections
 
 [vars]
-# Used for CORS and redirects
+# Production configuration
 FRONTEND_URL = "https://pitchey.pages.dev"
-JWT_SECRET = "demo-jwt-secret-for-development"
+JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
 
-# Progressive migration: proxy unmatched API routes to existing Deno backend
-ORIGIN_URL = "https://pitchey-backend-fresh.deno.dev"
+# Error tracking
+SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
+SENTRY_ENVIRONMENT = "production"
+SENTRY_RELEASE = "unified-worker-v1.0"
 
+# KV for caching
 [[kv_namespaces]]
 binding = "CACHE"
 id = "98c88a185eb448e4868fcc87e458b3ac"
 
+# R2 for file storage
 [[r2_buckets]]
 binding = "R2_BUCKET"
-# Replace with your R2 bucket name: wrangler r2 bucket create pitchey-uploads
 bucket_name = "pitchey-uploads"
 
+# Durable Objects for real-time features
 [[durable_objects.bindings]]
 name = "WEBSOCKET_ROOM"
 class_name = "WebSocketRoom"
 
-# Database Configuration - Hyperdrive for Neon PostgreSQL
+# Neon PostgreSQL via Hyperdrive for optimal edge performance
 [[hyperdrive]]
 binding = "HYPERDRIVE"
-# Run ./hyperdrive-setup.sh to get your Hyperdrive ID
-# Then replace this with the actual ID from the setup script
-id = "983d4a1818264b5dbdca26bacf167dee"
-localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
-
-# 2) D1 (SQLite at the edge)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "pitchey-db"
-# database_id = "REPLACE_WITH_D1_ID"
-
-[env.production]
-# Production-only vars
-[env.production.vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
-ORIGIN_URL = "https://pitchey-backend-fresh.deno.dev"
-JWT_SECRET = "demo-jwt-secret-for-production"
-
-# Re-declare bindings for the production environment (not inherited)
-[[env.production.kv_namespaces]]
-binding = "CACHE"
-id = "98c88a185eb448e4868fcc87e458b3ac"
-
-[[env.production.r2_buckets]]
-binding = "R2_BUCKET"
-bucket_name = "pitchey-uploads"
-
-[[env.production.durable_objects.bindings]]
-name = "WEBSOCKET_ROOM"
-class_name = "WebSocketRoom"
-
-# Production Hyperdrive binding
-[[env.production.hyperdrive]]
-binding = "HYPERDRIVE"
-# Same ID as development - Hyperdrive handles environment separation
 id = "983d4a1818264b5dbdca26bacf167dee"
 localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
 

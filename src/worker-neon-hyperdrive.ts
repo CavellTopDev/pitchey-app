@@ -5,6 +5,97 @@
 
 import { neon } from '@neondatabase/serverless';
 
+// Sentry error tracking for Cloudflare Workers
+class SentryLogger {
+  private dsn: string | null = null;
+  private environment: string = 'production';
+  private release: string = 'unified-worker-v1.0';
+  
+  constructor(env: Env) {
+    this.dsn = env.SENTRY_DSN || null;
+    this.environment = env.SENTRY_ENVIRONMENT || 'production';
+    this.release = env.SENTRY_RELEASE || 'unified-worker-v1.0';
+  }
+  
+  async captureError(error: Error, context?: Record<string, any>) {
+    if (!this.dsn) {
+      console.error('Sentry DSN not configured, logging locally:', error);
+      return;
+    }
+    
+    try {
+      const payload = {
+        message: error.message,
+        level: 'error',
+        environment: this.environment,
+        release: this.release,
+        extra: {
+          stack: error.stack,
+          context: context || {},
+          timestamp: new Date().toISOString(),
+          platform: 'cloudflare-workers'
+        }
+      };
+      
+      // Send to Sentry via Store API
+      const sentryUrl = new URL(this.dsn);
+      const projectId = sentryUrl.pathname.slice(1);
+      const publicKey = sentryUrl.username;
+      
+      const storeUrl = `https://sentry.io/api/${projectId}/store/`;
+      
+      await fetch(storeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${publicKey}, sentry_client=cloudflare-worker/1.0.0`
+        },
+        body: JSON.stringify(payload)
+      });
+    } catch (sentryError) {
+      console.error('Failed to send error to Sentry:', sentryError);
+    }
+  }
+  
+  async captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info', context?: Record<string, any>) {
+    if (!this.dsn) {
+      console.log(`Sentry not configured, logging locally [${level}]:`, message);
+      return;
+    }
+    
+    try {
+      const payload = {
+        message,
+        level,
+        environment: this.environment,
+        release: this.release,
+        extra: {
+          context: context || {},
+          timestamp: new Date().toISOString(),
+          platform: 'cloudflare-workers'
+        }
+      };
+      
+      const sentryUrl = new URL(this.dsn);
+      const projectId = sentryUrl.pathname.slice(1);
+      const publicKey = sentryUrl.username;
+      
+      const storeUrl = `https://sentry.io/api/${projectId}/store/`;
+      
+      await fetch(storeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${publicKey}, sentry_client=cloudflare-worker/1.0.0`
+        },
+        body: JSON.stringify(payload)
+      });
+    } catch (sentryError) {
+      console.error('Failed to send message to Sentry:', sentryError);
+    }
+  }
+}
+
 export interface Env {
   // Storage  
   CACHE?: KVNamespace;
@@ -20,17 +111,24 @@ export interface Env {
   JWT_SECRET: string;
   FRONTEND_URL: string;
   ORIGIN_URL?: string;
+  
+  // Error Tracking
+  SENTRY_DSN?: string;
+  SENTRY_ENVIRONMENT?: string;
+  SENTRY_RELEASE?: string;
 }
 
 // Database service using Neon's serverless driver with Hyperdrive
 class DatabaseService {
   private sql: any;
+  private sentry: SentryLogger;
   
-  constructor(env: Env) {
+  constructor(env: Env, sentry: SentryLogger) {
     if (!env.HYPERDRIVE) {
       throw new Error('HYPERDRIVE binding not available');
     }
     
+    this.sentry = sentry;
     // Use Hyperdrive's optimized connection string with Neon
     this.sql = neon(env.HYPERDRIVE.connectionString);
   }
@@ -41,6 +139,15 @@ class DatabaseService {
       return Array.isArray(result) ? result : [result];
     } catch (error) {
       console.error('Database query error:', query, params, error);
+      
+      // Log database errors to Sentry
+      await this.sentry.captureError(error as Error, {
+        query,
+        params,
+        operation: 'database_query',
+        driver: 'neon-serverless-hyperdrive'
+      });
+      
       throw error;
     }
   }
@@ -343,6 +450,9 @@ const DEMO_FALLBACK = {
 async function handleRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+  
+  // Initialize Sentry for error tracking
+  const sentry = new SentryLogger(env);
 
   // CORS headers
   const corsHeaders = {
@@ -363,11 +473,27 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
   // Initialize database connection
   try {
     if (env.HYPERDRIVE) {
-      db = new DatabaseService(env);
+      db = new DatabaseService(env, sentry);
       dbConnected = await db.testConnection();
+      
+      // Log successful database connection
+      await sentry.captureMessage('Database connection established', 'info', {
+        hyperdrive_available: !!env.HYPERDRIVE,
+        path,
+        method: request.method
+      });
     }
   } catch (error) {
     console.error('Database initialization failed:', error);
+    
+    // Log database initialization failure to Sentry
+    await sentry.captureError(error as Error, {
+      operation: 'database_initialization',
+      hyperdrive_available: !!env.HYPERDRIVE,
+      path,
+      method: request.method
+    });
+    
     dbConnected = false;
   }
 
@@ -471,18 +597,114 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       });
     }
 
+    // Profile endpoint
+    if (path === '/api/auth/profile' && request.method === 'GET') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Authorization required'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const token = authHeader.substring(7);
+        const payload = verifyJWT(token);
+        if (!payload) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid token'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        let user = null;
+        if (dbConnected && db) {
+          try {
+            const userResult = await db.query(`
+              SELECT id, email, first_name, last_name, user_type, bio, company, 
+                     subscription_tier, created_at, profile_image_url
+              FROM users 
+              WHERE id = $1
+            `, [payload.userId]);
+            
+            if (userResult && userResult[0]) {
+              user = {
+                id: userResult[0].id,
+                email: userResult[0].email,
+                firstName: userResult[0].first_name,
+                lastName: userResult[0].last_name,
+                userType: userResult[0].user_type,
+                bio: userResult[0].bio,
+                company: userResult[0].company,
+                subscriptionTier: userResult[0].subscription_tier,
+                profileImageUrl: userResult[0].profile_image_url,
+                displayName: `${userResult[0].first_name} ${userResult[0].last_name}`.trim(),
+                createdAt: userResult[0].created_at
+              };
+            }
+          } catch (dbError) {
+            console.error('Database profile query failed:', dbError);
+          }
+        }
+
+        // Fallback to demo data
+        if (!user) {
+          user = DEMO_FALLBACK.users.find(u => u.id === payload.userId) || {
+            id: payload.userId,
+            email: payload.email,
+            userType: payload.userType,
+            displayName: payload.email.split('@')[0]
+          };
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: user
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('Profile endpoint error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to get profile'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Authentication endpoints
     if (path.startsWith('/api/auth/') && request.method === 'POST') {
       const body = await request.json();
       const { email, password } = body;
+
+      // Extract user type from the path
+      let requiredUserType = null;
+      if (path.includes('/creator/')) requiredUserType = 'creator';
+      else if (path.includes('/investor/')) requiredUserType = 'investor';
+      else if (path.includes('/production/')) requiredUserType = 'production';
 
       let user = null;
       let source = 'demo';
 
       if (dbConnected && db) {
         try {
-          user = await db.getUserByEmail(email);
-          if (user) {
+          const userResult = await db.query(`
+            SELECT * FROM users 
+            WHERE email = $1 AND ($2::text IS NULL OR user_type = $2)
+          `, [email, requiredUserType]);
+          
+          if (userResult && userResult[0]) {
+            user = userResult[0];
             source = 'database';
           }
         } catch (error) {
@@ -492,7 +714,10 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 
       // Fallback to demo user
       if (!user) {
-        user = DEMO_FALLBACK.users.find(u => u.email === email);
+        user = DEMO_FALLBACK.users.find(u => 
+          u.email === email && 
+          (!requiredUserType || u.userType === requiredUserType)
+        );
       }
 
       if (user && await verifyPassword(password, user.passwordHash || 'Demo123')) {
@@ -700,24 +925,841 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       });
     }
 
-    // Proxy other requests to backend if available
-    if (env.ORIGIN_URL && path.startsWith('/api/')) {
+    // Upload quota endpoint
+    if (path === '/api/upload/quota' && request.method === 'GET') {
       try {
-        const backendUrl = `${env.ORIGIN_URL}${path}${url.search}`;
-        const proxyRequest = new Request(backendUrl, {
-          method: request.method,
-          headers: request.headers,
-          body: request.method !== 'GET' ? request.body : null
+        // Extract JWT token from Authorization header
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Authorization required'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const token = authHeader.substring(7);
+        let userId: number;
+        
+        try {
+          // Use the same JWT verification as the rest of the Worker
+          const payload = verifyJWT(token);
+          if (!payload) {
+            throw new Error('Token verification failed');
+          }
+          userId = payload.userId || payload.id;
+        } catch (jwtError) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid token'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Calculate storage quota using database
+        let currentUsage = 0;
+        let maxQuota = 5 * 1024 * 1024 * 1024; // 5GB default
+
+        if (dbConnected && db) {
+          try {
+            // Query total file size for this user
+            const usageResult = await db.query(`
+              SELECT COALESCE(SUM(file_size), 0) as total_usage
+              FROM pitch_documents 
+              WHERE uploaded_by = $1
+            `, [userId]);
+            
+            if (usageResult && usageResult[0]) {
+              currentUsage = parseInt(usageResult[0].total_usage) || 0;
+            }
+            
+            // Get user's subscription tier for quota limits
+            const userResult = await db.query(`
+              SELECT subscription_tier 
+              FROM users 
+              WHERE id = $1
+            `, [userId]);
+            
+            if (userResult && userResult[0]) {
+              const tier = userResult[0].subscription_tier;
+              maxQuota = {
+                'basic': 5 * 1024 * 1024 * 1024,      // 5GB
+                'pro': 50 * 1024 * 1024 * 1024,       // 50GB  
+                'enterprise': 500 * 1024 * 1024 * 1024  // 500GB
+              }[tier] || maxQuota;
+            }
+          } catch (dbError) {
+            console.error('Database quota query failed:', dbError);
+            // Continue with defaults
+          }
+        }
+
+        const remainingQuota = Math.max(0, maxQuota - currentUsage);
+        const usagePercentage = Math.round((currentUsage / maxQuota) * 100);
+
+        // Format file sizes  
+        const formatFileSize = (bytes: number): string => {
+          const units = ['B', 'KB', 'MB', 'GB'];
+          let size = bytes;
+          let unitIndex = 0;
+
+          while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+          }
+
+          return `${size.toFixed(1)} ${units[unitIndex]}`;
+        };
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            currentUsage,
+            maxQuota,
+            remainingQuota,
+            usagePercentage,
+            formattedUsage: formatFileSize(currentUsage),
+            formattedQuota: formatFileSize(maxQuota),
+            formattedRemaining: formatFileSize(remainingQuota),
+            source: dbConnected ? 'database' : 'fallback'
+          }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
 
-        const backendResponse = await fetch(proxyRequest);
-        return new Response(backendResponse.body, {
-          status: backendResponse.status,
-          headers: { ...corsHeaders, ...Object.fromEntries(backendResponse.headers.entries()) }
-        });
       } catch (error) {
-        console.error('Backend proxy failed:', error);
+        console.error('Upload quota error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to check quota',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
+    }
+
+    // Pitches endpoints
+    if (path === '/api/pitches' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        const genre = url.searchParams.get('genre');
+        const search = url.searchParams.get('search');
+        const offset = (page - 1) * limit;
+
+        let pitches = [];
+        let total = 0;
+
+        if (dbConnected && db) {
+          try {
+            // Build dynamic query
+            let query = `
+              SELECT p.id, p.title, p.logline, p.genre, p.format, p.status, 
+                     p.seeking_investment, p.funding_goal, p.created_at,
+                     u.first_name, u.last_name, u.company
+              FROM pitches p 
+              JOIN users u ON p.created_by = u.id
+              WHERE p.status = 'published'
+            `;
+            
+            const params = [];
+            let paramCount = 0;
+
+            if (genre) {
+              query += ` AND p.genre = $${++paramCount}`;
+              params.push(genre);
+            }
+
+            if (search) {
+              query += ` AND (p.title ILIKE $${++paramCount} OR p.logline ILIKE $${++paramCount})`;
+              params.push(`%${search}%`, `%${search}%`);
+              paramCount++;
+            }
+
+            // Get total count
+            const countQuery = query.replace(
+              'SELECT p.id, p.title, p.logline, p.genre, p.format, p.status, p.seeking_investment, p.funding_goal, p.created_at, u.first_name, u.last_name, u.company',
+              'SELECT COUNT(*)'
+            );
+            const countResult = await db.query(countQuery, params);
+            total = parseInt(countResult[0]?.count || 0);
+
+            // Get paginated results
+            query += ` ORDER BY p.created_at DESC LIMIT $${++paramCount} OFFSET $${++paramCount}`;
+            params.push(limit, offset);
+
+            const pitchResults = await db.query(query, params);
+            
+            pitches = pitchResults.map(p => ({
+              id: p.id,
+              title: p.title,
+              logline: p.logline,
+              genre: p.genre,
+              format: p.format,
+              status: p.status,
+              seekingInvestment: p.seeking_investment,
+              fundingGoal: p.funding_goal,
+              createdAt: p.created_at,
+              creator: {
+                firstName: p.first_name,
+                lastName: p.last_name,
+                company: p.company,
+                displayName: `${p.first_name} ${p.last_name}`.trim()
+              }
+            }));
+
+          } catch (dbError) {
+            console.error('Database pitches query failed:', dbError);
+          }
+        }
+
+        // Fallback to demo data
+        if (pitches.length === 0) {
+          pitches = DEMO_FALLBACK.pitches.slice(offset, offset + limit);
+          total = DEMO_FALLBACK.pitches.length;
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: pitches,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+          },
+          source: dbConnected ? 'database' : 'demo'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('Pitches endpoint error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch pitches',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Get pitch by ID
+    if (path.match(/^\/api\/pitches\/(\d+)$/) && request.method === 'GET') {
+      try {
+        const pitchId = parseInt(path.split('/').pop()!);
+        let pitch = null;
+
+        if (dbConnected && db) {
+          try {
+            const pitchResult = await db.query(`
+              SELECT p.*, u.first_name, u.last_name, u.company, u.bio,
+                     (SELECT COUNT(*) FROM pitch_views WHERE pitch_id = p.id) as view_count,
+                     (SELECT COUNT(*) FROM pitch_likes WHERE pitch_id = p.id) as like_count
+              FROM pitches p 
+              JOIN users u ON p.created_by = u.id
+              WHERE p.id = $1
+            `, [pitchId]);
+
+            if (pitchResult && pitchResult[0]) {
+              const p = pitchResult[0];
+              pitch = {
+                id: p.id,
+                title: p.title,
+                logline: p.logline,
+                synopsis: p.synopsis,
+                genre: p.genre,
+                format: p.format,
+                status: p.status,
+                seekingInvestment: p.seeking_investment,
+                fundingGoal: p.funding_goal,
+                productionBudget: p.production_budget,
+                targetRating: p.target_rating,
+                createdAt: p.created_at,
+                updatedAt: p.updated_at,
+                viewCount: parseInt(p.view_count || 0),
+                likeCount: parseInt(p.like_count || 0),
+                creator: {
+                  firstName: p.first_name,
+                  lastName: p.last_name,
+                  company: p.company,
+                  bio: p.bio,
+                  displayName: `${p.first_name} ${p.last_name}`.trim()
+                }
+              };
+            }
+          } catch (dbError) {
+            console.error('Database pitch query failed:', dbError);
+          }
+        }
+
+        // Fallback to demo data
+        if (!pitch) {
+          pitch = DEMO_FALLBACK.pitches.find(p => p.id === pitchId);
+        }
+
+        if (!pitch) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Pitch not found'
+          }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: pitch,
+          source: dbConnected ? 'database' : 'demo'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('Pitch by ID error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch pitch',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Public pitches endpoint 
+    if (path === '/api/pitches/public' && request.method === 'GET') {
+      try {
+        let pitches = [];
+
+        if (dbConnected && db) {
+          try {
+            const pitchResults = await db.query(`
+              SELECT p.id, p.title, p.logline, p.genre, p.format, p.created_at,
+                     u.first_name, u.last_name, u.company
+              FROM pitches p 
+              JOIN users u ON p.created_by = u.id
+              WHERE p.status = 'published' AND p.is_public = true
+              ORDER BY p.created_at DESC LIMIT 20
+            `);
+            
+            pitches = pitchResults.map(p => ({
+              id: p.id,
+              title: p.title,
+              logline: p.logline,
+              genre: p.genre,
+              format: p.format,
+              createdAt: p.created_at,
+              creator: {
+                firstName: p.first_name,
+                lastName: p.last_name,
+                company: p.company,
+                displayName: `${p.first_name} ${p.last_name}`.trim()
+              }
+            }));
+
+          } catch (dbError) {
+            console.error('Database public pitches query failed:', dbError);
+          }
+        }
+
+        // Fallback to demo data
+        if (pitches.length === 0) {
+          pitches = DEMO_FALLBACK.pitches.slice(0, 10);
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: pitches,
+          source: dbConnected ? 'database' : 'demo'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('Public pitches endpoint error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch public pitches'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Investor dashboard endpoint
+    if (path === '/api/investor/dashboard' && request.method === 'GET') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Authorization required'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const token = authHeader.substring(7);
+        const payload = verifyJWT(token);
+        if (!payload) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid token'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        let dashboardData = {
+          totalInvestments: 0,
+          activeNDAs: 0,
+          savedPitches: 0,
+          totalInvestedAmount: 0,
+          recentActivity: [],
+          trendingPitches: [],
+          notifications: []
+        };
+
+        if (dbConnected && db) {
+          try {
+            // Get investment stats
+            const investmentStats = await db.query(`
+              SELECT COUNT(*) as total_investments, 
+                     COALESCE(SUM(amount), 0) as total_amount
+              FROM investments 
+              WHERE investor_id = $1
+            `, [payload.userId]);
+
+            if (investmentStats[0]) {
+              dashboardData.totalInvestments = parseInt(investmentStats[0].total_investments);
+              dashboardData.totalInvestedAmount = parseFloat(investmentStats[0].total_amount || 0);
+            }
+
+            // Get NDA stats
+            const ndaStats = await db.query(`
+              SELECT COUNT(*) as active_ndas
+              FROM nda_requests 
+              WHERE investor_id = $1 AND status = 'approved'
+            `, [payload.userId]);
+
+            if (ndaStats[0]) {
+              dashboardData.activeNDAs = parseInt(ndaStats[0].active_ndas);
+            }
+
+            // Get trending pitches
+            const trendingPitches = await db.query(`
+              SELECT p.id, p.title, p.genre, p.logline, 
+                     u.first_name, u.last_name, u.company,
+                     COUNT(pv.id) as view_count
+              FROM pitches p
+              JOIN users u ON p.created_by = u.id
+              LEFT JOIN pitch_views pv ON p.id = pv.pitch_id 
+                AND pv.created_at > NOW() - INTERVAL '7 days'
+              WHERE p.status = 'published'
+              GROUP BY p.id, p.title, p.genre, p.logline, u.first_name, u.last_name, u.company
+              ORDER BY view_count DESC, p.created_at DESC
+              LIMIT 5
+            `);
+
+            dashboardData.trendingPitches = trendingPitches.map(p => ({
+              id: p.id,
+              title: p.title,
+              genre: p.genre,
+              logline: p.logline,
+              viewCount: parseInt(p.view_count || 0),
+              creator: {
+                firstName: p.first_name,
+                lastName: p.last_name,
+                company: p.company,
+                displayName: `${p.first_name} ${p.last_name}`.trim()
+              }
+            }));
+
+          } catch (dbError) {
+            console.error('Database dashboard query failed:', dbError);
+          }
+        }
+
+        // Fallback data if no database results
+        if (dashboardData.trendingPitches.length === 0) {
+          dashboardData.trendingPitches = DEMO_FALLBACK.pitches.slice(0, 5);
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: dashboardData,
+          source: dbConnected ? 'database' : 'demo'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('Investor dashboard error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to load dashboard',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // User stats endpoint
+    if (path.match(/^\/api\/user\/stats$|^\/api\/users\/(\d+)\/stats$/) && request.method === 'GET') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Authorization required'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const token = authHeader.substring(7);
+        const payload = verifyJWT(token);
+        if (!payload) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid token'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Extract user ID from path or use current user
+        const pathMatch = path.match(/^\/api\/users\/(\d+)\/stats$/);
+        const targetUserId = pathMatch ? parseInt(pathMatch[1]) : payload.userId;
+
+        let stats = {
+          pitchesCreated: 0,
+          totalViews: 0,
+          totalLikes: 0,
+          followersCount: 0,
+          followingCount: 0,
+          joinDate: new Date().toISOString()
+        };
+
+        if (dbConnected && db) {
+          try {
+            // Get pitch stats
+            const pitchStats = await db.query(`
+              SELECT COUNT(*) as pitches_created,
+                     COALESCE(SUM((
+                       SELECT COUNT(*) FROM pitch_views WHERE pitch_id = p.id
+                     )), 0) as total_views,
+                     COALESCE(SUM((
+                       SELECT COUNT(*) FROM pitch_likes WHERE pitch_id = p.id  
+                     )), 0) as total_likes
+              FROM pitches p
+              WHERE p.created_by = $1
+            `, [targetUserId]);
+
+            if (pitchStats[0]) {
+              stats.pitchesCreated = parseInt(pitchStats[0].pitches_created);
+              stats.totalViews = parseInt(pitchStats[0].total_views || 0);
+              stats.totalLikes = parseInt(pitchStats[0].total_likes || 0);
+            }
+
+            // Get follow stats
+            const followStats = await db.query(`
+              SELECT 
+                (SELECT COUNT(*) FROM follows WHERE followed_id = $1) as followers_count,
+                (SELECT COUNT(*) FROM follows WHERE follower_id = $1) as following_count
+            `, [targetUserId]);
+
+            if (followStats[0]) {
+              stats.followersCount = parseInt(followStats[0].followers_count || 0);
+              stats.followingCount = parseInt(followStats[0].following_count || 0);
+            }
+
+            // Get join date
+            const userInfo = await db.query(`
+              SELECT created_at FROM users WHERE id = $1
+            `, [targetUserId]);
+
+            if (userInfo[0]) {
+              stats.joinDate = userInfo[0].created_at;
+            }
+
+          } catch (dbError) {
+            console.error('Database user stats query failed:', dbError);
+          }
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: stats,
+          source: dbConnected ? 'database' : 'demo'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('User stats error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch user stats',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // NDA request endpoint
+    if (path === '/api/ndas/request' && request.method === 'POST') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Authorization required'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const token = authHeader.substring(7);
+        const payload = verifyJWT(token);
+        if (!payload) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid token'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const body = await request.json();
+        const { pitchId, ndaType = 'basic', requestMessage } = body;
+
+        if (!pitchId) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'pitchId is required'
+          }), {
+            status: 422,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        let ndaRequest = null;
+        if (dbConnected && db) {
+          try {
+            // Check if NDA already exists
+            const existingNDA = await db.query(`
+              SELECT id, status FROM nda_requests 
+              WHERE pitch_id = $1 AND investor_id = $2
+            `, [pitchId, payload.userId]);
+
+            if (existingNDA && existingNDA[0]) {
+              return new Response(JSON.stringify({
+                success: false,
+                error: 'NDA request already exists',
+                data: { status: existingNDA[0].status }
+              }), {
+                status: 409,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+
+            // Create new NDA request
+            const insertResult = await db.query(`
+              INSERT INTO nda_requests (pitch_id, investor_id, nda_type, request_message, status, created_at)
+              VALUES ($1, $2, $3, $4, 'pending', NOW())
+              RETURNING id, created_at
+            `, [pitchId, payload.userId, ndaType, requestMessage]);
+
+            if (insertResult && insertResult[0]) {
+              ndaRequest = {
+                id: insertResult[0].id,
+                pitchId,
+                investorId: payload.userId,
+                ndaType,
+                requestMessage,
+                status: 'pending',
+                createdAt: insertResult[0].created_at
+              };
+            }
+
+          } catch (dbError) {
+            console.error('Database NDA request creation failed:', dbError);
+          }
+        }
+
+        // Fallback response
+        if (!ndaRequest) {
+          ndaRequest = {
+            id: Math.floor(Math.random() * 1000),
+            pitchId,
+            investorId: payload.userId,
+            ndaType,
+            requestMessage,
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          };
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: ndaRequest,
+          source: dbConnected ? 'database' : 'demo'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('NDA request error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to create NDA request',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // NDA approval endpoint
+    if (path.match(/^\/api\/ndas\/(\d+)\/approve$/) && request.method === 'POST') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Authorization required'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const token = authHeader.substring(7);
+        const payload = verifyJWT(token);
+        if (!payload) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid token'
+          }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const requestId = parseInt(path.split('/')[3]);
+        let success = false;
+
+        if (dbConnected && db) {
+          try {
+            // Verify the request belongs to a pitch created by this user
+            const ndaRequest = await db.query(`
+              SELECT nr.*, p.created_by
+              FROM nda_requests nr
+              JOIN pitches p ON nr.pitch_id = p.id
+              WHERE nr.id = $1 AND p.created_by = $2
+            `, [requestId, payload.userId]);
+
+            if (!ndaRequest || !ndaRequest[0]) {
+              return new Response(JSON.stringify({
+                success: false,
+                error: 'NDA request not found or access denied'
+              }), {
+                status: 404,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+
+            // Update the request status
+            const updateResult = await db.query(`
+              UPDATE nda_requests 
+              SET status = 'approved', approved_at = NOW()
+              WHERE id = $1
+              RETURNING *
+            `, [requestId]);
+
+            success = updateResult && updateResult[0];
+
+          } catch (dbError) {
+            console.error('Database NDA approval failed:', dbError);
+          }
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: { requestId, status: 'approved' },
+          source: dbConnected ? 'database' : 'demo'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('NDA approval error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to approve NDA request',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Remove proxy and provide clear endpoint documentation instead
+    if (path.startsWith('/api/')) {
+      // List all available endpoints for debugging
+      const availableEndpoints = [
+        'GET /api/health - Health check',
+        'GET /api/validate-token - Token validation',
+        'GET /api/upload/quota - Storage quota info',
+        'POST /api/auth/creator/login - Creator login',
+        'POST /api/auth/investor/login - Investor login', 
+        'POST /api/auth/production/login - Production login',
+        'GET /api/auth/profile - User profile',
+        'GET /api/pitches - List pitches (with pagination, search, filters)',
+        'GET /api/pitches/{id} - Get pitch by ID',
+        'GET /api/pitches/public - Public pitches',
+        'GET /api/investor/dashboard - Investor dashboard data',
+        'GET /api/user/stats - User statistics',
+        'GET /api/users/{id}/stats - User statistics by ID',
+        'POST /api/ndas/request - Request NDA',
+        'POST /api/ndas/{id}/approve - Approve NDA'
+      ];
+
+      return new Response(JSON.stringify({
+        error: 'Endpoint not implemented in Worker',
+        message: `The endpoint ${path} has not been migrated to the Worker yet`,
+        availableEndpoints,
+        suggestion: 'Please use one of the available endpoints above or request migration of this endpoint'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Default 404
@@ -748,10 +1790,24 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 
   } catch (error: any) {
     console.error('Worker error:', error);
+    
+    // Log critical Worker errors to Sentry
+    await sentry.captureError(error as Error, {
+      operation: 'worker_request_handler',
+      path,
+      method: request.method,
+      url: request.url,
+      database_connected: dbConnected,
+      hyperdrive_available: !!env.HYPERDRIVE,
+      user_agent: request.headers.get('User-Agent'),
+      referer: request.headers.get('Referer')
+    });
+    
     return new Response(JSON.stringify({
       error: 'Internal Server Error',
       message: error.message || error.toString(),
-      database: dbConnected ? 'connected' : 'unavailable'
+      database: dbConnected ? 'connected' : 'unavailable',
+      errorId: crypto.randomUUID() // Unique error ID for tracking
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
