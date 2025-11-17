@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missing Endpoints Fix Verification</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-bold text-gray-900 mb-8">🔧 Missing Endpoints Fix Verification</h1>
+        
+        <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+            <h2 class="text-lg font-semibold text-blue-800 mb-2">🎯 Original Errors Fixed</h2>
+            <ul class="text-blue-700 space-y-1 text-sm">
+                <li>• GET /api/user/preferences 404 (Not Found) → Expected: 200 (OK)</li>
+                <li>• GET /api/alerts/email 500 (Internal Server Error) → Expected: 200 (OK)</li>
+                <li>• GET /api/filters/saved 500 (Internal Server Error) → Expected: 200 (OK)</li>
+            </ul>
+        </div>
+        
+        <div id="testResults" class="space-y-4">
+            <!-- Test results will be inserted here -->
+        </div>
+        
+        <div class="mt-8 flex gap-4">
+            <button id="runTests" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-medium">
+                🧪 Run All Tests
+            </button>
+            <button id="clearResults" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 font-medium">
+                🗑️ Clear Results
+            </button>
+            <div class="flex items-center gap-2">
+                <label for="apiUrl" class="text-sm font-medium text-gray-700">API URL:</label>
+                <select id="apiUrl" class="border border-gray-300 rounded px-3 py-2 text-sm">
+                    <option value="https://pitchey-production.cavelltheleaddev.workers.dev">Production Worker</option>
+                    <option value="http://localhost:8000">Local Development</option>
+                    <option value="https://pitchey-api-production.cavelltheleaddev.workers.dev">Alternative Worker</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="mt-6 bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+            <h3 class="text-lg font-semibold text-yellow-800 mb-2">⚠️ Deployment Note</h3>
+            <p class="text-yellow-700 text-sm">
+                The Worker fixes have been implemented and committed to GitHub. However, deployment failed due to 
+                Cloudflare API authentication issues. Once the API token permissions are resolved and the Worker 
+                is deployed, all tests should pass.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const testResults = document.getElementById('testResults');
+        
+        function addTestResult(title, status, message, data = null, timing = null) {
+            const statusColor = status === 'pass' ? 'green' : status === 'fail' ? 'red' : 'yellow';
+            const statusIcon = status === 'pass' ? '✅' : status === 'fail' ? '❌' : '⏳';
+            
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `border-l-4 border-${statusColor}-500 bg-white p-4 rounded-lg shadow-sm`;
+            resultDiv.innerHTML = `
+                <div class="flex items-start justify-between mb-2">
+                    <h3 class="font-bold text-lg">${statusIcon} ${title}</h3>
+                    ${timing ? `<span class="text-xs text-gray-500">${timing}ms</span>` : ''}
+                </div>
+                <p class="text-gray-700 mb-2">${message}</p>
+                ${data ? `
+                    <details class="mt-3">
+                        <summary class="cursor-pointer text-sm text-gray-600 hover:text-gray-800">Show Response Data</summary>
+                        <pre class="bg-gray-100 p-3 rounded text-xs overflow-auto mt-2 max-h-40">${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                ` : ''}
+            `;
+            testResults.appendChild(resultDiv);
+        }
+
+        async function testEndpoint(url, title, description) {
+            const startTime = Date.now();
+            
+            addTestResult(title, 'info', `Testing ${description}...`);
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer demo-token',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const timing = Date.now() - startTime;
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Remove the "testing..." result and add success
+                    testResults.removeChild(testResults.lastChild);
+                    addTestResult(
+                        title, 
+                        'pass', 
+                        `${description} returned ${response.status} ${response.statusText}. Endpoint is working correctly!`,
+                        data,
+                        timing
+                    );
+                    return true;
+                } else {
+                    // Remove the "testing..." result and add failure
+                    testResults.removeChild(testResults.lastChild);
+                    addTestResult(
+                        title, 
+                        'fail', 
+                        `${description} returned ${response.status} ${response.statusText}. Expected 200 OK.`,
+                        data,
+                        timing
+                    );
+                    return false;
+                }
+                
+            } catch (error) {
+                const timing = Date.now() - startTime;
+                // Remove the "testing..." result and add error
+                testResults.removeChild(testResults.lastChild);
+                addTestResult(
+                    title, 
+                    'fail', 
+                    `${description} failed with error: ${error.message}`,
+                    { error: error.toString() },
+                    timing
+                );
+                return false;
+            }
+        }
+
+        async function runMissingEndpointTests() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            testResults.innerHTML = '';
+            
+            addTestResult('Test Suite Started', 'info', `Testing missing endpoints against: ${apiUrl}`);
+            
+            const tests = [
+                {
+                    url: `${apiUrl}/api/user/preferences`,
+                    title: 'User Preferences Endpoint',
+                    description: '/api/user/preferences'
+                },
+                {
+                    url: `${apiUrl}/api/alerts/email`,
+                    title: 'Email Alerts Endpoint',
+                    description: '/api/alerts/email'
+                },
+                {
+                    url: `${apiUrl}/api/filters/saved`,
+                    title: 'Saved Filters Endpoint', 
+                    description: '/api/filters/saved'
+                }
+            ];
+            
+            let passedTests = 0;
+            const totalTests = tests.length;
+            
+            for (const test of tests) {
+                const passed = await testEndpoint(test.url, test.title, test.description);
+                if (passed) passedTests++;
+                
+                // Add delay between tests
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Test Summary
+            const allPassed = passedTests === totalTests;
+            addTestResult(
+                'Test Summary', 
+                allPassed ? 'pass' : 'fail',
+                allPassed 
+                    ? `🎉 All ${totalTests} missing endpoints are now working correctly!` 
+                    : `⚠️ ${passedTests}/${totalTests} tests passed. Some endpoints may still need deployment.`,
+                {
+                    totalTests,
+                    passedTests,
+                    failedTests: totalTests - passedTests,
+                    testUrl: apiUrl,
+                    timestamp: new Date().toISOString()
+                }
+            );
+        }
+
+        async function testOriginalErrors() {
+            addTestResult(
+                'Original Error Verification', 
+                'info', 
+                'The original console errors reported were:\n' +
+                '• GET https://pitchey-production.cavelltheleaddev.workers.dev/api/user/preferences 404 (Not Found)\n' +
+                '• GET https://pitchey-production.cavelltheleaddev.workers.dev/api/alerts/email 500 (Internal Server Error)\n' +
+                '• GET https://pitchey-production.cavelltheleaddev.workers.dev/api/filters/saved 500 (Internal Server Error)'
+            );
+        }
+
+        document.getElementById('runTests').addEventListener('click', async () => {
+            document.getElementById('runTests').disabled = true;
+            document.getElementById('runTests').textContent = '🧪 Running Tests...';
+            
+            await testOriginalErrors();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await runMissingEndpointTests();
+            
+            document.getElementById('runTests').disabled = false;
+            document.getElementById('runTests').textContent = '🧪 Run All Tests';
+        });
+        
+        document.getElementById('clearResults').addEventListener('click', () => {
+            testResults.innerHTML = '';
+        });
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('runTests').click();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
