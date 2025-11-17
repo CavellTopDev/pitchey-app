@@ -19,6 +19,7 @@ export default function CreatorDashboard() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [pitches, setPitches] = useState<any[]>([]);
   const [credits, setCredits] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -117,6 +118,7 @@ export default function CreatorDashboard() {
         setTotalViews(actualTotalViews);
         setAvgRating(calculatedAvgRating);
         setRecentActivity(data.recentActivity || []);
+        setPitches(data.pitches || []);
         
         // Get actual followers count
         const followersCount = followersResponse.success ? 
@@ -526,10 +528,84 @@ export default function CreatorDashboard() {
         
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Recent Activity & Notifications */}
+          {/* Left Column - My Pitches, Recent Activity & Notifications */}
           <div className="lg:col-span-2 space-y-8">
             {/* Notifications Widget - Temporarily disabled */}
             {/* <NotificationWidget maxNotifications={5} /> */}
+            
+            {/* My Pitches */}
+            <div className="bg-white rounded-xl shadow-sm">
+              <div className="px-6 py-4 border-b flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">My Pitches</h2>
+                <button
+                  onClick={() => navigate('/creator/pitches')}
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  View All
+                </button>
+              </div>
+              <div className="p-6">
+                {pitches.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pitches.slice(0, 4).map((pitch) => (
+                      <div key={pitch.id} className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold text-gray-900 truncate">{pitch.title}</h3>
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            pitch.status === 'published' 
+                              ? 'bg-green-100 text-green-800' 
+                              : pitch.status === 'draft'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {pitch.status}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            <span>{pitch.views || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" />
+                            <span>{pitch.likes || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Shield className="w-3 h-3" />
+                            <span>{pitch.ndaRequests || 0}</span>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={() => navigate(`/creator/pitch/${pitch.id}/edit`)}
+                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => navigate(`/pitch/${pitch.id}`)}
+                            className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-1 rounded transition"
+                          >
+                            View
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-4">You haven't created any pitches yet</p>
+                    <button
+                      onClick={() => navigate('/creator/pitch/new')}
+                      className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+                    >
+                      Create Your First Pitch
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             
             {/* Recent Activity */}
             <div>
