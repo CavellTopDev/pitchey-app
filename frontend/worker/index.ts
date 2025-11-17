@@ -288,25 +288,56 @@ const workerHandler = {
 
     // Add validate-token endpoint for authentication
     if (url.pathname === '/api/validate-token' && request.method === 'GET') {
-      const authHeader = request.headers.get('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'No token provided'
-        }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
-
+      console.log('[VALIDATE-TOKEN] Handler triggered for /api/validate-token');
+      
       try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          console.log('[VALIDATE-TOKEN] No valid Authorization header');
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'No token provided'
+          }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-        // For demo purposes, decode JWT without verification (since we're in a simple scenario)
-        // In production, this should verify the JWT signature
-        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        console.log('[VALIDATE-TOKEN] Processing token');
+        
+        // Enhanced token validation with better error handling
+        if (!token || token.split('.').length !== 3) {
+          console.log('[VALIDATE-TOKEN] Invalid token format');
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Invalid token format'
+          }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+        
+        // Decode JWT payload with enhanced error handling
+        let payload;
+        try {
+          const payloadPart = token.split('.')[1];
+          const decodedPayload = atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/'));
+          payload = JSON.parse(decodedPayload);
+        } catch (parseError) {
+          console.log('[VALIDATE-TOKEN] Token parsing failed:', parseError);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Token parsing failed'
+          }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
         
         // Check if token is expired
         if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+          console.log('[VALIDATE-TOKEN] Token expired');
           return new Response(JSON.stringify({
             success: false,
             error: 'Token expired'
@@ -316,6 +347,7 @@ const workerHandler = {
           });
         }
 
+        console.log('[VALIDATE-TOKEN] Token validation successful');
         return new Response(JSON.stringify({
           success: true,
           valid: true,
@@ -328,12 +360,14 @@ const workerHandler = {
         }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
+        
       } catch (error) {
+        console.error('[VALIDATE-TOKEN] Unexpected error in handler:', error);
         return new Response(JSON.stringify({
           success: false,
-          error: 'Invalid token format'
+          error: 'Token validation failed'
         }), {
-          status: 401,
+          status: 500,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       }
@@ -2403,13 +2437,13 @@ const workerHandler = {
         const backendResponse = await fetch(modifiedRequest);
         
         // Check if response is valid with comprehensive null checking
-        if (!backendResponse) {
-          throw new Error('Backend response is null');
+        if (!backendResponse || typeof backendResponse !== 'object') {
+          throw new Error('Backend response is null or invalid');
         }
         
         // Additional safety checks for response properties
-        const status = backendResponse.status || 500;
-        const statusText = backendResponse.statusText || 'Internal Server Error';
+        const status = (backendResponse && typeof backendResponse.status === 'number') ? backendResponse.status : 500;
+        const statusText = (backendResponse && typeof backendResponse.statusText === 'string') ? backendResponse.statusText : 'Internal Server Error';
         
         // Safely get response body
         let responseBody: string;
