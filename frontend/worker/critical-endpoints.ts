@@ -49,6 +49,20 @@ export function setupCriticalEndpoints(
     return handleResetPassword(request, sql, corsHeaders);
   }
 
+  // Portal-specific login endpoints
+  if ((url.pathname === '/api/auth/creator/login' || 
+       url.pathname === '/api/auth/investor/login' || 
+       url.pathname === '/api/auth/production/login') && request.method === 'POST') {
+    return handlePortalLogin(request, sql, env, corsHeaders);
+  }
+
+  // Portal-specific register endpoints  
+  if ((url.pathname === '/api/auth/creator/register' || 
+       url.pathname === '/api/auth/investor/register' || 
+       url.pathname === '/api/auth/production/register') && request.method === 'POST') {
+    return handlePortalRegister(request, sql, env, corsHeaders);
+  }
+
   // ============= PITCH CRUD ENDPOINTS =============
   
   // Get single pitch
@@ -775,6 +789,156 @@ async function handleMarkMessageRead(request: Request, messageId: string, sql: a
     return new Response(JSON.stringify({
       success: false,
       error: 'Failed to mark message as read'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
+// Portal-specific login handler
+async function handlePortalLogin(request: Request, sql: any, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  try {
+    const { email, password } = await request.json();
+    const url = new URL(request.url);
+    
+    // Extract user type from URL path
+    const userType = url.pathname.includes('/creator/') ? 'creator' : 
+                     url.pathname.includes('/investor/') ? 'investor' : 'production';
+
+    // Find user with matching email and userType
+    const users = await sql`
+      SELECT id, email, username, password, user_type, profile_image, bio, created_at
+      FROM users 
+      WHERE email = ${email} AND user_type = ${userType}
+      LIMIT 1
+    `;
+
+    if (users.length === 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid credentials'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    const user = users[0];
+
+    // Verify password (simplified for demo)
+    const passwordValid = await bcrypt.compare(password, user.password);
+    if (!passwordValid) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid credentials'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // Generate JWT token
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      userType: user.user_type,
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+    }, env.JWT_SECRET);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        userType: user.user_type,
+        profileImage: user.profile_image,
+        bio: user.bio,
+        createdAt: user.created_at
+      },
+      token
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+
+  } catch (error: any) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Login failed'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
+// Portal-specific registration handler
+async function handlePortalRegister(request: Request, sql: any, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  try {
+    const { email, password, username, fullName } = await request.json();
+    const url = new URL(request.url);
+    
+    // Extract user type from URL path
+    const userType = url.pathname.includes('/creator/') ? 'creator' : 
+                     url.pathname.includes('/investor/') ? 'investor' : 'production';
+
+    // Check if user already exists
+    const existingUsers = await sql`
+      SELECT id FROM users WHERE email = ${email} OR username = ${username}
+    `;
+
+    if (existingUsers.length > 0) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'User with this email or username already exists'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const newUsers = await sql`
+      INSERT INTO users (email, username, password, user_type, full_name, created_at)
+      VALUES (${email}, ${username}, ${hashedPassword}, ${userType}, ${fullName || ''}, NOW())
+      RETURNING id, email, username, user_type, full_name, created_at
+    `;
+
+    const user = newUsers[0];
+
+    // Generate JWT token
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      userType: user.user_type,
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+    }, env.JWT_SECRET);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Registration successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        userType: user.user_type,
+        fullName: user.full_name,
+        createdAt: user.created_at
+      },
+      token
+    }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+
+  } catch (error: any) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Registration failed'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
