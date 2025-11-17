@@ -117,9 +117,23 @@ class ApiClient {
       console.log(`API Request: ${options.method || 'GET'} ${url}`);
       
       const response = await fetch(url, fetchOptions);
+      
+      // Add null checking for response
+      if (!response) {
+        console.error('Fetch returned null response');
+        return {
+          success: false,
+          error: {
+            message: 'Network request failed - no response received',
+            status: 500,
+            code: 'NULL_RESPONSE'
+          }
+        };
+      }
+      
       const responseText = await response.text();
       
-      console.log(`API Response: ${response.status} ${response.statusText}`);
+      console.log(`API Response: ${response.status || 'unknown'} ${response.statusText || 'unknown'}`);
       
       // Handle non-JSON responses
       if (!response.headers.get('content-type')?.includes('application/json')) {
@@ -127,9 +141,9 @@ class ApiClient {
           success: false,
           error: {
             message: 'Server returned non-JSON response',
-            status: response.status,
+            status: response?.status || 500,
             details: {
-              contentType: response.headers.get('content-type'),
+              contentType: response.headers?.get('content-type') || 'unknown',
               responseText: responseText.substring(0, 200)
             }
           }
@@ -144,7 +158,7 @@ class ApiClient {
           success: false,
           error: {
             message: 'Server response parsing failed',
-            status: response.status,
+            status: response?.status || 500,
             code: 'PARSE_ERROR',
             details: data.details
           }
@@ -154,7 +168,7 @@ class ApiClient {
       // Handle HTTP errors
       if (!response.ok) {
         // Handle 401 specifically
-        if (response.status === 401) {
+        if (response?.status === 401) {
           try {
             // Get user type to redirect to correct login page
             const userType = localStorage.getItem('userType');
@@ -177,8 +191,8 @@ class ApiClient {
         return {
           success: false,
           error: {
-            message: data.error || data.message || `HTTP ${response.status}: ${response.statusText}`,
-            status: response.status,
+            message: data.error || data.message || `HTTP ${response?.status || 'unknown'}: ${response?.statusText || 'unknown'}`,
+            status: response?.status || 500,
             code: data.code,
             details: data.details
           }
