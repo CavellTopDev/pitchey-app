@@ -1299,6 +1299,170 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       }
     }
 
+    // Trending pitches endpoint
+    if (path === '/api/pitches/trending' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        let pitches = [];
+
+        if (dbConnected && db) {
+          try {
+            const pitchResults = await db.query(`
+              SELECT p.id, p.title, p.logline, p.genre, p.format, p.view_count, p.like_count, p.created_at,
+                     u.first_name, u.last_name, u.company_name
+              FROM pitches p 
+              JOIN users u ON p.created_by = u.id
+              WHERE p.status = 'published' AND p.is_public = true
+              ORDER BY p.view_count DESC, p.like_count DESC, p.created_at DESC 
+              LIMIT $1
+            `, [limit]);
+            
+            pitches = pitchResults.map(p => ({
+              id: p.id,
+              title: p.title,
+              logline: p.logline,
+              genre: p.genre,
+              format: p.format,
+              viewCount: p.view_count || 0,
+              likeCount: p.like_count || 0,
+              createdAt: p.created_at,
+              creator: {
+                firstName: p.first_name,
+                lastName: p.last_name,
+                company: p.company_name,
+                displayName: `${p.first_name} ${p.last_name}`.trim()
+              }
+            }));
+
+          } catch (dbError) {
+            console.error('Database trending pitches query failed:', dbError);
+            
+            // Log to Sentry
+            await sentry.captureError(dbError as Error, {
+              operation: 'trending_pitches_query',
+              limit,
+              path
+            });
+          }
+        }
+
+        // Fallback to demo data
+        if (pitches.length === 0) {
+          pitches = DEMO_FALLBACK.pitches.slice(0, limit);
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: pitches,
+          source: dbConnected ? 'database' : 'demo',
+          count: pitches.length
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('Trending pitches endpoint error:', error);
+        
+        // Log to Sentry
+        await sentry.captureError(error as Error, {
+          operation: 'trending_pitches_endpoint',
+          path
+        });
+        
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch trending pitches'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // New releases/pitches endpoint
+    if (path === '/api/pitches/new' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        let pitches = [];
+
+        if (dbConnected && db) {
+          try {
+            const pitchResults = await db.query(`
+              SELECT p.id, p.title, p.logline, p.genre, p.format, p.view_count, p.like_count, p.created_at,
+                     u.first_name, u.last_name, u.company_name
+              FROM pitches p 
+              JOIN users u ON p.created_by = u.id
+              WHERE p.status = 'published' AND p.is_public = true
+              ORDER BY p.created_at DESC 
+              LIMIT $1
+            `, [limit]);
+            
+            pitches = pitchResults.map(p => ({
+              id: p.id,
+              title: p.title,
+              logline: p.logline,
+              genre: p.genre,
+              format: p.format,
+              viewCount: p.view_count || 0,
+              likeCount: p.like_count || 0,
+              createdAt: p.created_at,
+              creator: {
+                firstName: p.first_name,
+                lastName: p.last_name,
+                company: p.company_name,
+                displayName: `${p.first_name} ${p.last_name}`.trim()
+              }
+            }));
+
+          } catch (dbError) {
+            console.error('Database new pitches query failed:', dbError);
+            
+            // Log to Sentry
+            await sentry.captureError(dbError as Error, {
+              operation: 'new_pitches_query',
+              limit,
+              path
+            });
+          }
+        }
+
+        // Fallback to demo data
+        if (pitches.length === 0) {
+          pitches = DEMO_FALLBACK.pitches.slice(0, limit);
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: pitches,
+          source: dbConnected ? 'database' : 'demo',
+          count: pitches.length
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+
+      } catch (error) {
+        console.error('New pitches endpoint error:', error);
+        
+        // Log to Sentry
+        await sentry.captureError(error as Error, {
+          operation: 'new_pitches_endpoint',
+          path
+        });
+        
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch new pitches'
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Investor dashboard endpoint
     if (path === '/api/investor/dashboard' && request.method === 'GET') {
       try {
@@ -1744,6 +1908,8 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
         'GET /api/pitches - List pitches (with pagination, search, filters)',
         'GET /api/pitches/{id} - Get pitch by ID',
         'GET /api/pitches/public - Public pitches',
+        'GET /api/pitches/trending - Trending pitches (sorted by views/likes)',
+        'GET /api/pitches/new - New releases (sorted by creation date)',
         'GET /api/investor/dashboard - Investor dashboard data',
         'GET /api/user/stats - User statistics',
         'GET /api/users/{id}/stats - User statistics by ID',
@@ -1772,6 +1938,8 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
         'GET /api/users',
         'GET /api/pitches',
         'GET /api/pitches/:id',
+        'GET /api/pitches/trending',
+        'GET /api/pitches/new',
         'POST /api/auth/*/login',
         'GET /api/creator/dashboard',
         'GET /api/investor/dashboard',
