@@ -162,6 +162,14 @@ export class UserEndpointsHandler {
         return this.handleUpdateNotificationPreferences(request, corsHeaders, userAuth!);
       }
 
+      if (path === '/api/user/preferences' && method === 'GET') {
+        return this.handleGetUserPreferences(request, corsHeaders, userAuth!);
+      }
+
+      if (path === '/api/user/preferences' && method === 'PUT') {
+        return this.handleUpdateUserPreferences(request, corsHeaders, userAuth!);
+      }
+
       if (path === '/api/user/verify-company' && method === 'POST') {
         return this.handleRequestCompanyVerification(request, corsHeaders, userAuth!);
       }
@@ -1335,5 +1343,98 @@ export class UserEndpointsHandler {
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
+  }
+
+  private async handleGetUserPreferences(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload): Promise<Response> {
+    try {
+      // Demo implementation - return user preferences based on user type
+      const preferences = {
+        email: {
+          notifications: true,
+          marketing: false,
+          updates: true
+        },
+        privacy: {
+          profileVisibility: 'public',
+          showEmail: false,
+          showLocation: true
+        },
+        content: {
+          genres: userAuth.userType === 'creator' ? ['Drama', 'Thriller'] : 
+                  userAuth.userType === 'investor' ? ['All'] : 
+                  ['Action', 'Drama', 'Comedy'],
+          budgetRange: userAuth.userType === 'investor' ? { min: 100000, max: 10000000 } : 
+                      { min: 10000, max: 1000000 },
+          formats: userAuth.userType === 'creator' ? ['Feature Film', 'Short Film'] :
+                  userAuth.userType === 'production' ? ['Feature Film', 'TV Series'] :
+                  ['All']
+        },
+        dashboard: {
+          defaultView: userAuth.userType === 'creator' ? 'pitches' :
+                     userAuth.userType === 'investor' ? 'portfolio' :
+                     'projects',
+          showAnalytics: true,
+          autoRefresh: true
+        }
+      };
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: { preferences },
+        source: 'demo'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+      
+    } catch (error) {
+      await this.sentry.captureError(error as Error, { 
+        context: 'handleGetUserPreferences',
+        userAuth,
+        path: request.url 
+      });
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to load user preferences' }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  private async handleUpdateUserPreferences(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload): Promise<Response> {
+    try {
+      const body = await request.json() as { preferences: any };
+
+      // Demo implementation - simulate successful update
+      return new Response(JSON.stringify({
+        success: true,
+        data: { 
+          preferences: body.preferences,
+          message: 'Preferences updated successfully'
+        },
+        source: 'demo'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+      
+    } catch (error) {
+      await this.sentry.captureError(error as Error, { 
+        context: 'handleUpdateUserPreferences',
+        userAuth,
+        path: request.url 
+      });
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to update user preferences' }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
   }
 }

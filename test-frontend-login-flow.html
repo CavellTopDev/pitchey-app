@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Login Flow Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 5px solid;
+        }
+        .success { 
+            background-color: #d4edda; 
+            color: #155724; 
+            border-left-color: #28a745;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            color: #721c24; 
+            border-left-color: #dc3545;
+        }
+        .info { 
+            background-color: #d1ecf1; 
+            color: #0c5460; 
+            border-left-color: #17a2b8;
+        }
+        .warning { 
+            background-color: #fff3cd; 
+            color: #856404; 
+            border-left-color: #ffc107;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 16px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { 
+            background-color: #6c757d; 
+            cursor: not-allowed; 
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        .step {
+            border-left: 4px solid #007bff;
+            padding-left: 20px;
+            margin: 20px 0;
+        }
+        h1 { color: #333; }
+        h2 { color: #555; }
+        h3 { color: #666; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Frontend Login Flow Test</h1>
+        <p>This test simulates the exact frontend login flow to verify our API response structure fixes are working properly.</p>
+        
+        <div class="step">
+            <h3>Step 1: Test Creator Login</h3>
+            <p>This simulates clicking the "Demo Creator Account" button on the frontend.</p>
+            <button onclick="testCreatorLogin()">Test Creator Login (alex.creator@demo.com)</button>
+            <div id="creator-login-status" class="status info">Ready to test...</div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Test Investor Login</h3>
+            <p>This simulates the investor login flow.</p>
+            <button onclick="testInvestorLogin()">Test Investor Login (sarah.investor@demo.com)</button>
+            <div id="investor-login-status" class="status info">Ready to test...</div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Token Validation</h3>
+            <p>This tests the validate-token endpoint that was causing "User data not received from server" errors.</p>
+            <button onclick="testTokenValidation()" id="validate-btn" disabled>Test Token Validation</button>
+            <div id="validation-status" class="status info">Login first to test validation...</div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Test Frontend Logout</h3>
+            <p>This tests the complete logout flow including localStorage cleanup.</p>
+            <button onclick="testLogout()" id="logout-btn" disabled>Test Logout Flow</button>
+            <div id="logout-status" class="status info">Login first to test logout...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Test Results</h2>
+        <div id="results">
+            <div class="status info">No tests run yet. Click the buttons above to test login functionality.</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+        let testResults = [];
+        let currentToken = null;
+
+        function addResult(title, success, details, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            testResults.push({
+                title,
+                success,
+                details,
+                data,
+                timestamp
+            });
+            updateResults();
+        }
+
+        function updateResults() {
+            const resultsDiv = document.getElementById('results');
+            if (testResults.length === 0) {
+                resultsDiv.innerHTML = '<div class="status info">No tests run yet.</div>';
+                return;
+            }
+
+            const html = testResults.map(r => {
+                const statusClass = r.success ? 'success' : 'error';
+                return `
+                    <div class="status ${statusClass}">
+                        <strong>[${r.timestamp}] ${r.title}:</strong> ${r.success ? 'PASS' : 'FAIL'}
+                        <br><small>${r.details}</small>
+                        ${r.data ? `<pre>${JSON.stringify(r.data, null, 2)}</pre>` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        async function testCreatorLogin() {
+            const statusDiv = document.getElementById('creator-login-status');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '🔄 Testing creator login...';
+
+            try {
+                // This mirrors the exact frontend API call structure
+                const response = await fetch(`${API_URL}/api/auth/creator/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'alex.creator@demo.com',
+                        password: 'Demo123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success && data.data && data.data.token) {
+                    // Store token like the frontend does
+                    currentToken = data.data.token;
+                    localStorage.setItem('authToken', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    localStorage.setItem('userType', data.data.user.userType);
+                    
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `✅ Creator login successful!<br>User: ${data.data.user.firstName} ${data.data.user.lastName}<br>Token: ${currentToken.substring(0, 20)}...`;
+                    
+                    // Enable other test buttons
+                    document.getElementById('validate-btn').disabled = false;
+                    document.getElementById('logout-btn').disabled = false;
+                    
+                    addResult('Creator Login', true, `Logged in as ${data.data.user.firstName} ${data.data.user.lastName}`, data);
+                } else {
+                    throw new Error(data.error?.message || 'Login failed - no token received');
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Creator login failed: ${error.message}`;
+                addResult('Creator Login', false, error.message);
+            }
+        }
+
+        async function testInvestorLogin() {
+            const statusDiv = document.getElementById('investor-login-status');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '🔄 Testing investor login...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/investor/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'sarah.investor@demo.com',
+                        password: 'Demo123'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success && data.data && data.data.token) {
+                    currentToken = data.data.token;
+                    localStorage.setItem('authToken', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    localStorage.setItem('userType', data.data.user.userType);
+                    
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `✅ Investor login successful!<br>User: ${data.data.user.firstName} ${data.data.user.lastName}<br>Token: ${currentToken.substring(0, 20)}...`;
+                    
+                    document.getElementById('validate-btn').disabled = false;
+                    document.getElementById('logout-btn').disabled = false;
+                    
+                    addResult('Investor Login', true, `Logged in as ${data.data.user.firstName} ${data.data.user.lastName}`, data);
+                } else {
+                    throw new Error(data.error?.message || 'Login failed - no token received');
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Investor login failed: ${error.message}`;
+                addResult('Investor Login', false, error.message);
+            }
+        }
+
+        async function testTokenValidation() {
+            const statusDiv = document.getElementById('validation-status');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '🔄 Testing token validation...';
+
+            if (!currentToken) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ No token available. Please login first.';
+                return;
+            }
+
+            try {
+                // This is the exact call that was failing before our fix
+                const response = await fetch(`${API_URL}/api/validate-token`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success && data.user) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `✅ Token validation successful!<br>User: ${data.user.firstName} ${data.user.lastName}<br>Valid: ${data.valid}`;
+                    
+                    addResult('Token Validation', true, 'Token successfully validated', data);
+                } else {
+                    throw new Error(data.error?.message || 'Token validation failed');
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Token validation failed: ${error.message}`;
+                addResult('Token Validation', false, error.message);
+            }
+        }
+
+        async function testLogout() {
+            const statusDiv = document.getElementById('logout-status');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '🔄 Testing logout flow...';
+
+            try {
+                // Test backend logout call (optional)
+                let backendLogoutWorked = false;
+                try {
+                    const response = await fetch(`${API_URL}/api/auth/logout`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentToken}`
+                        }
+                    });
+                    backendLogoutWorked = response.ok;
+                } catch (e) {
+                    console.warn('Backend logout failed:', e);
+                }
+
+                // Clear localStorage like the frontend does
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                localStorage.removeItem('userType');
+                localStorage.removeItem('pitchey_websocket_disabled');
+                localStorage.removeItem('pitchey_websocket_loop_detected');
+
+                // Clear current token
+                currentToken = null;
+
+                // Disable test buttons
+                document.getElementById('validate-btn').disabled = true;
+                document.getElementById('logout-btn').disabled = true;
+
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `✅ Logout successful!<br>localStorage cleared: ✓<br>Backend logout: ${backendLogoutWorked ? '✓' : '✗ (optional)'}`;
+                
+                addResult('Logout Flow', true, 'All authentication data cleared successfully');
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Logout failed: ${error.message}`;
+                addResult('Logout Flow', false, error.message);
+            }
+        }
+
+        // Check for existing auth state on page load
+        window.addEventListener('load', () => {
+            const existingToken = localStorage.getItem('authToken');
+            if (existingToken) {
+                currentToken = existingToken;
+                document.getElementById('validate-btn').disabled = false;
+                document.getElementById('logout-btn').disabled = false;
+                
+                const user = JSON.parse(localStorage.getItem('user') || '{}');
+                addResult('Page Load', true, `Found existing session for ${user.firstName} ${user.lastName}`);
+            }
+        });
+    </script>
+</body>
+</html>
