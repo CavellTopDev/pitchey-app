@@ -2402,26 +2402,71 @@ const workerHandler = {
         // Forward the request to the backend
         const backendResponse = await fetch(modifiedRequest);
         
-        // Check if response is valid
+        // Check if response is valid with comprehensive null checking
         if (!backendResponse) {
           throw new Error('Backend response is null');
         }
         
-        // Clone the response to add CORS headers
-        const responseBody = await backendResponse.text();
+        // Additional safety checks for response properties
+        const status = backendResponse.status || 500;
+        const statusText = backendResponse.statusText || 'Internal Server Error';
+        
+        // Safely get response body
+        let responseBody: string;
+        try {
+          responseBody = await backendResponse.text();
+        } catch (textError) {
+          console.error('Failed to read response body:', textError);
+          responseBody = JSON.stringify({
+            success: false,
+            error: 'Failed to read backend response'
+          });
+        }
+        
+        // Safely extract headers
+        let responseHeaders: Record<string, string> = {};
+        try {
+          if (backendResponse.headers) {
+            responseHeaders = Object.fromEntries([...backendResponse.headers as any]);
+          }
+        } catch (headerError) {
+          console.error('Failed to extract response headers:', headerError);
+          responseHeaders = {};
+        }
+        
         return new Response(responseBody, {
-          status: backendResponse.status,
-          statusText: backendResponse.statusText,
+          status,
+          statusText,
           headers: {
-            ...Object.fromEntries([...backendResponse.headers as any]),
+            ...responseHeaders,
             ...corsHeaders
           }
         });
       } catch (error) {
         console.error('Proxy error:', error);
+        
+        // Enhanced error logging for debugging
+        if (env.SENTRY_DSN) {
+          Sentry.captureException(error, {
+            tags: {
+              component: 'proxy',
+              endpoint: url.pathname,
+              method: request.method
+            },
+            extra: {
+              url: url.toString(),
+              backendUrl: `https://pitchey-backend-fresh.deno.dev${url.pathname}${url.search}`,
+              errorMessage: error instanceof Error ? error.message : 'Unknown error',
+              errorStack: error instanceof Error ? error.stack : undefined
+            }
+          });
+        }
+        
         return new Response(JSON.stringify({
+          success: false,
           error: 'Backend service unavailable',
-          details: error instanceof Error ? error.message : 'Unknown error'
+          details: error instanceof Error ? error.message : 'Unknown error',
+          endpoint: url.pathname
         }), {
           status: 503,
           headers: {
