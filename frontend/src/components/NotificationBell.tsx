@@ -30,9 +30,11 @@ export function NotificationBell({
     const loadNotifications = async () => {
       try {
         const notifications = await NotificationsService.getUnreadNotifications();
-        setApiNotifications(notifications);
+        // Defensive check: ensure notifications is always an array
+        setApiNotifications(Array.isArray(notifications) ? notifications : []);
       } catch (error) {
         console.error('Failed to load notifications:', error);
+        setApiNotifications([]); // Set empty array on error
       }
     };
 
@@ -43,9 +45,9 @@ export function NotificationBell({
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate total unread count
-  const unreadCount = apiNotifications.filter(n => !n.isRead).length + 
-                     wsNotifications.filter(n => !n.read).length;
+  // Calculate total unread count with defensive checks
+  const unreadCount = (Array.isArray(apiNotifications) ? apiNotifications.filter(n => !n.isRead) : []).length + 
+                     (Array.isArray(wsNotifications) ? wsNotifications.filter(n => !n.read) : []).length;
 
   // Animate when new notifications arrive
   useEffect(() => {

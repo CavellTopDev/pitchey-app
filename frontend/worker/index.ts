@@ -173,8 +173,8 @@ const workerHandler = {
     if (url.pathname === '/api/notifications/unread' && request.method === 'GET') {
       return new Response(JSON.stringify({
         success: true,
-        unreadNotifications: [],
-        unreadCount: 0
+        data: [], // Frontend expects notifications array under 'data' key
+        count: 0
       }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
