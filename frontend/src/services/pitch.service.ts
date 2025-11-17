@@ -349,7 +349,7 @@ export class PitchService {
 
     const response = await apiClient.get<{ 
       success: boolean; 
-      pitches: Pitch[]; 
+      items: Pitch[]; 
       total: number 
     }>(`/api/pitches/public?${params}`);
 
@@ -357,10 +357,9 @@ export class PitchService {
       throw new Error(response.error?.message || 'Failed to fetch public pitches');
     }
 
-    // Backend returns { success: true, pitches: [...], message: "...", cached: bool }
-    // API client strips outer layer so response.data contains the backend response object
-    const pitches = response.data?.pitches || [];
-    const total = pitches.length; // Backend doesn't provide total count for this endpoint
+    // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
+    const pitches = response.data?.items || [];
+    const total = response.data?.total || pitches.length;
     
     
     return {
@@ -373,7 +372,7 @@ export class PitchService {
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      data: { pitches: Pitch[] };
+      items: Pitch[];
       message: string;
     }>(`/api/pitches/trending?limit=${limit}`);
 
@@ -381,8 +380,8 @@ export class PitchService {
       throw new Error(response.error?.message || 'Failed to fetch trending pitches');
     }
 
-    // Backend returns { success: true, data: { pitches: [...] }, message: "..." }
-    const pitches = response.data?.pitches || [];
+    // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
+    const pitches = response.data?.items || [];
     console.log('Trending pitches received:', pitches.length);
     
     return pitches;
@@ -392,7 +391,7 @@ export class PitchService {
   static async getNewReleases(limit: number = 10): Promise<Pitch[]> {
     const response = await apiClient.get<{ 
       success: boolean; 
-      data: { pitches: Pitch[] };
+      items: Pitch[];
       message: string;
     }>(`/api/pitches/new?limit=${limit}`);
 
@@ -400,8 +399,8 @@ export class PitchService {
       throw new Error(response.error?.message || 'Failed to fetch new releases');
     }
 
-    // Backend returns { success: true, data: { pitches: [...] }, message: "..." }
-    const pitches = response.data?.pitches || [];
+    // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
+    const pitches = response.data?.items || [];
     console.log('New releases received:', pitches.length);
     
     return pitches;
@@ -461,14 +460,15 @@ export class PitchService {
       throw new Error(response.error?.message || 'Failed to fetch browse pitches');
     }
 
-    return response.data || {
-      pitches: [],
-      totalCount: 0,
+    // Worker API returns { success, items, total, totalPages, ... }
+    return {
+      pitches: response.data?.items || [],
+      totalCount: response.data?.total || 0,
       pagination: {
         limit: filters?.limit || 20,
         offset: filters?.offset || 0,
-        totalPages: 0,
-        currentPage: 1
+        totalPages: response.data?.totalPages || 0,
+        currentPage: response.data?.page || 1
       },
       filters: {
         sortBy: filters?.sort || 'date',

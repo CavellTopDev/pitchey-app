@@ -149,10 +149,10 @@ export default function MarketplaceEnhanced() {
       
       if (response.ok) {
         const data = await response.json();
-        const payload = data?.data || data; // Worker returns { success, data: { pitches, pagination } }
-        setPitches(payload.pitches || []);
-        setTotalPages(payload.pagination?.totalPages || 1);
-        setTotalResults(payload.pagination?.total || payload.pagination?.totalCount || payload.totalCount || (payload.pitches?.length || 0));
+        // Worker API returns { success, items, total, totalPages, ... }
+        setPitches(data.items || []);
+        setTotalPages(data.totalPages || 1);
+        setTotalResults(data.total || data.items?.length || 0);
       } else if (response.status === 404 || response.status === 401) {
         // Fallback to general browse endpoint
         const generalParams = new URLSearchParams();
