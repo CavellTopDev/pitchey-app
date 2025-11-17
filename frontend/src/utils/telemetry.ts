@@ -59,7 +59,7 @@ export class FrontendTelemetryManager {
               "pitchey.pages.dev",
               "pitchey-backend-fresh.deno.dev",
               "pitchey-production.cavelltheleaddev.workers.dev",
-              "pitchey-api-production.cavelltheleaddev.workers.dev",
+              "pitchey-production.cavelltheleaddev.workers.dev",
             ],
           }),
           

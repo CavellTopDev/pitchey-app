@@ -14,10 +14,13 @@ import InvestmentOpportunities from '../components/Investment/InvestmentOpportun
 import { EnhancedInvestorAnalytics } from '../components/Analytics/EnhancedInvestorAnalytics';
 import { NotificationWidgetSafe as NotificationWidget } from '../components/Dashboard/NotificationWidgetSafe';
 import { NotificationBellSafe } from '../components/NotificationBellSafe';
+import { InvestorDashboardErrorBoundary, useInvestorDashboardErrorReporting } from '../components/ErrorBoundary/InvestorDashboardErrorBoundary';
+import * as Sentry from '@sentry/react';
 
-export default function InvestorDashboard() {
+function InvestorDashboardContent() {
   const navigate = useNavigate();
   const { logout } = useAuthStore();
+  const { reportError, addBreadcrumb } = useInvestorDashboardErrorReporting();
   const [user, setUser] = useState<any>(null);
   const [portfolio, setPortfolio] = useState<any>(null);
   const [portfolioPerformance, setPortfolioPerformance] = useState<any>(null);
@@ -78,6 +81,12 @@ export default function InvestorDashboard() {
     try {
       setLoading(true);
       setError(null);
+      
+      // Add Sentry breadcrumb for dashboard data fetch
+      addBreadcrumb('Starting dashboard data fetch', {
+        component: 'InvestorDashboard',
+        action: 'fetchDashboardData'
+      });
       
       console.log('🔄 Fetching investor dashboard data...');
       
@@ -194,6 +203,24 @@ export default function InvestorDashboard() {
       
     } catch (error) {
       console.error('💥 Critical dashboard error:', error);
+      
+      // Report error to Sentry with additional context
+      reportError(error as Error, {
+        function: 'fetchDashboardData',
+        component: 'InvestorDashboard',
+        userState: {
+          hasUser: !!user,
+          hasToken: !!localStorage.getItem('token')
+        },
+        attemptedActions: [
+          'fetch dashboard data',
+          'fetch portfolio summary',
+          'fetch credits',
+          'fetch subscription',
+          'fetch following pitches'
+        ]
+      });
+      
       setError('Failed to load dashboard data. Please try refreshing the page.');
       
       // Set fallback empty states
@@ -218,7 +245,16 @@ export default function InvestorDashboard() {
   }, [fetchDashboardData, fetchInvestmentData]);
 
   const handleLogout = () => {
+    addBreadcrumb('User initiated logout from dashboard');
     logout(); // This will automatically navigate to login page
+  };
+
+  // Test function for Sentry integration (development only)
+  const handleTestError = () => {
+    if (process.env.NODE_ENV === 'development') {
+      addBreadcrumb('User triggered test error from dashboard');
+      throw new Error('Test error from investor dashboard - Sentry integration verification');
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -360,6 +396,17 @@ export default function InvestorDashboard() {
               >
                 <Filter className="w-4 h-4" />
               </button>
+              
+              {/* Test Error Button (Development Only) */}
+              {process.env.NODE_ENV === 'development' && (
+                <button
+                  onClick={handleTestError}
+                  className="p-2 text-red-500 hover:text-red-700 transition"
+                  title="Test Sentry Error"
+                >
+                  💥
+                </button>
+              )}
               
               <button
                 onClick={handleLogout}
@@ -752,5 +799,30 @@ export default function InvestorDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrap the dashboard content with error boundary
+export default function InvestorDashboard() {
+  return (
+    <InvestorDashboardErrorBoundary
+      onError={(error, errorInfo) => {
+        // Additional logging or actions when error occurs
+        console.error('Investor Dashboard Error:', error, errorInfo);
+        
+        // Track in analytics if available
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', 'exception', {
+            description: error.toString(),
+            fatal: false,
+            custom_map: {
+              component: 'InvestorDashboard'
+            }
+          });
+        }
+      }}
+    >
+      <InvestorDashboardContent />
+    </InvestorDashboardErrorBoundary>
   );
 }
