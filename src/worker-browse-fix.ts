@@ -3,7 +3,7 @@
  * Extends existing worker with missing browse endpoints that frontend needs
  */
 
-import { neon } from '@neondatabase/serverless';
+import { Toucan } from 'toucan-js';
 import { AuthEndpointsHandler } from './worker-modules/auth-endpoints';
 import { UserEndpointsHandler } from './worker-modules/user-endpoints';
 import { AnalyticsEndpointsHandler } from './worker-modules/analytics-endpoints';
@@ -13,97 +13,12 @@ import { InvestmentEndpointsHandler } from './worker-modules/investment-endpoint
 import { MessagingEndpointsHandler } from './worker-modules/messaging-endpoints';
 import { UploadEndpointsHandler } from './worker-modules/upload-endpoints';
 import { AdminEndpointsHandler } from './worker-modules/admin-endpoints';
+import { dbPool, withDatabase } from './worker-database-pool';
 
-// Sentry error tracking for Cloudflare Workers
-class SentryLogger {
-  private dsn: string | null = null;
-  private environment: string = 'production';
-  private release: string = 'unified-worker-v1.1-browse-endpoints';
-  
-  constructor(env: Env) {
-    this.dsn = env.SENTRY_DSN || null;
-    this.environment = env.SENTRY_ENVIRONMENT || 'production';
-    this.release = env.SENTRY_RELEASE || 'unified-worker-v1.1-browse-endpoints';
-  }
-  
-  async captureError(error: Error, context?: Record<string, any>) {
-    if (!this.dsn) {
-      console.error('Sentry DSN not configured, logging locally:', error);
-      return;
-    }
-    
-    try {
-      const payload = {
-        message: error.message,
-        level: 'error',
-        environment: this.environment,
-        release: this.release,
-        extra: {
-          stack: error.stack,
-          context: context || {},
-          timestamp: new Date().toISOString(),
-          platform: 'cloudflare-workers'
-        }
-      };
-      
-      // Send to Sentry via Store API
-      const sentryUrl = new URL(this.dsn);
-      const projectId = sentryUrl.pathname.slice(1);
-      const publicKey = sentryUrl.username;
-      
-      const storeUrl = `https://sentry.io/api/${projectId}/store/`;
-      
-      await fetch(storeUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${publicKey}, sentry_client=cloudflare-worker/1.0.0`
-        },
-        body: JSON.stringify(payload)
-      });
-    } catch (sentryError) {
-      console.error('Failed to send error to Sentry:', sentryError);
-    }
-  }
-  
-  async captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info', context?: Record<string, any>) {
-    if (!this.dsn) {
-      console.log(`[${level}]`, message, context || '');
-      return;
-    }
-    
-    try {
-      const payload = {
-        message,
-        level,
-        environment: this.environment,
-        release: this.release,
-        extra: {
-          context: context || {},
-          timestamp: new Date().toISOString(),
-          platform: 'cloudflare-workers'
-        }
-      };
-      
-      const sentryUrl = new URL(this.dsn);
-      const projectId = sentryUrl.pathname.slice(1);
-      const publicKey = sentryUrl.username;
-      
-      const storeUrl = `https://sentry.io/api/${projectId}/store/`;
-      
-      await fetch(storeUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${publicKey}, sentry_client=cloudflare-worker/1.0.0`
-        },
-        body: JSON.stringify(payload)
-      });
-    } catch (sentryError) {
-      console.error('Failed to send message to Sentry:', sentryError);
-    }
-  }
-}
+// DEPRECATED FUNCTION REMOVED - Use dbPool.getConnection() instead
+// This function was causing "Cannot perform I/O on behalf of a different request" errors
+// because it created postgres.js connections instead of using the neon-based pool
+
 
 export interface Env {
   // Storage  
@@ -290,7 +205,7 @@ function generateBrowsePitches(browseType?: string, genre?: string, status?: str
 }
 
 // Handle authentication endpoints
-async function handleAuthEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleAuthEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
@@ -303,25 +218,25 @@ async function handleAuthEndpoint(request: Request, logger: SentryLogger, env: E
     
     // Use the full auth module for all auth endpoints
     try {
-      // Initialize database connection
+      // Initialize database connection using pool
       let db = null;
       if (env.HYPERDRIVE) {
-        db = neon(env.HYPERDRIVE.connectionString);
+        db = dbPool.getConnection(env);
       }
       
-      const authHandler = new AuthEndpointsHandler(db, logger, env);
+      const authHandler = new AuthEndpointsHandler(db, sentry, env);
       const response = await authHandler.handleAuthEndpoints(request, path, corsHeaders);
       
       if (response) {
-        await logger.captureMessage('Auth endpoint handled successfully', 'info', { path, method: request.method });
+        sentry.captureMessage('Auth endpoint handled successfully', 'info', { path, method: request.method });
         return response;
       }
       
       // If auth handler returns null, continue to 404
-      await logger.captureMessage('Auth endpoint not found in handler', 'info', { path });
+      sentry.captureMessage('Auth endpoint not found in handler', 'info', { path });
       
     } catch (authError) {
-      await logger.captureError(authError as Error, { context: 'auth_handler_error', path, method: request.method });
+      sentry.captureException(authError as Error, { context: 'auth_handler_error', path, method: request.method });
       
       // Return specific error response for debugging
       return new Response(JSON.stringify({ 
@@ -336,79 +251,6 @@ async function handleAuthEndpoint(request: Request, logger: SentryLogger, env: E
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
-    }
-    
-    // Direct token validation endpoint (bypass auth module for debugging)
-    if (path === '/api/validate-token' && (request.method === 'GET' || request.method === 'POST')) {
-      const authHeader = request.headers.get('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Authorization header required'
-        }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
-
-      const token = authHeader.substring(7);
-      const parts = token.split('.');
-      
-      if (parts.length !== 3) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Invalid token format'
-        }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
-
-      try {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        
-        // Check if token is expired
-        if (payload.exp < Math.floor(Date.now() / 1000)) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: 'Token expired'
-          }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          });
-        }
-
-        // Transform to expected format
-        const user = {
-          id: payload.userId || 1,
-          email: payload.email || 'demo@example.com',
-          userType: payload.userType || 'creator',
-          firstName: 'Alex',
-          lastName: 'Creator',
-          companyName: 'Indie Film Works',
-          displayName: 'Alex Creator',
-          isActive: true,
-          isVerified: true
-        };
-
-        return new Response(JSON.stringify({
-          success: true,
-          user: user,
-          exp: payload.exp
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-
-      } catch (error) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Token validation failed'
-        }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        });
-      }
     }
 
     // Simple debug endpoint for token validation
@@ -463,7 +305,7 @@ async function handleAuthEndpoint(request: Request, logger: SentryLogger, env: E
     });
     
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'auth', path: request.url });
+    sentry.captureException(error as Error, { endpoint: 'auth', path: request.url });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'Auth service error', code: 'AUTH_ERROR', details: (error as Error).message } 
@@ -475,7 +317,7 @@ async function handleAuthEndpoint(request: Request, logger: SentryLogger, env: E
 }
 
 // Handle pitches endpoints
-async function handlePitchesEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handlePitchesEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
     const pathSegments = url.pathname.split('/').filter(Boolean);
@@ -484,37 +326,41 @@ async function handlePitchesEndpoint(request: Request, logger: SentryLogger, env
     const pitchType = pathSegments[2]; // 'browse', 'new', 'trending', 'public', etc.
     
     if (pitchType === 'browse') {
-      return await handleBrowseEndpoint(request, logger);
+      return await handleBrowseEndpoint(request, sentry);
     }
     
     if (pitchType === 'new') {
-      return await handleNewPitchesEndpoint(request, logger, env);
+      return await handleNewPitchesEndpoint(request, sentry, env);
     }
     
     if (pitchType === 'trending') {
-      return await handleTrendingPitchesEndpoint(request, logger, env);
+      return await handleTrendingPitchesEndpoint(request, sentry, env);
     }
     
     if (pitchType === 'public' || pathSegments.length === 2) {
-      return await handlePublicPitchesEndpoint(request, logger, env);
+      return await handlePublicPitchesEndpoint(request, sentry, env);
+    }
+    
+    if (pitchType === 'following') {
+      return await handleFollowingPitchesEndpoint(request, sentry, env);
     }
     
     // If it's a specific pitch ID, handle individual pitch
     if (pathSegments.length === 3 && !isNaN(Number(pitchType))) {
-      return await handleIndividualPitch(request, logger, env, Number(pitchType));
+      return await handleIndividualPitch(request, sentry, env, Number(pitchType));
     }
     
     // Fallback to proxy
     throw new Error('Unhandled pitches endpoint');
     
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'pitches' });
+    sentry.captureException(error as Error, { endpoint: 'pitches' });
     throw error;
   }
 }
 
 // Handle browse endpoints
-async function handleBrowseEndpoint(request: Request, logger: SentryLogger): Promise<Response> {
+async function handleBrowseEndpoint(request: Request, sentry: any): Promise<Response> {
   try {
     const url = new URL(request.url);
     const pathSegments = url.pathname.split('/').filter(Boolean);
@@ -554,7 +400,7 @@ async function handleBrowseEndpoint(request: Request, logger: SentryLogger): Pro
     const total = pitches.length;
     const paginatedPitches = pitches.slice(offset, offset + limit);
 
-    await logger.captureMessage('Browse endpoint accessed', 'info', {
+    sentry.captureMessage('Browse endpoint accessed', 'info', {
       browseType,
       total,
       offset,
@@ -589,7 +435,7 @@ async function handleBrowseEndpoint(request: Request, logger: SentryLogger): Pro
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'browse' });
+    sentry.captureException(error as Error, { endpoint: 'browse' });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'Browse service error', code: 'BROWSE_ERROR' } 
@@ -601,7 +447,7 @@ async function handleBrowseEndpoint(request: Request, logger: SentryLogger): Pro
 }
 
 // Handle new pitches endpoint
-async function handleNewPitchesEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleNewPitchesEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '4');
@@ -611,15 +457,16 @@ async function handleNewPitchesEndpoint(request: Request, logger: SentryLogger, 
     
     if (env.HYPERDRIVE) {
       try {
-        const sql = neon(env.HYPERDRIVE.connectionString);
-        const result = await sql`
-          SELECT id, title, description, genre, budget_range, status, 
-                 creator_id, view_count, like_count, created_at, updated_at, thumbnail
-          FROM pitches 
-          WHERE status = 'published'
-          ORDER BY created_at DESC 
-          LIMIT ${limit}
-        `;
+        const result = await withDatabase(env, async (sql) => {
+          return await sql`
+            SELECT id, title, description, genre, budget_range, status, 
+                   creator_id, view_count, like_count, created_at, updated_at, thumbnail
+            FROM pitches 
+            WHERE status = 'published'
+            ORDER BY created_at DESC 
+            LIMIT ${limit}
+          `;
+        }, sentry);
         
         if (result.length > 0) {
           pitches = result.map(row => ({
@@ -639,7 +486,7 @@ async function handleNewPitchesEndpoint(request: Request, logger: SentryLogger, 
           }));
         }
       } catch (dbError) {
-        await logger.captureError(dbError as Error, { context: 'new_pitches_db' });
+        sentry.captureException(dbError as Error, { context: 'new_pitches_db' });
       }
     }
     
@@ -651,7 +498,7 @@ async function handleNewPitchesEndpoint(request: Request, logger: SentryLogger, 
         .slice(0, limit);
     }
 
-    await logger.captureMessage('New pitches endpoint accessed', 'info', { count: pitches.length, limit });
+    sentry.captureMessage('New pitches endpoint accessed', 'info', { count: pitches.length, limit });
 
     return new Response(JSON.stringify({
       success: true,
@@ -662,7 +509,7 @@ async function handleNewPitchesEndpoint(request: Request, logger: SentryLogger, 
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'new_pitches' });
+    sentry.captureException(error as Error, { endpoint: 'new_pitches' });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'New pitches service error', code: 'NEW_PITCHES_ERROR' } 
@@ -674,7 +521,7 @@ async function handleNewPitchesEndpoint(request: Request, logger: SentryLogger, 
 }
 
 // Handle trending pitches endpoint  
-async function handleTrendingPitchesEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleTrendingPitchesEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '4');
@@ -684,15 +531,16 @@ async function handleTrendingPitchesEndpoint(request: Request, logger: SentryLog
     
     if (env.HYPERDRIVE) {
       try {
-        const sql = neon(env.HYPERDRIVE.connectionString);
-        const result = await sql`
-          SELECT id, title, description, genre, budget_range, status, 
-                 creator_id, view_count, like_count, created_at, updated_at, thumbnail
-          FROM pitches 
-          WHERE status = 'published' AND view_count > 100
-          ORDER BY (view_count + like_count * 5) DESC, created_at DESC
-          LIMIT ${limit}
-        `;
+        const result = await withDatabase(env, async (sql) => {
+          return await sql`
+            SELECT id, title, description, genre, budget_range, status, 
+                   creator_id, view_count, like_count, created_at, updated_at, thumbnail
+            FROM pitches 
+            WHERE status = 'published' AND view_count > 100
+            ORDER BY (view_count + like_count * 5) DESC, created_at DESC
+            LIMIT ${limit}
+          `;
+        }, sentry);
         
         if (result.length > 0) {
           pitches = result.map(row => ({
@@ -713,7 +561,7 @@ async function handleTrendingPitchesEndpoint(request: Request, logger: SentryLog
           }));
         }
       } catch (dbError) {
-        await logger.captureError(dbError as Error, { context: 'trending_pitches_db' });
+        sentry.captureException(dbError as Error, { context: 'trending_pitches_db' });
       }
     }
     
@@ -722,7 +570,7 @@ async function handleTrendingPitchesEndpoint(request: Request, logger: SentryLog
       pitches = generateBrowsePitches('trending').slice(0, limit);
     }
 
-    await logger.captureMessage('Trending pitches endpoint accessed', 'info', { count: pitches.length, limit });
+    sentry.captureMessage('Trending pitches endpoint accessed', 'info', { count: pitches.length, limit });
 
     return new Response(JSON.stringify({
       success: true,
@@ -733,7 +581,7 @@ async function handleTrendingPitchesEndpoint(request: Request, logger: SentryLog
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'trending_pitches' });
+    sentry.captureException(error as Error, { endpoint: 'trending_pitches' });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'Trending pitches service error', code: 'TRENDING_PITCHES_ERROR' } 
@@ -745,7 +593,7 @@ async function handleTrendingPitchesEndpoint(request: Request, logger: SentryLog
 }
 
 // Handle public pitches endpoint
-async function handlePublicPitchesEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handlePublicPitchesEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '20');
@@ -759,41 +607,41 @@ async function handlePublicPitchesEndpoint(request: Request, logger: SentryLogge
     
     if (env.HYPERDRIVE) {
       try {
-        const sql = neon(env.HYPERDRIVE.connectionString);
-        
-        // Build dynamic query based on filters
-        let baseQuery = `
-          SELECT id, title, description, genre, budget_range, status, 
-                 creator_id, view_count, like_count, created_at, updated_at, thumbnail
-          FROM pitches 
-          WHERE status = 'published'
-        `;
-        
-        let countQuery = `SELECT COUNT(*) as count FROM pitches WHERE status = 'published'`;
-        let queryParams: any[] = [];
-        let paramIndex = 1;
-        
-        if (genre) {
-          baseQuery += ` AND genre = $${paramIndex}`;
-          countQuery += ` AND genre = $${paramIndex}`;
-          queryParams.push(genre);
-          paramIndex++;
-        }
-        
-        if (status) {
-          baseQuery += ` AND status = $${paramIndex}`;
-          countQuery += ` AND status = $${paramIndex}`;
-          queryParams.push(status);
-          paramIndex++;
-        }
-        
-        baseQuery += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-        queryParams.push(limit, offset);
-        
-        const [result, countResult] = await Promise.all([
-          sql(baseQuery, queryParams),
-          sql(countQuery, queryParams.slice(0, -2)) // Remove limit and offset for count
-        ]);
+        const [result, countResult] = await withDatabase(env, async (sql) => {
+          // Build dynamic query based on filters
+          let baseQuery = `
+            SELECT id, title, description, genre, budget_range, status, 
+                   creator_id, view_count, like_count, created_at, updated_at, thumbnail
+            FROM pitches 
+            WHERE status = 'published'
+          `;
+          
+          let countQuery = `SELECT COUNT(*) as count FROM pitches WHERE status = 'published'`;
+          let queryParams: any[] = [];
+          let paramIndex = 1;
+          
+          if (genre) {
+            baseQuery += ` AND genre = $${paramIndex}`;
+            countQuery += ` AND genre = $${paramIndex}`;
+            queryParams.push(genre);
+            paramIndex++;
+          }
+          
+          if (status) {
+            baseQuery += ` AND status = $${paramIndex}`;
+            countQuery += ` AND status = $${paramIndex}`;
+            queryParams.push(status);
+            paramIndex++;
+          }
+          
+          baseQuery += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+          queryParams.push(limit, offset);
+          
+          return await Promise.all([
+            sql(baseQuery, queryParams),
+            sql(countQuery, queryParams.slice(0, -2)) // Remove limit and offset for count
+          ]);
+        }, sentry);
         
         if (result.length > 0) {
           pitches = result.map(row => ({
@@ -814,7 +662,7 @@ async function handlePublicPitchesEndpoint(request: Request, logger: SentryLogge
           total = countResult[0]?.count || 0;
         }
       } catch (dbError) {
-        await logger.captureError(dbError as Error, { context: 'public_pitches_db' });
+        sentry.captureException(dbError as Error, { context: 'public_pitches_db' });
       }
     }
     
@@ -825,7 +673,7 @@ async function handlePublicPitchesEndpoint(request: Request, logger: SentryLogge
       pitches = allPitches.slice(offset, offset + limit);
     }
 
-    await logger.captureMessage('Public pitches endpoint accessed', 'info', { 
+    sentry.captureMessage('Public pitches endpoint accessed', 'info', { 
       count: pitches.length, 
       total, 
       limit, 
@@ -851,7 +699,7 @@ async function handlePublicPitchesEndpoint(request: Request, logger: SentryLogge
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'public_pitches' });
+    sentry.captureException(error as Error, { endpoint: 'public_pitches' });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'Public pitches service error', code: 'PUBLIC_PITCHES_ERROR' } 
@@ -863,22 +711,23 @@ async function handlePublicPitchesEndpoint(request: Request, logger: SentryLogge
 }
 
 // Handle individual pitch endpoint
-async function handleIndividualPitch(request: Request, logger: SentryLogger, env: Env, pitchId: number): Promise<Response> {
+async function handleIndividualPitch(request: Request, sentry: any, env: Env, pitchId: number): Promise<Response> {
   try {
     // Try database first, fallback to demo data
     let pitch = null;
     
     if (env.HYPERDRIVE) {
       try {
-        const sql = neon(env.HYPERDRIVE.connectionString);
-        const result = await sql`
-          SELECT id, title, description, genre, budget_range, status, 
-                 creator_id, view_count, like_count, created_at, updated_at, 
-                 thumbnail, full_description, tags, target_audience, 
-                 production_timeline, funding_goal, current_funding
-          FROM pitches 
-          WHERE id = ${pitchId} AND status = 'published'
-        `;
+        const result = await withDatabase(env, async (sql) => {
+          return await sql`
+            SELECT id, title, description, genre, budget_range, status, 
+                   creator_id, view_count, like_count, created_at, updated_at, 
+                   thumbnail, full_description, tags, target_audience, 
+                   production_timeline, funding_goal, current_funding
+            FROM pitches 
+            WHERE id = ${pitchId} AND status = 'published'
+          `;
+        }, sentry);
         
         if (result.length > 0) {
           const row = result[0];
@@ -908,7 +757,7 @@ async function handleIndividualPitch(request: Request, logger: SentryLogger, env
           };
         }
       } catch (dbError) {
-        await logger.captureError(dbError as Error, { context: 'individual_pitch_db', pitchId });
+        sentry.captureException(dbError as Error, { context: 'individual_pitch_db', pitchId });
       }
     }
     
@@ -943,7 +792,7 @@ async function handleIndividualPitch(request: Request, logger: SentryLogger, env
       });
     }
 
-    await logger.captureMessage('Individual pitch endpoint accessed', 'info', { pitchId });
+    sentry.captureMessage('Individual pitch endpoint accessed', 'info', { pitchId });
 
     return new Response(JSON.stringify({
       success: true,
@@ -954,7 +803,7 @@ async function handleIndividualPitch(request: Request, logger: SentryLogger, env
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'individual_pitch', pitchId });
+    sentry.captureException(error as Error, { endpoint: 'individual_pitch', pitchId });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'Individual pitch service error', code: 'INDIVIDUAL_PITCH_ERROR' } 
@@ -965,8 +814,119 @@ async function handleIndividualPitch(request: Request, logger: SentryLogger, env
   }
 }
 
+// Handle following pitches endpoint
+async function handleFollowingPitchesEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
+  try {
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    };
+
+    // Extract auth payload to get user info
+    const authPayload = await extractAuthPayload(request, env);
+    
+    if (!authPayload) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Authentication required'
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const url = new URL(request.url);
+    const params = new URLSearchParams(url.search);
+    const limit = parseInt(params.get('limit') || '20');
+    const offset = parseInt(params.get('offset') || '0');
+
+    // Demo data for following pitches (pitches from creators the user follows)
+    const demoPitches = [
+      {
+        id: 1,
+        title: "Cyberpunk Noir Detective Story",
+        description: "A futuristic detective thriller set in neo-Tokyo with cutting-edge visuals and compelling characters.",
+        genre: "Thriller",
+        budget_range: "$1M-$5M",
+        status: "seeking_funding",
+        creator_id: 1,
+        creator_name: "Alex Creator",
+        creator_avatar: "/api/uploads/demo/alex-avatar.jpg",
+        view_count: 2847,
+        like_count: 284,
+        comment_count: 47,
+        created_at: "2024-11-01T10:00:00Z",
+        updated_at: "2024-11-01T15:30:00Z",
+        thumbnail: "/api/uploads/demo/cyberpunk-thumb.jpg",
+        featured: true,
+        trending: true,
+        following: true,
+        tags: ["cyberpunk", "noir", "detective", "sci-fi", "thriller"]
+      },
+      {
+        id: 7,
+        title: "Indie Romance Drama",
+        description: "A heartfelt independent romance exploring modern relationships in the digital age.",
+        genre: "Romance",
+        budget_range: "$500K-$1M",
+        status: "seeking_funding",
+        creator_id: 9,
+        creator_name: "Emma Stone", 
+        creator_avatar: "/api/uploads/demo/emma-avatar.jpg",
+        view_count: 1234,
+        like_count: 156,
+        comment_count: 23,
+        created_at: "2024-10-25T16:45:00Z",
+        updated_at: "2024-11-01T12:30:00Z",
+        thumbnail: "/api/uploads/demo/indie-romance-thumb.jpg",
+        featured: false,
+        trending: false,
+        following: true,
+        tags: ["romance", "indie", "drama", "relationships", "modern"]
+      }
+    ];
+
+    // Apply pagination
+    const paginatedPitches = demoPitches.slice(offset, offset + limit);
+
+    sentry.captureMessage('Following pitches endpoint accessed', 'info', { 
+      userId: authPayload.userId,
+      count: paginatedPitches.length, 
+      limit, 
+      offset 
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
+      pitches: paginatedPitches,
+      pagination: {
+        total: demoPitches.length,
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        offset,
+        has_next: offset + limit < demoPitches.length,
+        has_prev: offset > 0
+      }
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+
+  } catch (error) {
+    sentry.captureException(error as Error, { endpoint: 'following_pitches' });
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: { message: 'Following pitches service error', code: 'FOLLOWING_PITCHES_ERROR' } 
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+  }
+}
+
 // Proxy to existing backend for unhandled routes
-async function proxyToBackend(request: Request, logger: SentryLogger): Promise<Response> {
+async function proxyToBackend(request: Request, sentry: any): Promise<Response> {
   try {
     // Proxy to Deno Deploy backend
     const backendUrl = 'https://pitchey-backend-fresh.deno.dev';
@@ -993,7 +953,7 @@ async function proxyToBackend(request: Request, logger: SentryLogger): Promise<R
     });
     
   } catch (error) {
-    await logger.captureError(error as Error, { 
+    sentry.captureException(error as Error, { 
       endpoint: 'proxy',
       url: request.url 
     });
@@ -1009,15 +969,15 @@ async function proxyToBackend(request: Request, logger: SentryLogger): Promise<R
 }
 
 // Handle user endpoints
-async function handleUserEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleUserEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
-    // Initialize database connection
+    // Initialize database connection using pool
     let db = null;
     if (env.HYPERDRIVE) {
-      db = neon(env.HYPERDRIVE.connectionString);
+      db = dbPool.getConnection(env);
     }
     
-    const userHandler = new UserEndpointsHandler(env, db, logger);
+    const userHandler = new UserEndpointsHandler(env, db, sentry);
     
     // Extract user auth if present (simplified for now)
     let userAuth = null;
@@ -1051,7 +1011,7 @@ async function handleUserEndpoint(request: Request, logger: SentryLogger, env: E
     return response;
     
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'user', error: (error as Error).message });
+    sentry.captureException(error as Error, { endpoint: 'user', error: (error as Error).message });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'User service error', code: 'USER_ERROR', details: (error as Error).message } 
@@ -1063,14 +1023,14 @@ async function handleUserEndpoint(request: Request, logger: SentryLogger, env: E
 }
 
 // Handle analytics endpoints (including dashboards)  
-async function handleAnalyticsEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleAnalyticsEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     let db = null;
     if (env.HYPERDRIVE) {
-      db = neon(env.HYPERDRIVE.connectionString);
+      db = dbPool.getConnection(env);
     }
     
-    const analyticsHandler = new AnalyticsEndpointsHandler(env, db, logger);
+    const analyticsHandler = new AnalyticsEndpointsHandler(env, db, sentry);
     
     // Extract user auth if present (same pattern as user endpoints)
     let userAuth = null;
@@ -1104,7 +1064,7 @@ async function handleAnalyticsEndpoint(request: Request, logger: SentryLogger, e
     return response;
     
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'analytics', error: (error as Error).message });
+    sentry.captureException(error as Error, { endpoint: 'analytics', error: (error as Error).message });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'Analytics service error', code: 'ANALYTICS_ERROR', details: (error as Error).message } 
@@ -1116,7 +1076,7 @@ async function handleAnalyticsEndpoint(request: Request, logger: SentryLogger, e
 }
 
 // Handle NDA endpoints
-async function handleNDAEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleNDAEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const url = new URL(request.url);
@@ -1213,7 +1173,7 @@ async function handleNDAEndpoint(request: Request, logger: SentryLogger, env: En
     }
     
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'nda' });
+    sentry.captureException(error as Error, { endpoint: 'nda' });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'NDA service error', code: 'NDA_ERROR' } 
@@ -1225,14 +1185,14 @@ async function handleNDAEndpoint(request: Request, logger: SentryLogger, env: En
 }
 
 // Handle search endpoints
-async function handleSearchEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleSearchEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     let db = null;
     if (env.HYPERDRIVE) {
-      db = neon(env.HYPERDRIVE.connectionString);
+      db = dbPool.getConnection(env);
     }
     
-    const searchHandler = new SearchEndpointsHandler(env, db, logger);
+    const searchHandler = new SearchEndpointsHandler(env, db, sentry);
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -1254,7 +1214,7 @@ async function handleSearchEndpoint(request: Request, logger: SentryLogger, env:
     });
     
   } catch (error) {
-    await logger.captureError(error as Error, { endpoint: 'search' });
+    sentry.captureException(error as Error, { endpoint: 'search' });
     return new Response(JSON.stringify({ 
       success: false, 
       error: { message: 'Search service error', code: 'SEARCH_ERROR' } 
@@ -1265,7 +1225,7 @@ async function handleSearchEndpoint(request: Request, logger: SentryLogger, env:
   }
 }
 
-async function handleInvestmentEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleInvestmentEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const url = new URL(request.url);
@@ -1273,10 +1233,11 @@ async function handleInvestmentEndpoint(request: Request, logger: SentryLogger, 
     const path = '/' + pathSegments.slice(1).join('/'); // Remove 'api' prefix
     const method = request.method;
 
-    const handler = new InvestmentEndpointsHandler(env.HYPERDRIVE.connectionString, logger);
+    const db = dbPool.getConnection(env);
+    const handler = new InvestmentEndpointsHandler(env, db, sentry);
     return await handler.handleInvestmentRequest(request, path, method, authPayload);
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleInvestmentEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleInvestmentEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1284,7 +1245,7 @@ async function handleInvestmentEndpoint(request: Request, logger: SentryLogger, 
   }
 }
 
-async function handleMessagingEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleMessagingEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const url = new URL(request.url);
@@ -1292,10 +1253,11 @@ async function handleMessagingEndpoint(request: Request, logger: SentryLogger, e
     const path = '/' + pathSegments.slice(1).join('/'); // Remove 'api' prefix
     const method = request.method;
 
-    const handler = new MessagingEndpointsHandler(env.HYPERDRIVE.connectionString, logger);
+    const db = dbPool.getConnection(env);
+    const handler = new MessagingEndpointsHandler(env, db, sentry);
     return await handler.handleMessagingRequest(request, path, method, authPayload);
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleMessagingEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleMessagingEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1303,7 +1265,7 @@ async function handleMessagingEndpoint(request: Request, logger: SentryLogger, e
   }
 }
 
-async function handleUploadEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleUploadEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const url = new URL(request.url);
@@ -1311,10 +1273,11 @@ async function handleUploadEndpoint(request: Request, logger: SentryLogger, env:
     const path = '/' + pathSegments.slice(1).join('/'); // Remove 'api' prefix
     const method = request.method;
 
-    const handler = new UploadEndpointsHandler(env.HYPERDRIVE.connectionString, logger);
+    const db = dbPool.getConnection(env);
+    const handler = new UploadEndpointsHandler(env, db, sentry);
     return await handler.handleUploadRequest(request, path, method, authPayload);
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleUploadEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleUploadEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1322,7 +1285,7 @@ async function handleUploadEndpoint(request: Request, logger: SentryLogger, env:
   }
 }
 
-async function handleAdminEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleAdminEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1331,10 +1294,11 @@ async function handleAdminEndpoint(request: Request, logger: SentryLogger, env: 
       'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     };
 
-    const handler = new AdminEndpointsHandler(env.HYPERDRIVE.connectionString, logger);
+    const db = dbPool.getConnection(env);
+    const handler = new AdminEndpointsHandler(env, db, sentry);
     return await handler.handleRequest(request, corsHeaders, authPayload);
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleAdminEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleAdminEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1381,7 +1345,7 @@ async function extractAuthPayload(request: Request, env: Env): Promise<any> {
 }
 
 // Handle profile endpoints
-async function handleProfileEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleProfileEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1455,7 +1419,7 @@ async function handleProfileEndpoint(request: Request, logger: SentryLogger, env
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleProfileEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleProfileEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1464,7 +1428,7 @@ async function handleProfileEndpoint(request: Request, logger: SentryLogger, env
 }
 
 // Handle follows endpoints
-async function handleFollowsEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleFollowsEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1521,7 +1485,7 @@ async function handleFollowsEndpoint(request: Request, logger: SentryLogger, env
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleFollowsEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleFollowsEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1530,7 +1494,7 @@ async function handleFollowsEndpoint(request: Request, logger: SentryLogger, env
 }
 
 // Handle payments endpoints
-async function handlePaymentsEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handlePaymentsEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1600,7 +1564,7 @@ async function handlePaymentsEndpoint(request: Request, logger: SentryLogger, en
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handlePaymentsEndpoint' });
+    sentry.captureException(error as Error, { context: 'handlePaymentsEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1609,7 +1573,7 @@ async function handlePaymentsEndpoint(request: Request, logger: SentryLogger, en
 }
 
 // Handle notifications endpoints
-async function handleNotificationsEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleNotificationsEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1681,7 +1645,7 @@ async function handleNotificationsEndpoint(request: Request, logger: SentryLogge
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleNotificationsEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleNotificationsEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1690,7 +1654,7 @@ async function handleNotificationsEndpoint(request: Request, logger: SentryLogge
 }
 
 // Handle creator dashboard endpoints
-async function handleCreatorDashboardEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleCreatorDashboardEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1768,7 +1732,7 @@ async function handleCreatorDashboardEndpoint(request: Request, logger: SentryLo
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleCreatorDashboardEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleCreatorDashboardEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1776,7 +1740,7 @@ async function handleCreatorDashboardEndpoint(request: Request, logger: SentryLo
   }
 }
 
-async function handleInvestorDashboardEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleInvestorDashboardEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1850,7 +1814,7 @@ async function handleInvestorDashboardEndpoint(request: Request, logger: SentryL
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleInvestorDashboardEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleInvestorDashboardEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1858,7 +1822,7 @@ async function handleInvestorDashboardEndpoint(request: Request, logger: SentryL
   }
 }
 
-async function handleProductionDashboardEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleProductionDashboardEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const authPayload = await extractAuthPayload(request, env);
     const corsHeaders = {
@@ -1934,7 +1898,7 @@ async function handleProductionDashboardEndpoint(request: Request, logger: Sentr
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleProductionDashboardEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleProductionDashboardEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1943,7 +1907,7 @@ async function handleProductionDashboardEndpoint(request: Request, logger: Sentr
 }
 
 // Handle alerts endpoints
-async function handleAlertsEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleAlertsEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
@@ -2009,7 +1973,7 @@ async function handleAlertsEndpoint(request: Request, logger: SentryLogger, env:
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleAlertsEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleAlertsEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -2018,7 +1982,7 @@ async function handleAlertsEndpoint(request: Request, logger: SentryLogger, env:
 }
 
 // Handle filters endpoints
-async function handleFiltersEndpoint(request: Request, logger: SentryLogger, env: Env): Promise<Response> {
+async function handleFiltersEndpoint(request: Request, sentry: any, env: Env): Promise<Response> {
   try {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
@@ -2089,7 +2053,7 @@ async function handleFiltersEndpoint(request: Request, logger: SentryLogger, env
     });
 
   } catch (error) {
-    await logger.captureError(error as Error, { context: 'handleFiltersEndpoint' });
+    sentry.captureException(error as Error, { context: 'handleFiltersEndpoint' });
     return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -2100,7 +2064,25 @@ async function handleFiltersEndpoint(request: Request, logger: SentryLogger, env
 // Main Worker
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const logger = new SentryLogger(env);
+    // Initialize Sentry with Toucan
+    const sentry = new Toucan({
+      dsn: env.SENTRY_DSN,
+      context: ctx,
+      request,
+      environment: env.SENTRY_ENVIRONMENT || 'production',
+      release: env.SENTRY_RELEASE || 'unified-worker-v1.6-connection-pool',
+      tracesSampleRate: 1.0,
+    });
+    
+    // Initialize database pool (singleton pattern - only happens once per Worker lifetime)
+    try {
+      dbPool.initialize(env, sentry);
+    } catch (initError) {
+      console.error('Failed to initialize database pool:', initError);
+      sentry.captureException(initError as Error, {
+        tags: { operation: 'database-pool-init' }
+      });
+    }
     
     try {
       // Handle CORS preflight
@@ -2114,335 +2096,382 @@ export default {
       const url = new URL(request.url);
       const pathSegments = url.pathname.split('/').filter(Boolean);
 
-      // Handle token validation directly first (before auth module)
-      if (pathSegments[0] === 'api' && url.pathname === '/api/validate-token' && (request.method === 'GET' || request.method === 'POST')) {
-        await logger.captureMessage('Handling validate-token directly', 'info', {
+      // Handle health check endpoint
+      if (url.pathname === '/api/health') {
+        try {
+          // Test database connection via pooled connection
+          const isConnected = await dbPool.testConnection(env);
+          
+          // Use withDatabase pattern for proper tagged template literal syntax
+          const userCount = await withDatabase(env, async (sql) => {
+            const result = await sql`SELECT COUNT(*) as count FROM users`;
+            return parseInt(result[0]?.count || '0');
+          }, sentry);
+          
+          return new Response(JSON.stringify({
+            status: 'healthy',
+            database: isConnected ? 'connected' : 'disconnected',
+            users: userCount,
+            timestamp: new Date().toISOString(),
+            environment: 'cloudflare-worker',
+            hyperdrive: true,
+            poolStats: dbPool.getStats()
+          }), {
+            status: 200,
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        } catch (error) {
+          // Log to Sentry with proper context
+          sentry.captureException(error, {
+            tags: { endpoint: 'health-check' },
+            extra: { 
+              hyperdriveAvailable: !!env.HYPERDRIVE,
+              errorMessage: (error as Error).message,
+              timestamp: new Date().toISOString()
+            }
+          });
+          
+          return new Response(JSON.stringify({
+            status: 'error',
+            database: 'disconnected',
+            error: (error as Error).message,
+            timestamp: new Date().toISOString(),
+            environment: 'cloudflare-worker',
+            sentryReported: true
+          }), {
+            status: 503,
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        }
+      }
+
+      // Check for special auth endpoints that don't follow /api/auth/ pattern
+      if (pathSegments[0] === 'api' && (pathSegments[1] === 'validate-token' || pathSegments[1] === 'refresh-token')) {
+        
+        sentry.captureMessage('Handling auth validation endpoint through auth module', 'info', {
           path: url.pathname,
           method: request.method
         });
         
-        const authHeader = request.headers.get('Authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: 'Authorization header required'
-          }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
-        const token = authHeader.substring(7);
-        const parts = token.split('.');
-        
-        if (parts.length !== 3) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: 'Invalid token format'
-          }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
-        try {
-          const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-          
-          // Check if token is expired
-          if (payload.exp < Math.floor(Date.now() / 1000)) {
-            return new Response(JSON.stringify({
-              success: false,
-              error: 'Token expired'
-            }), {
-              status: 401,
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
-          }
-
-          // Transform to expected format using payload data
-          const user = {
-            id: payload.userId || 1,
-            email: payload.email || 'demo@example.com',
-            userType: payload.userType || 'creator',
-            firstName: payload.firstName || (payload.userType === 'creator' ? 'Alex' : payload.userType === 'investor' ? 'Sarah' : 'Stellar'),
-            lastName: payload.lastName || (payload.userType === 'creator' ? 'Creator' : payload.userType === 'investor' ? 'Investor' : 'Production'),
-            companyName: payload.companyName || (payload.userType === 'creator' ? 'Indie Film Works' : payload.userType === 'investor' ? 'Capital Ventures' : 'Stellar Studios'),
-            displayName: payload.displayName || `${payload.firstName || (payload.userType === 'creator' ? 'Alex' : payload.userType === 'investor' ? 'Sarah' : 'Stellar')} ${payload.lastName || (payload.userType === 'creator' ? 'Creator' : payload.userType === 'investor' ? 'Investor' : 'Production')}`,
-            isActive: true,
-            isVerified: true
-          };
-
-          return new Response(JSON.stringify({
-            success: true,
-            user: user,
-            exp: payload.exp
-          }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-
-        } catch (error) {
-          await logger.captureError(error as Error, { context: 'validate_token_direct' });
-          return new Response(JSON.stringify({
-            success: false,
-            error: 'Token validation failed'
-          }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
+        return await handleAuthEndpoint(request, sentry, env);
       }
 
       // Check if this is an auth endpoint that we need to handle
       if (pathSegments[0] === 'api' && pathSegments[1] === 'auth') {
         
-        await logger.captureMessage('Handling auth endpoint locally', 'info', {
+        sentry.captureMessage('Handling auth endpoint locally', 'info', {
           path: url.pathname,
           method: request.method
         });
         
-        return await handleAuthEndpoint(request, logger, env);
+        return await handleAuthEndpoint(request, sentry, env);
       }
 
       // Check if this is a pitches endpoint that we need to handle
       if (pathSegments[0] === 'api' && pathSegments[1] === 'pitches') {
         
-        await logger.captureMessage('Handling pitches endpoint locally', 'info', {
+        sentry.captureMessage('Handling pitches endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handlePitchesEndpoint(request, logger, env);
+        return await handlePitchesEndpoint(request, sentry, env);
       }
 
       // Check if this is a user endpoint that we need to handle
       if (pathSegments[0] === 'api' && (pathSegments[1] === 'user' || pathSegments[1] === 'users')) {
         
-        await logger.captureMessage('Handling user endpoint locally', 'info', {
+        sentry.captureMessage('Handling user endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleUserEndpoint(request, logger, env);
+        return await handleUserEndpoint(request, sentry, env);
       }
 
       // Check if this is a dashboard endpoint (analytics) - but not creator/investor/production specific ones
       if (pathSegments[0] === 'api' && pathSegments[2] === 'dashboard' && 
           pathSegments[1] !== 'creator' && pathSegments[1] !== 'investor' && pathSegments[1] !== 'production') {
         
-        await logger.captureMessage('Handling dashboard endpoint locally', 'info', {
+        sentry.captureMessage('Handling dashboard endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleAnalyticsEndpoint(request, logger, env);
+        return await handleAnalyticsEndpoint(request, sentry, env);
       }
 
       // Check if this is an analytics endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'analytics') {
         
-        await logger.captureMessage('Handling analytics endpoint locally', 'info', {
+        sentry.captureMessage('Handling analytics endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleAnalyticsEndpoint(request, logger, env);
+        return await handleAnalyticsEndpoint(request, sentry, env);
       }
 
       // Check if this is an NDA endpoint
       if (pathSegments[0] === 'api' && (pathSegments[1] === 'nda' || pathSegments[1] === 'ndas')) {
         
-        await logger.captureMessage('Handling NDA endpoint locally', 'info', {
+        sentry.captureMessage('Handling NDA endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleNDAEndpoint(request, logger, env);
+        return await handleNDAEndpoint(request, sentry, env);
       }
 
       // Check if this is a search endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'search') {
         
-        await logger.captureMessage('Handling search endpoint locally', 'info', {
+        sentry.captureMessage('Handling search endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleSearchEndpoint(request, logger, env);
+        return await handleSearchEndpoint(request, sentry, env);
       }
 
       // Check if this is an investment endpoint
       if (pathSegments[0] === 'api' && (pathSegments[1] === 'investment' || pathSegments[1] === 'investments' || pathSegments[1] === 'investor')) {
         
-        await logger.captureMessage('Handling investment endpoint locally', 'info', {
+        sentry.captureMessage('Handling investment endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleInvestmentEndpoint(request, logger, env);
+        return await handleInvestmentEndpoint(request, sentry, env);
       }
 
       // Check if this is a messaging endpoint
       if (pathSegments[0] === 'api' && (pathSegments[1] === 'messages' || pathSegments[1] === 'messaging' || pathSegments[1] === 'conversations')) {
         
-        await logger.captureMessage('Handling messaging endpoint locally', 'info', {
+        sentry.captureMessage('Handling messaging endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleMessagingEndpoint(request, logger, env);
+        return await handleMessagingEndpoint(request, sentry, env);
       }
 
       // Check if this is an upload/file endpoint
       if (pathSegments[0] === 'api' && (pathSegments[1] === 'upload' || pathSegments[1] === 'uploads' || pathSegments[1] === 'files')) {
         
-        await logger.captureMessage('Handling upload endpoint locally', 'info', {
+        sentry.captureMessage('Handling upload endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleUploadEndpoint(request, logger, env);
+        return await handleUploadEndpoint(request, sentry, env);
       }
 
       // Check if this is an admin endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'admin') {
         
-        await logger.captureMessage('Handling admin endpoint locally', 'info', {
+        sentry.captureMessage('Handling admin endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleAdminEndpoint(request, logger, env);
+        return await handleAdminEndpoint(request, sentry, env);
       }
 
       // Check if this is a profile endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'profile') {
         
-        await logger.captureMessage('Handling profile endpoint locally', 'info', {
+        sentry.captureMessage('Handling profile endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleProfileEndpoint(request, logger, env);
+        return await handleProfileEndpoint(request, sentry, env);
       }
 
       // Check if this is a follows endpoint
       if (pathSegments[0] === 'api' && (pathSegments[1] === 'follows' || pathSegments[1] === 'follow')) {
         
-        await logger.captureMessage('Handling follows endpoint locally', 'info', {
+        sentry.captureMessage('Handling follows endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleFollowsEndpoint(request, logger, env);
+        return await handleFollowsEndpoint(request, sentry, env);
       }
 
       // Check if this is a payments endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'payments') {
         
-        await logger.captureMessage('Handling payments endpoint locally', 'info', {
+        sentry.captureMessage('Handling payments endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handlePaymentsEndpoint(request, logger, env);
+        return await handlePaymentsEndpoint(request, sentry, env);
       }
 
       // Check if this is a notifications endpoint
       if (pathSegments[0] === 'api' && (pathSegments[1] === 'notifications' || pathSegments[1] === 'notification')) {
         
-        await logger.captureMessage('Handling notifications endpoint locally', 'info', {
+        sentry.captureMessage('Handling notifications endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleNotificationsEndpoint(request, logger, env);
+        return await handleNotificationsEndpoint(request, sentry, env);
       }
 
       // Check if this is an alerts endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'alerts') {
         
-        await logger.captureMessage('Handling alerts endpoint locally', 'info', {
+        sentry.captureMessage('Handling alerts endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleAlertsEndpoint(request, logger, env);
+        return await handleAlertsEndpoint(request, sentry, env);
       }
 
       // Check if this is a filters endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'filters') {
         
-        await logger.captureMessage('Handling filters endpoint locally', 'info', {
+        sentry.captureMessage('Handling filters endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleFiltersEndpoint(request, logger, env);
+        return await handleFiltersEndpoint(request, sentry, env);
       }
 
       // Check if this is a creator-specific dashboard endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'creator' && pathSegments[2] === 'dashboard') {
         
-        await logger.captureMessage('Handling creator dashboard endpoint locally', 'info', {
+        sentry.captureMessage('Handling creator dashboard endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleCreatorDashboardEndpoint(request, logger, env);
+        return await handleCreatorDashboardEndpoint(request, sentry, env);
       }
 
       // Check if this is an investor-specific dashboard endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'investor' && pathSegments[2] === 'dashboard') {
         
-        await logger.captureMessage('Handling investor dashboard endpoint locally', 'info', {
+        sentry.captureMessage('Handling investor dashboard endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleInvestorDashboardEndpoint(request, logger, env);
+        return await handleInvestorDashboardEndpoint(request, sentry, env);
       }
 
       // Check if this is a production-specific dashboard endpoint
       if (pathSegments[0] === 'api' && pathSegments[1] === 'production' && pathSegments[2] === 'dashboard') {
         
-        await logger.captureMessage('Handling production dashboard endpoint locally', 'info', {
+        sentry.captureMessage('Handling production dashboard endpoint locally', 'info', {
           path: url.pathname,
           method: request.method,
           segments: pathSegments
         });
         
-        return await handleProductionDashboardEndpoint(request, logger, env);
+        return await handleProductionDashboardEndpoint(request, sentry, env);
       }
 
-      // For all other endpoints, proxy to existing backend
-      await logger.captureMessage('Proxying to backend', 'info', {
+      // Handle non-API requests with a proper default response
+      if (!url.pathname.startsWith('/api/')) {
+        
+        sentry.captureMessage('Non-API request received', 'info', {
+          path: url.pathname,
+          method: request.method,
+          userAgent: request.headers.get('User-Agent') || 'unknown'
+        });
+        
+        // Return a helpful default response for root and non-API paths
+        if (url.pathname === '/' || url.pathname === '') {
+          return new Response(JSON.stringify({
+            service: 'Pitchey API Gateway',
+            status: 'operational',
+            version: 'v3.0',
+            description: 'Movie pitch platform API - Use /api/ endpoints for data access',
+            endpoints: {
+              health: '/api/health',
+              pitches: '/api/pitches',
+              auth: '/api/auth/*',
+              users: '/api/users/*'
+            },
+            frontend: 'https://pitchey.pages.dev',
+            documentation: 'https://docs.pitchey.com',
+            timestamp: new Date().toISOString()
+          }), {
+            status: 200,
+            headers: { 
+              'Content-Type': 'application/json',
+              'Cache-Control': 'public, max-age=3600',
+              ...corsHeaders 
+            }
+          });
+        }
+        
+        // For other non-API paths, return a 404 with helpful info
+        return new Response(JSON.stringify({
+          success: false,
+          error: {
+            message: 'Route not found',
+            code: 'NOT_FOUND',
+            path: url.pathname,
+            suggestion: 'This is an API-only service. Use /api/ endpoints or visit https://pitchey.pages.dev for the web application.',
+            availableEndpoints: [
+              '/api/health',
+              '/api/pitches',
+              '/api/auth/creator/login',
+              '/api/auth/investor/login'
+            ]
+          },
+          timestamp: new Date().toISOString()
+        }), {
+          status: 404,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          }
+        });
+      }
+      
+      // For API endpoints that aren't handled above, proxy to existing backend
+      sentry.captureMessage('Proxying API request to backend', 'info', {
         path: url.pathname,
         method: request.method
       });
       
-      return await proxyToBackend(request, logger);
+      return await proxyToBackend(request, sentry);
       
     } catch (error) {
-      await logger.captureError(error as Error, { 
+      sentry.captureException(error as Error, { 
         url: request.url,
         method: request.method 
       });
