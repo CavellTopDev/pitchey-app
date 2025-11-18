@@ -224,7 +224,7 @@ async function handleAuthEndpoint(request: Request, sentry: any, env: Env): Prom
         db = dbPool.getConnection(env);
       }
       
-      const authHandler = new AuthEndpointsHandler(db, sentry, env);
+      const authHandler = new AuthEndpointsHandler(env, db, sentry);
       const response = await authHandler.handleAuthEndpoints(request, path, corsHeaders);
       
       if (response) {

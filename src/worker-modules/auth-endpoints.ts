@@ -3,17 +3,23 @@
  * Handles all authentication, registration, and user profile operations
  */
 
-import { SentryLogger } from '../types/worker-types';
-
 export class AuthEndpointsHandler {
-  private db: any;
-  private sentry: SentryLogger;
-  private env: any;
-  
-  constructor(db: any, sentry: SentryLogger, env: any) {
-    this.db = db;
-    this.sentry = sentry;
-    this.env = env;
+  constructor(
+    private env: any,
+    private db: any,
+    private sentry: any
+  ) {}
+
+  async handleRequest(request: Request, corsHeaders: Record<string, string>, userAuth?: any): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    return this.handleAuthEndpoints(request, path, corsHeaders) || new Response(JSON.stringify({
+      success: false,
+      error: { message: 'Auth endpoint not found', code: 'NOT_FOUND' }
+    }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
   }
 
   async handleAuthEndpoints(request: Request, path: string, corsHeaders: Record<string, string>): Promise<Response | null> {
@@ -120,7 +126,7 @@ export class AuthEndpointsHandler {
       return null; // Not an auth endpoint
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, {
+      await this.sentry.captureException(error as Error, {
         operation: 'auth_endpoints',
         path,
         method
@@ -172,7 +178,7 @@ export class AuthEndpointsHandler {
             });
           }
         } catch (dbError) {
-          await this.sentry.captureError(dbError as Error, {
+          await this.sentry.captureException(dbError as Error, {
             operation: 'creator_login_db',
             email
           });
@@ -229,7 +235,7 @@ export class AuthEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, {
+      await this.sentry.captureException(error as Error, {
         operation: 'creator_login',
         path: '/api/auth/creator/login'
       });
@@ -278,7 +284,7 @@ export class AuthEndpointsHandler {
             });
           }
         } catch (dbError) {
-          await this.sentry.captureError(dbError as Error, {
+          await this.sentry.captureException(dbError as Error, {
             operation: 'investor_login_db',
             email
           });
@@ -335,7 +341,7 @@ export class AuthEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, {
+      await this.sentry.captureException(error as Error, {
         operation: 'investor_login'
       });
 
@@ -383,7 +389,7 @@ export class AuthEndpointsHandler {
             });
           }
         } catch (dbError) {
-          await this.sentry.captureError(dbError as Error, {
+          await this.sentry.captureException(dbError as Error, {
             operation: 'production_login_db',
             email
           });
@@ -440,7 +446,7 @@ export class AuthEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, {
+      await this.sentry.captureException(error as Error, {
         operation: 'production_login'
       });
 
@@ -516,7 +522,7 @@ export class AuthEndpointsHandler {
       }
 
       // Log payload for debugging
-      await this.sentry.captureMessage('Token validation payload', 'info', { payload });
+      this.sentry.captureMessage('Token validation payload', 'debug', { extra: { payload } });
 
       // Transform payload to match frontend expectations
       const userResponse = {
@@ -541,7 +547,7 @@ export class AuthEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, {
+      await this.sentry.captureException(error as Error, {
         operation: 'validate_token'
       });
 

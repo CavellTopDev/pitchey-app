@@ -42,15 +42,15 @@ export class UnifiedWorkerHandler {
     this.corsHeaders = config.corsHeaders;
 
     // Initialize all endpoint handlers
-    this.authHandler = new AuthEndpointsHandler(this.logger, this.env, this.db);
-    this.userHandler = new UserEndpointsHandler(this.logger, this.env, this.db);
-    this.ndaHandler = new NDAEndpointsHandler(this.logger, this.env, this.db);
-    this.investmentHandler = new InvestmentEndpointsHandler(this.logger, this.env, this.db);
-    this.messagingHandler = new MessagingEndpointsHandler(this.logger, this.env, this.db);
-    this.analyticsHandler = new AnalyticsEndpointsHandler(this.logger, this.env, this.db);
-    this.uploadHandler = new UploadEndpointsHandler(this.logger, this.env, this.db);
-    this.searchHandler = new SearchEndpointsHandler(this.logger, this.env, this.db);
-    this.adminHandler = new AdminEndpointsHandler(this.logger, this.env, this.db);
+    this.authHandler = new AuthEndpointsHandler(this.env, this.db, this.logger);
+    this.userHandler = new UserEndpointsHandler(this.env, this.db, this.logger);
+    this.ndaHandler = new NDAEndpointsHandler(this.env, this.db, this.logger);
+    this.investmentHandler = new InvestmentEndpointsHandler(this.env, this.db, this.logger);
+    this.messagingHandler = new MessagingEndpointsHandler(this.env, this.db, this.logger);
+    this.analyticsHandler = new AnalyticsEndpointsHandler(this.env, this.db, this.logger);
+    this.uploadHandler = new UploadEndpointsHandler(this.env, this.db, this.logger);
+    this.searchHandler = new SearchEndpointsHandler(this.env, this.db, this.logger);
+    this.adminHandler = new AdminEndpointsHandler(this.env, this.db, this.logger);
   }
 
   async handleRequest(request: Request): Promise<Response> {
