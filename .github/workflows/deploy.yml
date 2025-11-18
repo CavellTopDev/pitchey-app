@@ -192,7 +192,7 @@ jobs:
         working-directory: frontend
         run: |
           cat > .env.production << 'EOF'
-          VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+          VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
           VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev/ws
           VITE_NODE_ENV=production
           EOF

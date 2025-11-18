@@ -3,7 +3,7 @@
  * Implements all user-related endpoints including profile management, settings, and account operations
  */
 
-import type { Env, DatabaseService, User, ApiResponse, AuthPayload, SentryLogger } from '../types/worker-types';
+import type { Env, DatabaseService, User, ApiResponse, AuthPayload, any } from '../types/worker-types';
 
 export interface ProfileUpdateInput {
   name?: string;
@@ -45,7 +45,7 @@ export class UserEndpointsHandler {
   constructor(
     private env: Env,
     private db: DatabaseService,
-    private sentry: SentryLogger
+    private sentry: any
   ) {}
 
   async handleUserRequest(request: Request, path: string, method: string, userAuth?: AuthPayload): Promise<Response> {
@@ -188,7 +188,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { path, method, userId: userAuth?.userId });
+      await this.sentry.captureException(error as Error, { path, method, userId: userAuth?.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Internal server error' } 
@@ -255,7 +255,7 @@ export class UserEndpointsHandler {
           };
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo fallback
@@ -379,7 +379,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      await this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch user profile' } 
@@ -429,7 +429,7 @@ export class UserEndpointsHandler {
           };
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId });
+        await this.sentry.captureException(dbError as Error, { userId });
       }
 
       // Demo fallback
@@ -515,7 +515,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId });
+      await this.sentry.captureException(error as Error, { userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch user' } 
@@ -565,7 +565,7 @@ export class UserEndpointsHandler {
           };
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { username });
+        await this.sentry.captureException(dbError as Error, { username });
       }
 
       // Demo fallback
@@ -630,7 +630,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { username });
+      await this.sentry.captureException(error as Error, { username });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch user by username' } 
@@ -732,7 +732,7 @@ export class UserEndpointsHandler {
           }
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo fallback
@@ -767,7 +767,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      await this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to update profile' } 
@@ -851,7 +851,7 @@ export class UserEndpointsHandler {
         total = countResults[0]?.total || 0;
 
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { query, userType });
+        await this.sentry.captureException(dbError as Error, { query, userType });
       }
 
       // Demo fallback
@@ -931,7 +931,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error);
+      await this.sentry.captureException(error as Error);
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to search users' } 
@@ -968,7 +968,7 @@ export class UserEndpointsHandler {
           };
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo fallback
@@ -994,7 +994,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      await this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch settings' } 
@@ -1063,7 +1063,7 @@ export class UserEndpointsHandler {
           success = true;
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo always succeeds
@@ -1080,7 +1080,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      await this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to update settings' } 
@@ -1127,7 +1127,7 @@ export class UserEndpointsHandler {
           success = true;
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo always succeeds (after validation)
@@ -1144,7 +1144,7 @@ export class UserEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      await this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to change password' } 
@@ -1388,7 +1388,7 @@ export class UserEndpointsHandler {
       });
       
     } catch (error) {
-      await this.sentry.captureError(error as Error, { 
+      await this.sentry.captureException(error as Error, { 
         context: 'handleGetUserPreferences',
         userAuth,
         path: request.url 
@@ -1422,7 +1422,7 @@ export class UserEndpointsHandler {
       });
       
     } catch (error) {
-      await this.sentry.captureError(error as Error, { 
+      await this.sentry.captureException(error as Error, { 
         context: 'handleUpdateUserPreferences',
         userAuth,
         path: request.url 

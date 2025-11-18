@@ -10,7 +10,7 @@ Pitchey uses a modern serverless architecture with edge computing for optimal pe
 | Service | URL | Description |
 |---------|-----|-------------|
 | **Frontend** | https://pitchey.pages.dev | React application (Cloudflare Pages) |
-| **Worker API** | https://pitchey-api-production.cavelltheleaddev.workers.dev | Edge API proxy (Cloudflare Workers) |
+| **Worker API** | https://pitchey-production.cavelltheleaddev.workers.dev | Unified API with Hyperdrive (Cloudflare Workers) |
 | **Backend API** | https://pitchey-backend-fresh.deno.dev | Full API implementation (Deno Deploy) |
 | **Database** | Neon PostgreSQL | Serverless PostgreSQL with Hyperdrive pooling |
 | **Cache** | Upstash Redis | Global distributed cache |

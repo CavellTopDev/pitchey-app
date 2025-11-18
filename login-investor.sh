@@ -8,7 +8,7 @@ NC='\033[0m'
 echo -e "${BLUE}Logging into Investor Portal...${NC}"
 
 # Get login token
-LOGIN_RESPONSE=$(curl -s -X POST "https://pitchey-api-production.cavelltheleaddev.workers.dev/api/auth/investor/login" \
+LOGIN_RESPONSE=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
 

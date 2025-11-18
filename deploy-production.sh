@@ -202,7 +202,7 @@ deploy_frontend() {
     # Build with production environment
     log INFO "Building frontend for production..."
     export NODE_ENV=production
-    export VITE_API_URL="${VITE_API_URL:-https://pitchey-api-production.cavelltheleaddev.workers.dev}"
+    export VITE_API_URL="${VITE_API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
     export VITE_WS_URL="${VITE_WS_URL:-wss://pitchey-api-production.cavelltheleaddev.workers.dev/ws}"
     
     if [ "$DRY_RUN" = true ]; then
@@ -278,7 +278,7 @@ deploy_worker() {
     
     # Verify worker deployment
     log INFO "Verifying worker deployment..."
-    local worker_url="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+    local worker_url="https://pitchey-production.cavelltheleaddev.workers.dev"
     local max_retries=20
     local retry_count=0
     
@@ -365,8 +365,8 @@ validate_deployment() {
     # Test critical endpoints
     local endpoints=(
         "https://pitchey.pages.dev"
-        "https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health"
-        "https://pitchey-api-production.cavelltheleaddev.workers.dev/api/pitches/trending"
+        "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+        "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending"
         "https://pitchey-backend-fresh.deno.dev/api/health"
     )
     
@@ -441,12 +441,12 @@ generate_report() {
 ## Endpoints
 
 - Frontend: https://pitchey.pages.dev
-- API Worker: https://pitchey-api-production.cavelltheleaddev.workers.dev
+- API Worker: https://pitchey-production.cavelltheleaddev.workers.dev
 - Backup API: https://pitchey-backend-fresh.deno.dev
 
 ## Health Checks
 
-$(for endpoint in "https://pitchey.pages.dev" "https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health"; do
+$(for endpoint in "https://pitchey.pages.dev" "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"; do
     if curl -sf "$endpoint" > /dev/null; then
         echo "- $endpoint: ✅ Healthy"
     else
@@ -527,7 +527,7 @@ main() {
         echo
         echo "🚀 Deployment Complete!"
         echo "Frontend: https://pitchey.pages.dev"
-        echo "API: https://pitchey-api-production.cavelltheleaddev.workers.dev"
+        echo "API: https://pitchey-production.cavelltheleaddev.workers.dev"
         echo
         echo "Next steps:"
         echo "1. Monitor application logs"

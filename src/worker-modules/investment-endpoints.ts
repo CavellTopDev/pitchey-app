@@ -3,7 +3,7 @@
  * Implements comprehensive investment tracking, portfolio management, and financial analytics
  */
 
-import type { Env, DatabaseService, User, ApiResponse, AuthPayload, SentryLogger } from '../types/worker-types';
+import type { Env, DatabaseService, User, ApiResponse, AuthPayload } from '../types/worker-types';
 
 export interface Investment {
   id: number;
@@ -85,7 +85,7 @@ export class InvestmentEndpointsHandler {
   constructor(
     private env: Env,
     private db: DatabaseService,
-    private sentry: SentryLogger
+    private sentry: any
   ) {}
 
   async handleInvestmentRequest(request: Request, path: string, method: string, userAuth?: AuthPayload): Promise<Response> {
@@ -106,7 +106,7 @@ export class InvestmentEndpointsHandler {
 
       // Routes requiring authentication
       if (!userAuth) {
-        await this.sentry.captureMessage(`Unauthorized access attempt to ${path}`, 'warning');
+        this.sentry.captureMessage(`Unauthorized access attempt to ${path}`, 'warning');
         return new Response(JSON.stringify({ 
           success: false, 
           error: { message: 'Authentication required' } 
@@ -117,121 +117,125 @@ export class InvestmentEndpointsHandler {
       }
 
       // Investor-specific endpoints
-      if (path === '/api/investor/portfolio/summary' && method === 'GET') {
+      if (path === '/investor/dashboard' && method === 'GET') {
+        return this.handleGetInvestorDashboard(request, corsHeaders, userAuth);
+      }
+
+      if (path === '/investor/portfolio/summary' && method === 'GET') {
         return this.handleGetInvestorPortfolio(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/investor/investments' && method === 'GET') {
+      if (path === '/investor/investments' && method === 'GET') {
         return this.handleGetInvestmentHistory(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/investment/recommendations' && method === 'GET') {
+      if (path === '/investment/recommendations' && method === 'GET') {
         return this.handleGetInvestmentOpportunities(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/investor/portfolio/analytics' && method === 'GET') {
+      if (path === '/investor/portfolio/analytics' && method === 'GET') {
         return this.handleGetPortfolioAnalytics(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/investor/preferences' && method === 'GET') {
+      if (path === '/investor/preferences' && method === 'GET') {
         return this.handleGetInvestmentPreferences(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/investor/preferences' && method === 'PUT') {
+      if (path === '/investor/preferences' && method === 'PUT') {
         return this.handleUpdateInvestmentPreferences(request, corsHeaders, userAuth);
       }
 
       // Creator-specific endpoints
-      if (path === '/api/creator/funding/overview' && method === 'GET') {
+      if (path === '/creator/funding/overview' && method === 'GET') {
         return this.handleGetCreatorFunding(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/creator/investors' && method === 'GET') {
+      if (path === '/creator/investors' && method === 'GET') {
         return this.handleGetCreatorInvestors(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/creator/funding/analytics' && method === 'GET') {
+      if (path === '/creator/funding/analytics' && method === 'GET') {
         return this.handleGetCreatorFundingAnalytics(request, corsHeaders, userAuth);
       }
 
       // Production-specific endpoints
-      if (path === '/api/production/investments/overview' && method === 'GET') {
+      if (path === '/production/investments/overview' && method === 'GET') {
         return this.handleGetProductionInvestments(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/production/partnerships' && method === 'GET') {
+      if (path === '/production/partnerships' && method === 'GET') {
         return this.handleGetProductionPartnerships(request, corsHeaders, userAuth);
       }
 
       // Investment operations
-      if (path === '/api/investments/create' && method === 'POST') {
+      if (path === '/investments/create' && method === 'POST') {
         return this.handleCreateInvestment(request, corsHeaders, userAuth);
       }
 
-      if (path.startsWith('/api/investments/') && path.endsWith('/update') && method === 'POST') {
+      if (path.startsWith('/investments/') && path.endsWith('/update') && method === 'POST') {
         const investmentId = parseInt(path.split('/')[3]);
         return this.handleUpdateInvestment(request, corsHeaders, userAuth, investmentId);
       }
 
-      if (path.startsWith('/api/investments/') && path.endsWith('/details') && method === 'GET') {
+      if (path.startsWith('/investments/') && path.endsWith('/details') && method === 'GET') {
         const investmentId = parseInt(path.split('/')[3]);
         return this.handleGetInvestmentDetails(request, corsHeaders, userAuth, investmentId);
       }
 
-      if (path.startsWith('/api/investments/') && path.endsWith('/cancel') && method === 'POST') {
+      if (path.startsWith('/investments/') && path.endsWith('/cancel') && method === 'POST') {
         const investmentId = parseInt(path.split('/')[3]);
         return this.handleCancelInvestment(request, corsHeaders, userAuth, investmentId);
       }
 
       // Payment and transaction endpoints
-      if (path === '/api/payments/create-intent' && method === 'POST') {
+      if (path === '/payments/create-intent' && method === 'POST') {
         return this.handleCreatePaymentIntent(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/payments/confirm' && method === 'POST') {
+      if (path === '/payments/confirm' && method === 'POST') {
         return this.handleConfirmPayment(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/payments/history' && method === 'GET') {
+      if (path === '/payments/history' && method === 'GET') {
         return this.handleGetPaymentHistory(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/payments/methods' && method === 'GET') {
+      if (path === '/payments/methods' && method === 'GET') {
         return this.handleGetPaymentMethods(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/payments/methods' && method === 'POST') {
+      if (path === '/payments/methods' && method === 'POST') {
         return this.handleAddPaymentMethod(request, corsHeaders, userAuth);
       }
 
-      if (path.startsWith('/api/payments/methods/') && method === 'DELETE') {
+      if (path.startsWith('/payments/methods/') && method === 'DELETE') {
         const methodId = parseInt(path.split('/')[4]);
         return this.handleRemovePaymentMethod(request, corsHeaders, userAuth, methodId);
       }
 
       // Financial reporting
-      if (path === '/api/financial/tax-documents' && method === 'GET') {
+      if (path === '/financial/tax-documents' && method === 'GET') {
         return this.handleGetTaxDocuments(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/financial/statements' && method === 'GET') {
+      if (path === '/financial/statements' && method === 'GET') {
         return this.handleGetFinancialStatements(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/financial/reports/generate' && method === 'POST') {
+      if (path === '/financial/reports/generate' && method === 'POST') {
         return this.handleGenerateFinancialReport(request, corsHeaders, userAuth);
       }
 
       // Analytics and metrics
-      if (path === '/api/analytics/investment-trends' && method === 'GET') {
+      if (path === '/analytics/investment-trends' && method === 'GET') {
         return this.handleGetInvestmentTrends(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/analytics/market-insights' && method === 'GET') {
+      if (path === '/analytics/market-insights' && method === 'GET') {
         return this.handleGetMarketInsights(request, corsHeaders, userAuth);
       }
 
-      if (path === '/api/analytics/roi-calculator' && method === 'POST') {
+      if (path === '/analytics/roi-calculator' && method === 'POST') {
         return this.handleCalculateROI(request, corsHeaders, userAuth);
       }
 
@@ -245,13 +249,89 @@ export class InvestmentEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { path, method, userId: userAuth?.userId });
+      this.sentry.captureException(error as Error, { path, method, userId: userAuth?.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Internal server error' } 
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+  }
+
+  private async handleGetInvestorDashboard(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload): Promise<Response> {
+    try {
+      // Investor dashboard combines portfolio summary, recent activity, and recommendations
+      const dashboardData = {
+        portfolio: {
+          totalInvested: 750000,
+          currentValue: 892000,
+          totalReturn: 142000,
+          returnPercentage: 18.9,
+          activeInvestments: 12,
+          completedInvestments: 8
+        },
+        recentActivity: [
+          {
+            id: 1,
+            type: 'investment',
+            title: 'Quantum Dreams',
+            amount: 50000,
+            status: 'active',
+            date: '2025-11-10',
+            creator: 'Alex Creator'
+          },
+          {
+            id: 2,
+            type: 'return',
+            title: 'Urban Legend',
+            amount: 25000,
+            status: 'completed',
+            date: '2025-11-05',
+            creator: 'Jane Director'
+          }
+        ],
+        recommendations: [
+          {
+            id: 3,
+            title: 'Midnight in Paris 2',
+            genre: 'Drama',
+            fundingGoal: 500000,
+            raised: 125000,
+            creator: 'Film Studio Inc',
+            matchScore: 94
+          }
+        ],
+        analytics: {
+          monthlyReturn: 2.3,
+          avgDealSize: 62500,
+          portfolioDiversification: {
+            drama: 40,
+            comedy: 25,
+            action: 20,
+            documentary: 15
+          }
+        }
+      };
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: dashboardData,
+        source: 'demo'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } catch (error) {
+      this.sentry.captureException(error as Error, { context: 'handleGetInvestorDashboard', userId: userAuth.userId });
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to load investor dashboard' }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
   }
@@ -293,7 +373,7 @@ export class InvestmentEndpointsHandler {
           };
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo fallback
@@ -322,7 +402,7 @@ export class InvestmentEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch investor portfolio' } 
@@ -413,7 +493,7 @@ export class InvestmentEndpointsHandler {
           };
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo fallback
@@ -497,7 +577,7 @@ export class InvestmentEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch investment history' } 
@@ -568,7 +648,7 @@ export class InvestmentEndpointsHandler {
           timeline: '12-18 months'
         }));
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo fallback
@@ -660,7 +740,7 @@ export class InvestmentEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch investment opportunities' } 
@@ -743,7 +823,7 @@ export class InvestmentEndpointsHandler {
           }
         }
       } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
+        this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
       // Demo fallback
@@ -792,7 +872,7 @@ export class InvestmentEndpointsHandler {
       });
 
     } catch (error) {
-      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      this.sentry.captureException(error as Error, { userId: userAuth.userId });
       return new Response(JSON.stringify({ 
         success: false, 
         error: { message: 'Failed to fetch creator funding data' } 

@@ -118,10 +118,14 @@ export interface Env {
   SENTRY_RELEASE?: string;
 }
 
+// DEPRECATED: This file creates connections per request causing CONNECTION_CLOSED errors
+// Use worker-browse-fix.ts with connection pooling instead
+
 // Database service using Neon's serverless driver with Hyperdrive
 class DatabaseService {
   private sql: any;
   private sentry: SentryLogger;
+  private static connectionPool: Map<string, any> = new Map();
   
   constructor(env: Env, sentry: SentryLogger) {
     if (!env.HYPERDRIVE) {
@@ -129,8 +133,20 @@ class DatabaseService {
     }
     
     this.sentry = sentry;
-    // Use Hyperdrive's optimized connection string with Neon
-    this.sql = neon(env.HYPERDRIVE.connectionString);
+    
+    // Use connection pooling to prevent CONNECTION_CLOSED errors
+    const connectionKey = env.HYPERDRIVE.connectionString;
+    if (DatabaseService.connectionPool.has(connectionKey)) {
+      this.sql = DatabaseService.connectionPool.get(connectionKey);
+      console.log('♻️ Reusing existing neon connection');
+    } else {
+      console.log('🆕 Creating new neon connection (DEPRECATED - use worker-browse-fix.ts)');
+      this.sql = neon(env.HYPERDRIVE.connectionString, {
+        fullResults: false,
+        arrayMode: false,
+      });
+      DatabaseService.connectionPool.set(connectionKey, this.sql);
+    }
   }
   
   async query(query: string, params: any[] = []): Promise<any[]> {

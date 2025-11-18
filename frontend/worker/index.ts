@@ -2436,8 +2436,9 @@ const workerHandler = {
         // Forward the request to the backend
         const backendResponse = await fetch(modifiedRequest);
         
-        // Check if response is valid with comprehensive null checking
+        // Comprehensive null-safety checks for backendResponse
         if (!backendResponse || typeof backendResponse !== 'object') {
+          console.error('Backend response is null or invalid:', backendResponse);
           throw new Error('Backend response is null or invalid');
         }
         
@@ -2445,10 +2446,19 @@ const workerHandler = {
         const status = backendResponse?.status ?? 500;
         const statusText = backendResponse?.statusText ?? 'Internal Server Error';
         
-        // Safely get response body
+        // Safely get response body with enhanced null checking
         let responseBody: string;
         try {
-          responseBody = await backendResponse?.text() ?? '';
+          // Use optional chaining and null coalescing for safe access
+          if (backendResponse?.text && typeof backendResponse.text === 'function') {
+            responseBody = await backendResponse.text() ?? '';
+          } else {
+            console.error('Backend response missing text() method or not a function');
+            responseBody = JSON.stringify({
+              success: false,
+              error: 'Invalid backend response format'
+            });
+          }
         } catch (textError) {
           console.error('Failed to read response body:', textError);
           responseBody = JSON.stringify({
@@ -2457,11 +2467,14 @@ const workerHandler = {
           });
         }
         
-        // Safely extract headers
+        // Safely extract headers with enhanced null checking
         let responseHeaders: Record<string, string> = {};
         try {
-          if (backendResponse?.headers) {
-            responseHeaders = Object.fromEntries([...backendResponse.headers as any]);
+          if (backendResponse?.headers && typeof backendResponse.headers[Symbol.iterator] === 'function') {
+            responseHeaders = Object.fromEntries([...backendResponse.headers]);
+          } else {
+            console.error('Backend response headers missing or not iterable');
+            responseHeaders = {};
           }
         } catch (headerError) {
           console.error('Failed to extract response headers:', headerError);

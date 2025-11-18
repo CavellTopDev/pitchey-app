@@ -14,7 +14,7 @@ LOG_FILE="$SCRIPT_DIR/health-check.log"
 
 # URLs to check
 FRONTEND_URL="https://pitchey.pages.dev"
-API_WORKER_URL="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+API_WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 BACKUP_API_URL="https://pitchey-backend-fresh.deno.dev"
 
 # Options

@@ -3,15 +3,15 @@
 This file contains project-specific instructions and context for Claude Code.
 
 ## Project Overview
-Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform uses a modern serverless architecture with Cloudflare edge infrastructure, Deno Deploy backend, and Neon PostgreSQL database. It features real-time WebSocket communication, Redis-powered caching, draft auto-sync, and comprehensive NDA workflows.
+Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform uses a modern edge-first serverless architecture with Cloudflare Workers, Neon PostgreSQL, and Upstash Redis. It features real-time WebSocket communication via Durable Objects, edge caching, draft auto-sync, and comprehensive NDA workflows.
 
 ### Production Architecture
 - **Frontend**: Cloudflare Pages (https://pitchey.pages.dev)
-- **API Gateway**: Cloudflare Workers (https://pitchey-api-production.cavelltheleaddev.workers.dev)
-- **Backend**: Deno Deploy (https://pitchey-backend-fresh.deno.dev)
-- **Database**: Neon PostgreSQL with Hyperdrive pooling
+- **API**: Cloudflare Workers (https://pitchey-production.cavelltheleaddev.workers.dev)
+- **Database**: Neon PostgreSQL with Hyperdrive edge pooling
 - **Cache**: Upstash Redis (global distributed)
 - **Storage**: Cloudflare R2 (S3-compatible)
+- **WebSockets**: Cloudflare Durable Objects
 
 ## Development Setup
 
@@ -37,8 +37,8 @@ VITE_WS_URL=ws://localhost:8001
 
 #### Production (.env.production)
 ```
-VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev
+VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
+VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
 ```
 
 ### Worker Development
@@ -60,7 +60,6 @@ wrangler deploy --env production
 ### Production Deployment
 - Deploy Frontend: `wrangler pages deploy frontend/dist --project-name=pitchey`
 - Deploy Worker: `wrangler deploy --env production`
-- Deploy Backend: `deployctl deploy --project=pitchey-backend-fresh`
 
 ### Build Commands
 - Build Frontend: `npm run build`
@@ -77,9 +76,8 @@ wrangler deploy --env production
 
 ### Production URLs
 - Frontend: https://pitchey.pages.dev
-- Worker API: https://pitchey-api-production.cavelltheleaddev.workers.dev
-- Backend API: https://pitchey-backend-fresh.deno.dev
-- WebSocket: wss://pitchey-backend-fresh.deno.dev/ws
+- API & WebSocket: https://pitchey-production.cavelltheleaddev.workers.dev
+- WebSocket: wss://pitchey-production.cavelltheleaddev.workers.dev/ws
 
 ## Real-time Features
 The platform includes comprehensive WebSocket integration:
@@ -144,9 +142,9 @@ The platform includes comprehensive WebSocket integration:
 
 ### Production Deployment
 1. **Frontend deploys to Cloudflare Pages**
-2. **Worker handles API routing and edge caching**
-3. **Backend runs on Deno Deploy**
-4. **Database uses Neon with Hyperdrive pooling**
+2. **Worker handles all API routing and edge caching**
+3. **Database uses Neon with Hyperdrive edge pooling**
+4. **WebSockets handled via Cloudflare Durable Objects**
 5. **Check CLOUDFLARE_DEPLOYMENT_GUIDE.md for full instructions**
 
 ## Latest Improvements & Status (November 2025)

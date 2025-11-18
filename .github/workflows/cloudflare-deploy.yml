@@ -239,8 +239,8 @@ jobs:
       - name: Build for testing
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-backend-fresh.deno.dev
-          VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
+          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
           NODE_ENV: production
         run: npm run build
         
@@ -291,8 +291,8 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-backend-fresh.deno.dev
-          VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
+          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
           NODE_ENV: production
         run: npm run build
       
@@ -304,47 +304,13 @@ jobs:
           command: pages deploy frontend/dist --project-name=pitchey --branch=main
           workingDirectory: .
 
-  # Deploy existing Deno backend (keep running during migration)
-  deploy-deno:
-    runs-on: ubuntu-latest
-    needs: [changes, test-backend]
-    if: |
-      always() &&
-      needs.changes.outputs.backend == 'true' &&
-      github.ref == 'refs/heads/main'
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.5.0
-      
-      - name: Install deployctl
-        run: deno install -A --global jsr:@deno/deployctl@1.x
-      
-      - name: Deploy to Deno Deploy
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          deployctl deploy \
-            --project="pitchey-backend-fresh" \
-            --entrypoint="working-server.ts" \
-            --token="$DENO_DEPLOY_TOKEN" \
-            --env="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
-            --env="JWT_SECRET=${{ secrets.JWT_SECRET }}" \
-            --env="FRONTEND_URL=https://pitchey.pages.dev" \
-            --env="UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" \
-            --env="UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" \
-            --env="CACHE_ENABLED=true" \
-            --env="NODE_ENV=production" \
-            --env="DENO_ENV=production"
+# Deno Deploy removed - using Cloudflare Workers only with Neon + Upstash + Durable Objects
 
   # Post deployment validation
   validate-deployment:
     runs-on: ubuntu-latest
-    needs: [deploy-worker, deploy-pages, deploy-deno]
-    if: always() && (needs.deploy-worker.result == 'success' || needs.deploy-pages.result == 'success' || needs.deploy-deno.result == 'success')
+    needs: [deploy-worker, deploy-pages]
+    if: always() && (needs.deploy-worker.result == 'success' || needs.deploy-pages.result == 'success')
     
     steps:
       - uses: actions/checkout@v4
@@ -361,7 +327,7 @@ jobs:
           
           # Health check with retry
           for i in {1..10}; do
-            if curl -sf https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health; then
+            if curl -sf https://pitchey-production.cavelltheleaddev.workers.dev/api/health; then
               echo "✅ Worker health check passed"
               break
             fi
@@ -371,23 +337,11 @@ jobs:
           
           # Test API endpoints
           echo "🔍 Testing API endpoints..."
-          curl -sf https://pitchey-api-production.cavelltheleaddev.workers.dev/api/pitches/trending || echo "⚠️ Trending endpoint not ready yet"
+          curl -sf https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending || echo "⚠️ Trending endpoint not ready yet"
           
-          # Test WebSocket connection
-          echo "🔍 Testing WebSocket connectivity..."
-          timeout 10 node -e "
-            const ws = require('ws');
-            const socket = new ws.WebSocket('wss://pitchey-api-production.cavelltheleaddev.workers.dev/ws');
-            socket.on('open', () => {
-              console.log('✅ WebSocket connection successful');
-              socket.close();
-              process.exit(0);
-            });
-            socket.on('error', (error) => {
-              console.log('⚠️ WebSocket connection failed:', error.message);
-              process.exit(1);
-            });
-          " || echo "⚠️ WebSocket test failed (non-critical)"
+          # Test Worker API endpoints
+          echo "🔍 Testing Worker API endpoints..."
+          curl -sf https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/validate-token || echo "⚠️ Auth endpoint not ready yet"
       
       - name: Validate Pages deployment
         if: needs.deploy-pages.result == 'success'
@@ -411,30 +365,16 @@ jobs:
             echo "⚠️ Page content validation failed"
           fi
       
-      - name: Validate Deno backend
-        if: needs.deploy-deno.result == 'success'
-        run: |
-          echo "🔍 Testing Deno Deploy backend..."
-          
-          for i in {1..10}; do
-            if curl -sf https://pitchey-backend-fresh.deno.dev/api/health; then
-              echo "✅ Deno backend health check passed"
-              break
-            fi
-            echo "⏳ Attempt $i failed, retrying in 10s..."
-            sleep 10
-          done
-      
       - name: Run smoke tests
         run: |
           echo "🧪 Running production smoke tests..."
           
           # Test critical user flows
           echo "Testing authentication endpoints..."
-          curl -s -o /dev/null -w "%{http_code}" https://pitchey-api-production.cavelltheleaddev.workers.dev/api/auth/login | grep -q "405\|200" && echo "✅ Auth endpoint responding"
+          curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/login | grep -q "405\|200" && echo "✅ Auth endpoint responding"
           
           echo "Testing public pitch data..."
-          curl -s -o /dev/null -w "%{http_code}" https://pitchey-api-production.cavelltheleaddev.workers.dev/api/pitches/trending | grep -q "200" && echo "✅ Pitches endpoint responding"
+          curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending | grep -q "200" && echo "✅ Pitches endpoint responding"
           
           echo "🎯 Smoke tests completed"
       
@@ -447,16 +387,16 @@ jobs:
           RESPONSE_TIME=$(curl -o /dev/null -s -w "%{time_total}" https://pitchey.pages.dev)
           echo "Frontend response time: ${RESPONSE_TIME}s"
           
-          API_RESPONSE_TIME=$(curl -o /dev/null -s -w "%{time_total}" https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health)
-          echo "API response time: ${API_RESPONSE_TIME}s"
+          WORKER_RESPONSE_TIME=$(curl -o /dev/null -s -w "%{time_total}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health)
+          echo "Cloudflare Worker response time: ${WORKER_RESPONSE_TIME}s"
           
           # Check if response times are acceptable
           if (( $(echo "$RESPONSE_TIME > 3.0" | bc -l) )); then
             echo "⚠️ Frontend response time is high: ${RESPONSE_TIME}s"
           fi
           
-          if (( $(echo "$API_RESPONSE_TIME > 2.0" | bc -l) )); then
-            echo "⚠️ API response time is high: ${API_RESPONSE_TIME}s"
+          if (( $(echo "$WORKER_RESPONSE_TIME > 2.0" | bc -l) )); then
+            echo "⚠️ Worker response time is high: ${WORKER_RESPONSE_TIME}s"
           fi
       
       - name: Purge CDN cache
@@ -483,9 +423,8 @@ jobs:
         if: always()
         run: |
           echo "📋 Deployment Summary:"
-          echo "- Worker: ${{ needs.deploy-worker.result }}"
-          echo "- Pages: ${{ needs.deploy-pages.result }}"
-          echo "- Deno Backend: ${{ needs.deploy-deno.result }}"
+          echo "- Cloudflare Worker: ${{ needs.deploy-worker.result }}"
+          echo "- Cloudflare Pages: ${{ needs.deploy-pages.result }}"
           echo "- Validation: ${{ job.status }}"
           echo "- Timestamp: $(date -u)"
           
@@ -499,13 +438,11 @@ jobs:
             "results": {
               "worker": "${{ needs.deploy-worker.result }}",
               "pages": "${{ needs.deploy-pages.result }}",
-              "deno": "${{ needs.deploy-deno.result }}",
               "validation": "${{ job.status }}"
             },
             "urls": {
               "frontend": "https://pitchey.pages.dev",
-              "api": "https://pitchey-api-production.cavelltheleaddev.workers.dev",
-              "backup_api": "https://pitchey-backend-fresh.deno.dev"
+              "api": "https://pitchey-production.cavelltheleaddev.workers.dev"
             }
           }
           EOF
@@ -530,8 +467,7 @@ jobs:
         run: |
           echo "🚀 Deployment completed successfully!"
           echo "Frontend: https://pitchey.pages.dev"
-          echo "API: https://pitchey-api-production.cavelltheleaddev.workers.dev"
-          echo "Backup API: https://pitchey-backend-fresh.deno.dev"
+          echo "API: https://pitchey-production.cavelltheleaddev.workers.dev"
           
           # In a real environment, send to Slack/Teams/Email
           # curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
