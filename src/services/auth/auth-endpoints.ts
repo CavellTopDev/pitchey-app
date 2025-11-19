@@ -3,8 +3,8 @@
  * Complete authentication system with login, register, and token management
  */
 
-import { AuthPayload, validateJWT, extractAuthToken, createAuthErrorResponse } from '../../shared/auth-utils';
-import { users } from '../../db/schema';
+import { AuthPayload, validateJWT, extractAuthToken, createAuthErrorResponse } from '../../shared/auth-utils.ts';
+import { users } from '../../db/schema.ts';
 import { eq, and } from 'drizzle-orm';
 
 export interface LoginRequest {
@@ -342,7 +342,7 @@ export class AuthEndpoints {
       });
 
     } catch (error) {
-      return createAuthErrorResponse(`Invalid token: ${error.message}`, 401);
+      return createAuthErrorResponse(`Invalid token: ${error instanceof Error ? error.message : 'Unknown error'}`, 401);
     }
   }
 
@@ -376,7 +376,7 @@ export class AuthEndpoints {
       });
 
     } catch (error) {
-      return createAuthErrorResponse(`Token refresh failed: ${error.message}`, 401);
+      return createAuthErrorResponse(`Token refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 401);
     }
   }
 

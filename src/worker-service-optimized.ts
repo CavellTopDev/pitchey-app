@@ -3,10 +3,10 @@
  * Implements Phase 2 service bindings pattern within single Worker
  */
 
-import { dbPool, withDatabase, Env } from './worker-database-pool';
-import { CachingService } from './caching-strategy';
-import { ServiceRouter } from './services/service-router';
-import { WebSocketRoom } from './websocket-room-optimized';
+import { dbPool, withDatabase, Env } from './worker-database-pool.ts';
+import { CachingService } from './caching-strategy.ts';
+import { ServiceRouter } from './services/service-router.ts';
+import { WebSocketRoom } from './websocket-room-optimized.ts';
 import { Toucan } from 'toucan-js';
 
 export default {

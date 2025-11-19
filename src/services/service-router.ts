@@ -3,11 +3,11 @@
  * Routes requests to appropriate service modules with zero-cost internal communication
  */
 
-import { AuthService } from './auth/auth-service';
-import { InvestorService } from './investor/investor-service';
-import { CreatorService } from './creator/creator-service';
-import { BrowseService } from './browse/browse-service';
-import { CachingService } from '../caching-strategy';
+import { AuthService } from './auth/auth-service.ts';
+import { InvestorService } from './investor/investor-service.ts';
+import { CreatorService } from './creator/creator-service.ts';
+import { BrowseService } from './browse/browse-service.ts';
+import { CachingService } from '../caching-strategy.ts';
 
 export class ServiceRouter {
   private authService: AuthService;

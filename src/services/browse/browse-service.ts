@@ -3,9 +3,9 @@
  * Handles browse, search, and content discovery functionality
  */
 
-import { AuthPayload } from '../../shared/auth-utils';
-import { CachingService } from '../../caching-strategy';
-import { BrowseEndpoints } from './browse-endpoints';
+import { AuthPayload } from '../../shared/auth-utils.ts';
+import { CachingService } from '../../caching-strategy.ts';
+import { BrowseEndpoints } from './browse-endpoints.ts';
 
 export class BrowseService {
   private cache: CachingService;

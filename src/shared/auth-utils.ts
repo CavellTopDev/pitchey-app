@@ -72,7 +72,7 @@ export async function validateJWT(token: string, secret: string): Promise<AuthPa
     };
     
   } catch (error) {
-    throw new Error(`JWT validation failed: ${error.message}`);
+    throw new Error(`JWT validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

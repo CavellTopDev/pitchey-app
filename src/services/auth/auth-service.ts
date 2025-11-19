@@ -3,8 +3,8 @@
  * Handles JWT validation, user authentication, and authorization
  */
 
-import { AuthPayload, validateJWT, extractAuthToken, hasPermission, createAuthErrorResponse } from '../../shared/auth-utils';
-import { AuthEndpoints } from './auth-endpoints';
+import { AuthPayload, validateJWT, extractAuthToken, hasPermission, createAuthErrorResponse } from '../../shared/auth-utils.ts';
+import { AuthEndpoints } from './auth-endpoints.ts';
 
 export class AuthService {
   private jwtSecret: string;
@@ -34,7 +34,7 @@ export class AuthService {
     } catch (error) {
       return { 
         success: false, 
-        error: createAuthErrorResponse(`Invalid token: ${error.message}`) 
+        error: createAuthErrorResponse(`Invalid token: ${error instanceof Error ? error.message : 'Unknown error'}`) 
       };
     }
   }
