@@ -1,0 +1,85 @@
+# Router Worker Configuration
+# Handles routing and delegates to specialized services
+
+name = "pitchey-router"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Router configuration
+FRONTEND_URL = "https://pitchey.pages.dev"
+
+# Error tracking
+SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
+SENTRY_ENVIRONMENT = "production"
+SENTRY_RELEASE = "router-v1.0"
+
+# Service Bindings - Zero-cost inter-Worker communication
+[[services]]
+binding = "CREATOR_SERVICE"
+service = "pitchey-creator-service"
+
+[[services]]
+binding = "INVESTOR_SERVICE"
+service = "pitchey-investor-service"
+
+[[services]]
+binding = "PRODUCTION_SERVICE"
+service = "pitchey-production-service"
+
+[[services]]
+binding = "AUTH_SERVICE"
+service = "pitchey-auth-service"
+
+[[services]]
+binding = "BROWSE_SERVICE"
+service = "pitchey-browse-service"
+
+[[services]]
+binding = "ANALYTICS_SERVICE"
+service = "pitchey-analytics-service"
+
+# KV for routing rules cache
+[[kv_namespaces]]
+binding = "ROUTING_CACHE"
+id = "routing-cache-namespace-id"
+
+# Production Environment
+[env.production]
+name = "pitchey-router"
+
+[env.production.vars]
+FRONTEND_URL = "https://pitchey.pages.dev"
+SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
+SENTRY_ENVIRONMENT = "production"
+SENTRY_RELEASE = "router-v1.0"
+
+# Production service bindings
+[[env.production.services]]
+binding = "CREATOR_SERVICE"
+service = "pitchey-creator-service"
+
+[[env.production.services]]
+binding = "INVESTOR_SERVICE"
+service = "pitchey-investor-service"
+
+[[env.production.services]]
+binding = "PRODUCTION_SERVICE"
+service = "pitchey-production-service"
+
+[[env.production.services]]
+binding = "AUTH_SERVICE"
+service = "pitchey-auth-service"
+
+[[env.production.services]]
+binding = "BROWSE_SERVICE"
+service = "pitchey-browse-service"
+
+[[env.production.services]]
+binding = "ANALYTICS_SERVICE"
+service = "pitchey-analytics-service"
+
+[[env.production.kv_namespaces]]
+binding = "ROUTING_CACHE"
+id = "routing-cache-namespace-id"

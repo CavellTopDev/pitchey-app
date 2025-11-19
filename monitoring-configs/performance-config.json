@@ -1,0 +1,25 @@
+{
+  "monitoring": {
+    "intervals": {
+      "health_check": "5m",
+      "performance_deep_dive": "1h",
+      "cost_analysis": "24h"
+    },
+    "thresholds": {
+      "health_response_time_ms": 100,
+      "dashboard_response_time_ms": 500,
+      "auth_response_time_ms": 50,
+      "database_pool_size": 1
+    },
+    "alerts": {
+      "health_endpoint_failure": true,
+      "response_time_degradation": true,
+      "database_pool_growth": true
+    }
+  },
+  "cost_optimization": {
+    "database_query_reduction_target": 90,
+    "websocket_hibernation_enabled": true,
+    "cache_hit_ratio_target": 80
+  }
+}

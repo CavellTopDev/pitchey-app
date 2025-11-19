@@ -1973,6 +1973,7 @@
       "dependencies": [
         "npm:@neondatabase/serverless@0.9",
         "npm:@sendgrid/mail@^8.1.6",
+        "npm:drizzle-orm@~0.35.3",
         "npm:postgres@^3.4.7",
         "npm:toucan-js@^4.1.1"
       ]

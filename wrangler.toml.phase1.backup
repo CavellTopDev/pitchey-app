@@ -1,5 +1,5 @@
-name = "pitchey-optimized"
-main = "src/worker-service-optimized.ts"
+name = "pitchey-production"
+main = "src/worker-browse-fix.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -46,14 +46,14 @@ class_name = "WebSocketRoom"
 binding = "HYPERDRIVE"
 id = "983d4a1818264b5dbdca26bacf167dee"
 
-# Migrations - WebSocketRoom re-enabled with optimizations for free plan
+# Migrations - WebSocketRoom re-enabled with optimizations
 [[migrations]]
 tag = "v3"
-new_sqlite_classes = ["WebSocketRoom"]
+new_classes = ["WebSocketRoom"]
 
 # Production Environment Configuration
 [env.production]
-name = "pitchey-optimized"
+name = "pitchey-production"
 
 [env.production.vars]
 FRONTEND_URL = "https://pitchey.pages.dev"

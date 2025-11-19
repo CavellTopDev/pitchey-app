@@ -15,6 +15,9 @@ import { UploadEndpointsHandler } from './worker-modules/upload-endpoints';
 import { AdminEndpointsHandler } from './worker-modules/admin-endpoints';
 import { dbPool, withDatabase } from './worker-database-pool';
 
+// Import optimized WebSocket room for hibernation
+export { default as WebSocketRoom } from './websocket-room-optimized';
+
 // DEPRECATED FUNCTION REMOVED - Use dbPool.getConnection() instead
 // This function was causing "Cannot perform I/O on behalf of a different request" errors
 // because it created postgres.js connections instead of using the neon-based pool
@@ -39,6 +42,9 @@ export interface Env {
   SENTRY_DSN?: string;
   SENTRY_ENVIRONMENT?: string;
   SENTRY_RELEASE?: string;
+  
+  // Durable Objects
+  WEBSOCKET_ROOM: DurableObjectNamespace;
 }
 
 // CORS headers

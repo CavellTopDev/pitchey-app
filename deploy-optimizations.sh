@@ -1,116 +1,76 @@
 #!/bin/bash
 
-# Deploy Database Optimizations to Production
-# This script deploys the complete database optimization suite
+# Deployment script for Pitchey optimizations
+# Deploys caching, WebSocket hibernation, and database fixes
 
-echo "🚀 DEPLOYING DATABASE OPTIMIZATIONS TO PRODUCTION"
-echo "=================================================="
-echo
+echo "🚀 Deploying Pitchey Optimizations to Production"
+echo "================================================"
 
-# Step 1: Verify local optimization tests
-echo "1. 🧪 Running final optimization verification..."
-CACHE_ENABLED=true \
-UPSTASH_REDIS_REST_URL="https://chief-anteater-20186.upstash.io" \
-UPSTASH_REDIS_REST_TOKEN="AU7aAAIncDI3ZGVjNWMxZGUyOWQ0ZmYyYjI4NzdkYjM4OGMxZTE3NnAyMjAxODY" \
-DATABASE_URL="postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require" \
-deno run --allow-all test-db-optimization-final.ts
+# Check prerequisites
+echo "🔍 Checking prerequisites..."
 
-if [ $? -ne 0 ]; then
-    echo "❌ Local optimization tests failed. Aborting deployment."
+if ! command -v wrangler &> /dev/null; then
+    echo "❌ Wrangler CLI not found. Install with: npm install -g wrangler"
     exit 1
 fi
 
-echo
-echo "✅ Local optimization tests passed!"
-echo
+echo "✅ Prerequisites checked"
+echo ""
 
-# Step 2: Deploy backend to Deno Deploy
-echo "2. 🌐 Deploying optimized backend to Deno Deploy..."
+# Show current deployment status
+echo "📊 Current Deployment Status:"
+echo "-----------------------------"
+CURRENT_STATUS=$(curl -s -w "HTTP %{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "FAILED")
+echo "Production health endpoint: $CURRENT_STATUS"
+echo ""
 
-DENO_DEPLOY_TOKEN=ddp_0xCz7itR2p7NIjymyodtIOI3wfjS2n0LB8oH \
-deployctl deploy \
-  --project=pitchey-backend-fresh \
-  --entrypoint=working-server.ts \
-  --env-file=.env.deploy
+# Deploy optimizations
+echo "🚀 Deploying Optimizations:"
+echo "============================"
 
-if [ $? -ne 0 ]; then
-    echo "❌ Backend deployment failed"
+echo "Step 1: Deploying updated Worker with optimizations..."
+echo "-------------------------------------------------------"
+
+# Deploy with production environment
+echo "Executing: wrangler deploy --env production"
+wrangler deploy --env production
+
+DEPLOY_EXIT=$?
+if [ $DEPLOY_EXIT -eq 0 ]; then
+    echo "✅ Worker deployment: SUCCESS"
+else
+    echo "❌ Worker deployment: FAILED"
     exit 1
 fi
 
-echo "✅ Backend deployed successfully!"
+echo ""
 
-# Step 3: Build and deploy frontend
-echo
-echo "3. 🎨 Building optimized frontend..."
+# Post-deployment testing
+echo "🧪 Post-Deployment Testing:"
+echo "============================"
 
-# Update frontend to use new backend URL
-VITE_API_URL=https://pitchey-backend-fresh.deno.dev npm run build
+echo "Waiting 30 seconds for deployment to propagate..."
+sleep 30
 
-if [ $? -ne 0 ]; then
-    echo "❌ Frontend build failed"
-    exit 1
-fi
+echo "Testing optimized endpoints..."
+echo ""
 
-echo "✅ Frontend built successfully!"
+# Test health endpoint
+echo -n "1. Health endpoint: "
+HEALTH_RESPONSE=$(curl -s -w "HTTP %{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "FAILED")
+echo "$HEALTH_RESPONSE"
 
-# Step 4: Test deployed optimization
-echo
-echo "4. 🔍 Testing deployed optimizations..."
-
-# Test backend health
-echo "   Testing backend health..."
-curl -s https://pitchey-backend-fresh.deno.dev/health > /dev/null
-if [ $? -eq 0 ]; then
-    echo "   ✅ Backend health check passed"
+if echo "$HEALTH_RESPONSE" | grep -q "HTTP 200"; then
+    echo "   ✅ Health endpoint working"
 else
-    echo "   ⚠️  Backend health check failed"
+    echo "   ❌ Health endpoint failed"
 fi
 
-# Test trending endpoint (should be cached)
-echo "   Testing trending endpoint performance..."
-start_time=$(date +%s%3N)
-curl -s "https://pitchey-backend-fresh.deno.dev/api/pitches/trending?limit=5" > /dev/null
-end_time=$(date +%s%3N)
-duration=$((end_time - start_time))
-
-if [ $duration -lt 500 ]; then
-    echo "   ✅ Trending endpoint: ${duration}ms (Optimized!)"
-else
-    echo "   ⚠️  Trending endpoint: ${duration}ms (May need tuning)"
-fi
-
-# Test Redis cache
-echo "   Testing Redis cache connectivity..."
-curl -s "https://pitchey-backend-fresh.deno.dev/api/cache/stats" | grep -q "enabled.*true"
-if [ $? -eq 0 ]; then
-    echo "   ✅ Redis cache is active"
-else
-    echo "   ⚠️  Redis cache may not be active"
-fi
-
-echo
-echo "🎯 DEPLOYMENT SUMMARY"
-echo "===================="
-echo "✅ Database Indexes: Applied and active"
-echo "✅ Query Monitoring: Tracking performance"
-echo "✅ Connection Pooling: Neon serverless optimized" 
-echo "✅ Redis Caching: Upstash integration active"
-echo "✅ Optimized Services: OptimizedPitchService deployed"
-echo "✅ Backend Deployment: https://pitchey-backend-fresh.deno.dev"
-echo "✅ Frontend Build: Ready for deployment"
-echo
-echo "🎉 DATABASE OPTIMIZATION DEPLOYMENT COMPLETE!"
-echo
-echo "📊 Performance Improvements Expected:"
-echo "   • 60-80% faster trending queries (Redis caching)"
-echo "   • 50% reduction in database load (optimized joins)"
-echo "   • Sub-50ms average query performance"
-echo "   • Improved connection efficiency"
-echo "   • Real-time query monitoring"
-echo
-echo "🔧 Next Steps:"
-echo "   1. Monitor query performance in production"
-echo "   2. Review slow query logs (>100ms threshold)"
-echo "   3. Tune cache TTLs based on usage patterns"
-echo "   4. Scale Redis if needed for high traffic"
+echo ""
+echo "🎉 Deployment completed!"
+echo ""
+echo "📋 Next Steps:"
+echo "=============="
+echo "1. Run ./test-optimization-implementation.sh to validate optimizations"
+echo "2. Execute set-neon-limits.sql to set database cost controls" 
+echo "3. Monitor performance with ./monitor-performance.sh"
