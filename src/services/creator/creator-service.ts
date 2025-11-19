@@ -3,9 +3,9 @@
  * Handles creator-specific functionality and dashboard
  */
 
-import { AuthPayload } from '../../shared/auth-utils';
-import { CachingService } from '../../caching-strategy';
-import { CreatorEndpoints } from './creator-endpoints';
+import { AuthPayload } from '../../shared/auth-utils.ts';
+import { CachingService } from '../../caching-strategy.ts';
+import { CreatorEndpoints } from './creator-endpoints.ts';
 
 export class CreatorService {
   private cache: CachingService;

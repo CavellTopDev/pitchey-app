@@ -3,9 +3,9 @@
  * Handles investor-specific functionality and dashboard
  */
 
-import { AuthPayload } from '../../shared/auth-utils';
-import { CachingService } from '../../caching-strategy';
-import { InvestorEndpoints } from './investor-endpoints';
+import { AuthPayload } from '../../shared/auth-utils.ts';
+import { CachingService } from '../../caching-strategy.ts';
+import { InvestorEndpoints } from './investor-endpoints.ts';
 
 export class InvestorService {
   private cache: CachingService;
