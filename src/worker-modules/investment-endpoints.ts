@@ -119,7 +119,7 @@ export class InvestmentEndpointsHandler {
       }
 
       // Investor-specific endpoints
-      if (path === '/investor/dashboard' && method === 'GET') {
+      if (path === '/investor/dashboard' && (method === 'GET' || method === 'POST')) {
         return this.handleGetInvestorDashboard(request, corsHeaders, userAuth);
       }
 
