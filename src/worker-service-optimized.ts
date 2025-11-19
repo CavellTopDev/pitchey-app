@@ -421,6 +421,97 @@ export default {
         }
       }
 
+      // Handle individual pitch details with alternative API path
+      if (pathname.match(/^\/api\/pitches\/\d+$/)) {
+        try {
+          const pitchId = pathname.split('/').pop();
+          console.log(`Loading individual pitch via alternative path: ${pitchId}`);
+          
+          // Use direct connection (Hyperdrive has issues)
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          const results = await sql`
+            SELECT 
+              p.id, p.title, p.logline, p.genre, p.format,
+              p.view_count as "viewCount", p.like_count as "likeCount",
+              p.poster_url as "posterUrl", p.created_at as "createdAt",
+              p.status, p.visibility,
+              u.username as creator_username, u.id as creator_id
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE p.id = ${parseInt(pitchId)} 
+              AND p.status IN ('published', 'active') 
+              AND p.visibility = 'public'
+          `;
+          
+          if (results.length === 0) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Pitch not found or not accessible',
+              pitch_id: pitchId
+            }), {
+              status: 404,
+              headers: { 
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
+            });
+          }
+          
+          const pitch = results[0];
+          const pitchDetail = {
+            id: pitch.id,
+            title: pitch.title,
+            logline: pitch.logline,
+            genre: pitch.genre,
+            format: pitch.format,
+            viewCount: pitch.viewCount || 0,
+            likeCount: pitch.likeCount || 0,
+            posterUrl: pitch.posterUrl,
+            createdAt: pitch.createdAt?.toISOString ? pitch.createdAt.toISOString() : pitch.createdAt,
+            status: pitch.status,
+            visibility: pitch.visibility,
+            creator: {
+              id: pitch.creator_id,
+              username: pitch.creator_username
+            }
+          };
+
+          console.log(`Successfully loaded pitch ${pitchId} via alternative path`);
+          return new Response(JSON.stringify({
+            success: true,
+            pitch: pitchDetail,
+            data: pitchDetail, // Some frontends expect 'data' field
+            message: `Pitch ${pitchId} loaded successfully`
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+          
+        } catch (error) {
+          console.error('Alternative pitch endpoint error:', error);
+          sentry.captureException(error as Error, {
+            tags: { endpoint: 'pitch-alternative' }
+          });
+          
+          return new Response(JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to load pitch',
+            error_name: error instanceof Error ? error.name : 'Unknown'
+          }), {
+            status: 500,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
       // Handle browse endpoints for marketplace functionality
       if (pathname.startsWith('/api/pitches/browse/')) {
         try {
