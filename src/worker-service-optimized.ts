@@ -74,7 +74,10 @@ export default {
               testResult: result[0] || null,
               connection_type: 'hyperdrive'
             }), {
-              headers: { 'Content-Type': 'application/json' }
+              headers: { 
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
             });
           } catch (hyperdriveError) {
             console.error('Hyperdrive failed, trying direct connection...', hyperdriveError);
@@ -94,7 +97,10 @@ export default {
                 connection_type: 'direct',
                 hyperdrive_error: hyperdriveError.message
               }), {
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 
+                  'Content-Type': 'application/json',
+                  ...corsHeaders
+                }
               });
             } catch (directError) {
               console.error('Both Hyperdrive and direct connections failed');
@@ -106,7 +112,10 @@ export default {
                 available_bindings: Object.keys(env)
               }), {
                 status: 500,
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 
+                  'Content-Type': 'application/json',
+                  ...corsHeaders
+                }
               });
             }
           }
@@ -117,7 +126,10 @@ export default {
             available_bindings: Object.keys(env)
           }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
           });
         }
       }
@@ -170,7 +182,10 @@ export default {
             items: pitches,
             message: `Found ${pitches.length} trending pitches`
           }), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
           });
         } catch (error) {
           console.error('Trending pitches error:', error);
@@ -184,7 +199,10 @@ export default {
             error_name: error instanceof Error ? error.name : 'Unknown'
           }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
           });
         }
       }
@@ -236,7 +254,10 @@ export default {
             items: pitches,
             message: `Found ${pitches.length} new releases`
           }), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
           });
         } catch (error) {
           console.error('New releases error:', error);
@@ -250,32 +271,125 @@ export default {
             error_name: error instanceof Error ? error.name : 'Unknown'
           }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
           });
         }
       }
 
-      // Fallback to health endpoint for other routes
+      // Handle public pitches directly with direct database access
+      if (pathname === '/api/pitches/public') {
+        try {
+          console.log('Loading public pitches...');
+          const limit = url.searchParams.get('limit') || '10';
+          
+          // Use direct connection (Hyperdrive has issues)
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          console.log('Executing public pitches query...');
+          const results = await sql`
+            SELECT 
+              p.id, p.title, p.logline, p.genre, p.format,
+              p.view_count as "viewCount", p.poster_url as "posterUrl", 
+              p.created_at as "createdAt",
+              u.username as creator_username, u.id as creator_id
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+            ORDER BY p.created_at DESC
+            LIMIT ${parseInt(limit, 10)}
+          `;
+          
+          console.log('Query executed, mapping results...');
+          const pitches = results.map(pitch => ({
+            id: pitch.id,
+            title: pitch.title,
+            logline: pitch.logline,
+            genre: pitch.genre,
+            format: pitch.format,
+            viewCount: pitch.viewCount || 0,
+            posterUrl: pitch.posterUrl,
+            createdAt: pitch.createdAt?.toISOString ? pitch.createdAt.toISOString() : pitch.createdAt,
+            creator: {
+              id: pitch.creator_id,
+              username: pitch.creator_username
+            }
+          }));
+
+          console.log(`Successfully loaded ${pitches.length} public pitches`);
+          return new Response(JSON.stringify({
+            success: true,
+            items: pitches,
+            message: `Found ${pitches.length} public pitches`
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (error) {
+          console.error('Public pitches error:', error);
+          sentry.captureException(error as Error, {
+            tags: { endpoint: 'public-pitches' }
+          });
+          
+          return new Response(JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to load public pitches',
+            error_name: error instanceof Error ? error.name : 'Unknown'
+          }), {
+            status: 500,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
+      // Handle health endpoint
+      if (pathname === '/api/health') {
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Pitchey API - Direct endpoints active',
+          architecture: 'simplified',
+          services: {
+            database: 'direct-connection',
+            hyperdrive: 'bypassed-due-to-530-errors'
+          },
+          optimizations: {
+            cors: 'enabled',
+            sentry: 'enabled',
+            direct_database: 'enabled'
+          },
+          endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public'],
+          timestamp: new Date().toISOString()
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+      }
+
+      // Fallback for unhandled routes
       return new Response(JSON.stringify({
-        success: true,
-        message: 'Pitchey API - Direct endpoints active',
+        success: false,
+        message: 'Endpoint not found',
         architecture: 'simplified',
-        endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new'],
+        available_endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/health'],
         timestamp: new Date().toISOString()
       }), {
-        headers: { 'Content-Type': 'application/json' }
+        status: 404,
+        headers: { 
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
       });
-
-      // Add CORS headers to response
-      Object.entries(corsHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-      });
-
-      // Add service architecture headers
-      response.headers.set('X-Service-Architecture', 'modular');
-      response.headers.set('X-Phase', '2-services');
-
-      return response;
 
     } catch (error) {
       console.error('Worker error:', error);
