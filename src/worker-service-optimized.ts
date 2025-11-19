@@ -351,6 +351,184 @@ export default {
         }
       }
 
+      // Handle browse endpoints for marketplace functionality
+      if (pathname.startsWith('/api/pitches/browse/')) {
+        try {
+          const browseType = pathname.split('/').pop(); // 'enhanced' or 'general'
+          const sort = url.searchParams.get('sort') || 'date';
+          const order = url.searchParams.get('order') || 'desc';
+          const limit = parseInt(url.searchParams.get('limit') || '24', 10);
+          const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+          
+          console.log(`Loading ${browseType} browse pitches...`);
+          
+          // Use direct connection (Hyperdrive has issues)
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          console.log(`Executing browse query with sort: ${sort}, order: ${order}...`);
+          
+          // Use separate queries for different sort options due to neon template literal limitations
+          let results;
+          if (sort === 'views' && order === 'desc') {
+            results = await sql`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.format,
+                p.view_count as "viewCount", p.like_count as "likeCount",
+                p.poster_url as "posterUrl", p.created_at as "createdAt",
+                p.status, p.visibility,
+                u.username as creator_username, u.id as creator_id
+              FROM pitches p
+              LEFT JOIN users u ON p.user_id = u.id
+              WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+              ORDER BY p.view_count DESC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          } else if (sort === 'views' && order === 'asc') {
+            results = await sql`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.format,
+                p.view_count as "viewCount", p.like_count as "likeCount",
+                p.poster_url as "posterUrl", p.created_at as "createdAt",
+                p.status, p.visibility,
+                u.username as creator_username, u.id as creator_id
+              FROM pitches p
+              LEFT JOIN users u ON p.user_id = u.id
+              WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+              ORDER BY p.view_count ASC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          } else if (sort === 'title' && order === 'asc') {
+            results = await sql`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.format,
+                p.view_count as "viewCount", p.like_count as "likeCount",
+                p.poster_url as "posterUrl", p.created_at as "createdAt",
+                p.status, p.visibility,
+                u.username as creator_username, u.id as creator_id
+              FROM pitches p
+              LEFT JOIN users u ON p.user_id = u.id
+              WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+              ORDER BY p.title ASC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          } else if (sort === 'title' && order === 'desc') {
+            results = await sql`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.format,
+                p.view_count as "viewCount", p.like_count as "likeCount",
+                p.poster_url as "posterUrl", p.created_at as "createdAt",
+                p.status, p.visibility,
+                u.username as creator_username, u.id as creator_id
+              FROM pitches p
+              LEFT JOIN users u ON p.user_id = u.id
+              WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+              ORDER BY p.title DESC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          } else if (sort === 'date' && order === 'asc') {
+            results = await sql`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.format,
+                p.view_count as "viewCount", p.like_count as "likeCount",
+                p.poster_url as "posterUrl", p.created_at as "createdAt",
+                p.status, p.visibility,
+                u.username as creator_username, u.id as creator_id
+              FROM pitches p
+              LEFT JOIN users u ON p.user_id = u.id
+              WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+              ORDER BY p.created_at ASC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          } else {
+            // Default: sort by date descending
+            results = await sql`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.format,
+                p.view_count as "viewCount", p.like_count as "likeCount",
+                p.poster_url as "posterUrl", p.created_at as "createdAt",
+                p.status, p.visibility,
+                u.username as creator_username, u.id as creator_id
+              FROM pitches p
+              LEFT JOIN users u ON p.user_id = u.id
+              WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+              ORDER BY p.created_at DESC
+              LIMIT ${limit}
+              OFFSET ${offset}
+            `;
+          }
+          
+          console.log('Query executed, mapping results...');
+          const pitches = results.map(pitch => ({
+            id: pitch.id,
+            title: pitch.title,
+            logline: pitch.logline,
+            genre: pitch.genre,
+            format: pitch.format,
+            viewCount: pitch.viewCount || 0,
+            likeCount: pitch.likeCount || 0,
+            posterUrl: pitch.posterUrl,
+            createdAt: pitch.createdAt?.toISOString ? pitch.createdAt.toISOString() : pitch.createdAt,
+            status: pitch.status,
+            visibility: pitch.visibility,
+            creator: {
+              id: pitch.creator_id,
+              username: pitch.creator_username
+            }
+          }));
+
+          // Get total count for pagination
+          const countResult = await sql`
+            SELECT COUNT(*) as total
+            FROM pitches p
+            WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+          `;
+          const total = parseInt(countResult[0]?.total || '0', 10);
+
+          console.log(`Successfully loaded ${pitches.length} ${browseType} pitches`);
+          return new Response(JSON.stringify({
+            success: true,
+            items: pitches,
+            pagination: {
+              total,
+              limit,
+              offset,
+              hasMore: offset + limit < total
+            },
+            sort: { by: sort, order },
+            message: `Found ${pitches.length} ${browseType} pitches`
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (error) {
+          console.error('Browse pitches error:', error);
+          sentry.captureException(error as Error, {
+            tags: { endpoint: 'browse-pitches' }
+          });
+          
+          return new Response(JSON.stringify({
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to load browse pitches',
+            error_name: error instanceof Error ? error.name : 'Unknown'
+          }), {
+            status: 500,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
       // Handle health endpoint
       if (pathname === '/api/health') {
         return new Response(JSON.stringify({
@@ -366,7 +544,7 @@ export default {
             sentry: 'enabled',
             direct_database: 'enabled'
           },
-          endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public'],
+          endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/pitches/browse/enhanced', '/api/pitches/browse/general'],
           timestamp: new Date().toISOString()
         }), {
           headers: { 
@@ -381,7 +559,7 @@ export default {
         success: false,
         message: 'Endpoint not found',
         architecture: 'simplified',
-        available_endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/health'],
+        available_endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/pitches/browse/enhanced', '/api/pitches/browse/general', '/api/health'],
         timestamp: new Date().toISOString()
       }), {
         status: 404,
