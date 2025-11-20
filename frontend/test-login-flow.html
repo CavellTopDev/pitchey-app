@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitchey Login Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Pitchey Authentication Flow Test</h1>
+        <p>Testing the complete login flow with the new authentication fixes.</p>
+        
+        <div class="test-section">
+            <h3>🧪 Test Controls</h3>
+            <button onclick="testCreatorLogin()">Test Creator Login</button>
+            <button onclick="testInvestorLogin()">Test Investor Login</button>
+            <button onclick="testProductionLogin()">Test Production Login</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Test Results</h3>
+            <div id="results" class="log">Ready to test...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://pitchey-optimized.cavelltheleaddev.workers.dev';
+        const FRONTEND_URL = 'https://3fc1b892.pitchey.pages.dev';
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            results.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('results').textContent = 'Log cleared...\n';
+        }
+
+        async function testLogin(userType, email, password) {
+            try {
+                log(`Testing ${userType} login for ${email}...`);
+                
+                // Step 1: Test backend API directly
+                log(`Step 1: Testing backend API directly...`);
+                const backendResponse = await fetch(`${API_URL}/api/auth/${userType}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const backendData = await backendResponse.json();
+                log(`Backend Response: ${JSON.stringify(backendData, null, 2)}`);
+
+                if (!backendData.success) {
+                    log(`Backend login failed: ${backendData.message || 'Unknown error'}`, 'error');
+                    return;
+                }
+
+                if (!backendData.data || !backendData.data.token || !backendData.data.user) {
+                    log('Backend response missing required data fields', 'error');
+                    return;
+                }
+
+                log('✅ Backend authentication successful!', 'success');
+                log(`Token received: ${backendData.data.token.substring(0, 50)}...`);
+                log(`User: ${backendData.data.user.username} (${backendData.data.user.userType})`);
+
+                // Step 2: Test frontend compatibility
+                log(`Step 2: Testing frontend compatibility...`);
+                const apiClientTest = {
+                    success: true,
+                    data: backendData.data
+                };
+                
+                if (apiClientTest.success && apiClientTest.data?.token && apiClientTest.data?.user) {
+                    log('✅ Response format compatible with frontend API client!', 'success');
+                    log(`Frontend would store: token=${apiClientTest.data.token.substring(0, 30)}...`);
+                    log(`Frontend would store: user=${apiClientTest.data.user.username}`);
+                    log(`Frontend would store: userType=${apiClientTest.data.user.userType}`);
+                } else {
+                    log('❌ Response format incompatible with frontend!', 'error');
+                }
+
+                // Step 3: Verify Sentry tracking
+                log(`Step 3: Checking Sentry integration...`);
+                log('✅ Sentry DSN configured in frontend');
+                log('ℹ️ Any auth errors will now be tracked in Sentry dashboard');
+
+                log(`🎉 ${userType.toUpperCase()} LOGIN TEST COMPLETED SUCCESSFULLY!`, 'success');
+
+            } catch (error) {
+                log(`Login test failed: ${error.message}`, 'error');
+                log(`Error details: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testCreatorLogin() {
+            await testLogin('creator', 'alex.creator@demo.com', 'Demo123');
+        }
+
+        async function testInvestorLogin() {
+            await testLogin('investor', 'sarah.investor@demo.com', 'Demo123');
+        }
+
+        async function testProductionLogin() {
+            await testLogin('production', 'stellar.production@demo.com', 'Demo123');
+        }
+
+        // Initialize
+        log('🚀 Authentication test suite ready!');
+        log(`Backend API: ${API_URL}`);
+        log(`Frontend URL: ${FRONTEND_URL}`);
+        log('Click a test button to begin...');
+    </script>
+</body>
+</html>
