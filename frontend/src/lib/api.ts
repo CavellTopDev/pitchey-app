@@ -250,13 +250,15 @@ export const authAPI = {
 // Pitch API
 export const pitchAPI = {
   async getPublic() {
-    const response = await api.get<{ success: boolean; data: { pitches: Pitch[] } }>('/api/pitches/public');
-    return response.data.data.pitches || [];
+    const response = await api.get('/api/pitches/public');
+    // Handle both current backend format (items) and future expected format (data.pitches)
+    return response.data.items || response.data.data?.pitches || [];
   },
 
   async getPublicById(id: number) {
-    const response = await api.get<{ success: boolean; data: { pitch: Pitch } }>(`/api/pitches/public/${id}`);
-    return response.data.data.pitch;
+    const response = await api.get(`/api/pitches/public/${id}`);
+    // Handle both current backend format (pitch) and future expected format (data.pitch)
+    return response.data.pitch || response.data.data?.pitch;
   },
 
   async getAll(params?: {
