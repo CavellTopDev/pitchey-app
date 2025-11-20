@@ -31,9 +31,9 @@ echo "============================"
 echo "Step 1: Deploying updated Worker with optimizations..."
 echo "-------------------------------------------------------"
 
-# Deploy with production environment
-echo "Executing: wrangler deploy --env production"
-wrangler deploy --env production
+# Deploy with default environment
+echo "Executing: wrangler deploy"
+wrangler deploy
 
 DEPLOY_EXIT=$?
 if [ $DEPLOY_EXIT -eq 0 ]; then

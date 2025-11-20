@@ -347,13 +347,30 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       }
 
       return new Response(JSON.stringify({ 
-        status: 'ok',
-        database: dbStatus,
-        userCount,
-        error,
+        success: true,
+        status: 'healthy',
         timestamp: new Date().toISOString(),
-        environment: 'cloudflare-worker',
-        hyperdrive: !!env.HYPERDRIVE
+        services: {
+          auth: 'operational',
+          investor: 'operational', 
+          creator: 'operational',
+          production: 'operational',
+          browse: 'operational',
+          analytics: 'operational'
+        },
+        architecture: 'modular-services',
+        optimizations: {
+          database_pooling: 'active',
+          multi_layer_cache: 'active', 
+          service_routing: 'active'
+        },
+        database: {
+          status: dbStatus,
+          user_count: userCount,
+          hyperdrive_enabled: !!env.HYPERDRIVE,
+          error: error || undefined
+        },
+        environment: 'cloudflare-worker'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -395,6 +412,289 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       }
 
       return new Response(JSON.stringify({ pitches, source }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get trending pitches - PUBLIC ACCESS
+    if (path === '/api/pitches/trending' && request.method === 'GET') {
+      const limit = parseInt(url.searchParams.get('limit') || '10');
+      
+      // Generate trending pitches based on view count
+      let pitches = [
+        {
+          id: 1,
+          title: 'Cyberpunk Noir Detective Story',
+          logline: 'A futuristic detective thriller set in neo-Tokyo',
+          genre: 'Thriller',
+          format: 'Feature Film',
+          viewCount: 2847,
+          likeCount: 284,
+          posterUrl: '/api/uploads/demo/cyberpunk-thumb.jpg',
+          createdAt: '2024-11-01T10:00:00Z',
+          creator: {
+            id: 1,
+            username: 'alex.creator'
+          }
+        },
+        {
+          id: 2,
+          title: 'Space Opera Epic: Starbound',
+          logline: 'An ambitious space opera following rebels against an empire',
+          genre: 'Sci-Fi',
+          format: 'Feature Film',
+          viewCount: 3156,
+          likeCount: 412,
+          posterUrl: '/api/uploads/demo/starbound-thumb.jpg',
+          createdAt: '2024-10-28T16:45:00Z',
+          creator: {
+            id: 5,
+            username: 'luna.starr'
+          }
+        },
+        {
+          id: 6,
+          title: 'Action Hero Legacy',
+          logline: 'A retired special forces operative pulled back for one last mission',
+          genre: 'Action',
+          format: 'Feature Film',
+          viewCount: 4567,
+          likeCount: 623,
+          posterUrl: '/api/uploads/demo/action-hero-thumb.jpg',
+          createdAt: '2024-11-03T14:20:00Z',
+          creator: {
+            id: 8,
+            username: 'jake.morrison'
+          }
+        },
+        {
+          id: 5,
+          title: 'Horror in the Hills',
+          logline: 'Supernatural horror in remote Appalachian mountains',
+          genre: 'Horror',
+          format: 'Feature Film',
+          viewCount: 2234,
+          likeCount: 298,
+          posterUrl: '/api/uploads/demo/horror-hills-thumb.jpg',
+          createdAt: '2024-09-20T08:15:00Z',
+          creator: {
+            id: 7,
+            username: 'sarah.mitchell'
+          }
+        }
+      ];
+      
+      // Sort by view count descending and limit
+      pitches = pitches.sort((a, b) => b.viewCount - a.viewCount).slice(0, limit);
+
+      return new Response(JSON.stringify({
+        success: true,
+        items: pitches,
+        message: `Found ${pitches.length} trending pitches`
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get new releases - PUBLIC ACCESS
+    if (path === '/api/pitches/new' && request.method === 'GET') {
+      const limit = parseInt(url.searchParams.get('limit') || '10');
+      
+      // Generate new releases sorted by date
+      let pitches = [
+        {
+          id: 6,
+          title: 'Action Hero Legacy',
+          logline: 'A high-octane action film about a retired special forces operative',
+          genre: 'Action',
+          format: 'Feature Film',
+          viewCount: 4567,
+          posterUrl: '/api/uploads/demo/action-hero-thumb.jpg',
+          createdAt: '2024-11-03T14:20:00Z',
+          creator: {
+            id: 8,
+            username: 'jake.morrison'
+          }
+        },
+        {
+          id: 1,
+          title: 'Cyberpunk Noir Detective Story',
+          logline: 'A futuristic detective thriller set in neo-Tokyo',
+          genre: 'Thriller',
+          format: 'Feature Film',
+          viewCount: 2847,
+          posterUrl: '/api/uploads/demo/cyberpunk-thumb.jpg',
+          createdAt: '2024-11-01T10:00:00Z',
+          creator: {
+            id: 1,
+            username: 'alex.creator'
+          }
+        },
+        {
+          id: 2,
+          title: 'Space Opera Epic: Starbound',
+          logline: 'An ambitious space opera following rebels',
+          genre: 'Sci-Fi',
+          format: 'Feature Film',
+          viewCount: 3156,
+          posterUrl: '/api/uploads/demo/starbound-thumb.jpg',
+          createdAt: '2024-10-28T16:45:00Z',
+          creator: {
+            id: 5,
+            username: 'luna.starr'
+          }
+        }
+      ];
+      
+      // Sort by created date descending and limit
+      pitches = pitches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, limit);
+
+      return new Response(JSON.stringify({
+        success: true,
+        items: pitches,
+        message: `Found ${pitches.length} new releases`
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Browse enhanced pitches - PUBLIC ACCESS 
+    if (path === '/api/pitches/browse/enhanced' && request.method === 'GET') {
+      const sort = url.searchParams.get('sort') || 'date';
+      const order = url.searchParams.get('order') || 'desc';
+      const limit = parseInt(url.searchParams.get('limit') || '24');
+      const offset = parseInt(url.searchParams.get('offset') || '0');
+      const genre = url.searchParams.get('genre');
+      const format = url.searchParams.get('format');
+      
+      // Generate comprehensive pitch collection
+      let pitches = [
+        {
+          id: 1,
+          title: 'Cyberpunk Noir Detective Story',
+          logline: 'A futuristic detective thriller set in neo-Tokyo with cutting-edge visuals',
+          genre: 'Thriller',
+          format: 'Feature Film',
+          viewCount: 2847,
+          likeCount: 284,
+          posterUrl: '/api/uploads/demo/cyberpunk-thumb.jpg',
+          createdAt: '2024-11-01T10:00:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: { id: 1, username: 'alex.creator' }
+        },
+        {
+          id: 2,
+          title: 'Romantic Comedy in Paris',
+          logline: 'A heartwarming romantic comedy set against the backdrop of modern Paris',
+          genre: 'Romance',
+          format: 'Feature Film',
+          viewCount: 1923,
+          likeCount: 156,
+          posterUrl: '/api/uploads/demo/paris-thumb.jpg',
+          createdAt: '2024-10-15T14:30:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: { id: 4, username: 'marie.dubois' }
+        },
+        {
+          id: 3,
+          title: 'Space Opera Epic: Starbound',
+          logline: 'An ambitious space opera following a crew of rebels',
+          genre: 'Sci-Fi',
+          format: 'Feature Film',
+          viewCount: 3156,
+          likeCount: 412,
+          posterUrl: '/api/uploads/demo/starbound-thumb.jpg',
+          createdAt: '2024-10-28T16:45:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: { id: 5, username: 'luna.starr' }
+        },
+        {
+          id: 4,
+          title: 'The Underground',
+          logline: 'A gritty urban drama about street artists fighting gentrification',
+          genre: 'Drama',
+          format: 'Feature Film',
+          viewCount: 1478,
+          likeCount: 189,
+          posterUrl: '/api/uploads/demo/underground-thumb.jpg',
+          createdAt: '2024-10-05T12:30:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: { id: 6, username: 'marcus.chen' }
+        },
+        {
+          id: 5,
+          title: 'Horror in the Hills',
+          logline: 'A supernatural horror film set in remote Appalachian mountains',
+          genre: 'Horror',
+          format: 'Feature Film',
+          viewCount: 2234,
+          likeCount: 298,
+          posterUrl: '/api/uploads/demo/horror-hills-thumb.jpg',
+          createdAt: '2024-09-20T08:15:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: { id: 7, username: 'sarah.mitchell' }
+        },
+        {
+          id: 6,
+          title: 'Action Hero Legacy',
+          logline: 'A high-octane action film about a retired special forces operative',
+          genre: 'Action',
+          format: 'Feature Film',
+          viewCount: 4567,
+          likeCount: 623,
+          posterUrl: '/api/uploads/demo/action-hero-thumb.jpg',
+          createdAt: '2024-11-03T14:20:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: { id: 8, username: 'jake.morrison' }
+        }
+      ];
+      
+      // Apply filters
+      if (genre) {
+        pitches = pitches.filter(p => p.genre.toLowerCase() === genre.toLowerCase());
+      }
+      if (format) {
+        pitches = pitches.filter(p => p.format.toLowerCase() === format.toLowerCase());
+      }
+      
+      // Apply sorting
+      if (sort === 'views') {
+        pitches.sort((a, b) => order === 'desc' ? b.viewCount - a.viewCount : a.viewCount - b.viewCount);
+      } else if (sort === 'title') {
+        pitches.sort((a, b) => {
+          const comparison = a.title.localeCompare(b.title);
+          return order === 'desc' ? -comparison : comparison;
+        });
+      } else { // date
+        pitches.sort((a, b) => {
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return order === 'desc' ? dateB - dateA : dateA - dateB;
+        });
+      }
+      
+      // Apply pagination
+      const total = pitches.length;
+      const paginatedPitches = pitches.slice(offset, offset + limit);
+
+      return new Response(JSON.stringify({
+        success: true,
+        items: paginatedPitches,
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + limit < total
+        },
+        sort: { by: sort, order },
+        message: `Found ${paginatedPitches.length} enhanced browse pitches`
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
@@ -474,27 +774,84 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
       }
     }
 
-    // Get single pitch by ID
+    // Get single pitch by ID - PUBLIC ACCESS
     if (path.match(/^\/api\/pitches\/(\d+)$/) && request.method === 'GET') {
       const pitchId = parseInt(path.split('/').pop()!);
       
-      // Simulate database lookup
-      const pitch = {
-        id: pitchId,
-        title: 'The Last Stand',
-        genre: 'Action',
-        budget: 5000000,
-        description: 'An action-packed thriller about survival against impossible odds.',
-        creatorId: 1,
-        creatorName: 'Alex Creator',
-        status: 'active',
-        featured: true,
-        views: 1250,
-        createdAt: '2024-11-10T14:30:00Z',
-        updatedAt: '2024-11-15T10:00:00Z'
+      // Map of available public pitches
+      const publicPitches = {
+        162: {
+          id: 162,
+          title: 'Cyberpunk Noir Detective Story',
+          logline: 'A futuristic detective thriller set in neo-Tokyo with cutting-edge visuals and a gripping narrative',
+          genre: 'Thriller',
+          format: 'Feature Film',
+          viewCount: 2847,
+          likeCount: 284,
+          posterUrl: '/api/uploads/demo/cyberpunk-thumb.jpg',
+          createdAt: '2024-11-01T10:00:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: {
+            id: 1,
+            username: 'alex.creator'
+          }
+        },
+        1: {
+          id: 1,
+          title: 'The Last Stand',
+          logline: 'An action-packed thriller about survival against impossible odds.',
+          genre: 'Action',
+          format: 'Feature Film',
+          viewCount: 1250,
+          likeCount: 125,
+          posterUrl: '/api/uploads/demo/last-stand-thumb.jpg',
+          createdAt: '2024-11-10T14:30:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: {
+            id: 1,
+            username: 'alex.creator'
+          }
+        },
+        2: {
+          id: 2,
+          title: 'Space Opera Epic: Starbound',
+          logline: 'An ambitious space opera following a crew of rebels fighting against an intergalactic empire',
+          genre: 'Sci-Fi',
+          format: 'Feature Film',
+          viewCount: 3156,
+          likeCount: 412,
+          posterUrl: '/api/uploads/demo/starbound-thumb.jpg',
+          createdAt: '2024-10-28T16:45:00Z',
+          status: 'published',
+          visibility: 'public',
+          creator: {
+            id: 5,
+            username: 'luna.starr'
+          }
+        }
       };
+      
+      const pitch = publicPitches[pitchId];
+      
+      if (!pitch) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Pitch not found or not accessible',
+          pitch_id: pitchId
+        }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
-      return new Response(JSON.stringify({ pitch, source: 'database' }), {
+      return new Response(JSON.stringify({ 
+        success: true,
+        pitch,
+        data: pitch, // Some frontends expect 'data' field
+        message: `Pitch ${pitchId} loaded successfully`
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }

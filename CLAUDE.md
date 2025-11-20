@@ -47,7 +47,7 @@ VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
 wrangler dev
 
 # Deploy to production
-wrangler deploy --env production
+wrangler deploy
 ```
 
 ## Commands
@@ -59,7 +59,7 @@ wrangler deploy --env production
 
 ### Production Deployment
 - Deploy Frontend: `wrangler pages deploy frontend/dist --project-name=pitchey`
-- Deploy Worker: `wrangler deploy --env production`
+- Deploy Worker: `wrangler deploy`
 
 ### Build Commands
 - Build Frontend: `npm run build`

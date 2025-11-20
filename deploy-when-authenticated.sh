@@ -36,8 +36,8 @@ echo "🚀 DEPLOYING PHASE 1 OPTIMIZATIONS"
 echo "=================================="
 
 # Deploy the optimizations
-echo "Deploying optimized Worker to production..."
-if wrangler deploy --env production; then
+echo "Deploying optimized Worker..."
+if wrangler deploy; then
     echo ""
     echo "✅ DEPLOYMENT SUCCESSFUL!"
     echo ""

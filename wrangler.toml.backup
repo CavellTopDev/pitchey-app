@@ -1,0 +1,64 @@
+name = "pitchey-api-production"
+main = "src/worker-full-neon.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Used for CORS and redirects
+FRONTEND_URL = "https://pitchey.pages.dev"
+
+# Progressive migration: proxy unmatched API routes to existing Deno backend
+ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
+
+# Set secrets with: wrangler secret put JWT_SECRET --config wrangler.worker.toml
+# JWT_SECRET is read from environment secrets at deploy time
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+
+[[durable_objects.bindings]]
+name = "WEBSOCKET_ROOM"
+class_name = "WebSocketRoom"
+
+# Database Configuration - Hyperdrive for Neon PostgreSQL
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "983d4a1818264b5dbdca26bacf167dee"
+localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
+
+# Durable Object migrations
+[[migrations]]
+tag = "v1"
+new_classes = ["WebSocketRoom"]
+
+# Production environment configuration
+[env.production]
+name = "pitchey-api-production"
+main = "src/worker-full-neon.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production.vars]
+FRONTEND_URL = "https://pitchey.pages.dev"
+ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+[[env.production.r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+
+[[env.production.durable_objects.bindings]]
+name = "WEBSOCKET_ROOM"
+class_name = "WebSocketRoom"
+
+[[env.production.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "983d4a1818264b5dbdca26bacf167dee"

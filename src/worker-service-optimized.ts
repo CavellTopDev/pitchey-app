@@ -27,6 +27,92 @@ async function createSimpleJWT(payload: any, secret: string): Promise<string> {
   return `${message}.${signatureStr}`;
 }
 
+async function verifyJWT(token: string, secret: string): Promise<any> {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Invalid token format');
+    }
+
+    const [headerStr, payloadStr, signatureStr] = parts;
+    const message = `${headerStr}.${payloadStr}`;
+    
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const signature = Uint8Array.from(atob(signatureStr), c => c.charCodeAt(0));
+    const isValid = await crypto.subtle.verify('HMAC', key, signature, encoder.encode(message));
+    
+    if (!isValid) {
+      throw new Error('Invalid signature');
+    }
+
+    const payload = JSON.parse(atob(payloadStr));
+    
+    // Check expiration
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      throw new Error('Token expired');
+    }
+
+    return payload;
+  } catch (error) {
+    throw new Error('Invalid token');
+  }
+}
+
+async function authenticateRequest(request: Request, env: Env): Promise<{success: boolean, user?: any, error?: Response}> {
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return {
+        success: false,
+        error: new Response(JSON.stringify({
+          success: false,
+          message: 'Missing or invalid authorization header'
+        }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      };
+    }
+
+    const token = authHeader.substring(7);
+    const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+    const payload = await verifyJWT(token, JWT_SECRET);
+
+    // Return demo account data based on user type
+    let user;
+    if (payload.userType === 'creator') {
+      user = demoAccounts.creator;
+    } else if (payload.userType === 'investor') {
+      user = demoAccounts.investor;
+    } else if (payload.userType === 'production') {
+      user = demoAccounts.production;
+    } else {
+      throw new Error('Invalid user type');
+    }
+
+    return { success: true, user: { ...user, ...payload } };
+  } catch (error) {
+    return {
+      success: false,
+      error: new Response(JSON.stringify({
+        success: false,
+        message: 'Invalid token'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    };
+  }
+}
+
 interface Env {
   HYPERDRIVE?: Hyperdrive;
   WEBSOCKET_ROOM?: DurableObjectNamespace;
@@ -1238,8 +1324,10 @@ export default {
 
             return jsonResponse({
               success: true,
-              token,
-              user: demoAccount,
+              data: {
+                token,
+                user: demoAccount
+              },
               message: "Creator login successful"
             });
           }
@@ -1271,8 +1359,10 @@ export default {
 
             return jsonResponse({
               success: true,
-              token,
-              user: demoAccount,
+              data: {
+                token,
+                user: demoAccount
+              },
               message: "Investor login successful"
             });
           }
@@ -1304,8 +1394,10 @@ export default {
 
             return jsonResponse({
               success: true,
-              token,
-              user: demoAccount,
+              data: {
+                token,
+                user: demoAccount
+              },
               message: "Production login successful"
             });
           }
@@ -1316,12 +1408,305 @@ export default {
         }
       }
 
+      // ============ DASHBOARD ENDPOINTS (Authenticated) ============
+
+      // Creator Dashboard
+      if (pathname === '/api/creator/dashboard' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        if (auth.user.userType !== 'creator') {
+          return jsonResponse({
+            success: false,
+            message: 'Access denied: Creator access required'
+          }, 403);
+        }
+
+        return jsonResponse({
+          success: true,
+          data: {
+            stats: {
+              totalPitches: 3,
+              viewsThisMonth: 1250,
+              likesThisMonth: 45,
+              ndaRequests: 2
+            },
+            recentActivity: [
+              { type: 'view', pitch: 'Neon Dreams', user: 'john_investor', timestamp: Date.now() - 3600000 },
+              { type: 'like', pitch: 'Space Opera', user: 'sarah_prod', timestamp: Date.now() - 7200000 }
+            ],
+            trending: {
+              bestPerforming: { title: 'Neon Dreams', views: 850, growth: '+25%' }
+            }
+          }
+        });
+      }
+
+      // User Profile
+      if (pathname === '/api/profile' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        return jsonResponse({
+          success: true,
+          data: {
+            user: {
+              id: auth.user.id,
+              username: auth.user.username,
+              email: auth.user.email,
+              userType: auth.user.userType,
+              companyName: auth.user.companyName,
+              bio: `Professional ${auth.user.userType} with 5+ years experience`,
+              location: 'Los Angeles, CA',
+              website: `https://${auth.user.username}.com`,
+              profileImageUrl: null,
+              followerCount: 120,
+              followingCount: 85,
+              pitchCount: auth.user.userType === 'creator' ? 3 : 0
+            }
+          }
+        });
+      }
+
+      // Follow Stats
+      if (pathname.startsWith('/api/follows/stats/') && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        const userId = pathname.split('/').pop();
+        return jsonResponse({
+          success: true,
+          data: {
+            followStats: {
+              followers: 120,
+              following: 85,
+              isFollowing: false
+            }
+          }
+        });
+      }
+
+      // Payment Credits Balance
+      if (pathname === '/api/payments/credits/balance' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        return jsonResponse({
+          success: true,
+          data: {
+            balance: 250.00,
+            currency: 'USD',
+            lastUpdated: new Date().toISOString()
+          }
+        });
+      }
+
+      // Subscription Status
+      if (pathname === '/api/payments/subscription-status' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        return jsonResponse({
+          success: true,
+          data: {
+            subscription: {
+              tier: 'pro',
+              status: 'active',
+              nextBilling: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              features: ['unlimited_pitches', 'advanced_analytics', 'priority_support']
+            }
+          }
+        });
+      }
+
+      // Pending NDAs
+      if (pathname === '/api/nda/pending' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        const pendingNdas = auth.user.userType === 'creator' ? [
+          {
+            id: 1,
+            pitchId: 1,
+            pitchTitle: 'Neon Dreams',
+            requesterId: 2,
+            requesterName: 'Sarah Investor',
+            requestedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'pending'
+          }
+        ] : [];
+
+        return jsonResponse({
+          success: true,
+          data: {
+            ndaRequests: pendingNdas,
+            total: pendingNdas.length
+          }
+        });
+      }
+
+      // Active NDAs
+      if (pathname === '/api/nda/active' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        const activeNdas = auth.user.userType === 'creator' ? [
+          {
+            id: 2,
+            pitchId: 2,
+            pitchTitle: 'Space Opera',
+            requesterId: 16,
+            requesterName: 'Stellar Production',
+            signedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'active',
+            expiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ] : [];
+
+        return jsonResponse({
+          success: true,
+          data: {
+            activeNdas: activeNdas,
+            total: activeNdas.length
+          }
+        });
+      }
+
+      // Unread Notifications
+      if (pathname === '/api/notifications/unread' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        const notifications = [
+          {
+            id: 1,
+            type: 'nda_request',
+            title: 'New NDA Request',
+            message: 'Sarah Investor has requested access to your pitch "Neon Dreams"',
+            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            read: false
+          },
+          {
+            id: 2,
+            type: 'pitch_view',
+            title: 'Pitch Viewed',
+            message: 'Your pitch "Space Opera" was viewed by John Producer',
+            timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+            read: false
+          }
+        ];
+
+        return jsonResponse({
+          success: true,
+          data: {
+            notifications: notifications,
+            unreadCount: notifications.filter(n => !n.read).length,
+            total: notifications.length
+          }
+        });
+      }
+
+      // User Analytics (monthly preset)
+      if (pathname === '/api/analytics/user' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        const preset = url.searchParams.get('preset') || 'month';
+        const now = new Date();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        
+        // Generate sample daily data
+        const dailyViews = Array.from({length: daysInMonth}, (_, i) => ({
+          date: new Date(now.getFullYear(), now.getMonth(), i + 1).toISOString().split('T')[0],
+          views: Math.floor(Math.random() * 50) + 10,
+          likes: Math.floor(Math.random() * 15) + 2
+        }));
+
+        return jsonResponse({
+          success: true,
+          data: {
+            period: preset,
+            analytics: {
+              totalViews: dailyViews.reduce((sum, day) => sum + day.views, 0),
+              totalLikes: dailyViews.reduce((sum, day) => sum + day.likes, 0),
+              avgViewsPerDay: Math.round(dailyViews.reduce((sum, day) => sum + day.views, 0) / daysInMonth),
+              chartData: dailyViews,
+              topPitches: [
+                { title: 'Neon Dreams', views: 450, likes: 28 },
+                { title: 'Space Opera', views: 380, likes: 22 },
+                { title: 'Digital Hearts', views: 295, likes: 15 }
+              ]
+            }
+          }
+        });
+      }
+
+      // Dashboard Analytics (monthly preset)  
+      if (pathname === '/api/analytics/dashboard' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        const preset = url.searchParams.get('preset') || 'month';
+
+        return jsonResponse({
+          success: true,
+          data: {
+            period: preset,
+            summary: {
+              totalPitches: auth.user.userType === 'creator' ? 3 : 0,
+              totalViews: 1250,
+              totalLikes: 65,
+              totalComments: 18,
+              ndaRequests: 2,
+              activeInvestments: auth.user.userType === 'investor' ? 4 : 0
+            },
+            growth: {
+              viewsGrowth: '+15%',
+              likesGrowth: '+8%',
+              engagementGrowth: '+12%'
+            },
+            recentActivity: [
+              {
+                type: 'pitch_view',
+                description: 'Your pitch "Neon Dreams" was viewed',
+                timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+              },
+              {
+                type: 'nda_request',
+                description: 'New NDA request from Sarah Investor',
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+              }
+            ]
+          }
+        });
+      }
+
       // Fallback for unhandled routes
       return new Response(JSON.stringify({
         success: false,
         message: 'Endpoint not found',
         architecture: 'simplified',
-        available_endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/pitches/{id}', '/api/pitches/browse/enhanced', '/api/pitches/browse/general', '/api/health', '/api/auth/creator/login', '/api/auth/investor/login', '/api/auth/production/login'],
+        available_endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/pitches/{id}', '/api/pitches/browse/enhanced', '/api/pitches/browse/general', '/api/health', '/api/auth/creator/login', '/api/auth/investor/login', '/api/auth/production/login', '/api/creator/dashboard', '/api/profile', '/api/follows/stats/{id}', '/api/payments/credits/balance', '/api/payments/subscription-status', '/api/nda/pending', '/api/nda/active', '/api/notifications/unread', '/api/analytics/user', '/api/analytics/dashboard'],
         timestamp: new Date().toISOString()
       }), {
         status: 404,

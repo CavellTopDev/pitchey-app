@@ -269,12 +269,12 @@ deploy_worker() {
     
     # Deploy worker with secrets
     log INFO "Deploying Cloudflare Worker..."
-    wrangler deploy --env production --minify
+    wrangler deploy --minify
     
     # Set/update secrets
     log INFO "Updating worker secrets..."
-    echo "$JWT_SECRET" | wrangler secret put JWT_SECRET --env production
-    echo "$DATABASE_URL" | wrangler secret put DATABASE_URL --env production
+    echo "$JWT_SECRET" | wrangler secret put JWT_SECRET
+    echo "$DATABASE_URL" | wrangler secret put DATABASE_URL
     
     # Verify worker deployment
     log INFO "Verifying worker deployment..."

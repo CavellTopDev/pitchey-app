@@ -38,7 +38,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "Deploying Worker to Cloudflare..."
-          wrangler deploy --env production \
+          wrangler deploy \
             --var JWT_SECRET:"${{ secrets.JWT_SECRET }}" \
             --var DATABASE_URL:"${{ secrets.NEON_DATABASE_URL }}" \
             --var FRONTEND_URL:"https://pitchey.pages.dev"

@@ -587,7 +587,7 @@ if command -v wrangler &> /dev/null && wrangler whoami &> /dev/null; then
         echo ""
         echo "🚀 Deploying Phase 2 service architecture..."
         
-        if wrangler deploy --env production; then
+        if wrangler deploy; then
             echo ""
             echo "🎉 PHASE 2 DEPLOYMENT SUCCESSFUL!"
             echo "================================="
@@ -636,7 +636,7 @@ if command -v wrangler &> /dev/null && wrangler whoami &> /dev/null; then
                 cp wrangler.toml.phase1.backup wrangler.toml
                 echo "✅ Phase 1 configuration restored"
                 echo "Redeploying Phase 1..."
-                wrangler deploy --env production
+                wrangler deploy
             fi
         fi
     else
@@ -644,11 +644,11 @@ if command -v wrangler &> /dev/null && wrangler whoami &> /dev/null; then
         echo "⏳ Phase 2 prepared but not deployed"
         echo ""
         echo "🔧 To deploy later:"
-        echo "   wrangler deploy --env production"
+        echo "   wrangler deploy"
         echo ""
         echo "🔄 To revert to Phase 1:"
         echo "   cp wrangler.toml.phase1.backup wrangler.toml"
-        echo "   wrangler deploy --env production"
+        echo "   wrangler deploy"
     fi
     
 else
@@ -656,7 +656,7 @@ else
     echo ""
     echo "🔧 To deploy Phase 2:"
     echo "   wrangler login"
-    echo "   wrangler deploy --env production"
+    echo "   wrangler deploy"
 fi
 
 echo ""

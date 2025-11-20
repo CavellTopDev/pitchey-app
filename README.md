@@ -33,7 +33,7 @@ PORT=8001 deno run --allow-all working-server.ts # Backend (http://localhost:800
 wrangler dev                                      # Worker locally
 
 # Production Deployment
-wrangler deploy --env production                  # Deploy Worker
+wrangler deploy                                   # Deploy Worker
 wrangler pages deploy frontend/dist --project-name=pitchey # Deploy Frontend
 deno deploy --project=pitchey-backend             # Deploy Backend
 ```
