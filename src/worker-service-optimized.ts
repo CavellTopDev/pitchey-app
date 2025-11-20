@@ -1408,6 +1408,37 @@ export default {
         }
       }
 
+      // ============ LOGOUT ENDPOINT ============
+      
+      // Universal logout endpoint (works for all user types)
+      if (pathname === '/api/auth/logout' && request.method === 'POST') {
+        try {
+          // Optional: Verify token is valid before logout
+          const auth = await authenticateRequest(request, env);
+          
+          // For client-side logout, we just return success
+          // Token invalidation happens client-side by removing from localStorage
+          return jsonResponse({
+            success: true,
+            message: "Logout successful",
+            data: {
+              redirectUrl: "/login",
+              timestamp: new Date().toISOString()
+            }
+          });
+        } catch (error) {
+          // Even if token verification fails, allow logout to proceed
+          return jsonResponse({
+            success: true,
+            message: "Logout completed",
+            data: {
+              redirectUrl: "/login",
+              timestamp: new Date().toISOString()
+            }
+          });
+        }
+      }
+
       // ============ DASHBOARD ENDPOINTS (Authenticated) ============
 
       // Creator Dashboard
@@ -1706,7 +1737,7 @@ export default {
         success: false,
         message: 'Endpoint not found',
         architecture: 'simplified',
-        available_endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/pitches/{id}', '/api/pitches/browse/enhanced', '/api/pitches/browse/general', '/api/health', '/api/auth/creator/login', '/api/auth/investor/login', '/api/auth/production/login', '/api/creator/dashboard', '/api/profile', '/api/follows/stats/{id}', '/api/payments/credits/balance', '/api/payments/subscription-status', '/api/nda/pending', '/api/nda/active', '/api/notifications/unread', '/api/analytics/user', '/api/analytics/dashboard'],
+        available_endpoints: ['/api/simple-test', '/api/db-test', '/api/pitches/trending', '/api/pitches/new', '/api/pitches/public', '/api/pitches/{id}', '/api/pitches/browse/enhanced', '/api/pitches/browse/general', '/api/health', '/api/auth/creator/login', '/api/auth/investor/login', '/api/auth/production/login', '/api/auth/logout', '/api/creator/dashboard', '/api/profile', '/api/follows/stats/{id}', '/api/payments/credits/balance', '/api/payments/subscription-status', '/api/nda/pending', '/api/nda/active', '/api/notifications/unread', '/api/analytics/user', '/api/analytics/dashboard'],
         timestamp: new Date().toISOString()
       }), {
         status: 404,
