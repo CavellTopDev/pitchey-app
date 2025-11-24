@@ -1,0 +1,32 @@
+name: Deploy to Cloudflare (Minimal)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/worker-service-optimized.ts'
+      - 'wrangler.toml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5  # Reduce timeout to save minutes
+    
+    steps:
+      - uses: actions/checkout@v3  # Use v3 for stability
+        with:
+          fetch-depth: 1  # Shallow clone to save time
+      
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          environment: production
+          secrets: |
+            JWT_SECRET
+            DATABASE_URL
+            FRONTEND_URL
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          FRONTEND_URL: https://pitchey.pages.dev

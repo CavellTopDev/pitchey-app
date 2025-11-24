@@ -13,6 +13,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy Worker to Cloudflare
+    if: github.repository_owner == 'CavellTopDev'
     
     steps:
       - name: Checkout code

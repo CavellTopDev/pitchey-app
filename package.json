@@ -1,9 +1,21 @@
 {
+  "name": "pitchey-cloudflare-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy --env production",
+    "deploy:local": "./deploy-cloudflare.sh",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
     "@sendgrid/mail": "^8.1.6",
     "drizzle-orm": "^0.35.3",
     "postgres": "^3.4.7",
     "toucan-js": "^4.1.1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.50.0"
   }
 }
