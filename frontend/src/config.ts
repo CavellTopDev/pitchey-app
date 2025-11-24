@@ -50,8 +50,8 @@ function createConfig(): AppConfig {
     IS_PRODUCTION: mode === 'production',
     IS_DEVELOPMENT: mode === 'development',
     MODE: mode,
-    // Disable WebSocket in production on Deno Deploy due to reliability issues
-    WEBSOCKET_ENABLED: mode !== 'production' || import.meta.env.VITE_FORCE_WEBSOCKET === 'true'
+    // Enable WebSocket in production with Cloudflare Workers (Durable Objects support)
+    WEBSOCKET_ENABLED: import.meta.env.VITE_DISABLE_WEBSOCKET !== 'true'
   };
 
   // Log configuration in development

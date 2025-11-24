@@ -48,7 +48,7 @@ jobs:
           echo "Waiting for deployment to propagate..."
           sleep 10
           echo "Testing Worker health endpoint..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health)
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)
           if [ "$response" = "200" ]; then
             echo "✅ Worker deployed successfully!"
           else
@@ -59,6 +59,6 @@ jobs:
       - name: Post Deployment Actions
         if: success()
         run: |
-          echo "🚀 Worker deployed to: https://pitchey-api-production.cavelltheleaddev.workers.dev"
+          echo "🚀 Worker deployed to: https://pitchey-optimized.cavelltheleaddev.workers.dev"
           echo "📊 View analytics: https://dash.cloudflare.com"
           echo "📝 Deployment complete at $(date)

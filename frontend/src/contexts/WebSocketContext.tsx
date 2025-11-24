@@ -3,6 +3,7 @@ import { useWebSocketAdvanced } from '../hooks/useWebSocketAdvanced';
 import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus } from '../types/websocket';
 import { useAuthStore } from '../store/authStore';
 import { config } from '../config';
+import { presenceFallbackService } from '../services/presence-fallback.service';
 
 interface NotificationData {
   id: string;
@@ -119,6 +120,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   // Emergency disable state
   const [isWebSocketDisabled, setIsWebSocketDisabled] = useState(false);
+  
+  // Fallback state
+  const [usingFallback, setUsingFallback] = useState(false);
   
   // State
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -386,6 +390,13 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         setIsWebSocketDisabled(true);
         localStorage.setItem('pitchey_websocket_disabled', 'true');
         localStorage.setItem('pitchey_websocket_loop_detected', Date.now().toString());
+        
+        // Start fallback service when WebSocket fails
+        if (isAuthenticated && !usingFallback) {
+          console.log('Starting fallback presence service due to WebSocket failure');
+          setUsingFallback(true);
+          presenceFallbackService.start();
+        }
       }, 500); // Faster disable
     }
   }
@@ -415,12 +426,19 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     });
   }, [sendMessage]);
   
-  const updatePresence = useCallback((status: PresenceData['status'], activity?: string) => {
-    sendMessage({
-      type: 'presence_update',
-      data: { status, activity },
-    });
-  }, [sendMessage]);
+  const updatePresence = useCallback(async (status: PresenceData['status'], activity?: string) => {
+    // Try WebSocket first
+    if (isConnected && !usingFallback) {
+      sendMessage({
+        type: 'presence_update',
+        data: { status, activity },
+      });
+    } else {
+      // Use fallback service
+      console.log('Using fallback presence update');
+      await presenceFallbackService.updatePresence({ status, activity });
+    }
+  }, [sendMessage, isConnected, usingFallback]);
   
   const startTyping = useCallback((conversationId: number) => {
     sendMessage({
@@ -524,8 +542,29 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       setTypingIndicators([]);
       setUploadProgress([]);
       setPitchViews(new Map());
+      
+      // Stop fallback service
+      if (usingFallback) {
+        presenceFallbackService.stop();
+        setUsingFallback(false);
+      }
+    } else if (isAuthenticated && (isWebSocketDisabled || !config.WEBSOCKET_ENABLED)) {
+      // Start fallback service if WebSocket is disabled but user is authenticated
+      if (!usingFallback) {
+        console.log('Starting fallback presence service - WebSocket disabled');
+        setUsingFallback(true);
+        presenceFallbackService.start();
+        
+        // Subscribe to fallback presence updates
+        presenceFallbackService.subscribe((users) => {
+          setOnlineUsers(users.map(user => ({
+            ...user,
+            lastSeen: new Date(user.lastSeen)
+          })));
+        });
+      }
     }
-  }, [isAuthenticated, isConnected, isWebSocketDisabled]); // Added isWebSocketDisabled to deps
+  }, [isAuthenticated, isConnected, isWebSocketDisabled, usingFallback]); // Added isWebSocketDisabled and usingFallback to deps
   
   // Emergency control functions
   const disableWebSocket = useCallback(() => {

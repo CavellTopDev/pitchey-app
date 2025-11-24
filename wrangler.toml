@@ -1,3 +1,4 @@
+# Default development configuration
 name = "pitchey-optimized"
 main = "src/worker-service-optimized.ts"
 compatibility_date = "2024-11-01"
@@ -37,3 +38,32 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 [[migrations]]
 tag = "v3"
 new_sqlite_classes = ["WebSocketRoom"]
+
+# Production environment configuration
+[env.production]
+name = "pitchey-optimized"
+
+[env.production.vars]
+# Production configuration - JWT_SECRET and DATABASE_URL will be overridden via GitHub secrets
+FRONTEND_URL = "https://pitchey.pages.dev"
+JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
+SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
+SENTRY_ENVIRONMENT = "production"
+SENTRY_RELEASE = "unified-worker-v1.6-connection-pool-fix"
+
+# Production bindings (same as default)
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+[[env.production.r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+
+[[env.production.durable_objects.bindings]]
+name = "WEBSOCKET_ROOM"
+class_name = "WebSocketRoom"
+
+[[env.production.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "983d4a1818264b5dbdca26bacf167dee"

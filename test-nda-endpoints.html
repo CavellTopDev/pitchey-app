@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NDA Endpoints Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .endpoint { font-family: monospace; background: #f5f5f5; padding: 5px; }
+        button { margin: 5px; padding: 8px 12px; cursor: pointer; }
+        .response { background: #f9f9f9; padding: 10px; margin: 10px 0; overflow: auto; max-height: 300px; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <h1>Pitchey NDA Management Endpoints Test</h1>
+    <p>This page tests all implemented NDA endpoints in the Pitchey worker.</p>
+
+    <div class="test-section">
+        <h2>Authentication Setup</h2>
+        <p>Using demo credentials: <strong>alex.creator@demo.com</strong> (password: Demo123)</p>
+        <button onclick="testLogin()">Login and Get Token</button>
+        <div id="auth-status" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Core NDA Workflow</h2>
+        <h3>1. Request NDA</h3>
+        <div class="endpoint">POST /api/ndas/request</div>
+        <button onclick="testRequestNDA()">Test NDA Request</button>
+        <div id="request-result" class="response"></div>
+
+        <h3>2. Get NDA Status</h3>
+        <div class="endpoint">GET /api/ndas/pitch/{pitchId}/status</div>
+        <button onclick="testNDAStatus()">Test NDA Status</button>
+        <div id="status-result" class="response"></div>
+
+        <h3>3. Approve NDA (Creator Action)</h3>
+        <div class="endpoint">POST /api/ndas/{id}/approve</div>
+        <button onclick="testApproveNDA()">Test Approve NDA</button>
+        <div id="approve-result" class="response"></div>
+
+        <h3>4. Sign NDA (Investor Action)</h3>
+        <div class="endpoint">POST /api/ndas/{id}/sign</div>
+        <button onclick="testSignNDA()">Test Sign NDA</button>
+        <div id="sign-result" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>NDA Management</h2>
+        <h3>5. List NDAs</h3>
+        <div class="endpoint">GET /api/ndas</div>
+        <button onclick="testListNDAs()">Test List NDAs</button>
+        <div id="list-result" class="response"></div>
+
+        <h3>6. Get Specific NDA</h3>
+        <div class="endpoint">GET /api/ndas/{id}</div>
+        <button onclick="testGetNDA()">Test Get NDA Details</button>
+        <div id="get-result" class="response"></div>
+
+        <h3>7. NDA History</h3>
+        <div class="endpoint">GET /api/ndas/history</div>
+        <button onclick="testNDAHistory()">Test NDA History</button>
+        <div id="history-result" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>NDA Templates</h2>
+        <h3>8. Get Templates</h3>
+        <div class="endpoint">GET /api/ndas/templates</div>
+        <button onclick="testGetTemplates()">Test Get Templates</button>
+        <div id="templates-result" class="response"></div>
+
+        <h3>9. Get Template by ID</h3>
+        <div class="endpoint">GET /api/ndas/templates/{id}</div>
+        <button onclick="testGetTemplate()">Test Get Template</button>
+        <div id="template-result" class="response"></div>
+
+        <h3>10. Generate Preview</h3>
+        <div class="endpoint">POST /api/ndas/preview</div>
+        <button onclick="testGeneratePreview()">Test Generate Preview</button>
+        <div id="preview-result" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Advanced Features</h2>
+        <h3>11. NDA Statistics</h3>
+        <div class="endpoint">GET /api/ndas/stats</div>
+        <button onclick="testNDAStats()">Test NDA Statistics</button>
+        <div id="stats-result" class="response"></div>
+
+        <h3>12. Can Request Check</h3>
+        <div class="endpoint">GET /api/ndas/pitch/{pitchId}/can-request</div>
+        <button onclick="testCanRequest()">Test Can Request</button>
+        <div id="can-request-result" class="response"></div>
+
+        <h3>13. Download Signed NDA</h3>
+        <div class="endpoint">GET /api/ndas/{id}/download-signed</div>
+        <button onclick="testDownloadNDA()">Test Download Signed NDA</button>
+        <div id="download-result" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Bulk Operations</h2>
+        <h3>14. Bulk Approve</h3>
+        <div class="endpoint">POST /api/ndas/bulk-approve</div>
+        <button onclick="testBulkApprove()">Test Bulk Approve</button>
+        <div id="bulk-approve-result" class="response"></div>
+
+        <h3>15. Bulk Reject</h3>
+        <div class="endpoint">POST /api/ndas/bulk-reject</div>
+        <button onclick="testBulkReject()">Test Bulk Reject</button>
+        <div id="bulk-reject-result" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Additional Actions</h2>
+        <h3>16. Send Reminder</h3>
+        <div class="endpoint">POST /api/ndas/{id}/remind</div>
+        <button onclick="testSendReminder()">Test Send Reminder</button>
+        <div id="remind-result" class="response"></div>
+
+        <h3>17. Verify Signature</h3>
+        <div class="endpoint">GET /api/ndas/{id}/verify</div>
+        <button onclick="testVerifySignature()">Test Verify Signature</button>
+        <div id="verify-result" class="response"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test All Endpoints</h2>
+        <button onclick="runAllTests()" style="background: #4CAF50; color: white; padding: 10px 20px;">
+            Run All NDA Tests
+        </button>
+        <div id="all-tests-result" class="response"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8001'; // Local development API
+        let authToken = null;
+
+        function displayResult(elementId, result, success = true) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `
+                <div class="${success ? 'success' : 'error'}">
+                    <strong>${success ? 'SUCCESS' : 'ERROR'}</strong>
+                </div>
+                <pre>${JSON.stringify(result, null, 2)}</pre>
+            `;
+        }
+
+        async function makeRequest(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken ? `Bearer ${authToken}` : undefined,
+                        ...options.headers
+                    }
+                });
+                
+                if (endpoint.includes('download')) {
+                    const text = await response.text();
+                    return { success: response.ok, data: text, status: response.status };
+                }
+                
+                const data = await response.json();
+                return { success: response.ok, data, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testLogin() {
+            const result = await makeRequest('/api/auth/creator/login', {
+                method: 'POST',
+                body: JSON.stringify({
+                    email: 'alex.creator@demo.com',
+                    password: 'Demo123'
+                })
+            });
+            
+            if (result.success && result.data.data?.token) {
+                authToken = result.data.data.token;
+                displayResult('auth-status', { message: 'Login successful', token: 'Token acquired' });
+            } else {
+                displayResult('auth-status', result, false);
+            }
+        }
+
+        async function testRequestNDA() {
+            const result = await makeRequest('/api/ndas/request', {
+                method: 'POST',
+                body: JSON.stringify({
+                    pitchId: 1,
+                    message: 'Test NDA request for evaluation purposes'
+                })
+            });
+            displayResult('request-result', result, result.success);
+        }
+
+        async function testNDAStatus() {
+            const result = await makeRequest('/api/ndas/pitch/1/status');
+            displayResult('status-result', result, result.success);
+        }
+
+        async function testApproveNDA() {
+            const result = await makeRequest('/api/ndas/1/approve', {
+                method: 'POST',
+                body: JSON.stringify({ notes: 'Test approval' })
+            });
+            displayResult('approve-result', result, result.success);
+        }
+
+        async function testSignNDA() {
+            const result = await makeRequest('/api/ndas/1/sign', {
+                method: 'POST',
+                body: JSON.stringify({
+                    signature: 'Test Digital Signature',
+                    fullName: 'Alex Creator',
+                    acceptTerms: true
+                })
+            });
+            displayResult('sign-result', result, result.success);
+        }
+
+        async function testListNDAs() {
+            const result = await makeRequest('/api/ndas');
+            displayResult('list-result', result, result.success);
+        }
+
+        async function testGetNDA() {
+            const result = await makeRequest('/api/ndas/1');
+            displayResult('get-result', result, result.success);
+        }
+
+        async function testNDAHistory() {
+            const result = await makeRequest('/api/ndas/history');
+            displayResult('history-result', result, result.success);
+        }
+
+        async function testGetTemplates() {
+            const result = await makeRequest('/api/ndas/templates');
+            displayResult('templates-result', result, result.success);
+        }
+
+        async function testGetTemplate() {
+            const result = await makeRequest('/api/ndas/templates/1');
+            displayResult('template-result', result, result.success);
+        }
+
+        async function testGeneratePreview() {
+            const result = await makeRequest('/api/ndas/preview', {
+                method: 'POST',
+                body: JSON.stringify({
+                    pitchId: 1,
+                    templateId: 1
+                })
+            });
+            displayResult('preview-result', result, result.success);
+        }
+
+        async function testNDAStats() {
+            const result = await makeRequest('/api/ndas/stats');
+            displayResult('stats-result', result, result.success);
+        }
+
+        async function testCanRequest() {
+            const result = await makeRequest('/api/ndas/pitch/1/can-request');
+            displayResult('can-request-result', result, result.success);
+        }
+
+        async function testDownloadNDA() {
+            const result = await makeRequest('/api/ndas/1/download-signed');
+            displayResult('download-result', result, result.success);
+        }
+
+        async function testBulkApprove() {
+            const result = await makeRequest('/api/ndas/bulk-approve', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ndaIds: [1, 2]
+                })
+            });
+            displayResult('bulk-approve-result', result, result.success);
+        }
+
+        async function testBulkReject() {
+            const result = await makeRequest('/api/ndas/bulk-reject', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ndaIds: [3, 4],
+                    reason: 'Test bulk rejection'
+                })
+            });
+            displayResult('bulk-reject-result', result, result.success);
+        }
+
+        async function testSendReminder() {
+            const result = await makeRequest('/api/ndas/1/remind', { method: 'POST' });
+            displayResult('remind-result', result, result.success);
+        }
+
+        async function testVerifySignature() {
+            const result = await makeRequest('/api/ndas/1/verify');
+            displayResult('verify-result', result, result.success);
+        }
+
+        async function runAllTests() {
+            const allTestsDiv = document.getElementById('all-tests-result');
+            allTestsDiv.innerHTML = '<div>Running all tests...</div>';
+            
+            const tests = [
+                { name: 'Login', fn: testLogin },
+                { name: 'Get Templates', fn: testGetTemplates },
+                { name: 'Generate Preview', fn: testGeneratePreview },
+                { name: 'List NDAs', fn: testListNDAs },
+                { name: 'NDA History', fn: testNDAHistory },
+                { name: 'NDA Statistics', fn: testNDAStats },
+                { name: 'Can Request Check', fn: testCanRequest },
+                { name: 'Verify Signature', fn: testVerifySignature }
+            ];
+            
+            let results = [];
+            for (const test of tests) {
+                try {
+                    await test.fn();
+                    results.push(`✓ ${test.name}: PASSED`);
+                } catch (error) {
+                    results.push(`✗ ${test.name}: FAILED - ${error.message}`);
+                }
+                // Small delay between tests
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            allTestsDiv.innerHTML = `
+                <div class="success">
+                    <h3>Test Results Summary</h3>
+                    <pre>${results.join('\n')}</pre>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

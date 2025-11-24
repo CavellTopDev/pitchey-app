@@ -52,16 +52,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env production
+          command: deploy --env production --var JWT_SECRET:${{ secrets.JWT_SECRET }} --var DATABASE_URL:${{ secrets.DATABASE_URL }}
           workingDirectory: "."
-          secrets: |
-            JWT_SECRET
-            DATABASE_URL
-            ORIGIN_URL
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ORIGIN_URL: ${{ secrets.ORIGIN_URL }}
 
   deploy-frontend:
     needs: changes

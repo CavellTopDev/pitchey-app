@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket & Presence Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        .log { background: #f8f9fa; border: 1px solid #ddd; padding: 10px; height: 200px; overflow-y: auto; margin: 10px 0; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .online-users { background: #e9ecef; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Pitchey WebSocket & Presence Test</h1>
+    
+    <div id="config-status" class="status info">
+        <strong>Configuration Status:</strong> Loading...
+    </div>
+    
+    <div id="websocket-status" class="status warning">
+        <strong>WebSocket Status:</strong> Disconnected
+    </div>
+    
+    <div id="fallback-status" class="status warning">
+        <strong>Fallback Service:</strong> Inactive
+    </div>
+    
+    <div>
+        <button onclick="testWebSocketConnection()">Test WebSocket Connection</button>
+        <button onclick="testFallbackService()">Test Fallback Service</button>
+        <button onclick="testPresenceUpdate('online')">Set Online</button>
+        <button onclick="testPresenceUpdate('away')">Set Away</button>
+        <button onclick="testPresenceUpdate('offline')">Set Offline</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div class="online-users">
+        <strong>Online Users:</strong>
+        <div id="online-users-list">None detected</div>
+    </div>
+    
+    <div class="log" id="log"></div>
+
+    <script>
+        // Configuration
+        const API_URL = 'https://pitchey-optimized.cavelltheleaddev.workers.dev';
+        const WS_URL = 'wss://pitchey-optimized.cavelltheleaddev.workers.dev';
+        
+        let websocket = null;
+        let authToken = null;
+        let fallbackService = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkConfiguration();
+            await authenticate();
+        });
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : type === 'warning' ? '#ffc107' : '#17a2b8';
+            logDiv.innerHTML += `<div style="color: ${color}; margin-bottom: 5px;"><strong>[${timestamp}]</strong> ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        async function checkConfiguration() {
+            log('Checking WebSocket configuration...');
+            
+            // Simulate config check (in real app this would come from environment)
+            const websocketEnabled = true; // We enabled it in production
+            
+            document.getElementById('config-status').innerHTML = 
+                `<strong>Configuration Status:</strong> WebSocket Enabled: ${websocketEnabled}, API: ${API_URL}`;
+            document.getElementById('config-status').className = `status ${websocketEnabled ? 'success' : 'warning'}`;
+            
+            log(`WebSocket enabled: ${websocketEnabled}`, websocketEnabled ? 'success' : 'warning');
+        }
+        
+        async function authenticate() {
+            log('Authenticating with demo account...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/auth/creator/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'alex.creator@demo.com',
+                        password: 'Demo123'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    authToken = data.data.token;
+                    log('Authentication successful!', 'success');
+                    return true;
+                } else {
+                    log(`Authentication failed: ${data.message}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`Authentication error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function testWebSocketConnection() {
+            if (!authToken) {
+                log('Not authenticated - cannot test WebSocket', 'error');
+                return;
+            }
+            
+            log('Testing WebSocket connection...');
+            
+            try {
+                // Try to connect to WebSocket
+                const wsUrl = `${WS_URL}/ws?userId=1&username=alexcreator&room=test`;
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function() {
+                    log('WebSocket connected successfully!', 'success');
+                    document.getElementById('websocket-status').innerHTML = '<strong>WebSocket Status:</strong> Connected';
+                    document.getElementById('websocket-status').className = 'status success';
+                    
+                    // Send a test message
+                    websocket.send(JSON.stringify({
+                        type: 'presence_update',
+                        data: { status: 'online', activity: 'Testing WebSocket connection' }
+                    }));
+                };
+                
+                websocket.onmessage = function(event) {
+                    const message = JSON.parse(event.data);
+                    log(`WebSocket message received: ${message.type}`, 'info');
+                    
+                    if (message.type === 'presence_update') {
+                        updateOnlineUsers(message.data);
+                    }
+                };
+                
+                websocket.onerror = function(error) {
+                    log('WebSocket error occurred', 'error');
+                    document.getElementById('websocket-status').innerHTML = '<strong>WebSocket Status:</strong> Error';
+                    document.getElementById('websocket-status').className = 'status error';
+                };
+                
+                websocket.onclose = function() {
+                    log('WebSocket connection closed', 'warning');
+                    document.getElementById('websocket-status').innerHTML = '<strong>WebSocket Status:</strong> Disconnected';
+                    document.getElementById('websocket-status').className = 'status warning';
+                };
+                
+                // Set a timeout for connection attempt
+                setTimeout(() => {
+                    if (websocket && websocket.readyState === WebSocket.CONNECTING) {
+                        log('WebSocket connection timeout - starting fallback service', 'warning');
+                        websocket.close();
+                        testFallbackService();
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                log(`WebSocket connection error: ${error.message}`, 'error');
+                testFallbackService();
+            }
+        }
+        
+        async function testFallbackService() {
+            if (!authToken) {
+                log('Not authenticated - cannot test fallback service', 'error');
+                return;
+            }
+            
+            log('Testing fallback presence service...', 'info');
+            
+            try {
+                // Test presence update endpoint
+                const updateResponse = await fetch(`${API_URL}/api/presence/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        status: 'online',
+                        activity: 'Testing fallback service'
+                    })
+                });
+                
+                if (updateResponse.ok) {
+                    const updateData = await updateResponse.json();
+                    if (updateData.success) {
+                        log('Fallback presence update successful!', 'success');
+                        document.getElementById('fallback-status').innerHTML = '<strong>Fallback Service:</strong> Active';
+                        document.getElementById('fallback-status').className = 'status success';
+                        
+                        // Test getting online users
+                        await fetchOnlineUsers();
+                        
+                        return;
+                    }
+                }
+                
+                throw new Error('Fallback service not available');
+                
+            } catch (error) {
+                log(`Fallback service error: ${error.message}`, 'error');
+                document.getElementById('fallback-status').innerHTML = '<strong>Fallback Service:</strong> Failed';
+                document.getElementById('fallback-status').className = 'status error';
+            }
+        }
+        
+        async function fetchOnlineUsers() {
+            if (!authToken) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/presence/online`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        log(`Fetched ${data.data.users ? data.data.users.length : 0} online users`, 'info');
+                        updateOnlineUsersList(data.data.users || []);
+                    } else {
+                        log('Failed to fetch online users', 'warning');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                log(`Error fetching online users: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testPresenceUpdate(status) {
+            if (!authToken) {
+                log('Not authenticated - cannot update presence', 'error');
+                return;
+            }
+            
+            log(`Updating presence to: ${status}`, 'info');
+            
+            // Try WebSocket first, then fallback
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({
+                    type: 'presence_update',
+                    data: { status, activity: `Set to ${status} via WebSocket` }
+                }));
+                log('Presence update sent via WebSocket', 'success');
+            } else {
+                // Use HTTP fallback
+                try {
+                    const response = await fetch(`${API_URL}/api/presence/update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            status,
+                            activity: `Set to ${status} via HTTP fallback`
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        log('Presence update successful via HTTP fallback', 'success');
+                        setTimeout(fetchOnlineUsers, 1000); // Fetch updated users
+                    } else {
+                        log(`Presence update failed: ${data.message}`, 'error');
+                    }
+                } catch (error) {
+                    log(`Presence update error: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        function updateOnlineUsers(presenceData) {
+            log(`Presence update for user: ${presenceData.user?.username || 'Unknown'} - ${presenceData.user?.status || presenceData.status}`, 'info');
+        }
+        
+        function updateOnlineUsersList(users) {
+            const listDiv = document.getElementById('online-users-list');
+            if (users.length === 0) {
+                listDiv.innerHTML = 'No users online';
+            } else {
+                listDiv.innerHTML = users.map(user => 
+                    `<div style="margin: 2px 0; padding: 5px; background: #f8f9fa; border-radius: 3px;">
+                        <strong>${user.username}</strong> - ${user.status} 
+                        ${user.activity ? `(${user.activity})` : ''}
+                        <small style="color: #666;">${new Date(user.lastSeen).toLocaleTimeString()}</small>
+                    </div>`
+                ).join('');
+            }
+        }
+        
+        // Auto-refresh online users every 30 seconds when using fallback
+        setInterval(() => {
+            if (authToken && (!websocket || websocket.readyState !== WebSocket.OPEN)) {
+                fetchOnlineUsers();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
