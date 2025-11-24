@@ -67,6 +67,12 @@ async function verifyJWT(token: string, secret: string): Promise<any> {
 }
 
 async function authenticateRequest(request: Request, env: Env): Promise<{success: boolean, user?: any, error?: Response}> {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+
   try {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -77,7 +83,7 @@ async function authenticateRequest(request: Request, env: Env): Promise<{success
           message: 'Missing or invalid authorization header'
         }), {
           status: 401,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
         })
       };
     }
@@ -144,7 +150,7 @@ async function authenticateRequest(request: Request, env: Env): Promise<{success
         message: 'Invalid token: ' + error.message
       }), {
         status: 401,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
       })
     };
   }
@@ -851,6 +857,195 @@ export default {
             success: false,
             error: 'HYPERDRIVE binding not available',
             available_bindings: Object.keys(env)
+          }), {
+            status: 500,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
+      // Validate token endpoint
+      if (pathname === '/api/validate-token' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          valid: true,
+          user: auth.user
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+      }
+
+      // Production following endpoint
+      if (pathname === '/api/production/following' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        const tab = url.searchParams.get('tab') || 'activity';
+        
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          // Get following activity
+          const following = await sql`
+            SELECT 
+              u.id, u.username, u.company_name, u.profile_image_url,
+              f.created_at as followed_at
+            FROM follows f
+            JOIN users u ON f.followed_id = u.id
+            WHERE f.follower_id = ${auth.user.id}
+            ORDER BY f.created_at DESC
+            LIMIT 20
+          `;
+
+          return new Response(JSON.stringify({
+            success: true,
+            data: following.map(f => ({
+              id: f.id,
+              username: f.username,
+              companyName: f.company_name,
+              profileImage: f.profile_image_url,
+              followedAt: f.followed_at
+            }))
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (error) {
+          console.error('Production following error:', error);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Failed to get following data'
+          }), {
+            status: 500,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
+      // Payments subscription status endpoint
+      if (pathname === '/api/payments/subscription-status' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        // Mock subscription data
+        return new Response(JSON.stringify({
+          success: true,
+          subscription: {
+            plan: 'pro',
+            status: 'active',
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            features: {
+              maxPitches: 100,
+              maxNDAs: 50,
+              analytics: true,
+              advancedFeatures: true
+            }
+          }
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+      }
+
+      // Payments credits balance endpoint
+      if (pathname === '/api/payments/credits/balance' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        // Mock credits data
+        return new Response(JSON.stringify({
+          success: true,
+          balance: {
+            available: 250,
+            pending: 50,
+            total: 300,
+            currency: 'USD'
+          }
+        }), {
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        });
+      }
+
+      // Production investments overview endpoint
+      if (pathname === '/api/production/investments/overview' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          // Get investment overview data
+          const investments = await sql`
+            SELECT 
+              COUNT(*) as total_investments,
+              SUM(amount) as total_amount,
+              AVG(amount) as avg_investment
+            FROM investments
+            WHERE investor_id = ${auth.user.id}
+          `;
+
+          const overview = investments[0] || {
+            total_investments: 0,
+            total_amount: 0,
+            avg_investment: 0
+          };
+
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              totalInvestments: parseInt(overview.total_investments) || 0,
+              totalAmount: parseFloat(overview.total_amount) || 0,
+              avgInvestment: parseFloat(overview.avg_investment) || 0,
+              portfolioValue: parseFloat(overview.total_amount) * 1.15 || 0, // Mock 15% growth
+              monthlyReturn: parseFloat(overview.total_amount) * 0.02 || 0, // Mock 2% monthly
+              yearlyReturn: parseFloat(overview.total_amount) * 0.25 || 0, // Mock 25% yearly
+              activeDeals: Math.floor(parseInt(overview.total_investments) * 0.7) || 0,
+              completedDeals: Math.floor(parseInt(overview.total_investments) * 0.3) || 0
+            }
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (error) {
+          console.error('Production investments overview error:', error);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Failed to get investments overview'
           }), {
             status: 500,
             headers: { 
@@ -1829,6 +2024,550 @@ export default {
             ...corsHeaders
           }
         });
+      }
+
+      // === PITCH CRUD ENDPOINTS ===
+      
+      // Create new pitch
+      if (pathname === '/api/pitches' && request.method === 'POST') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        try {
+          const body = await request.json();
+          const userId = authResult.user.userId || authResult.user.id;
+          
+          // Use direct connection
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          const result = await sql`
+            INSERT INTO pitches (
+              user_id, title, genre, format, logline,
+              target_audience, budget, status, created_at, updated_at
+            ) VALUES (
+              ${userId}, ${body.title}, ${body.genre || 'Drama'}, 
+              ${body.format || 'Feature Film'}, ${body.logline || ''},
+              ${body.target_audience || ''}, ${body.budget || 0},
+              'draft', NOW(), NOW()
+            )
+            RETURNING id, title, genre, format, status, created_at
+          `;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: result[0],
+            message: 'Pitch created successfully'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Create pitch error:', error);
+          return serverErrorResponse("Failed to create pitch: " + error.message);
+        }
+      }
+      
+      // Update pitch
+      if (pathname.match(/^\/api\/pitches\/(\d+)$/) && request.method === 'PUT') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        try {
+          const pitchId = pathname.split('/').pop();
+          const body = await request.json();
+          const userId = authResult.user.userId || authResult.user.id;
+          
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          // Verify ownership
+          const ownership = await sql`
+            SELECT user_id FROM pitches WHERE id = ${pitchId}
+          `;
+          
+          if (!ownership[0] || ownership[0].user_id !== userId) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'Unauthorized to update this pitch'
+            }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+          
+          const result = await sql`
+            UPDATE pitches SET
+              title = ${body.title},
+              genre = ${body.genre},
+              format = ${body.format},
+              logline = ${body.logline},
+              target_audience = ${body.target_audience},
+              budget = ${body.budget},
+              status = ${body.status || 'draft'},
+              updated_at = NOW()
+            WHERE id = ${pitchId}
+            RETURNING id, title, genre, format, status, updated_at
+          `;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: result[0],
+            message: 'Pitch updated successfully'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Update pitch error:', error);
+          return serverErrorResponse("Failed to update pitch: " + error.message);
+        }
+      }
+      
+      // Delete pitch
+      if (pathname.match(/^\/api\/pitches\/(\d+)$/) && request.method === 'DELETE') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        try {
+          const pitchId = pathname.split('/').pop();
+          const userId = authResult.user.userId || authResult.user.id;
+          
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          // Verify ownership
+          const ownership = await sql`
+            SELECT user_id FROM pitches WHERE id = ${pitchId}
+          `;
+          
+          if (!ownership[0] || ownership[0].user_id !== userId) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'Unauthorized to delete this pitch'
+            }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+          
+          await sql`DELETE FROM pitches WHERE id = ${pitchId}`;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'Pitch deleted successfully'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Delete pitch error:', error);
+          return serverErrorResponse("Failed to delete pitch: " + error.message);
+        }
+      }
+      
+      // Get user's pitches
+      if (pathname === '/api/pitches/my' && request.method === 'GET') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        try {
+          const userId = authResult.user.userId || authResult.user.id;
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          const result = await sql`
+            SELECT p.*, u.username, u.profile_image,
+                   COUNT(DISTINCT v.id) as view_count,
+                   COUNT(DISTINCT n.id) as nda_count
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            LEFT JOIN pitch_views v ON p.id = v.pitch_id
+            LEFT JOIN ndas n ON p.id = n.pitch_id
+            WHERE p.user_id = ${userId}
+            GROUP BY p.id, u.id
+            ORDER BY p.created_at DESC
+          `;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: result || []
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Get my pitches error:', error);
+          return serverErrorResponse("Failed to get pitches: " + error.message);
+        }
+      }
+      
+      // === USER REGISTRATION ENDPOINTS ===
+      
+      // Register creator
+      if (pathname === '/api/auth/creator/register' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          // Check if email exists
+          const existing = await sql`
+            SELECT id FROM users WHERE email = ${body.email}
+          `;
+          
+          if (existing[0]) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'Email already registered'
+            }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+          
+          // Create user
+          const result = await sql`
+            INSERT INTO users (
+              email, username, password, user_type, first_name, last_name,
+              company_name, bio, location, verified, created_at
+            ) VALUES (
+              ${body.email}, ${body.username}, ${body.password}, 'creator',
+              ${body.firstName || ''}, ${body.lastName || ''}, ${body.companyName || ''},
+              ${body.bio || ''}, ${body.location || ''}, false, NOW()
+            )
+            RETURNING id, email, username, user_type
+          `;
+          
+          // Create JWT token
+          const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+          const token = await createSimpleJWT({
+            userId: result[0].id,
+            email: result[0].email,
+            userType: 'creator',
+            exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
+          }, JWT_SECRET);
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              token,
+              user: result[0]
+            },
+            message: 'Creator account created successfully'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Creator registration error:', error);
+          return serverErrorResponse("Failed to register: " + error.message);
+        }
+      }
+      
+      // Register investor
+      if (pathname === '/api/auth/investor/register' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          // Check if email exists
+          const existing = await sql`
+            SELECT id FROM users WHERE email = ${body.email}
+          `;
+          
+          if (existing[0]) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'Email already registered'
+            }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+          
+          // Create user
+          const result = await sql`
+            INSERT INTO users (
+              email, username, password, user_type, first_name, last_name,
+              company_name, bio, location, verified, created_at
+            ) VALUES (
+              ${body.email}, ${body.username}, ${body.password}, 'investor',
+              ${body.firstName || ''}, ${body.lastName || ''}, ${body.companyName || ''},
+              ${body.bio || ''}, ${body.location || ''}, false, NOW()
+            )
+            RETURNING id, email, username, user_type
+          `;
+          
+          // Create JWT token
+          const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+          const token = await createSimpleJWT({
+            userId: result[0].id,
+            email: result[0].email,
+            userType: 'investor',
+            exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
+          }, JWT_SECRET);
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              token,
+              user: result[0]
+            },
+            message: 'Investor account created successfully'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Investor registration error:', error);
+          return serverErrorResponse("Failed to register: " + error.message);
+        }
+      }
+      
+      // Register production company
+      if (pathname === '/api/auth/production/register' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          // Check if email exists
+          const existing = await sql`
+            SELECT id FROM users WHERE email = ${body.email}
+          `;
+          
+          if (existing[0]) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'Email already registered'
+            }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+          
+          // Create user
+          const result = await sql`
+            INSERT INTO users (
+              email, username, password, user_type, first_name, last_name,
+              company_name, bio, location, verified, created_at
+            ) VALUES (
+              ${body.email}, ${body.username}, ${body.password}, 'production',
+              ${body.firstName || ''}, ${body.lastName || ''}, ${body.companyName || ''},
+              ${body.bio || ''}, ${body.location || ''}, false, NOW()
+            )
+            RETURNING id, email, username, user_type
+          `;
+          
+          // Create JWT token
+          const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+          const token = await createSimpleJWT({
+            userId: result[0].id,
+            email: result[0].email,
+            userType: 'production',
+            exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60)
+          }, JWT_SECRET);
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              token,
+              user: result[0]
+            },
+            message: 'Production company account created successfully'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Production registration error:', error);
+          return serverErrorResponse("Failed to register: " + error.message);
+        }
+      }
+      
+      // === FILE UPLOAD ENDPOINTS ===
+      
+      // Upload file to R2
+      if (pathname === '/api/upload' && request.method === 'POST') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        try {
+          const formData = await request.formData();
+          const file = formData.get('file') as File;
+          const type = formData.get('type') || 'document';
+          
+          if (!file) {
+            return new Response(JSON.stringify({
+              success: false,
+              message: 'No file provided'
+            }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+          
+          // Generate unique filename
+          const timestamp = Date.now();
+          const userId = authResult.user.userId || authResult.user.id;
+          const filename = `${userId}/${type}/${timestamp}-${file.name}`;
+          
+          // Upload to R2 if available
+          if (env.R2_BUCKET) {
+            await env.R2_BUCKET.put(filename, await file.arrayBuffer(), {
+              httpMetadata: {
+                contentType: file.type
+              }
+            });
+            
+            const url = `https://r2.pitchey.com/${filename}`;
+            
+            return new Response(JSON.stringify({
+              success: true,
+              data: {
+                url,
+                filename,
+                type: file.type,
+                size: file.size
+              },
+              message: 'File uploaded successfully'
+            }), {
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          } else {
+            // Fallback for local development
+            return new Response(JSON.stringify({
+              success: true,
+              data: {
+                url: `/uploads/${filename}`,
+                filename,
+                type: file.type,
+                size: file.size
+              },
+              message: 'File uploaded (development mode)'
+            }), {
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+        } catch (error) {
+          console.error('Upload error:', error);
+          return serverErrorResponse("Failed to upload file: " + error.message);
+        }
+      }
+      
+      // === USER MANAGEMENT ENDPOINTS ===
+      
+      // Update user profile
+      if (pathname === '/api/user/profile' && request.method === 'PUT') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        try {
+          const body = await request.json();
+          const userId = authResult.user.userId || authResult.user.id;
+          
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          const result = await sql`
+            UPDATE users SET
+              first_name = ${body.firstName || ''},
+              last_name = ${body.lastName || ''},
+              bio = ${body.bio || ''},
+              location = ${body.location || ''},
+              company_name = ${body.companyName || ''},
+              profile_image = ${body.profileImage || ''},
+              updated_at = NOW()
+            WHERE id = ${userId}
+            RETURNING id, email, username, first_name, last_name, bio, location, company_name, profile_image
+          `;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: result[0],
+            message: 'Profile updated successfully'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Update profile error:', error);
+          return serverErrorResponse("Failed to update profile: " + error.message);
+        }
+      }
+      
+      // Get user notifications
+      if (pathname === '/api/user/notifications' && request.method === 'GET') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        try {
+          const userId = authResult.user.userId || authResult.user.id;
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          const result = await sql`
+            SELECT * FROM notifications
+            WHERE user_id = ${userId}
+            ORDER BY created_at DESC
+            LIMIT 50
+          `;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: result || []
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Get notifications error:', error);
+          return serverErrorResponse("Failed to get notifications: " + error.message);
+        }
+      }
+      
+      // Search users
+      if (pathname === '/api/search/users' && request.method === 'GET') {
+        try {
+          const query = url.searchParams.get('q') || '';
+          const type = url.searchParams.get('type');
+          
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          const searchQuery = '%' + query + '%';
+          
+          let result;
+          if (type) {
+            result = await sql`
+              SELECT id, username, email, user_type, company_name, profile_image, verified
+              FROM users
+              WHERE (username ILIKE ${searchQuery} OR email ILIKE ${searchQuery})
+                AND user_type = ${type}
+              LIMIT 20
+            `;
+          } else {
+            result = await sql`
+              SELECT id, username, email, user_type, company_name, profile_image, verified
+              FROM users
+              WHERE username ILIKE ${searchQuery} OR email ILIKE ${searchQuery}
+              LIMIT 20
+            `;
+          }
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: result || []
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Search users error:', error);
+          return serverErrorResponse("Failed to search users: " + error.message);
+        }
       }
 
       // === CONTENT MANAGEMENT ENDPOINTS ===
@@ -4221,6 +4960,220 @@ Generated: ${new Date().toISOString()}
       }
 
       // ========== END COMPREHENSIVE NDA MANAGEMENT ENDPOINTS ==========
+      
+      // Get outgoing NDA requests (requests made by the user)
+      if (pathname === '/api/ndas/outgoing-requests' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          const outgoingRequests = await sql`
+            SELECT 
+              nr.id, nr.status, nr.nda_type, nr.request_message,
+              nr.requested_at, nr.responded_at, nr.expires_at,
+              p.id as pitch_id, p.title, p.genre, p.poster_url,
+              u.id as owner_id, u.username as owner_username, u.company_name
+            FROM nda_requests nr
+            JOIN pitches p ON nr.pitch_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE nr.requester_id = ${auth.user.id}
+            ORDER BY nr.requested_at DESC
+          `;
+
+          return jsonResponse({
+            success: true,
+            data: outgoingRequests.map(req => ({
+              id: req.id,
+              status: req.status,
+              ndaType: req.nda_type,
+              requestMessage: req.request_message,
+              requestedAt: req.requested_at,
+              respondedAt: req.responded_at,
+              expiresAt: req.expires_at,
+              pitch: {
+                id: req.pitch_id,
+                title: req.title,
+                genre: req.genre,
+                posterUrl: req.poster_url
+              },
+              owner: {
+                id: req.owner_id,
+                username: req.owner_username,
+                companyName: req.company_name
+              }
+            }))
+          });
+        } catch (error) {
+          console.error('Outgoing requests error:', error);
+          return serverErrorResponse("Failed to get outgoing requests: " + error.message);
+        }
+      }
+
+      // Get incoming NDA requests (requests received by the user)
+      if (pathname === '/api/ndas/incoming-requests' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          const incomingRequests = await sql`
+            SELECT 
+              nr.id, nr.status, nr.nda_type, nr.request_message,
+              nr.requested_at, nr.responded_at, nr.expires_at,
+              p.id as pitch_id, p.title, p.genre, p.poster_url,
+              u.id as requester_id, u.username as requester_username, u.company_name
+            FROM nda_requests nr
+            JOIN pitches p ON nr.pitch_id = p.id
+            JOIN users u ON nr.requester_id = u.id
+            WHERE nr.owner_id = ${auth.user.id}
+            ORDER BY nr.requested_at DESC
+          `;
+
+          return jsonResponse({
+            success: true,
+            data: incomingRequests.map(req => ({
+              id: req.id,
+              status: req.status,
+              ndaType: req.nda_type,
+              requestMessage: req.request_message,
+              requestedAt: req.requested_at,
+              respondedAt: req.responded_at,
+              expiresAt: req.expires_at,
+              pitch: {
+                id: req.pitch_id,
+                title: req.title,
+                genre: req.genre,
+                posterUrl: req.poster_url
+              },
+              requester: {
+                id: req.requester_id,
+                username: req.requester_username,
+                companyName: req.company_name
+              }
+            }))
+          });
+        } catch (error) {
+          console.error('Incoming requests error:', error);
+          return serverErrorResponse("Failed to get incoming requests: " + error.message);
+        }
+      }
+
+      // Get outgoing signed NDAs (NDAs signed by others for user's pitches)
+      if (pathname === '/api/ndas/outgoing-signed' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          const outgoingSigned = await sql`
+            SELECT 
+              nr.id, nr.status, nr.nda_type,
+              nr.requested_at, nr.responded_at as signed_at, nr.expires_at,
+              p.id as pitch_id, p.title, p.genre, p.poster_url,
+              u.id as signer_id, u.username as signer_username, u.company_name
+            FROM nda_requests nr
+            JOIN pitches p ON nr.pitch_id = p.id
+            JOIN users u ON nr.requester_id = u.id
+            WHERE nr.owner_id = ${auth.user.id} 
+              AND nr.status IN ('approved', 'signed')
+            ORDER BY nr.responded_at DESC
+          `;
+
+          return jsonResponse({
+            success: true,
+            data: outgoingSigned.map(nda => ({
+              id: nda.id,
+              status: nda.status,
+              ndaType: nda.nda_type,
+              signedAt: nda.signed_at,
+              expiresAt: nda.expires_at,
+              pitch: {
+                id: nda.pitch_id,
+                title: nda.title,
+                genre: nda.genre,
+                posterUrl: nda.poster_url
+              },
+              signer: {
+                id: nda.signer_id,
+                username: nda.signer_username,
+                companyName: nda.company_name
+              }
+            }))
+          });
+        } catch (error) {
+          console.error('Outgoing signed error:', error);
+          return serverErrorResponse("Failed to get outgoing signed NDAs: " + error.message);
+        }
+      }
+
+      // Get incoming signed NDAs (NDAs user has signed for others' pitches)
+      if (pathname === '/api/ndas/incoming-signed' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          const incomingSigned = await sql`
+            SELECT 
+              nr.id, nr.status, nr.nda_type,
+              nr.requested_at, nr.responded_at as signed_at, nr.expires_at,
+              p.id as pitch_id, p.title, p.genre, p.poster_url,
+              u.id as owner_id, u.username as owner_username, u.company_name
+            FROM nda_requests nr
+            JOIN pitches p ON nr.pitch_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE nr.requester_id = ${auth.user.id} 
+              AND nr.status IN ('approved', 'signed')
+            ORDER BY nr.responded_at DESC
+          `;
+
+          return jsonResponse({
+            success: true,
+            data: incomingSigned.map(nda => ({
+              id: nda.id,
+              status: nda.status,
+              ndaType: nda.nda_type,
+              signedAt: nda.signed_at,
+              expiresAt: nda.expires_at,
+              pitch: {
+                id: nda.pitch_id,
+                title: nda.title,
+                genre: nda.genre,
+                posterUrl: nda.poster_url
+              },
+              owner: {
+                id: nda.owner_id,
+                username: nda.owner_username,
+                companyName: nda.company_name
+              }
+            }))
+          });
+        } catch (error) {
+          console.error('Incoming signed error:', error);
+          return serverErrorResponse("Failed to get incoming signed NDAs: " + error.message);
+        }
+      }
 
       // Unread Notifications
       if (pathname === '/api/notifications/unread' && request.method === 'GET') {
@@ -4293,6 +5246,150 @@ Generated: ${new Date().toISOString()}
             }
           }
         });
+      }
+
+      // Get pitches from followed creators
+      if (pathname === '/api/pitches/following' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          // Get pitches from followed creators
+          const followingPitches = await sql`
+            SELECT 
+              p.id, p.title, p.logline, p.genre, p.format,
+              p.view_count, p.like_count, p.poster_url,
+              p.created_at, p.updated_at,
+              u.id as creator_id, u.username, u.company_name
+            FROM pitches p
+            JOIN users u ON p.user_id = u.id
+            JOIN follows f ON f.followed_id = u.id
+            WHERE f.follower_id = ${auth.user.id}
+              AND p.status IN ('published', 'active')
+              AND p.visibility = 'public'
+            ORDER BY p.created_at DESC
+            LIMIT 20
+          `;
+
+          return jsonResponse({
+            success: true,
+            data: followingPitches.map(pitch => ({
+              id: pitch.id,
+              title: pitch.title,
+              logline: pitch.logline,
+              genre: pitch.genre,
+              format: pitch.format,
+              viewCount: pitch.view_count || 0,
+              likeCount: pitch.like_count || 0,
+              posterUrl: pitch.poster_url,
+              createdAt: pitch.created_at,
+              updatedAt: pitch.updated_at,
+              creator: {
+                id: pitch.creator_id,
+                username: pitch.username,
+                companyName: pitch.company_name
+              }
+            }))
+          });
+        } catch (error) {
+          console.error('Following pitches error:', error);
+          return serverErrorResponse("Failed to get following pitches: " + error.message);
+        }
+      }
+
+      // Real-time analytics endpoint
+      if (pathname === '/api/analytics/realtime' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          // Get real-time analytics data
+          const now = new Date();
+          const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+          // Get user's pitches for analytics
+          const userPitches = await sql`
+            SELECT id FROM pitches WHERE user_id = ${auth.user.id}
+          `;
+          const pitchIds = userPitches.map(p => p.id);
+
+          // Mock real-time data (in production, this would come from analytics service)
+          const realtimeData = {
+            activeUsers: Math.floor(Math.random() * 50) + 10,
+            currentViews: Math.floor(Math.random() * 20) + 5,
+            recentActivities: [
+              {
+                type: 'view',
+                pitchId: pitchIds[0] || 1,
+                pitchTitle: 'Neon Dreams',
+                userId: 2,
+                username: 'sarah.investor',
+                timestamp: new Date(now.getTime() - 5 * 60 * 1000).toISOString(),
+                activity: 'viewed your pitch'
+              },
+              {
+                type: 'like',
+                pitchId: pitchIds[0] || 1,
+                pitchTitle: 'Neon Dreams',
+                userId: 3,
+                username: 'michael.producer',
+                timestamp: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
+                activity: 'liked your pitch'
+              },
+              {
+                type: 'nda_request',
+                pitchId: pitchIds[1] || 2,
+                pitchTitle: 'Space Opera',
+                userId: 4,
+                username: 'emma.investor',
+                timestamp: new Date(now.getTime() - 15 * 60 * 1000).toISOString(),
+                activity: 'requested NDA access'
+              }
+            ],
+            hourlyStats: {
+              views: Math.floor(Math.random() * 100) + 50,
+              likes: Math.floor(Math.random() * 20) + 5,
+              shares: Math.floor(Math.random() * 10) + 2,
+              ndaRequests: Math.floor(Math.random() * 5) + 1
+            },
+            dailyStats: {
+              views: Math.floor(Math.random() * 500) + 200,
+              likes: Math.floor(Math.random() * 100) + 20,
+              shares: Math.floor(Math.random() * 50) + 10,
+              ndaRequests: Math.floor(Math.random() * 20) + 5
+            },
+            topPerformingPitch: {
+              id: pitchIds[0] || 1,
+              title: 'Neon Dreams',
+              viewsToday: Math.floor(Math.random() * 200) + 50,
+              likesToday: Math.floor(Math.random() * 30) + 10,
+              engagement: Math.random() * 20 + 5
+            },
+            engagementTrend: 'up', // 'up', 'down', or 'stable'
+            engagementChange: Math.random() * 30 - 10 // -10% to +20%
+          };
+
+          return jsonResponse({
+            success: true,
+            data: realtimeData
+          });
+        } catch (error) {
+          console.error('Realtime analytics error:', error);
+          return serverErrorResponse("Failed to get realtime analytics: " + error.message);
+        }
       }
 
       // Dashboard Analytics (monthly preset)  
@@ -5578,44 +6675,18 @@ Generated: ${new Date().toISOString()}
           const genre = url.searchParams.get('genre');
           const stage = url.searchParams.get('stage');
           const sortBy = url.searchParams.get('sortBy') || 'score';
+          const minBudget = parseFloat(url.searchParams.get('minBudget') || '0');
+          const maxBudget = parseFloat(url.searchParams.get('maxBudget') || '999999999');
 
-          // Build where clause for filtering
-          let whereClause = "WHERE p.status = 'published' AND p.visibility = 'public' AND p.seeking_investment = true";
-          const params = [];
-          
-          if (genre) {
-            whereClause += ' AND p.genre = $' + (params.length + 1);
-            params.push(genre);
-          }
-          
-          if (stage) {
-            whereClause += ' AND p.production_stage = $' + (params.length + 1);
-            params.push(stage);
-          }
-
-          // Get investment opportunities
-          const opportunitiesQuery = `
-            SELECT 
-              p.id, p.title, p.logline, p.genre, p.estimated_budget, p.production_stage,
-              p.view_count, p.like_count, p.published_at,
-              u.id as creator_id, u.username, u.company_name,
-              (p.view_count * 0.3 + p.like_count * 0.7 + RANDOM() * 100) as match_score
-            FROM pitches p
-            LEFT JOIN users u ON p.user_id = u.id
-            ${whereClause}
-            ORDER BY ${sortBy === 'score' ? 'match_score' : 'p.' + sortBy} DESC
-            LIMIT $${params.length + 1}
-          `;
-          params.push(limit);
-          
           // Get opportunities using template literals
           let opportunities;
-          if (minBudget && maxBudget && genre) {
+          if (genre && stage) {
             opportunities = await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.estimated_budget,
-                p.production_stage, p.view_count, p.like_count,
-                u.id as creator_id, u.username, u.company_name
+                p.production_stage, p.view_count, p.like_count, p.published_at,
+                u.id as creator_id, u.username, u.company_name,
+                (p.view_count * 0.3 + p.like_count * 0.7 + RANDOM() * 100) as match_score
               FROM pitches p
               JOIN users u ON p.user_id = u.id
               WHERE p.status = 'published' 
@@ -5623,21 +6694,7 @@ Generated: ${new Date().toISOString()}
                 AND p.estimated_budget >= ${minBudget}
                 AND p.estimated_budget <= ${maxBudget}
                 AND p.genre = ${genre}
-              ORDER BY p.created_at DESC
-              LIMIT ${limit}
-            `;
-          } else if (minBudget && maxBudget) {
-            opportunities = await sql`
-              SELECT 
-                p.id, p.title, p.logline, p.genre, p.estimated_budget,
-                p.production_stage, p.view_count, p.like_count,
-                u.id as creator_id, u.username, u.company_name
-              FROM pitches p
-              JOIN users u ON p.user_id = u.id
-              WHERE p.status = 'published' 
-                AND p.seeking_investment = true
-                AND p.estimated_budget >= ${minBudget}
-                AND p.estimated_budget <= ${maxBudget}
+                AND p.production_stage = ${stage}
               ORDER BY p.created_at DESC
               LIMIT ${limit}
             `;
@@ -5645,13 +6702,33 @@ Generated: ${new Date().toISOString()}
             opportunities = await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.estimated_budget,
-                p.production_stage, p.view_count, p.like_count,
-                u.id as creator_id, u.username, u.company_name
+                p.production_stage, p.view_count, p.like_count, p.published_at,
+                u.id as creator_id, u.username, u.company_name,
+                (p.view_count * 0.3 + p.like_count * 0.7 + RANDOM() * 100) as match_score
               FROM pitches p
               JOIN users u ON p.user_id = u.id
               WHERE p.status = 'published' 
                 AND p.seeking_investment = true
+                AND p.estimated_budget >= ${minBudget}
+                AND p.estimated_budget <= ${maxBudget}
                 AND p.genre = ${genre}
+              ORDER BY p.created_at DESC
+              LIMIT ${limit}
+            `;
+          } else if (stage) {
+            opportunities = await sql`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.estimated_budget,
+                p.production_stage, p.view_count, p.like_count, p.published_at,
+                u.id as creator_id, u.username, u.company_name,
+                (p.view_count * 0.3 + p.like_count * 0.7 + RANDOM() * 100) as match_score
+              FROM pitches p
+              JOIN users u ON p.user_id = u.id
+              WHERE p.status = 'published' 
+                AND p.seeking_investment = true
+                AND p.estimated_budget >= ${minBudget}
+                AND p.estimated_budget <= ${maxBudget}
+                AND p.production_stage = ${stage}
               ORDER BY p.created_at DESC
               LIMIT ${limit}
             `;
@@ -5659,12 +6736,15 @@ Generated: ${new Date().toISOString()}
             opportunities = await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.estimated_budget,
-                p.production_stage, p.view_count, p.like_count,
-                u.id as creator_id, u.username, u.company_name
+                p.production_stage, p.view_count, p.like_count, p.published_at,
+                u.id as creator_id, u.username, u.company_name,
+                (p.view_count * 0.3 + p.like_count * 0.7 + RANDOM() * 100) as match_score
               FROM pitches p
               JOIN users u ON p.user_id = u.id
               WHERE p.status = 'published' 
                 AND p.seeking_investment = true
+                AND p.estimated_budget >= ${minBudget}
+                AND p.estimated_budget <= ${maxBudget}
               ORDER BY p.created_at DESC
               LIMIT ${limit}
             `;
