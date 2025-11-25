@@ -4411,7 +4411,8 @@ For verification purposes, please contact legal@pitchey.com with Document ID: ND
           const { pitchId, templateId } = await request.json();
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get pitch details
           const pitchResult = await sql`
@@ -4484,7 +4485,8 @@ Generated: ${new Date().toISOString()}
 
         try {
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get templates accessible to user
           const templates = await sql`
@@ -4523,7 +4525,8 @@ Generated: ${new Date().toISOString()}
           const templateId = pathname.split('/')[4];
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const templateResult = await sql`
             SELECT id, name, description, content, variables, is_default, created_by, created_at, updated_at
@@ -4577,7 +4580,8 @@ Generated: ${new Date().toISOString()}
 
         try {
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get comprehensive NDA statistics
           const statsResult = await sql`
@@ -4633,7 +4637,8 @@ Generated: ${new Date().toISOString()}
           const pitchId = pathname.split('/')[4];
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Verify pitch ownership
           const pitchResult = await sql`
@@ -4696,7 +4701,8 @@ Generated: ${new Date().toISOString()}
           const pitchId = pathname.split('/')[4];
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Check if pitch exists and user owns it
           const pitchResult = await sql`
@@ -4797,7 +4803,8 @@ Generated: ${new Date().toISOString()}
           }
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const successful = [];
           const failed = [];
@@ -4868,7 +4875,8 @@ Generated: ${new Date().toISOString()}
           }
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const successful = [];
           const failed = [];
@@ -4931,7 +4939,8 @@ Generated: ${new Date().toISOString()}
           const ndaId = pathname.split('/')[3];
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Verify NDA exists and user has permission to send reminder
           const ndaResult = await sql`
@@ -4980,7 +4989,8 @@ Generated: ${new Date().toISOString()}
           const ndaId = pathname.split('/')[3];
 
           const { neon } = await import('@neondatabase/serverless');
-          const sql = neon(env.NEON_DATABASE_URL!);
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get signed NDA details
           const ndaResult = await sql`
