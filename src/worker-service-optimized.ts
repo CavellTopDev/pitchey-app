@@ -1343,8 +1343,70 @@ export default {
         }
       }
 
+      // Handle specific pitch routes first to avoid conflict with generic ID route
+      if (pathname === '/api/pitches/following' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+
+          // Get pitches from followed creators
+          const followingPitches = await sql`
+            SELECT 
+              p.id, p.title, p.logline, p.genre, p.format,
+              p.view_count, p.like_count, p.poster_url,
+              p.created_at, p.updated_at,
+              u.id as creator_id, u.username, u.company_name
+            FROM pitches p
+            JOIN users u ON p.user_id = u.id
+            JOIN follows f ON f.followed_id = u.id
+            WHERE f.follower_id = ${auth.user.id}
+              AND p.status IN ('published', 'active')
+              AND p.visibility = 'public'
+            ORDER BY p.created_at DESC
+            LIMIT 20
+          `;
+
+          return jsonResponse({
+            success: true,
+            data: followingPitches.map(pitch => ({
+              id: pitch.id,
+              title: pitch.title,
+              logline: pitch.logline,
+              genre: pitch.genre,
+              format: pitch.format,
+              viewCount: pitch.view_count || 0,
+              likeCount: pitch.like_count || 0,
+              posterUrl: pitch.poster_url,
+              createdAt: pitch.created_at,
+              updatedAt: pitch.updated_at,
+              creator: {
+                id: pitch.creator_id,
+                username: pitch.username,
+                companyName: pitch.company_name
+              }
+            }))
+          });
+        } catch (error) {
+          console.error('Following pitches error:', error);
+          return serverErrorResponse("Failed to get following pitches: " + error.message);
+        }
+      }
+
       // Handle individual pitch details with comprehensive business data - /api/pitches/:id
-      if (pathname.match(/^\/api\/pitches\/\d+$/) || pathname.match(/^\/api\/pitches\/[a-zA-Z0-9-]+$/)) {
+      // Exclude specific route names to avoid conflicts
+      if ((pathname.match(/^\/api\/pitches\/\d+$/) || pathname.match(/^\/api\/pitches\/[a-zA-Z0-9-]+$/)) 
+          && !pathname.includes('/following') 
+          && !pathname.includes('/trending') 
+          && !pathname.includes('/new') 
+          && !pathname.includes('/public')
+          && !pathname.includes('/browse')
+          && !pathname.includes('/my')) {
         try {
           const pitchIdentifier = pathname.split('/').pop();
           console.log(`Loading comprehensive pitch details: ${pitchIdentifier}`);
@@ -5246,61 +5308,6 @@ Generated: ${new Date().toISOString()}
             }
           }
         });
-      }
-
-      // Get pitches from followed creators
-      if (pathname === '/api/pitches/following' && request.method === 'GET') {
-        const auth = await authenticateRequest(request, env);
-        if (!auth.success) {
-          return auth.error!;
-        }
-
-        try {
-          const { neon } = await import('@neondatabase/serverless');
-          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          const sql = neon(connectionString);
-
-          // Get pitches from followed creators
-          const followingPitches = await sql`
-            SELECT 
-              p.id, p.title, p.logline, p.genre, p.format,
-              p.view_count, p.like_count, p.poster_url,
-              p.created_at, p.updated_at,
-              u.id as creator_id, u.username, u.company_name
-            FROM pitches p
-            JOIN users u ON p.user_id = u.id
-            JOIN follows f ON f.followed_id = u.id
-            WHERE f.follower_id = ${auth.user.id}
-              AND p.status IN ('published', 'active')
-              AND p.visibility = 'public'
-            ORDER BY p.created_at DESC
-            LIMIT 20
-          `;
-
-          return jsonResponse({
-            success: true,
-            data: followingPitches.map(pitch => ({
-              id: pitch.id,
-              title: pitch.title,
-              logline: pitch.logline,
-              genre: pitch.genre,
-              format: pitch.format,
-              viewCount: pitch.view_count || 0,
-              likeCount: pitch.like_count || 0,
-              posterUrl: pitch.poster_url,
-              createdAt: pitch.created_at,
-              updatedAt: pitch.updated_at,
-              creator: {
-                id: pitch.creator_id,
-                username: pitch.username,
-                companyName: pitch.company_name
-              }
-            }))
-          });
-        } catch (error) {
-          console.error('Following pitches error:', error);
-          return serverErrorResponse("Failed to get following pitches: " + error.message);
-        }
       }
 
       // Real-time analytics endpoint
