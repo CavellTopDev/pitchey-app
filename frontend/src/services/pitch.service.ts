@@ -340,70 +340,90 @@ export class PitchService {
     page?: number;
     limit?: number;
   }): Promise<{ pitches: Pitch[]; total: number }> {
-    const params = new URLSearchParams();
-    if (filters?.genre) params.append('genre', filters.genre);
-    if (filters?.format) params.append('format', filters.format);
-    if (filters?.search) params.append('search', filters.search);
-    if (filters?.page) params.append('page', filters.page.toString());
-    if (filters?.limit) params.append('limit', filters.limit.toString());
+    try {
+      const params = new URLSearchParams();
+      if (filters?.genre) params.append('genre', filters.genre);
+      if (filters?.format) params.append('format', filters.format);
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.page) params.append('page', filters.page.toString());
+      if (filters?.limit) params.append('limit', filters.limit.toString());
 
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      items: Pitch[]; 
-      total: number 
-    }>(`/api/pitches/public?${params}`);
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        items: Pitch[]; 
+        total: number 
+      }>(`/api/pitches/public?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch public pitches');
+      if (!response.success) {
+        console.error('Failed to fetch public pitches:', response.error?.message);
+        return { pitches: [], total: 0 };
+      }
+
+      // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
+      const pitches = response.data?.items || [];
+      const total = response.data?.total || pitches.length;
+      
+      // Ensure we always return arrays and numbers
+      return {
+        pitches: Array.isArray(pitches) ? pitches : [],
+        total: typeof total === 'number' ? total : 0
+      };
+    } catch (error) {
+      console.error('Error fetching public pitches:', error);
+      return { pitches: [], total: 0 }; // Always return valid structure on error
     }
-
-    // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
-    const pitches = response.data?.items || [];
-    const total = response.data?.total || pitches.length;
-    
-    
-    return {
-      pitches,
-      total
-    };
   }
 
   // Get trending pitches
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      items: Pitch[];
-      message: string;
-    }>(`/api/pitches/trending?limit=${limit}`);
+    try {
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        items: Pitch[];
+        message: string;
+      }>(`/api/pitches/trending?limit=${limit}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch trending pitches');
+      if (!response.success) {
+        console.error('Failed to fetch trending pitches:', response.error?.message);
+        return [];
+      }
+
+      // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
+      const pitches = response.data?.items || [];
+      console.log('Trending pitches received:', pitches.length);
+      
+      // Ensure we always return an array
+      return Array.isArray(pitches) ? pitches : [];
+    } catch (error) {
+      console.error('Error fetching trending pitches:', error);
+      return []; // Always return empty array on error
     }
-
-    // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
-    const pitches = response.data?.items || [];
-    console.log('Trending pitches received:', pitches.length);
-    
-    return pitches;
   }
 
   // Get new releases
   static async getNewReleases(limit: number = 10): Promise<Pitch[]> {
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      items: Pitch[];
-      message: string;
-    }>(`/api/pitches/new?limit=${limit}`);
+    try {
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        items: Pitch[];
+        message: string;
+      }>(`/api/pitches/new?limit=${limit}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch new releases');
+      if (!response.success) {
+        console.error('Failed to fetch new releases:', response.error?.message);
+        return [];
+      }
+
+      // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
+      const pitches = response.data?.items || [];
+      console.log('New releases received:', pitches.length);
+      
+      // Ensure we always return an array
+      return Array.isArray(pitches) ? pitches : [];
+    } catch (error) {
+      console.error('Error fetching new releases:', error);
+      return []; // Always return empty array on error
     }
-
-    // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
-    const pitches = response.data?.items || [];
-    console.log('New releases received:', pitches.length);
-    
-    return pitches;
   }
 
   // Get pitches with general browse and sorting
@@ -430,53 +450,92 @@ export class PitchService {
       format: string | null;
     };
   }> {
-    const params = new URLSearchParams();
-    if (filters?.sort) params.append('sort', filters.sort);
-    if (filters?.order) params.append('order', filters.order);
-    if (filters?.genre) params.append('genre', filters.genre);
-    if (filters?.format) params.append('format', filters.format);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
+    try {
+      const params = new URLSearchParams();
+      if (filters?.sort) params.append('sort', filters.sort);
+      if (filters?.order) params.append('order', filters.order);
+      if (filters?.genre) params.append('genre', filters.genre);
+      if (filters?.format) params.append('format', filters.format);
+      if (filters?.limit) params.append('limit', filters.limit.toString());
+      if (filters?.offset) params.append('offset', filters.offset.toString());
 
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      pitches: Pitch[];
-      totalCount: number;
-      pagination: {
-        limit: number;
-        offset: number;
-        totalPages: number;
-        currentPage: number;
-      };
-      filters: {
-        sortBy: string;
-        order: string;
-        genre: string | null;
-        format: string | null;
-      };
-    }>(`/api/pitches/browse/general?${params}`);
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        pitches: Pitch[];
+        totalCount: number;
+        pagination: {
+          limit: number;
+          offset: number;
+          totalPages: number;
+          currentPage: number;
+        };
+        filters: {
+          sortBy: string;
+          order: string;
+          genre: string | null;
+          format: string | null;
+        };
+      }>(`/api/pitches/browse/general?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch browse pitches');
-    }
-
-    // Worker API returns { success, items, total, totalPages, ... }
-    return {
-      pitches: response.data?.items || [],
-      totalCount: response.data?.total || 0,
-      pagination: {
-        limit: filters?.limit || 20,
-        offset: filters?.offset || 0,
-        totalPages: response.data?.totalPages || 0,
-        currentPage: response.data?.page || 1
-      },
-      filters: {
-        sortBy: filters?.sort || 'date',
-        order: filters?.order || 'desc',
-        genre: filters?.genre || null,
-        format: filters?.format || null
+      if (!response.success) {
+        console.error('Failed to fetch browse pitches:', response.error?.message);
+        // Return safe defaults on error
+        return {
+          pitches: [],
+          totalCount: 0,
+          pagination: {
+            limit: filters?.limit || 20,
+            offset: filters?.offset || 0,
+            totalPages: 0,
+            currentPage: 1
+          },
+          filters: {
+            sortBy: filters?.sort || 'date',
+            order: filters?.order || 'desc',
+            genre: filters?.genre || null,
+            format: filters?.format || null
+          }
+        };
       }
-    };
+
+      // Worker API returns { success, items, total, totalPages, ... }
+      const pitches = response.data?.items || [];
+      return {
+        pitches: Array.isArray(pitches) ? pitches : [],
+        totalCount: response.data?.total || 0,
+        pagination: {
+          limit: filters?.limit || 20,
+          offset: filters?.offset || 0,
+          totalPages: response.data?.totalPages || 0,
+          currentPage: response.data?.page || 1
+        },
+        filters: {
+          sortBy: filters?.sort || 'date',
+          order: filters?.order || 'desc',
+          genre: filters?.genre || null,
+          format: filters?.format || null
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching general browse:', error);
+      // Always return valid structure on error
+      return {
+        pitches: [],
+        totalCount: 0,
+        pagination: {
+          limit: filters?.limit || 20,
+          offset: filters?.offset || 0,
+          totalPages: 0,
+          currentPage: 1
+        },
+        filters: {
+          sortBy: filters?.sort || 'date',
+          order: filters?.order || 'desc',
+          genre: filters?.genre || null,
+          format: filters?.format || null
+        }
+      };
+    }
   }
 
   // Track view for a pitch

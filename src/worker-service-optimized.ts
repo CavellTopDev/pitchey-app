@@ -2088,6 +2088,134 @@ export default {
         });
       }
 
+      // Enhanced browse endpoint for marketplace with advanced filtering
+      if (pathname === '/api/pitches/browse/enhanced' && request.method === 'GET') {
+        try {
+          const limit = parseInt(url.searchParams.get('limit') || '24');
+          const offset = parseInt(url.searchParams.get('offset') || '0');
+          const sort = url.searchParams.get('sort') || 'date';
+          const order = url.searchParams.get('order') || 'desc';
+          const genre = url.searchParams.get('genre');
+          const format = url.searchParams.get('format');
+          const search = url.searchParams.get('search');
+          
+          // Use direct connection
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          // Build ORDER BY clause
+          let orderClause = 'created_at DESC';
+          if (sort === 'date') {
+            orderClause = order === 'asc' ? 'created_at ASC' : 'created_at DESC';
+          } else if (sort === 'views') {
+            orderClause = order === 'asc' ? 'view_count ASC' : 'view_count DESC';
+          } else if (sort === 'likes') {
+            orderClause = order === 'asc' ? 'like_count ASC' : 'like_count DESC';
+          } else if (sort === 'alphabetical') {
+            orderClause = order === 'asc' ? 'title ASC' : 'title DESC';
+          }
+          
+          // Build WHERE conditions
+          let whereConditions = [`status = 'published'`];
+          if (genre && genre !== 'all') {
+            whereConditions.push(`genre = '${genre}'`);
+          }
+          if (format && format !== 'all') {
+            whereConditions.push(`format = '${format}'`);
+          }
+          if (search) {
+            whereConditions.push(`(title ILIKE '%${search}%' OR logline ILIKE '%${search}%')`);
+          }
+          
+          const whereClause = whereConditions.join(' AND ');
+          
+          // Get total count using raw SQL query
+          const totalQuery = `
+            SELECT COUNT(*) as total 
+            FROM pitches 
+            WHERE ${whereClause}
+          `;
+          const totalResult = await sql(totalQuery);
+          const total = parseInt(totalResult[0].total);
+          
+          // Get paginated results using raw SQL query
+          const pitchesQuery = `
+            SELECT 
+              p.id, p.title, p.logline, p.genre, p.format,
+              p.view_count as "viewCount", p.like_count as "likeCount",
+              p.poster_url as "posterUrl", p.created_at as "createdAt",
+              p.status, p.visibility, p.synopsis, p.budget,
+              u.username as creator_username, u.id as creator_id,
+              u.profile_image as creator_profile_image
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE ${whereClause}
+            ORDER BY ${orderClause}
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+          const pitches = await sql(pitchesQuery);
+          
+          // Format pitches response
+          const formattedPitches = pitches.map(pitch => ({
+            id: pitch.id,
+            title: pitch.title,
+            logline: pitch.logline,
+            synopsis: pitch.synopsis,
+            genre: pitch.genre,
+            format: pitch.format,
+            viewCount: pitch.viewCount || 0,
+            likeCount: pitch.likeCount || 0,
+            posterUrl: pitch.posterUrl,
+            createdAt: pitch.createdAt,
+            status: pitch.status,
+            visibility: pitch.visibility,
+            budget: pitch.budget,
+            creator: {
+              id: pitch.creator_id,
+              username: pitch.creator_username,
+              profileImage: pitch.creator_profile_image
+            }
+          }));
+          
+          return new Response(JSON.stringify({
+            success: true,
+            message: "Enhanced browse results retrieved successfully",
+            items: formattedPitches,
+            total,
+            page: Math.floor(offset / limit) + 1,
+            totalPages: Math.ceil(total / limit),
+            limit,
+            hasMore: offset + limit < total,
+            filters: {
+              sort,
+              order,
+              genre,
+              format,
+              search
+            }
+          }), {
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (error) {
+          console.error('Enhanced browse error:', error);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Failed to fetch enhanced browse results',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
       // === PITCH CRUD ENDPOINTS ===
       
       // Create new pitch

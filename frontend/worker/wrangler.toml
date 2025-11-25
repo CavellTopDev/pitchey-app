@@ -9,10 +9,18 @@ vars = { FRONTEND_URL = "http://localhost:5173", DATABASE_URL = "postgresql://te
 
 [env.production]
 name = "pitchey-browse-api-production"
-vars = { FRONTEND_URL = "https://pitchey.pages.dev" }
 
-[[env.production.secrets]]
-name = "DATABASE_URL"
+[env.production.vars]
+FRONTEND_URL = "https://pitchey.pages.dev"
+# Database and Auth
+DATABASE_URL = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
+JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
 
-[[env.production.secrets]]
-name = "JWT_SECRET"
+# Monitoring
+SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
+SENTRY_ENVIRONMENT = "production"
+SENTRY_RELEASE = "browse-api-v1.1"
+
+# Caching (optional)
+UPSTASH_REDIS_REST_URL = "https://chief-anteater-20186.upstash.io"
+UPSTASH_REDIS_REST_TOKEN = "AU7aAAIncDI3ZGVjNWMxZGUyOWQ0ZmYyYjI4NzdkYjM4OGMxZTE3NnAyMjAxODY"

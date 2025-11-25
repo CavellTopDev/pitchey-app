@@ -87,13 +87,30 @@ class DatabaseConnectionPool {
       console.log('🆕 Creating new database connection with neon');
       const sql = neon(env.HYPERDRIVE.connectionString);
       
-      // Store the connection in the pool
-      this.connections.set(connectionKey, sql);
+      // Wrap the neon client to add an .execute() method for compatibility
+      // This allows code expecting .execute() to work with the neon client
+      const wrappedSql = Object.assign(sql, {
+        execute: async (query: any, ...args: any[]) => {
+          // If it's a template literal call, use it directly
+          if (typeof query === 'object' && query.raw) {
+            return await sql(query, ...args);
+          }
+          // If it's a string, execute it as raw SQL
+          if (typeof query === 'string') {
+            return await sql(query);
+          }
+          // Otherwise, try to execute as-is
+          return await sql(query, ...args);
+        }
+      });
+      
+      // Store the wrapped connection in the pool
+      this.connections.set(connectionKey, wrappedSql);
       
       // Log successful connection creation
       if (this.sentry) {
         this.sentry.addBreadcrumb({
-          message: 'New database connection created with neon',
+          message: 'New database connection created with neon (wrapped)',
           category: 'database',
           level: 'info',
           data: {
@@ -104,8 +121,8 @@ class DatabaseConnectionPool {
         });
       }
       
-      console.log(`✅ Neon database connection created successfully (pool size: ${this.connections.size})`);
-      return sql;
+      console.log(`✅ Neon database connection created successfully with .execute() wrapper (pool size: ${this.connections.size})`);
+      return wrappedSql;
       
     } catch (error) {
       console.error('❌ Failed to create database connection:', error);

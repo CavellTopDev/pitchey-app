@@ -517,6 +517,15 @@ const workerHandler = {
     // Handle enhanced browse endpoint for marketplace
     if (url.pathname === '/api/pitches/browse/enhanced' && request.method === 'GET') {
       try {
+        // Ensure we have database connection
+        if (!sql) {
+          // Try to create connection if not available
+          if (!env.DATABASE_URL) {
+            throw new Error('DATABASE_URL not configured');
+          }
+          sql = neon(env.DATABASE_URL);
+        }
+        
         const limit = parseInt(url.searchParams.get('limit') || '24');
         const offset = parseInt(url.searchParams.get('offset') || '0');
         const sort = url.searchParams.get('sort') || 'date';
@@ -550,21 +559,74 @@ const workerHandler = {
         
         const whereClause = whereConditions.join(' AND ');
         
-        // Get total count
-        const totalResult = await sql`
-          SELECT COUNT(*) as total 
-          FROM pitches 
-          WHERE ${sql.unsafe(whereClause)}
-        `;
-        const total = parseInt(totalResult[0].total);
+        // For Neon, we need to use template literal syntax with proper parameters
+        // Get total count based on filters
+        let totalResult;
+        if (genre && genre !== 'all' && search) {
+          totalResult = await sql`
+            SELECT COUNT(*) as total 
+            FROM pitches 
+            WHERE status = 'published' 
+              AND genre = ${genre}
+              AND (title ILIKE ${'%' + search + '%'} OR logline ILIKE ${'%' + search + '%'})
+          `;
+        } else if (genre && genre !== 'all') {
+          totalResult = await sql`
+            SELECT COUNT(*) as total 
+            FROM pitches 
+            WHERE status = 'published' AND genre = ${genre}
+          `;
+        } else if (search) {
+          totalResult = await sql`
+            SELECT COUNT(*) as total 
+            FROM pitches 
+            WHERE status = 'published' 
+              AND (title ILIKE ${'%' + search + '%'} OR logline ILIKE ${'%' + search + '%'})
+          `;
+        } else {
+          totalResult = await sql`
+            SELECT COUNT(*) as total 
+            FROM pitches 
+            WHERE status = 'published'
+          `;
+        }
         
-        // Get paginated results
-        const pitches = await sql`
-          SELECT * FROM pitches 
-          WHERE ${sql.unsafe(whereClause)}
-          ORDER BY ${sql.unsafe(orderClause)}
-          LIMIT ${limit} OFFSET ${offset}
-        `;
+        const total = parseInt(totalResult[0]?.total || '0');
+        
+        // Get paginated results with proper parameterized queries
+        let pitches;
+        if (genre && genre !== 'all' && search) {
+          pitches = await sql`
+            SELECT * FROM pitches 
+            WHERE status = 'published' 
+              AND genre = ${genre}
+              AND (title ILIKE ${'%' + search + '%'} OR logline ILIKE ${'%' + search + '%'})
+            ORDER BY created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        } else if (genre && genre !== 'all') {
+          pitches = await sql`
+            SELECT * FROM pitches 
+            WHERE status = 'published' AND genre = ${genre}
+            ORDER BY created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        } else if (search) {
+          pitches = await sql`
+            SELECT * FROM pitches 
+            WHERE status = 'published' 
+              AND (title ILIKE ${'%' + search + '%'} OR logline ILIKE ${'%' + search + '%'})
+            ORDER BY created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        } else {
+          pitches = await sql`
+            SELECT * FROM pitches 
+            WHERE status = 'published'
+            ORDER BY created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        }
         
         return new Response(JSON.stringify({
           success: true,
