@@ -797,7 +797,7 @@ export default {
         if (env.HYPERDRIVE) {
           try {
             console.log('Testing Hyperdrive connection...');
-            const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+            const { neon } = await import('@neondatabase/serverless');
             const sql = neon(env.HYPERDRIVE.connectionString);
             const result = await sql`SELECT 1 as test_hyperdrive, 'hyperdrive' as connection_type`;
             
@@ -818,7 +818,7 @@ export default {
             // Test 2: Try direct Neon connection as fallback
             try {
               console.log('Testing direct Neon connection...');
-              const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+              const { neon } = await import('@neondatabase/serverless');
               const directConnectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
               const sql = neon(directConnectionString);
               const result = await sql`SELECT 1 as test_direct, 'direct' as connection_type`;
@@ -896,12 +896,12 @@ export default {
         const tab = url.searchParams.get('tab') || 'activity';
         
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get following activity
-          const following = await withDatabase(env, async (sql) => await sql`
+          const following = await sql`
             SELECT 
               u.id, u.username, u.company_name, u.profile_image_url,
               f.created_at as followed_at
@@ -910,7 +910,7 @@ export default {
             WHERE f.follower_id = ${auth.user.id}
             ORDER BY f.created_at DESC
             LIMIT 20
-          `, sentry);
+          `;
 
           return new Response(JSON.stringify({
             success: true,
@@ -1003,19 +1003,19 @@ export default {
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get investment overview data
-          const investments = await withDatabase(env, async (sql) => await sql`
+          const investments = await sql`
             SELECT 
               COUNT(*) as total_investments,
               SUM(amount) as total_amount,
               AVG(amount) as avg_investment
             FROM investments
             WHERE investor_id = ${auth.user.id}
-          `, sentry);
+          `;
 
           const overview = investments[0] || {
             total_investments: 0,
@@ -1354,9 +1354,9 @@ export default {
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get pitches from followed creators
           const followingPitches = await sql`
@@ -1420,9 +1420,9 @@ export default {
           let hasNdaAccess = false;
           
           // Use direct connection (Hyperdrive has issues)
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // Check for authentication if provided
           if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -1919,9 +1919,9 @@ export default {
           console.log(`Loading ${browseType} browse pitches with filters - genre: ${genre}, format: ${format}...`);
           
           // Use direct connection (Hyperdrive has issues)
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           console.log(`Executing browse query with sort: ${sort}, order: ${order}...`);
           
@@ -2103,9 +2103,9 @@ export default {
           const search = url.searchParams.get('search');
           
           // Use direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // Build ORDER BY clause
           let orderClause = 'created_at DESC';
@@ -2231,9 +2231,9 @@ export default {
           const userId = authResult.user.userId || authResult.user.id;
           
           // Use direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           const result = await sql`
             INSERT INTO pitches (
@@ -2271,9 +2271,9 @@ export default {
           const body = await request.json();
           const userId = authResult.user.userId || authResult.user.id;
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // Verify ownership
           const ownership = await sql`
@@ -2326,9 +2326,9 @@ export default {
           const pitchId = pathname.split('/').pop();
           const userId = authResult.user.userId || authResult.user.id;
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // Verify ownership
           const ownership = await sql`
@@ -2366,9 +2366,9 @@ export default {
         
         try {
           const userId = authResult.user.userId || authResult.user.id;
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           const result = await sql`
             SELECT p.*, u.username, u.profile_image,
@@ -2401,9 +2401,9 @@ export default {
       if (pathname === '/api/auth/creator/register' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // Check if email exists
           const existing = await sql`
@@ -2462,9 +2462,9 @@ export default {
       if (pathname === '/api/auth/investor/register' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // Check if email exists
           const existing = await sql`
@@ -2523,9 +2523,9 @@ export default {
       if (pathname === '/api/auth/production/register' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // Check if email exists
           const existing = await sql`
@@ -2661,9 +2661,9 @@ export default {
           const body = await request.json();
           const userId = authResult.user.userId || authResult.user.id;
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           const result = await sql`
             UPDATE users SET
@@ -2698,9 +2698,9 @@ export default {
         
         try {
           const userId = authResult.user.userId || authResult.user.id;
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           const result = await sql`
             SELECT * FROM notifications
@@ -2727,9 +2727,9 @@ export default {
           const query = url.searchParams.get('q') || '';
           const type = url.searchParams.get('type');
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           const searchQuery = '%' + query + '%';
           
@@ -3641,9 +3641,9 @@ export default {
             return auth.error!;
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const body = await request.json();
           const { pitchId, message, templateId, expiryDays } = body;
@@ -3752,9 +3752,9 @@ export default {
             return badRequestResponse("Signature, full name, and terms acceptance are required");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get NDA request
           const ndaResult = await sql`
@@ -3829,9 +3829,9 @@ export default {
           const body = await request.json();
           const { notes } = body;
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Verify ownership
           const ndaResult = await sql`
@@ -3898,9 +3898,9 @@ export default {
             return badRequestResponse("Rejection reason is required");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Verify ownership
           const ndaResult = await sql`
@@ -3964,9 +3964,9 @@ export default {
           const body = await request.json();
           const { reason } = body;
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Verify ownership
           const ndaResult = await sql`
@@ -4029,9 +4029,9 @@ export default {
 
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get NDA from either requests or signed NDAs
           let ndaResult = await sql`
@@ -4113,9 +4113,9 @@ export default {
           const limit = parseInt(url.searchParams.get('limit') || '10');
           const offset = parseInt(url.searchParams.get('offset') || '0');
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           let whereClause = '';
           let params: any[] = [];
@@ -4299,9 +4299,9 @@ export default {
 
           const pitchId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Check for signed NDA
           const signedNda = await sql`
@@ -4377,9 +4377,9 @@ export default {
             return auth.error!;
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get both requests and signed NDAs for comprehensive history
           const requests = await sql`
@@ -4445,9 +4445,9 @@ export default {
 
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Verify access to NDA
           const ndaResult = await sql`
@@ -4541,10 +4541,9 @@ For verification purposes, please contact legal@pitchey.com with Document ID: ND
         try {
           const { pitchId, templateId } = await request.json();
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           // Get pitch details
           const pitchResult = await sql`
@@ -4616,10 +4615,9 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           // Get templates accessible to user
           const templates = await sql`
@@ -4657,10 +4655,9 @@ Generated: ${new Date().toISOString()}
         try {
           const templateId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           const templateResult = await sql`
             SELECT id, name, description, content, variables, is_default, created_by, created_at, updated_at
@@ -4713,10 +4710,9 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           // Get comprehensive NDA statistics
           const statsResult = await sql`
@@ -4771,10 +4767,9 @@ Generated: ${new Date().toISOString()}
         try {
           const pitchId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           // Verify pitch ownership
           const pitchResult = await sql`
@@ -4836,10 +4831,9 @@ Generated: ${new Date().toISOString()}
         try {
           const pitchId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           // Check if pitch exists and user owns it
           const pitchResult = await sql`
@@ -4939,10 +4933,9 @@ Generated: ${new Date().toISOString()}
             return badRequestResponse("ndaIds must be a non-empty array");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           const successful = [];
           const failed = [];
@@ -5012,10 +5005,9 @@ Generated: ${new Date().toISOString()}
             return badRequestResponse("Rejection reason is required");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           const successful = [];
           const failed = [];
@@ -5077,10 +5069,9 @@ Generated: ${new Date().toISOString()}
         try {
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           // Verify NDA exists and user has permission to send reminder
           const ndaResult = await sql`
@@ -5128,10 +5119,9 @@ Generated: ${new Date().toISOString()}
         try {
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { neon } = await import('@neondatabase/serverless');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const sql = neon(connectionString);
 
           // Get signed NDA details
           const ndaResult = await sql`
@@ -5182,9 +5172,9 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const outgoingRequests = await sql`
             SELECT 
@@ -5236,9 +5226,9 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const incomingRequests = await sql`
             SELECT 
@@ -5290,9 +5280,9 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const outgoingSigned = await sql`
             SELECT 
@@ -5343,9 +5333,9 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           const incomingSigned = await sql`
             SELECT 
@@ -5469,9 +5459,9 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get real-time analytics data
           const now = new Date();
@@ -6571,9 +6561,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get portfolio summary for investor
           const portfolioResults = await sql`
@@ -6633,9 +6623,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Parse query parameters
           const page = parseInt(url.searchParams.get('page') || '1');
@@ -6824,9 +6814,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Parse query parameters
           const limit = parseInt(url.searchParams.get('limit') || '20');
@@ -6955,9 +6945,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get funding metrics for creator's pitches
           const fundingResults = await sql`
@@ -7050,9 +7040,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get investors for creator's pitches
           const investorsResults = await sql`
@@ -7123,9 +7113,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get overall investment metrics visible to production companies
           const metricsResults = await sql`
@@ -7232,9 +7222,9 @@ Generated: ${new Date().toISOString()}
             return badRequestResponse("Missing required fields: pitchId and positive amount");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Verify pitch exists and is seeking investment
           const pitchCheck = await sql`
@@ -7322,9 +7312,9 @@ Generated: ${new Date().toISOString()}
           const requestData = await request.json();
           const { status, currentValue, notes } = requestData;
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Check if user owns this investment
           const investmentCheck = await sql`
@@ -7420,9 +7410,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get investment with pitch and creator details
           const investmentResults = await sql`
@@ -7520,9 +7510,9 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
 
           // Get all investments for analytics
           const investmentResults = await sql`
