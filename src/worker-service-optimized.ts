@@ -797,7 +797,7 @@ export default {
         if (env.HYPERDRIVE) {
           try {
             console.log('Testing Hyperdrive connection...');
-            const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+            const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
             dbPool.initialize(env, sentry);
             const result = await withDatabase(env, async (sql) => await sql`SELECT 1 as test_hyperdrive, 'hyperdrive' as connection_type`, sentry);
             
@@ -818,7 +818,7 @@ export default {
             // Test 2: Try direct Neon connection as fallback
             try {
               console.log('Testing direct Neon connection...');
-              const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+              const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
               // Force a direct connection string into env for testing
               const testEnv = { ...env, HYPERDRIVE: { connectionString: 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require' } };
               dbPool.initialize(testEnv, sentry);
@@ -897,7 +897,7 @@ export default {
         const tab = url.searchParams.get('tab') || 'activity';
         
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -1004,7 +1004,7 @@ export default {
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -1064,7 +1064,7 @@ export default {
           const limit = url.searchParams.get('limit') || '10';
           
           // Import connection pool instead of creating direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -1138,7 +1138,7 @@ export default {
           const limit = url.searchParams.get('limit') || '10';
           
           // Import connection pool instead of creating direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -1212,7 +1212,7 @@ export default {
           const pitchId = pathParts[pathParts.length - 1];
           
           // Import connection pool instead of creating direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -1355,7 +1355,7 @@ export default {
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -1421,7 +1421,7 @@ export default {
           let hasNdaAccess = false;
           
           // Use direct connection (Hyperdrive has issues)
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -1920,7 +1920,7 @@ export default {
           console.log(`Loading ${browseType} browse pitches with filters - genre: ${genre}, format: ${format}...`);
           
           // Use direct connection (Hyperdrive has issues)
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2104,7 +2104,7 @@ export default {
           const search = url.searchParams.get('search');
           
           // Use direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2232,7 +2232,7 @@ export default {
           const userId = authResult.user.userId || authResult.user.id;
           
           // Use direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2272,7 +2272,7 @@ export default {
           const body = await request.json();
           const userId = authResult.user.userId || authResult.user.id;
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2327,7 +2327,7 @@ export default {
           const pitchId = pathname.split('/').pop();
           const userId = authResult.user.userId || authResult.user.id;
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2367,7 +2367,7 @@ export default {
         
         try {
           const userId = authResult.user.userId || authResult.user.id;
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2402,7 +2402,7 @@ export default {
       if (pathname === '/api/auth/creator/register' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2463,7 +2463,7 @@ export default {
       if (pathname === '/api/auth/investor/register' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2524,7 +2524,7 @@ export default {
       if (pathname === '/api/auth/production/register' && request.method === 'POST') {
         try {
           const body = await request.json();
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2662,7 +2662,7 @@ export default {
           const body = await request.json();
           const userId = authResult.user.userId || authResult.user.id;
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2699,7 +2699,7 @@ export default {
         
         try {
           const userId = authResult.user.userId || authResult.user.id;
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -2728,7 +2728,7 @@ export default {
           const query = url.searchParams.get('q') || '';
           const type = url.searchParams.get('type');
           
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
@@ -3642,7 +3642,7 @@ export default {
             return auth.error!;
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -3753,7 +3753,7 @@ export default {
             return badRequestResponse("Signature, full name, and terms acceptance are required");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -3830,7 +3830,7 @@ export default {
           const body = await request.json();
           const { notes } = body;
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -3899,7 +3899,7 @@ export default {
             return badRequestResponse("Rejection reason is required");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -3965,7 +3965,7 @@ export default {
           const body = await request.json();
           const { reason } = body;
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -4030,7 +4030,7 @@ export default {
 
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -4114,7 +4114,7 @@ export default {
           const limit = parseInt(url.searchParams.get('limit') || '10');
           const offset = parseInt(url.searchParams.get('offset') || '0');
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -4300,7 +4300,7 @@ export default {
 
           const pitchId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -4378,7 +4378,7 @@ export default {
             return auth.error!;
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -4446,7 +4446,7 @@ export default {
 
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -4542,7 +4542,7 @@ For verification purposes, please contact legal@pitchey.com with Document ID: ND
         try {
           const { pitchId, templateId } = await request.json();
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -4617,7 +4617,7 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -4658,7 +4658,7 @@ Generated: ${new Date().toISOString()}
         try {
           const templateId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -4714,7 +4714,7 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -4772,7 +4772,7 @@ Generated: ${new Date().toISOString()}
         try {
           const pitchId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -4837,7 +4837,7 @@ Generated: ${new Date().toISOString()}
         try {
           const pitchId = pathname.split('/')[4];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -4940,7 +4940,7 @@ Generated: ${new Date().toISOString()}
             return badRequestResponse("ndaIds must be a non-empty array");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -5013,7 +5013,7 @@ Generated: ${new Date().toISOString()}
             return badRequestResponse("Rejection reason is required");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -5078,7 +5078,7 @@ Generated: ${new Date().toISOString()}
         try {
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -5129,7 +5129,7 @@ Generated: ${new Date().toISOString()}
         try {
           const ndaId = pathname.split('/')[3];
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
@@ -5183,7 +5183,7 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -5237,7 +5237,7 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -5291,7 +5291,7 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -5344,7 +5344,7 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -5470,7 +5470,7 @@ Generated: ${new Date().toISOString()}
         }
 
         try {
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -6572,7 +6572,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -6634,7 +6634,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -6825,7 +6825,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -6956,7 +6956,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -7051,7 +7051,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -7124,7 +7124,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -7233,7 +7233,7 @@ Generated: ${new Date().toISOString()}
             return badRequestResponse("Missing required fields: pitchId and positive amount");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -7323,7 +7323,7 @@ Generated: ${new Date().toISOString()}
           const requestData = await request.json();
           const { status, currentValue, notes } = requestData;
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -7421,7 +7421,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
@@ -7521,7 +7521,7 @@ Generated: ${new Date().toISOString()}
             return auth.error || badRequestResponse("Authentication failed");
           }
 
-          const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 

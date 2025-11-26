@@ -67,12 +67,18 @@ class DatabaseConnectionPool {
       throw new Error('Database pool not initialized. Call initialize() first.');
     }
     
-    if (!env.HYPERDRIVE) {
-      throw new Error('HYPERDRIVE binding not available');
-    }
+    // Fallback to direct connection if Hyperdrive not available or having issues
+    const directConnectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
     
-    // Use connection string as key for connection caching
-    const connectionKey = env.HYPERDRIVE.connectionString;
+    // Try to use Hyperdrive first, fallback to direct connection
+    let connectionKey: string;
+    if (env.HYPERDRIVE?.connectionString) {
+      connectionKey = env.HYPERDRIVE.connectionString;
+      console.log('📡 Using Hyperdrive connection string');
+    } else {
+      connectionKey = directConnectionString;
+      console.log('🔌 Using direct connection string (Hyperdrive unavailable)');
+    }
     
     // Return existing connection if available
     if (this.connections.has(connectionKey)) {
@@ -85,7 +91,7 @@ class DatabaseConnectionPool {
       // Create new connection using neon for Cloudflare Workers compatibility
       // neon is designed specifically for serverless/edge environments
       console.log('🆕 Creating new database connection with neon');
-      const sql = neon(env.HYPERDRIVE.connectionString);
+      const sql = neon(connectionKey);
       
       // Wrap the neon client to add an .execute() method for compatibility
       // This allows code expecting .execute() to work with the neon client
