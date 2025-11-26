@@ -12,10 +12,19 @@ import FundingOverview from '../components/Investment/FundingOverview';
 import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreatorAnalytics';
 // import { NotificationWidget } from '../components/Dashboard/NotificationWidget';
 import { NotificationBell } from '../components/NotificationBell';
+import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
+import { useSentryPortal } from '../hooks/useSentryPortal';
+import * as Sentry from '@sentry/react';
 
-export default function CreatorDashboard() {
+function CreatorDashboard() {
   const navigate = useNavigate();
   const { logout, user: authUser } = useAuthStore();
+  const { reportError, trackEvent, trackApiError } = useSentryPortal({
+    portalType: 'creator',
+    componentName: 'CreatorDashboard',
+    trackPerformance: true
+  });
+  
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -791,3 +800,6 @@ export default function CreatorDashboard() {
     </div>
   );
 }
+
+// Export with portal-specific error boundary
+export default withPortalErrorBoundary(CreatorDashboard, 'creator');

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { adminService } from '../../services/admin.service';
+import { withPortalErrorBoundary } from '../../components/ErrorBoundary/PortalErrorBoundary';
+import { useSentryPortal } from '../../hooks/useSentryPortal';
+import * as Sentry from '@sentry/react';
 
 interface DashboardStats {
   totalUsers: number;
@@ -26,6 +29,13 @@ const AdminDashboard: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Sentry portal integration
+  const { reportError, trackEvent, trackApiError } = useSentryPortal({
+    portalType: 'admin',
+    componentName: 'AdminDashboard',
+    trackPerformance: true
+  });
 
   useEffect(() => {
     loadDashboardData();
@@ -34,15 +44,37 @@ const AdminDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // Track admin dashboard data fetch
+      trackEvent('admin.dashboard.load', { timestamp: new Date().toISOString() });
+      
       const [statsData, activityData] = await Promise.all([
         adminService.getDashboardStats(),
         adminService.getRecentActivity()
       ]);
-      setStats(statsData);
-      setRecentActivity(activityData);
+      
+      if (statsData) {
+        setStats(statsData);
+        trackEvent('admin.stats.loaded', { 
+          totalUsers: statsData.totalUsers,
+          totalPitches: statsData.totalPitches 
+        });
+      } else {
+        trackApiError('/api/admin/stats', { success: false });
+      }
+      
+      if (activityData) {
+        setRecentActivity(activityData);
+      } else {
+        trackApiError('/api/admin/activity', { success: false });
+      }
     } catch (err) {
       setError('Failed to load dashboard data');
       console.error('Dashboard error:', err);
+      reportError(err as Error, {
+        context: 'loadDashboardData',
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -268,4 +300,4 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-export default AdminDashboard;
+export default withPortalErrorBoundary(AdminDashboard, 'admin');

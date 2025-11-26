@@ -24,6 +24,9 @@ import FormatDisplay from '../components/FormatDisplay';
 import { InvestmentService } from '../services/investment.service';
 import InvestmentOpportunities from '../components/Investment/InvestmentOpportunities';
 import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';
+import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
+import { useSentryPortal } from '../hooks/useSentryPortal';
+import * as Sentry from '@sentry/react';
 
 interface Analytics {
   totalViews: number;
@@ -45,10 +48,17 @@ interface Activity {
   timestamp: string;
 }
 
-export default function ProductionDashboard() {
+function ProductionDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { getAllPitches, drafts } = usePitchStore();
+  
+  // Sentry portal integration
+  const { reportError, trackEvent, trackApiError } = useSentryPortal({
+    portalType: 'production',
+    componentName: 'ProductionDashboard',
+    trackPerformance: true
+  });
   const [activeTab, setActiveTab] = useState<'overview' | 'my-pitches' | 'following' | 'ndas'>('overview');
   const [myPitches, setMyPitches] = useState<Pitch[]>([]);
   const [followingPitches, setFollowingPitches] = useState<Pitch[]>([]);
@@ -106,20 +116,28 @@ export default function ProductionDashboard() {
     try {
       setInvestmentLoading(true);
       
+      // Track investment data fetch
+      trackEvent('investment.data.fetch', { userId: user?.id });
+      
       // Fetch production investment metrics
       const metricsResponse = await InvestmentService.getProductionInvestments();
       if (metricsResponse.success) {
         setInvestmentMetrics(metricsResponse.data);
+      } else {
+        trackApiError('/api/production/investments', { success: false });
       }
       
       // Fetch investment opportunities for production companies
       const opportunitiesResponse = await InvestmentService.getInvestmentOpportunities({ limit: 8 });
       if (opportunitiesResponse.success) {
         setInvestmentOpportunities(opportunitiesResponse.data || []);
+      } else {
+        trackApiError('/api/investment-opportunities', { success: false });
       }
       
     } catch (error) {
       console.error('Error fetching investment data:', error);
+      reportError(error as Error, { context: 'fetchInvestmentData' });
     } finally {
       setInvestmentLoading(false);
     }
@@ -147,6 +165,9 @@ export default function ProductionDashboard() {
     try {
       setLoading(true);
       
+      // Track dashboard data fetch
+      trackEvent('dashboard.data.fetch', { portal: 'production' });
+      
       // Fetch real analytics and billing data from backend
       try {
         const [analyticsData, creditsData, subscriptionData] = await Promise.all([
@@ -157,12 +178,15 @@ export default function ProductionDashboard() {
         
         if (analyticsData.success) {
           setAnalytics(analyticsData.analytics);
+        } else {
+          trackApiError('/api/analytics/dashboard', analyticsData);
         }
         
         setCredits(creditsData);
         setSubscription(subscriptionData);
       } catch (error) {
         console.error('Failed to fetch analytics:', error);
+        reportError(error as Error, { context: 'fetchAnalyticsData' });
       }
 
       // Fetch NDA requests using new categorized endpoints
@@ -270,6 +294,10 @@ export default function ProductionDashboard() {
       
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      reportError(error as Error, { 
+        context: 'fetchData',
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -2392,3 +2420,5 @@ export default function ProductionDashboard() {
     </div>
   );
 }
+
+export default withPortalErrorBoundary(ProductionDashboard, 'production');
