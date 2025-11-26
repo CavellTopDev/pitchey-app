@@ -798,8 +798,8 @@ export default {
           try {
             console.log('Testing Hyperdrive connection...');
             const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-            const sql = neon(env.HYPERDRIVE.connectionString);
-            const result = await sql`SELECT 1 as test_hyperdrive, 'hyperdrive' as connection_type`;
+            dbPool.initialize(env, sentry);
+            const result = await withDatabase(env, async (sql) => await sql`SELECT 1 as test_hyperdrive, 'hyperdrive' as connection_type`, sentry);
             
             return new Response(JSON.stringify({
               success: true,
@@ -819,9 +819,10 @@ export default {
             try {
               console.log('Testing direct Neon connection...');
               const { dbPool, withDatabase } = await import('./worker-database-pool.ts');
-              const directConnectionString = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
-              const sql = neon(directConnectionString);
-              const result = await sql`SELECT 1 as test_direct, 'direct' as connection_type`;
+              // Force a direct connection string into env for testing
+              const testEnv = { ...env, HYPERDRIVE: { connectionString: 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require' } };
+              dbPool.initialize(testEnv, sentry);
+              const result = await withDatabase(testEnv, async (sql) => await sql`SELECT 1 as test_direct, 'direct' as connection_type`, sentry);
               
               return new Response(JSON.stringify({
                 success: true,
@@ -1359,7 +1360,7 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Get pitches from followed creators
-          const followingPitches = await sql`
+          const followingPitches = await withDatabase(env, async (sql) => await sql`
             SELECT 
               p.id, p.title, p.logline, p.genre, p.format,
               p.view_count, p.like_count, p.poster_url,
@@ -1373,7 +1374,7 @@ export default {
               AND p.visibility = 'public'
             ORDER BY p.created_at DESC
             LIMIT 20
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -1433,11 +1434,11 @@ export default {
               if (tokenParts.length === 3) {
                 const payload = JSON.parse(atob(tokenParts[1]));
                 if (payload.userId && payload.exp > Date.now() / 1000) {
-                  const userResults = await sql`
+                  const userResults = await withDatabase(env, async (sql) => await sql`
                     SELECT id, username, user_type, email 
                     FROM users 
                     WHERE id = ${payload.userId} AND is_active = true
-                  `;
+                  `, sentry);
                   if (userResults.length > 0) {
                     currentUser = userResults[0];
                     console.log(`Authenticated user: ${currentUser.username} (${currentUser.user_type})`);
@@ -1459,7 +1460,7 @@ export default {
             
             // Check NDA access for authenticated user
             if (currentUser) {
-              const ndaAccessResults = await sql`
+              const ndaAccessResults = await withDatabase(env, async (sql) => await sql`
                 SELECT nr.status, nr.pitch_id, p.user_id as pitch_owner_id
                 FROM nda_requests nr
                 JOIN pitches p ON p.id = nr.pitch_id
@@ -1470,7 +1471,7 @@ export default {
                 SELECT 'owner' as status, p.id as pitch_id, p.user_id as pitch_owner_id
                 FROM pitches p
                 WHERE p.id = ${pitchId} AND p.user_id = ${currentUser.id}
-              `;
+              `, sentry);
               
               if (ndaAccessResults.length > 0) {
                 hasNdaAccess = true;
@@ -1487,7 +1488,7 @@ export default {
             
             // Comprehensive pitch query with all business-relevant fields (numeric ID)
             if (hasNdaAccess) {
-              pitchResults = await sql`
+              pitchResults = await withDatabase(env, async (sql) => await sql`
                 SELECT 
                   p.id, p.title, p.logline, p.short_synopsis, p.long_synopsis, 
                   p.genre, p.format, p.format_category, p.format_subtype, p.custom_format,
@@ -1511,9 +1512,9 @@ export default {
                 FROM pitches p
                 LEFT JOIN users u ON p.user_id = u.id
                 WHERE p.id = ${pitchId} AND p.status IN ('published', 'active', 'private', 'nda_required')
-              `;
+              `, sentry);
             } else {
-              pitchResults = await sql`
+              pitchResults = await withDatabase(env, async (sql) => await sql`
                 SELECT 
                   p.id, p.title, p.logline, p.short_synopsis, p.long_synopsis, 
                   p.genre, p.format, p.format_category, p.format_subtype, p.custom_format,
@@ -1537,12 +1538,12 @@ export default {
                 FROM pitches p
                 LEFT JOIN users u ON p.user_id = u.id
                 WHERE p.id = ${pitchId} AND p.status IN ('published', 'active') AND p.visibility = 'public'
-              `;
+              `, sentry);
             }
           } else {
             // Support slug-based lookup (title-based slug) - only public pitches for slug access
             const slugTitle = pitchIdentifier.replace(/-/g, ' ');
-            pitchResults = await sql`
+            pitchResults = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 p.id, p.title, p.logline, p.short_synopsis, p.long_synopsis, 
                 p.genre, p.format, p.format_category, p.format_subtype, p.custom_format,
@@ -1567,7 +1568,7 @@ export default {
               LEFT JOIN users u ON p.user_id = u.id
               WHERE LOWER(REPLACE(p.title, ' ', '-')) = LOWER(${pitchIdentifier}) 
                 AND p.status IN ('published', 'active') AND p.visibility = 'public'
-            `;
+            `, sentry);
           }
           
           if (pitchResults.length === 0) {
@@ -1589,14 +1590,14 @@ export default {
           // Get pitch characters (fallback to characters field in pitch if table doesn't exist)
           let charactersResults = [];
           try {
-            charactersResults = await sql`
+            charactersResults = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 pc.id, pc.name, pc.description, pc.age, pc.gender, 
                 pc.actor, pc.role, pc.relationship, pc.display_order
               FROM pitch_characters pc
               WHERE pc.pitch_id = ${pitch.id}
               ORDER BY pc.display_order ASC, pc.name ASC
-            `;
+            `, sentry);
           } catch (error) {
             // Table doesn't exist, characters info is stored in pitch.characters text field
             console.log('pitch_characters table not available, using characters text field');
@@ -1607,7 +1608,7 @@ export default {
           let documentsResults;
           if (hasNdaAccess) {
             // Full document access with NDA
-            documentsResults = await sql`
+            documentsResults = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 pd.id, pd.file_name, pd.original_file_name, pd.file_type, 
                 pd.document_type, pd.file_size, pd.is_public, pd.requires_nda,
@@ -1615,10 +1616,10 @@ export default {
               FROM pitch_documents pd
               WHERE pd.pitch_id = ${pitch.id}
               ORDER BY pd.document_type, pd.uploaded_at DESC
-            `;
+            `, sentry);
           } else {
             // Public documents only
-            documentsResults = await sql`
+            documentsResults = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 pd.id, pd.file_name, pd.original_file_name, pd.file_type, 
                 pd.document_type, pd.file_size, pd.is_public, pd.requires_nda,
@@ -1626,11 +1627,11 @@ export default {
               FROM pitch_documents pd
               WHERE pd.pitch_id = ${pitch.id} AND pd.is_public = true
               ORDER BY pd.document_type, pd.uploaded_at DESC
-            `;
+            `, sentry);
           }
           
           // Get pitch analytics (basic view tracking)
-          const analyticsResults = await sql`
+          const analyticsResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COUNT(DISTINCT pv.viewer_id) as unique_viewers,
               COUNT(pv.id) as total_views,
@@ -1638,27 +1639,27 @@ export default {
               COUNT(CASE WHEN pv.clicked_watch_this = true THEN 1 END) as watch_clicks
             FROM pitch_views pv
             WHERE pv.pitch_id = ${pitch.id} AND pv.viewed_at > NOW() - INTERVAL '30 days'
-          `;
+          `, sentry);
           
           // Get NDA status summary (without revealing private info)
-          const ndaResults = await sql`
+          const ndaResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COUNT(*) as total_nda_requests,
               COUNT(CASE WHEN nr.status = 'approved' THEN 1 END) as approved_ndas,
               COUNT(CASE WHEN nr.status = 'pending' THEN 1 END) as pending_ndas
             FROM nda_requests nr
             WHERE nr.pitch_id = ${pitch.id}
-          `;
+          `, sentry);
           
           // Get investment interest indicators (basic metrics only)
-          const investmentResults = await sql`
+          const investmentResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               (SELECT COUNT(DISTINCT investor_id) FROM investments WHERE pitch_id = ${pitch.id}) as interested_investors,
               (SELECT COUNT(*) FROM watchlist WHERE pitch_id = ${pitch.id}) as watchlist_adds
-          `;
+          `, sentry);
           
           // Get related pitches by same creator (public only)
-          const relatedResults = await sql`
+          const relatedResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               p2.id, p2.title, p2.logline, p2.genre, p2.poster_url as "posterUrl",
               p2.view_count as "viewCount"
@@ -1669,7 +1670,7 @@ export default {
               AND p2.visibility = 'public'
             ORDER BY p2.view_count DESC
             LIMIT 5
-          `;
+          `, sentry);
           
           // Track view analytics for authenticated users and increment view count
           const viewerInfo = {
@@ -1973,7 +1974,7 @@ export default {
           } catch (error) {
             console.error('Query error:', error);
             // Fallback to basic query without filtering
-            results = await sql`
+            results = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.format,
                 p.view_count as "viewCount", p.like_count as "likeCount",
@@ -1986,7 +1987,7 @@ export default {
               ORDER BY p.created_at DESC
               LIMIT ${limit}
               OFFSET ${offset}
-            `;
+            `, sentry);
           }
           
           console.log('Query executed, mapping results...');
@@ -2024,7 +2025,7 @@ export default {
             countResult = await sql([countQuery]);
           } catch (error) {
             console.error('Count query error:', error);
-            countResult = await sql`SELECT COUNT(*) as total FROM pitches p WHERE p.status IN ('published', 'active') AND p.visibility = 'public'`;
+            countResult = await withDatabase(env, async (sql) => await sql`SELECT COUNT(*) as total FROM pitches p WHERE p.status IN ('published', 'active') AND p.visibility = 'public'`, sentry);
           }
           const total = parseInt(countResult[0]?.total || '0', 10);
 
@@ -2235,7 +2236,7 @@ export default {
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             INSERT INTO pitches (
               user_id, title, genre, format, logline,
               target_audience, budget, status, created_at, updated_at
@@ -2246,7 +2247,7 @@ export default {
               'draft', NOW(), NOW()
             )
             RETURNING id, title, genre, format, status, created_at
-          `;
+          `, sentry);
           
           return new Response(JSON.stringify({
             success: true,
@@ -2276,9 +2277,9 @@ export default {
           dbPool.initialize(env, sentry);
           
           // Verify ownership
-          const ownership = await sql`
+          const ownership = await withDatabase(env, async (sql) => await sql`
             SELECT user_id FROM pitches WHERE id = ${pitchId}
-          `;
+          `, sentry);
           
           if (!ownership[0] || ownership[0].user_id !== userId) {
             return new Response(JSON.stringify({
@@ -2290,7 +2291,7 @@ export default {
             });
           }
           
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             UPDATE pitches SET
               title = ${body.title},
               genre = ${body.genre},
@@ -2302,7 +2303,7 @@ export default {
               updated_at = NOW()
             WHERE id = ${pitchId}
             RETURNING id, title, genre, format, status, updated_at
-          `;
+          `, sentry);
           
           return new Response(JSON.stringify({
             success: true,
@@ -2331,9 +2332,9 @@ export default {
           dbPool.initialize(env, sentry);
           
           // Verify ownership
-          const ownership = await sql`
+          const ownership = await withDatabase(env, async (sql) => await sql`
             SELECT user_id FROM pitches WHERE id = ${pitchId}
-          `;
+          `, sentry);
           
           if (!ownership[0] || ownership[0].user_id !== userId) {
             return new Response(JSON.stringify({
@@ -2345,7 +2346,7 @@ export default {
             });
           }
           
-          await sql`DELETE FROM pitches WHERE id = ${pitchId}`;
+          await withDatabase(env, async (sql) => await sql`DELETE FROM pitches WHERE id = ${pitchId}`, sentry);
           
           return new Response(JSON.stringify({
             success: true,
@@ -2370,7 +2371,7 @@ export default {
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             SELECT p.*, u.username, u.profile_image,
                    COUNT(DISTINCT v.id) as view_count,
                    COUNT(DISTINCT n.id) as nda_count
@@ -2381,7 +2382,7 @@ export default {
             WHERE p.user_id = ${userId}
             GROUP BY p.id, u.id
             ORDER BY p.created_at DESC
-          `;
+          `, sentry);
           
           return new Response(JSON.stringify({
             success: true,
@@ -2406,9 +2407,9 @@ export default {
           dbPool.initialize(env, sentry);
           
           // Check if email exists
-          const existing = await sql`
+          const existing = await withDatabase(env, async (sql) => await sql`
             SELECT id FROM users WHERE email = ${body.email}
-          `;
+          `, sentry);
           
           if (existing[0]) {
             return new Response(JSON.stringify({
@@ -2421,7 +2422,7 @@ export default {
           }
           
           // Create user
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             INSERT INTO users (
               email, username, password, user_type, first_name, last_name,
               company_name, bio, location, verified, created_at
@@ -2431,7 +2432,7 @@ export default {
               ${body.bio || ''}, ${body.location || ''}, false, NOW()
             )
             RETURNING id, email, username, user_type
-          `;
+          `, sentry);
           
           // Create JWT token
           const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
@@ -2467,9 +2468,9 @@ export default {
           dbPool.initialize(env, sentry);
           
           // Check if email exists
-          const existing = await sql`
+          const existing = await withDatabase(env, async (sql) => await sql`
             SELECT id FROM users WHERE email = ${body.email}
-          `;
+          `, sentry);
           
           if (existing[0]) {
             return new Response(JSON.stringify({
@@ -2482,7 +2483,7 @@ export default {
           }
           
           // Create user
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             INSERT INTO users (
               email, username, password, user_type, first_name, last_name,
               company_name, bio, location, verified, created_at
@@ -2492,7 +2493,7 @@ export default {
               ${body.bio || ''}, ${body.location || ''}, false, NOW()
             )
             RETURNING id, email, username, user_type
-          `;
+          `, sentry);
           
           // Create JWT token
           const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
@@ -2528,9 +2529,9 @@ export default {
           dbPool.initialize(env, sentry);
           
           // Check if email exists
-          const existing = await sql`
+          const existing = await withDatabase(env, async (sql) => await sql`
             SELECT id FROM users WHERE email = ${body.email}
-          `;
+          `, sentry);
           
           if (existing[0]) {
             return new Response(JSON.stringify({
@@ -2543,7 +2544,7 @@ export default {
           }
           
           // Create user
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             INSERT INTO users (
               email, username, password, user_type, first_name, last_name,
               company_name, bio, location, verified, created_at
@@ -2553,7 +2554,7 @@ export default {
               ${body.bio || ''}, ${body.location || ''}, false, NOW()
             )
             RETURNING id, email, username, user_type
-          `;
+          `, sentry);
           
           // Create JWT token
           const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
@@ -2665,7 +2666,7 @@ export default {
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             UPDATE users SET
               first_name = ${body.firstName || ''},
               last_name = ${body.lastName || ''},
@@ -2676,7 +2677,7 @@ export default {
               updated_at = NOW()
             WHERE id = ${userId}
             RETURNING id, email, username, first_name, last_name, bio, location, company_name, profile_image
-          `;
+          `, sentry);
           
           return new Response(JSON.stringify({
             success: true,
@@ -2702,12 +2703,12 @@ export default {
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
           
-          const result = await sql`
+          const result = await withDatabase(env, async (sql) => await sql`
             SELECT * FROM notifications
             WHERE user_id = ${userId}
             ORDER BY created_at DESC
             LIMIT 50
-          `;
+          `, sentry);
           
           return new Response(JSON.stringify({
             success: true,
@@ -2735,20 +2736,20 @@ export default {
           
           let result;
           if (type) {
-            result = await sql`
+            result = await withDatabase(env, async (sql) => await sql`
               SELECT id, username, email, user_type, company_name, profile_image, verified
               FROM users
               WHERE (username ILIKE ${searchQuery} OR email ILIKE ${searchQuery})
                 AND user_type = ${type}
               LIMIT 20
-            `;
+            `, sentry);
           } else {
-            result = await sql`
+            result = await withDatabase(env, async (sql) => await sql`
               SELECT id, username, email, user_type, company_name, profile_image, verified
               FROM users
               WHERE username ILIKE ${searchQuery} OR email ILIKE ${searchQuery}
               LIMIT 20
-            `;
+            `, sentry);
           }
           
           return new Response(JSON.stringify({
@@ -3653,12 +3654,12 @@ export default {
           }
 
           // Check if pitch exists and user can request NDA
-          const pitchResult = await sql`
+          const pitchResult = await withDatabase(env, async (sql) => await sql`
             SELECT p.id, p.title, p.user_id as creator_id, u.username as creator_name
             FROM pitches p
             JOIN users u ON p.user_id = u.id
             WHERE p.id = ${pitchId} AND p.status = 'published'
-          `;
+          `, sentry);
 
           if (pitchResult.length === 0) {
             return badRequestResponse("Pitch not found or not published");
@@ -3672,12 +3673,12 @@ export default {
           }
 
           // Check for existing NDA request
-          const existingRequest = await sql`
+          const existingRequest = await withDatabase(env, async (sql) => await sql`
             SELECT id, status FROM nda_requests
             WHERE pitch_id = ${pitchId} AND requester_id = ${auth.user.id}
             ORDER BY requested_at DESC
             LIMIT 1
-          `;
+          `, sentry);
 
           if (existingRequest.length > 0) {
             const existing = existingRequest[0];
@@ -3693,7 +3694,7 @@ export default {
           const expiryDate = new Date();
           expiryDate.setDate(expiryDate.getDate() + (expiryDays || 30));
 
-          const ndaRequest = await sql`
+          const ndaRequest = await withDatabase(env, async (sql) => await sql`
             INSERT INTO nda_requests (
               pitch_id, requester_id, owner_id, nda_type, status, 
               request_message, requested_at, expires_at
@@ -3705,7 +3706,7 @@ export default {
               NOW(), ${expiryDate.toISOString()}
             )
             RETURNING *
-          `;
+          `, sentry);
 
           const createdRequest = ndaRequest[0];
 
@@ -3757,12 +3758,12 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Get NDA request
-          const ndaResult = await sql`
+          const ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT nr.*, p.title as pitch_title
             FROM nda_requests nr
             JOIN pitches p ON nr.pitch_id = p.id
             WHERE nr.id = ${ndaId} AND nr.requester_id = ${auth.user.id} AND nr.status = 'approved'
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             return badRequestResponse("NDA not found, not yours, or not approved for signing");
@@ -3771,7 +3772,7 @@ export default {
           const ndaRequest = ndaResult[0];
 
           // Create signed NDA record
-          const signedNda = await sql`
+          const signedNda = await withDatabase(env, async (sql) => await sql`
             INSERT INTO ndas (
               pitch_id, user_id, signer_id, status, nda_type, 
               access_granted, signed_at, expires_at
@@ -3781,14 +3782,14 @@ export default {
               'signed', ${ndaRequest.nda_type}, true, NOW(), ${ndaRequest.expires_at}
             )
             RETURNING *
-          `;
+          `, sentry);
 
           // Update request status to signed
-          await sql`
+          await withDatabase(env, async (sql) => await sql`
             UPDATE nda_requests 
             SET status = 'signed', responded_at = NOW()
             WHERE id = ${ndaId}
-          `;
+          `, sentry);
 
           const nda = signedNda[0];
 
@@ -3834,13 +3835,13 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Verify ownership
-          const ndaResult = await sql`
+          const ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT nr.*, p.title as pitch_title, u.username as requester_name
             FROM nda_requests nr
             JOIN pitches p ON nr.pitch_id = p.id
             JOIN users u ON nr.requester_id = u.id
             WHERE nr.id = ${ndaId} AND nr.owner_id = ${auth.user.id} AND nr.status = 'pending'
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             return badRequestResponse("NDA request not found, not yours to approve, or not pending");
@@ -3849,12 +3850,12 @@ export default {
           const ndaRequest = ndaResult[0];
 
           // Update request status
-          const updatedRequest = await sql`
+          const updatedRequest = await withDatabase(env, async (sql) => await sql`
             UPDATE nda_requests 
             SET status = 'approved', responded_at = NOW()
             WHERE id = ${ndaId}
             RETURNING *
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -3903,13 +3904,13 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Verify ownership
-          const ndaResult = await sql`
+          const ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT nr.*, p.title as pitch_title, u.username as requester_name
             FROM nda_requests nr
             JOIN pitches p ON nr.pitch_id = p.id
             JOIN users u ON nr.requester_id = u.id
             WHERE nr.id = ${ndaId} AND nr.owner_id = ${auth.user.id} AND nr.status = 'pending'
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             return badRequestResponse("NDA request not found, not yours to reject, or not pending");
@@ -3918,12 +3919,12 @@ export default {
           const ndaRequest = ndaResult[0];
 
           // Update request status
-          const updatedRequest = await sql`
+          const updatedRequest = await withDatabase(env, async (sql) => await sql`
             UPDATE nda_requests 
             SET status = 'rejected', rejection_reason = ${reason}, responded_at = NOW()
             WHERE id = ${ndaId}
             RETURNING *
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -3969,14 +3970,14 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Verify ownership
-          const ndaResult = await sql`
+          const ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT n.*, p.title as pitch_title, u.username as signer_name
             FROM ndas n
             JOIN pitches p ON n.pitch_id = p.id
             JOIN users u ON n.signer_id = u.id
             WHERE n.id = ${ndaId} AND n.user_id = ${auth.user.id} 
               AND n.status IN ('signed', 'active')
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             return badRequestResponse("NDA not found, not yours to revoke, or not active");
@@ -3985,12 +3986,12 @@ export default {
           const nda = ndaResult[0];
 
           // Revoke NDA
-          const updatedNda = await sql`
+          const updatedNda = await withDatabase(env, async (sql) => await sql`
             UPDATE ndas 
             SET status = 'revoked', revoked_at = NOW(), access_granted = false
             WHERE id = ${ndaId}
             RETURNING *
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -4034,7 +4035,7 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Get NDA from either requests or signed NDAs
-          let ndaResult = await sql`
+          let ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT nr.id, nr.pitch_id, nr.requester_id as signer_id, nr.owner_id as user_id,
                    nr.nda_type, nr.status, nr.request_message, nr.rejection_reason,
                    nr.requested_at as created_at, nr.responded_at as updated_at, nr.expires_at,
@@ -4046,11 +4047,11 @@ export default {
             JOIN users u2 ON nr.requester_id = u2.id
             WHERE nr.id = ${ndaId} 
               AND (nr.owner_id = ${auth.user.id} OR nr.requester_id = ${auth.user.id})
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             // Try signed NDAs
-            ndaResult = await sql`
+            ndaResult = await withDatabase(env, async (sql) => await sql`
               SELECT n.id, n.pitch_id, n.signer_id, n.user_id, n.nda_type, n.status,
                      n.signed_at, n.revoked_at, n.expires_at, n.created_at, n.updated_at,
                      p.title as pitch_title,
@@ -4061,7 +4062,7 @@ export default {
               JOIN users u2 ON n.signer_id = u2.id
               WHERE n.id = ${ndaId}
                 AND (n.user_id = ${auth.user.id} OR n.signer_id = ${auth.user.id})
-            `;
+            `, sentry);
           }
 
           if (ndaResult.length === 0) {
@@ -4158,7 +4159,7 @@ export default {
           // Execute the query using template literals based on conditions
           let ndaResults;
           if (whereClause.includes('AND') && status && pitchId) {
-            ndaResults = await sql`
+            ndaResults = await withDatabase(env, async (sql) => await sql`
               SELECT nr.id, nr.pitch_id, nr.requester_id as signer_id, nr.owner_id as user_id,
                      nr.nda_type, nr.status, nr.request_message, nr.rejection_reason,
                      nr.requested_at as created_at, nr.responded_at as updated_at, nr.expires_at,
@@ -4171,9 +4172,9 @@ export default {
               WHERE nr.requester_id = ${auth.user.id} AND nr.status = ${status} AND nr.pitch_id = ${pitchId}
               ORDER BY nr.requested_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           } else if (status) {
-            ndaResults = await sql`
+            ndaResults = await withDatabase(env, async (sql) => await sql`
               SELECT nr.id, nr.pitch_id, nr.requester_id as signer_id, nr.owner_id as user_id,
                      nr.nda_type, nr.status, nr.request_message, nr.rejection_reason,
                      nr.requested_at as created_at, nr.responded_at as updated_at, nr.expires_at,
@@ -4186,9 +4187,9 @@ export default {
               WHERE nr.requester_id = ${auth.user.id} AND nr.status = ${status}
               ORDER BY nr.requested_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           } else if (pitchId) {
-            ndaResults = await sql`
+            ndaResults = await withDatabase(env, async (sql) => await sql`
               SELECT nr.id, nr.pitch_id, nr.requester_id as signer_id, nr.owner_id as user_id,
                      nr.nda_type, nr.status, nr.request_message, nr.rejection_reason,
                      nr.requested_at as created_at, nr.responded_at as updated_at, nr.expires_at,
@@ -4201,9 +4202,9 @@ export default {
               WHERE nr.requester_id = ${auth.user.id} AND nr.pitch_id = ${pitchId}
               ORDER BY nr.requested_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           } else {
-            ndaResults = await sql`
+            ndaResults = await withDatabase(env, async (sql) => await sql`
               SELECT nr.id, nr.pitch_id, nr.requester_id as signer_id, nr.owner_id as user_id,
                      nr.nda_type, nr.status, nr.request_message, nr.rejection_reason,
                      nr.requested_at as created_at, nr.responded_at as updated_at, nr.expires_at,
@@ -4216,7 +4217,7 @@ export default {
               WHERE nr.requester_id = ${auth.user.id}
               ORDER BY nr.requested_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           }
 
           // Get total count
@@ -4233,29 +4234,29 @@ export default {
           // Get total count
           let countResult;
           if (status && pitchId) {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM nda_requests nr
               WHERE nr.requester_id = ${auth.user.id} AND nr.status = ${status} AND nr.pitch_id = ${pitchId}
-            `;
+            `, sentry);
           } else if (status) {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM nda_requests nr
               WHERE nr.requester_id = ${auth.user.id} AND nr.status = ${status}
-            `;
+            `, sentry);
           } else if (pitchId) {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM nda_requests nr
               WHERE nr.requester_id = ${auth.user.id} AND nr.pitch_id = ${pitchId}
-            `;
+            `, sentry);
           } else {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM nda_requests nr
               WHERE nr.requester_id = ${auth.user.id}
-            `;
+            `, sentry);
           }
 
           const ndas = ndaResults.map((nda: any) => ({
@@ -4304,13 +4305,13 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Check for signed NDA
-          const signedNda = await sql`
+          const signedNda = await withDatabase(env, async (sql) => await sql`
             SELECT n.*, p.title as pitch_title
             FROM ndas n
             JOIN pitches p ON n.pitch_id = p.id
             WHERE n.pitch_id = ${pitchId} AND n.signer_id = ${auth.user.id} 
               AND n.status = 'signed' AND n.access_granted = true
-          `;
+          `, sentry);
 
           if (signedNda.length > 0) {
             return jsonResponse({
@@ -4329,14 +4330,14 @@ export default {
           }
 
           // Check for pending/approved request
-          const ndaRequest = await sql`
+          const ndaRequest = await withDatabase(env, async (sql) => await sql`
             SELECT nr.*, p.title as pitch_title
             FROM nda_requests nr
             JOIN pitches p ON nr.pitch_id = p.id
             WHERE nr.pitch_id = ${pitchId} AND nr.requester_id = ${auth.user.id}
             ORDER BY nr.requested_at DESC
             LIMIT 1
-          `;
+          `, sentry);
 
           if (ndaRequest.length > 0) {
             const request = ndaRequest[0];
@@ -4382,7 +4383,7 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Get both requests and signed NDAs for comprehensive history
-          const requests = await sql`
+          const requests = await withDatabase(env, async (sql) => await sql`
             SELECT nr.id, nr.pitch_id, nr.requester_id as signer_id, nr.owner_id as user_id,
                    nr.nda_type, nr.status, nr.request_message, nr.rejection_reason,
                    nr.requested_at as created_at, nr.responded_at as updated_at, nr.expires_at,
@@ -4391,9 +4392,9 @@ export default {
             JOIN pitches p ON nr.pitch_id = p.id
             WHERE nr.requester_id = ${auth.user.id} OR nr.owner_id = ${auth.user.id}
             ORDER BY nr.requested_at DESC
-          `;
+          `, sentry);
 
-          const signedNdas = await sql`
+          const signedNdas = await withDatabase(env, async (sql) => await sql`
             SELECT n.id, n.pitch_id, n.signer_id, n.user_id, n.nda_type, n.status,
                    n.signed_at, n.revoked_at, n.expires_at, n.created_at, n.updated_at,
                    p.title as pitch_title, 'signed' as record_type
@@ -4401,7 +4402,7 @@ export default {
             JOIN pitches p ON n.pitch_id = p.id
             WHERE n.signer_id = ${auth.user.id} OR n.user_id = ${auth.user.id}
             ORDER BY n.signed_at DESC
-          `;
+          `, sentry);
 
           // Combine and format results
           const allNdas = [...requests, ...signedNdas].map((nda: any) => ({
@@ -4450,7 +4451,7 @@ export default {
           dbPool.initialize(env, sentry);
 
           // Verify access to NDA
-          const ndaResult = await sql`
+          const ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT n.*, p.title as pitch_title, u1.username as owner_name, u2.username as signer_name
             FROM ndas n
             JOIN pitches p ON n.pitch_id = p.id
@@ -4459,7 +4460,7 @@ export default {
             WHERE n.id = ${ndaId}
               AND (n.user_id = ${auth.user.id} OR n.signer_id = ${auth.user.id})
               AND n.status = 'signed'
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             return badRequestResponse("Signed NDA not found or access denied");
@@ -4547,12 +4548,12 @@ For verification purposes, please contact legal@pitchey.com with Document ID: ND
           dbPool.initialize(env, sentry);
 
           // Get pitch details
-          const pitchResult = await sql`
+          const pitchResult = await withDatabase(env, async (sql) => await sql`
             SELECT title, logline, creator_username
             FROM pitches p
             JOIN users u ON p.user_id = u.id
             WHERE p.id = ${pitchId}
-          `;
+          `, sentry);
 
           if (pitchResult.length === 0) {
             return badRequestResponse("Pitch not found");
@@ -4563,9 +4564,9 @@ For verification purposes, please contact legal@pitchey.com with Document ID: ND
           // Get template or use default
           let template = "STANDARD NON-DISCLOSURE AGREEMENT";
           if (templateId) {
-            const templateResult = await sql`
+            const templateResult = await withDatabase(env, async (sql) => await sql`
               SELECT content FROM nda_templates WHERE id = ${templateId}
-            `;
+            `, sentry);
             if (templateResult.length > 0) {
               template = templateResult[0].content;
             }
@@ -4622,12 +4623,12 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get templates accessible to user
-          const templates = await sql`
+          const templates = await withDatabase(env, async (sql) => await sql`
             SELECT id, name, description, content, variables, is_default, created_by, created_at, updated_at
             FROM nda_templates 
             WHERE created_by = ${auth.user.id} OR is_default = true
             ORDER BY is_default DESC, name ASC
-          `;
+          `, sentry);
 
           // Use demo templates if no database tables exist or return empty
           const availableTemplates = templates.length > 0 ? templates : demoNDATemplates.filter(t => 
@@ -4662,11 +4663,11 @@ Generated: ${new Date().toISOString()}
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
-          const templateResult = await sql`
+          const templateResult = await withDatabase(env, async (sql) => await sql`
             SELECT id, name, description, content, variables, is_default, created_by, created_at, updated_at
             FROM nda_templates 
             WHERE id = ${templateId} AND (created_by = ${auth.user.id} OR is_default = true)
-          `;
+          `, sentry);
 
           let template;
           if (templateResult.length > 0) {
@@ -4719,7 +4720,7 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get comprehensive NDA statistics
-          const statsResult = await sql`
+          const statsResult = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COUNT(*) as total,
               COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
@@ -4730,7 +4731,7 @@ Generated: ${new Date().toISOString()}
               COUNT(CASE WHEN status = 'revoked' THEN 1 END) as revoked
             FROM nda_requests
             WHERE owner_id = ${auth.user.id} OR requester_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           const stats = statsResult[0] || {};
 
@@ -4777,16 +4778,16 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Verify pitch ownership
-          const pitchResult = await sql`
+          const pitchResult = await withDatabase(env, async (sql) => await sql`
             SELECT id FROM pitches WHERE id = ${pitchId} AND user_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           if (pitchResult.length === 0) {
             return badRequestResponse("Pitch not found or access denied");
           }
 
           // Get pitch-specific NDA statistics
-          const statsResult = await sql`
+          const statsResult = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COUNT(*) as total,
               COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
@@ -4797,7 +4798,7 @@ Generated: ${new Date().toISOString()}
               COUNT(CASE WHEN status = 'revoked' THEN 1 END) as revoked
             FROM nda_requests
             WHERE pitch_id = ${pitchId}
-          `;
+          `, sentry);
 
           const stats = statsResult[0] || {};
           const approvalRate = parseInt(stats.total) > 0 ? 
@@ -4842,9 +4843,9 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Check if pitch exists and user owns it
-          const pitchResult = await sql`
+          const pitchResult = await withDatabase(env, async (sql) => await sql`
             SELECT user_id, require_nda FROM pitches WHERE id = ${pitchId}
-          `;
+          `, sentry);
 
           if (pitchResult.length === 0) {
             return jsonResponse({
@@ -4881,11 +4882,11 @@ Generated: ${new Date().toISOString()}
           }
 
           // Check for existing NDA request or signed NDA
-          const existingRequest = await sql`
+          const existingRequest = await withDatabase(env, async (sql) => await sql`
             SELECT id, status FROM nda_requests 
             WHERE pitch_id = ${pitchId} AND requester_id = ${auth.user.id}
             ORDER BY created_at DESC LIMIT 1
-          `;
+          `, sentry);
 
           if (existingRequest.length > 0) {
             const request = existingRequest[0];
@@ -4950,10 +4951,10 @@ Generated: ${new Date().toISOString()}
           for (const ndaId of ndaIds) {
             try {
               // Verify ownership and pending status
-              const ndaResult = await sql`
+              const ndaResult = await withDatabase(env, async (sql) => await sql`
                 SELECT id FROM nda_requests
                 WHERE id = ${ndaId} AND owner_id = ${auth.user.id} AND status = 'pending'
-              `;
+              `, sentry);
 
               if (ndaResult.length === 0) {
                 failed.push({
@@ -4964,11 +4965,11 @@ Generated: ${new Date().toISOString()}
               }
 
               // Approve the NDA
-              await sql`
+              await withDatabase(env, async (sql) => await sql`
                 UPDATE nda_requests 
                 SET status = 'approved', responded_at = NOW(), updated_at = NOW()
                 WHERE id = ${ndaId}
-              `;
+              `, sentry);
 
               successful.push(ndaId);
 
@@ -5023,10 +5024,10 @@ Generated: ${new Date().toISOString()}
           for (const ndaId of ndaIds) {
             try {
               // Verify ownership and pending status
-              const ndaResult = await sql`
+              const ndaResult = await withDatabase(env, async (sql) => await sql`
                 SELECT id FROM nda_requests
                 WHERE id = ${ndaId} AND owner_id = ${auth.user.id} AND status = 'pending'
-              `;
+              `, sentry);
 
               if (ndaResult.length === 0) {
                 failed.push({
@@ -5037,11 +5038,11 @@ Generated: ${new Date().toISOString()}
               }
 
               // Reject the NDA
-              await sql`
+              await withDatabase(env, async (sql) => await sql`
                 UPDATE nda_requests 
                 SET status = 'rejected', rejection_reason = ${reason}, responded_at = NOW(), updated_at = NOW()
                 WHERE id = ${ndaId}
-              `;
+              `, sentry);
 
               successful.push(ndaId);
 
@@ -5083,13 +5084,13 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Verify NDA exists and user has permission to send reminder
-          const ndaResult = await sql`
+          const ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT nr.id, nr.status, nr.requester_id, p.title, u.email
             FROM nda_requests nr
             JOIN pitches p ON nr.pitch_id = p.id
             JOIN users u ON nr.requester_id = u.id
             WHERE nr.id = ${ndaId} AND (nr.owner_id = ${auth.user.id} OR nr.requester_id = ${auth.user.id})
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             return badRequestResponse("NDA not found or access denied");
@@ -5134,12 +5135,12 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get signed NDA details
-          const ndaResult = await sql`
+          const ndaResult = await withDatabase(env, async (sql) => await sql`
             SELECT n.id, n.status, n.signed_at, n.signer_id, u.username, u.email
             FROM ndas n
             JOIN users u ON n.signer_id = u.id
             WHERE n.id = ${ndaId} AND (n.user_id = ${auth.user.id} OR n.signer_id = ${auth.user.id})
-          `;
+          `, sentry);
 
           if (ndaResult.length === 0) {
             return jsonResponse({
@@ -5186,7 +5187,7 @@ Generated: ${new Date().toISOString()}
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
-          const outgoingRequests = await sql`
+          const outgoingRequests = await withDatabase(env, async (sql) => await sql`
             SELECT 
               nr.id, nr.status, nr.nda_type, nr.request_message,
               nr.requested_at, nr.responded_at, nr.expires_at,
@@ -5197,7 +5198,7 @@ Generated: ${new Date().toISOString()}
             JOIN users u ON p.user_id = u.id
             WHERE nr.requester_id = ${auth.user.id}
             ORDER BY nr.requested_at DESC
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -5240,7 +5241,7 @@ Generated: ${new Date().toISOString()}
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
-          const incomingRequests = await sql`
+          const incomingRequests = await withDatabase(env, async (sql) => await sql`
             SELECT 
               nr.id, nr.status, nr.nda_type, nr.request_message,
               nr.requested_at, nr.responded_at, nr.expires_at,
@@ -5251,7 +5252,7 @@ Generated: ${new Date().toISOString()}
             JOIN users u ON nr.requester_id = u.id
             WHERE nr.owner_id = ${auth.user.id}
             ORDER BY nr.requested_at DESC
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -5294,7 +5295,7 @@ Generated: ${new Date().toISOString()}
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
-          const outgoingSigned = await sql`
+          const outgoingSigned = await withDatabase(env, async (sql) => await sql`
             SELECT 
               nr.id, nr.status, nr.nda_type,
               nr.requested_at, nr.responded_at as signed_at, nr.expires_at,
@@ -5306,7 +5307,7 @@ Generated: ${new Date().toISOString()}
             WHERE nr.owner_id = ${auth.user.id} 
               AND nr.status IN ('approved', 'signed')
             ORDER BY nr.responded_at DESC
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -5347,7 +5348,7 @@ Generated: ${new Date().toISOString()}
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
-          const incomingSigned = await sql`
+          const incomingSigned = await withDatabase(env, async (sql) => await sql`
             SELECT 
               nr.id, nr.status, nr.nda_type,
               nr.requested_at, nr.responded_at as signed_at, nr.expires_at,
@@ -5359,7 +5360,7 @@ Generated: ${new Date().toISOString()}
             WHERE nr.requester_id = ${auth.user.id} 
               AND nr.status IN ('approved', 'signed')
             ORDER BY nr.responded_at DESC
-          `;
+          `, sentry);
 
           return jsonResponse({
             success: true,
@@ -5479,9 +5480,9 @@ Generated: ${new Date().toISOString()}
           const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
           // Get user's pitches for analytics
-          const userPitches = await sql`
+          const userPitches = await withDatabase(env, async (sql) => await sql`
             SELECT id FROM pitches WHERE user_id = ${auth.user.id}
-          `;
+          `, sentry);
           const pitchIds = userPitches.map(p => p.id);
 
           // Mock real-time data (in production, this would come from analytics service)
@@ -6576,7 +6577,7 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get portfolio summary for investor
-          const portfolioResults = await sql`
+          const portfolioResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COALESCE(SUM(i.amount), 0) as total_invested,
               COALESCE(SUM(i.current_value), 0) as current_value,
@@ -6584,7 +6585,7 @@ Generated: ${new Date().toISOString()}
               COUNT(CASE WHEN i.status = 'completed' THEN 1 END) as completed_investments
             FROM investments i
             WHERE i.investor_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           const stats = portfolioResults[0] || {};
           const totalInvested = parseFloat(stats.total_invested) || 0;
@@ -6665,29 +6666,29 @@ Generated: ${new Date().toISOString()}
           // Get count using template literals
           let countResult;
           if (status && pitchId) {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM investments i
               WHERE i.investor_id = ${auth.user.id} AND i.status = ${status} AND i.pitch_id = ${pitchId}
-            `;
+            `, sentry);
           } else if (status) {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM investments i
               WHERE i.investor_id = ${auth.user.id} AND i.status = ${status}
-            `;
+            `, sentry);
           } else if (pitchId) {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM investments i
               WHERE i.investor_id = ${auth.user.id} AND i.pitch_id = ${pitchId}
-            `;
+            `, sentry);
           } else {
-            countResult = await sql`
+            countResult = await withDatabase(env, async (sql) => await sql`
               SELECT COUNT(*) as total
               FROM investments i
               WHERE i.investor_id = ${auth.user.id}
-            `;
+            `, sentry);
           }
           const total = parseInt(countResult[0]?.total) || 0;
 
@@ -6710,7 +6711,7 @@ Generated: ${new Date().toISOString()}
           // Get investments using template literals
           let investments;
           if (status && pitchId) {
-            investments = await sql`
+            investments = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 i.id, i.amount, i.status, i.current_value, i.notes, 
                 i.created_at as "createdAt", i.updated_at as "updatedAt",
@@ -6722,9 +6723,9 @@ Generated: ${new Date().toISOString()}
               WHERE i.investor_id = ${auth.user.id} AND i.status = ${status} AND i.pitch_id = ${pitchId}
               ORDER BY i.created_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           } else if (status) {
-            investments = await sql`
+            investments = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 i.id, i.amount, i.status, i.current_value, i.notes, 
                 i.created_at as "createdAt", i.updated_at as "updatedAt",
@@ -6736,9 +6737,9 @@ Generated: ${new Date().toISOString()}
               WHERE i.investor_id = ${auth.user.id} AND i.status = ${status}
               ORDER BY i.created_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           } else if (pitchId) {
-            investments = await sql`
+            investments = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 i.id, i.amount, i.status, i.current_value, i.notes, 
                 i.created_at as "createdAt", i.updated_at as "updatedAt",
@@ -6750,9 +6751,9 @@ Generated: ${new Date().toISOString()}
               WHERE i.investor_id = ${auth.user.id} AND i.pitch_id = ${pitchId}
               ORDER BY i.created_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           } else {
-            investments = await sql`
+            investments = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 i.id, i.amount, i.status, i.current_value, i.notes, 
                 i.created_at as "createdAt", i.updated_at as "updatedAt",
@@ -6764,7 +6765,7 @@ Generated: ${new Date().toISOString()}
               WHERE i.investor_id = ${auth.user.id}
               ORDER BY i.created_at DESC
               LIMIT ${limit} OFFSET ${offset}
-            `;
+            `, sentry);
           }
 
           // Format results
@@ -6839,7 +6840,7 @@ Generated: ${new Date().toISOString()}
           // Get opportunities using template literals
           let opportunities;
           if (genre && stage) {
-            opportunities = await sql`
+            opportunities = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.estimated_budget,
                 p.production_stage, p.view_count, p.like_count, p.published_at,
@@ -6855,9 +6856,9 @@ Generated: ${new Date().toISOString()}
                 AND p.production_stage = ${stage}
               ORDER BY p.created_at DESC
               LIMIT ${limit}
-            `;
+            `, sentry);
           } else if (genre) {
-            opportunities = await sql`
+            opportunities = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.estimated_budget,
                 p.production_stage, p.view_count, p.like_count, p.published_at,
@@ -6872,9 +6873,9 @@ Generated: ${new Date().toISOString()}
                 AND p.genre = ${genre}
               ORDER BY p.created_at DESC
               LIMIT ${limit}
-            `;
+            `, sentry);
           } else if (stage) {
-            opportunities = await sql`
+            opportunities = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.estimated_budget,
                 p.production_stage, p.view_count, p.like_count, p.published_at,
@@ -6889,9 +6890,9 @@ Generated: ${new Date().toISOString()}
                 AND p.production_stage = ${stage}
               ORDER BY p.created_at DESC
               LIMIT ${limit}
-            `;
+            `, sentry);
           } else {
-            opportunities = await sql`
+            opportunities = await withDatabase(env, async (sql) => await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.estimated_budget,
                 p.production_stage, p.view_count, p.like_count, p.published_at,
@@ -6905,7 +6906,7 @@ Generated: ${new Date().toISOString()}
                 AND p.estimated_budget <= ${maxBudget}
               ORDER BY p.created_at DESC
               LIMIT ${limit}
-            `;
+            `, sentry);
           }
 
           // Format opportunities with enhanced data
@@ -6960,7 +6961,7 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get funding metrics for creator's pitches
-          const fundingResults = await sql`
+          const fundingResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COALESCE(SUM(i.amount), 0) as total_raised,
               COUNT(DISTINCT i.investor_id) as active_investors,
@@ -6969,7 +6970,7 @@ Generated: ${new Date().toISOString()}
             FROM investments i
             LEFT JOIN pitches p ON i.pitch_id = p.id
             WHERE p.user_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           const stats = fundingResults[0] || {};
           const totalRaised = parseFloat(stats.total_raised) || 0;
@@ -6977,7 +6978,7 @@ Generated: ${new Date().toISOString()}
           const averageInvestment = parseFloat(stats.average_investment) || 0;
 
           // Get recent investments (last 5)
-          const recentInvestments = await sql`
+          const recentInvestments = await withDatabase(env, async (sql) => await sql`
             SELECT 
               i.id, i.amount, i.created_at,
               u.username, u.first_name, u.last_name
@@ -6987,10 +6988,10 @@ Generated: ${new Date().toISOString()}
             WHERE p.user_id = ${auth.user.id}
             ORDER BY i.created_at DESC
             LIMIT 5
-          `;
+          `, sentry);
 
           // Get top investor
-          const topInvestorResult = await sql`
+          const topInvestorResult = await withDatabase(env, async (sql) => await sql`
             SELECT 
               u.username, u.first_name, u.last_name,
               SUM(i.amount) as total_amount
@@ -7001,7 +7002,7 @@ Generated: ${new Date().toISOString()}
             GROUP BY u.id, u.username, u.first_name, u.last_name
             ORDER BY total_amount DESC
             LIMIT 1
-          `;
+          `, sentry);
 
           // Mock funding goal (you might want to add this to pitches table)
           const fundingGoal = 500000; // $500k default goal
@@ -7055,7 +7056,7 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get investors for creator's pitches
-          const investorsResults = await sql`
+          const investorsResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               u.id, u.username, u.first_name, u.last_name, u.company_name,
               SUM(i.amount) as total_invested,
@@ -7074,17 +7075,17 @@ Generated: ${new Date().toISOString()}
             WHERE p.user_id = ${auth.user.id}
             GROUP BY u.id, u.username, u.first_name, u.last_name, u.company_name
             ORDER BY total_invested DESC
-          `;
+          `, sentry);
 
           // Get totals
-          const totalResults = await sql`
+          const totalResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COUNT(DISTINCT i.investor_id) as total_investors,
               COALESCE(SUM(i.amount), 0) as total_raised
             FROM investments i
             LEFT JOIN pitches p ON i.pitch_id = p.id
             WHERE p.user_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           const totals = totalResults[0] || {};
           
@@ -7128,7 +7129,7 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get overall investment metrics visible to production companies
-          const metricsResults = await sql`
+          const metricsResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               COUNT(DISTINCT i.id) as total_investments,
               COUNT(DISTINCT CASE WHEN i.status = 'active' THEN i.id END) as active_deals,
@@ -7136,13 +7137,13 @@ Generated: ${new Date().toISOString()}
             FROM investments i
             LEFT JOIN pitches p ON i.pitch_id = p.id
             WHERE p.visibility = 'public'
-          `;
+          `, sentry);
 
           const stats = metricsResults[0] || {};
           const monthlyGrowth = Math.random() * 15; // 0-15% growth
 
           // Get top opportunities (highly funded/viewed pitches)
-          const topOpportunities = await sql`
+          const topOpportunities = await withDatabase(env, async (sql) => await sql`
             SELECT 
               p.id, p.title, p.logline, p.genre, p.estimated_budget, p.production_stage,
               p.view_count, p.like_count,
@@ -7157,10 +7158,10 @@ Generated: ${new Date().toISOString()}
                      p.view_count, p.like_count, u.username, u.company_name
             ORDER BY funding_raised DESC, p.view_count DESC
             LIMIT 10
-          `;
+          `, sentry);
 
           // Get recent activity
-          const recentActivity = await sql`
+          const recentActivity = await withDatabase(env, async (sql) => await sql`
             SELECT 
               'investment' as type,
               p.title,
@@ -7171,7 +7172,7 @@ Generated: ${new Date().toISOString()}
             WHERE p.visibility = 'public'
             ORDER BY i.created_at DESC
             LIMIT 10
-          `;
+          `, sentry);
 
           const productionMetrics = {
             totalInvestments: parseInt(stats.total_investments) || 0,
@@ -7237,11 +7238,11 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Verify pitch exists and is seeking investment
-          const pitchCheck = await sql`
+          const pitchCheck = await withDatabase(env, async (sql) => await sql`
             SELECT id, title, user_id, seeking_investment
             FROM pitches 
             WHERE id = ${pitchId} AND status = 'published' AND visibility = 'public'
-          `;
+          `, sentry);
 
           if (pitchCheck.length === 0) {
             return badRequestResponse("Pitch not found or not available for investment");
@@ -7252,11 +7253,11 @@ Generated: ${new Date().toISOString()}
           }
 
           // Create investment
-          const investmentResults = await sql`
+          const investmentResults = await withDatabase(env, async (sql) => await sql`
             INSERT INTO investments (investor_id, pitch_id, amount, status, terms, current_value, created_at, updated_at)
             VALUES (${auth.user.id}, ${pitchId}, ${amount}, 'pending', ${terms || null}, ${amount}, NOW(), NOW())
             RETURNING *
-          `;
+          `, sentry);
 
           if (investmentResults.length === 0) {
             return serverErrorResponse("Failed to create investment");
@@ -7265,12 +7266,12 @@ Generated: ${new Date().toISOString()}
           const investment = investmentResults[0];
 
           // Get pitch and creator details for response
-          const pitchDetails = await sql`
+          const pitchDetails = await withDatabase(env, async (sql) => await sql`
             SELECT p.title, p.genre, u.username, u.first_name, u.last_name
             FROM pitches p
             LEFT JOIN users u ON p.user_id = u.id
             WHERE p.id = ${pitchId}
-          `;
+          `, sentry);
 
           const pitch = pitchDetails[0];
           
@@ -7327,10 +7328,10 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Check if user owns this investment
-          const investmentCheck = await sql`
+          const investmentCheck = await withDatabase(env, async (sql) => await sql`
             SELECT * FROM investments 
             WHERE id = ${investmentId} AND investor_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           if (investmentCheck.length === 0) {
             return badRequestResponse("Investment not found or not owned by user");
@@ -7367,14 +7368,14 @@ Generated: ${new Date().toISOString()}
           `;
 
           // Update investment using template literals
-          const updateResults = await sql`
+          const updateResults = await withDatabase(env, async (sql) => await sql`
             UPDATE investments 
             SET amount = ${amount}, 
                 notes = ${notes}, 
                 updated_at = NOW()
             WHERE id = ${investmentId} AND investor_id = ${auth.user.id}
             RETURNING id, pitch_id, investor_id, amount, status, notes, created_at, updated_at
-          `;
+          `, sentry);
           
           if (updateResults.length === 0) {
             return serverErrorResponse("Failed to update investment");
@@ -7425,7 +7426,7 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get investment with pitch and creator details
-          const investmentResults = await sql`
+          const investmentResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               i.*, 
               p.title as pitch_title, p.genre as pitch_genre,
@@ -7434,7 +7435,7 @@ Generated: ${new Date().toISOString()}
             LEFT JOIN pitches p ON i.pitch_id = p.id
             LEFT JOIN users u ON p.user_id = u.id
             WHERE i.id = ${investmentId} AND i.investor_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           if (investmentResults.length === 0) {
             return badRequestResponse("Investment not found or not owned by user");
@@ -7525,7 +7526,7 @@ Generated: ${new Date().toISOString()}
           dbPool.initialize(env, sentry);
 
           // Get all investments for analytics
-          const investmentResults = await sql`
+          const investmentResults = await withDatabase(env, async (sql) => await sql`
             SELECT 
               i.*,
               p.genre, p.production_stage,
@@ -7533,7 +7534,7 @@ Generated: ${new Date().toISOString()}
             FROM investments i
             LEFT JOIN pitches p ON i.pitch_id = p.id
             WHERE i.investor_id = ${auth.user.id}
-          `;
+          `, sentry);
 
           if (investmentResults.length === 0) {
             return new Response(JSON.stringify({
