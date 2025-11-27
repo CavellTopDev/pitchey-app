@@ -905,12 +905,12 @@ export default {
           const following = await withDatabase(env, async (sql) => await sql`
             SELECT 
               u.id, u.username, u.company_name, u.profile_image_url,
-              f.created_at as followed_at
+              f.followed_at
             FROM follows f
-            JOIN users u ON (f.following_id = u.id OR f.creator_id = u.id)
+            JOIN users u ON f.creator_id = u.id
             WHERE f.follower_id = ${auth.user.id}
-              AND (f.following_id IS NOT NULL OR f.creator_id IS NOT NULL)
-            ORDER BY f.created_at DESC
+              AND f.creator_id IS NOT NULL
+            ORDER BY f.followed_at DESC
             LIMIT 20
           `, sentry);
 
@@ -1360,7 +1360,7 @@ export default {
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
-          // Get pitches from followed creators - fixed query for proper follows relationship
+          // Get pitches from followed creators using actual database schema
           const followingPitches = await withDatabase(env, async (sql) => await sql`
             SELECT DISTINCT
               p.id, p.title, p.logline, p.genre, p.format,
@@ -1373,7 +1373,7 @@ export default {
               SELECT 1 FROM follows f 
               WHERE f.follower_id = ${auth.user.id}
               AND (
-                (f.following_id = u.id) OR  -- User following creator
+                (f.creator_id = u.id) OR     -- User following creator
                 (f.pitch_id = p.id)          -- User following pitch directly
               )
             )
