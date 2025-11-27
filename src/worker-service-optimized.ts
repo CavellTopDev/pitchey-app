@@ -2221,9 +2221,7 @@ export default {
           const whereClause = whereConditions.join(' AND ');
           
           // Get total count using raw SQL query
-          // Import database utilities if not already done
-          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
-          dbPool.initialize(env, sentry);
+          // Database utilities already imported above, no need to re-import
           
           // Get total count - need to build safe query
           const totalResult = await withDatabase(env, async (sql) => {
@@ -7661,7 +7659,6 @@ Generated: ${new Date().toISOString()}
             status: investment.status,
             terms: investment.terms,
             currentValue: currentValue,
-            documents: investment.documents || [],
             notes: investment.notes,
             createdAt: investment.created_at?.toISOString(),
             updatedAt: investment.updated_at?.toISOString(),
@@ -7672,7 +7669,7 @@ Generated: ${new Date().toISOString()}
                 name: investment.username || `${investment.first_name || ''} ${investment.last_name || ''}`.trim()
               }
             },
-            documents: documents,
+            documents: documents || investment.documents || [],
             timeline: timeline,
             roi: roi
           };
