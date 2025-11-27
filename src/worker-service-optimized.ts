@@ -907,8 +907,9 @@ export default {
               u.id, u.username, u.company_name, u.profile_image_url,
               f.created_at as followed_at
             FROM follows f
-            JOIN users u ON f.following_id = u.id
+            JOIN users u ON (f.following_id = u.id OR f.creator_id = u.id)
             WHERE f.follower_id = ${auth.user.id}
+              AND (f.following_id IS NOT NULL OR f.creator_id IS NOT NULL)
             ORDER BY f.created_at DESC
             LIMIT 20
           `, sentry);
