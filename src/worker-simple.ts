@@ -777,7 +777,7 @@ export default {
               p.created_at,
               p.updated_at
             FROM pitches p
-            WHERE p.creator_id = $1
+            WHERE p.user_id = $1
             ORDER BY p.created_at DESC`,
             [user.userId]
           );
@@ -1043,7 +1043,7 @@ export default {
               u.display_name AS creator_name,
               COUNT(DISTINCT pl.id) AS like_count
             FROM pitches p
-            LEFT JOIN users u ON p.creator_id = u.id
+            LEFT JOIN users u ON p.user_id = u.id
             LEFT JOIN pitch_likes pl ON p.id = pl.pitch_id
             ${whereClauses.length ? 'WHERE ' + whereClauses.join(' AND ') : ''}
             GROUP BY p.id, u.display_name
@@ -1121,7 +1121,7 @@ export default {
               p.view_count,
               p.status,
               p.created_at,
-              p.creator_id,
+              p.user_id as creator_id,
               u.display_name as creator_name,
               u.avatar_url as creator_avatar,
               COALESCE(pm.total_views, p.view_count, 0) as total_views,
@@ -1139,7 +1139,7 @@ export default {
               ) as trending_score
             FROM pitches p
             LEFT JOIN pitch_metrics pm ON p.id = pm.id
-            LEFT JOIN users u ON p.creator_id = u.id
+            LEFT JOIN users u ON p.user_id = u.id
             WHERE p.status = 'published'
               AND (COALESCE(pm.total_views, p.view_count, 0) > 0 OR p.is_featured = true)
             ORDER BY trending_score DESC, p.created_at DESC
@@ -1161,7 +1161,7 @@ export default {
                 p.view_count,
                 p.status,
                 p.created_at,
-                p.creator_id,
+                p.user_id as creator_id,
                 u.display_name AS creator_name,
                 u.avatar_url as creator_avatar,
                 p.view_count as total_views,
@@ -1171,7 +1171,7 @@ export default {
                 0 as nda_interest,
                 p.view_count as trending_score
               FROM pitches p
-              LEFT JOIN users u ON p.creator_id = u.id
+              LEFT JOIN users u ON p.user_id = u.id
               WHERE p.status = 'published'
               ORDER BY p.is_featured DESC, p.created_at DESC
               LIMIT ${limit}`;
@@ -1219,7 +1219,7 @@ export default {
               p.poster_url, p.video_url, p.created_at,
               u.display_name as creator_name
             FROM pitches p
-            LEFT JOIN users u ON p.creator_id = u.id
+            LEFT JOIN users u ON p.user_id = u.id
             WHERE p.status = 'published' 
               AND p.is_featured = true
             ORDER BY p.created_at DESC

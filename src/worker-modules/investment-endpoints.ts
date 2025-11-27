@@ -303,7 +303,7 @@ export class InvestmentEndpointsHandler {
               CONCAT(u.first_name, ' ', u.last_name) as creator
             FROM investments i
             JOIN pitches p ON i.pitch_id = p.id
-            JOIN users u ON p.creator_id = u.id
+            JOIN users u ON p.user_id = u.id
             WHERE i.investor_id = $1
             ORDER BY i.created_at DESC
             LIMIT 5
@@ -320,7 +320,7 @@ export class InvestmentEndpointsHandler {
               CONCAT(u.first_name, ' ', u.last_name) as creator,
               85 + (RANDOM() * 15)::int as match_score
             FROM pitches p
-            JOIN users u ON p.creator_id = u.id
+            JOIN users u ON p.user_id = u.id
             LEFT JOIN investments i ON p.id = i.pitch_id
             WHERE p.status = 'active'
               AND p.id NOT IN (

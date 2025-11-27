@@ -907,7 +907,7 @@ export default {
               u.id, u.username, u.company_name, u.profile_image_url,
               f.created_at as followed_at
             FROM follows f
-            JOIN users u ON f.followed_id = u.id
+            JOIN users u ON f.following_id = u.id
             WHERE f.follower_id = ${auth.user.id}
             ORDER BY f.created_at DESC
             LIMIT 20
@@ -1368,7 +1368,7 @@ export default {
               u.id as creator_id, u.username, u.company_name
             FROM pitches p
             JOIN users u ON p.user_id = u.id
-            JOIN follows f ON f.followed_id = u.id
+            JOIN follows f ON f.following_id = u.id
             WHERE f.follower_id = ${auth.user.id}
               AND p.status IN ('published', 'active')
               AND p.visibility = 'public'
@@ -1679,31 +1679,55 @@ export default {
             referrer: request.headers.get('Referer') || null
           };
           
-          // Increment view count (fire and forget)
-          sql`UPDATE pitches SET view_count = view_count + 1 WHERE id = ${pitch.id}`.catch(console.error);
+          // Increment view count (fire and forget with proper context)
+          ctx.waitUntil(
+            withDatabase(env, async (sql) => await sql`UPDATE pitches SET view_count = view_count + 1 WHERE id = ${pitch.id}`, sentry)
+              .catch(error => {
+                console.error('Error updating view count:', error);
+                sentry.captureException(error);
+              })
+          );
           
-          // Track detailed view for authenticated users (fire and forget)
+          // Track detailed view for authenticated users (fire and forget with proper context)
           if (currentUser) {
-            sql`
-              INSERT INTO pitch_views (pitch_id, viewer_id, ip_address, user_agent, referrer, view_type)
-              VALUES (${pitch.id}, ${currentUser.id}, ${viewerInfo.ipAddress}, ${viewerInfo.userAgent}, ${viewerInfo.referrer}, 'detailed')
-            `.catch(console.error);
+            ctx.waitUntil(
+              withDatabase(env, async (sql) => await sql`
+                INSERT INTO pitch_views (pitch_id, viewer_id, ip_address, user_agent, referrer, view_type)
+                VALUES (${pitch.id}, ${currentUser.id}, ${viewerInfo.ipAddress}, ${viewerInfo.userAgent}, ${viewerInfo.referrer}, 'detailed')
+              `, sentry)
+                .catch(error => {
+                  console.error('Error tracking authenticated view:', error);
+                  sentry.captureException(error);
+                })
+            );
             
             // Track analytics event
-            sql`
-              INSERT INTO analytics_events (event_type, user_id, pitch_id, event_data)
-              VALUES ('pitch_view', ${currentUser.id}, ${pitch.id}, ${JSON.stringify({
-                viewType: hasNdaAccess ? 'nda_access' : 'public',
-                userType: currentUser.user_type,
-                accessLevel: hasNdaAccess ? 'full' : 'limited'
-              })})
-            `.catch(console.error);
+            ctx.waitUntil(
+              withDatabase(env, async (sql) => await sql`
+                INSERT INTO analytics_events (event_type, user_id, pitch_id, event_data)
+                VALUES ('pitch_view', ${currentUser.id}, ${pitch.id}, ${JSON.stringify({
+                  viewType: hasNdaAccess ? 'nda_access' : 'public',
+                  userType: currentUser.user_type,
+                  accessLevel: hasNdaAccess ? 'full' : 'limited'
+                })})
+              `, sentry)
+                .catch(error => {
+                  console.error('Error tracking analytics event:', error);
+                  sentry.captureException(error);
+                })
+            );
           } else {
-            // Anonymous view tracking (fire and forget)
-            sql`
-              INSERT INTO pitch_views (pitch_id, ip_address, user_agent, referrer, view_type)
-              VALUES (${pitch.id}, ${viewerInfo.ipAddress}, ${viewerInfo.userAgent}, ${viewerInfo.referrer}, 'anonymous')
-            `.catch(console.error);
+            // Anonymous view tracking (fire and forget with proper context)
+            ctx.waitUntil(
+              withDatabase(env, async (sql) => await sql`
+                INSERT INTO pitch_views (pitch_id, ip_address, user_agent, referrer, view_type)
+                VALUES (${pitch.id}, ${viewerInfo.ipAddress}, ${viewerInfo.userAgent}, ${viewerInfo.referrer}, 'anonymous')
+              `, sentry)
+                .catch(error => {
+                  console.error('Error tracking anonymous view:', error);
+                  sentry.captureException(error);
+                })
+            );
           }
           
           // Build comprehensive response
@@ -1969,25 +1993,77 @@ export default {
           // Execute the query using template literal with neon
           let results;
           try {
-            // Use neon's template literal format
-            results = await sql([finalQuery]);
+            // Use withDatabase for proper SQL context
+            results = await withDatabase(env, async (sql) => {
+              // Build dynamic query safely
+              if (genre && format) {
+                return await sql`
+                  SELECT 
+                    p.id, p.title, p.logline, p.genre, p.format,
+                    p.view_count as "viewCount", p.like_count as "likeCount",
+                    p.poster_url as "posterUrl", p.created_at as "createdAt",
+                    p.status, p.visibility,
+                    u.username as creator_username, u.id as creator_id
+                  FROM pitches p
+                  LEFT JOIN users u ON p.user_id = u.id
+                  WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+                    AND p.genre = ${genre} AND p.format = ${format}
+                  ORDER BY p.created_at DESC
+                  LIMIT ${limit}
+                  OFFSET ${offset}
+                `;
+              } else if (genre) {
+                return await sql`
+                  SELECT 
+                    p.id, p.title, p.logline, p.genre, p.format,
+                    p.view_count as "viewCount", p.like_count as "likeCount",
+                    p.poster_url as "posterUrl", p.created_at as "createdAt",
+                    p.status, p.visibility,
+                    u.username as creator_username, u.id as creator_id
+                  FROM pitches p
+                  LEFT JOIN users u ON p.user_id = u.id
+                  WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+                    AND p.genre = ${genre}
+                  ORDER BY p.created_at DESC
+                  LIMIT ${limit}
+                  OFFSET ${offset}
+                `;
+              } else if (format) {
+                return await sql`
+                  SELECT 
+                    p.id, p.title, p.logline, p.genre, p.format,
+                    p.view_count as "viewCount", p.like_count as "likeCount",
+                    p.poster_url as "posterUrl", p.created_at as "createdAt",
+                    p.status, p.visibility,
+                    u.username as creator_username, u.id as creator_id
+                  FROM pitches p
+                  LEFT JOIN users u ON p.user_id = u.id
+                  WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+                    AND p.format = ${format}
+                  ORDER BY p.created_at DESC
+                  LIMIT ${limit}
+                  OFFSET ${offset}
+                `;
+              } else {
+                return await sql`
+                  SELECT 
+                    p.id, p.title, p.logline, p.genre, p.format,
+                    p.view_count as "viewCount", p.like_count as "likeCount",
+                    p.poster_url as "posterUrl", p.created_at as "createdAt",
+                    p.status, p.visibility,
+                    u.username as creator_username, u.id as creator_id
+                  FROM pitches p
+                  LEFT JOIN users u ON p.user_id = u.id
+                  WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
+                  ORDER BY p.created_at DESC
+                  LIMIT ${limit}
+                  OFFSET ${offset}
+                `;
+              }
+            }, sentry);
           } catch (error) {
             console.error('Query error:', error);
-            // Fallback to basic query without filtering
-            results = await withDatabase(env, async (sql) => await sql`
-              SELECT 
-                p.id, p.title, p.logline, p.genre, p.format,
-                p.view_count as "viewCount", p.like_count as "likeCount",
-                p.poster_url as "posterUrl", p.created_at as "createdAt",
-                p.status, p.visibility,
-                u.username as creator_username, u.id as creator_id
-              FROM pitches p
-              LEFT JOIN users u ON p.user_id = u.id
-              WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
-              ORDER BY p.created_at DESC
-              LIMIT ${limit}
-              OFFSET ${offset}
-            `, sentry);
+            throw error;
           }
           
           console.log('Query executed, mapping results...');
@@ -2022,7 +2098,17 @@ export default {
           
           let countResult;
           try {
-            countResult = await sql([countQuery]);
+            countResult = await withDatabase(env, async (sql) => {
+              if (genre && format) {
+                return await sql`SELECT COUNT(*) as total FROM pitches p WHERE p.status IN ('published', 'active') AND p.visibility = 'public' AND p.genre = ${genre} AND p.format = ${format}`;
+              } else if (genre) {
+                return await sql`SELECT COUNT(*) as total FROM pitches p WHERE p.status IN ('published', 'active') AND p.visibility = 'public' AND p.genre = ${genre}`;
+              } else if (format) {
+                return await sql`SELECT COUNT(*) as total FROM pitches p WHERE p.status IN ('published', 'active') AND p.visibility = 'public' AND p.format = ${format}`;
+              } else {
+                return await sql`SELECT COUNT(*) as total FROM pitches p WHERE p.status IN ('published', 'active') AND p.visibility = 'public'`;
+              }
+            }, sentry);
           } catch (error) {
             console.error('Count query error:', error);
             countResult = await withDatabase(env, async (sql) => await sql`SELECT COUNT(*) as total FROM pitches p WHERE p.status IN ('published', 'active') AND p.visibility = 'public'`, sentry);
@@ -2135,30 +2221,105 @@ export default {
           const whereClause = whereConditions.join(' AND ');
           
           // Get total count using raw SQL query
-          const totalQuery = `
-            SELECT COUNT(*) as total 
-            FROM pitches 
-            WHERE ${whereClause}
-          `;
-          const totalResult = await sql(totalQuery);
+          // Import database utilities if not already done
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
+          dbPool.initialize(env, sentry);
+          
+          // Get total count - need to build safe query
+          const totalResult = await withDatabase(env, async (sql) => {
+            // Build query with proper parameterization based on filters
+            const conditions = [];
+            const values = [];
+            let paramIndex = 1;
+            
+            conditions.push(`status IN ('published', 'active')`);
+            conditions.push(`visibility = 'public'`);
+            
+            if (genre) {
+              conditions.push(`genre = $${paramIndex++}`);
+              values.push(genre);
+            }
+            if (format) {
+              conditions.push(`format = $${paramIndex++}`);
+              values.push(format);
+            }
+            if (budgetMin || budgetMax) {
+              if (budgetMin) {
+                conditions.push(`budget_range >= $${paramIndex++}`);
+                values.push(budgetMin);
+              }
+              if (budgetMax) {
+                conditions.push(`budget_range <= $${paramIndex++}`);
+                values.push(budgetMax);
+              }
+            }
+            
+            const whereClause = conditions.join(' AND ');
+            // Use raw query with safe parameterization
+            return await sql.unsafe(`SELECT COUNT(*) as total FROM pitches WHERE ${whereClause}`, values);
+          }, sentry);
           const total = parseInt(totalResult[0].total);
           
-          // Get paginated results using raw SQL query
-          const pitchesQuery = `
-            SELECT 
-              p.id, p.title, p.logline, p.genre, p.format,
-              p.view_count as "viewCount", p.like_count as "likeCount",
-              p.poster_url as "posterUrl", p.created_at as "createdAt",
-              p.status, p.visibility, p.synopsis, p.budget,
-              u.username as creator_username, u.id as creator_id,
-              u.profile_image as creator_profile_image
-            FROM pitches p
-            LEFT JOIN users u ON p.user_id = u.id
-            WHERE ${whereClause}
-            ORDER BY ${orderClause}
-            LIMIT ${limit} OFFSET ${offset}
-          `;
-          const pitches = await sql(pitchesQuery);
+          // Get paginated results with safe query building
+          const pitches = await withDatabase(env, async (sql) => {
+            // Build query with proper parameterization
+            const conditions = [];
+            const values = [];
+            let paramIndex = 1;
+            
+            conditions.push(`p.status IN ('published', 'active')`);
+            conditions.push(`p.visibility = 'public'`);
+            
+            if (genre) {
+              conditions.push(`p.genre = $${paramIndex++}`);
+              values.push(genre);
+            }
+            if (format) {
+              conditions.push(`p.format = $${paramIndex++}`);
+              values.push(format);
+            }
+            if (budgetMin || budgetMax) {
+              if (budgetMin) {
+                conditions.push(`p.budget_range >= $${paramIndex++}`);
+                values.push(budgetMin);
+              }
+              if (budgetMax) {
+                conditions.push(`p.budget_range <= $${paramIndex++}`);
+                values.push(budgetMax);
+              }
+            }
+            
+            const whereClause = conditions.join(' AND ');
+            
+            // Determine sort column safely
+            const sortColumn = {
+              'date': 'p.created_at',
+              'views': 'p.view_count',
+              'likes': 'p.like_count',
+              'title': 'p.title'
+            }[sort] || 'p.created_at';
+            
+            const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+            
+            values.push(limit);
+            values.push(offset);
+            
+            // Use raw query with safe parameterization
+            return await sql.unsafe(`
+              SELECT 
+                p.id, p.title, p.logline, p.genre, p.format,
+                p.view_count as "viewCount", p.like_count as "likeCount",
+                p.poster_url as "posterUrl", p.created_at as "createdAt",
+                p.status, p.visibility, p.synopsis, p.budget_range as budget,
+                u.username as creator_username, u.id as creator_id,
+                u.avatar_url as creator_profile_image
+              FROM pitches p
+              LEFT JOIN users u ON p.user_id = u.id
+              WHERE ${whereClause}
+              ORDER BY ${sortColumn} ${sortOrder}
+              LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+            `, values);
+          }, sentry);
           
           // Format pitches response
           const formattedPitches = pitches.map(pitch => ({
@@ -3321,8 +3482,11 @@ export default {
       if (pathname === '/api/auth/creator/login' && request.method === 'POST') {
         try {
           const validationResult = await validateRequest(request, ["email", "password"]);
-          if (!validationResult.success) {
-            return validationResult.error!;
+          if (!validationResult.success || !validationResult.data) {
+            return validationResult.error || jsonResponse({
+              success: false,
+              message: 'Invalid request data'
+            }, 400);
           }
 
           const { email, password } = validationResult.data;
@@ -3356,8 +3520,11 @@ export default {
       if (pathname === '/api/auth/investor/login' && request.method === 'POST') {
         try {
           const validationResult = await validateRequest(request, ["email", "password"]);
-          if (!validationResult.success) {
-            return validationResult.error!;
+          if (!validationResult.success || !validationResult.data) {
+            return validationResult.error || jsonResponse({
+              success: false,
+              message: 'Invalid request data'
+            }, 400);
           }
 
           const { email, password } = validationResult.data;
@@ -3391,8 +3558,11 @@ export default {
       if (pathname === '/api/auth/production/login' && request.method === 'POST') {
         try {
           const validationResult = await validateRequest(request, ["email", "password"]);
-          if (!validationResult.success) {
-            return validationResult.error!;
+          if (!validationResult.success || !validationResult.data) {
+            return validationResult.error || jsonResponse({
+              success: false,
+              message: 'Invalid request data'
+            }, 400);
           }
 
           const { email, password } = validationResult.data;
@@ -5736,8 +5906,11 @@ Generated: ${new Date().toISOString()}
 
         try {
           const validationResult = await validateRequest(request, ["type", "entityType", "entityId"]);
-          if (!validationResult.success) {
-            return validationResult.error!;
+          if (!validationResult.success || !validationResult.data) {
+            return validationResult.error || jsonResponse({
+              success: false,
+              message: 'Invalid request data'
+            }, 400);
           }
 
           const { type, entityType, entityId, metadata } = validationResult.data;
@@ -5765,8 +5938,11 @@ Generated: ${new Date().toISOString()}
 
         try {
           const validationResult = await validateRequest(request, ["format", "dateRange", "metrics"]);
-          if (!validationResult.success) {
-            return validationResult.error!;
+          if (!validationResult.success || !validationResult.data) {
+            return validationResult.error || jsonResponse({
+              success: false,
+              message: 'Invalid request data'
+            }, 400);
           }
 
           const { format, dateRange, metrics, groupBy, includeCharts } = validationResult.data;
@@ -6049,8 +6225,11 @@ Generated: ${new Date().toISOString()}
 
         try {
           const validationResult = await validateRequest(request, ["status"]);
-          if (!validationResult.success) {
-            return validationResult.error!;
+          if (!validationResult.success || !validationResult.data) {
+            return validationResult.error || jsonResponse({
+              success: false,
+              message: 'Invalid request data'
+            }, 400);
           }
 
           const { status, activity } = validationResult.data;

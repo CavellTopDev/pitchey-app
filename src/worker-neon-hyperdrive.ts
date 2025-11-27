@@ -1664,7 +1664,7 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
             // Get follow stats
             const followStats = await db.query(`
               SELECT 
-                (SELECT COUNT(*) FROM follows WHERE followed_id = $1) as followers_count,
+                (SELECT COUNT(*) FROM follows WHERE following_id = $1) as followers_count,
                 (SELECT COUNT(*) FROM follows WHERE follower_id = $1) as following_count
             `, [targetUserId]);
 

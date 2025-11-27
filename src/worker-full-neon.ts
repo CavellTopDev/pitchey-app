@@ -182,10 +182,10 @@ async function getAllPitches(env: Env, limit: number = 10): Promise<any[]> {
   try {
     const pitches = await executeQuery(
       env,
-      `SELECT p.id, p.title, p.genre, p.budget, p.description, p.creator_id, p.status, p.featured, p.views, p.created_at, p.updated_at,
+      `SELECT p.id, p.title, p.genre, p.budget, p.description, p.user_id as creator_id, p.status, p.featured, p.views, p.created_at, p.updated_at,
               u.first_name || ' ' || u.last_name as creator_name
        FROM pitches p
-       LEFT JOIN users u ON p.creator_id = u.id
+       LEFT JOIN users u ON p.user_id = u.id
        WHERE p.status != 'deleted'
        ORDER BY p.created_at DESC LIMIT ?`,
       [limit]
@@ -215,10 +215,10 @@ async function getFeaturedPitches(env: Env, limit: number = 5): Promise<any[]> {
   try {
     const pitches = await executeQuery(
       env,
-      `SELECT p.id, p.title, p.genre, p.budget, p.description, p.creator_id, p.status, p.featured, p.views, p.created_at, p.updated_at,
+      `SELECT p.id, p.title, p.genre, p.budget, p.description, p.user_id as creator_id, p.status, p.featured, p.views, p.created_at, p.updated_at,
               u.first_name || ' ' || u.last_name as creator_name
        FROM pitches p
-       LEFT JOIN users u ON p.creator_id = u.id
+       LEFT JOIN users u ON p.user_id = u.id
        WHERE p.featured = true AND p.status = 'active'
        ORDER BY p.views DESC LIMIT ?`,
       [limit]

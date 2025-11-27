@@ -299,9 +299,9 @@ export async function getCachedDashboardData(
         case 'creator':
           return await sql`
             SELECT 
-              (SELECT COUNT(*) FROM pitches WHERE creator_id = ${userId}) as total_pitches,
-              (SELECT COUNT(*) FROM pitch_views pv JOIN pitches p ON pv.pitch_id = p.id WHERE p.creator_id = ${userId}) as total_views,
-              (SELECT COUNT(*) FROM investments i JOIN pitches p ON i.pitch_id = p.id WHERE p.creator_id = ${userId}) as total_investments
+              (SELECT COUNT(*) FROM pitches WHERE user_id = ${userId}) as total_pitches,
+              (SELECT COUNT(*) FROM pitch_views pv JOIN pitches p ON pv.pitch_id = p.id WHERE p.user_id = ${userId}) as total_views,
+              (SELECT COUNT(*) FROM investments i JOIN pitches p ON i.pitch_id = p.id WHERE p.user_id = ${userId}) as total_investments
           `;
         case 'production':
           return await sql`
