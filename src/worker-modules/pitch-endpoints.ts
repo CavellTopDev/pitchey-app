@@ -180,15 +180,12 @@ export class PitchEndpoints {
         }
       }
 
-      // Fallback to demo data
-      if (pitches.length === 0) {
-        pitches = this.getDemoPitches().slice(offset, offset + limit);
-      }
+      // No demo fallback - return empty results if no database data
 
       return new Response(JSON.stringify({
         success: true,
         data: pitches,
-        source: this.db ? 'database' : 'demo',
+        source: 'database',
         count: pitches.length,
         pagination: {
           limit,
@@ -261,15 +258,12 @@ export class PitchEndpoints {
         }
       }
 
-      // Fallback to demo data
-      if (pitches.length === 0) {
-        pitches = this.getDemoPitches().slice(0, limit);
-      }
+      // No demo fallback - return empty results if no database data
 
       return new Response(JSON.stringify({
         success: true,
         data: pitches,
-        source: this.db ? 'database' : 'demo',
+        source: 'database',
         count: pitches.length
       } as ApiResponse), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -336,15 +330,12 @@ export class PitchEndpoints {
         }
       }
 
-      // Fallback to demo data
-      if (pitches.length === 0) {
-        pitches = this.getDemoPitches().slice(0, limit);
-      }
+      // No demo fallback - return empty results if no database data
 
       return new Response(JSON.stringify({
         success: true,
         data: pitches,
-        source: this.db ? 'database' : 'demo',
+        source: 'database',
         count: pitches.length
       } as ApiResponse), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -454,7 +445,7 @@ export class PitchEndpoints {
       return new Response(JSON.stringify({
         success: true,
         data: pitches,
-        source: this.db ? 'database' : 'demo',
+        source: 'database',
         count: pitches.length,
         filters: { genre, format, budgetRange, search },
         pagination: {

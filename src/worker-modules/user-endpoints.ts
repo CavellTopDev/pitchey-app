@@ -258,111 +258,16 @@ export class UserEndpointsHandler {
         await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
-      // Demo fallback
-      if (!user) {
-        const demoUsers: Record<string, any> = {
-          'alex.creator@demo.com': {
-            id: 1,
-            email: 'alex.creator@demo.com',
-            username: 'alexcreator',
-            name: 'Alex Creator',
-            userType: 'creator',
-            bio: 'Passionate filmmaker and storyteller',
-            profileImage: null,
-            coverImage: null,
-            location: 'Los Angeles, CA',
-            website: 'https://alexcreator.com',
-            socialLinks: { twitter: '@alexcreator', imdb: 'alexcreator' },
-            professionalInfo: {
-              company: 'Independent',
-              position: 'Writer/Director',
-              experience: '5+ years',
-              specialties: ['Drama', 'Thriller'],
-              achievements: ['Film Festival Winner']
-            },
-            preferences: {
-              genres: ['Drama', 'Thriller'],
-              formats: ['Feature Film', 'Short Film']
-            },
-            companyName: null,
-            emailVerified: true,
-            companyVerified: false,
-            isActive: true,
-            subscriptionTier: 'professional',
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z'
-          },
-          'sarah.investor@demo.com': {
-            id: 2,
-            email: 'sarah.investor@demo.com',
-            username: 'sarahinvestor',
-            name: 'Sarah Investor',
-            userType: 'investor',
-            bio: 'Angel investor focused on entertainment industry',
-            profileImage: null,
-            coverImage: null,
-            location: 'New York, NY',
-            website: 'https://sarahinvest.com',
-            socialLinks: { linkedin: 'sarah-investor' },
-            professionalInfo: {
-              company: 'Investment Partners LLC',
-              position: 'Managing Partner',
-              experience: '10+ years',
-              specialties: ['Film Finance', 'Media Investment'],
-              achievements: ['Portfolio of 50+ successful projects']
-            },
-            preferences: {
-              genres: ['All'],
-              budgetRange: { min: 100000, max: 10000000 }
-            },
-            companyName: 'Investment Partners LLC',
-            emailVerified: true,
-            companyVerified: true,
-            isActive: true,
-            subscriptionTier: 'enterprise',
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z'
-          },
-          'stellar.production@demo.com': {
-            id: 3,
-            email: 'stellar.production@demo.com',
-            username: 'stellarproduction',
-            name: 'Stellar Production',
-            userType: 'production',
-            bio: 'Full-service production company',
-            profileImage: null,
-            coverImage: null,
-            location: 'Hollywood, CA',
-            website: 'https://stellarproduction.com',
-            socialLinks: { imdb: 'stellar-production' },
-            professionalInfo: {
-              company: 'Stellar Production Co.',
-              position: 'Head of Development',
-              experience: '15+ years',
-              specialties: ['Feature Films', 'TV Series'],
-              achievements: ['Emmy Award Winner', '50+ Productions']
-            },
-            preferences: {
-              genres: ['Action', 'Drama', 'Comedy'],
-              formats: ['Feature Film', 'TV Series']
-            },
-            companyName: 'Stellar Production Co.',
-            emailVerified: true,
-            companyVerified: true,
-            isActive: true,
-            subscriptionTier: 'enterprise',
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z'
-          }
-        };
-
-        user = demoUsers[userAuth.email];
-      }
+      // No demo fallback - demo accounts should exist in real database
+      // If a demo account user is authenticated but not found in DB, it means database connectivity issue
 
       if (!user) {
         return new Response(JSON.stringify({ 
           success: false, 
-          error: { message: 'User not found' } 
+          error: { 
+            message: 'User profile not found in database',
+            details: 'Demo accounts should exist in the database. Check database connectivity.'
+          } 
         }), { 
           status: 404, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -372,7 +277,7 @@ export class UserEndpointsHandler {
       return new Response(JSON.stringify({ 
         success: true, 
         data: { user },
-        source: user.id > 1000 ? 'database' : 'demo'
+        source: 'database'
       }), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -432,73 +337,15 @@ export class UserEndpointsHandler {
         await this.sentry.captureException(dbError as Error, { userId });
       }
 
-      // Demo fallback
-      if (!user) {
-        const demoUsers: Record<number, any> = {
-          1: {
-            id: 1,
-            username: 'alexcreator',
-            name: 'Alex Creator',
-            userType: 'creator',
-            bio: 'Passionate filmmaker and storyteller',
-            location: 'Los Angeles, CA',
-            website: 'https://alexcreator.com',
-            socialLinks: { twitter: '@alexcreator', imdb: 'alexcreator' },
-            professionalInfo: {
-              company: 'Independent',
-              position: 'Writer/Director',
-              experience: '5+ years'
-            },
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          },
-          2: {
-            id: 2,
-            username: 'sarahinvestor', 
-            name: 'Sarah Investor',
-            userType: 'investor',
-            bio: 'Angel investor focused on entertainment industry',
-            location: 'New York, NY',
-            website: 'https://sarahinvest.com',
-            socialLinks: { linkedin: 'sarah-investor' },
-            professionalInfo: {
-              company: 'Investment Partners LLC',
-              position: 'Managing Partner',
-              experience: '10+ years'
-            },
-            companyName: 'Investment Partners LLC',
-            companyVerified: true,
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          },
-          3: {
-            id: 3,
-            username: 'stellarproduction',
-            name: 'Stellar Production',
-            userType: 'production',
-            bio: 'Full-service production company',
-            location: 'Hollywood, CA',
-            website: 'https://stellarproduction.com',
-            socialLinks: { imdb: 'stellar-production' },
-            professionalInfo: {
-              company: 'Stellar Production Co.',
-              position: 'Head of Development',
-              experience: '15+ years'
-            },
-            companyName: 'Stellar Production Co.',
-            companyVerified: true,
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          }
-        };
-
-        user = demoUsers[userId];
-      }
+      // No demo fallback - demo users should exist in real database
 
       if (!user) {
         return new Response(JSON.stringify({ 
           success: false, 
-          error: { message: 'User not found' } 
+          error: { 
+            message: 'User profile not found in database',
+            details: 'Demo accounts should exist in the database. Check database connectivity.'
+          } 
         }), { 
           status: 404, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -508,7 +355,7 @@ export class UserEndpointsHandler {
       return new Response(JSON.stringify({ 
         success: true, 
         data: { user },
-        source: user.id > 1000 ? 'database' : 'demo'
+        source: 'database'
       }), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -568,52 +415,15 @@ export class UserEndpointsHandler {
         await this.sentry.captureException(dbError as Error, { username });
       }
 
-      // Demo fallback
-      if (!user) {
-        const demoUsers: Record<string, any> = {
-          'alexcreator': {
-            id: 1,
-            username: 'alexcreator',
-            name: 'Alex Creator',
-            userType: 'creator',
-            bio: 'Passionate filmmaker and storyteller',
-            location: 'Los Angeles, CA',
-            website: 'https://alexcreator.com',
-            socialLinks: { twitter: '@alexcreator', imdb: 'alexcreator' },
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          },
-          'sarahinvestor': {
-            id: 2,
-            username: 'sarahinvestor',
-            name: 'Sarah Investor',
-            userType: 'investor',
-            bio: 'Angel investor focused on entertainment industry',
-            location: 'New York, NY',
-            companyName: 'Investment Partners LLC',
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          },
-          'stellarproduction': {
-            id: 3,
-            username: 'stellarproduction',
-            name: 'Stellar Production',
-            userType: 'production',
-            bio: 'Full-service production company',
-            location: 'Hollywood, CA',
-            companyName: 'Stellar Production Co.',
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          }
-        };
-
-        user = demoUsers[username];
-      }
+      // No demo fallback - demo users should exist in real database
 
       if (!user) {
         return new Response(JSON.stringify({ 
           success: false, 
-          error: { message: 'User not found' } 
+          error: { 
+            message: 'User profile not found in database',
+            details: 'Demo accounts should exist in the database. Check database connectivity.'
+          } 
         }), { 
           status: 404, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -623,7 +433,7 @@ export class UserEndpointsHandler {
       return new Response(JSON.stringify({ 
         success: true, 
         data: { user },
-        source: user.id > 1000 ? 'database' : 'demo'
+        source: 'database'
       }), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -735,32 +545,24 @@ export class UserEndpointsHandler {
         await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
-      // Demo fallback
+      // No demo fallback - profile updates require database user
       if (!user) {
-        user = {
-          id: userAuth.userId,
-          email: userAuth.email,
-          username: body.username || 'demo_user',
-          name: body.name || 'Demo User',
-          userType: userAuth.userType,
-          bio: body.bio || '',
-          location: body.location || '',
-          website: body.website || '',
-          socialLinks: body.socialLinks || {},
-          professionalInfo: body.professionalInfo || {},
-          preferences: body.preferences || {},
-          isActive: true,
-          emailVerified: true,
-          subscriptionTier: 'free',
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: new Date().toISOString()
-        };
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: { 
+            message: 'Unable to update profile - user not found in database',
+            details: 'Profile updates require the user to exist in the database'
+          } 
+        }), { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       }
 
       return new Response(JSON.stringify({ 
         success: true, 
         data: { user },
-        source: user.id > 1000 ? 'database' : 'demo'
+        source: 'database'
       }), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -854,77 +656,12 @@ export class UserEndpointsHandler {
         await this.sentry.captureException(dbError as Error, { query, userType });
       }
 
-      // Demo fallback
-      if (users.length === 0) {
-        const demoUsers = [
-          {
-            id: 1,
-            username: 'alexcreator',
-            name: 'Alex Creator',
-            userType: 'creator',
-            bio: 'Passionate filmmaker and storyteller',
-            profileImage: null,
-            location: 'Los Angeles, CA',
-            companyName: null,
-            emailVerified: true,
-            companyVerified: false,
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          },
-          {
-            id: 2,
-            username: 'sarahinvestor',
-            name: 'Sarah Investor',
-            userType: 'investor',
-            bio: 'Angel investor focused on entertainment industry',
-            profileImage: null,
-            location: 'New York, NY',
-            companyName: 'Investment Partners LLC',
-            emailVerified: true,
-            companyVerified: true,
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          },
-          {
-            id: 3,
-            username: 'stellarproduction',
-            name: 'Stellar Production',
-            userType: 'production',
-            bio: 'Full-service production company',
-            profileImage: null,
-            location: 'Hollywood, CA',
-            companyName: 'Stellar Production Co.',
-            emailVerified: true,
-            companyVerified: true,
-            isActive: true,
-            createdAt: '2024-01-01T00:00:00Z'
-          }
-        ];
-
-        // Apply filters to demo data
-        users = demoUsers.filter(user => {
-          if (query && !user.name.toLowerCase().includes(query.toLowerCase()) && 
-              !user.bio.toLowerCase().includes(query.toLowerCase()) &&
-              !user.username.toLowerCase().includes(query.toLowerCase())) {
-            return false;
-          }
-          if (userType && user.userType !== userType) {
-            return false;
-          }
-          if (verified === 'true' && !user.emailVerified && !user.companyVerified) {
-            return false;
-          }
-          return true;
-        });
-
-        total = users.length;
-        users = users.slice(offset, offset + limit);
-      }
+      // No demo fallback - search should only return database results
 
       return new Response(JSON.stringify({ 
         success: true, 
         data: { users, total },
-        source: users.length > 0 && users[0].id > 1000 ? 'database' : 'demo'
+        source: 'database'
       }), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -971,23 +708,24 @@ export class UserEndpointsHandler {
         await this.sentry.captureException(dbError as Error, { userId: userAuth.userId });
       }
 
-      // Demo fallback
+      // No demo fallback - settings require database user
       if (!settings) {
-        settings = {
-          emailNotifications: true,
-          pitchUpdates: true,
-          messageNotifications: true,
-          followNotifications: true,
-          publicProfile: true,
-          allowMessages: true,
-          twoFactorEnabled: false
-        };
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: { 
+            message: 'User settings not found in database',
+            details: 'Settings require the user to exist in the database with default settings configured'
+          } 
+        }), { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       }
 
       return new Response(JSON.stringify({ 
         success: true, 
         data: { settings },
-        source: settings.twoFactorEnabled !== false ? 'database' : 'demo'
+        source: 'database'
       }), { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

@@ -103,7 +103,7 @@ async function authenticateRequest(request: Request, env: Env): Promise<{success
     } catch (error) {
       // If base64 fails, try JWT format (local development)
       try {
-        const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+        const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
         payload = await verifyJWT(token, JWT_SECRET);
       } catch (jwtError) {
         throw new Error('Invalid token format');
@@ -789,7 +789,7 @@ export default {
         });
       }
 
-      // Database test with fallback to direct connection
+      // Database test - requires proper configuration
       if (pathname === '/api/db-test') {
         console.log('Testing database connection...');
         
@@ -815,7 +815,7 @@ export default {
           } catch (hyperdriveError) {
             console.error('Hyperdrive failed, trying direct connection...', hyperdriveError);
             
-            // Test 2: Try direct Neon connection as fallback
+            // Test 2: Try direct Neon connection
             try {
               console.log('Testing direct Neon connection...');
               const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
@@ -1359,19 +1359,25 @@ export default {
           // Initialize the pool if not already done
           dbPool.initialize(env, sentry);
 
-          // Get pitches from followed creators
+          // Get pitches from followed creators - fixed query for proper follows relationship
           const followingPitches = await withDatabase(env, async (sql) => await sql`
-            SELECT 
+            SELECT DISTINCT
               p.id, p.title, p.logline, p.genre, p.format,
               p.view_count, p.like_count, p.poster_url,
               p.created_at, p.updated_at,
               u.id as creator_id, u.username, u.company_name
             FROM pitches p
             JOIN users u ON p.user_id = u.id
-            JOIN follows f ON f.following_id = u.id
-            WHERE f.follower_id = ${auth.user.id}
-              AND p.status IN ('published', 'active')
-              AND p.visibility = 'public'
+            WHERE EXISTS (
+              SELECT 1 FROM follows f 
+              WHERE f.follower_id = ${auth.user.id}
+              AND (
+                (f.following_id = u.id) OR  -- User following creator
+                (f.pitch_id = p.id)          -- User following pitch directly
+              )
+            )
+            AND p.status IN ('published', 'active')
+            AND (p.visibility = 'public' OR p.visibility IS NULL)
             ORDER BY p.created_at DESC
             LIMIT 20
           `, sentry);
@@ -1587,7 +1593,7 @@ export default {
           
           const pitch = pitchResults[0];
           
-          // Get pitch characters (fallback to characters field in pitch if table doesn't exist)
+          // Get pitch characters from database
           let charactersResults = [];
           try {
             charactersResults = await withDatabase(env, async (sql) => await sql`
@@ -2594,7 +2600,7 @@ export default {
           `, sentry);
           
           // Create JWT token
-          const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+          const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
           const token = await createSimpleJWT({
             userId: result[0].id,
             email: result[0].email,
@@ -2655,7 +2661,7 @@ export default {
           `, sentry);
           
           // Create JWT token
-          const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+          const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
           const token = await createSimpleJWT({
             userId: result[0].id,
             email: result[0].email,
@@ -2716,7 +2722,7 @@ export default {
           `, sentry);
           
           // Create JWT token
-          const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+          const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
           const token = await createSimpleJWT({
             userId: result[0].id,
             email: result[0].email,
@@ -3491,7 +3497,7 @@ export default {
           const demoAccount = demoAccounts.creator;
           
           if (email === demoAccount.email && password === demoAccount.password) {
-            const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+            const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
             const token = await createSimpleJWT({
               userId: demoAccount.id, 
               email: demoAccount.email, 
@@ -3529,7 +3535,7 @@ export default {
           const demoAccount = demoAccounts.investor;
           
           if (email === demoAccount.email && password === demoAccount.password) {
-            const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+            const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
             const token = await createSimpleJWT({
               userId: demoAccount.id, 
               email: demoAccount.email, 
@@ -3567,7 +3573,7 @@ export default {
           const demoAccount = demoAccounts.production;
           
           if (email === demoAccount.email && password === demoAccount.password) {
-            const JWT_SECRET = env.JWT_SECRET || 'fallback-secret-key';
+            const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
             const token = await createSimpleJWT({
               userId: demoAccount.id, 
               email: demoAccount.email, 
@@ -6180,7 +6186,7 @@ Generated: ${new Date().toISOString()}
 
       // ============ PRESENCE & WEBSOCKET API ENDPOINTS ============
 
-      // Get online users/presence (fallback when WebSocket is disabled)
+      // Get online users/presence API
       if (pathname === '/api/presence/online' && request.method === 'GET') {
         try {
           // Get room presence from Durable Object
@@ -6214,7 +6220,7 @@ Generated: ${new Date().toISOString()}
         }
       }
 
-      // Update user presence (fallback when WebSocket is disabled)
+      // Update user presence API
       if (pathname === '/api/presence/update' && request.method === 'POST') {
         const auth = await authenticateRequest(request, env);
         if (!auth.success) {
@@ -6293,7 +6299,7 @@ Generated: ${new Date().toISOString()}
             success: true,
             websocketAvailable: false,
             error: error.message,
-            message: 'WebSocket service unavailable, using fallback mode'
+            message: 'WebSocket service unavailable'
           });
         }
       }

@@ -67,3 +67,5 @@ class_name = "WebSocketRoom"
 [[env.production.hyperdrive]]
 binding = "HYPERDRIVE"
 id = "983d4a1818264b5dbdca26bacf167dee"
+[triggers]
+crons = ["*/5 * * * *", "*/2 * * * *", "0 * * * *", "*/15 * * * *"]
