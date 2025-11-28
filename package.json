@@ -13,6 +13,7 @@
     "@sendgrid/mail": "^8.1.6",
     "better-auth": "^1.4.3",
     "drizzle-orm": "^0.35.3",
+    "playwright": "^1.57.0",
     "postgres": "^3.4.7",
     "toucan-js": "^4.1.1"
   },

@@ -1,10 +1,12 @@
 /**
  * Authentication Fixed Worker Service
  * Integrates database-first authentication while maintaining fallback compatibility
+ * Includes WebSocket support for real-time features
  */
 
 import { Toucan } from 'toucan-js';
 import { authenticateUser } from './worker-auth-fixed.ts';
+import { WebSocketHandler } from './worker-websocket-handler.ts';
 
 interface Env {
   HYPERDRIVE_URL?: string;
@@ -43,6 +45,12 @@ export default {
     }
     
     try {
+      // WebSocket endpoint
+      if (pathname === '/ws' || pathname === '/websocket') {
+        const wsHandler = new WebSocketHandler();
+        return wsHandler.handleWebSocket(request, env);
+      }
+      
       // Health check
       if (pathname === '/api/health') {
         return new Response(JSON.stringify({
