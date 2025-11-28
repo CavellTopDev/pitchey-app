@@ -1,13 +1,19 @@
-name: Deploy Cloudflare Worker
+name: Deploy Cloudflare Worker with Auth Fix
 
 on:
   push:
     branches: [main]
     paths:
       - 'src/worker*.ts'
+      - 'src/auth/**'
       - 'wrangler.toml'
       - '.github/workflows/deploy-worker.yml'
   workflow_dispatch:
+    inputs:
+      deploy_auth_fix:
+        description: 'Deploy authentication fix'
+        type: boolean
+        default: true
 
 jobs:
   deploy:
@@ -38,16 +44,27 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "Deploying Worker to Cloudflare..."
+          echo "Deploying Worker with Authentication Fix to Cloudflare..."
+          
+          # Use the auth-fixed service if requested
+          if [[ "${{ github.event.inputs.deploy_auth_fix }}" == "true" ]] || [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "Using authentication-fixed worker service..."
+            cp src/worker-service-auth-fixed.ts src/index.ts
+          fi
+          
           wrangler deploy \
             --var JWT_SECRET:"${{ secrets.JWT_SECRET }}" \
-            --var DATABASE_URL:"${{ secrets.NEON_DATABASE_URL }}" \
-            --var FRONTEND_URL:"https://pitchey.pages.dev"
+            --var DATABASE_URL:"${{ secrets.NEON_DATABASE_URL || secrets.DATABASE_URL }}" \
+            --var FRONTEND_URL:"https://pitchey.pages.dev" \
+            --var SENTRY_DSN:"${{ secrets.SENTRY_DSN }}" \
+            --var UPSTASH_REDIS_REST_URL:"${{ secrets.UPSTASH_REDIS_REST_URL }}" \
+            --var UPSTASH_REDIS_REST_TOKEN:"${{ secrets.UPSTASH_REDIS_REST_TOKEN }}"
             
-      - name: Verify Deployment
+      - name: Verify Deployment and Test Authentication
         run: |
           echo "Waiting for deployment to propagate..."
-          sleep 10
+          sleep 15
+          
           echo "Testing Worker health endpoint..."
           response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)
           if [ "$response" = "200" ]; then
@@ -55,6 +72,32 @@ jobs:
           else
             echo "❌ Worker health check failed with status: $response"
             exit 1
+          fi
+          
+          echo "Testing Authentication Fixes..."
+          
+          # Test Creator Portal
+          creator_response=$(curl -s -X POST "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
+          
+          if echo "$creator_response" | grep -q '"userType":"creator"'; then
+            echo "✅ Creator authentication returns correct user type"
+          else
+            echo "⚠️ Creator authentication may need attention"
+            echo "Response: $creator_response"
+          fi
+          
+          # Test Investor Portal
+          investor_response=$(curl -s -X POST "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/investor/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
+          
+          if echo "$investor_response" | grep -q '"userType":"investor"'; then
+            echo "✅ Investor authentication returns correct user type"
+          else
+            echo "⚠️ Investor authentication may need attention"
+            echo "Response: $investor_response"
           fi
           
       - name: Post Deployment Actions
