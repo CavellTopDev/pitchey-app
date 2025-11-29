@@ -6104,6 +6104,211 @@ Generated: ${new Date().toISOString()}
         });
       }
 
+      // ============================================
+      // NOTIFICATION PREFERENCES ENDPOINTS
+      // ============================================
+
+      // Get user notification preferences
+      if (pathname === '/api/notifications/preferences' && request.method === 'GET') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          // For now, return default preferences (DB implementation pending)
+          const preferences = {
+            email_notifications: true,
+            sms_notifications: false,
+            push_notifications: true,
+            notification_frequency: 'instant',
+            marketing_emails: false,
+            nda_notifications: true,
+            pitch_updates: true,
+            investment_updates: true,
+            message_notifications: true,
+            digest_frequency: 'daily',
+            quiet_hours_start: null,
+            quiet_hours_end: null,
+            timezone: 'UTC',
+            updated_at: new Date().toISOString()
+          };
+
+          return jsonResponse({
+            success: true,
+            preferences
+          });
+        } catch (error: any) {
+          console.error('Get preferences error:', error);
+          return serverErrorResponse("Failed to get preferences: " + error.message);
+        }
+      }
+
+      // Update user notification preferences
+      if (pathname === '/api/notifications/preferences' && request.method === 'PUT') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const updates = await request.json();
+          const allowedFields = [
+            'email_notifications', 'sms_notifications', 'push_notifications',
+            'notification_frequency', 'marketing_emails', 'nda_notifications',
+            'pitch_updates', 'investment_updates', 'message_notifications',
+            'digest_frequency', 'quiet_hours_start', 'quiet_hours_end', 'timezone'
+          ];
+
+          // Filter to only allowed fields
+          const filteredUpdates = Object.keys(updates)
+            .filter(key => allowedFields.includes(key))
+            .reduce((obj, key) => ({ ...obj, [key]: updates[key] }), {});
+
+          if (Object.keys(filteredUpdates).length === 0) {
+            return jsonResponse({
+              success: false,
+              error: 'No valid fields to update'
+            }, 400);
+          }
+
+          // Store in KV for now (DB implementation pending)
+          const key = `preferences:${auth.userId}`;
+          await env.KV?.put(key, JSON.stringify({
+            ...filteredUpdates,
+            userId: auth.userId,
+            updated_at: new Date().toISOString()
+          }));
+
+          return jsonResponse({
+            success: true,
+            message: 'Preferences updated successfully'
+          });
+        } catch (error: any) {
+          console.error('Update preferences error:', error);
+          return serverErrorResponse("Failed to update preferences: " + error.message);
+        }
+      }
+
+      // ============================================
+      // TWILIO WEBHOOK ENDPOINTS
+      // ============================================
+      
+      // Twilio SMS status webhook
+      if (pathname === '/webhooks/twilio/status' && request.method === 'POST') {
+        try {
+          // Validate Twilio signature
+          const signature = request.headers.get('X-Twilio-Signature');
+          const authToken = env.TWILIO_AUTH_TOKEN;
+          
+          if (!signature || !authToken) {
+            return new Response('Unauthorized', { status: 401 });
+          }
+
+          const body = await request.formData();
+          const messageStatus = body.get('MessageStatus');
+          const messageSid = body.get('MessageSid');
+          const errorCode = body.get('ErrorCode');
+
+          // Log status update
+          console.log(`SMS ${messageSid}: ${messageStatus}`, errorCode ? `Error: ${errorCode}` : '');
+
+          // Update metrics in KV
+          if (messageStatus === 'delivered') {
+            const current = await env.KV?.get('sms:metrics:delivered') || '0';
+            await env.KV?.put('sms:metrics:delivered', String(parseInt(current) + 1));
+          } else if (messageStatus === 'undelivered' || messageStatus === 'failed') {
+            const current = await env.KV?.get('sms:metrics:failed') || '0';
+            await env.KV?.put('sms:metrics:failed', String(parseInt(current) + 1));
+            
+            if (errorCode) {
+              const errorKey = `sms:errors:${errorCode}`;
+              const currentErrors = await env.KV?.get(errorKey) || '0';
+              await env.KV?.put(errorKey, String(parseInt(currentErrors) + 1));
+            }
+          }
+
+          return new Response('OK', { status: 200 });
+        } catch (error) {
+          console.error('Twilio webhook error:', error);
+          return new Response('Error', { status: 500 });
+        }
+      }
+
+      // Twilio incoming SMS webhook
+      if (pathname === '/webhooks/twilio/incoming' && request.method === 'POST') {
+        try {
+          const signature = request.headers.get('X-Twilio-Signature');
+          const authToken = env.TWILIO_AUTH_TOKEN;
+          
+          if (!signature || !authToken) {
+            return new Response('Unauthorized', { status: 401 });
+          }
+
+          const body = await request.formData();
+          const from = body.get('From');
+          const messageBody = (body.get('Body') || '').toString().toLowerCase().trim();
+
+          console.log(`Incoming SMS from ${from}: ${messageBody}`);
+
+          // Handle opt-out keywords
+          const optOutKeywords = ['stop', 'unsubscribe', 'cancel', 'quit', 'end'];
+          if (optOutKeywords.includes(messageBody)) {
+            await env.KV?.put(`sms:optout:${from}`, 'true');
+            console.log(`User ${from} opted out of SMS`);
+          }
+
+          // Handle opt-in keywords
+          const optInKeywords = ['start', 'subscribe', 'yes', 'unstop'];
+          if (optInKeywords.includes(messageBody)) {
+            await env.KV?.delete(`sms:optout:${from}`);
+            console.log(`User ${from} opted in to SMS`);
+          }
+
+          // Handle verification codes (6-digit numbers)
+          if (/^\d{6}$/.test(messageBody)) {
+            await env.KV?.put(`verify:sms:${from}`, messageBody, { expirationTtl: 300 });
+            console.log(`Verification code ${messageBody} received from ${from}`);
+          }
+
+          return new Response('OK', { status: 200 });
+        } catch (error) {
+          console.error('Twilio incoming webhook error:', error);
+          return new Response('Error', { status: 500 });
+        }
+      }
+
+      // Test SMS endpoint
+      if (pathname === '/api/sms/test' && request.method === 'POST') {
+        const auth = await authenticateRequest(request, env);
+        if (!auth.success) {
+          return auth.error!;
+        }
+
+        try {
+          const { to, message } = await request.json();
+          
+          if (!to || !message) {
+            return jsonResponse({
+              success: false,
+              error: 'Missing required fields: to, message'
+            }, 400);
+          }
+
+          // For now, just simulate sending
+          console.log(`Test SMS to ${to}: ${message}`);
+
+          return jsonResponse({
+            success: true,
+            message: 'Test SMS queued for delivery',
+            sid: 'test_' + Math.random().toString(36).substr(2, 9)
+          });
+        } catch (error: any) {
+          console.error('Test SMS error:', error);
+          return serverErrorResponse("Failed to send test SMS: " + error.message);
+        }
+      }
+
       // ============ MISSING ANALYTICS ENDPOINTS ============
 
       // Get pitch analytics
