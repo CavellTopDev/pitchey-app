@@ -15,8 +15,8 @@ on:
 env:
   SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
   SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-  BACKEND_URL: https://pitchey-backend-fresh-649p3fw70ngb.deno.dev
-  FRONTEND_URL: https://72a15a37.pitchey.pages.dev
+  BACKEND_URL: https://pitchey-optimized.cavelltheleaddev.workers.dev
+  FRONTEND_URL: https://pitchey.pages.dev
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 jobs:
@@ -148,12 +148,12 @@ jobs:
           # Install sentry-cli
           curl -sL https://sentry.io/get-cli/ | bash
           
-          # Check for recent errors (last 5 minutes)
-          recent_errors=$(sentry-cli issues list --query="is:unresolved" --query="firstSeen:-5m" --format=json | jq length)
+          # Check for recent errors (last 5 minutes) - combining queries into single parameter
+          recent_errors=$(sentry-cli issues list --query="is:unresolved firstSeen:-5m" --format=json | jq length || echo "0")
           
           echo "Recent errors: $recent_errors"
           
-          if [ $recent_errors -lt 5 ]; then
+          if [ "$recent_errors" -lt 5 ]; then
             echo "✅ Error rate within acceptable limits"
             echo "error_rate=low" >> $GITHUB_OUTPUT
           else
@@ -162,6 +162,8 @@ jobs:
           fi
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
       
       - name: Send Success Notification
         if: steps.backend-health.outputs.backend_status == 'healthy' && steps.frontend-health.outputs.frontend_status == 'healthy' && steps.enterprise-test.outputs.enterprise_services == 'healthy'

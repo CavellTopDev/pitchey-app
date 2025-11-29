@@ -26,6 +26,10 @@ bucket_name = "pitchey-uploads"
 name = "WEBSOCKET_ROOM"
 class_name = "WebSocketRoom"
 
+[[durable_objects.bindings]]
+name = "NOTIFICATION_ROOM"
+class_name = "NotificationRoom"
+
 # Neon PostgreSQL via Hyperdrive
 [[hyperdrive]]
 binding = "HYPERDRIVE"
@@ -35,6 +39,10 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 [[migrations]]
 tag = "v3"
 new_sqlite_classes = ["WebSocketRoom"]
+
+[[migrations]]
+tag = "v4"
+new_sqlite_classes = ["NotificationRoom"]
 
 # Scheduled tasks
 [triggers]

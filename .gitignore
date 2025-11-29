@@ -10,6 +10,7 @@
 .env.backup.*
 .env.secrets
 .env.local.secrets
+.env.notifications
 *.secrets
 secrets/
 .secrets/
@@ -102,3 +103,5 @@ playwright-report/
 
 # Local Cloudflare Pages folder
 .wrangler
+TWILIO_SETUP_GUIDE.md
+.env.notifications

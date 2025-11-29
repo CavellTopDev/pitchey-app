@@ -2,6 +2,7 @@ import { db } from "../db/client.ts";
 import { notifications, users, pitches } from "../db/schema.ts";
 import { eq, and, desc, isNull } from "npm:drizzle-orm@0.35.3";
 import { nativeRedisService } from "./redis-native.service.ts";
+import { notificationRateLimitService } from "./notification-ratelimit.service.ts";
 
 // Helper function to safely extract error messages
 function getErrorMessage(error: unknown): string {
@@ -21,6 +22,9 @@ export interface CreateNotificationData {
   relatedPitchId?: number;
   relatedUserId?: number;
   actionUrl?: string;
+  channel?: "email" | "push" | "sms" | "inApp" | "webhook";
+  skipRateLimit?: boolean; // For critical system notifications
+  userTier?: string; // User subscription tier
 }
 
 // Global reference to WebSocket service (set during initialization)
@@ -38,6 +42,48 @@ export class NotificationService {
   // Create a new notification with real-time delivery
   static async create(data: CreateNotificationData) {
     try {
+      // 0. Check rate limits (unless explicitly skipped)
+      if (!data.skipRateLimit) {
+        const channel = data.channel || 'inApp';
+        const userTier = data.userTier || 'basic';
+        
+        const rateCheck = await notificationRateLimitService.checkRateLimit(
+          data.userId.toString(),
+          channel,
+          data.type,
+          userTier
+        );
+        
+        if (!rateCheck.allowed) {
+          console.warn(`⚠️ Rate limit exceeded for user ${data.userId}: ${rateCheck.message}`);
+          return { 
+            success: false, 
+            error: rateCheck.message || 'Rate limit exceeded',
+            rateLimitInfo: {
+              remaining: rateCheck.remaining,
+              resetAt: rateCheck.resetAt
+            }
+          };
+        }
+
+        // Track notification pattern for anomaly detection
+        await notificationRateLimitService.trackNotificationPattern(
+          data.userId.toString(),
+          channel,
+          data.type
+        );
+
+        // Check for anomalous patterns
+        const anomalyCheck = await notificationRateLimitService.detectAnomalies(
+          data.userId.toString()
+        );
+        
+        if (anomalyCheck.isAnomalous) {
+          console.warn(`⚠️ Anomalous pattern detected for user ${data.userId}:`, anomalyCheck.reasons);
+          // Could optionally block or flag for review
+        }
+      }
+
       // 1. Store in PostgreSQL
       const [notification] = await db.insert(notifications)
         .values({
