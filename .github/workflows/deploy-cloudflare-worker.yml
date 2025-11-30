@@ -1,0 +1,51 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  deploy:
+    name: Deploy Worker
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: \${{ env.NODE_VERSION }}
+      
+      - name: Install dependencies
+        run: npm install -g wrangler
+      
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "🚀 Deploying to Cloudflare Workers..."
+          
+          # Deploy the worker
+          wrangler deploy
+          
+          echo "✅ Worker deployed successfully!"
+      
+      - name: Test Deployment
+        run: |
+          echo "🧪 Testing deployed worker..."
+          
+          # Test the health endpoint
+          response=\$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)
+          
+          if [ "\$response" = "200" ]; then
+            echo "✅ Health check passed!"
+          else
+            echo "❌ Health check failed with status: \$response"
+            exit 1
+          fi

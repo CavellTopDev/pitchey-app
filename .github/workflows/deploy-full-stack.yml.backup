@@ -26,14 +26,11 @@ jobs:
         with:
           deno-version: v1.x
 
-      - name: Deploy to Deno Deploy (DISABLED - Migrated to Cloudflare)
+      - name: Deploy to Deno Deploy
         id: deploy
         run: |
           deno install -A -f https://deno.land/x/deploy/deployctl.ts
           
-          echo "⚠️ Deno Deploy disabled - using Cloudflare Workers instead"
-          echo "To deploy: wrangler deploy"
-          exit 0  # Skip Deno deployment
           deployctl deploy \
             --project=${{ env.DENO_PROJECT }} \
             --entrypoint=working-server.ts \

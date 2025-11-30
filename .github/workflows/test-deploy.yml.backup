@@ -406,14 +406,11 @@ jobs:
           name: frontend-build
           path: frontend/dist/
 
-      - name: Deploy to Deno Deploy (DISABLED - Migrated to Cloudflare) (Staging)
+      - name: Deploy to Deno Deploy (Staging)
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN_STAGING }}
         run: |
           deno install --allow-all --no-check -r -f https://deno.land/x/deploy/deployctl.ts
-          echo "⚠️ Deno Deploy disabled - using Cloudflare Workers instead"
-          echo "To deploy: wrangler deploy"
-          exit 0  # Skip Deno deployment
           deployctl deploy --project=pitchey-backend-staging working-server.ts
 
       - name: Deploy frontend to Cloudflare Pages (Staging)
@@ -451,14 +448,11 @@ jobs:
           name: frontend-build
           path: frontend/dist/
 
-      - name: Deploy to Deno Deploy (DISABLED - Migrated to Cloudflare) (Production)
+      - name: Deploy to Deno Deploy (Production)
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN_PRODUCTION }}
         run: |
           deno install --allow-all --no-check -r -f https://deno.land/x/deploy/deployctl.ts
-          echo "⚠️ Deno Deploy disabled - using Cloudflare Workers instead"
-          echo "To deploy: wrangler deploy"
-          exit 0  # Skip Deno deployment
           deployctl deploy --project=pitchey-backend-fresh working-server.ts
 
       - name: Deploy frontend to Cloudflare Pages (Production)

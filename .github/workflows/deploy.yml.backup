@@ -133,15 +133,12 @@ jobs:
           [ -n "${{ secrets.UPSTASH_REDIS_REST_URL }}" ] || (echo "Missing secret: UPSTASH_REDIS_REST_URL" && exit 1)
           [ -n "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" ] || (echo "Missing secret: UPSTASH_REDIS_REST_TOKEN" && exit 1)
       
-      - name: Deploy to Deno Deploy (DISABLED - Migrated to Cloudflare)
+      - name: Deploy to Deno Deploy
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
-          echo "⚠️ Deno Deploy disabled - using Cloudflare Workers instead"
-          echo "To deploy: wrangler deploy"
-          exit 0  # Skip Deno deployment
           deployctl deploy \
             --project="pitchey-backend-fresh" \
             --entrypoint="working-server.ts" \
