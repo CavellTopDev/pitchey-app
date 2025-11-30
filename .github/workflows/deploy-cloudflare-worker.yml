@@ -22,8 +22,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Install dependencies
+      - name: Install Wrangler
         run: npm install -g wrangler
+      
+      - name: Install project dependencies
+        run: |
+          npm install @neondatabase/serverless toucan-js drizzle-orm
       
       - name: Deploy Worker
         env:
