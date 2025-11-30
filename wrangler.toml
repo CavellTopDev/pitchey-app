@@ -3,6 +3,7 @@ name = "pitchey-optimized"
 main = "src/worker-service-optimized.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
+account_id = "1fc80fd96e7c2fc1f97e01c60e94a5a3"
 
 [vars]
 FRONTEND_URL = "https://pitchey.pages.dev"
