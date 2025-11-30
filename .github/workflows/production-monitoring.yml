@@ -230,9 +230,13 @@ jobs:
           EOF
           )
           
-          curl -X POST -H 'Content-type: application/json' \
-               --data "$payload" \
-               ${{ env.SLACK_WEBHOOK_URL }}
+          if [ -z "${{ env.SLACK_WEBHOOK_URL }}" ]; then
+            echo "⚠️ SLACK_WEBHOOK_URL not configured - skipping notification"
+          else
+            curl -X POST -H 'Content-type: application/json' \
+                 --data "$payload" \
+                 ${{ env.SLACK_WEBHOOK_URL }}
+          fi
       
       - name: Send Alert Notification
         if: failure() || steps.backend-health.outputs.backend_status == 'unhealthy' || steps.frontend-health.outputs.frontend_status == 'unhealthy' || steps.enterprise-test.outputs.enterprise_services == 'unhealthy'
@@ -283,9 +287,13 @@ jobs:
           EOF
           )
           
-          curl -X POST -H 'Content-type: application/json' \
-               --data "$payload" \
-               ${{ env.SLACK_WEBHOOK_URL }}
+          if [ -z "${{ env.SLACK_WEBHOOK_URL }}" ]; then
+            echo "⚠️ SLACK_WEBHOOK_URL not configured - skipping notification"
+          else
+            curl -X POST -H 'Content-type: application/json' \
+                 --data "$payload" \
+                 ${{ env.SLACK_WEBHOOK_URL }}
+          fi
 
   sentry-release:
     name: Create Sentry Release

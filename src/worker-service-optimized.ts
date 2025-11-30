@@ -5,11 +5,27 @@
 
 import { Toucan } from 'toucan-js';
 import { WebSocketRoom } from './websocket-room-optimized.ts';
-// Simple JWT creation using Web Crypto API
+
+// Base64url encoding for JWT (no padding, URL-safe characters)
+function base64urlEncode(str: string): string {
+  return btoa(str)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+function base64urlEncodeArray(arr: Uint8Array): string {
+  return btoa(String.fromCharCode(...arr))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+// Simple JWT creation using Web Crypto API with proper base64url encoding
 async function createSimpleJWT(payload: any, secret: string): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' };
-  const headerStr = btoa(JSON.stringify(header));
-  const payloadStr = btoa(JSON.stringify(payload));
+  const headerStr = base64urlEncode(JSON.stringify(header));
+  const payloadStr = base64urlEncode(JSON.stringify(payload));
   
   const message = `${headerStr}.${payloadStr}`;
   const encoder = new TextEncoder();
@@ -22,9 +38,20 @@ async function createSimpleJWT(payload: any, secret: string): Promise<string> {
   );
   
   const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
-  const signatureStr = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  const signatureStr = base64urlEncodeArray(new Uint8Array(signature));
   
   return `${message}.${signatureStr}`;
+}
+
+// Base64url decoding for JWT
+function base64urlDecode(str: string): string {
+  // Add padding if necessary
+  const padding = '='.repeat((4 - (str.length % 4)) % 4);
+  const base64 = str
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    + padding;
+  return atob(base64);
 }
 
 async function verifyJWT(token: string, secret: string): Promise<any> {
@@ -46,14 +73,14 @@ async function verifyJWT(token: string, secret: string): Promise<any> {
       ['verify']
     );
 
-    const signature = Uint8Array.from(atob(signatureStr), c => c.charCodeAt(0));
+    const signature = Uint8Array.from(base64urlDecode(signatureStr), c => c.charCodeAt(0));
     const isValid = await crypto.subtle.verify('HMAC', key, signature, encoder.encode(message));
     
     if (!isValid) {
       throw new Error('Invalid signature');
     }
 
-    const payload = JSON.parse(atob(payloadStr));
+    const payload = JSON.parse(base64urlDecode(payloadStr));
     
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
@@ -91,23 +118,22 @@ async function authenticateRequest(request: Request, env: Env): Promise<{success
     const token = authHeader.substring(7);
     let payload;
 
-    // Try to parse as base64 token first (production format)
+    // Always use JWT verification with the proper secret
     try {
-      const decoded = atob(token);
-      payload = JSON.parse(decoded);
-      
-      // Check if token is expired
-      if (payload.exp && payload.exp < Date.now()) {
-        throw new Error('Token expired');
-      }
-    } catch (error) {
-      // If base64 fails, try JWT format (local development)
-      try {
-        const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
-        payload = await verifyJWT(token, JWT_SECRET);
-      } catch (jwtError) {
-        throw new Error('Invalid token format');
-      }
+      const JWT_SECRET = env.JWT_SECRET;  // No fallback - must be configured
+      payload = await verifyJWT(token, JWT_SECRET);
+    } catch (jwtError: any) {
+      console.error('JWT verification error:', jwtError.message);
+      return {
+        success: false,
+        error: new Response(JSON.stringify({
+          success: false,
+          message: 'Invalid or expired token'
+        }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        })
+      };
     }
 
     // Map to consistent user format
@@ -766,13 +792,50 @@ export default {
         
         // Route to appropriate WebSocket handler
         if (pathname.startsWith('/ws') || pathname.startsWith('/websocket')) {
-          // Get or create Durable Object for WebSocket room
-          const roomId = url.searchParams.get('room') || 'default';
-          const durableObjectId = env.WEBSOCKET_ROOM.idFromName(roomId);
-          const durableObject = env.WEBSOCKET_ROOM.get(durableObjectId);
+          // Extract and verify JWT token from query params
+          const token = url.searchParams.get('token');
           
-          // Forward the WebSocket upgrade request to the Durable Object
-          return durableObject.fetch(request);
+          if (!token) {
+            console.error('WebSocket connection attempted without token');
+            return new Response('Authentication token required', { status: 401 });
+          }
+          
+          try {
+            // Verify the JWT token
+            const payload = await verifyJWT(token, env.JWT_SECRET || 'vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz');
+            
+            if (!payload) {
+              console.error('Invalid JWT token for WebSocket');
+              return new Response('Invalid authentication token', { status: 401 });
+            }
+            
+            // Extract user info from JWT payload
+            const userId = payload.userId || payload.sub;
+            const username = payload.username || payload.email || `user_${userId}`;
+            const roomId = url.searchParams.get('room') || 'default';
+            
+            console.log(`WebSocket authenticated for user ${userId} (${username}) in room ${roomId}`);
+            
+            // Get or create Durable Object for WebSocket room
+            const durableObjectId = env.WEBSOCKET_ROOM.idFromName(roomId);
+            const durableObject = env.WEBSOCKET_ROOM.get(durableObjectId);
+            
+            // Create a new request with user info in query params for the Durable Object
+            const modifiedUrl = new URL(request.url);
+            modifiedUrl.searchParams.set('userId', String(userId));
+            modifiedUrl.searchParams.set('username', username);
+            modifiedUrl.searchParams.set('roomId', roomId);
+            // Remove token from URL for security
+            modifiedUrl.searchParams.delete('token');
+            
+            const modifiedRequest = new Request(modifiedUrl.toString(), request);
+            
+            // Forward the WebSocket upgrade request to the Durable Object
+            return durableObject.fetch(modifiedRequest);
+          } catch (error) {
+            console.error('WebSocket authentication error:', error);
+            return new Response('Authentication failed', { status: 401 });
+          }
         }
         
         return new Response('WebSocket upgrade not supported for this path', { status: 400 });
