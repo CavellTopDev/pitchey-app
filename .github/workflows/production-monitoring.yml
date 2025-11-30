@@ -306,6 +306,12 @@ jobs:
       
       - name: Create Sentry Release
         run: |
+          # Check if Sentry is configured
+          if [ -z "${{ secrets.SENTRY_AUTH_TOKEN }}" ]; then
+            echo "⚠️ SENTRY_AUTH_TOKEN not configured - skipping Sentry release creation"
+            exit 0
+          fi
+          
           # Install sentry-cli
           curl -sL https://sentry.io/get-cli/ | bash
           
