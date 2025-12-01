@@ -1275,17 +1275,16 @@ export default {
           const pathParts = pathname.split('/');
           const pitchId = pathParts[pathParts.length - 1];
           
-          // Import connection pool instead of creating direct connection
-          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
-          
-          // Initialize the pool if not already done
-          dbPool.initialize(env, sentry);
+          // Use direct Neon connection for reliability
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
           
           // If pitchId is a number, fetch individual pitch
           if (pitchId && !isNaN(parseInt(pitchId)) && pitchId !== 'public') {
             console.log(`Loading individual pitch: ${pitchId}`);
             
-            const results = await withDatabase(env, async (sql) => await sql`
+            const results = await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.format,
                 p.view_count as "viewCount", p.like_count as "likeCount",
@@ -1297,7 +1296,7 @@ export default {
               WHERE p.id = ${parseInt(pitchId)} 
                 AND p.status IN ('published', 'active') 
                 AND p.visibility = 'public'
-            `, sentry);
+            `;
             
             if (results.length === 0) {
               return new Response(JSON.stringify({
@@ -1350,7 +1349,7 @@ export default {
             const limit = url.searchParams.get('limit') || '10';
             
             console.log('Executing public pitches query...');
-            const results = await withDatabase(env, async (sql) => await sql`
+            const results = await sql`
               SELECT 
                 p.id, p.title, p.logline, p.genre, p.format,
                 p.view_count as "viewCount", p.poster_url as "posterUrl", 
@@ -1361,7 +1360,7 @@ export default {
               WHERE p.status IN ('published', 'active') AND p.visibility = 'public'
               ORDER BY p.created_at DESC
               LIMIT ${parseInt(limit, 10)}
-            `, sentry);
+            `;
             
             console.log('Query executed, mapping results...');
             const pitches = results.map(pitch => ({
