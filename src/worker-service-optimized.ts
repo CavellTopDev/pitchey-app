@@ -2478,10 +2478,24 @@ export default {
 
       // === PITCH CRUD ENDPOINTS ===
       
-      // Create new pitch
+      // Create new pitch (CREATORS ONLY)
       if (pathname === '/api/pitches' && request.method === 'POST') {
         const authResult = await authenticateRequest(request, env);
         if (!authResult.success) return authResult.error;
+        
+        // Check if user is a creator - investors and production companies cannot create pitches
+        if (authResult.user.userType !== 'creator') {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Only creators can create pitches'
+          }), {
+            status: 403,
+            headers: { 
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
         
         try {
           const body = await request.json();
@@ -7348,6 +7362,140 @@ Generated: ${new Date().toISOString()}
       // ========== END SOCIAL FEATURES ENDPOINTS ==========
 
       // ========== INVESTMENT AND FUNDING ENDPOINTS ==========
+      
+      // Investor Dashboard - Main dashboard for investor portal
+      if (pathname === '/api/investor/dashboard' && request.method === 'GET') {
+        const authResult = await authenticateRequest(request, env);
+        if (!authResult.success) return authResult.error;
+        
+        // Check if user is an investor
+        if (authResult.user.userType !== 'investor') {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'This endpoint is for investors only'
+          }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+        
+        try {
+          const userId = authResult.user.userId || authResult.user.id;
+          
+          // Use direct Neon connection for reliability
+          const { neon } = await import('@neondatabase/serverless');
+          const connectionString = env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+          const sql = neon(connectionString);
+          
+          // Get portfolio summary
+          const portfolioSummary = await sql`
+            SELECT 
+              COUNT(*) as total_investments,
+              COALESCE(SUM(amount), 0) as total_invested,
+              COUNT(DISTINCT pitch_id) as unique_pitches
+            FROM investments
+            WHERE user_id = ${userId}
+          `;
+          
+          // Get saved pitches
+          const savedPitches = await sql`
+            SELECT p.id, p.title, p.logline, p.genre, p.format, p.status,
+                   u.username as creator_name
+            FROM saved_pitches sp
+            JOIN pitches p ON sp.pitch_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE sp.user_id = ${userId}
+            ORDER BY sp.created_at DESC
+            LIMIT 5
+          `;
+          
+          // Get recent NDA requests
+          const ndaRequests = await sql`
+            SELECT n.id, n.pitch_id, n.status, n.created_at,
+                   p.title as pitch_title
+            FROM nda_requests n
+            JOIN pitches p ON n.pitch_id = p.id
+            WHERE n.user_id = ${userId}
+            ORDER BY n.created_at DESC
+            LIMIT 5
+          `;
+          
+          // Get recent activity
+          const recentActivity = await sql`
+            SELECT 
+              'investment' as type,
+              i.created_at,
+              p.title as related_item,
+              i.amount as metadata
+            FROM investments i
+            JOIN pitches p ON i.pitch_id = p.id
+            WHERE i.user_id = ${userId}
+            UNION ALL
+            SELECT 
+              'nda_request' as type,
+              n.created_at,
+              p.title as related_item,
+              n.status as metadata
+            FROM nda_requests n
+            JOIN pitches p ON n.pitch_id = p.id
+            WHERE n.user_id = ${userId}
+            ORDER BY created_at DESC
+            LIMIT 10
+          `;
+          
+          // Get investment opportunities (trending pitches seeking funding)
+          const opportunities = await sql`
+            SELECT p.id, p.title, p.genre, p.format, p.budget,
+                   p.view_count, p.like_count,
+                   u.username as creator_name
+            FROM pitches p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.status = 'published' 
+              AND p.visibility = 'public'
+              AND p.seeking_funding = true
+            ORDER BY p.view_count DESC, p.like_count DESC
+            LIMIT 5
+          `;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              portfolio: {
+                totalInvestments: parseInt(portfolioSummary[0].total_investments),
+                totalInvested: parseFloat(portfolioSummary[0].total_invested),
+                uniquePitches: parseInt(portfolioSummary[0].unique_pitches)
+              },
+              savedPitches: savedPitches,
+              ndaStatus: {
+                requests: ndaRequests,
+                pending: ndaRequests.filter(n => n.status === 'pending').length,
+                approved: ndaRequests.filter(n => n.status === 'approved').length
+              },
+              recentActivity: recentActivity.map(a => ({
+                type: a.type,
+                date: a.created_at,
+                item: a.related_item,
+                details: a.metadata
+              })),
+              investmentOpportunities: opportunities
+            },
+            message: 'Investor dashboard loaded successfully'
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Investor dashboard error:', error);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Failed to load investor dashboard',
+            details: error.message
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+      }
       
       // Get investor's portfolio summary
       if (pathname === '/api/investor/portfolio/summary' && request.method === 'GET') {
