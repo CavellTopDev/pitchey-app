@@ -1,6 +1,6 @@
 # Single production configuration - no environments
 name = "pitchey-optimized"
-main = "src/worker-complete-platform.ts"
+main = "src/worker-platform-fixed.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "e16d3bf549153de23459a6c6a06a431b"
