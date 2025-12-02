@@ -1,10 +1,22 @@
 #!/bin/bash
 
 # =============================================================================
-# Pitchey Production Deployment Script
+# Pitchey Production Deployment Script - Enhanced Version
 # =============================================================================
-# This script handles complete production deployment to Cloudflare infrastructure
-# Usage: ./deploy-production.sh [frontend|backend|worker|all] [--dry-run] [--force]
+# Complete production deployment to Cloudflare infrastructure with monitoring,
+# health checks, rollback capabilities, and comprehensive error handling.
+# 
+# Features:
+# - Zero-downtime deployment strategy
+# - Automated health checks and monitoring setup
+# - Database migration handling
+# - Rollback capabilities
+# - Comprehensive logging and reporting
+# - Cloudflare secrets management
+# - CDN cache management
+# - Post-deployment validation
+#
+# Usage: ./deploy-production.sh [frontend|backend|worker|all] [--dry-run] [--force] [--rollback]
 
 set -euo pipefail
 
@@ -26,6 +38,10 @@ NC='\033[0m' # No Color
 DEPLOY_TARGET="${1:-all}"
 DRY_RUN=false
 FORCE_DEPLOY=false
+ROLLBACK_MODE=false
+VERBOSE=false
+SKIP_TESTS=false
+SKIP_MIGRATIONS=false
 
 for arg in "$@"; do
     case $arg in
@@ -35,6 +51,22 @@ for arg in "$@"; do
             ;;
         --force)
             FORCE_DEPLOY=true
+            shift
+            ;;
+        --rollback)
+            ROLLBACK_MODE=true
+            shift
+            ;;
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --skip-tests)
+            SKIP_TESTS=true
+            shift
+            ;;
+        --skip-migrations)
+            SKIP_MIGRATIONS=true
             shift
             ;;
     esac
@@ -257,8 +289,8 @@ deploy_worker() {
     fi
     
     # Check worker source files
-    if [ ! -f "src/worker-simple.ts" ]; then
-        log ERROR "Worker source file not found"
+    if [ ! -f "src/worker-platform-complete.ts" ]; then
+        log ERROR "Worker source file not found: src/worker-platform-complete.ts"
         exit 1
     fi
     
