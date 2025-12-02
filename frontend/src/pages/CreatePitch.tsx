@@ -38,6 +38,8 @@ interface PitchFormData {
     customNDA: File | null;
   };
   characters: Character[];
+  seekingInvestment: boolean;
+  budgetRange?: string;
 }
 
 export default function CreatePitch() {
@@ -66,7 +68,9 @@ export default function CreatePitch() {
       ndaType: 'none',
       customNDA: null
     },
-    characters: []
+    characters: [],
+    seekingInvestment: false,
+    budgetRange: ''
   });
   
   // Form validation state
@@ -354,7 +358,9 @@ export default function CreatePitch() {
         logline: formData.logline,
         shortSynopsis: formData.shortSynopsis,
         requireNDA: formData.ndaConfig.requireNDA,
-        budgetBracket: 'Medium',
+        seekingInvestment: formData.seekingInvestment,
+        budgetRange: formData.budgetRange || undefined,
+        budgetBracket: formData.budgetRange || 'Medium',
         estimatedBudget: 1000000,
         productionTimeline: '6-12 months',
         themes: formData.themes,
@@ -769,6 +775,63 @@ export default function CreatePitch() {
                   {formData.worldDescription.length}/2000 characters | Describe the world and setting in detail
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Funding & Budget Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Funding & Investment</h2>
+            
+            <div className="space-y-6">
+              {/* Seeking Investment Toggle */}
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="seekingInvestment"
+                    name="seekingInvestment"
+                    type="checkbox"
+                    checked={formData.seekingInvestment}
+                    onChange={(e) => setFormData(prev => ({ ...prev, seekingInvestment: e.target.checked }))}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                </div>
+                <div className="ml-3">
+                  <label htmlFor="seekingInvestment" className="text-sm font-medium text-gray-900">
+                    Actively Seeking Investment
+                  </label>
+                  <p className="text-sm text-gray-500">
+                    Check this box if you're looking for investors for this project
+                  </p>
+                </div>
+              </div>
+
+              {/* Budget Range (only show if seeking investment) */}
+              {formData.seekingInvestment && (
+                <div>
+                  <label htmlFor="budgetRange" className="block text-sm font-medium text-gray-700 mb-2">
+                    Estimated Budget Range
+                  </label>
+                  <select
+                    id="budgetRange"
+                    name="budgetRange"
+                    value={formData.budgetRange}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  >
+                    <option value="">Select a budget range</option>
+                    <option value="0-100k">Under $100K (Micro-budget)</option>
+                    <option value="100k-500k">$100K - $500K (Low budget)</option>
+                    <option value="500k-1m">$500K - $1M (Medium budget)</option>
+                    <option value="1m-5m">$1M - $5M (Moderate budget)</option>
+                    <option value="5m-20m">$5M - $20M (Mid-level budget)</option>
+                    <option value="20m-50m">$20M - $50M (High budget)</option>
+                    <option value="50m+">$50M+ (Blockbuster)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    This helps investors understand the scale of investment needed
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

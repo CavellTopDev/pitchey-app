@@ -1,0 +1,26 @@
+name = "pitchey-optimized"
+main = "src/worker-service-better-auth.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+FRONTEND_URL = "https://pitchey.pages.dev"
+NODE_ENV = "production"
+DENO_ENV = "production"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id"
+preview_id = "your-kv-namespace-preview-id"
+
+[[durable_objects]]
+binding = "WEBSOCKET_ROOMS"
+class_name = "WebSocketRoom"
+script_name = "pitchey-optimized"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WebSocketRoom"]
+
+[env.production]
+vars = { ENVIRONMENT = "production" }

@@ -1,0 +1,20 @@
+{
+  "version": "5",
+  "remote": {
+    "https://deno.land/std@0.220.0/fmt/colors.ts": "d239d84620b921ea520125d778947881f62c50e78deef2657073840b8af9559a"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@neondatabase/serverless@^1.0.2",
+        "npm:@sendgrid/mail@^8.1.6",
+        "npm:better-auth@^1.4.4",
+        "npm:drizzle-orm@~0.44.7",
+        "npm:playwright@^1.57.0",
+        "npm:postgres@^3.4.7",
+        "npm:toucan-js@^4.1.1",
+        "npm:wrangler@^4.51.0"
+      ]
+    }
+  }
+}

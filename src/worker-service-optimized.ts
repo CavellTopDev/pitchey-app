@@ -2478,6 +2478,84 @@ export default {
 
       // === PITCH CRUD ENDPOINTS ===
       
+      // Get single pitch by ID
+      if (pathname.match(/^\/api\/pitches\/(\d+)$/) && request.method === 'GET') {
+        try {
+          const pitchId = pathname.split('/').pop();
+          
+          const { dbPool, withDatabase } = await import('./worker-database-pool-enhanced.ts');
+          dbPool.initialize(env, sentry);
+          
+          const result = await withDatabase(env, async (sql) => await sql`
+            SELECT p.*, 
+                   u.username as creator_username, 
+                   u.profile_image as creator_profile_image,
+                   u.id as creator_id,
+                   COUNT(DISTINCT v.id) as view_count,
+                   COUNT(DISTINCT l.id) as like_count
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            LEFT JOIN pitch_views v ON p.id = v.pitch_id
+            LEFT JOIN pitch_likes l ON p.id = l.pitch_id
+            WHERE p.id = ${pitchId}
+            GROUP BY p.id, u.id
+          `, sentry);
+          
+          if (!result[0]) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Pitch not found or not accessible',
+              pitch_identifier: pitchId
+            }), {
+              status: 404,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            });
+          }
+          
+          const pitch = result[0];
+          
+          return new Response(JSON.stringify({
+            success: true,
+            pitch: {
+              id: pitch.id,
+              title: pitch.title,
+              tagline: pitch.tagline || '',
+              synopsis: pitch.short_synopsis || pitch.long_synopsis || '',
+              shortSynopsis: pitch.short_synopsis,
+              longSynopsis: pitch.long_synopsis,
+              logline: pitch.logline,
+              genre: pitch.genre,
+              format: pitch.format,
+              themes: pitch.themes,
+              targetAudience: pitch.target_audience,
+              budget: pitch.budget,
+              budgetRange: pitch.budget_range,
+              seekingInvestment: pitch.seeking_investment,
+              status: pitch.status,
+              visibility: pitch.visibility,
+              viewCount: pitch.view_count || 0,
+              likeCount: pitch.like_count || 0,
+              posterUrl: pitch.poster_url,
+              trailerUrl: pitch.trailer_url,
+              scriptUrl: pitch.script_url,
+              requireNda: pitch.require_nda,
+              createdAt: pitch.created_at,
+              updatedAt: pitch.updated_at,
+              creator: {
+                id: pitch.creator_id,
+                username: pitch.creator_username,
+                profileImage: pitch.creator_profile_image
+              }
+            }
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        } catch (error) {
+          console.error('Get pitch error:', error);
+          return serverErrorResponse("Failed to get pitch: " + error.message);
+        }
+      }
+      
       // Create new pitch (CREATORS ONLY)
       if (pathname === '/api/pitches' && request.method === 'POST') {
         const authResult = await authenticateRequest(request, env);
@@ -2508,15 +2586,19 @@ export default {
           
           const result = await withDatabase(env, async (sql) => await sql`
             INSERT INTO pitches (
-              user_id, title, genre, format, logline,
-              target_audience, budget, status, created_at, updated_at
+              user_id, title, genre, format, logline, short_synopsis, long_synopsis,
+              target_audience, budget, budget_range, status, visibility,
+              seeking_investment, themes, created_at, updated_at
             ) VALUES (
               ${userId}, ${body.title}, ${body.genre || 'Drama'}, 
               ${body.format || 'Feature Film'}, ${body.logline || ''},
-              ${body.target_audience || ''}, ${body.budget || 0},
-              'draft', NOW(), NOW()
+              ${body.synopsis || body.shortSynopsis || ''}, ${body.longSynopsis || ''},
+              ${body.target_audience || ''}, ${body.budget || ''},
+              ${body.budgetRange || ''}, ${body.status || 'draft'},
+              ${body.visibility || 'public'}, ${body.seekingInvestment || false},
+              ${body.themes || []}, NOW(), NOW()
             )
-            RETURNING id, title, genre, format, status, created_at
+            RETURNING id, title, genre, format, status, seeking_investment, budget_range, created_at
           `, sentry);
           
           return new Response(JSON.stringify({
@@ -2567,12 +2649,18 @@ export default {
               genre = ${body.genre},
               format = ${body.format},
               logline = ${body.logline},
+              short_synopsis = ${body.synopsis || body.shortSynopsis},
+              long_synopsis = ${body.longSynopsis},
               target_audience = ${body.target_audience},
               budget = ${body.budget},
+              budget_range = ${body.budgetRange},
+              seeking_investment = ${body.seekingInvestment},
+              themes = ${body.themes || []},
+              visibility = ${body.visibility},
               status = ${body.status || 'draft'},
               updated_at = NOW()
             WHERE id = ${pitchId}
-            RETURNING id, title, genre, format, status, updated_at
+            RETURNING id, title, genre, format, status, seeking_investment, budget_range, updated_at
           `, sentry);
           
           return new Response(JSON.stringify({
@@ -7394,7 +7482,7 @@ Generated: ${new Date().toISOString()}
               COALESCE(SUM(amount), 0) as total_invested,
               COUNT(DISTINCT pitch_id) as unique_pitches
             FROM investments
-            WHERE user_id = ${userId}
+            WHERE investor_id = ${userId}
           `;
           
           // Get saved pitches
@@ -7415,7 +7503,7 @@ Generated: ${new Date().toISOString()}
                    p.title as pitch_title
             FROM nda_requests n
             JOIN pitches p ON n.pitch_id = p.id
-            WHERE n.user_id = ${userId}
+            WHERE n.requester_id = ${userId}
             ORDER BY n.created_at DESC
             LIMIT 5
           `;
@@ -7426,10 +7514,10 @@ Generated: ${new Date().toISOString()}
               'investment' as type,
               i.created_at,
               p.title as related_item,
-              i.amount as metadata
+              CAST(i.amount AS TEXT) as metadata
             FROM investments i
             JOIN pitches p ON i.pitch_id = p.id
-            WHERE i.user_id = ${userId}
+            WHERE i.investor_id = ${userId}
             UNION ALL
             SELECT 
               'nda_request' as type,
@@ -7438,7 +7526,7 @@ Generated: ${new Date().toISOString()}
               n.status as metadata
             FROM nda_requests n
             JOIN pitches p ON n.pitch_id = p.id
-            WHERE n.user_id = ${userId}
+            WHERE n.requester_id = ${userId}
             ORDER BY created_at DESC
             LIMIT 10
           `;
@@ -7452,7 +7540,7 @@ Generated: ${new Date().toISOString()}
             JOIN users u ON p.user_id = u.id
             WHERE p.status = 'published' 
               AND p.visibility = 'public'
-              AND p.seeking_funding = true
+              AND p.seeking_investment = true
             ORDER BY p.view_count DESC, p.like_count DESC
             LIMIT 5
           `;
