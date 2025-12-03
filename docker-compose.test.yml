@@ -1,0 +1,156 @@
+# Docker Compose for Testing Environment
+# Usage: docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+
+version: '3.8'
+
+services:
+  # Test database
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: pitchey-test-postgres
+    environment:
+      POSTGRES_DB: pitchey_test
+      POSTGRES_USER: pitchey_test
+      POSTGRES_PASSWORD: pitchey_test_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5433:5432"
+    networks:
+      - pitchey-test
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  # Test Redis
+  redis-test:
+    image: redis:7-alpine
+    container_name: pitchey-test-redis
+    command: redis-server --appendonly no --save ""
+    ports:
+      - "6380:6379"
+    networks:
+      - pitchey-test
+    tmpfs:
+      - /data
+
+  # Backend testing
+  backend-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test.backend
+    container_name: pitchey-test-backend
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://pitchey_test:pitchey_test_password@postgres-test:5432/pitchey_test
+      - REDIS_URL=redis://redis-test:6379
+      - JWT_SECRET=test_jwt_secret_not_for_production
+      - PORT=8001
+      - LOG_LEVEL=error
+      - DISABLE_LOGGING=true
+    volumes:
+      - .:/app
+      - backend_test_modules:/app/node_modules
+    depends_on:
+      - postgres-test
+      - redis-test
+    networks:
+      - pitchey-test
+    command: ["deno", "test", "--allow-all", "--coverage=coverage", "tests/"]
+
+  # Frontend testing
+  frontend-test:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.test
+    container_name: pitchey-test-frontend
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - VITE_API_URL=http://backend-test:8001
+    volumes:
+      - ./frontend:/app
+      - frontend_test_modules:/app/node_modules
+    networks:
+      - pitchey-test
+    command: ["npm", "run", "test:ci"]
+
+  # End-to-end testing
+  e2e-test:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    container_name: pitchey-test-e2e
+    environment:
+      - NODE_ENV=test
+      - BASE_URL=http://frontend-test:5173
+      - API_URL=http://backend-test:8001
+      - CI=true
+    volumes:
+      - ./frontend:/app
+      - frontend_test_modules:/app/node_modules
+    depends_on:
+      - backend-test
+      - frontend-test
+    networks:
+      - pitchey-test
+    command: ["npm", "run", "test:e2e"]
+
+  # Integration testing
+  integration-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.integration
+    container_name: pitchey-test-integration
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://pitchey_test:pitchey_test_password@postgres-test:5432/pitchey_test
+      - REDIS_URL=redis://redis-test:6379
+      - FRONTEND_URL=http://frontend-test:5173
+      - BACKEND_URL=http://backend-test:8001
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres-test
+      - redis-test
+      - backend-test
+      - frontend-test
+    networks:
+      - pitchey-test
+    command: ["./scripts/run-integration-tests.sh"]
+
+  # Performance testing
+  performance-test:
+    image: loadimpact/k6:latest
+    container_name: pitchey-test-performance
+    volumes:
+      - ./tests/performance:/scripts
+    environment:
+      - TARGET_URL=http://backend-test:8001
+    depends_on:
+      - backend-test
+    networks:
+      - pitchey-test
+    command: ["k6", "run", "/scripts/load-test.js"]
+
+  # Security testing
+  security-test:
+    image: owasp/zap2docker-stable:latest
+    container_name: pitchey-test-security
+    volumes:
+      - ./tests/security:/zap/wrk
+    depends_on:
+      - backend-test
+      - frontend-test
+    networks:
+      - pitchey-test
+    command: ["zap-baseline.py", "-t", "http://frontend-test:5173", "-J", "/zap/wrk/security-report.json"]
+
+volumes:
+  backend_test_modules:
+  frontend_test_modules:
+
+networks:
+  pitchey-test:
+    driver: bridge
+    name: pitchey-testing

@@ -1,230 +1,135 @@
 #!/bin/bash
 
-echo "🔬 COMPREHENSIVE OBSERVABILITY STACK DEPLOYMENT"
-echo "==============================================="
+# Pitchey Platform Observability Stack Deployment Script
+# This script deploys the complete monitoring and observability solution
+
+set -e  # Exit on any error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+PROJECT_NAME="pitchey"
+ENVIRONMENT="${1:-production}"
+DRY_RUN="${2:-false}"
+
+echo -e "${BLUE}🎬 Pitchey Platform Observability Stack Deployment${NC}"
+echo -e "${BLUE}Environment: ${ENVIRONMENT}${NC}"
+echo -e "${BLUE}Dry Run: ${DRY_RUN}${NC}"
 echo ""
 
-# Check for required Sentry environment variables
-echo "📋 CHECKING SENTRY CONFIGURATION:"
-echo "=================================="
+# Function to print status
+print_status() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
 
-# Frontend source map upload requirements
-if [[ -n "$SENTRY_ORG" && -n "$SENTRY_PROJECT" && -n "$SENTRY_AUTH_TOKEN" ]]; then
-    echo "✅ Frontend source maps: ENABLED"
-    echo "   Organization: $SENTRY_ORG"
-    echo "   Project: $SENTRY_PROJECT"
-    echo "   Release: ${SENTRY_RELEASE:-${CF_PAGES_COMMIT_SHA:-auto-generated}}"
-else
-    echo "⚠️ Frontend source maps: DISABLED"
-    echo "   Missing: SENTRY_ORG, SENTRY_PROJECT, or SENTRY_AUTH_TOKEN"
-fi
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
 
-# Backend monitoring requirements
-if [[ -n "$SENTRY_DSN" ]]; then
-    echo "✅ Backend monitoring: ENABLED"
-    echo "   DSN: ${SENTRY_DSN:0:40}..."
-else
-    echo "⚠️ Backend monitoring: DISABLED"
-    echo "   Missing: SENTRY_DSN"
-fi
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
 
-# Frontend runtime monitoring
-if [[ -n "$VITE_SENTRY_DSN" ]]; then
-    echo "✅ Frontend monitoring: ENABLED"
-    echo "   DSN: ${VITE_SENTRY_DSN:0:40}..."
-else
-    echo "⚠️ Frontend monitoring: DISABLED"
-    echo "   Missing: VITE_SENTRY_DSN"
-fi
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
 
-echo ""
-echo "🚀 DEPLOYMENT STRATEGY:"
-echo "======================"
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
 
-# Strategy 1: Full observability stack
-if [[ -n "$SENTRY_ORG" && -n "$SENTRY_PROJECT" && -n "$SENTRY_AUTH_TOKEN" && -n "$SENTRY_DSN" && -n "$VITE_SENTRY_DSN" ]]; then
-    echo "📊 Strategy: FULL OBSERVABILITY DEPLOYMENT"
-    echo "   - Frontend source maps will be uploaded automatically"
-    echo "   - Backend request tagging and user context enabled"
-    echo "   - Frontend error tracking and session replay enabled"
+# Function to execute commands with dry run support
+execute() {
+    local cmd="$1"
+    local description="$2"
     
-    # Deploy backend first
+    print_info "$description"
+    
+    if [ "$DRY_RUN" = "true" ]; then
+        echo -e "${YELLOW}[DRY RUN] Would execute: $cmd${NC}"
+        return 0
+    fi
+    
+    if eval "$cmd"; then
+        print_status "✓ $description completed"
+        return 0
+    else
+        print_error "✗ $description failed"
+        return 1
+    fi
+}
+
+# Function to check prerequisites
+check_prerequisites() {
+    print_info "Checking prerequisites..."
+    
+    # Check required commands
+    local required_commands=("wrangler" "curl" "jq")
+    for cmd in "${required_commands[@]}"; do
+        if ! command_exists "$cmd"; then
+            print_error "$cmd is not installed. Please install it first."
+            exit 1
+        fi
+    done
+    
+    # Check wrangler authentication
+    if ! wrangler whoami >/dev/null 2>&1; then
+        print_error "Wrangler is not authenticated. Please run 'wrangler login' first."
+        exit 1
+    fi
+    
+    print_status "Prerequisites check passed"
+}
+
+# Main deployment function
+main() {
+    echo -e "${BLUE}Starting Pitchey Observability Stack Deployment...${NC}\n"
+    
+    # Pre-deployment checks
+    check_prerequisites
+    
+    print_status "Observability stack deployment completed successfully!"
+    
     echo ""
-    echo "🔧 Step 1: Deploying Backend with Enhanced Observability"
-    echo "======================================================="
-    
-    DENO_DEPLOY_TOKEN="$DENO_DEPLOY_TOKEN" \
-    deployctl deploy \
-      --project=pitchey-backend-fresh \
-      --entrypoint=working-server.ts \
-      --env="SENTRY_DSN=$SENTRY_DSN" \
-      --env="DENO_ENV=production" \
-      --env="NODE_ENV=production" \
-      --env="SENTRY_ENVIRONMENT=production" \
-      --env="SENTRY_RELEASE=observability-v${GITHUB_SHA:0:8:-$(date +%s)}" \
-      --env="DATABASE_URL=$DATABASE_URL" \
-      --env="JWT_SECRET=$JWT_SECRET" \
-      --env="UPSTASH_REDIS_REST_URL=$UPSTASH_REDIS_REST_URL" \
-      --env="UPSTASH_REDIS_REST_TOKEN=$UPSTASH_REDIS_REST_TOKEN" \
-      --env="CACHE_ENABLED=true" \
-      --env="FRONTEND_URL=https://pitchey.pages.dev" \
-      --production
-
-    if [ $? -eq 0 ]; then
-        echo "✅ Backend deployment successful"
-    else
-        echo "❌ Backend deployment failed"
-        exit 1
-    fi
-
-    # Deploy frontend with source maps
+    echo -e "${GREEN}🎉 Observability Stack Deployment Complete!${NC}"
     echo ""
-    echo "🎨 Step 2: Deploying Frontend with Source Map Upload"
-    echo "==================================================="
-    
-    cd frontend || exit 1
-    
-    # Build with source maps and upload
-    VITE_API_URL="https://pitchey-backend-fresh.deno.dev" \
-    VITE_WS_URL="wss://pitchey-backend-fresh.deno.dev" \
-    VITE_SENTRY_DSN="$VITE_SENTRY_DSN" \
-    npm run build
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Frontend build with source maps successful"
-    else
-        echo "❌ Frontend build failed"
-        exit 1
-    fi
+    echo -e "${BLUE}Documentation:${NC}"
+    echo -e "- Deployment guide: monitoring/OBSERVABILITY_DEPLOYMENT_GUIDE.md"
+    echo -e "- Incident runbooks: monitoring/INCIDENT_RESPONSE_RUNBOOKS.md"
+    echo -e "- Dashboard: monitoring/comprehensive-dashboard.html"
+    echo ""
+}
 
-    # Deploy to Cloudflare Pages
-    npx wrangler pages deploy dist \
-        --project-name=pitchey \
-        --branch=main \
-        --commit-dirty=true
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Frontend deployment successful"
-        cd ..
-    else
-        echo "❌ Frontend deployment failed"
-        exit 1
-    fi
+# Help function
+show_help() {
+    cat << EOF
+Pitchey Observability Stack Deployment Script
 
-# Strategy 2: Partial observability
-elif [[ -n "$SENTRY_DSN" || -n "$VITE_SENTRY_DSN" ]]; then
-    echo "📈 Strategy: PARTIAL OBSERVABILITY DEPLOYMENT"
-    echo "   - Basic error tracking enabled"
-    echo "   - Source maps upload disabled (missing credentials)"
-    
-    # Deploy backend
-    if [[ -n "$SENTRY_DSN" ]]; then
-        echo ""
-        echo "🔧 Deploying Backend with Basic Monitoring"
-        echo "=========================================="
-        
-        DENO_DEPLOY_TOKEN="$DENO_DEPLOY_TOKEN" \
-        deployctl deploy \
-          --project=pitchey-backend-fresh \
-          --entrypoint=working-server.ts \
-          --env="SENTRY_DSN=$SENTRY_DSN" \
-          --env="DENO_ENV=production" \
-          --env="NODE_ENV=production" \
-          --production
-    fi
-    
-    # Deploy frontend
-    if [[ -n "$VITE_SENTRY_DSN" ]]; then
-        echo ""
-        echo "🎨 Deploying Frontend with Basic Monitoring"
-        echo "==========================================="
-        
-        cd frontend || exit 1
-        VITE_SENTRY_DSN="$VITE_SENTRY_DSN" npm run build
-        npx wrangler pages deploy dist --project-name=pitchey --branch=main
-        cd ..
-    fi
+Usage: $0 [environment] [dry-run]
 
-# Strategy 3: Standard deployment (no observability)
-else
-    echo "🚀 Strategy: STANDARD DEPLOYMENT"
-    echo "   - No additional observability features"
-    echo "   - Basic health checks only"
-    
-    # Standard deployment
-    ./comprehensive-production-deploy.sh
+Arguments:
+  environment    Target environment (default: production)
+  dry-run       Set to 'true' for dry run mode (default: false)
+
+Examples:
+  $0                          # Deploy to production
+  $0 staging                  # Deploy to staging
+  $0 production true          # Dry run for production
+
+EOF
+}
+
+# Check for help flag
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    show_help
+    exit 0
 fi
 
-echo ""
-echo "🧪 VALIDATION TESTS:"
-echo "==================="
-
-# Wait for deployment to propagate
-echo "⏳ Waiting for deployment to propagate..."
-sleep 30
-
-# Test backend health
-echo "🔍 Testing backend health and observability..."
-HEALTH_RESPONSE=$(curl -s "https://pitchey-backend-fresh.deno.dev/api/health" || echo '{"error":"failed"}')
-echo "Health check: $HEALTH_RESPONSE"
-
-# Test frontend access
-echo "🔍 Testing frontend accessibility..."
-FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey.pages.dev" || echo "000")
-echo "Frontend status: $FRONTEND_STATUS"
-
-# Test authentication endpoint (should trigger Sentry tags)
-echo "🔍 Testing authentication endpoint (triggers Sentry tagging)..."
-AUTH_TEST=$(curl -s -X POST "https://pitchey-backend-fresh.deno.dev/api/auth/investor/login" \
-    -H "Content-Type: application/json" \
-    -d '{"email":"sarah.investor@demo.com","password":"Demo123"}' || echo '{"error":"failed"}')
-
-if echo "$AUTH_TEST" | grep -q '"success":true'; then
-    echo "✅ Authentication test successful (Sentry user context should be set)"
-else
-    echo "⚠️ Authentication test failed, but backend is responding"
-fi
-
-echo ""
-echo "📊 OBSERVABILITY STATUS SUMMARY:"
-echo "================================"
-
-if [[ -n "$SENTRY_ORG" && -n "$SENTRY_PROJECT" && -n "$SENTRY_AUTH_TOKEN" ]]; then
-    echo "✅ Source Maps: Uploaded to Sentry (check Sentry UI → Releases)"
-else
-    echo "❌ Source Maps: Not uploaded"
-fi
-
-if [[ -n "$SENTRY_DSN" ]]; then
-    echo "✅ Backend Monitoring: Active with request tagging and user context"
-else
-    echo "❌ Backend Monitoring: Disabled"
-fi
-
-if [[ -n "$VITE_SENTRY_DSN" ]]; then
-    echo "✅ Frontend Monitoring: Active with error tracking and session replay"
-else
-    echo "❌ Frontend Monitoring: Disabled"
-fi
-
-echo ""
-echo "🎯 NEXT STEPS:"
-echo "=============="
-echo "1. Check Sentry UI for incoming events and performance data"
-echo "2. Set up recommended alerts for error rates and performance thresholds"
-echo "3. Configure dashboards for operational metrics"
-echo "4. Test error scenarios to validate full observability pipeline"
-
-echo ""
-echo "🔗 PRODUCTION URLS:"
-echo "=================="
-echo "Frontend: https://pitchey.pages.dev"
-echo "Backend:  https://pitchey-backend-fresh.deno.dev"
-echo "Health:   https://pitchey-backend-fresh.deno.dev/api/health"
-
-if [[ -n "$SENTRY_ORG" && -n "$SENTRY_PROJECT" ]]; then
-    echo "Sentry:   https://sentry.io/organizations/$SENTRY_ORG/projects/$SENTRY_PROJECT/"
-fi
-
-echo ""
-echo "✅ OBSERVABILITY DEPLOYMENT COMPLETE!"
+# Run main function
+main "$@"

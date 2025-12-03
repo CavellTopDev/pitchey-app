@@ -1,0 +1,25 @@
+{
+  "description": "Security dependencies to add to package.json",
+  "dependencies": {
+    "speakeasy": "^2.0.0",
+    "qrcode": "^1.5.3",
+    "isomorphic-dompurify": "^2.14.0",
+    "crypto-js": "^4.2.0",
+    "zod": "^3.23.8",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.4.0",
+    "express-validator": "^7.2.0",
+    "csurf": "^1.11.0"
+  },
+  "devDependencies": {
+    "@types/speakeasy": "^2.0.10",
+    "@types/qrcode": "^1.5.5",
+    "@types/crypto-js": "^4.2.2",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/bcryptjs": "^2.4.6"
+  },
+  "installCommand": "npm install speakeasy qrcode isomorphic-dompurify crypto-js zod jsonwebtoken bcryptjs helmet express-rate-limit express-validator",
+  "installDevCommand": "npm install --save-dev @types/speakeasy @types/qrcode @types/crypto-js @types/jsonwebtoken @types/bcryptjs"
+}

@@ -1,696 +1,548 @@
 #!/bin/bash
 
-# =============================================================================
-# Pitchey Platform - Emergency Rollback System
-# =============================================================================
-# Comprehensive rollback system for the Pitchey platform with automated
-# detection, multi-level rollback strategies, and safety checks.
-#
-# Features:
-# - Automated health detection and rollback triggers
-# - Multi-level rollback (worker, frontend, database)
-# - Canary deployment rollback
-# - Database point-in-time recovery
-# - Configuration restoration
-# - Rollback verification and monitoring
-#
-# Usage:
-#   ./rollback-deployment.sh [auto|manual] [component] [--emergency] [--dry-run]
+# 🔄 Emergency Rollback System for Pitchey Production
+# This script provides emergency rollback capabilities for production deployment
 
 set -euo pipefail
-
-# Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-LOG_FILE="/var/log/pitchey-rollback.log"
-ROLLBACK_DATA_DIR="/var/lib/pitchey-rollback"
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
+YELLOW='\033[1;33m'
+BOLD='\033[1m'
 NC='\033[0m'
 
-# Rollback settings
-HEALTH_CHECK_TIMEOUT=300  # 5 minutes
-HEALTH_CHECK_INTERVAL=10  # 10 seconds
-ROLLBACK_CONFIRMATION_TIMEOUT=60  # 1 minute
-MAX_ROLLBACK_ATTEMPTS=3
+# Configuration
+WORKER_NAME="pitchey-optimized"
+FRONTEND_PROJECT="pitchey"
+WORKER_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+FRONTEND_URL="https://pitchey.pages.dev"
 
-# Create directories
-mkdir -p "$ROLLBACK_DATA_DIR"/{worker,frontend,database,configs}
-mkdir -p "$(dirname "$LOG_FILE")"
-
-# Logging function
-log() {
-    local level=$1
-    shift
-    local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
-    case $level in
-        ERROR)
-            echo -e "${RED}[ERROR]${NC} $message" >&2
-            echo "[$timestamp] [ERROR] $message" >> "$LOG_FILE"
-            ;;
-        WARN)
-            echo -e "${YELLOW}[WARN]${NC} $message"
-            echo "[$timestamp] [WARN] $message" >> "$LOG_FILE"
-            ;;
-        INFO)
-            echo -e "${GREEN}[INFO]${NC} $message"
-            echo "[$timestamp] [INFO] $message" >> "$LOG_FILE"
-            ;;
-        DEBUG)
-            echo -e "${BLUE}[DEBUG]${NC} $message"
-            echo "[$timestamp] [DEBUG] $message" >> "$LOG_FILE"
-            ;;
-        EMERGENCY)
-            echo -e "${PURPLE}[EMERGENCY]${NC} $message" >&2
-            echo "[$timestamp] [EMERGENCY] $message" >> "$LOG_FILE"
-            ;;
-    esac
-}
-
-# Parse command line arguments
-ROLLBACK_MODE="${1:-manual}"
-TARGET_COMPONENT="${2:-all}"
-EMERGENCY_MODE=false
+# Rollback options
+ROLLBACK_WORKER=false
+ROLLBACK_FRONTEND=false
+ROLLBACK_SECRETS=false
+ROLLBACK_ALL=false
 DRY_RUN=false
-FORCE_ROLLBACK=false
+FORCE=false
 
-for arg in "$@"; do
-    case $arg in
-        --emergency)
-            EMERGENCY_MODE=true
-            shift
-            ;;
-        --dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        --force)
-            FORCE_ROLLBACK=true
-            shift
-            ;;
-    esac
-done
+# Logging
+ROLLBACK_LOG="rollback-$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee -a "$ROLLBACK_LOG")
 
-# Health check function
-check_system_health() {
-    local component="${1:-all}"
-    log INFO "Checking system health for: $component"
-    
-    local health_status=0
-    
-    # Check frontend
-    if [ "$component" = "all" ] || [ "$component" = "frontend" ]; then
-        if ! curl -sf --max-time 10 "https://pitchey.pages.dev" > /dev/null 2>&1; then
-            log ERROR "Frontend health check failed"
-            health_status=1
-        else
-            log INFO "Frontend health check passed"
-        fi
-    fi
-    
-    # Check API worker
-    if [ "$component" = "all" ] || [ "$component" = "worker" ]; then
-        if ! curl -sf --max-time 10 "https://pitchey-production.cavelltheleaddev.workers.dev/api/health" > /dev/null 2>&1; then
-            log ERROR "Worker health check failed"
-            health_status=1
-        else
-            log INFO "Worker health check passed"
-        fi
-    fi
-    
-    # Check database connectivity
-    if [ "$component" = "all" ] || [ "$component" = "database" ]; then
-        if ! timeout 10 deno run --allow-env --allow-net -e "
-            import { neon } from 'https://deno.land/x/neon@0.2.0/mod.ts';
-            const sql = neon(Deno.env.get('DATABASE_URL'));
-            try {
-                await sql\`SELECT 1\`;
-                console.log('Database check passed');
-            } catch (error) {
-                console.error('Database check failed:', error.message);
-                Deno.exit(1);
-            }
-        " 2>/dev/null; then
-            log ERROR "Database health check failed"
-            health_status=1
-        else
-            log INFO "Database health check passed"
-        fi
-    fi
-    
-    return $health_status
+echo_header() {
+    echo -e "${RED}${BOLD}======================================${NC}"
+    echo -e "${RED}${BOLD}🚨 EMERGENCY ROLLBACK SYSTEM 🚨${NC}"
+    echo -e "${RED}${BOLD}======================================${NC}"
+    echo -e "${YELLOW}Account: cavelltheleaddev@gmail.com${NC}"
+    echo -e "${YELLOW}Platform: Cloudflare Workers + Pages${NC}"
+    echo -e "${YELLOW}Timestamp: $(date)${NC}"
+    echo -e "${YELLOW}Log: $ROLLBACK_LOG${NC}"
+    echo -e "${RED}${BOLD}======================================${NC}"
+    echo
 }
 
-# Save current deployment state
-save_deployment_state() {
-    log INFO "Saving current deployment state..."
+echo_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+echo_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+echo_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+echo_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+show_help() {
+    echo "🔄 Pitchey Emergency Rollback System"
+    echo
+    echo "USAGE:"
+    echo "  $0 [options]"
+    echo
+    echo "OPTIONS:"
+    echo "  --worker          Rollback Cloudflare Worker only"
+    echo "  --frontend        Rollback Cloudflare Pages frontend only"
+    echo "  --secrets         Reset worker secrets to safe defaults"
+    echo "  --all             Rollback everything (worker + frontend + secrets)"
+    echo "  --dry-run         Show what would be done without making changes"
+    echo "  --force           Skip confirmation prompts"
+    echo "  --help            Show this help message"
+    echo
+    echo "EXAMPLES:"
+    echo "  $0 --all                    # Full emergency rollback"
+    echo "  $0 --worker --dry-run       # Test worker rollback"
+    echo "  $0 --frontend --force       # Immediate frontend rollback"
+    echo
+    echo "EMERGENCY SCENARIOS:"
+    echo "  🔥 Site completely down     → Use --all"
+    echo "  ⚠️  API issues only         → Use --worker"
+    echo "  🎨 Frontend issues only     → Use --frontend"
+    echo "  🔐 Authentication broken    → Use --secrets"
+    echo
+}
+
+confirm_action() {
+    local action="$1"
     
-    local timestamp=$(date '+%Y%m%d_%H%M%S')
-    local state_dir="$ROLLBACK_DATA_DIR/state_$timestamp"
-    mkdir -p "$state_dir"
-    
-    # Save worker state
-    if command -v wrangler &> /dev/null; then
-        log INFO "Saving worker deployment state..."
-        wrangler deployments list --json > "$state_dir/worker_deployments.json" 2>/dev/null || true
-        cp "$PROJECT_ROOT/wrangler.toml" "$state_dir/wrangler.toml" 2>/dev/null || true
+    if [[ "$FORCE" == "true" ]]; then
+        echo_warning "Force mode enabled - skipping confirmation"
+        return 0
     fi
     
-    # Save frontend state
-    log INFO "Saving frontend deployment state..."
-    if [ -d "$PROJECT_ROOT/frontend/dist" ]; then
-        tar -czf "$state_dir/frontend_dist.tar.gz" -C "$PROJECT_ROOT/frontend" dist/ 2>/dev/null || true
+    echo
+    echo_warning "⚠️  CONFIRMATION REQUIRED ⚠️"
+    echo_warning "You are about to: $action"
+    echo_warning "This will affect PRODUCTION systems!"
+    echo
+    echo "Type 'ROLLBACK' to confirm (or Ctrl+C to cancel): "
+    read -r confirmation
+    
+    if [[ "$confirmation" != "ROLLBACK" ]]; then
+        echo_error "Rollback cancelled by user"
+        exit 1
     fi
     
-    # Save configuration
-    log INFO "Saving configuration state..."
-    cp "$PROJECT_ROOT/.env.production" "$state_dir/.env.production" 2>/dev/null || true
+    echo_info "Rollback confirmed. Proceeding..."
+}
+
+check_prerequisites() {
+    echo_info "Checking rollback prerequisites..."
     
-    # Save database schema
-    log INFO "Saving database schema..."
-    if [ -n "${DATABASE_URL:-}" ]; then
-        pg_dump --schema-only "$DATABASE_URL" > "$state_dir/schema.sql" 2>/dev/null || true
+    # Check wrangler CLI
+    if ! command -v wrangler &> /dev/null; then
+        echo_error "Wrangler CLI not found. Installing..."
+        npm install -g wrangler@latest || {
+            echo_error "Failed to install wrangler"
+            exit 1
+        }
     fi
     
-    # Create state metadata
-    cat > "$state_dir/metadata.json" << EOF
-{
-    "timestamp": "$timestamp",
-    "git_commit": "$(git rev-parse HEAD 2>/dev/null || echo 'unknown')",
-    "git_branch": "$(git branch --show-current 2>/dev/null || echo 'unknown')",
-    "created_by": "$(whoami)@$(hostname)",
-    "deployment_target": "$TARGET_COMPONENT"
+    # Check authentication
+    if ! wrangler auth whoami &> /dev/null; then
+        echo_error "Not authenticated with Cloudflare"
+        echo_error "Please run: wrangler auth login"
+        exit 1
+    fi
+    
+    # Check git
+    if ! command -v git &> /dev/null; then
+        echo_error "Git not found. Some rollback operations may not work."
+    fi
+    
+    echo_success "Prerequisites check passed"
+}
+
+get_worker_versions() {
+    echo_info "Fetching worker deployment history..."
+    
+    # Get deployment versions from Cloudflare
+    local versions
+    if versions=$(wrangler deployments list 2>/dev/null); then
+        echo_info "Available worker versions:"
+        echo "$versions" | head -10
+        return 0
+    else
+        echo_warning "Could not fetch worker deployment history"
+        return 1
+    fi
+}
+
+rollback_worker_to_previous() {
+    echo_info "Rolling back Cloudflare Worker..."
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo_info "[DRY RUN] Would rollback worker to previous version"
+        return 0
+    fi
+    
+    # Method 1: Try to rollback to previous deployment
+    if wrangler rollback 2>/dev/null; then
+        echo_success "Worker rolled back to previous version"
+        return 0
+    fi
+    
+    echo_warning "Direct rollback failed. Deploying emergency worker..."
+    deploy_emergency_worker
+}
+
+deploy_emergency_worker() {
+    echo_info "Deploying emergency minimal worker..."
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo_info "[DRY RUN] Would deploy emergency worker"
+        return 0
+    fi
+    
+    # Create minimal emergency worker
+    local emergency_worker="/tmp/emergency-worker.ts"
+    cat > "$emergency_worker" << 'EOF'
+/**
+ * Emergency Minimal Worker for Pitchey Platform
+ */
+
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request))
+})
+
+async function handleRequest(request: Request): Promise<Response> {
+  const url = new URL(request.url)
+  
+  // Health check endpoint
+  if (url.pathname === '/api/health') {
+    return new Response(JSON.stringify({
+      status: 'maintenance',
+      message: 'System is under maintenance. Please try again later.',
+      timestamp: new Date().toISOString()
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+  }
+  
+  // All other requests return maintenance message
+  if (url.pathname.startsWith('/api/')) {
+    return new Response(JSON.stringify({
+      error: 'Service temporarily unavailable',
+      message: 'The service is currently under maintenance. Please try again later.',
+      code: 'MAINTENANCE_MODE'
+    }), {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      }
+    })
+  }
+  
+  // Return maintenance page for all other requests
+  return new Response(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Maintenance - Pitchey Platform</title>
+      <style>
+        body { font-family: system-ui; text-align: center; padding: 50px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; }
+        h1 { color: #e74c3c; margin-bottom: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>🔧 Maintenance Mode</h1>
+        <p>The Pitchey platform is currently undergoing maintenance.</p>
+        <p>Please check back in a few minutes.</p>
+        <p><small>Last Update: ${new Date().toLocaleString()}</small></p>
+      </div>
+    </body>
+    </html>
+  `, {
+    headers: {
+      'Content-Type': 'text/html',
+    }
+  })
 }
 EOF
     
-    echo "$state_dir"
-}
-
-# Get previous deployment state
-get_previous_deployment() {
-    local target_timestamp="$1"
-    
-    if [ -n "$target_timestamp" ]; then
-        local state_dir="$ROLLBACK_DATA_DIR/state_$target_timestamp"
-        if [ -d "$state_dir" ]; then
-            echo "$state_dir"
-            return 0
-        fi
+    # Backup current worker file
+    if [[ -f "src/worker-platform-fixed.ts" ]]; then
+        cp "src/worker-platform-fixed.ts" "src/worker-platform-fixed.ts.backup-$(date +%s)"
+        echo_info "Current worker backed up"
     fi
     
-    # Find the latest state
-    local latest_state=$(ls -1t "$ROLLBACK_DATA_DIR"/state_* 2>/dev/null | head -n1)
-    if [ -n "$latest_state" ] && [ -d "$latest_state" ]; then
-        echo "$latest_state"
-        return 0
-    fi
+    # Deploy emergency worker
+    cp "$emergency_worker" "src/worker-platform-fixed.ts"
     
-    log ERROR "No previous deployment state found"
-    return 1
-}
-
-# Rollback worker deployment
-rollback_worker() {
-    local previous_state_dir="$1"
-    
-    log INFO "Rolling back worker deployment..."
-    
-    if [ "$DRY_RUN" = true ]; then
-        log INFO "[DRY RUN] Would rollback worker deployment"
-        return 0
-    fi
-    
-    # Method 1: Use wrangler rollback if available
-    if wrangler rollback --help &>/dev/null; then
-        log INFO "Using wrangler rollback..."
-        if wrangler rollback --name pitchey-optimized; then
-            log INFO "Worker rollback via wrangler completed"
-            return 0
-        else
-            log WARN "Wrangler rollback failed, trying manual method"
-        fi
-    fi
-    
-    # Method 2: Redeploy from Git
-    if [ -f "$previous_state_dir/metadata.json" ]; then
-        local previous_commit=$(jq -r .git_commit "$previous_state_dir/metadata.json" 2>/dev/null)
-        
-        if [ "$previous_commit" != "unknown" ] && [ "$previous_commit" != "null" ]; then
-            log INFO "Deploying worker from commit: $previous_commit"
-            
-            # Checkout previous commit
-            local current_branch=$(git branch --show-current)
-            git checkout "$previous_commit" -- src/worker-platform-complete.ts
-            
-            # Deploy
-            wrangler deploy --minify
-            
-            # Restore current branch
-            git checkout "$current_branch" -- src/worker-platform-complete.ts
-            
-            log INFO "Worker rollback from Git completed"
-            return 0
-        fi
-    fi
-    
-    log ERROR "Worker rollback failed - no suitable method available"
-    return 1
-}
-
-# Rollback frontend deployment
-rollback_frontend() {
-    local previous_state_dir="$1"
-    
-    log INFO "Rolling back frontend deployment..."
-    
-    if [ "$DRY_RUN" = true ]; then
-        log INFO "[DRY RUN] Would rollback frontend deployment"
-        return 0
-    fi
-    
-    # Method 1: Deploy from saved build
-    if [ -f "$previous_state_dir/frontend_dist.tar.gz" ]; then
-        log INFO "Deploying frontend from saved build..."
-        
-        # Extract previous build
-        local temp_dir=$(mktemp -d)
-        tar -xzf "$previous_state_dir/frontend_dist.tar.gz" -C "$temp_dir"
-        
-        # Deploy to Cloudflare Pages
-        cd "$PROJECT_ROOT/frontend"
-        wrangler pages deploy "$temp_dir/dist" \
-            --project-name=pitchey \
-            --branch=rollback \
-            --compatibility-date=2024-11-01
-        
-        # Cleanup
-        rm -rf "$temp_dir"
-        
-        log INFO "Frontend rollback from saved build completed"
-        return 0
-    fi
-    
-    # Method 2: Rebuild from Git
-    if [ -f "$previous_state_dir/metadata.json" ]; then
-        local previous_commit=$(jq -r .git_commit "$previous_state_dir/metadata.json" 2>/dev/null)
-        
-        if [ "$previous_commit" != "unknown" ] && [ "$previous_commit" != "null" ]; then
-            log INFO "Rebuilding frontend from commit: $previous_commit"
-            
-            # Checkout previous commit
-            local current_branch=$(git branch --show-current)
-            git checkout "$previous_commit" -- frontend/
-            
-            # Build and deploy
-            cd "$PROJECT_ROOT/frontend"
-            npm ci
-            npm run build:prod
-            wrangler pages deploy dist --project-name=pitchey
-            
-            # Restore current branch
-            git checkout "$current_branch" -- frontend/
-            
-            log INFO "Frontend rollback from Git completed"
-            return 0
-        fi
-    fi
-    
-    log ERROR "Frontend rollback failed - no suitable method available"
-    return 1
-}
-
-# Rollback database (point-in-time recovery)
-rollback_database() {
-    local target_time="$1"
-    
-    log EMERGENCY "Database rollback requested - THIS WILL CAUSE DATA LOSS!"
-    
-    if [ "$DRY_RUN" = true ]; then
-        log INFO "[DRY RUN] Would perform database point-in-time recovery to: $target_time"
-        return 0
-    fi
-    
-    if [ "$EMERGENCY_MODE" = false ]; then
-        echo
-        echo -e "${RED}⚠️  DATABASE ROLLBACK WARNING ⚠️${NC}"
-        echo "This operation will restore the database to a previous state."
-        echo "ALL DATA CREATED AFTER THE ROLLBACK POINT WILL BE LOST!"
-        echo
-        echo "Target time: $target_time"
-        echo
-        read -p "Type 'CONFIRM DATABASE ROLLBACK' to proceed: " confirmation
-        
-        if [ "$confirmation" != "CONFIRM DATABASE ROLLBACK" ]; then
-            log INFO "Database rollback cancelled by user"
-            return 0
-        fi
-    fi
-    
-    # Use backup system for database rollback
-    if [ -f "$SCRIPT_DIR/backup-disaster-recovery.sh" ]; then
-        log INFO "Using backup system for database rollback..."
-        
-        # Find closest backup to target time
-        local backup_file=""
-        for backup in "$ROLLBACK_DATA_DIR"/database/*.sql.gz*; do
-            if [ -f "$backup" ]; then
-                backup_file="$backup"
-                break
-            fi
-        done
-        
-        if [ -n "$backup_file" ]; then
-            log INFO "Restoring database from backup: $backup_file"
-            "$SCRIPT_DIR/backup-disaster-recovery.sh" restore "$backup_file"
-        else
-            log ERROR "No suitable database backup found for rollback"
-            return 1
-        fi
+    if wrangler deploy; then
+        echo_success "Emergency worker deployed successfully"
+        echo_warning "System is now in maintenance mode"
     else
-        log ERROR "Backup system not available for database rollback"
+        echo_error "Failed to deploy emergency worker"
         return 1
     fi
+    
+    # Cleanup
+    rm -f "$emergency_worker"
 }
 
-# Automated rollback decision engine
-auto_rollback_decision() {
-    log INFO "Running automated rollback decision engine..."
+rollback_frontend() {
+    echo_info "Rolling back Cloudflare Pages frontend..."
     
-    # Check error rates
-    local error_count=0
-    
-    # Check recent logs for errors
-    if [ -f "$LOG_FILE" ]; then
-        local recent_errors=$(tail -n 100 "$LOG_FILE" | grep -c '\[ERROR\]' || true)
-        if [ "$recent_errors" -gt 10 ]; then
-            log WARN "High error rate detected: $recent_errors errors in recent logs"
-            error_count=$((error_count + 1))
-        fi
-    fi
-    
-    # Check health endpoints
-    local failed_health_checks=0
-    
-    # Frontend health
-    if ! curl -sf --max-time 5 "https://pitchey.pages.dev" > /dev/null 2>&1; then
-        failed_health_checks=$((failed_health_checks + 1))
-    fi
-    
-    # API health
-    if ! curl -sf --max-time 5 "https://pitchey-production.cavelltheleaddev.workers.dev/api/health" > /dev/null 2>&1; then
-        failed_health_checks=$((failed_health_checks + 1))
-    fi
-    
-    # Decision logic
-    local rollback_score=$((error_count + failed_health_checks))
-    
-    if [ "$rollback_score" -ge 2 ]; then
-        log EMERGENCY "Automated rollback triggered! Score: $rollback_score"
-        return 0  # Trigger rollback
-    else
-        log INFO "System appears stable. Rollback not triggered. Score: $rollback_score"
-        return 1  # Don't rollback
-    fi
-}
-
-# Send rollback notifications
-send_rollback_notification() {
-    local status="$1"
-    local component="$2"
-    local details="$3"
-    
-    local message="🔄 Pitchey Platform Rollback - $status"
-    
-    # Send to Slack if configured
-    if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
-        curl -X POST "$SLACK_WEBHOOK_URL" \
-            -H 'Content-type: application/json' \
-            -d "{\"text\":\"$message\n\nComponent: $component\nDetails: $details\nTime: $(date)\"}" \
-            --silent --fail || true
-    fi
-    
-    # Send email if configured
-    if [ -n "${ALERT_EMAIL:-}" ]; then
-        {
-            echo "Subject: [URGENT] Pitchey Platform Rollback - $status"
-            echo "To: $ALERT_EMAIL"
-            echo ""
-            echo "Rollback Status: $status"
-            echo "Component: $component"
-            echo "Details: $details"
-            echo "Timestamp: $(date)"
-            echo ""
-            echo "Please verify system status and take appropriate action."
-        } | sendmail "$ALERT_EMAIL" 2>/dev/null || true
-    fi
-}
-
-# Wait for rollback confirmation
-wait_for_confirmation() {
-    local component="$1"
-    
-    if [ "$FORCE_ROLLBACK" = true ] || [ "$EMERGENCY_MODE" = true ]; then
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo_info "[DRY RUN] Would rollback frontend to previous deployment"
         return 0
     fi
     
-    echo
-    echo -e "${YELLOW}⚠️  ROLLBACK CONFIRMATION REQUIRED ⚠️${NC}"
-    echo "Component: $component"
-    echo "This operation will rollback the deployment to a previous state."
-    echo
+    echo_info "Deploying emergency maintenance page..."
+    deploy_emergency_frontend
+}
+
+deploy_emergency_frontend() {
+    echo_info "Deploying emergency maintenance frontend..."
     
-    local countdown=$ROLLBACK_CONFIRMATION_TIMEOUT
-    while [ $countdown -gt 0 ]; do
-        echo -ne "\rConfirm rollback in $countdown seconds... (y/N): "
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo_info "[DRY RUN] Would deploy emergency maintenance page"
+        return 0
+    fi
+    
+    # Create emergency maintenance page
+    local emergency_dir="/tmp/emergency-frontend"
+    mkdir -p "$emergency_dir"
+    
+    cat > "$emergency_dir/index.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance - Pitchey Platform</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 20px; }
+        .emoji { font-size: 4rem; margin-bottom: 20px; }
+        p { font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px; }
+        .status-box { background: rgba(255, 255, 255, 0.2); border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .btn { background: #00b4db; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1rem; cursor: pointer; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emoji">🔧</div>
+        <h1>We'll be right back!</h1>
+        <p>The Pitchey platform is currently undergoing maintenance to improve your experience.</p>
         
-        if read -t 1 -n 1 response; then
-            echo
-            case $response in
-                [Yy])
-                    log INFO "Rollback confirmed by user"
-                    return 0
-                    ;;
-                [Nn])
-                    log INFO "Rollback cancelled by user"
-                    return 1
-                    ;;
-            esac
-        fi
+        <div class="status-box">
+            <p><strong>Status:</strong> Under Maintenance</p>
+            <p><strong>Started:</strong> <span id="maintenance-time"></span></p>
+            <p><strong>Expected:</strong> Shortly</p>
+        </div>
         
-        countdown=$((countdown - 1))
+        <p>Thank you for your patience. The platform will return to normal service soon.</p>
+        
+        <button class="btn" onclick="window.location.reload()">🔄 Refresh Page</button>
+    </div>
+    
+    <script>
+        document.getElementById('maintenance-time').textContent = new Date().toLocaleString();
+        setTimeout(() => window.location.reload(), 60000);
+    </script>
+</body>
+</html>
+EOF
+    
+    # Deploy emergency frontend
+    if wrangler pages deploy "$emergency_dir" --project-name="$FRONTEND_PROJECT"; then
+        echo_success "Emergency maintenance page deployed"
+        echo_warning "Frontend is now showing maintenance page"
+    else
+        echo_error "Failed to deploy emergency maintenance page"
+        return 1
+    fi
+    
+    # Cleanup
+    rm -rf "$emergency_dir"
+}
+
+reset_worker_secrets() {
+    echo_info "Resetting worker secrets to safe defaults..."
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo_info "[DRY RUN] Would reset worker secrets"
+        return 0
+    fi
+    
+    # Reset to safe default secrets
+    echo_warning "Setting emergency secrets configuration..."
+    
+    # Disable database in emergency mode
+    echo "false" | wrangler secret put USE_DATABASE || true
+    echo "false" | wrangler secret put USE_EMAIL || true
+    echo "false" | wrangler secret put USE_STORAGE || true
+    
+    # Set a temporary JWT secret (will force re-login)
+    echo "emergency_jwt_secret_$(date +%s)" | wrangler secret put JWT_SECRET || true
+    
+    echo_success "Worker secrets reset to emergency configuration"
+    echo_warning "This will log out all users and disable some features"
+}
+
+generate_rollback_report() {
+    local report_file="rollback-report-$(date +%Y%m%d_%H%M%S).md"
+    
+    cat > "$report_file" << EOF
+# 🔄 Pitchey Emergency Rollback Report
+
+**Date**: $(date)  
+**Account**: cavelltheleaddev@gmail.com  
+
+## 🚨 Rollback Summary
+
+### Actions Taken
+- **Worker Rollback**: $([[ "$ROLLBACK_WORKER" == "true" ]] && echo "✅ Executed" || echo "❌ Skipped")
+- **Frontend Rollback**: $([[ "$ROLLBACK_FRONTEND" == "true" ]] && echo "✅ Executed" || echo "❌ Skipped")
+- **Secrets Reset**: $([[ "$ROLLBACK_SECRETS" == "true" ]] && echo "✅ Executed" || echo "❌ Skipped")
+
+### Next Steps
+1. Investigate root cause
+2. Fix problems in codebase
+3. Test thoroughly
+4. Deploy fixed version
+5. Monitor after restoration
+
+### Recovery Commands
+\`\`\`bash
+# Test current status
+curl $WORKER_URL/api/health
+
+# Deploy fixed version
+./deploy-production-orchestrated.sh
+\`\`\`
+
+---
+**Status**: 🔄 System Rolled Back
+EOF
+
+    echo_success "Rollback report generated: $report_file"
+}
+
+main() {
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --worker)
+                ROLLBACK_WORKER=true
+                shift
+                ;;
+            --frontend)
+                ROLLBACK_FRONTEND=true
+                shift
+                ;;
+            --secrets)
+                ROLLBACK_SECRETS=true
+                shift
+                ;;
+            --all)
+                ROLLBACK_ALL=true
+                ROLLBACK_WORKER=true
+                ROLLBACK_FRONTEND=true
+                ROLLBACK_SECRETS=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --force)
+                FORCE=true
+                shift
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                echo_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
     done
     
+    # If no specific options provided, show help
+    if [[ "$ROLLBACK_WORKER" == "false" && "$ROLLBACK_FRONTEND" == "false" && "$ROLLBACK_SECRETS" == "false" ]]; then
+        show_help
+        exit 1
+    fi
+    
+    # Display header
+    echo_header
+    
+    # Show what will be done
+    echo_info "Rollback plan:"
+    [[ "$ROLLBACK_WORKER" == "true" ]] && echo_info "  ✅ Rollback Cloudflare Worker"
+    [[ "$ROLLBACK_FRONTEND" == "true" ]] && echo_info "  ✅ Rollback Cloudflare Pages"
+    [[ "$ROLLBACK_SECRETS" == "true" ]] && echo_info "  ✅ Reset Worker Secrets"
+    [[ "$DRY_RUN" == "true" ]] && echo_warning "  🧪 DRY RUN MODE (no changes)"
     echo
-    log INFO "Rollback confirmation timeout - operation cancelled"
-    return 1
-}
-
-# Main rollback orchestrator
-execute_rollback() {
-    local component="$1"
-    local rollback_reason="$2"
     
-    log INFO "Starting rollback process for: $component"
-    log INFO "Rollback reason: $rollback_reason"
+    # Confirm action
+    local action_description="rollback production systems"
+    [[ "$DRY_RUN" == "true" ]] && action_description="simulate rollback (dry run)"
+    confirm_action "$action_description"
     
-    # Save current state before rollback
-    local current_state=$(save_deployment_state)
-    log INFO "Current state saved to: $current_state"
+    # Check prerequisites
+    check_prerequisites
     
-    # Get previous deployment state
-    local previous_state=$(get_previous_deployment)
-    if [ $? -ne 0 ]; then
-        log ERROR "Cannot proceed with rollback - no previous state found"
-        return 1
-    fi
-    
-    log INFO "Rolling back to state: $previous_state"
-    
-    # Confirm rollback
-    if ! wait_for_confirmation "$component"; then
-        log INFO "Rollback cancelled"
-        return 1
-    fi
-    
+    # Execute rollback operations
     local rollback_success=true
     
-    # Execute component-specific rollback
-    case $component in
-        worker)
-            if ! rollback_worker "$previous_state"; then
-                rollback_success=false
-            fi
-            ;;
-        frontend)
-            if ! rollback_frontend "$previous_state"; then
-                rollback_success=false
-            fi
-            ;;
-        database)
-            if ! rollback_database "$(jq -r .timestamp "$previous_state/metadata.json")"; then
-                rollback_success=false
-            fi
-            ;;
-        all)
-            # Rollback in reverse order: database -> worker -> frontend
-            if [ "$TARGET_COMPONENT" = "all" ]; then
-                if ! rollback_worker "$previous_state"; then
-                    rollback_success=false
-                fi
-                
-                if ! rollback_frontend "$previous_state"; then
-                    rollback_success=false
-                fi
-            fi
-            ;;
-        *)
-            log ERROR "Unknown component: $component"
-            rollback_success=false
-            ;;
-    esac
+    if [[ "$ROLLBACK_SECRETS" == "true" ]]; then
+        echo_info "=== RESETTING SECRETS ==="
+        reset_worker_secrets || rollback_success=false
+        echo
+    fi
     
-    # Verify rollback
-    if [ "$rollback_success" = true ] && [ "$DRY_RUN" = false ]; then
-        log INFO "Waiting for services to stabilize..."
-        sleep 30
-        
-        if check_system_health "$component"; then
-            log INFO "Rollback completed successfully - system health verified"
-            send_rollback_notification "SUCCESS" "$component" "$rollback_reason"
+    if [[ "$ROLLBACK_WORKER" == "true" ]]; then
+        echo_info "=== ROLLING BACK WORKER ==="
+        rollback_worker_to_previous || rollback_success=false
+        echo
+    fi
+    
+    if [[ "$ROLLBACK_FRONTEND" == "true" ]]; then
+        echo_info "=== ROLLING BACK FRONTEND ==="
+        rollback_frontend || rollback_success=false
+        echo
+    fi
+    
+    # Generate report
+    generate_rollback_report
+    
+    # Final status
+    echo
+    if [[ "$rollback_success" == "true" ]]; then
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo_success "🧪 Dry run completed successfully!"
         else
-            log ERROR "Rollback completed but health checks failed"
-            send_rollback_notification "PARTIAL SUCCESS" "$component" "$rollback_reason - Health checks failed"
-            rollback_success=false
+            echo_success "🔄 Rollback completed successfully!"
+            echo_warning "⚠️  System may be in maintenance mode"
         fi
-    elif [ "$rollback_success" = false ]; then
-        log ERROR "Rollback failed"
-        send_rollback_notification "FAILED" "$component" "$rollback_reason - Rollback operations failed"
+    else
+        echo_error "❌ Rollback encountered errors"
+        exit 1
     fi
     
-    return $([ "$rollback_success" = true ] && echo 0 || echo 1)
+    echo_info "📋 Rollback log: $ROLLBACK_LOG"
+    echo_info "🔍 Monitor: curl $WORKER_URL/api/health"
 }
 
-# Show rollback status and options
-show_rollback_status() {
-    echo
-    echo "🔄 Pitchey Platform Rollback System"
-    echo "=================================="
-    echo
-    echo "Current System Health:"
-    
-    # Check each component
-    if curl -sf --max-time 5 "https://pitchey.pages.dev" > /dev/null 2>&1; then
-        echo "  Frontend: ✅ Healthy"
-    else
-        echo "  Frontend: ❌ Unhealthy"
-    fi
-    
-    if curl -sf --max-time 5 "https://pitchey-production.cavelltheleaddev.workers.dev/api/health" > /dev/null 2>&1; then
-        echo "  Worker: ✅ Healthy"
-    else
-        echo "  Worker: ❌ Unhealthy"
-    fi
-    
-    if timeout 5 deno run --allow-env --allow-net -e "
-        import { neon } from 'https://deno.land/x/neon@0.2.0/mod.ts';
-        const sql = neon(Deno.env.get('DATABASE_URL'));
-        await sql\`SELECT 1\`;
-    " 2>/dev/null; then
-        echo "  Database: ✅ Healthy"
-    else
-        echo "  Database: ❌ Unhealthy"
-    fi
-    
-    echo
-    echo "Available Rollback States:"
-    
-    local count=0
-    for state_dir in "$ROLLBACK_DATA_DIR"/state_*; do
-        if [ -d "$state_dir" ] && [ -f "$state_dir/metadata.json" ]; then
-            local timestamp=$(jq -r .timestamp "$state_dir/metadata.json" 2>/dev/null)
-            local commit=$(jq -r .git_commit "$state_dir/metadata.json" 2>/dev/null)
-            local branch=$(jq -r .git_branch "$state_dir/metadata.json" 2>/dev/null)
-            
-            echo "  $((count + 1)). $timestamp (commit: ${commit:0:8}, branch: $branch)"
-            count=$((count + 1))
-            
-            if [ $count -ge 5 ]; then
-                break
-            fi
-        fi
-    done
-    
-    if [ $count -eq 0 ]; then
-        echo "  No rollback states available"
-    fi
-    
-    echo
-}
-
-# Main function
-main() {
-    log INFO "Rollback system started - Mode: $ROLLBACK_MODE, Component: $TARGET_COMPONENT"
-    
-    # Load environment variables
-    if [ -f "$PROJECT_ROOT/.env.production" ]; then
-        set -a
-        source "$PROJECT_ROOT/.env.production"
-        set +a
-    fi
-    
-    case $ROLLBACK_MODE in
-        auto)
-            log INFO "Running automatic rollback detection..."
-            
-            if auto_rollback_decision; then
-                execute_rollback "$TARGET_COMPONENT" "Automated rollback triggered by health checks"
-            else
-                log INFO "No rollback required - system appears healthy"
-            fi
-            ;;
-        manual)
-            if [ "$TARGET_COMPONENT" = "status" ]; then
-                show_rollback_status
-            else
-                execute_rollback "$TARGET_COMPONENT" "Manual rollback requested"
-            fi
-            ;;
-        emergency)
-            log EMERGENCY "Emergency rollback mode activated"
-            EMERGENCY_MODE=true
-            FORCE_ROLLBACK=true
-            execute_rollback "$TARGET_COMPONENT" "EMERGENCY ROLLBACK"
-            ;;
-        *)
-            echo "Usage: $0 {auto|manual|emergency} {worker|frontend|database|all|status} [--emergency] [--dry-run] [--force]"
-            echo
-            echo "Modes:"
-            echo "  auto      - Automatic rollback based on health checks"
-            echo "  manual    - Manual rollback with confirmation"
-            echo "  emergency - Emergency rollback without confirmation"
-            echo
-            echo "Components:"
-            echo "  worker    - Rollback Cloudflare Worker"
-            echo "  frontend  - Rollback frontend deployment"
-            echo "  database  - Rollback database (DANGEROUS)"
-            echo "  all       - Rollback all components"
-            echo "  status    - Show system status and available rollback points"
-            echo
-            echo "Options:"
-            echo "  --emergency  - Skip confirmations"
-            echo "  --dry-run    - Show what would be done"
-            echo "  --force      - Force rollback without health checks"
-            exit 1
-            ;;
-    esac
-}
+# Handle script interruption
+trap 'echo_error "Rollback interrupted"; exit 1' INT TERM
 
 # Run main function
 main "$@"

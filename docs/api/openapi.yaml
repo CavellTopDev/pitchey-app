@@ -1,0 +1,2383 @@
+openapi: 3.0.3
+info:
+  title: Pitchey API
+  description: |
+    Comprehensive API for the Pitchey movie pitch platform that connects creators, investors, and production companies.
+    
+    ## Features
+    - Multi-portal authentication (Creator, Investor, Production Company)
+    - Pitch management with rich media support
+    - Real-time messaging and notifications
+    - NDA workflows and secure document sharing
+    - Investment tracking and portfolio management
+    - Advanced search and analytics
+    - WebSocket support for real-time features
+    
+    ## Authentication
+    The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer YOUR_JWT_TOKEN
+    ```
+    
+    ## Rate Limiting
+    - Standard endpoints: 100 requests per minute per user
+    - Upload endpoints: 10 requests per minute per user
+    - WebSocket connections: 5 concurrent connections per user
+    
+    ## API Versions
+    - Current version: v1 (production ready)
+    - Base URL: https://pitchey-production.cavelltheleaddev.workers.dev
+    - Local development: http://localhost:8001
+  version: "1.0.0"
+  contact:
+    name: Pitchey Development Team
+    email: developers@pitchey.com
+    url: https://pitchey.com/developers
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://pitchey.com/terms
+
+servers:
+  - url: https://pitchey-production.cavelltheleaddev.workers.dev
+    description: Production server (Cloudflare Workers)
+  - url: http://localhost:8001
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoints
+
+  schemas:
+    # Common schemas
+    Error:
+      type: object
+      required:
+        - error
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Error message
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+
+    ValidationError:
+      type: object
+      required:
+        - error
+        - validation_errors
+        - timestamp
+      properties:
+        error:
+          type: string
+          example: "Validation failed"
+        validation_errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        total:
+          type: integer
+          example: 150
+        totalPages:
+          type: integer
+          example: 8
+        hasNext:
+          type: boolean
+          example: true
+        hasPrevious:
+          type: boolean
+          example: false
+
+    # User schemas
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - username
+        - userType
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 123
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        username:
+          type: string
+          example: "moviemaker2024"
+        userType:
+          type: string
+          enum: [creator, investor, production, admin, viewer]
+          example: "creator"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        phone:
+          type: string
+          example: "+1234567890"
+        location:
+          type: string
+          example: "Los Angeles, CA"
+        bio:
+          type: string
+          example: "Independent filmmaker with 10 years of experience"
+        website:
+          type: string
+          format: uri
+          example: "https://johndoefilms.com"
+        avatar_url:
+          type: string
+          format: uri
+          example: "https://storage.pitchey.com/avatars/user123.jpg"
+        companyName:
+          type: string
+          example: "Independent Films LLC"
+        companyWebsite:
+          type: string
+          format: uri
+          example: "https://independentfilms.com"
+        emailVerified:
+          type: boolean
+          example: true
+        companyVerified:
+          type: boolean
+          example: false
+        isActive:
+          type: boolean
+          example: true
+        subscriptionTier:
+          type: string
+          enum: [free, pro, enterprise]
+          example: "pro"
+        lastLoginAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserPreferences:
+      type: object
+      properties:
+        email_notifications:
+          type: boolean
+          example: true
+        marketing_emails:
+          type: boolean
+          example: false
+        privacy_settings:
+          type: object
+          example: {"showEmail": false, "showPhone": true}
+        preferred_genres:
+          type: array
+          items:
+            type: string
+          example: ["action", "thriller", "sci-fi"]
+        preferred_formats:
+          type: array
+          items:
+            type: string
+          example: ["feature", "short", "series"]
+        preferred_budget_ranges:
+          type: array
+          items:
+            type: string
+          example: ["1M-5M", "5M-20M"]
+        notification_frequency:
+          type: string
+          enum: [real-time, daily, weekly, monthly]
+          example: "daily"
+
+    # Pitch schemas
+    Pitch:
+      type: object
+      required:
+        - id
+        - userId
+        - title
+        - logline
+        - genre
+        - format
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 456
+        userId:
+          type: integer
+          example: 123
+        title:
+          type: string
+          example: "The Last Star"
+        logline:
+          type: string
+          example: "A space exploration thriller about humanity's last chance to find a new home"
+        description:
+          type: string
+          example: "Detailed description of the movie concept..."
+        genre:
+          type: string
+          example: "Sci-Fi Thriller"
+        format:
+          type: string
+          enum: [feature, short, series, documentary, animation]
+          example: "feature"
+        formatCategory:
+          type: string
+          example: "narrative"
+        shortSynopsis:
+          type: string
+          example: "Brief synopsis of the story..."
+        longSynopsis:
+          type: string
+          example: "Detailed synopsis with character arcs..."
+        targetAudience:
+          type: string
+          example: "Adults 25-54, sci-fi enthusiasts"
+        characters:
+          type: string
+          example: "Main character descriptions..."
+        themes:
+          type: string
+          example: "Hope, survival, human nature"
+        worldDescription:
+          type: string
+          example: "Description of the world and setting..."
+        budgetRange:
+          type: string
+          example: "5M-20M"
+        estimatedBudget:
+          type: number
+          example: 15000000
+        stage:
+          type: string
+          enum: [concept, treatment, script, pre-production, production, post-production, distribution]
+          example: "script"
+        videoUrl:
+          type: string
+          format: uri
+          example: "https://storage.pitchey.com/videos/pitch456.mp4"
+        posterUrl:
+          type: string
+          format: uri
+          example: "https://storage.pitchey.com/posters/pitch456.jpg"
+        pitchDeckUrl:
+          type: string
+          format: uri
+          example: "https://storage.pitchey.com/decks/pitch456.pdf"
+        visibility:
+          type: string
+          enum: [public, private, nda_required]
+          example: "public"
+        status:
+          type: string
+          enum: [active, archived, under_review, rejected]
+          example: "active"
+        viewCount:
+          type: integer
+          example: 1250
+        likeCount:
+          type: integer
+          example: 89
+        ndaCount:
+          type: integer
+          example: 12
+        requireNda:
+          type: boolean
+          example: false
+        seekingInvestment:
+          type: boolean
+          example: true
+        productionStage:
+          type: string
+          example: "pre-production"
+        publishedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/User'
+
+    PitchList:
+      type: object
+      properties:
+        pitches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pitch'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # Authentication schemas
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+        expires_in:
+          type: integer
+          example: 3600
+          description: Token expiration time in seconds
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - username
+        - password
+        - userType
+      properties:
+        email:
+          type: string
+          format: email
+          example: "newuser@example.com"
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "newfilmmaker"
+        password:
+          type: string
+          minLength: 8
+          example: "securePassword123"
+        userType:
+          type: string
+          enum: [creator, investor, production]
+          example: "creator"
+        firstName:
+          type: string
+          example: "Jane"
+        lastName:
+          type: string
+          example: "Smith"
+        companyName:
+          type: string
+          example: "Smith Productions"
+
+    # NDA schemas
+    NDA:
+      type: object
+      required:
+        - id
+        - pitchId
+        - userId
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 789
+        pitchId:
+          type: integer
+          example: 456
+        userId:
+          type: integer
+          example: 123
+        signerId:
+          type: integer
+          example: 124
+        status:
+          type: string
+          enum: [pending, approved, rejected, signed, expired]
+          example: "signed"
+        ndaType:
+          type: string
+          enum: [basic, custom, mutual]
+          example: "basic"
+        accessGranted:
+          type: boolean
+          example: true
+        signedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        documentUrl:
+          type: string
+          format: uri
+          example: "https://storage.pitchey.com/ndas/nda789.pdf"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Message schemas
+    Message:
+      type: object
+      required:
+        - id
+        - senderId
+        - receiverId
+        - content
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 987
+        conversationId:
+          type: integer
+          example: 111
+        senderId:
+          type: integer
+          example: 123
+        receiverId:
+          type: integer
+          example: 124
+        subject:
+          type: string
+          example: "Interest in your project"
+        content:
+          type: string
+          example: "Hi, I'm interested in learning more about your project..."
+        messageType:
+          type: string
+          enum: [text, pitch_share, nda_request, system]
+          example: "text"
+        pitchId:
+          type: integer
+          example: 456
+        read:
+          type: boolean
+          example: false
+        readAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      required:
+        - id
+        - participants
+        - lastMessage
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 111
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        lastMessage:
+          $ref: '#/components/schemas/Message'
+        unreadCount:
+          type: integer
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Notification schemas
+    Notification:
+      type: object
+      required:
+        - id
+        - userId
+        - type
+        - title
+        - message
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 555
+        userId:
+          type: integer
+          example: 123
+        type:
+          type: string
+          enum: [message, nda_request, pitch_like, follow, system, investment]
+          example: "message"
+        title:
+          type: string
+          example: "New message from Sarah Investor"
+        message:
+          type: string
+          example: "You have received a new message about your pitch 'The Last Star'"
+        data:
+          type: object
+          example: {"pitchId": 456, "senderId": 124}
+        relatedId:
+          type: integer
+          example: 987
+        relatedType:
+          type: string
+          example: "message"
+        read:
+          type: boolean
+          example: false
+        readAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    # Investment schemas
+    Investment:
+      type: object
+      required:
+        - id
+        - investorId
+        - pitchId
+        - amount
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 333
+        investorId:
+          type: integer
+          example: 124
+        pitchId:
+          type: integer
+          example: 456
+        amount:
+          type: number
+          example: 500000
+        currentValue:
+          type: number
+          example: 525000
+        status:
+          type: string
+          enum: [pending, confirmed, completed, cancelled]
+          example: "confirmed"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        pitch:
+          $ref: '#/components/schemas/Pitch'
+
+    # Analytics schemas
+    AnalyticsEvent:
+      type: object
+      required:
+        - eventType
+        - userId
+        - createdAt
+      properties:
+        id:
+          type: integer
+          example: 777
+        eventType:
+          type: string
+          enum: [page_view, pitch_view, pitch_like, nda_request, login, search]
+          example: "pitch_view"
+        eventCategory:
+          type: string
+          example: "engagement"
+        userId:
+          type: integer
+          example: 123
+        pitchId:
+          type: integer
+          example: 456
+        sessionId:
+          type: string
+          example: "sess_abc123def456"
+        eventData:
+          type: object
+          example: {"duration": 180, "scrollDepth": 85}
+        createdAt:
+          type: string
+          format: date-time
+
+    # Search schemas
+    SearchResults:
+      type: object
+      properties:
+        pitches:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pitch'
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        total:
+          type: integer
+          example: 25
+        query:
+          type: string
+          example: "sci-fi thriller"
+        filters:
+          type: object
+          example: {"genre": "sci-fi", "budgetRange": "5M-20M"}
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+  parameters:
+    PitchId:
+      name: pitchId
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 456
+      description: Unique identifier for the pitch
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 123
+      description: Unique identifier for the user
+
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+      description: Page number for pagination
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+      description: Number of items per page
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Authentication required"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Insufficient permissions"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Resource not found"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Internal server error"
+            timestamp: "2024-01-01T12:00:00Z"
+
+    RateLimitError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Rate limit exceeded. Try again later."
+            timestamp: "2024-01-01T12:00:00Z"
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per time window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Time when rate limit resets (Unix timestamp)
+
+paths:
+  # Authentication endpoints
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Universal login endpoint
+      description: Login for any user type (auto-detects user type)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "user@example.com"
+              password: "securePassword123"
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/auth/creator/login:
+    post:
+      tags:
+        - Authentication
+      summary: Creator portal login
+      description: Login specifically for creators
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful creator login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/auth/investor/login:
+    post:
+      tags:
+        - Authentication
+      summary: Investor portal login
+      description: Login specifically for investors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful investor login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/auth/production/login:
+    post:
+      tags:
+        - Authentication
+      summary: Production company portal login
+      description: Login specifically for production companies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful production company login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      description: Register a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: "newuser@example.com"
+              username: "newfilmmaker"
+              password: "securePassword123"
+              userType: "creator"
+              firstName: "Jane"
+              lastName: "Smith"
+              companyName: "Smith Productions"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User registered successfully"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "User with this email already exists"
+                timestamp: "2024-01-01T12:00:00Z"
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset
+      description: Request a password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+            example:
+              email: "user@example.com"
+      responses:
+        '200':
+          description: Password reset email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset email sent"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password
+      description: Reset user password with reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - newPassword
+              properties:
+                token:
+                  type: string
+                  example: "reset_token_abc123"
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: "newSecurePassword123"
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password reset successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid or expired reset token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  # User management endpoints
+  /api/user/profile:
+    get:
+      tags:
+        - User Management
+      summary: Get current user profile
+      description: Retrieve the authenticated user's profile information
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags:
+        - User Management
+      summary: Update user profile
+      description: Update the authenticated user's profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                bio:
+                  type: string
+                website:
+                  type: string
+                location:
+                  type: string
+                phone:
+                  type: string
+                companyName:
+                  type: string
+                companyWebsite:
+                  type: string
+            example:
+              firstName: "John"
+              lastName: "Doe"
+              bio: "Independent filmmaker with 10 years experience"
+              website: "https://johndoefilms.com"
+              location: "Los Angeles, CA"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Profile updated successfully"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/user/preferences:
+    get:
+      tags:
+        - User Management
+      summary: Get user preferences
+      description: Retrieve the authenticated user's preferences
+      responses:
+        '200':
+          description: User preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags:
+        - User Management
+      summary: Update user preferences
+      description: Update the authenticated user's preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '200':
+          description: Preferences updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Preferences updated successfully"
+                  preferences:
+                    $ref: '#/components/schemas/UserPreferences'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Pitch management endpoints
+  /api/pitches:
+    get:
+      tags:
+        - Pitch Management
+      summary: List pitches
+      description: Get a paginated list of pitches (user's own pitches when authenticated)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, archived, under_review]
+          example: "active"
+        - name: genre
+          in: query
+          schema:
+            type: string
+          example: "sci-fi"
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [feature, short, series, documentary]
+          example: "feature"
+      responses:
+        '200':
+          description: Pitches retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PitchList'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags:
+        - Pitch Management
+      summary: Create a new pitch
+      description: Create a new movie pitch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - logline
+                - genre
+                - format
+              properties:
+                title:
+                  type: string
+                  example: "The Last Star"
+                logline:
+                  type: string
+                  example: "A space exploration thriller about humanity's last chance"
+                description:
+                  type: string
+                  example: "Detailed description of the story..."
+                genre:
+                  type: string
+                  example: "Sci-Fi Thriller"
+                format:
+                  type: string
+                  enum: [feature, short, series, documentary, animation]
+                  example: "feature"
+                shortSynopsis:
+                  type: string
+                  example: "Brief synopsis..."
+                longSynopsis:
+                  type: string
+                  example: "Detailed synopsis..."
+                targetAudience:
+                  type: string
+                  example: "Adults 25-54"
+                characters:
+                  type: string
+                  example: "Character descriptions..."
+                themes:
+                  type: string
+                  example: "Hope, survival, human nature"
+                budgetRange:
+                  type: string
+                  example: "5M-20M"
+                seekingInvestment:
+                  type: boolean
+                  example: true
+                requireNda:
+                  type: boolean
+                  example: false
+                visibility:
+                  type: string
+                  enum: [public, private, nda_required]
+                  example: "public"
+      responses:
+        '201':
+          description: Pitch created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Pitch created successfully"
+                  pitch:
+                    $ref: '#/components/schemas/Pitch'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/pitches/{pitchId}:
+    get:
+      tags:
+        - Pitch Management
+      summary: Get pitch details
+      description: Retrieve detailed information about a specific pitch
+      parameters:
+        - $ref: '#/components/parameters/PitchId'
+      responses:
+        '200':
+          description: Pitch details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pitch'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags:
+        - Pitch Management
+      summary: Update pitch
+      description: Update an existing pitch (owner only)
+      parameters:
+        - $ref: '#/components/parameters/PitchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                logline:
+                  type: string
+                description:
+                  type: string
+                genre:
+                  type: string
+                format:
+                  type: string
+                shortSynopsis:
+                  type: string
+                longSynopsis:
+                  type: string
+                targetAudience:
+                  type: string
+                characters:
+                  type: string
+                themes:
+                  type: string
+                budgetRange:
+                  type: string
+                visibility:
+                  type: string
+                requireNda:
+                  type: boolean
+                seekingInvestment:
+                  type: boolean
+      responses:
+        '200':
+          description: Pitch updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Pitch updated successfully"
+                  pitch:
+                    $ref: '#/components/schemas/Pitch'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags:
+        - Pitch Management
+      summary: Delete pitch
+      description: Delete a pitch (owner only)
+      parameters:
+        - $ref: '#/components/parameters/PitchId'
+      responses:
+        '200':
+          description: Pitch deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Pitch deleted successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/pitches/public:
+    get:
+      tags:
+        - Public API
+      summary: List public pitches
+      description: Get a paginated list of public pitches (no authentication required)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: genre
+          in: query
+          schema:
+            type: string
+          example: "action"
+        - name: format
+          in: query
+          schema:
+            type: string
+          example: "feature"
+        - name: budgetRange
+          in: query
+          schema:
+            type: string
+          example: "1M-5M"
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest, most_liked, most_viewed, trending]
+            default: newest
+          example: "trending"
+      responses:
+        '200':
+          description: Public pitches retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PitchList'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/pitches/trending:
+    get:
+      tags:
+        - Public API
+      summary: Get trending pitches
+      description: Get a list of currently trending pitches
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Trending pitches retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pitches:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pitch'
+                  trending_factors:
+                    type: object
+                    example: {"timeframe": "24h", "algorithm": "views_and_engagement"}
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  # Search endpoints
+  /api/pitches/search:
+    get:
+      tags:
+        - Search
+      summary: Search pitches
+      description: Search for pitches using various criteria
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "space thriller"
+          description: Search query
+        - name: genre
+          in: query
+          schema:
+            type: string
+          example: "sci-fi"
+        - name: format
+          in: query
+          schema:
+            type: string
+          example: "feature"
+        - name: budgetRange
+          in: query
+          schema:
+            type: string
+          example: "5M-20M"
+        - name: stage
+          in: query
+          schema:
+            type: string
+          example: "script"
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+      security: []
+
+  /api/search/advanced:
+    get:
+      tags:
+        - Search
+      summary: Advanced search
+      description: Advanced search with complex filters and sorting options
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+          example: "thriller"
+        - name: genres
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          example: ["thriller", "action"]
+        - name: formats
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          example: ["feature", "series"]
+        - name: budgetRanges
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          example: ["1M-5M", "5M-20M"]
+        - name: stages
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          example: ["script", "pre-production"]
+        - name: seekingInvestment
+          in: query
+          schema:
+            type: boolean
+          example: true
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [relevance, newest, oldest, most_liked, most_viewed, budget_asc, budget_desc]
+          example: "relevance"
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Advanced search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # NDA endpoints
+  /api/ndas/request:
+    post:
+      tags:
+        - NDA Management
+      summary: Request NDA access
+      description: Request NDA access to view a private pitch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pitchId
+              properties:
+                pitchId:
+                  type: integer
+                  example: 456
+                message:
+                  type: string
+                  example: "I'm interested in learning more about this project"
+      responses:
+        '201':
+          description: NDA request submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "NDA request submitted successfully"
+                  nda:
+                    $ref: '#/components/schemas/NDA'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: NDA request already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/ndas/signed:
+    get:
+      tags:
+        - NDA Management
+      summary: Get signed NDAs
+      description: Get a list of NDAs signed by the current user
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Signed NDAs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ndas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NDA'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/ndas/{ndaId}/approve:
+    post:
+      tags:
+        - NDA Management
+      summary: Approve NDA request
+      description: Approve an NDA request (pitch owner only)
+      parameters:
+        - name: ndaId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 789
+      responses:
+        '200':
+          description: NDA request approved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "NDA request approved"
+                  nda:
+                    $ref: '#/components/schemas/NDA'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/ndas/{ndaId}/reject:
+    post:
+      tags:
+        - NDA Management
+      summary: Reject NDA request
+      description: Reject an NDA request (pitch owner only)
+      parameters:
+        - name: ndaId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 789
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "Project not suitable for your profile"
+      responses:
+        '200':
+          description: NDA request rejected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "NDA request rejected"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Messaging endpoints
+  /api/messages/conversations:
+    get:
+      tags:
+        - Messaging
+      summary: Get conversations
+      description: Get a list of user's conversations
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Conversations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/messages/send:
+    post:
+      tags:
+        - Messaging
+      summary: Send message
+      description: Send a message to another user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - receiverId
+                - content
+              properties:
+                receiverId:
+                  type: integer
+                  example: 124
+                subject:
+                  type: string
+                  example: "Interest in your project"
+                content:
+                  type: string
+                  example: "Hi, I'm interested in learning more about your project..."
+                pitchId:
+                  type: integer
+                  example: 456
+                  description: Optional pitch reference
+                messageType:
+                  type: string
+                  enum: [text, pitch_share, nda_request]
+                  example: "text"
+      responses:
+        '201':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Message sent successfully"
+                  messageData:
+                    $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Recipient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/messages/{messageId}/read:
+    post:
+      tags:
+        - Messaging
+      summary: Mark message as read
+      description: Mark a specific message as read
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 987
+      responses:
+        '200':
+          description: Message marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Message marked as read"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Notification endpoints
+  /api/notifications/list:
+    get:
+      tags:
+        - Notifications
+      summary: Get notifications
+      description: Get a list of user's notifications
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [message, nda_request, pitch_like, follow, system, investment]
+          example: "message"
+        - name: read
+          in: query
+          schema:
+            type: boolean
+          example: false
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  unreadCount:
+                    type: integer
+                    example: 5
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/notifications/{notificationId}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      description: Mark a specific notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 555
+      responses:
+        '200':
+          description: Notification marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notification marked as read"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Investment endpoints
+  /api/investments:
+    get:
+      tags:
+        - Investments
+      summary: Get user investments
+      description: Get a list of user's investments (investor portal)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, completed, cancelled]
+          example: "confirmed"
+      responses:
+        '200':
+          description: Investments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  investments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Investment'
+                  totalValue:
+                    type: number
+                    example: 2500000
+                  totalGain:
+                    type: number
+                    example: 125000
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Only investors can access this endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/investments/track:
+    post:
+      tags:
+        - Investments
+      summary: Track investment
+      description: Add an investment to user's portfolio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pitchId
+                - amount
+              properties:
+                pitchId:
+                  type: integer
+                  example: 456
+                amount:
+                  type: number
+                  example: 500000
+                notes:
+                  type: string
+                  example: "Promising sci-fi project with strong team"
+      responses:
+        '201':
+          description: Investment tracked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Investment tracked successfully"
+                  investment:
+                    $ref: '#/components/schemas/Investment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Only investors can track investments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Media upload endpoints
+  /api/media/upload:
+    post:
+      tags:
+        - Media Management
+      summary: Upload media file
+      description: Upload media files (images, videos, documents) for pitches
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - type
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                type:
+                  type: string
+                  enum: [poster, video, pitch_deck, script, lookbook, trailer]
+                  example: "poster"
+                pitchId:
+                  type: integer
+                  example: 456
+                  description: Optional pitch ID to associate with the upload
+      responses:
+        '201':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "File uploaded successfully"
+                  file:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "file_abc123def456"
+                      url:
+                        type: string
+                        format: uri
+                        example: "https://storage.pitchey.com/uploads/file_abc123def456.jpg"
+                      filename:
+                        type: string
+                        example: "movie_poster.jpg"
+                      size:
+                        type: integer
+                        example: 1048576
+                      type:
+                        type: string
+                        example: "poster"
+                      createdAt:
+                        type: string
+                        format: date-time
+        '400':
+          description: Invalid file or file too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "File too large. Maximum size is 100MB"
+                timestamp: "2024-01-01T12:00:00Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Watchlist endpoints
+  /api/watchlist:
+    get:
+      tags:
+        - Watchlist
+      summary: Get user's watchlist
+      description: Get a list of pitches in user's watchlist
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Watchlist retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pitches:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pitch'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags:
+        - Watchlist
+      summary: Add pitch to watchlist
+      description: Add a pitch to user's watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pitchId
+              properties:
+                pitchId:
+                  type: integer
+                  example: 456
+      responses:
+        '201':
+          description: Pitch added to watchlist successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Pitch added to watchlist"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Pitch already in watchlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/watchlist/{pitchId}:
+    delete:
+      tags:
+        - Watchlist
+      summary: Remove pitch from watchlist
+      description: Remove a pitch from user's watchlist
+      parameters:
+        - $ref: '#/components/parameters/PitchId'
+      responses:
+        '200':
+          description: Pitch removed from watchlist successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Pitch removed from watchlist"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Analytics endpoints
+  /api/analytics/track:
+    post:
+      tags:
+        - Analytics
+      summary: Track user event
+      description: Track user analytics events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - eventType
+              properties:
+                eventType:
+                  type: string
+                  enum: [page_view, pitch_view, pitch_like, search, nda_request]
+                  example: "pitch_view"
+                eventCategory:
+                  type: string
+                  example: "engagement"
+                pitchId:
+                  type: integer
+                  example: 456
+                eventData:
+                  type: object
+                  example: {"duration": 180, "scrollDepth": 85}
+      responses:
+        '201':
+          description: Event tracked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Event tracked successfully"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  # Health check endpoint
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: Check API health status
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  database:
+                    type: string
+                    example: "connected"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: "1.0.0"
+        '503':
+          description: API is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "unhealthy"
+                  database:
+                    type: string
+                    example: "disconnected"
+                  error:
+                    type: string
+                    example: "Database connection failed"
+                  timestamp:
+                    type: string
+                    format: date-time
+      security: []
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: User Management
+    description: User profile and preferences management
+  - name: Pitch Management
+    description: Create, read, update, and delete pitches
+  - name: Public API
+    description: Public endpoints that don't require authentication
+  - name: Search
+    description: Search pitches, users, and content
+  - name: NDA Management
+    description: NDA request and approval workflows
+  - name: Messaging
+    description: Internal messaging system
+  - name: Notifications
+    description: User notification management
+  - name: Investments
+    description: Investment tracking and portfolio management
+  - name: Media Management
+    description: File upload and media management
+  - name: Watchlist
+    description: User watchlist management
+  - name: Analytics
+    description: User behavior tracking and analytics
+  - name: System
+    description: System health and status endpoints

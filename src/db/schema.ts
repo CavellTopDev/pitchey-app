@@ -1301,6 +1301,226 @@ export const performanceMetrics = pgTable("performance_metrics", {
   endpointIdx: index("performance_metrics_endpoint_idx").on(table.endpoint),
 }));
 
+// ============================================
+// A/B TESTING FRAMEWORK TABLES
+// ============================================
+
+// Experiments table - stores experiment configurations
+export const experiments = pgTable("experiments", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  description: text("description"),
+  hypothesis: text("hypothesis"), // What are we trying to prove?
+  
+  // Experiment status and timing
+  status: varchar("status", { length: 20 }).notNull().default("draft"), // draft, active, paused, completed, archived
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  
+  // Configuration
+  trafficAllocation: decimal("traffic_allocation", { precision: 5, scale: 4 }).notNull().default("0.1"), // 0-1, percentage of users
+  variants: jsonb("variants").notNull().default("[]"), // Array of variant configurations
+  
+  // Targeting criteria
+  targetingRules: jsonb("targeting_rules").default("{}"), // Who should see this experiment
+  userSegments: varchar("user_segments", { length: 50 }).array().default([]), // new, returning, creator, investor, etc.
+  
+  // Success metrics
+  primaryMetric: varchar("primary_metric", { length: 100 }).notNull(), // conversion_rate, click_through_rate, etc.
+  secondaryMetrics: varchar("secondary_metrics", { length: 100 }).array().default([]),
+  
+  // Statistical configuration
+  minimumSampleSize: integer("minimum_sample_size").default(100),
+  statisticalPower: decimal("statistical_power", { precision: 3, scale: 2 }).default("0.80"),
+  significanceLevel: decimal("significance_level", { precision: 3, scale: 2 }).default("0.05"),
+  
+  // Metadata and tracking
+  featureFlag: varchar("feature_flag", { length: 100 }), // Associated feature flag
+  tags: varchar("tags", { length: 50 }).array().default([]),
+  priority: integer("priority").default(0), // For experiment conflict resolution
+  rolloutStrategy: varchar("rollout_strategy", { length: 50 }).default("immediate"), // immediate, gradual, scheduled
+  
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  nameIdx: index("experiments_name_idx").on(table.name),
+  statusIdx: index("experiments_status_idx").on(table.status),
+  startEndDateIdx: index("experiments_start_end_date_idx").on(table.startDate, table.endDate),
+  createdByIdx: index("experiments_created_by_idx").on(table.createdBy),
+}));
+
+// User experiment assignments table - tracks which variant each user sees
+export const userExperimentAssignments = pgTable("user_experiment_assignments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  sessionId: varchar("session_id", { length: 255 }), // For anonymous users
+  experimentId: integer("experiment_id").references(() => experiments.id, { onDelete: "cascade" }).notNull(),
+  variantId: varchar("variant_id", { length: 100 }).notNull(), // control, variant_a, variant_b, etc.
+  
+  // Assignment details
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignmentMethod: varchar("assignment_method", { length: 50 }).default("hash"), // hash, random, manual
+  bucketing: jsonb("bucketing").default("{}"), // Bucketing algorithm details
+  
+  // User context at assignment
+  userAgent: text("user_agent"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  referrer: text("referrer"),
+  
+  // Override and exclusion
+  isOverride: boolean("is_override").default(false), // Manually assigned for testing
+  excludedFromAnalysis: boolean("excluded_from_analysis").default(false),
+  exclusionReason: varchar("exclusion_reason", { length: 255 }),
+}, (table) => ({
+  userExperimentIdx: index("user_experiment_assignments_user_experiment_idx").on(table.userId, table.experimentId),
+  sessionExperimentIdx: index("user_experiment_assignments_session_experiment_idx").on(table.sessionId, table.experimentId),
+  experimentVariantIdx: index("user_experiment_assignments_experiment_variant_idx").on(table.experimentId, table.variantId),
+  assignedAtIdx: index("user_experiment_assignments_assigned_at_idx").on(table.assignedAt),
+  uniqueUserExperiment: unique().on(table.userId, table.experimentId),
+  uniqueSessionExperiment: unique().on(table.sessionId, table.experimentId),
+}));
+
+// Experiment events table - tracks user interactions and conversions
+export const experimentEvents = pgTable("experiment_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  sessionId: varchar("session_id", { length: 255 }),
+  experimentId: integer("experiment_id").references(() => experiments.id, { onDelete: "cascade" }).notNull(),
+  variantId: varchar("variant_id", { length: 100 }).notNull(),
+  
+  // Event details
+  eventType: varchar("event_type", { length: 100 }).notNull(), // page_view, button_click, conversion, etc.
+  eventName: varchar("event_name", { length: 255 }), // Human-readable event name
+  eventValue: decimal("event_value", { precision: 10, scale: 2 }), // Monetary value or custom metric
+  
+  // Context and properties
+  properties: jsonb("properties").default("{}"), // Custom event properties
+  url: text("url"),
+  elementId: varchar("element_id", { length: 255 }),
+  elementText: text("element_text"),
+  
+  // Technical details
+  userAgent: text("user_agent"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  
+  timestamp: timestamp("timestamp").defaultNow(),
+}, (table) => ({
+  userExperimentIdx: index("experiment_events_user_experiment_idx").on(table.userId, table.experimentId),
+  sessionExperimentIdx: index("experiment_events_session_experiment_idx").on(table.sessionId, table.experimentId),
+  experimentEventTypeIdx: index("experiment_events_experiment_event_type_idx").on(table.experimentId, table.eventType),
+  timestampIdx: index("experiment_events_timestamp_idx").on(table.timestamp),
+  variantEventTypeIdx: index("experiment_events_variant_event_type_idx").on(table.variantId, table.eventType),
+}));
+
+// Experiment results cache - stores pre-calculated statistics
+export const experimentResults = pgTable("experiment_results", {
+  id: serial("id").primaryKey(),
+  experimentId: integer("experiment_id").references(() => experiments.id, { onDelete: "cascade" }).notNull(),
+  
+  // Result summary
+  status: varchar("status", { length: 20 }).notNull().default("calculating"), // calculating, ready, significant, inconclusive
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+  
+  // Sample sizes
+  totalParticipants: integer("total_participants").default(0),
+  variantSampleSizes: jsonb("variant_sample_sizes").default("{}"), // {control: 1000, variant_a: 1050}
+  
+  // Primary metric results
+  primaryMetricResults: jsonb("primary_metric_results").notNull().default("{}"),
+  conversionRates: jsonb("conversion_rates").default("{}"), // {control: 0.15, variant_a: 0.18}
+  
+  // Statistical significance
+  pValue: decimal("p_value", { precision: 10, scale: 8 }),
+  confidenceLevel: decimal("confidence_level", { precision: 5, scale: 4 }),
+  isStatisticallySignificant: boolean("is_statistically_significant").default(false),
+  winningVariant: varchar("winning_variant", { length: 100 }),
+  liftPercentage: decimal("lift_percentage", { precision: 8, scale: 4 }), // % improvement
+  
+  // Confidence intervals
+  confidenceIntervals: jsonb("confidence_intervals").default("{}"),
+  
+  // Secondary metrics
+  secondaryMetricResults: jsonb("secondary_metric_results").default("{}"),
+  
+  // Additional insights
+  segments: jsonb("segments").default("{}"), // Results broken down by user segments
+  timeSeriesData: jsonb("time_series_data").default("{}"), // Daily/hourly performance data
+  
+  // Recommendations
+  recommendation: text("recommendation"), // What action should be taken based on results
+  confidence: varchar("confidence", { length: 20 }), // high, medium, low
+  
+  nextCalculationAt: timestamp("next_calculation_at"),
+}, (table) => ({
+  experimentIdx: index("experiment_results_experiment_idx").on(table.experimentId),
+  statusIdx: index("experiment_results_status_idx").on(table.status),
+  calculatedAtIdx: index("experiment_results_calculated_at_idx").on(table.calculatedAt),
+  significantIdx: index("experiment_results_significant_idx").on(table.isStatisticallySignificant),
+  uniqueExperiment: unique().on(table.experimentId),
+}));
+
+// Experiment audit log - tracks all changes to experiments
+export const experimentAuditLog = pgTable("experiment_audit_log", {
+  id: serial("id").primaryKey(),
+  experimentId: integer("experiment_id").references(() => experiments.id, { onDelete: "cascade" }).notNull(),
+  
+  // Change details
+  action: varchar("action", { length: 50 }).notNull(), // created, started, paused, updated, completed
+  previousValues: jsonb("previous_values").default("{}"),
+  newValues: jsonb("new_values").default("{}"),
+  changedFields: varchar("changed_fields", { length: 50 }).array().default([]),
+  
+  // Context
+  reason: text("reason"), // Why was the change made?
+  automaticChange: boolean("automatic_change").default(false), // Was this an automated change?
+  
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  timestamp: timestamp("timestamp").defaultNow(),
+}, (table) => ({
+  experimentIdx: index("experiment_audit_log_experiment_idx").on(table.experimentId),
+  actionIdx: index("experiment_audit_log_action_idx").on(table.action),
+  timestampIdx: index("experiment_audit_log_timestamp_idx").on(table.timestamp),
+  userIdx: index("experiment_audit_log_user_idx").on(table.userId),
+}));
+
+// Feature flags table (enhanced with A/B testing support)
+export const abFeatureFlags = pgTable("ab_feature_flags", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 255 }).notNull().unique(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  
+  // Flag configuration
+  enabled: boolean("enabled").default(false),
+  type: varchar("type", { length: 50 }).notNull().default("boolean"), // boolean, string, number, json
+  defaultValue: jsonb("default_value").notNull(),
+  
+  // A/B testing integration
+  experimentId: integer("experiment_id").references(() => experiments.id, { onDelete: "set null" }),
+  variantValues: jsonb("variant_values").default("{}"), // {control: false, variant_a: true}
+  
+  // Targeting and rollout
+  rolloutPercentage: decimal("rollout_percentage", { precision: 5, scale: 2 }).default("0"), // 0-100
+  targetingRules: jsonb("targeting_rules").default("{}"),
+  userSegments: varchar("user_segments", { length: 50 }).array().default([]),
+  
+  // Management
+  tags: varchar("tags", { length: 50 }).array().default([]),
+  environment: varchar("environment", { length: 50 }).default("production"), // development, staging, production
+  
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  keyIdx: index("ab_feature_flags_key_idx").on(table.key),
+  enabledIdx: index("ab_feature_flags_enabled_idx").on(table.enabled),
+  experimentIdx: index("ab_feature_flags_experiment_idx").on(table.experimentId),
+  environmentIdx: index("ab_feature_flags_environment_idx").on(table.environment),
+}));
+
 // Export additional types
 export type UserPreference = typeof userPreferences.$inferSelect;
 export type RecommendationCache = typeof recommendationCache.$inferSelect;
@@ -1313,6 +1533,14 @@ export type UserSimilarity = typeof userSimilarity.$inferSelect;
 export type TrendingTopic = typeof trendingTopics.$inferSelect;
 export type SearchFacet = typeof searchFacets.$inferSelect;
 export type PerformanceMetric = typeof performanceMetrics.$inferSelect;
+
+// A/B Testing types
+export type Experiment = typeof experiments.$inferSelect;
+export type UserExperimentAssignment = typeof userExperimentAssignments.$inferSelect;
+export type ExperimentEvent = typeof experimentEvents.$inferSelect;
+export type ExperimentResult = typeof experimentResults.$inferSelect;
+export type ExperimentAuditLog = typeof experimentAuditLog.$inferSelect;
+export type ABFeatureFlag = typeof abFeatureFlags.$inferSelect;
 
 // Additional Relations
 export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
@@ -1355,5 +1583,77 @@ export const pitchCharactersRelations = relations(pitchCharacters, ({ one }) => 
   pitch: one(pitches, {
     fields: [pitchCharacters.pitchId],
     references: [pitches.id],
+  }),
+}));
+
+// A/B Testing Relations
+export const experimentsRelations = relations(experiments, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [experiments.createdBy],
+    references: [users.id],
+  }),
+  updatedBy: one(users, {
+    fields: [experiments.updatedBy],
+    references: [users.id],
+  }),
+  assignments: many(userExperimentAssignments),
+  events: many(experimentEvents),
+  results: one(experimentResults),
+  auditLogs: many(experimentAuditLog),
+  featureFlag: many(abFeatureFlags),
+}));
+
+export const userExperimentAssignmentsRelations = relations(userExperimentAssignments, ({ one }) => ({
+  user: one(users, {
+    fields: [userExperimentAssignments.userId],
+    references: [users.id],
+  }),
+  experiment: one(experiments, {
+    fields: [userExperimentAssignments.experimentId],
+    references: [experiments.id],
+  }),
+}));
+
+export const experimentEventsRelations = relations(experimentEvents, ({ one }) => ({
+  user: one(users, {
+    fields: [experimentEvents.userId],
+    references: [users.id],
+  }),
+  experiment: one(experiments, {
+    fields: [experimentEvents.experimentId],
+    references: [experiments.id],
+  }),
+}));
+
+export const experimentResultsRelations = relations(experimentResults, ({ one }) => ({
+  experiment: one(experiments, {
+    fields: [experimentResults.experimentId],
+    references: [experiments.id],
+  }),
+}));
+
+export const experimentAuditLogRelations = relations(experimentAuditLog, ({ one }) => ({
+  experiment: one(experiments, {
+    fields: [experimentAuditLog.experimentId],
+    references: [experiments.id],
+  }),
+  user: one(users, {
+    fields: [experimentAuditLog.userId],
+    references: [users.id],
+  }),
+}));
+
+export const abFeatureFlagsRelations = relations(abFeatureFlags, ({ one }) => ({
+  experiment: one(experiments, {
+    fields: [abFeatureFlags.experimentId],
+    references: [experiments.id],
+  }),
+  createdBy: one(users, {
+    fields: [abFeatureFlags.createdBy],
+    references: [users.id],
+  }),
+  updatedBy: one(users, {
+    fields: [abFeatureFlags.updatedBy],
+    references: [users.id],
   }),
 }));

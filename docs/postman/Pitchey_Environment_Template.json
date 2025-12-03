@@ -1,0 +1,77 @@
+{
+  "id": "pitchey-api-environment",
+  "name": "Pitchey API Environment",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "https://pitchey-production.cavelltheleaddev.workers.dev",
+      "type": "default",
+      "enabled": true,
+      "description": "Base URL for the Pitchey API"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "secret",
+      "enabled": true,
+      "description": "JWT authentication token (automatically set after login)"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Current authenticated user ID (automatically set after login)"
+    },
+    {
+      "key": "pitchId",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Sample pitch ID for testing (automatically set when viewing pitches)"
+    },
+    {
+      "key": "messageId",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Sample message ID for testing"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Sample notification ID for testing"
+    },
+    {
+      "key": "ndaId",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Sample NDA ID for testing"
+    },
+    {
+      "key": "investmentId",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Sample investment ID for testing"
+    },
+    {
+      "key": "testPitchId",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Pitch ID created during workflow testing"
+    },
+    {
+      "key": "debug",
+      "value": "false",
+      "type": "default",
+      "enabled": true,
+      "description": "Enable debug logging in requests (set to 'true' to enable)"
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

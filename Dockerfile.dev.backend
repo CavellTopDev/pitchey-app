@@ -1,0 +1,65 @@
+# Development Dockerfile for Pitchey Backend
+# Optimized for development with hot reloading and debugging
+
+FROM denoland/deno:1.40.5
+
+# Set development environment
+ENV NODE_ENV=development
+ENV DENO_ENV=development
+
+# Create app directory
+WORKDIR /app
+
+# Create non-root user for security
+RUN groupadd -r pitchey && useradd -r -g pitchey pitchey
+
+# Install development dependencies first for better caching
+COPY deno.lock deno.json ./
+
+# Cache Deno dependencies
+RUN deno cache --lock=deno.lock deno.json
+
+# Install additional development tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    vim \
+    htop \
+    postgresql-client \
+    redis-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source code
+COPY . .
+
+# Set proper permissions
+RUN chown -R pitchey:pitchey /app
+
+# Switch to non-root user
+USER pitchey
+
+# Expose ports
+EXPOSE 8001 9229
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+# Default command with development flags
+CMD ["deno", "run", \
+     "--allow-all", \
+     "--watch", \
+     "--inspect=0.0.0.0:9229", \
+     "--unstable", \
+     "--reload", \
+     "working-server.ts"]
+
+# Development metadata
+LABEL \
+    org.opencontainers.image.title="Pitchey Backend Development" \
+    org.opencontainers.image.description="Development container for Pitchey backend with hot reloading" \
+    org.opencontainers.image.version="dev" \
+    org.opencontainers.image.authors="Pitchey Development Team" \
+    dev.pitchey.environment="development" \
+    dev.pitchey.hot-reload="enabled" \
+    dev.pitchey.debugging="enabled"

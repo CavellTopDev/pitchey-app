@@ -1,115 +1,92 @@
-name: Production Deployment (Hybrid Cloud)
+name: Deploy Production
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'frontend/**'
+      - 'wrangler.toml'
+      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
-      deploy_backend:
-        description: 'Deploy backend to Deno Deploy'
-        required: false
-        default: 'true'
+      force_deploy:
+        description: 'Force deployment even if tests fail'
         type: boolean
+        default: false
       deploy_frontend:
         description: 'Deploy frontend to Cloudflare Pages'
-        required: false
-        default: 'true'
         type: boolean
+        default: true
+      deploy_worker:
+        description: 'Deploy worker to Cloudflare'
+        type: boolean
+        default: true
 
 env:
-  DENO_VERSION: '2.1.0'  # Updated to support lockfile version 5
   NODE_VERSION: '20'
+  DENO_VERSION: '1.40.x'
 
 jobs:
-  changes:
+  security-scan:
+    name: Security Scan
     runs-on: ubuntu-latest
-    outputs:
-      backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            backend:
-              - 'working-server.ts'
-              - 'src/**'
-              - 'deno.json'
-              - 'deno.lock'
-            frontend:
-              - 'frontend/**'
+      
+      - name: Run security audit
+        run: |
+          # Scan for secrets, vulnerabilities, and malicious patterns
+          find . -name "*.ts" -o -name "*.js" -o -name "*.yml" -o -name "*.toml" | \
+          xargs grep -l "password\|secret\|token\|api_key" | \
+          head -10 > security_scan.log || true
+          
+          echo "Security scan completed. Checking for exposed secrets..."
+          if grep -i "sk_" . -r --exclude-dir=node_modules --exclude-dir=.git || \
+             grep -i "pk_test" . -r --exclude-dir=node_modules --exclude-dir=.git; then
+            echo "⚠️ Potential secrets detected. Review before deployment."
+            exit 1
+          fi
 
-  # Backend Tests
-  test-backend:
-    needs: changes
-    if: needs.changes.outputs.backend == 'true' || github.event.inputs.deploy_backend == 'true'
+  test-worker:
+    name: Test Worker
     runs-on: ubuntu-latest
+    needs: security-scan
     steps:
       - uses: actions/checkout@v4
       
       - name: Setup Deno
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@v1
         with:
           deno-version: ${{ env.DENO_VERSION }}
       
-      - name: Lint Backend
-        run: deno lint working-server.ts src/
-        continue-on-error: true
-      
-      - name: Type Check Backend
-        run: echo "Type checking temporarily disabled for deployment - will fix in follow-up"
-        continue-on-error: true
-      
-      - name: Test Backend Health
-        run: |
-          echo "Backend syntax check passed ✅"
-
-  # Backend Deployment to Deno Deploy
-  deploy-backend:
-    needs: [changes, test-backend]
-    if: |
-      always() && 
-      !failure() && 
-      !cancelled() &&
-      (needs.changes.outputs.backend == 'true' || github.event.inputs.deploy_backend == 'true') &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Cache Deno dependencies
+        uses: actions/cache@v3
         with:
-          deno-version: ${{ env.DENO_VERSION }}
+          path: ~/.deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/*.ts') }}
+          restore-keys: ${{ runner.os }}-deno-
       
-      - name: Deploy to Deno Deploy
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+      - name: Validate TypeScript
+        run: deno check src/worker-production-complete.ts
+      
+      - name: Run Worker Tests
         run: |
-          echo "🚀 Deploying backend to Deno Deploy with production environment..."
-          deno run --allow-all --no-check https://deno.land/x/deploy@1.12.0/deployctl.ts deploy \
-            --project=pitchey-backend-fresh \
-            --entrypoint=working-server.ts \
-            --env="DENO_ENV=production" \
-            --env="NODE_ENV=production" \
-            --env="SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
-            --env="SENTRY_ENVIRONMENT=production" \
-            --env="SENTRY_RELEASE=v${{ github.run_number }}" \
-            --env="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
-            --env="JWT_SECRET=${{ secrets.JWT_SECRET }}" \
-            --env="CACHE_ENABLED=true" \
-            --env="UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}" \
-            --env="UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" \
-            --env="FRONTEND_URL=https://pitchey.pages.dev" \
-            --production
-          echo "✅ Backend deployment complete with production configuration!"
+          # Test worker compilation
+          deno run --allow-all --check src/worker-production-complete.ts --help || true
+          
+          # Validate wrangler.toml
+          if command -v wrangler &> /dev/null; then
+            wrangler validate
+          fi
 
-  # Frontend Build and Test
   test-frontend:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true' || github.event.inputs.deploy_frontend == 'true'
+    name: Test Frontend
     runs-on: ubuntu-latest
+    needs: security-scan
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
       
@@ -117,192 +94,234 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
       
-      - name: Install Dependencies
-        working-directory: frontend
+      - name: Install dependencies
         run: npm ci
       
-      - name: Lint Frontend
-        working-directory: frontend
-        run: npm run lint || echo "Linting completed with warnings"
-        continue-on-error: true
+      - name: Type check
+        run: npm run type-check
       
-      - name: Type Check Frontend
-        working-directory: frontend
-        run: npm run type-check || echo "Type check completed"
-        continue-on-error: true
+      - name: Lint
+        run: npm run lint || true  # Non-blocking
       
-      - name: Build Frontend
-        working-directory: frontend
-        env:
-          VITE_API_URL: https://pitchey-backend-fresh.deno.dev
-          VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      - name: Build frontend
         run: npm run build
+        env:
+          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-dist
+          path: frontend/dist/
 
-  # Frontend Deployment to Cloudflare Pages
-  deploy-frontend:
-    needs: [changes, test-frontend]
-    if: |
-      always() && 
-      !failure() && 
-      !cancelled() &&
-      (needs.changes.outputs.frontend == 'true' || github.event.inputs.deploy_frontend == 'true') &&
-      github.ref == 'refs/heads/main'
+  deploy-worker:
+    name: Deploy Worker
     runs-on: ubuntu-latest
+    needs: [test-worker, test-frontend]
+    if: ${{ inputs.deploy_worker != false }}
+    environment: production
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Node.js
+      - name: Setup Node.js for Wrangler
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
       
-      - name: Install Dependencies
-        working-directory: frontend
-        run: npm ci
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
       
-      - name: Build Frontend for Production
-        working-directory: frontend
-        env:
-          VITE_API_URL: https://pitchey-backend-fresh.deno.dev
-          VITE_WS_URL: wss://pitchey-backend-fresh.deno.dev
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-        run: npm run build
+      - name: Validate Secrets
+        run: |
+          if [[ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]]; then
+            echo "❌ CLOUDFLARE_API_TOKEN is required"
+            exit 1
+          fi
+          if [[ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]]; then
+            echo "❌ CLOUDFLARE_ACCOUNT_ID is required"
+            exit 1
+          fi
+          echo "✅ Required secrets are configured"
       
-      - name: Deploy to Cloudflare Pages
-        working-directory: frontend
+      - name: Configure secrets
+        run: |
+          # Set production secrets in Cloudflare Worker
+          if [[ -n "${{ secrets.DATABASE_URL }}" ]]; then
+            echo "${{ secrets.DATABASE_URL }}" | wrangler secret put DATABASE_URL
+          fi
+          
+          if [[ -n "${{ secrets.UPSTASH_REDIS_REST_URL }}" ]]; then
+            echo "${{ secrets.UPSTASH_REDIS_REST_URL }}" | wrangler secret put UPSTASH_REDIS_REST_URL
+          fi
+          
+          if [[ -n "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" ]]; then
+            echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN
+          fi
+          
+          if [[ -n "${{ secrets.SENTRY_DSN }}" ]]; then
+            echo "${{ secrets.SENTRY_DSN }}" | wrangler secret put SENTRY_DSN
+          fi
+          
+          # Set service flags
+          echo "true" | wrangler secret put USE_DATABASE
+          echo "true" | wrangler secret put USE_EMAIL
+          echo "true" | wrangler secret put USE_STORAGE
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          echo "🚀 Deploying frontend to Cloudflare Pages..."
-          npx wrangler pages deploy dist \
-            --project-name=pitchey \
-            --branch=main \
-            --commit-dirty=true
-          echo "✅ Frontend deployment complete!"
-
-  # Post-deployment verification
-  verify-deployment:
-    needs: [deploy-backend, deploy-frontend]
-    if: always() && !failure() && !cancelled()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for deployments to be ready
-        run: sleep 30
       
-      - name: Verify Backend Health
+      - name: Deploy Worker
         run: |
-          echo "🔍 Checking backend health..."
-          HEALTH_RESPONSE=$(curl -s https://pitchey-backend-fresh.deno.dev/api/health || echo '{"success":false}')
-          echo "Backend health response: $HEALTH_RESPONSE"
+          echo "Deploying worker to production..."
+          wrangler deploy --config wrangler-production-fixed.toml
           
-          if echo "$HEALTH_RESPONSE" | grep -q '"success":true'; then
-            echo "✅ Backend is healthy"
-          else
-            echo "❌ Backend health check failed"
+          # Verify deployment
+          sleep 10
+          curl -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health" || {
+            echo "❌ Health check failed after deployment"
             exit 1
-          fi
-      
-      - name: Verify Frontend Deployment
-        run: |
-          echo "🔍 Checking frontend deployment..."
-          FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey.pages.dev || echo "000")
-          echo "Frontend HTTP status: $FRONTEND_RESPONSE"
+          }
           
-          if [ "$FRONTEND_RESPONSE" = "200" ]; then
-            echo "✅ Frontend is accessible"
-          else
+          echo "✅ Worker deployed successfully"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: [test-frontend, deploy-worker]
+    if: ${{ inputs.deploy_frontend != false }}
+    environment: production
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+      
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
+      
+      - name: Build production frontend
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
+      
+      - name: Deploy to Cloudflare Pages
+        run: |
+          echo "Deploying frontend to Cloudflare Pages..."
+          wrangler pages deploy dist --project-name=pitchey --compatibility-date=2024-11-01
+          
+          # Verify deployment
+          sleep 15
+          curl -f "https://pitchey.pages.dev" || {
             echo "❌ Frontend deployment verification failed"
             exit 1
-          fi
+          }
+          
+          echo "✅ Frontend deployed successfully to https://pitchey.pages.dev"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  post-deployment:
+    name: Post-Deployment Validation
+    runs-on: ubuntu-latest
+    needs: [deploy-worker, deploy-frontend]
+    steps:
+      - uses: actions/checkout@v4
       
-      - name: Test Authentication Endpoints
+      - name: Run comprehensive health checks
         run: |
-          echo "🔍 Testing authentication endpoints..."
-          LOGIN_RESPONSE=$(curl -s -X POST "https://pitchey-backend-fresh.deno.dev/api/auth/investor/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"sarah.investor@demo.com","password":"Demo123"}' || echo '{"success":false}')
+          echo "🔍 Running post-deployment validation..."
           
-          echo "Login test response: $LOGIN_RESPONSE"
+          # Health check API
+          echo "Checking API health..."
+          HEALTH_RESPONSE=$(curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health")
+          echo "Health response: $HEALTH_RESPONSE"
           
-          if echo "$LOGIN_RESPONSE" | grep -q '"success":true'; then
-            echo "✅ Authentication endpoints working"
-          else
-            echo "❌ Authentication test failed"
+          if ! echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
+            echo "❌ API health check failed"
             exit 1
           fi
-      
-      - name: Test New Dashboard Endpoints
-        run: |
-          echo "🔍 Testing new dashboard endpoints..."
-          # Get auth token first
-          TOKEN=$(curl -s -X POST "https://pitchey-backend-fresh.deno.dev/api/auth/investor/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"sarah.investor@demo.com","password":"Demo123"}' | \
-            jq -r '.data.token // .token // empty' 2>/dev/null || echo "")
           
-          if [ -n "$TOKEN" ]; then
-            echo "✅ Got auth token, testing dashboard endpoints..."
-            
-            # Test dashboard stats endpoint
-            STATS_RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" \
-              "https://pitchey-backend-fresh.deno.dev/api/investor/dashboard/stats" || echo '{"success":false}')
-            
-            if echo "$STATS_RESPONSE" | grep -q '"success":true'; then
-              echo "✅ Dashboard stats endpoint working"
-            else
-              echo "❌ Dashboard stats endpoint failed"
-              echo "Response: $STATS_RESPONSE"
-              exit 1
-            fi
-            
-            # Test saved pitches endpoint  
-            SAVED_RESPONSE=$(curl -s -H "Authorization: Bearer $TOKEN" \
-              "https://pitchey-backend-fresh.deno.dev/api/investor/saved-pitches" || echo '{"success":false}')
-            
-            if echo "$SAVED_RESPONSE" | grep -q '"success":true'; then
-              echo "✅ Saved pitches endpoint working"
-            else
-              echo "❌ Saved pitches endpoint failed"
-              exit 1
-            fi
-            
-            echo "✅ All dashboard endpoints verified!"
-          else
-            echo "❌ Could not get auth token for endpoint testing"
+          # Check authentication endpoints
+          echo "Testing authentication endpoints..."
+          AUTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login")
+          if [[ "$AUTH_CHECK" != "405" && "$AUTH_CHECK" != "200" ]]; then
+            echo "❌ Authentication endpoint unreachable (got $AUTH_CHECK)"
             exit 1
+          fi
+          
+          # Check frontend loading
+          echo "Checking frontend deployment..."
+          FRONTEND_CHECK=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey.pages.dev")
+          if [[ "$FRONTEND_CHECK" != "200" ]]; then
+            echo "❌ Frontend not loading (got $FRONTEND_CHECK)"
+            exit 1
+          fi
+          
+          echo "✅ All post-deployment checks passed!"
+      
+      - name: Update deployment status
+        if: always()
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          echo "Deployment completed at $TIMESTAMP" >> deployment-status.log
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "✅ Production deployment successful" >> deployment-status.log
+          else
+            echo "❌ Production deployment failed" >> deployment-status.log
           fi
 
-  # Deployment summary
-  summary:
-    needs: [verify-deployment]
-    if: always()
+  notify:
+    name: Notify Deployment Status
     runs-on: ubuntu-latest
+    needs: [deploy-worker, deploy-frontend, post-deployment]
+    if: always()
     steps:
-      - name: Deployment Summary
+      - name: Notify Slack
+        if: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          echo "📊 DEPLOYMENT SUMMARY"
-          echo "===================="
-          echo ""
-          echo "🎯 Production URLs:"
-          echo "   Frontend: https://pitchey.pages.dev"
-          echo "   Backend:  https://pitchey-backend-fresh.deno.dev"
-          echo ""
-          echo "✅ Deployment completed successfully!"
-          echo "🔗 Test your application:"
-          echo "   1. Login: https://pitchey.pages.dev/login/investor"
-          echo "   2. Credentials: sarah.investor@demo.com / Demo123"
-          echo "   3. Dashboard: https://pitchey.pages.dev/investor/dashboard"
-          echo ""
-          echo "🛠️ All backend endpoints now working:"
-          echo "   ✅ Authentication"
-          echo "   ✅ Dashboard stats"
-          echo "   ✅ Saved pitches"
-          echo "   ✅ Investment history"
-          echo "   ✅ NDA management"
+          if [[ "${{ needs.post-deployment.result }}" == "success" ]]; then
+            MESSAGE="✅ Pitchey production deployment successful! Frontend: https://pitchey.pages.dev | API: https://pitchey-production.cavelltheleaddev.workers.dev"
+            COLOR="good"
+          else
+            MESSAGE="❌ Pitchey production deployment failed. Check workflow logs for details."
+            COLOR="danger"
+          fi
+          
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-type: application/json" \
+            -d "{\"text\":\"$MESSAGE\",\"color\":\"$COLOR\"}"
+      
+      - name: Update Sentry release
+        if: ${{ secrets.SENTRY_AUTH_TOKEN && needs.post-deployment.result == 'success' }}
+        run: |
+          # Create Sentry release
+          RELEASE="pitchey@$(date +%Y%m%d_%H%M%S)"
+          
+          curl -X POST "https://sentry.io/api/0/organizations/${{ secrets.SENTRY_ORG }}/releases/" \
+            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"version\":\"$RELEASE\",\"projects\":[\"${{ secrets.SENTRY_PROJECT }}\"]}"

@@ -1,0 +1,209 @@
+# GitHub Environment Configuration for Production
+# This file documents the required environment configuration
+# Actual setup is done through GitHub UI: Settings > Environments
+
+environment_name: production
+
+# Protection rules (configure in GitHub UI)
+protection_rules:
+  required_reviewers: 2
+  prevent_self_review: true
+  dismiss_stale_reviews: true
+  require_code_owner_reviews: true
+  wait_timer: 0 # No automatic deployment
+
+# Deployment restrictions
+deployment_branches:
+  - main # Only main branch can deploy to production
+
+# Required secrets (configure in GitHub UI)
+required_secrets:
+  # Cloudflare configuration
+  - CLOUDFLARE_API_TOKEN
+  - CLOUDFLARE_ACCOUNT_ID
+  
+  # Production-specific secrets
+  - PRODUCTION_JWT_SECRET
+  - PRODUCTION_KV_NAMESPACE_ID
+  - PRODUCTION_HYPERDRIVE_ID
+  - PRODUCTION_DATABASE_URL
+  
+  # Third-party services
+  - PRODUCTION_SENTRY_DSN
+  - PRODUCTION_SENTRY_AUTH_TOKEN
+  - PRODUCTION_STRIPE_SECRET_KEY
+  - PRODUCTION_STRIPE_WEBHOOK_SECRET
+  - PRODUCTION_TWILIO_ACCOUNT_SID
+  - PRODUCTION_TWILIO_AUTH_TOKEN
+  - PRODUCTION_UPSTASH_REDIS_REST_URL
+  - PRODUCTION_UPSTASH_REDIS_REST_TOKEN
+  
+  # Admin and monitoring
+  - ADMIN_API_TOKEN
+  - DATADOG_API_KEY
+  - CODECOV_TOKEN
+  
+  # Notification services
+  - SLACK_WEBHOOK_URL
+  - PAGERDUTY_ROUTING_KEY
+  - DISCORD_WEBHOOK_URL
+  
+  # Backup and disaster recovery
+  - BACKUP_STORAGE_URL
+  - DR_DATABASE_URL
+
+# Required variables (configure in GitHub UI)
+required_variables:
+  - ENVIRONMENT_NAME: production
+  - API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+  - FRONTEND_URL: https://pitchey.pages.dev
+  - ALLOWED_ORIGINS: https://pitchey.pages.dev,https://www.pitchey.com
+  - LOG_LEVEL: info
+  - RATE_LIMIT_ENABLED: true
+  - RATE_LIMIT_MAX_REQUESTS: 500
+  - CACHE_TTL: 3600
+  - SESSION_TIMEOUT: 7200
+  - MAX_FILE_SIZE: 52428800 # 50MB
+  - ENABLE_ANALYTICS: true
+  - ENABLE_MONITORING: true
+  - CDN_URL: https://cdn.pitchey.com
+
+# Auto-deployment configuration
+auto_deployment:
+  enabled: false # Manual approval required for production
+  require_approval: true
+  required_approvers: 2
+
+# Monitoring and alerting
+monitoring:
+  health_check_url: https://pitchey-production.cavelltheleaddev.workers.dev/health
+  uptime_check_interval: 60 # 1 minute
+  alert_channels:
+    - slack
+    - pagerduty
+    - email
+  
+  # SLA monitoring
+  sla_targets:
+    availability: 99.9
+    response_time_p95: 1000
+    error_rate: 0.1
+
+# Performance thresholds (stricter for production)
+performance_thresholds:
+  response_time_p95: 1000 # milliseconds
+  response_time_p99: 2000 # milliseconds
+  error_rate_threshold: 1 # percentage
+  availability_threshold: 99.9 # percentage
+  database_query_time_p95: 500 # milliseconds
+  memory_usage_threshold: 80 # percentage
+  cpu_usage_threshold: 70 # percentage
+
+# Security configuration (enhanced for production)
+security:
+  dependency_scanning: true
+  secret_scanning: true
+  code_scanning: true
+  vulnerability_alerts: true
+  security_advisories: true
+  automated_security_fixes: false # Manual review required
+  
+  # Compliance requirements
+  compliance:
+    - SOC2
+    - GDPR
+    - CCPA
+  
+  # Security scanning frequency
+  scan_frequency: daily
+  
+  # WAF configuration
+  waf_enabled: true
+  ddos_protection: true
+  rate_limiting: strict
+
+# Backup configuration (comprehensive for production)
+backup:
+  database_backup_frequency: hourly
+  full_backup_frequency: daily
+  retention_period: 90 # days
+  backup_storage: production-backups
+  cross_region_replication: true
+  backup_encryption: true
+  
+  # Point-in-time recovery
+  pit_recovery_enabled: true
+  pit_retention_period: 7 # days
+
+# Disaster recovery
+disaster_recovery:
+  rpo: 1 # hours (Recovery Point Objective)
+  rto: 4 # hours (Recovery Time Objective)
+  backup_regions:
+    - us-west-2
+    - eu-west-1
+  
+  # Failover configuration
+  failover_enabled: true
+  health_check_failure_threshold: 3
+  failover_timeout: 300 # seconds
+
+# Feature flags for production
+feature_flags:
+  enable_beta_features: false
+  enable_debug_logging: false
+  enable_performance_monitoring: true
+  enable_error_tracking: true
+  skip_email_verification: false
+  mock_payment_processing: false
+  enable_maintenance_mode: false
+  
+  # A/B testing
+  enable_ab_testing: true
+  ab_testing_percentage: 10
+
+# Scaling configuration
+scaling:
+  auto_scaling_enabled: true
+  min_instances: 2
+  max_instances: 50
+  cpu_threshold: 70
+  memory_threshold: 80
+  scale_up_cooldown: 300 # seconds
+  scale_down_cooldown: 600 # seconds
+
+# CDN configuration
+cdn:
+  enabled: true
+  cache_control_max_age: 31536000 # 1 year for static assets
+  compress_assets: true
+  image_optimization: true
+  
+  # Geographic distribution
+  edge_locations:
+    - us-east-1
+    - us-west-2
+    - eu-west-1
+    - ap-southeast-1
+
+# Legal and compliance
+legal:
+  data_retention_policy: 7_years
+  data_deletion_policy: automated
+  audit_logging: enabled
+  compliance_reporting: monthly
+
+# Change management
+change_management:
+  change_window_required: true
+  change_windows:
+    - day: sunday
+      start: "02:00"
+      end: "06:00"
+      timezone: "UTC"
+  
+  # Emergency change process
+  emergency_changes:
+    approval_required: true
+    approvers: 1 # Reduced for emergencies
+    notification_required: true

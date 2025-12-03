@@ -1,0 +1,1273 @@
+{
+  "info": {
+    "name": "Pitchey API",
+    "description": "Comprehensive Postman collection for the Pitchey API - the movie pitch platform that connects creators, investors, and production companies.\n\n## Features Covered\n- Multi-portal authentication (Creator, Investor, Production)\n- Pitch management (CRUD, search, filtering)\n- Real-time messaging and notifications\n- NDA workflows and document management\n- Investment tracking and portfolio management\n- Media uploads and file management\n- User management and networking\n- Analytics and reporting\n- Advanced search capabilities\n\n## Getting Started\n1. Import this collection into Postman\n2. Set up your environment variables\n3. Run the authentication requests to get your JWT token\n4. Explore the API endpoints with real data\n\n## Environment Variables\nSet these variables in your Postman environment:\n- `baseUrl`: API base URL\n- `authToken`: JWT token from login\n- `userId`: Current user ID\n- `pitchId`: Sample pitch ID for testing\n\n## Demo Accounts\nUse these credentials for testing:\n- Creator: alex.creator@demo.com / Demo123\n- Investor: sarah.investor@demo.com / Demo123\n- Production: stellar.production@demo.com / Demo123",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://pitchey-production.cavelltheleaddev.workers.dev",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Universal Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('authToken', response.token);",
+                  "    pm.environment.set('userId', response.user.id);",
+                  "    console.log('Logged in as:', response.user.username);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alex.creator@demo.com\",\n  \"password\": \"Demo123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Universal login endpoint that auto-detects user type"
+          }
+        },
+        {
+          "name": "Creator Portal Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('authToken', response.token);",
+                  "    pm.environment.set('userId', response.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alex.creator@demo.com\",\n  \"password\": \"Demo123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/creator/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "creator", "login"]
+            }
+          }
+        },
+        {
+          "name": "Investor Portal Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('authToken', response.token);",
+                  "    pm.environment.set('userId', response.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sarah.investor@demo.com\",\n  \"password\": \"Demo123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/investor/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "investor", "login"]
+            }
+          }
+        },
+        {
+          "name": "Production Portal Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('authToken', response.token);",
+                  "    pm.environment.set('userId', response.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"stellar.production@demo.com\",\n  \"password\": \"Demo123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/production/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "production", "login"]
+            }
+          }
+        },
+        {
+          "name": "Register New User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"username\": \"newfilmmaker\",\n  \"password\": \"securePassword123\",\n  \"userType\": \"creator\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"companyName\": \"Smith Productions\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "forgot-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 User Management",
+      "item": [
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"bio\": \"Independent filmmaker with 10 years experience\",\n  \"website\": \"https://johndoefilms.com\",\n  \"location\": \"Los Angeles, CA\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get User Preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/user/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user", "preferences"]
+            }
+          }
+        },
+        {
+          "name": "Update User Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_notifications\": true,\n  \"marketing_emails\": false,\n  \"preferred_genres\": [\"action\", \"thriller\", \"sci-fi\"],\n  \"preferred_formats\": [\"feature\", \"series\"],\n  \"notification_frequency\": \"daily\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/user/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "user", "preferences"]
+            }
+          }
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/users?q=filmmaker&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "users"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "filmmaker"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎬 Pitch Management",
+      "item": [
+        {
+          "name": "Get Public Pitches",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.pitches && response.pitches.length > 0) {",
+                  "        pm.environment.set('pitchId', response.pitches[0].id);",
+                  "        console.log('Sample pitch ID set:', response.pitches[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches/public?page=1&limit=10&genre=sci-fi&sort=trending",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches", "public"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "genre",
+                  "value": "sci-fi"
+                },
+                {
+                  "key": "sort",
+                  "value": "trending"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create New Pitch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('pitchId', response.pitch.id);",
+                  "    console.log('Created pitch ID:', response.pitch.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"The Last Star\",\n  \"logline\": \"A space exploration thriller about humanity's last chance to find a new home\",\n  \"genre\": \"Sci-Fi Thriller\",\n  \"format\": \"feature\",\n  \"shortSynopsis\": \"When Earth becomes uninhabitable, a team of explorers must venture into deep space...\",\n  \"targetAudience\": \"Adults 25-54, sci-fi enthusiasts\",\n  \"characters\": \"Captain Sarah Chen (40s) - Mission leader with a dark secret...\",\n  \"themes\": \"Hope, survival, human nature, sacrifice\",\n  \"budgetRange\": \"5M-20M\",\n  \"seekingInvestment\": true,\n  \"visibility\": \"public\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches"]
+            }
+          }
+        },
+        {
+          "name": "Get Pitch Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches/{{pitchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches", "{{pitchId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Pitch",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"The Last Star: Updated\",\n  \"shortSynopsis\": \"An updated synopsis with more compelling details...\",\n  \"budgetRange\": \"10M-30M\",\n  \"themes\": \"Hope, survival, human nature, sacrifice, redemption\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches/{{pitchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches", "{{pitchId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get User's Pitches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches?page=1&limit=20&status=active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Trending Pitches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches/trending?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches", "trending"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Pitches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches/search?q=space thriller&genre=sci-fi&format=feature&budgetRange=5M-20M&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "space thriller"
+                },
+                {
+                  "key": "genre",
+                  "value": "sci-fi"
+                },
+                {
+                  "key": "format",
+                  "value": "feature"
+                },
+                {
+                  "key": "budgetRange",
+                  "value": "5M-20M"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Advanced Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/advanced?query=thriller&genres=thriller,action&budgetRanges=1M-5M,5M-20M&seekingInvestment=true&sort=relevance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "advanced"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "thriller"
+                },
+                {
+                  "key": "genres",
+                  "value": "thriller,action"
+                },
+                {
+                  "key": "budgetRanges",
+                  "value": "1M-5M,5M-20M"
+                },
+                {
+                  "key": "seekingInvestment",
+                  "value": "true"
+                },
+                {
+                  "key": "sort",
+                  "value": "relevance"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Pitch",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pitches/{{pitchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pitches", "{{pitchId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📄 NDA Management",
+      "item": [
+        {
+          "name": "Request NDA Access",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pitchId\": {{pitchId}},\n  \"message\": \"I'm interested in learning more about this project for potential investment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ndas/request",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ndas", "request"]
+            }
+          }
+        },
+        {
+          "name": "Get Signed NDAs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ndas/signed?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ndas", "signed"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve NDA Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ndas/{{ndaId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ndas", "{{ndaId}}", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Reject NDA Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Project not suitable for your investment profile\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ndas/{{ndaId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ndas", "{{ndaId}}", "reject"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Messaging",
+      "item": [
+        {
+          "name": "Get Conversations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/conversations?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "conversations"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiverId\": 2,\n  \"subject\": \"Interest in your project\",\n  \"content\": \"Hi, I'm interested in learning more about your project 'The Last Star'. Could we schedule a call to discuss potential investment opportunities?\",\n  \"pitchId\": {{pitchId}},\n  \"messageType\": \"text\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "send"]
+            }
+          }
+        },
+        {
+          "name": "Mark Message as Read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/messages/{{messageId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messages", "{{messageId}}", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/list?page=1&limit=20&read=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "read",
+                  "value": "false"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "{{notificationId}}", "read"]
+            }
+          }
+        },
+        {
+          "name": "Get Notification Preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "preferences"]
+            }
+          }
+        },
+        {
+          "name": "Update Notification Preferences",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_notifications\": true,\n  \"push_notifications\": false,\n  \"message_notifications\": true,\n  \"nda_notifications\": true,\n  \"investment_notifications\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "preferences"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Investments",
+      "item": [
+        {
+          "name": "Get Investment Portfolio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/investments?page=1&limit=20&status=confirmed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "confirmed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Track New Investment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pitchId\": {{pitchId}},\n  \"amount\": 500000,\n  \"notes\": \"Promising sci-fi project with strong team and compelling vision\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/investments/track",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "investments", "track"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📁 Media Upload",
+      "item": [
+        {
+          "name": "Upload Media File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "type",
+                  "value": "poster",
+                  "type": "text"
+                },
+                {
+                  "key": "pitchId",
+                  "value": "{{pitchId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/media/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "upload"]
+            },
+            "description": "Upload media files like posters, videos, pitch decks, etc. Supported types: poster, video, pitch_deck, script, lookbook, trailer"
+          }
+        }
+      ]
+    },
+    {
+      "name": "⭐ Watchlist",
+      "item": [
+        {
+          "name": "Get Watchlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchlist?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchlist"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add to Watchlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pitchId\": {{pitchId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/watchlist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchlist"]
+            }
+          }
+        },
+        {
+          "name": "Remove from Watchlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchlist/{{pitchId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchlist", "{{pitchId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Analytics",
+      "item": [
+        {
+          "name": "Track Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"pitch_view\",\n  \"eventCategory\": \"engagement\",\n  \"pitchId\": {{pitchId}},\n  \"eventData\": {\n    \"duration\": 180,\n    \"scrollDepth\": 85,\n    \"source\": \"search_results\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/track",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics", "track"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check API health status - no authentication required"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧪 Testing & Examples",
+      "item": [
+        {
+          "name": "Complete Workflow Example",
+          "item": [
+            {
+              "name": "1. Login as Creator",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Login successful', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const response = pm.response.json();",
+                      "    pm.expect(response).to.have.property('token');",
+                      "    pm.expect(response.user.userType).to.eql('creator');",
+                      "    pm.environment.set('authToken', response.token);",
+                      "    pm.environment.set('userId', response.user.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"alex.creator@demo.com\",\n  \"password\": \"Demo123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/creator/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "creator", "login"]
+                }
+              }
+            },
+            {
+              "name": "2. Create a Pitch",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Pitch created successfully', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const response = pm.response.json();",
+                      "    pm.expect(response).to.have.property('pitch');",
+                      "    pm.environment.set('testPitchId', response.pitch.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Test Workflow Pitch\",\n  \"logline\": \"A comprehensive test of the Pitchey API workflow\",\n  \"genre\": \"Documentary\",\n  \"format\": \"feature\",\n  \"shortSynopsis\": \"This pitch demonstrates the complete API workflow from creation to interaction\",\n  \"targetAudience\": \"Developers and API users\",\n  \"budgetRange\": \"100K-1M\",\n  \"seekingInvestment\": true,\n  \"visibility\": \"public\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/pitches",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "pitches"]
+                }
+              }
+            },
+            {
+              "name": "3. Login as Investor",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Investor login successful', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const response = pm.response.json();",
+                      "    pm.expect(response.user.userType).to.eql('investor');",
+                      "    pm.environment.set('authToken', response.token);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"sarah.investor@demo.com\",\n  \"password\": \"Demo123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/investor/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "investor", "login"]
+                }
+              }
+            },
+            {
+              "name": "4. View the Pitch",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Pitch retrieved successfully', function () {",
+                      "    pm.response.to.have.status(200);",
+                      "    const response = pm.response.json();",
+                      "    pm.expect(response).to.have.property('title');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/pitches/{{testPitchId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "pitches", "{{testPitchId}}"]
+                }
+              }
+            },
+            {
+              "name": "5. Add to Watchlist",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Added to watchlist successfully', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pitchId\": {{testPitchId}}\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/watchlist",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "watchlist"]
+                }
+              }
+            },
+            {
+              "name": "6. Track Investment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Investment tracked successfully', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const response = pm.response.json();",
+                      "    pm.expect(response).to.have.property('investment');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pitchId\": {{testPitchId}},\n  \"amount\": 50000,\n  \"notes\": \"Test investment tracking via API\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/investments/track",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "investments", "track"]
+                }
+              }
+            },
+            {
+              "name": "7. Send Message to Creator",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Message sent successfully', function () {",
+                      "    pm.response.to.have.status(201);",
+                      "    const response = pm.response.json();",
+                      "    pm.expect(response).to.have.property('messageData');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"receiverId\": 1,\n  \"subject\": \"API Workflow Test Complete\",\n  \"content\": \"This message confirms the successful completion of the API workflow test. Your pitch has been reviewed and added to my watchlist with a tracked investment.\",\n  \"pitchId\": {{testPitchId}},\n  \"messageType\": \"text\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/messages/send",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "messages", "send"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set base URL if not already set",
+          "if (!pm.environment.get('baseUrl')) {",
+          "    pm.environment.set('baseUrl', 'https://pitchey-production.cavelltheleaddev.workers.dev');",
+          "}",
+          "",
+          "// Log request details in debug mode",
+          "if (pm.environment.get('debug') === 'true') {",
+          "    console.log('Making request to:', pm.request.url.toString());",
+          "    console.log('Method:', pm.request.method);",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test to check for common issues",
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "// Log response details in debug mode",
+          "if (pm.environment.get('debug') === 'true') {",
+          "    console.log('Response status:', pm.response.status);",
+          "    console.log('Response time:', pm.response.responseTime, 'ms');",
+          "    ",
+          "    // Check for rate limiting headers",
+          "    const rateLimitRemaining = pm.response.headers.get('X-RateLimit-Remaining');",
+          "    if (rateLimitRemaining) {",
+          "        console.log('Rate limit remaining:', rateLimitRemaining);",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ]
+}

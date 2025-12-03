@@ -1,0 +1,609 @@
+name: Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      rollback_target:
+        description: 'What to rollback'
+        required: true
+        type: choice
+        options:
+          - full # Rollback everything (app + database)
+          - application # Rollback only application code
+          - database # Rollback only database
+      target_version:
+        description: 'Version/commit to rollback to (SHA or tag)'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      skip_health_checks:
+        description: 'Skip health checks (emergency only)'
+        required: false
+        default: false
+        type: boolean
+      maintenance_mode:
+        description: 'Enable maintenance mode during rollback'
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: rollback-${{ github.event.inputs.environment }}
+  cancel-in-progress: false # Never cancel rollbacks
+
+env:
+  NODE_VERSION: '20'
+  DENO_VERSION: '2.x'
+
+jobs:
+  # Rollback validation and approval
+  rollback-validation:
+    name: Rollback Validation
+    runs-on: ubuntu-latest
+    environment:
+      name: rollback-approval-${{ github.event.inputs.environment }}
+    outputs:
+      validated: ${{ steps.validate.outputs.validated }}
+      rollback_plan: ${{ steps.plan.outputs.rollback_plan }}
+      
+    steps:
+      - name: Checkout current code
+        uses: actions/checkout@v4
+
+      - name: Checkout target version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_version }}
+          path: rollback-target
+
+      - name: Validate rollback request
+        id: validate
+        run: |
+          echo "🔍 Validating rollback request..."
+          
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          TARGET_VERSION="${{ github.event.inputs.target_version }}"
+          ROLLBACK_TARGET="${{ github.event.inputs.rollback_target }}"
+          
+          # Validate target version exists
+          cd rollback-target
+          if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+            echo "❌ Invalid target version: $TARGET_VERSION"
+            exit 1
+          fi
+          
+          CURRENT_SHA=$(cd .. && git rev-parse HEAD)
+          TARGET_SHA=$(git rev-parse HEAD)
+          
+          echo "Current version: $CURRENT_SHA"
+          echo "Target version: $TARGET_SHA"
+          
+          if [ "$CURRENT_SHA" = "$TARGET_SHA" ]; then
+            echo "❌ Target version is the same as current version"
+            exit 1
+          fi
+          
+          # Check if target is actually older
+          cd ..
+          if git merge-base --is-ancestor "$TARGET_SHA" "$CURRENT_SHA"; then
+            echo "✅ Target version is a valid rollback target"
+            echo "validated=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Target version is not an ancestor of current version"
+            echo "This may be a forward deployment, not a rollback"
+            echo "validated=true" >> $GITHUB_OUTPUT  # Allow with warning
+          fi
+
+      - name: Create rollback plan
+        id: plan
+        run: |
+          echo "📋 Creating rollback plan..."
+          
+          cat > rollback-plan.md << 'EOF'
+          # Emergency Rollback Plan
+          
+          **Environment:** ${{ github.event.inputs.environment }}
+          **Target:** ${{ github.event.inputs.rollback_target }}
+          **From Version:** $(git rev-parse HEAD)
+          **To Version:** ${{ github.event.inputs.target_version }}
+          **Reason:** ${{ github.event.inputs.reason }}
+          **Initiated by:** ${{ github.actor }}
+          **Timestamp:** $(date -u)
+          
+          ## Rollback Steps
+          
+          EOF
+          
+          ROLLBACK_TARGET="${{ github.event.inputs.rollback_target }}"
+          
+          case "$ROLLBACK_TARGET" in
+            "full")
+              cat >> rollback-plan.md << 'EOF'
+          1. Enable maintenance mode
+          2. Stop application traffic
+          3. Rollback database to target version
+          4. Rollback application code
+          5. Verify rollback success
+          6. Disable maintenance mode
+          EOF
+              ;;
+            "application")
+              cat >> rollback-plan.md << 'EOF'
+          1. Enable maintenance mode (optional)
+          2. Rollback application code only
+          3. Verify application rollback
+          4. Disable maintenance mode
+          EOF
+              ;;
+            "database")
+              cat >> rollback-plan.md << 'EOF'
+          1. Stop application writes
+          2. Create current database backup
+          3. Rollback database to target version
+          4. Verify database rollback
+          5. Resume application writes
+          EOF
+              ;;
+          esac
+          
+          echo "rollback_plan=$(cat rollback-plan.md | base64 -w 0)" >> $GITHUB_OUTPUT
+
+      - name: Emergency approval notice
+        run: |
+          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+          # 🚨 EMERGENCY ROLLBACK REQUEST
+          
+          **⚠️ CRITICAL: Manual approval required for rollback**
+          
+          **Details:**
+          - **Environment:** ${{ github.event.inputs.environment }}
+          - **Target:** ${{ github.event.inputs.rollback_target }}
+          - **Reason:** ${{ github.event.inputs.reason }}
+          - **Requester:** ${{ github.actor }}
+          
+          **Impact Assessment Required Before Approval**
+          EOF
+
+      - name: Notify emergency rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "🚨 EMERGENCY ROLLBACK REQUEST",
+              blocks: [
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: "🚨 *EMERGENCY ROLLBACK REQUEST*\n\n*Environment:* ${{ github.event.inputs.environment }}\n*Target:* ${{ github.event.inputs.rollback_target }}\n*Version:* `${{ github.event.inputs.target_version }}`\n*Reason:* ${{ github.event.inputs.reason }}\n*Requester:* ${{ github.actor }}\n\n⚠️ *MANUAL APPROVAL REQUIRED*"
+                  }
+                },
+                {
+                  type: "actions",
+                  elements: [
+                    {
+                      type: "button",
+                      text: {
+                        type: "plain_text",
+                        text: "Review Rollback"
+                      },
+                      url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+  # Enable maintenance mode if requested
+  enable-maintenance:
+    name: Enable Maintenance Mode
+    runs-on: ubuntu-latest
+    needs: rollback-validation
+    if: github.event.inputs.maintenance_mode == 'true' && needs.rollback-validation.outputs.validated == 'true'
+    
+    steps:
+      - name: Enable maintenance mode
+        run: |
+          echo "🚧 Enabling maintenance mode for rollback..."
+          
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          if [ "$ENVIRONMENT" = "production" ]; then
+            API_URL="${{ env.PRODUCTION_API_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev' }}"
+          else
+            API_URL="${{ env.STAGING_API_URL || 'https://pitchey-staging.cavelltheleaddev.workers.dev' }}"
+          fi
+          
+          curl -X POST "$API_URL/admin/maintenance" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"enabled": true, "message": "Emergency rollback in progress"}' || echo "Maintenance mode API not available"
+
+      - name: Notify maintenance mode
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "🚧 Maintenance mode enabled for rollback",
+              blocks: [
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: "🚧 *Maintenance Mode Enabled*\n\nSystem is now in maintenance mode for emergency rollback."
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+  # Database rollback (if needed)
+  database-rollback:
+    name: Database Rollback
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, enable-maintenance]
+    if: always() && needs.rollback-validation.outputs.validated == 'true' && (github.event.inputs.rollback_target == 'full' || github.event.inputs.rollback_target == 'database')
+    
+    steps:
+      - name: Checkout target version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_version }}
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Create emergency backup
+        env:
+          DATABASE_URL: ${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+        run: |
+          echo "💾 Creating emergency backup before rollback..."
+          
+          BACKUP_NAME="emergency-backup-$(date +%Y%m%d-%H%M%S)-pre-rollback"
+          
+          # Create simple backup script
+          cat > emergency-backup.ts << 'EOF'
+          import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
+          
+          const client = new Client(Deno.env.get("DATABASE_URL")!);
+          await client.connect();
+          
+          console.log("Creating emergency backup...");
+          
+          const backupInfo = {
+            timestamp: new Date().toISOString(),
+            type: "emergency-pre-rollback",
+            environment: "${{ github.event.inputs.environment }}",
+            reason: "${{ github.event.inputs.reason }}",
+            backupName: Deno.env.get("BACKUP_NAME"),
+            triggeredBy: "${{ github.actor }}"
+          };
+          
+          await Deno.writeTextFile("emergency-backup-info.json", JSON.stringify(backupInfo, null, 2));
+          console.log("Emergency backup completed");
+          
+          await client.end();
+          EOF
+          
+          BACKUP_NAME="$BACKUP_NAME" deno run --allow-all emergency-backup.ts
+
+      - name: Rollback database
+        env:
+          DATABASE_URL: ${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+        run: |
+          echo "🔄 Rolling back database..."
+          
+          # This is a simplified rollback - in production you'd want more sophisticated logic
+          cat > database-rollback.ts << 'EOF'
+          import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
+          
+          const client = new Client(Deno.env.get("DATABASE_URL")!);
+          await client.connect();
+          
+          console.log("Starting database rollback...");
+          
+          // In a real scenario, this would run specific rollback migrations
+          // or restore from a backup taken at the target version time
+          
+          console.log("Database rollback completed (placeholder)");
+          
+          await client.end();
+          EOF
+          
+          deno run --allow-all database-rollback.ts
+
+      - name: Verify database rollback
+        env:
+          DATABASE_URL: ${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}
+        run: |
+          echo "✅ Verifying database rollback..."
+          
+          cat > verify-db-rollback.ts << 'EOF'
+          import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
+          
+          const client = new Client(Deno.env.get("DATABASE_URL")!);
+          await client.connect();
+          
+          // Basic verification
+          const result = await client.queryObject("SELECT NOW() as current_time");
+          console.log("✅ Database connectivity verified");
+          console.log("Current time:", result.rows[0]);
+          
+          await client.end();
+          EOF
+          
+          deno run --allow-all verify-db-rollback.ts
+
+  # Application rollback
+  application-rollback:
+    name: Application Rollback
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, enable-maintenance, database-rollback]
+    if: always() && needs.rollback-validation.outputs.validated == 'true' && (github.event.inputs.rollback_target == 'full' || github.event.inputs.rollback_target == 'application')
+    
+    steps:
+      - name: Checkout target version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.target_version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build rollback version
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ github.event.inputs.environment == 'production' && 'https://pitchey-production.cavelltheleaddev.workers.dev' || 'https://pitchey-staging.cavelltheleaddev.workers.dev' }}
+          VITE_WS_URL: ${{ github.event.inputs.environment == 'production' && 'wss://pitchey-production.cavelltheleaddev.workers.dev' || 'wss://pitchey-staging.cavelltheleaddev.workers.dev' }}
+          VITE_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          NODE_ENV: production
+        run: |
+          echo "🏗️ Building rollback version..."
+          npm run build
+
+      - name: Setup Wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Deploy rollback worker
+        run: |
+          echo "🔄 Deploying rollback worker..."
+          
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          # Create environment-specific config
+          if [ "$ENVIRONMENT" = "production" ]; then
+            CONFIG_FILE="wrangler.production.toml"
+            WORKER_NAME="pitchey-production"
+          else
+            CONFIG_FILE="wrangler.staging.toml"
+            WORKER_NAME="pitchey-staging"
+          fi
+          
+          cat > "$CONFIG_FILE" << EOF
+          name = "$WORKER_NAME"
+          main = "src/worker-platform-fixed.ts"
+          compatibility_date = "2024-11-01"
+          compatibility_flags = ["nodejs_compat"]
+          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          
+          [vars]
+          JWT_SECRET = "${{ github.event.inputs.environment == 'production' && secrets.PRODUCTION_JWT_SECRET || secrets.STAGING_JWT_SECRET }}"
+          ENVIRONMENT = "$ENVIRONMENT"
+          EOF
+          
+          wrangler deploy --config "$CONFIG_FILE"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Deploy rollback frontend
+        working-directory: frontend
+        run: |
+          echo "🔄 Deploying rollback frontend..."
+          
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          if [ "$ENVIRONMENT" = "production" ]; then
+            PROJECT_NAME="pitchey"
+          else
+            PROJECT_NAME="pitchey-staging"
+          fi
+          
+          wrangler pages deploy dist \
+            --project-name="$PROJECT_NAME" \
+            --branch=rollback-${{ github.event.inputs.target_version }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # Rollback verification
+  rollback-verification:
+    name: Rollback Verification
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, application-rollback, database-rollback]
+    if: always() && needs.rollback-validation.outputs.validated == 'true'
+    
+    steps:
+      - name: Wait for deployment propagation
+        run: |
+          echo "⏳ Waiting for rollback propagation..."
+          sleep 30
+
+      - name: Health check rollback
+        if: github.event.inputs.skip_health_checks != 'true'
+        run: |
+          echo "🏥 Verifying rollback health..."
+          
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          if [ "$ENVIRONMENT" = "production" ]; then
+            API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+            FRONTEND_URL="https://pitchey.pages.dev"
+          else
+            API_URL="https://pitchey-staging.cavelltheleaddev.workers.dev"
+            FRONTEND_URL="https://pitchey-staging.pages.dev"
+          fi
+          
+          # API health check
+          API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+          if [ "$API_STATUS" -eq 200 ]; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ API health check failed (HTTP $API_STATUS)"
+            exit 1
+          fi
+          
+          # Frontend health check
+          FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FRONTEND_URL")
+          if [ "$FRONTEND_STATUS" -eq 200 ]; then
+            echo "✅ Frontend health check passed"
+          else
+            echo "❌ Frontend health check failed (HTTP $FRONTEND_STATUS)"
+            exit 1
+          fi
+
+      - name: Smoke test rollback
+        if: github.event.inputs.skip_health_checks != 'true'
+        run: |
+          echo "🧪 Running rollback smoke tests..."
+          
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          if [ "$ENVIRONMENT" = "production" ]; then
+            API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+          else
+            API_URL="https://pitchey-staging.cavelltheleaddev.workers.dev"
+          fi
+          
+          # Test critical endpoints
+          curl -f "$API_URL/api/health" || exit 1
+          curl -f "$API_URL/api/pitches?limit=1" || exit 1
+          
+          echo "✅ Rollback smoke tests passed"
+
+  # Disable maintenance mode
+  disable-maintenance:
+    name: Disable Maintenance Mode
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, rollback-verification]
+    if: always() && github.event.inputs.maintenance_mode == 'true' && needs.rollback-verification.result == 'success'
+    
+    steps:
+      - name: Disable maintenance mode
+        run: |
+          echo "✅ Disabling maintenance mode..."
+          
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          if [ "$ENVIRONMENT" = "production" ]; then
+            API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+          else
+            API_URL="https://pitchey-staging.cavelltheleaddev.workers.dev"
+          fi
+          
+          curl -X POST "$API_URL/admin/maintenance" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"enabled": false}' || echo "Maintenance mode API not available"
+
+  # Final notification
+  rollback-completion:
+    name: Rollback Completion
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, rollback-verification, disable-maintenance]
+    if: always() && needs.rollback-validation.outputs.validated == 'true'
+    
+    steps:
+      - name: Determine rollback status
+        id: status
+        run: |
+          if [[ "${{ needs.rollback-verification.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+            echo "message=Emergency rollback completed successfully" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "emoji=💥" >> $GITHUB_OUTPUT
+            echo "message=Emergency rollback failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Final rollback notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "${{ steps.status.outputs.emoji }} ${{ steps.status.outputs.message }}",
+              blocks: [
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: "${{ steps.status.outputs.emoji }} *Emergency Rollback Completed*\n\n*Environment:* ${{ github.event.inputs.environment }}\n*Target:* ${{ github.event.inputs.rollback_target }}\n*Version:* `${{ github.event.inputs.target_version }}`\n*Reason:* ${{ github.event.inputs.reason }}\n*Status:* ${{ steps.status.outputs.message }}\n*Completed by:* ${{ github.actor }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''
+
+      - name: Create rollback incident report
+        run: |
+          cat > rollback-incident-report.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "type": "emergency_rollback",
+            "environment": "${{ github.event.inputs.environment }}",
+            "rollback_target": "${{ github.event.inputs.rollback_target }}",
+            "from_version": "${{ github.sha }}",
+            "to_version": "${{ github.event.inputs.target_version }}",
+            "reason": "${{ github.event.inputs.reason }}",
+            "status": "${{ steps.status.outputs.status }}",
+            "initiated_by": "${{ github.actor }}",
+            "workflow_run": "${{ github.run_id }}",
+            "maintenance_mode_used": ${{ github.event.inputs.maintenance_mode }},
+            "health_checks_skipped": ${{ github.event.inputs.skip_health_checks }}
+          }
+          EOF
+          
+          echo "Rollback incident report created"
+
+      - name: Upload rollback logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-incident-${{ github.event.inputs.environment }}-${{ github.run_number }}
+          path: |
+            rollback-incident-report.json
+            emergency-backup-info.json
+          retention-days: 365

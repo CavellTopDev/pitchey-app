@@ -1,0 +1,185 @@
+# GitHub Environment Configuration for Development
+# This file documents the required environment configuration
+# Actual setup is done through GitHub UI: Settings > Environments
+
+environment_name: development
+
+# Protection rules (minimal for development)
+protection_rules:
+  required_reviewers: 0
+  prevent_self_review: false
+  dismiss_stale_reviews: false
+
+# Deployment restrictions (allow all branches for development)
+deployment_branches:
+  - "*"
+
+# Required secrets (configure in GitHub UI)
+required_secrets:
+  # Cloudflare configuration (shared or dev-specific)
+  - CLOUDFLARE_API_TOKEN
+  - CLOUDFLARE_ACCOUNT_ID
+  
+  # Development-specific secrets
+  - DEV_JWT_SECRET
+  - DEV_KV_NAMESPACE_ID
+  - DEV_DATABASE_URL
+  
+  # Third-party services (test/dev keys)
+  - DEV_SENTRY_DSN
+  - DEV_STRIPE_SECRET_KEY
+  - DEV_TWILIO_ACCOUNT_SID
+  - DEV_TWILIO_AUTH_TOKEN
+  - DEV_UPSTASH_REDIS_REST_URL
+  - DEV_UPSTASH_REDIS_REST_TOKEN
+  
+  # Notification services
+  - DEV_SLACK_WEBHOOK_URL
+
+# Required variables (configure in GitHub UI)
+required_variables:
+  - ENVIRONMENT_NAME: development
+  - API_URL: http://localhost:8001
+  - FRONTEND_URL: http://localhost:5173
+  - ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+  - LOG_LEVEL: debug
+  - RATE_LIMIT_ENABLED: false
+  - CACHE_TTL: 60
+  - SESSION_TIMEOUT: 1800
+  - MAX_FILE_SIZE: 5242880 # 5MB
+  - ENABLE_ANALYTICS: false
+  - ENABLE_MONITORING: true
+  - DEV_MODE: true
+
+# Auto-deployment configuration
+auto_deployment:
+  enabled: true
+  branches:
+    - develop
+    - feature/*
+    - bugfix/*
+  paths_ignored:
+    - "*.md"
+    - "docs/**"
+    - "tests/**"
+    - ".gitignore"
+
+# Monitoring and alerting (minimal for development)
+monitoring:
+  health_check_url: http://localhost:8001/health
+  uptime_check_interval: 900 # 15 minutes
+  alert_channels:
+    - slack # Development team only
+
+# Performance thresholds (relaxed for development)
+performance_thresholds:
+  response_time_p95: 5000 # milliseconds
+  error_rate_threshold: 10 # percentage
+  availability_threshold: 95.0 # percentage
+
+# Security configuration (basic for development)
+security:
+  dependency_scanning: true
+  secret_scanning: true
+  code_scanning: false # Optional for dev
+  vulnerability_alerts: true
+
+# Backup configuration (minimal for development)
+backup:
+  database_backup_frequency: daily
+  retention_period: 7 # days
+  backup_storage: dev-backups
+
+# Feature flags for development
+feature_flags:
+  enable_beta_features: true
+  enable_debug_logging: true
+  enable_performance_monitoring: false
+  enable_error_tracking: true
+  skip_email_verification: true
+  mock_payment_processing: true
+  enable_test_data: true
+  enable_hot_reload: true
+  enable_dev_tools: true
+
+# Development-specific configuration
+development:
+  # Hot reloading and debugging
+  hot_reload_enabled: true
+  debug_mode: true
+  verbose_logging: true
+  
+  # Test data and mocking
+  seed_test_data: true
+  mock_external_services: true
+  bypass_authentication: false # Keep auth for realistic testing
+  
+  # Development tools
+  enable_profiling: true
+  enable_memory_debugging: true
+  enable_network_debugging: true
+  
+  # File watching
+  watch_files: true
+  auto_restart: true
+  
+  # Development database
+  use_in_memory_db: false
+  db_migrations_auto: true
+  db_seed_data: true
+
+# Local development environment
+local_environment:
+  # Ports and URLs
+  backend_port: 8001
+  frontend_port: 5173
+  database_port: 5432
+  redis_port: 6379
+  
+  # Docker configuration
+  docker_compose_file: docker-compose.dev.yml
+  use_docker: optional
+  
+  # Environment setup
+  auto_install_deps: true
+  check_node_version: true
+  check_deno_version: true
+  
+  # Development scripts
+  setup_script: scripts/dev-setup.sh
+  teardown_script: scripts/dev-teardown.sh
+
+# Testing configuration
+testing:
+  run_unit_tests: true
+  run_integration_tests: true
+  run_e2e_tests: false # Optional for development
+  test_coverage_threshold: 70 # Lower than production
+  
+  # Test databases
+  use_test_db: true
+  reset_db_between_tests: true
+  
+  # Mock services
+  mock_external_apis: true
+  mock_payment_gateway: true
+  mock_email_service: true
+
+# Code quality (relaxed for development)
+code_quality:
+  lint_on_commit: true
+  format_on_save: true
+  type_check_on_build: true
+  
+  # Quality gates (relaxed)
+  max_complexity: 15
+  max_function_length: 100
+  max_file_length: 1000
+
+# Branch protection (minimal)
+branch_protection:
+  require_status_checks: false
+  require_up_to_date: false
+  require_pr_reviews: false
+  dismiss_stale_reviews: false
+  require_code_owner_reviews: false

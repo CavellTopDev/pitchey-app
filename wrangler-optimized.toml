@@ -1,0 +1,117 @@
+# Performance-Optimized Production Configuration
+# Deploy with: wrangler deploy --config wrangler-optimized.toml
+
+name = "pitchey-production-optimized"
+main = "src/worker-optimized-performance.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "e16d3bf549153de23459a6c6a06a431b"
+
+# Production Environment Variables
+[vars]
+JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz-PRODUCTION"
+ENVIRONMENT = "production"
+API_VERSION = "v1.1-optimized"
+
+# Main KV for caching and rate limiting
+[[kv_namespaces]]
+binding = "KV"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+# Additional KV for metrics tracking (create with: wrangler kv:namespace create METRICS)
+# [[kv_namespaces]]
+# binding = "METRICS"
+# id = "YOUR_METRICS_KV_ID"
+
+# R2 for file storage
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+
+# Hyperdrive for database connection pooling
+# Create with: wrangler hyperdrive create pitchey-db --connection-string="postgresql://..."
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "YOUR_HYPERDRIVE_ID"
+
+# Durable Objects for WebSocket handling (future implementation)
+# [[durable_objects.bindings]]
+# name = "WEBSOCKET_ROOMS"
+# class_name = "WebSocketRoom"
+# [[durable_objects.bindings]]
+# name = "NOTIFICATION_ROOMS"
+# class_name = "NotificationRoom"
+
+# Performance optimization settings
+[build]
+command = ""
+watch_paths = ["src/**/*.ts"]
+
+[build.upload]
+format = "modules"
+main = "./src/worker-optimized-performance.ts"
+
+# Minification for smaller bundle size
+[minify]
+minify_javascript = true
+minify_css = true
+minify_html = true
+
+# Analytics and observability
+[observability]
+enabled = true
+
+# Browser rendering for dynamic content (if needed)
+# [browser]
+# binding = "BROWSER"
+
+# Custom cache rules for better performance
+[[routes]]
+pattern = "pitchey-production-optimized.cavelltheleaddev.workers.dev/api/*"
+zone_name = ""
+
+[[routes]]
+pattern = "pitchey-production-optimized.cavelltheleaddev.workers.dev/static/*"
+zone_name = ""
+
+# Production deployment settings
+[env.production]
+name = "pitchey-production-optimized"
+vars = { ENVIRONMENT = "production" }
+
+# Edge locations for optimal routing
+[placement]
+mode = "smart"
+
+# Performance monitoring triggers (uncomment when ready)
+# [triggers]
+# crons = [
+#   "*/5 * * * *",    # Aggregate metrics every 5 minutes
+#   "*/15 * * * *",   # Cache cleanup every 15 minutes
+#   "0 * * * *"       # Hourly performance reports
+# ]
+
+# Service bindings for microservices architecture (future)
+# [[services]]
+# binding = "AUTH_SERVICE"
+# service = "pitchey-auth-service"
+
+# [[services]]
+# binding = "SEARCH_SERVICE"  
+# service = "pitchey-search-service"
+
+# Workers Limits Configuration
+# Note: These require paid plan
+# [limits]
+# cpu_ms = 50  # 50ms CPU time for optimal performance
+# memory_mb = 128  # 128MB memory allocation
+
+# Usage model for billing optimization
+# [usage_model]
+# default = "bundled"  # or "unbound" for longer execution
+
+# Custom domain configuration
+# routes = [
+#   { pattern = "api.pitchey.com/*", zone_name = "pitchey.com" },
+#   { pattern = "cdn.pitchey.com/*", zone_name = "pitchey.com" }
+# ]

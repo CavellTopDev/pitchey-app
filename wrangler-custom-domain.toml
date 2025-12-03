@@ -1,0 +1,134 @@
+# Custom Domain Production Configuration
+# Deploy with: wrangler deploy --config wrangler-custom-domain.toml
+
+name = "pitchey-custom-domain"
+main = "src/worker-custom-domain.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "e16d3bf549153de23459a6c6a06a431b"
+workers_dev = false  # Disable workers.dev subdomain
+
+# Production Environment Variables
+[vars]
+JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz-PRODUCTION"
+ENVIRONMENT = "production"
+API_VERSION = "v1.2-custom-domain"
+FRONTEND_URL = "https://pitchey.com"  # Your custom domain
+
+# Custom domain routes
+routes = [
+  { pattern = "api.pitchey.com/*", zone_name = "pitchey.com" },
+  { pattern = "pitchey.com/api/*", zone_name = "pitchey.com" }
+]
+
+# Alternative single route (choose one approach)
+# route = { pattern = "api.pitchey.com/*", zone_name = "pitchey.com" }
+
+# KV for caching and rate limiting
+[[kv_namespaces]]
+binding = "KV"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+# Metrics tracking KV
+[[kv_namespaces]]
+binding = "METRICS"
+id = "98c88a185eb448e4868fcc87e458b3ac"  # Can reuse same KV with different prefixes
+
+# R2 for file storage
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+
+# Hyperdrive for database connection pooling (when ready)
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "YOUR_HYPERDRIVE_ID"
+
+# Durable Objects for WebSocket handling
+[[durable_objects.bindings]]
+name = "WEBSOCKET_ROOM"
+class_name = "WebSocketRoom"
+
+[[durable_objects.bindings]]
+name = "NOTIFICATION_ROOM"
+class_name = "NotificationRoom"
+
+# Edge placement optimization
+[placement]
+mode = "smart"
+
+# Scheduled tasks for metrics and maintenance
+[[triggers.crons]]
+cron = "*/5 * * * *"  # Aggregate metrics every 5 minutes
+
+[[triggers.crons]]
+cron = "*/15 * * * *"  # Cache cleanup every 15 minutes
+
+[[triggers.crons]]
+cron = "0 * * * *"  # Generate hourly reports
+
+# Build configuration
+[build]
+command = ""
+watch_paths = ["src/**/*.ts"]
+
+[build.upload]
+format = "modules"
+main = "./src/worker-custom-domain.ts"
+
+# Minification for production
+[minify]
+minify_javascript = true
+minify_css = true
+minify_html = true
+
+# Analytics and observability
+[observability]
+enabled = true
+
+# Custom cache rules for the domain
+[[rules]]
+description = "Cache static assets for 1 week"
+request = { url_pattern = "*.pitchey.com/static/*" }
+cache = { 
+  cache_control = "public, max-age=604800, immutable"
+}
+
+[[rules]]
+description = "Cache API responses appropriately"
+request = { url_pattern = "api.pitchey.com/api/pitches/*" }
+cache = { 
+  cache_control = "public, max-age=900, stale-while-revalidate=60"
+}
+
+# Security headers via transform rules
+[[unsafe.transform_rules]]
+name = "Security Headers"
+pattern = "*"
+headers = {
+  "X-Content-Type-Options" = "nosniff",
+  "X-Frame-Options" = "DENY",
+  "Referrer-Policy" = "strict-origin-when-cross-origin",
+  "Permissions-Policy" = "geolocation=(), microphone=(), camera=()"
+}
+
+# Usage model
+[usage_model]
+default = "bundled"  # or "unbound" for longer execution
+
+# Environment-specific configurations
+[env.staging]
+name = "pitchey-staging"
+vars = { ENVIRONMENT = "staging", FRONTEND_URL = "https://staging.pitchey.com" }
+routes = [
+  { pattern = "api.staging.pitchey.com/*", zone_name = "pitchey.com" },
+  { pattern = "staging.pitchey.com/api/*", zone_name = "pitchey.com" }
+]
+
+[env.production]
+name = "pitchey-production"
+vars = { ENVIRONMENT = "production", FRONTEND_URL = "https://pitchey.com" }
+routes = [
+  { pattern = "api.pitchey.com/*", zone_name = "pitchey.com" },
+  { pattern = "pitchey.com/api/*", zone_name = "pitchey.com" }
+]

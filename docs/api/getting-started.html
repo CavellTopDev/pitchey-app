@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started - Pitchey API</title>
+    <link rel="icon" type="image/png" href="https://pitchey.com/favicon.png">
+    
+    <!-- Highlight.js for code syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    
+    <style>
+        :root {
+            --pitchey-primary: #6366f1;
+            --pitchey-secondary: #f59e0b;
+            --pitchey-dark: #1f2937;
+            --pitchey-light: #f9fafb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #374151;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--pitchey-primary) 0%, var(--pitchey-secondary) 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+
+        /* Navigation */
+        .nav {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--pitchey-dark);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover {
+            background: var(--pitchey-light);
+            color: var(--pitchey-primary);
+        }
+
+        .nav-links a.active {
+            background: var(--pitchey-primary);
+            color: white;
+        }
+
+        /* Main content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 3rem;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--pitchey-light);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        .sidebar h3 {
+            color: var(--pitchey-dark);
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar li {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar a {
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+
+        .sidebar a:hover {
+            color: var(--pitchey-primary);
+        }
+
+        .sidebar a.active {
+            color: var(--pitchey-primary);
+            font-weight: 600;
+        }
+
+        /* Content */
+        .content {
+            min-width: 0;
+        }
+
+        .content h1 {
+            color: var(--pitchey-dark);
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .content h2 {
+            color: var(--pitchey-dark);
+            font-size: 1.875rem;
+            font-weight: 600;
+            margin: 3rem 0 1.5rem;
+            border-bottom: 2px solid var(--pitchey-primary);
+            padding-bottom: 0.5rem;
+        }
+
+        .content h3 {
+            color: var(--pitchey-dark);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem;
+        }
+
+        .content h4 {
+            color: var(--pitchey-dark);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 1.5rem 0 1rem;
+        }
+
+        .content p {
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .content ul {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+        }
+
+        .content li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: var(--pitchey-dark);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .code-block code {
+            color: #f3f4f6;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Inline code */
+        code {
+            background: #f3f4f6;
+            color: var(--pitchey-dark);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.875rem;
+        }
+
+        /* Info boxes */
+        .info-box {
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .info-box.note {
+            background: #eff6ff;
+            border-color: var(--pitchey-primary);
+        }
+
+        .info-box.warning {
+            background: #fef3c7;
+            border-color: var(--pitchey-secondary);
+        }
+
+        .info-box.success {
+            background: #ecfdf5;
+            border-color: #10b981;
+        }
+
+        .info-box.danger {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        .info-box h4 {
+            margin: 0 0 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .info-box p {
+            margin: 0;
+            font-size: 0.875rem;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: var(--pitchey-light);
+            font-weight: 600;
+            color: var(--pitchey-dark);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: var(--pitchey-primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #5b5bd6;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--pitchey-primary);
+            border: 2px solid var(--pitchey-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--pitchey-primary);
+            color: white;
+        }
+
+        /* Copy button */
+        .copy-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .code-container {
+            position: relative;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .sidebar {
+                position: static;
+                order: 2;
+            }
+
+            .nav-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <h1>Getting Started</h1>
+            <p>Build powerful integrations with the Pitchey API</p>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <div>
+                <strong>Pitchey Developer Portal</strong>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">API Reference</a></li>
+                <li><a href="getting-started.html" class="active">Getting Started</a></li>
+                <li><a href="sdks.html">SDKs</a></li>
+                <li><a href="postman.html">Postman</a></li>
+                <li><a href="examples.html">Examples</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="container">
+        <div class="content-grid">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <h3>Table of Contents</h3>
+                <ul>
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#authentication">Authentication</a></li>
+                    <li><a href="#making-requests">Making Requests</a></li>
+                    <li><a href="#response-format">Response Format</a></li>
+                    <li><a href="#error-handling">Error Handling</a></li>
+                    <li><a href="#rate-limiting">Rate Limiting</a></li>
+                    <li><a href="#pagination">Pagination</a></li>
+                    <li><a href="#filtering">Filtering & Search</a></li>
+                    <li><a href="#webhooks">Webhooks</a></li>
+                    <li><a href="#demo-accounts">Demo Accounts</a></li>
+                    <li><a href="#next-steps">Next Steps</a></li>
+                </ul>
+            </aside>
+
+            <!-- Content -->
+            <main class="content">
+                <h1 id="overview">Getting Started with Pitchey API</h1>
+                
+                <p>
+                    Welcome to the Pitchey API! This comprehensive guide will help you get up and running 
+                    with our API to build powerful integrations for the movie industry platform.
+                </p>
+
+                <div class="info-box note">
+                    <h4>🚀 Quick Start</h4>
+                    <p>
+                        Want to jump right in? Use our demo accounts to start testing immediately, 
+                        or explore the <a href="index.html">interactive API documentation</a>.
+                    </p>
+                </div>
+
+                <h2 id="authentication">Authentication</h2>
+                
+                <p>
+                    The Pitchey API uses JWT (JSON Web Tokens) for authentication. You'll need to obtain 
+                    a token by logging in through one of our portal-specific endpoints.
+                </p>
+
+                <h3>Portal-Specific Login Endpoints</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User Type</th>
+                            <th>Endpoint</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Creator</td>
+                            <td><code>POST /api/auth/creator/login</code></td>
+                            <td>For filmmakers and content creators</td>
+                        </tr>
+                        <tr>
+                            <td>Investor</td>
+                            <td><code>POST /api/auth/investor/login</code></td>
+                            <td>For investors and funding organizations</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td><code>POST /api/auth/production/login</code></td>
+                            <td>For production companies and studios</td>
+                        </tr>
+                        <tr>
+                            <td>Universal</td>
+                            <td><code>POST /api/auth/login</code></td>
+                            <td>Auto-detects user type</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Getting Your First Token</h3>
+
+                <p>Here's how to authenticate and get your access token:</p>
+
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-javascript">// Example: Login as a creator
+const loginResponse = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    email: 'your-email@example.com',
+    password: 'your-password'
+  })
+});
+
+const loginData = await loginResponse.json();
+const token = loginData.token;
+
+// Store the token for future requests
+localStorage.setItem('pitchey_token', token);</code></pre>
+                    </div>
+                </div>
+
+                <h3>Using the Token</h3>
+
+                <p>Include your JWT token in the Authorization header for all authenticated requests:</p>
+
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-javascript">// Making authenticated requests
+const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/user/profile', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const userProfile = await response.json();</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="making-requests">Making Requests</h2>
+
+                <p>
+                    The Pitchey API is a RESTful API that uses standard HTTP methods and returns JSON responses.
+                    All requests should be made over HTTPS.
+                </p>
+
+                <h3>Base URLs</h3>
+                <ul>
+                    <li><strong>Production:</strong> <code>https://pitchey-production.cavelltheleaddev.workers.dev</code></li>
+                    <li><strong>Local Development:</strong> <code>http://localhost:8001</code></li>
+                </ul>
+
+                <h3>HTTP Methods</h3>
+                <ul>
+                    <li><code>GET</code> - Retrieve data</li>
+                    <li><code>POST</code> - Create new resources</li>
+                    <li><code>PUT</code> - Update existing resources</li>
+                    <li><code>DELETE</code> - Delete resources</li>
+                    <li><code>PATCH</code> - Partial updates</li>
+                </ul>
+
+                <h3>Content Types</h3>
+                <p>The API accepts and returns JSON data. Always set the <code>Content-Type</code> header:</p>
+
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-javascript">// Standard headers for API requests
+const headers = {
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${token}`
+};</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="response-format">Response Format</h2>
+
+                <p>All API responses follow a consistent format:</p>
+
+                <h3>Successful Responses</h3>
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">{
+  "id": 123,
+  "title": "The Last Star",
+  "logline": "A space exploration thriller...",
+  "genre": "Sci-Fi Thriller",
+  "createdAt": "2024-01-01T12:00:00Z",
+  "user": {
+    "id": 456,
+    "username": "filmmaker123",
+    "userType": "creator"
+  }
+}</code></pre>
+                    </div>
+                </div>
+
+                <h3>Error Responses</h3>
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">{
+  "error": "Validation failed",
+  "validation_errors": [
+    {
+      "field": "title",
+      "message": "Title is required"
+    }
+  ],
+  "timestamp": "2024-01-01T12:00:00Z"
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="error-handling">Error Handling</h2>
+
+                <p>The API uses standard HTTP status codes to indicate success or failure:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status Code</th>
+                            <th>Description</th>
+                            <th>Common Causes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>200</td>
+                            <td>OK</td>
+                            <td>Request successful</td>
+                        </tr>
+                        <tr>
+                            <td>201</td>
+                            <td>Created</td>
+                            <td>Resource created successfully</td>
+                        </tr>
+                        <tr>
+                            <td>400</td>
+                            <td>Bad Request</td>
+                            <td>Invalid request data or validation errors</td>
+                        </tr>
+                        <tr>
+                            <td>401</td>
+                            <td>Unauthorized</td>
+                            <td>Missing or invalid authentication token</td>
+                        </tr>
+                        <tr>
+                            <td>403</td>
+                            <td>Forbidden</td>
+                            <td>Insufficient permissions for the requested action</td>
+                        </tr>
+                        <tr>
+                            <td>404</td>
+                            <td>Not Found</td>
+                            <td>Requested resource doesn't exist</td>
+                        </tr>
+                        <tr>
+                            <td>429</td>
+                            <td>Rate Limited</td>
+                            <td>Too many requests - see rate limiting</td>
+                        </tr>
+                        <tr>
+                            <td>500</td>
+                            <td>Internal Server Error</td>
+                            <td>Server-side error occurred</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Example Error Handling</h3>
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-javascript">async function apiRequest(url, options = {}) {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`API Error (${response.status}): ${errorData.error}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('API request failed:', error);
+    throw error;
+  }
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="rate-limiting">Rate Limiting</h2>
+
+                <p>To ensure fair usage and maintain service quality, the API implements rate limiting:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Endpoint Type</th>
+                            <th>Rate Limit</th>
+                            <th>Window</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Standard API calls</td>
+                            <td>100 requests</td>
+                            <td>Per minute</td>
+                        </tr>
+                        <tr>
+                            <td>File uploads</td>
+                            <td>10 requests</td>
+                            <td>Per minute</td>
+                        </tr>
+                        <tr>
+                            <td>Authentication</td>
+                            <td>20 requests</td>
+                            <td>Per minute</td>
+                        </tr>
+                        <tr>
+                            <td>WebSocket connections</td>
+                            <td>5 connections</td>
+                            <td>Concurrent</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box warning">
+                    <h4>⚠️ Rate Limit Headers</h4>
+                    <p>
+                        Check the response headers for rate limit information:
+                        <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code>
+                    </p>
+                </div>
+
+                <h2 id="pagination">Pagination</h2>
+
+                <p>List endpoints support pagination using query parameters:</p>
+
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-javascript">// Get the second page of pitches with 10 items per page
+const response = await fetch('/api/pitches/public?page=2&limit=10');
+const data = await response.json();
+
+console.log(data.pitches);  // Array of pitch objects
+console.log(data.meta);     // Pagination metadata</code></pre>
+                    </div>
+                </div>
+
+                <h3>Pagination Response</h3>
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">{
+  "pitches": [...],
+  "meta": {
+    "page": 2,
+    "limit": 10,
+    "total": 150,
+    "totalPages": 15,
+    "hasNext": true,
+    "hasPrevious": true
+  }
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="filtering">Filtering & Search</h2>
+
+                <p>Many endpoints support filtering and search capabilities:</p>
+
+                <h3>Basic Filtering</h3>
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-javascript">// Filter pitches by genre and format
+const response = await fetch('/api/pitches/public?genre=sci-fi&format=feature');
+
+// Search pitches
+const searchResponse = await fetch('/api/pitches/search?q=space+thriller');
+
+// Advanced search with multiple filters
+const advancedResponse = await fetch('/api/search/advanced?' + new URLSearchParams({
+  query: 'thriller',
+  genres: ['thriller', 'action'],
+  budgetRanges: ['1M-5M', '5M-20M'],
+  seekingInvestment: true
+}));</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="webhooks">Webhooks</h2>
+
+                <p>
+                    Webhooks allow you to receive real-time notifications when certain events occur 
+                    in the Pitchey platform. Configure webhook endpoints in your developer dashboard.
+                </p>
+
+                <h3>Supported Events</h3>
+                <ul>
+                    <li><code>pitch.created</code> - New pitch was created</li>
+                    <li><code>pitch.updated</code> - Pitch was updated</li>
+                    <li><code>nda.requested</code> - NDA access was requested</li>
+                    <li><code>nda.signed</code> - NDA was signed</li>
+                    <li><code>message.received</code> - New message was received</li>
+                    <li><code>investment.tracked</code> - Investment was tracked</li>
+                </ul>
+
+                <h3>Webhook Payload Example</h3>
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">{
+  "event": "pitch.created",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "data": {
+    "pitch": {
+      "id": 123,
+      "title": "The Last Star",
+      "userId": 456,
+      "createdAt": "2024-01-01T12:00:00Z"
+    },
+    "user": {
+      "id": 456,
+      "username": "filmmaker123",
+      "userType": "creator"
+    }
+  }
+}</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="demo-accounts">Demo Accounts</h2>
+
+                <p>
+                    Use these demo accounts to test the API without creating your own account. 
+                    All demo accounts use the password <code>Demo123</code>:
+                </p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User Type</th>
+                            <th>Email</th>
+                            <th>Company</th>
+                            <th>Login Endpoint</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Creator</td>
+                            <td>alex.creator@demo.com</td>
+                            <td>Independent Films</td>
+                            <td>/api/auth/creator/login</td>
+                        </tr>
+                        <tr>
+                            <td>Investor</td>
+                            <td>sarah.investor@demo.com</td>
+                            <td>Johnson Ventures</td>
+                            <td>/api/auth/investor/login</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td>stellar.production@demo.com</td>
+                            <td>Stellar Productions</td>
+                            <td>/api/auth/production/login</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box success">
+                    <h4>✅ Quick Demo Login</h4>
+                    <p>
+                        Use the interactive API documentation to quickly log in with demo accounts 
+                        and start testing endpoints immediately.
+                    </p>
+                </div>
+
+                <h3>Demo Login Example</h3>
+                <div class="code-container">
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-javascript">// Login with demo creator account
+async function loginDemoCreator() {
+  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      email: 'alex.creator@demo.com',
+      password: 'Demo123'
+    })
+  });
+
+  const data = await response.json();
+  
+  if (data.token) {
+    console.log('Logged in successfully!');
+    console.log('User:', data.user);
+    return data.token;
+  } else {
+    console.error('Login failed:', data.error);
+  }
+}
+
+// Use the demo account
+const token = await loginDemoCreator();</code></pre>
+                    </div>
+                </div>
+
+                <h2 id="next-steps">Next Steps</h2>
+
+                <p>Now that you understand the basics, here are some recommended next steps:</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin: 2rem 0;">
+                    <div style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border-left: 4px solid var(--pitchey-primary);">
+                        <h4 style="margin-bottom: 0.5rem;">🔍 Explore the API</h4>
+                        <p style="margin-bottom: 1rem; font-size: 0.875rem;">Try out endpoints using our interactive documentation.</p>
+                        <a href="index.html" class="btn">API Reference</a>
+                    </div>
+                    
+                    <div style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border-left: 4px solid var(--pitchey-secondary);">
+                        <h4 style="margin-bottom: 0.5rem;">📚 Use SDKs</h4>
+                        <p style="margin-bottom: 1rem; font-size: 0.875rem;">Download pre-built SDKs for JavaScript/TypeScript and Python.</p>
+                        <a href="sdks.html" class="btn">Download SDKs</a>
+                    </div>
+                    
+                    <div style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border-left: 4px solid #10b981;">
+                        <h4 style="margin-bottom: 0.5rem;">📮 Import Postman</h4>
+                        <p style="margin-bottom: 1rem; font-size: 0.875rem;">Get our Postman collection for easy API testing.</p>
+                        <a href="postman.html" class="btn">Get Collection</a>
+                    </div>
+                    
+                    <div style="background: white; padding: 1.5rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border-left: 4px solid #ef4444;">
+                        <h4 style="margin-bottom: 0.5rem;">💡 View Examples</h4>
+                        <p style="margin-bottom: 1rem; font-size: 0.875rem;">Check out code examples and integration patterns.</p>
+                        <a href="examples.html" class="btn">Code Examples</a>
+                    </div>
+                </div>
+
+                <div class="info-box note">
+                    <h4>🤝 Need Help?</h4>
+                    <p>
+                        Join our developer community or contact support:
+                        <br>
+                        📧 <a href="mailto:developers@pitchey.com">developers@pitchey.com</a>
+                        <br>
+                        💬 <a href="https://discord.gg/pitchey-developers">Discord Community</a>
+                        <br>
+                        📖 <a href="https://github.com/pitchey/api-examples">GitHub Examples</a>
+                    </p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Highlight.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+    <script>
+        hljs.highlightAll();
+
+        // Copy code functionality
+        function copyCode(button) {
+            const codeBlock = button.nextElementSibling.querySelector('code');
+            const text = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = 'rgba(16, 185, 129, 0.8)';
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'rgba(255, 255, 255, 0.1)';
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling for sidebar links
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    
+                    // Update active link
+                    document.querySelectorAll('.sidebar a').forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Update active sidebar link on scroll
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('h2[id], h3[id]');
+            const scrollPos = window.scrollY + 150;
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.offsetHeight;
+                const sectionId = section.getAttribute('id');
+                
+                if (scrollPos >= sectionTop && scrollPos < sectionTop + sectionHeight) {
+                    document.querySelectorAll('.sidebar a').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${sectionId}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

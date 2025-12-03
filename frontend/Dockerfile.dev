@@ -1,0 +1,64 @@
+# Development Dockerfile for Pitchey Frontend
+# Optimized for development with hot reloading and debugging
+
+FROM node:20-alpine
+
+# Set development environment
+ENV NODE_ENV=development
+
+# Install development dependencies
+RUN apk add --no-cache \
+    git \
+    vim \
+    curl \
+    bash
+
+# Create app directory
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S pitchey && \
+    adduser -S pitchey -u 1001
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies with development packages
+RUN npm ci --include=dev
+
+# Install global development tools
+RUN npm install -g \
+    @vitejs/plugin-react \
+    vite \
+    typescript \
+    eslint \
+    prettier
+
+# Copy source code
+COPY . .
+
+# Set proper permissions
+RUN chown -R pitchey:pitchey /app
+
+# Switch to non-root user
+USER pitchey
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:5173 || exit 1
+
+# Default command for development server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+
+# Development metadata
+LABEL \
+    org.opencontainers.image.title="Pitchey Frontend Development" \
+    org.opencontainers.image.description="Development container for Pitchey frontend with hot reloading" \
+    org.opencontainers.image.version="dev" \
+    org.opencontainers.image.authors="Pitchey Development Team" \
+    dev.pitchey.environment="development" \
+    dev.pitchey.hot-reload="enabled" \
+    dev.pitchey.debugging="enabled"
