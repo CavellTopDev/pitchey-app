@@ -1,6 +1,6 @@
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import * as Sentry from '@sentry/react';
+// import * as Sentry from '@sentry/react';
 import { Link } from 'react-router-dom';
 
 interface Props {
@@ -44,7 +44,7 @@ export class InvestorDashboardErrorBoundary extends Component<Props, State> {
     });
 
     // Enhanced Sentry reporting for investor dashboard
-    const eventId = Sentry.captureException(error, {
+    const eventId = // Sentry.captureException(error, {
       tags: {
         component: 'investor-dashboard',
         errorBoundary: 'InvestorDashboardErrorBoundary',
@@ -114,7 +114,7 @@ export class InvestorDashboardErrorBoundary extends Component<Props, State> {
       this.retryCount += 1;
       
       // Add breadcrumb for retry attempt
-      Sentry.addBreadcrumb({
+      // Sentry.addBreadcrumb({
         message: `Dashboard retry attempt ${this.retryCount}`,
         category: 'user.interaction',
         level: 'info',
@@ -136,7 +136,7 @@ export class InvestorDashboardErrorBoundary extends Component<Props, State> {
 
   private handleReload = () => {
     // Track page reload in Sentry
-    Sentry.addBreadcrumb({
+    // Sentry.addBreadcrumb({
       message: 'User triggered page reload from error boundary',
       category: 'user.interaction',
       level: 'info',
@@ -252,7 +252,7 @@ export const withInvestorDashboardErrorBoundary = <P extends object>(
 export const useInvestorDashboardErrorReporting = () => {
   return {
     reportError: (error: Error, context?: Record<string, any>) => {
-      Sentry.captureException(error, {
+      // Sentry.captureException(error, {
         tags: {
           component: 'investor-dashboard',
           reportedManually: true,
@@ -266,7 +266,7 @@ export const useInvestorDashboardErrorReporting = () => {
       });
     },
     addBreadcrumb: (message: string, data?: Record<string, any>) => {
-      Sentry.addBreadcrumb({
+      // Sentry.addBreadcrumb({
         message,
         category: 'dashboard.action',
         level: 'info',

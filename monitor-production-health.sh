@@ -4,7 +4,7 @@
 # Continuously monitors critical endpoints and connection pool health
 
 # Configuration
-BASE_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+BASE_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 CHECK_INTERVAL=60  # seconds
 ALERT_THRESHOLD=3  # consecutive failures before alert
 

@@ -2,12 +2,13 @@
 # Deploy with: wrangler deploy --config wrangler-production-fixed.toml
 
 name = "pitchey-production"
-main = "src/worker-production-complete.ts"
+main = "frontend/worker/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "e16d3bf549153de23459a6c6a06a431b"
 
 [vars]
+DATABASE_URL = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
 JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
 ENVIRONMENT = "production"
 
@@ -20,6 +21,11 @@ id = "98c88a185eb448e4868fcc87e458b3ac"
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "pitchey-uploads"
+
+# Durable Objects for WebSocket handling
+[[durable_objects.bindings]]
+name = "WEBSOCKET_ROOMS"
+class_name = "WebSocketRoom"
 
 # Hyperdrive for database connection pooling (if configured)
 # [[hyperdrive]]

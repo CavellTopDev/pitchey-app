@@ -4,8 +4,8 @@
 echo "🔔 Testing Real-World Notification System"
 echo "=========================================="
 
-API_URL="${API_URL:-https://pitchey-optimized.cavelltheleaddev.workers.dev}"
-WS_URL="${WS_URL:-wss://pitchey-optimized.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+WS_URL="${WS_URL:-wss://pitchey-production.cavelltheleaddev.workers.dev}"
 
 # Colors for output
 GREEN='\033[0;32m'

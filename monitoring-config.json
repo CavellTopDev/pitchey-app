@@ -1,6 +1,6 @@
 {
   "service": "pitchey-production",
-  "worker_url": "https://pitchey-optimized.cavelltheleaddev.workers.dev",
+  "worker_url": "https://pitchey-production.cavelltheleaddev.workers.dev",
   "monitoring": {
     "endpoints": [
       {

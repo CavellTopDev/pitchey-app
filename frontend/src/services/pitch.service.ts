@@ -379,8 +379,10 @@ export class PitchService {
     try {
       const response = await apiClient.get<{ 
         success: boolean; 
-        items: Pitch[];
-        message: string;
+        data?: Pitch[];
+        items?: Pitch[];
+        pagination?: any;
+        message?: string;
       }>(`/api/pitches/trending?limit=${limit}`);
 
       if (!response.success) {
@@ -388,9 +390,10 @@ export class PitchService {
         return [];
       }
 
-      // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
-      const pitches = response.data?.items || [];
-      console.log('Trending pitches received:', pitches.length);
+      // The apiClient returns the whole response as data, so we need to check response.data.items
+      const responseData = response.data as any;
+      const pitches = responseData?.items || responseData?.data || responseData || [];
+      console.log('Trending pitches received:', pitches);
       
       // Ensure we always return an array
       return Array.isArray(pitches) ? pitches : [];
@@ -405,8 +408,10 @@ export class PitchService {
     try {
       const response = await apiClient.get<{ 
         success: boolean; 
-        items: Pitch[];
-        message: string;
+        data?: Pitch[];
+        items?: Pitch[];
+        pagination?: any;
+        message?: string;
       }>(`/api/pitches/new?limit=${limit}`);
 
       if (!response.success) {
@@ -414,9 +419,10 @@ export class PitchService {
         return [];
       }
 
-      // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
-      const pitches = response.data?.items || [];
-      console.log('New releases received:', pitches.length);
+      // The apiClient returns the whole response as data, so we need to check response.data.items
+      const responseData = response.data as any;
+      const pitches = responseData?.items || responseData?.data || responseData || [];
+      console.log('New releases received:', pitches);
       
       // Ensure we always return an array
       return Array.isArray(pitches) ? pitches : [];
@@ -432,6 +438,7 @@ export class PitchService {
     order?: 'asc' | 'desc';
     genre?: string;
     format?: string;
+    search?: string;
     limit?: number;
     offset?: number;
   }): Promise<{
@@ -456,6 +463,7 @@ export class PitchService {
       if (filters?.order) params.append('order', filters.order);
       if (filters?.genre) params.append('genre', filters.genre);
       if (filters?.format) params.append('format', filters.format);
+      if (filters?.search) params.append('q', filters.search);
       if (filters?.limit) params.append('limit', filters.limit.toString());
       if (filters?.offset) params.append('offset', filters.offset.toString());
 

@@ -3,7 +3,7 @@
  * Tests how the response changes with authentication
  */
 
-const WORKER_URL = 'https://pitchey-optimized.cavelltheleaddev.workers.dev';
+const WORKER_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
 
 // Demo JWT token for testing (this would be created by login in real scenario)
 // This is a demo token that may not work, but shows the authentication pattern

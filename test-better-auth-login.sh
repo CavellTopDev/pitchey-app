@@ -4,7 +4,7 @@
 echo "Testing Better Auth Integration"
 echo "================================"
 
-API_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 
 # Test 1: Health check
 echo -e "\n1. Health Check:"

@@ -111,7 +111,7 @@ npm install better-auth
 import { createAuthClient } from "better-auth/client";
 
 const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || "https://pitchey-optimized.cavelltheleaddev.workers.dev"
+  baseURL: import.meta.env.VITE_API_URL || "https://pitchey-production.cavelltheleaddev.workers.dev"
 });
 
 export const authService = {

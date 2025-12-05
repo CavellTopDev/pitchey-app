@@ -84,7 +84,7 @@ jobs:
           echo "🧪 Testing deployed worker..."
           
           # Test the health endpoint
-          response=\$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)
+          response=\$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health)
           
           if [ "\$response" = "200" ]; then
             echo "✅ Health check passed!"

@@ -14,7 +14,7 @@ echo "--------------------------------"
 
 # Test Creator Portal
 echo -n "Creator Portal: "
-response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
 if [ "$response" = "200" ]; then
@@ -25,7 +25,7 @@ fi
 
 # Test Investor Portal
 echo -n "Investor Portal: "
-response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/investor/login" \
+response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
 if [ "$response" = "200" ]; then
@@ -37,11 +37,11 @@ fi
 # Test Analytics Endpoint
 echo -n "Analytics Endpoint: "
 # Get a valid token first
-token=$(curl -s -X POST "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+token=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
-response=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/analytics/dashboard" \
+response=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey-production.cavelltheleaddev.workers.dev/api/analytics/dashboard" \
   -H "Authorization: Bearer $token")
 if [ "$response" = "200" ]; then
   echo "✅ No 500 error (HTTP 200)"
@@ -51,7 +51,7 @@ fi
 
 # Test NDA Endpoint
 echo -n "NDA Endpoint: "
-response=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/nda/requests" \
+response=$(curl -s -o /dev/null -w "%{http_code}" "https://pitchey-production.cavelltheleaddev.workers.dev/api/nda/requests" \
   -H "Authorization: Bearer $token")
 if [ "$response" = "200" ]; then
   echo "✅ No 500 error (HTTP 200)"

@@ -11,8 +11,8 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-API_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
-WS_URL="wss://pitchey-optimized.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WS_URL="wss://pitchey-production.cavelltheleaddev.workers.dev"
 
 # Test 1: Login as creator to get a fresh token
 echo -e "${YELLOW}1. Logging in as creator to get fresh JWT token...${NC}"

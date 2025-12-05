@@ -137,7 +137,7 @@ The connection pool exhaustion issue has been completely resolved through a comp
 ## Support
 For any issues or questions:
 - Monitor: `./monitor-production-health.sh`
-- Rollback: `wrangler rollback --name pitchey-optimized`
+- Rollback: `wrangler rollback --name pitchey-production`
 - Logs: Check Cloudflare dashboard and Sentry
 
 ---

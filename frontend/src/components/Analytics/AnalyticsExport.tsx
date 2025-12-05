@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Download, FileSpreadsheet, FileText } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import * as htmlToImage from 'html-to-image';
+
+// Export functionality temporarily disabled to resolve JavaScript initialization errors
 
 interface AnalyticsExportProps {
   data: any[];
@@ -15,22 +15,17 @@ export const AnalyticsExport: React.FC<AnalyticsExportProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Analytics');
-    XLSX.writeFile(workbook, `${title.replace(/\s+/g, '_')}_analytics.xlsx`);
+    // Temporarily disabled - xlsx library causing initialization errors
+    console.log('Excel export temporarily disabled');
+    alert('Excel export temporarily unavailable');
     setMenuOpen(false);
   };
 
   const exportToPDF = async (chartRef: React.RefObject<HTMLDivElement>) => {
-    if (chartRef.current) {
-      const dataUrl = await htmlToImage.toPng(chartRef.current);
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `${title.replace(/\s+/g, '_')}_analytics.png`;
-      link.click();
-      setMenuOpen(false);
-    }
+    // Temporarily disabled - html-to-image library causing initialization errors  
+    console.log('PDF export temporarily disabled');
+    alert('PDF export temporarily unavailable');
+    setMenuOpen(false);
   };
 
   return (

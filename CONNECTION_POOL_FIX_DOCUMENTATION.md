@@ -114,7 +114,7 @@ If issues arise after deployment:
 
 ```bash
 # Immediate rollback
-wrangler rollback --name pitchey-optimized
+wrangler rollback --name pitchey-production
 
 # Or deploy previous version
 git checkout HEAD~2

@@ -1,6 +1,6 @@
 {
   "timestamp": "2025-11-26T23:24:12+00:00",
-  "worker_url": "https://pitchey-optimized.cavelltheleaddev.workers.dev",
+  "worker_url": "https://pitchey-production.cavelltheleaddev.workers.dev",
   "configuration": {
     "iterations": 20,
     "endpoints_tested": 10

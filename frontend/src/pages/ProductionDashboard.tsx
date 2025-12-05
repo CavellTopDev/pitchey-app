@@ -26,7 +26,7 @@ import InvestmentOpportunities from '../components/Investment/InvestmentOpportun
 import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
-import * as Sentry from '@sentry/react';
+// import * as Sentry from '@sentry/react';
 
 interface Analytics {
   totalViews: number;

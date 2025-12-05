@@ -11,7 +11,7 @@ import { configService } from '../services/config.service';
 import FormatDisplay from '../components/FormatDisplay';
 import FilterBar, { type FilterState, type SortOption } from '../components/FilterBar';
 import MobileFilterBar from '../components/MobileFilterBar';
-import { API_URL } from '../config';
+import { getApiUrl } from '../config';
 import { 
   Eye, 
   Heart, 
@@ -141,7 +141,7 @@ export default function MarketplaceEnhanced() {
       }
       
       // Try enhanced endpoint first with multi-select support
-      const response = await fetch(`${API_URL}/api/pitches/browse/enhanced?${params.toString()}`, {
+      const response = await fetch(`${getApiUrl()}/api/pitches/browse/enhanced?${params.toString()}`, {
         headers: token ? {
           'Authorization': `Bearer ${token}`
         } : {}
@@ -149,10 +149,23 @@ export default function MarketplaceEnhanced() {
       
       if (response.ok) {
         const data = await response.json();
-        // Worker API returns { success, items, total, totalPages, ... }
-        setPitches(data.items || []);
-        setTotalPages(data.totalPages || 1);
-        setTotalResults(data.total || data.items?.length || 0);
+        // Handle both response formats: { items: [...] } and { data: [...] }
+        let resultPitches = data.items || data.data || [];
+        
+        // Apply client-side filtering since backend search is broken
+        if (filters.searchQuery && filters.searchQuery.trim()) {
+          const query = filters.searchQuery.toLowerCase();
+          resultPitches = resultPitches.filter(pitch => 
+            pitch.title?.toLowerCase().includes(query) ||
+            pitch.logline?.toLowerCase().includes(query) ||
+            pitch.genre?.toLowerCase().includes(query)
+          );
+        }
+        
+        // Worker API returns { success, items/data, total, totalPages, ... }
+        setPitches(resultPitches);
+        setTotalPages(data.totalPages || Math.ceil(resultPitches.length / itemsPerPage));
+        setTotalResults(data.total || resultPitches.length);
       } else if (response.status === 404 || response.status === 401) {
         // Fallback to general browse endpoint
         const generalParams = new URLSearchParams();
@@ -169,7 +182,7 @@ export default function MarketplaceEnhanced() {
           generalParams.set('format', filters.formats[0]);
         }
         
-        const fallbackResponse = await fetch(`${API_URL}/api/pitches/browse/general?${generalParams.toString()}`, {
+        const fallbackResponse = await fetch(`${getApiUrl()}/api/pitches/browse/general?${generalParams.toString()}`, {
           headers: token ? {
             'Authorization': `Bearer ${token}`
           } : {}

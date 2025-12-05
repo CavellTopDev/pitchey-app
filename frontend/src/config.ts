@@ -69,15 +69,39 @@ function createConfig(): AppConfig {
   return config;
 }
 
-// Create and export the configuration
-export const config = createConfig();
+// Create configuration with lazy initialization to avoid temporal dead zone
+let _config: AppConfig | null = null;
+export const config = new Proxy({} as AppConfig, {
+  get(target, prop) {
+    if (!_config) {
+      _config = createConfig();
+    }
+    return _config[prop as keyof AppConfig];
+  }
+});
 
-// Backward compatibility exports
+// Backward compatibility exports with lazy evaluation
+// Use getter functions to avoid proxy issues in template strings
+export function getApiUrl(): string {
+  return config.API_URL;
+}
+
+export function getWsUrl(): string {
+  return config.WS_URL;
+}
+
+// For backward compatibility, export direct access (should work correctly now)
 export const API_URL = config.API_URL;
 export const WS_URL = config.WS_URL;
 
-// Export for use in components that haven't been updated yet
-(window as any).API_URL = API_URL;
-(window as any).WS_URL = WS_URL;
+// Export for use in components that haven't been updated yet (lazy)
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'API_URL', {
+    get() { return config.API_URL; }
+  });
+  Object.defineProperty(window, 'WS_URL', {
+    get() { return config.WS_URL; }
+  });
+}
 
 export default config;

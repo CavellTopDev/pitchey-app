@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import * as Sentry from '@sentry/react';
+// import * as Sentry from '@sentry/react';
 import { AlertTriangle, RefreshCw, Home, MessageCircle } from 'lucide-react';
 
 interface PortalErrorBoundaryProps {
@@ -63,52 +63,15 @@ export class PortalErrorBoundary extends Component<PortalErrorBoundaryProps, Por
       context: errorContext
     });
 
-    // Send to Sentry with enhanced context
-    if (Sentry.getCurrentHub().getClient()) {
-      Sentry.withScope((scope) => {
-        // Set portal-specific tags
-        scope.setTag('portal', portalType);
-        scope.setTag('error.boundary', 'portal');
-        scope.setTag('error.id', errorId);
-        
-        // Set user context
-        if (userId) {
-          scope.setUser({
-            id: String(userId),
-            username: userName || undefined,
-            portal: portalType
-          });
-        }
-
-        // Add portal-specific context
-        scope.setContext('portal_error', {
-          portalType,
-          errorId,
-          retryCount: this.state.retryCount,
-          componentStack: errorInfo.componentStack,
-          ...this.getPortalSpecificContext()
-        });
-
-        // Set fingerprint for better grouping
-        scope.setFingerprint([
-          portalType,
-          error.name,
-          error.message.substring(0, 100)
-        ]);
-
-        // Set severity based on portal type
-        scope.setLevel(this.getSeverityLevel(portalType, error));
-
-        // Capture the exception
-        Sentry.captureException(error, {
-          contexts: {
-            react: {
-              componentStack: errorInfo.componentStack
-            }
-          }
-        });
-      });
-    }
+    // Send to Sentry with enhanced context - temporarily disabled
+    console.error('Portal Error Boundary:', {
+      portalType,
+      errorId,
+      retryCount: this.state.retryCount,
+      componentStack: errorInfo.componentStack,
+      userId,
+      userName
+    });
 
     this.setState({ errorInfo });
   }
@@ -163,7 +126,7 @@ export class PortalErrorBoundary extends Component<PortalErrorBoundaryProps, Por
     return context;
   }
 
-  private getSeverityLevel(portalType: string, error: Error): Sentry.SeverityLevel {
+  private getSeverityLevel(portalType: string, error: Error): string {
     // Admin errors are more critical
     if (portalType === 'admin') return 'error';
     
@@ -318,25 +281,5 @@ export function withPortalErrorBoundary<P extends object>(
   });
 }
 
-// Sentry-integrated error boundary using Sentry's HOC
-export const SentryPortalErrorBoundary = Sentry.withErrorBoundary(
-  ({ children }: { children: ReactNode }) => <>{children}</>,
-  {
-    fallback: ({ error, resetError }) => (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Application Error</h2>
-          <p className="text-gray-600 mb-4">{error?.message || 'An unexpected error occurred'}</p>
-          <button
-            onClick={resetError}
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    ),
-    showDialog: false
-  }
-);
+// Sentry-integrated error boundary - temporarily disabled
+export const SentryPortalErrorBoundary = ({ children }: { children: ReactNode }) => <>{children}</>;

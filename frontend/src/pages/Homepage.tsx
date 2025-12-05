@@ -192,23 +192,34 @@ export default function Homepage() {
             
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto mb-8">
-              <form className="flex bg-white rounded-lg shadow-lg overflow-hidden">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchQuery.trim()) {
+                    navigate(`/marketplace?search=${encodeURIComponent(searchQuery.trim())}`);
+                  }
+                }}
+                className="flex bg-white rounded-lg shadow-lg overflow-hidden"
+              >
                 <input
                   type="text"
                   placeholder="Search pitches by title, genre, or keywords..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 px-6 py-4 text-gray-900 focus:outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchQuery.trim()) {
+                      e.preventDefault();
+                      navigate(`/marketplace?search=${encodeURIComponent(searchQuery.trim())}`);
+                    }
+                  }}
+                  className="flex-1 px-6 py-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-inset"
                 />
                 <button 
                   type="submit"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate(`/marketplace?search=${searchQuery}`);
-                  }}
-                  className="px-6 py-4 bg-purple-600 hover:bg-purple-700 transition-colors"
+                  disabled={!searchQuery.trim()}
+                  className="px-6 py-4 bg-purple-600 hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  <Search className="w-5 h-5" />
+                  <Search className="w-5 h-5 text-white" />
                 </button>
               </form>
             </div>

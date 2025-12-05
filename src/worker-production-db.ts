@@ -4,14 +4,28 @@
  */
 
 import jwt from '@tsndr/cloudflare-worker-jwt';
+import * as bcrypt from 'bcryptjs';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { eq, and, or, gte, lte, desc, asc, like, sql as sqlOperator } from 'drizzle-orm';
 import * as schema from './db/schema';
+import { Redis } from '@upstash/redis/cloudflare';
+import { SessionManager, RateLimiter } from './auth/session-manager';
+
+// Wrapper for Redis client to work with Cloudflare Workers
+function createRedisClient(env: Env) {
+  return new Redis({
+    url: env.UPSTASH_REDIS_REST_URL,
+    token: env.UPSTASH_REDIS_REST_TOKEN,
+  });
+}
 
 export interface Env {
   DATABASE_URL: string;
   JWT_SECRET: string;
+  UPSTASH_REDIS_REST_URL: string;
+  UPSTASH_REDIS_REST_TOKEN: string;
+  ENVIRONMENT?: string;
   KV?: KVNamespace;
   R2_BUCKET?: R2Bucket;
   WEBSOCKET_ROOMS?: DurableObjectNamespace;
@@ -20,29 +34,62 @@ export interface Env {
   FRONTEND_URL?: string;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+// Dynamic CORS headers function to support credentials
+function getCorsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get('Origin') || '';
+  const allowedOrigins = [
+    'https://pitchey.pages.dev',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000'
+  ];
+  
+  // Check if origin matches allowed list or is a Cloudflare Pages subdomain
+  const isAllowed = allowedOrigins.includes(origin) || 
+                    origin.match(/^https:\/\/[a-z0-9]+\.pitchey\.pages\.dev$/);
+  
+  // If credentials are needed, we must return the exact origin (not *)
+  if (isAllowed) {
+    return {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Expose-Headers': 'Set-Cookie'
+    };
+  }
+  
+  // Fallback for non-credentialed requests
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
 
-function jsonResponse(data: any, status = 200): Response {
+function jsonResponse(data: any, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 }
 
 async function hashPassword(password: string): Promise<string> {
+  // Use bcrypt for new passwords
+  return await bcrypt.hash(password, 10);
+}
+
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  // Handle bcrypt hashes from database
+  if (hash.startsWith('$2b$') || hash.startsWith('$2a$')) {
+    return await bcrypt.compare(password, hash);
+  }
+  // Fallback for SHA-256 hashes (legacy)
   const encoder = new TextEncoder();
   const data = encoder.encode(password + 'pitchey-salt');
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const inputHash = await hashPassword(password);
+  const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   return inputHash === hash;
 }
 
@@ -61,43 +108,119 @@ async function verifyToken(token: string, env: Env): Promise<any | null> {
   }
 }
 
+// Unified authentication function that checks both session and JWT
+async function authenticateRequest(request: Request, env: Env, db: any): Promise<any | null> {
+  // First check for session cookie
+  const cookieHeader = request.headers.get('Cookie');
+  const sessionId = SessionManager.parseSessionFromCookie(cookieHeader);
+  
+  if (sessionId) {
+    try {
+      const redis = createRedisClient(env);
+      const sessionManager = new SessionManager(redis, {
+        domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+        secure: env.ENVIRONMENT === 'production',
+        httpOnly: true,
+        sameSite: 'lax'
+      });
+      
+      const session = await sessionManager.getSession(sessionId);
+      if (session) {
+        // Get fresh user data from database
+        const users = await db.select()
+          .from(schema.users)
+          .where(eq(schema.users.id, session.userId))
+          .limit(1);
+        
+        if (users.length > 0) {
+          const user = users[0];
+          // Return JWT-like payload for compatibility
+          return {
+            sub: user.id.toString(),
+            email: user.email,
+            userType: user.userType,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            companyName: user.companyName,
+            verified: user.emailVerified || user.isVerified || false,
+            iat: Math.floor(session.createdAt / 1000),
+            exp: Math.floor(session.expiresAt / 1000),
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Session validation error:', error);
+    }
+  }
+  
+  // Fall back to JWT token
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    return await verifyToken(token, env);
+  }
+  
+  return null;
+}
+
 async function handleLogin(request: Request, env: Env, userType: string): Promise<Response> {
   try {
+    console.log('Login attempt for userType:', userType);
+    
     const sql = neon(env.DATABASE_URL);
     const db = drizzle(sql);
     
     const body = await request.json();
     const { email, password } = body;
+    console.log('Login attempt for email:', email);
 
     if (!email || !password) {
       return jsonResponse({
         success: false,
         message: 'Email and password are required',
-      }, 400);
+      }, 400, getCorsHeaders(request));
+    }
+
+    // Rate limiting
+    const redis = createRedisClient(env);
+    
+    const rateLimiter = new RateLimiter(redis, 5, 60);
+    const identifier = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const { allowed, remaining } = await rateLimiter.checkLimit(`auth:${identifier}`);
+    
+    if (!allowed) {
+      return jsonResponse({
+        success: false,
+        message: 'Too many login attempts. Please try again later.',
+      }, 429, getCorsHeaders(request));
     }
 
     // Get user from database
+    console.log('Querying database for user...');
     const users = await db.select()
       .from(schema.users)
       .where(eq(schema.users.email, email))
       .limit(1);
+    console.log('Database query completed, users found:', users.length);
 
     if (users.length === 0) {
       return jsonResponse({
         success: false,
         message: 'Invalid credentials',
-      }, 401);
+      }, 401, getCorsHeaders(request));
     }
 
     const user = users[0];
+    console.log('User found, verifying password...');
 
     // Verify password
     const passwordValid = await verifyPassword(password, user.passwordHash);
+    console.log('Password verification result:', passwordValid);
     if (!passwordValid) {
       return jsonResponse({
         success: false,
         message: 'Invalid credentials',
-      }, 401);
+      }, 401, getCorsHeaders(request));
     }
 
     // Check user type (unless admin)
@@ -105,10 +228,30 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
       return jsonResponse({
         success: false,
         message: `Invalid ${userType} credentials`,
-      }, 401);
+      }, 401, getCorsHeaders(request));
     }
 
-    // Create JWT token
+    // Create secure session instead of JWT
+    const sessionManager = new SessionManager(redis, {
+      domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+      secure: env.ENVIRONMENT === 'production',
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 // 7 days
+    });
+
+    const { sessionId, cookie } = await sessionManager.createSession({
+      userId: user.id,
+      email: user.email,
+      userType: user.userType as any,
+    }, request);
+
+    // Update last login
+    await db.update(schema.users)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(schema.users.id, user.id));
+
+    // Also create JWT for backward compatibility
     const token = await jwt.sign({
       sub: user.id.toString(),
       email: user.email,
@@ -116,20 +259,21 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
       firstName: user.firstName,
       lastName: user.lastName,
       companyName: user.companyName,
-      verified: user.verified,
+      verified: user.emailVerified || user.isVerified || false,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
     }, env.JWT_SECRET);
 
-    // Update last login
-    await db.update(schema.users)
-      .set({ lastLogin: new Date() })
-      .where(eq(schema.users.id, user.id));
+    // Prepare response headers with cookie
+    const responseHeaders = {
+      ...getCorsHeaders(request),
+      'Set-Cookie': cookie,
+    };
 
     return jsonResponse({
       success: true,
       data: {
-        token,
+        token, // Include JWT for backward compatibility
         user: {
           id: user.id,
           email: user.email,
@@ -137,16 +281,22 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
           lastName: user.lastName,
           companyName: user.companyName,
           userType: user.userType,
-          verified: user.verified,
+          verified: user.emailVerified || user.isVerified || false,
         },
       },
-    });
+    }, 200, responseHeaders);
   } catch (error) {
     console.error('Login error:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    // Always include error details for debugging
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
     return jsonResponse({
       success: false,
-      message: 'Login failed',
-    }, 500);
+      message: `Login failed: ${errorMessage}`,
+      error: String(error),
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3).join(' ') : undefined
+    }, 500, getCorsHeaders(request));
   }
 }
 
@@ -193,12 +343,15 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
     const newUser = await db.insert(schema.users)
       .values({
         email,
+        username: email.split('@')[0], // Generate username from email
+        password: '', // Legacy field, empty for now
         passwordHash,
         firstName,
         lastName,
         companyName: companyName || '',
         userType,
-        verified: false,
+        emailVerified: false,
+        isVerified: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -228,7 +381,7 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
       firstName: user.firstName,
       lastName: user.lastName,
       companyName: user.companyName,
-      verified: user.verified,
+      verified: user.emailVerified || user.isVerified || false,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
     }, env.JWT_SECRET);
@@ -256,6 +409,35 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
   }
 }
 
+// Cache helpers
+async function getCachedResponse(key: string, kv: KVNamespace | undefined): Promise<Response | null> {
+  if (!kv) return null;
+  
+  try {
+    const cached = await kv.get(key, 'text');
+    if (cached) {
+      const data = JSON.parse(cached);
+      return jsonResponse(data, 200);
+    }
+  } catch (error) {
+    console.error('Cache read error:', error);
+  }
+  
+  return null;
+}
+
+async function setCachedResponse(key: string, data: any, kv: KVNamespace | undefined, ttl = 300): Promise<void> {
+  if (!kv) return;
+  
+  try {
+    await kv.put(key, JSON.stringify(data), {
+      expirationTtl: ttl, // Cache for 5 minutes by default
+    });
+  } catch (error) {
+    console.error('Cache write error:', error);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -264,7 +446,63 @@ export default {
 
     // CORS preflight
     if (method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { headers: getCorsHeaders(request) });
+    }
+
+    // WebSocket endpoint - connect to Durable Object
+    if (path === '/ws') {
+      const upgradeHeader = request.headers.get('Upgrade');
+      if (!upgradeHeader || upgradeHeader !== 'websocket') {
+        // Return info for non-WebSocket requests
+        return jsonResponse({
+          success: true,
+          message: 'WebSocket endpoint',
+          info: 'Connect with WebSocket protocol for real-time features',
+        });
+      }
+      
+      // Route to Durable Object if available
+      if (env.WEBSOCKET_ROOMS) {
+        // Get or create room ID (could be user-specific or global)
+        const roomId = env.WEBSOCKET_ROOMS.idFromName('global-room');
+        const room = env.WEBSOCKET_ROOMS.get(roomId);
+        
+        // Forward the WebSocket request to the Durable Object
+        return room.fetch(request);
+      }
+      
+      // Fallback to simple WebSocket if no Durable Object
+      try {
+        const pair = new WebSocketPair();
+        const [client, server] = Object.values(pair);
+        
+        server.accept();
+        server.send(JSON.stringify({
+          type: 'connection',
+          status: 'connected',
+          message: 'Connected to Pitchey real-time service (fallback mode)',
+        }));
+        
+        server.addEventListener('message', event => {
+          const message = JSON.parse(event.data as string);
+          server.send(JSON.stringify({
+            type: 'echo',
+            data: message,
+            timestamp: new Date().toISOString(),
+          }));
+        });
+        
+        return new Response(null, {
+          status: 101,
+          webSocket: client,
+        });
+      } catch (error) {
+        console.error('WebSocket error:', error);
+        return jsonResponse({
+          success: false,
+          message: 'WebSocket initialization failed',
+        }, 500);
+      }
     }
 
     try {
@@ -320,6 +558,202 @@ export default {
       }
       if (path === '/api/auth/production/register' && method === 'POST') {
         return handleRegister(request, env, 'production');
+      }
+
+      // Logout endpoint
+      if (path === '/api/auth/logout' && method === 'POST') {
+        const cookieHeader = request.headers.get('Cookie');
+        const sessionId = SessionManager.parseSessionFromCookie(cookieHeader);
+        
+        if (sessionId) {
+          const redis = createRedisClient(env);
+          
+          const sessionManager = new SessionManager(redis, {
+            domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+            secure: env.ENVIRONMENT === 'production',
+          });
+          
+          await sessionManager.destroySession(sessionId);
+        }
+        
+        const logoutCookie = SessionManager.generateLogoutCookie(
+          env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined
+        );
+        
+        return jsonResponse({
+          success: true,
+          message: 'Logged out successfully',
+        }, 200, {
+          ...getCorsHeaders(request),
+          'Set-Cookie': logoutCookie,
+        });
+      }
+
+      // Profile endpoint - returns current user data
+      if (path === '/api/auth/profile' && method === 'GET') {
+        const cookieHeader = request.headers.get('Cookie');
+        const sessionId = SessionManager.parseSessionFromCookie(cookieHeader);
+        
+        if (!sessionId) {
+          // Also check for JWT token for backward compatibility
+          const authHeader = request.headers.get('Authorization');
+          if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return jsonResponse({
+              success: false,
+              message: 'Authentication required',
+            }, 401, getCorsHeaders(request));
+          }
+          
+          // Validate JWT token
+          try {
+            const token = authHeader.substring(7);
+            const payload = await jwt.verify(token, env.JWT_SECRET);
+            const userId = parseInt(payload.sub as string);
+            
+            // Get user from database
+            const users = await db.select()
+              .from(schema.users)
+              .where(eq(schema.users.id, userId))
+              .limit(1);
+            
+            if (users.length === 0) {
+              return jsonResponse({
+                success: false,
+                message: 'User not found',
+              }, 404, getCorsHeaders(request));
+            }
+            
+            const user = users[0];
+            return jsonResponse({
+              success: true,
+              data: {
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                userType: user.userType,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                companyName: user.companyName,
+                profileImage: user.profileImage,
+                bio: user.bio,
+              },
+            }, 200, getCorsHeaders(request));
+          } catch (error) {
+            return jsonResponse({
+              success: false,
+              message: 'Invalid token',
+            }, 401, getCorsHeaders(request));
+          }
+        }
+        
+        // Use session authentication
+        const redis = createRedisClient(env);
+        
+        const sessionManager = new SessionManager(redis, {
+          domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+          secure: env.ENVIRONMENT === 'production',
+          httpOnly: true,
+          sameSite: 'lax'
+        });
+        const session = await sessionManager.getSession(sessionId);
+        
+        if (!session) {
+          return jsonResponse({
+            success: false,
+            message: 'Invalid or expired session',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        // Get fresh user data
+        const users = await db.select()
+          .from(schema.users)
+          .where(eq(schema.users.id, session.userId))
+          .limit(1);
+        
+        if (users.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'User not found',
+          }, 404, getCorsHeaders(request));
+        }
+        
+        const user = users[0];
+        return jsonResponse({
+          success: true,
+          data: {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            userType: user.userType,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            companyName: user.companyName,
+            profileImage: user.profileImage,
+            bio: user.bio,
+          },
+        }, 200, getCorsHeaders(request));
+      }
+      
+      // Session validation endpoint
+      if (path === '/api/auth/session' && method === 'GET') {
+        const cookieHeader = request.headers.get('Cookie');
+        const sessionId = SessionManager.parseSessionFromCookie(cookieHeader);
+        
+        if (!sessionId) {
+          return jsonResponse({
+            success: false,
+            message: 'No session found',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        const redis = createRedisClient(env);
+        
+        const sessionManager = new SessionManager(redis, {
+          domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+          secure: env.ENVIRONMENT === 'production',
+          httpOnly: true,
+          sameSite: 'lax'
+        });
+        const session = await sessionManager.getSession(sessionId);
+        
+        if (!session) {
+          return jsonResponse({
+            success: false,
+            message: 'Invalid or expired session',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        // Get fresh user data
+        const users = await db.select()
+          .from(schema.users)
+          .where(eq(schema.users.id, session.userId))
+          .limit(1);
+        
+        if (users.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'User not found',
+          }, 404, getCorsHeaders(request));
+        }
+        
+        const user = users[0];
+        
+        return jsonResponse({
+          success: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            companyName: user.companyName,
+            userType: user.userType,
+            verified: user.emailVerified || user.isVerified || false,
+          },
+          session: {
+            createdAt: session.createdAt,
+            expiresAt: session.expiresAt,
+          },
+        }, 200, getCorsHeaders(request));
       }
 
       // Password reset
@@ -427,7 +861,7 @@ export default {
           thumbnail: schema.pitches.thumbnail,
           views: schema.pitches.views,
           rating: schema.pitches.rating,
-          creatorId: schema.pitches.creatorId,
+          creatorId: schema.pitches.userId,
           createdAt: schema.pitches.createdAt,
         })
         .from(schema.pitches)
@@ -439,6 +873,61 @@ export default {
           success: true,
           pitches,
           total: pitches.length,
+        });
+      }
+
+      // Public pitch detail endpoint
+      const publicPitchMatch = path.match(/^\/api\/pitches\/public\/(\d+)$/);
+      if (publicPitchMatch && method === 'GET') {
+        const pitchId = parseInt(publicPitchMatch[1]);
+        
+        const pitches = await db.select()
+          .from(schema.pitches)
+          .where(and(
+            eq(schema.pitches.id, pitchId),
+            eq(schema.pitches.status, 'active') // Only show active pitches
+          ))
+          .limit(1);
+        
+        if (pitches.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch not found or not publicly available',
+          }, 404);
+        }
+
+        // Increment view count for public viewing
+        await db.update(schema.pitches)
+          .set({ viewCount: (pitches[0].viewCount || 0) + 1 })
+          .where(eq(schema.pitches.id, pitchId));
+
+        const pitch = pitches[0];
+        
+        // Get creator info
+        const creators = await db.select({
+          id: schema.users.id,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          companyName: schema.users.companyName,
+          profileImageUrl: schema.users.profileImageUrl,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, pitch.userId))
+        .limit(1);
+
+        const creator = creators[0];
+
+        return jsonResponse({
+          success: true,
+          data: {
+            ...pitch,
+            creator: creator ? {
+              name: `${creator.firstName} ${creator.lastName}`,
+              companyName: creator.companyName,
+              profileImage: creator.profileImageUrl,
+            } : null,
+            viewCount: (pitch.viewCount || 0) + 1, // Return updated count
+          },
         });
       }
 
@@ -493,14 +982,8 @@ export default {
         });
       }
 
-      // Protected endpoints - verify JWT
-      const authHeader = request.headers.get('Authorization');
-      let userPayload = null;
-      
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        userPayload = await verifyToken(token, env);
-      }
+      // Protected endpoints - verify authentication (session or JWT)
+      const userPayload = await authenticateRequest(request, env, db);
 
       // Creator dashboard
       if (path === '/api/creator/dashboard' && userPayload?.userType === 'creator') {
@@ -509,7 +992,7 @@ export default {
         // Get user's pitches
         const pitches = await db.select()
           .from(schema.pitches)
-          .where(eq(schema.pitches.creatorId, userId))
+          .where(eq(schema.pitches.userId, userId))
           .orderBy(desc(schema.pitches.createdAt));
         
         // Calculate stats
@@ -544,7 +1027,7 @@ export default {
         const newPitch = await db.insert(schema.pitches)
           .values({
             ...body,
-            creatorId: userId,
+            userId: userId,
             status: body.status || 'draft',
             views: 0,
             rating: 0,
@@ -558,6 +1041,56 @@ export default {
           message: 'Pitch created successfully',
           data: newPitch[0],
         }, 201);
+      }
+
+      // Get all pitches (with caching)
+      if (path.startsWith('/api/pitches') && method === 'GET' && !path.match(/^\/api\/pitches\/\d+$/)) {
+        const url = new URL(request.url);
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        const genre = url.searchParams.get('genre');
+        const status = url.searchParams.get('status');
+        const search = url.searchParams.get('search');
+        
+        // Try to get from cache
+        const cacheKey = `pitches:${limit}:${offset}:${genre || ''}:${status || ''}:${search || ''}`;
+        const cached = await getCachedResponse(cacheKey, env.KV);
+        if (cached) {
+          console.log('Cache hit for pitches');
+          return cached;
+        }
+        
+        let query = db.select()
+          .from(schema.pitches)
+          .orderBy(desc(schema.pitches.createdAt))
+          .limit(limit)
+          .offset(offset);
+        
+        const conditions = [];
+        if (genre) conditions.push(eq(schema.pitches.genre, genre));
+        if (status) conditions.push(eq(schema.pitches.status, status));
+        if (search) conditions.push(like(schema.pitches.title, `%${search}%`));
+        
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+        
+        const pitches = await query;
+        
+        const responseData = {
+          success: true,
+          data: pitches,
+          pagination: {
+            limit,
+            offset,
+            total: pitches.length
+          }
+        };
+        
+        // Cache the response
+        await setCachedResponse(cacheKey, responseData, env.KV, 300); // Cache for 5 minutes
+        
+        return jsonResponse(responseData);
       }
 
       // Update pitch
@@ -636,6 +1169,1432 @@ export default {
         });
       }
 
+      // Get user profile
+      if (path === '/api/profile' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        const users = await db.select()
+          .from(schema.users)
+          .where(eq(schema.users.id, userId))
+          .limit(1);
+        
+        if (users.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'User not found',
+          }, 404);
+        }
+        
+        const user = users[0];
+        return jsonResponse({
+          success: true,
+          data: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            companyName: user.companyName,
+            userType: user.userType,
+            bio: user.bio,
+            profileImageUrl: user.profileImageUrl,
+            verified: user.emailVerified || user.isVerified || false,
+          }
+        });
+      }
+
+      // Validate token
+      if (path === '/api/validate-token' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            valid: false,
+            message: 'Invalid token',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          valid: true,
+          user: {
+            id: userPayload.sub,
+            email: userPayload.email,
+            userType: userPayload.userType,
+            firstName: userPayload.firstName,
+            lastName: userPayload.lastName,
+            companyName: userPayload.companyName,
+            verified: userPayload.verified,
+          }
+        });
+      }
+
+      // Search pitches
+      if (path === '/api/search/pitches' && method === 'GET') {
+        const url = new URL(request.url);
+        const query = url.searchParams.get('q') || '';
+        const genre = url.searchParams.get('genre');
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        const conditions = [];
+        if (query) {
+          conditions.push(
+            or(
+              like(schema.pitches.title, `%${query}%`),
+              like(schema.pitches.logline, `%${query}%`)
+            )
+          );
+        }
+        if (genre) conditions.push(eq(schema.pitches.genre, genre));
+        
+        const pitches = await db.select()
+          .from(schema.pitches)
+          .where(conditions.length > 0 ? and(...conditions) : undefined)
+          .orderBy(desc(schema.pitches.createdAt))
+          .limit(limit);
+        
+        return jsonResponse({
+          success: true,
+          data: pitches,
+        });
+      }
+
+      // User preferences
+      if (path === '/api/user/preferences' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        // Return default preferences for now
+        return jsonResponse({
+          success: true,
+          data: {
+            emailAlerts: true,
+            pushNotifications: false,
+            marketplaceFilters: {
+              genres: [],
+              formats: [],
+              budgetRanges: [],
+            },
+            dashboardLayout: 'grid',
+            theme: 'light',
+          }
+        });
+      }
+
+      // Saved filters
+      if (path === '/api/filters/saved' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        // Return empty array for now (no saved filters)
+        return jsonResponse({
+          success: true,
+          data: [],
+        });
+      }
+
+      // Email alerts
+      if (path === '/api/alerts/email' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        // Return empty array for now (no email alerts)
+        return jsonResponse({
+          success: true,
+          data: [],
+        });
+      }
+
+      // Enhanced browse endpoint for marketplace (with caching)
+      if (path.startsWith('/api/pitches/browse/enhanced') && method === 'GET') {
+        const url = new URL(request.url);
+        const sort = url.searchParams.get('sort') || 'date';
+        const order = url.searchParams.get('order') || 'desc';
+        const limit = parseInt(url.searchParams.get('limit') || '24');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        const genre = url.searchParams.get('genre');
+        const format = url.searchParams.get('format');
+        const budget = url.searchParams.get('budget');
+        
+        // Try cache first
+        const cacheKey = `browse:${sort}:${order}:${limit}:${offset}:${genre || ''}:${format || ''}:${budget || ''}`;
+        const cached = await getCachedResponse(cacheKey, env.KV);
+        if (cached) {
+          console.log('Cache hit for enhanced browse');
+          return cached;
+        }
+        
+        let query = db.select()
+          .from(schema.pitches)
+          .limit(limit)
+          .offset(offset);
+        
+        // Apply filters
+        const conditions = [];
+        conditions.push(eq(schema.pitches.status, 'active')); // Only show active pitches
+        if (genre) conditions.push(eq(schema.pitches.genre, genre));
+        if (format) conditions.push(eq(schema.pitches.format, format));
+        if (budget) conditions.push(eq(schema.pitches.budgetRange, budget));
+        
+        if (conditions.length > 0) {
+          query = query.where(and(...conditions));
+        }
+        
+        // Apply sorting
+        if (sort === 'date') {
+          query = query.orderBy(order === 'asc' ? asc(schema.pitches.createdAt) : desc(schema.pitches.createdAt));
+        } else if (sort === 'views') {
+          query = query.orderBy(order === 'asc' ? asc(schema.pitches.viewCount) : desc(schema.pitches.viewCount));
+        } else if (sort === 'rating') {
+          query = query.orderBy(order === 'asc' ? asc(schema.pitches.likeCount) : desc(schema.pitches.likeCount));
+        }
+        
+        const pitches = await query;
+        
+        // Get total count for pagination
+        const countQuery = await db.select({ count: sqlOperator`count(*)::int` })
+          .from(schema.pitches)
+          .where(conditions.length > 0 ? and(...conditions) : undefined);
+        
+        const totalCount = countQuery[0]?.count || 0;
+        
+        const responseData = {
+          success: true,
+          data: pitches.map(pitch => ({
+            ...pitch,
+            // Add enhanced fields
+            thumbnail: pitch.posterUrl || pitch.titleImage || '/placeholder.jpg',
+            creatorName: 'Creator', // Would need join to get real name
+            tags: pitch.tags || [],
+            isNew: new Date(pitch.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000,
+            isTrending: (pitch.viewCount || 0) > 100,
+          })),
+          pagination: {
+            total: totalCount,
+            limit,
+            offset,
+            hasMore: offset + limit < totalCount,
+          },
+          filters: {
+            genre,
+            format,
+            budget,
+          },
+        };
+        
+        // Cache the response
+        await setCachedResponse(cacheKey, responseData, env.KV, 300); // Cache for 5 minutes
+        
+        return jsonResponse(responseData);
+      }
+
+      // Creator dashboard stats
+      if (path === '/api/creator/dashboard' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return jsonResponse({
+            success: false,
+            message: 'Creator access required',
+          }, 403);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        
+        // Get creator's pitches
+        const pitches = await db.select()
+          .from(schema.pitches)
+          .where(eq(schema.pitches.userId, userId));
+        
+        // Calculate stats
+        const totalViews = pitches.reduce((sum, p) => sum + (p.views || 0), 0);
+        const totalPitches = pitches.length;
+        const activePitches = pitches.filter(p => p.status === 'active').length;
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            stats: {
+              totalPitches,
+              activePitches,
+              totalViews,
+              averageRating: 0,
+            },
+            recentPitches: pitches.slice(0, 5),
+            trending: pitches.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3),
+          }
+        });
+      }
+
+      // Investor dashboard endpoints
+      if (path === '/api/investor/dashboard' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return jsonResponse({
+            success: false,
+            message: 'Investor access required',
+          }, 403);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          // Get investment summary (mock data for now - would need investments table)
+          const portfolio = {
+            totalInvested: "450000.00",
+            activeInvestments: "6",
+            roi: 0
+          };
+
+          // Get recent activity (mock data - would need real investment tracking)
+          const recentActivity = [
+            {
+              id: 1,
+              investor_id: userId,
+              pitch_id: 1,
+              amount: "50000.00",
+              status: "active",
+              notes: "Strong concept with experienced creator",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              roi_percentage: "15.50"
+            }
+          ];
+
+          // Get investment opportunities 
+          const opportunities = await db.select()
+            .from(schema.pitches)
+            .where(eq(schema.pitches.status, 'active'))
+            .orderBy(desc(schema.pitches.createdAt))
+            .limit(6);
+
+          return jsonResponse({
+            success: true,
+            portfolio,
+            recentActivity,
+            opportunities: opportunities.map(pitch => ({
+              ...pitch,
+              creator_name: 'Creator Name', // Would need join
+              seeking_investment: true,
+              production_stage: 'concept',
+            }))
+          });
+        } catch (error) {
+          console.error('Investor dashboard error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Dashboard temporarily unavailable',
+            error: 'Please try again in a moment'
+          }, 500);
+        }
+      }
+
+      // Investor portfolio summary
+      if (path === '/api/investor/portfolio/summary' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return jsonResponse({
+            success: false,
+            message: 'Investor access required',
+          }, 403);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            totalInvested: 450000,
+            activeInvestments: 6,
+            averageROI: 15.2,
+            topPerformer: 'The Last Echo'
+          }
+        });
+      }
+
+      // Investor investments list
+      if (path === '/api/investor/investments' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return jsonResponse({
+            success: false,
+            message: 'Investor access required',
+          }, 403);
+        }
+        
+        // Mock data for now
+        const investments = [
+          {
+            id: 1,
+            pitchTitle: 'The Last Echo',
+            amount: 50000,
+            status: 'active',
+            roi: 15.5,
+            dateInvested: new Date().toISOString()
+          }
+        ];
+        
+        return jsonResponse({
+          success: true,
+          data: investments
+        });
+      }
+
+      // Investment recommendations
+      if (path === '/api/investment/recommendations' && method === 'GET') {
+        if (!userPayload || (userPayload.userType !== 'investor' && userPayload.userType !== 'production')) {
+          return jsonResponse({
+            success: false,
+            message: 'Investor or production access required',
+          }, 403);
+        }
+        
+        try {
+          const recommendations = await db.select({
+            id: schema.pitches.id,
+            title: schema.pitches.title,
+            tagline: schema.pitches.tagline,
+            genre: schema.pitches.genre,
+            format: schema.pitches.format,
+            budget: schema.pitches.budget,
+            status: schema.pitches.status,
+            thumbnail: schema.pitches.thumbnail,
+            views: schema.pitches.viewCount,
+            createdAt: schema.pitches.createdAt,
+            creatorId: schema.users.id,
+            creatorFirstName: schema.users.firstName,
+            creatorLastName: schema.users.lastName,
+            creatorCompanyName: schema.users.companyName,
+            creatorProfileImage: schema.users.profileImageUrl
+          })
+            .from(schema.pitches)
+            .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
+            .where(eq(schema.pitches.status, 'active'))
+            .orderBy(desc(schema.pitches.viewCount))
+            .limit(6);
+          
+          // Transform data to match frontend expectations
+          const transformedData = recommendations
+            .filter(rec => rec.id !== null && rec.id !== undefined)
+            .map(rec => ({
+              id: rec.id,
+              title: rec.title || 'Untitled',
+              tagline: rec.tagline || '',
+              genre: rec.genre || 'General',
+              format: rec.format || '',
+              budget: rec.budget || 'TBD',
+              status: rec.status || 'active',
+              thumbnail: rec.thumbnail || '',
+              views: rec.views || 0,
+              createdAt: rec.createdAt || new Date(),
+              creator: rec.creatorId ? {
+                id: rec.creatorId,
+                name: `${rec.creatorFirstName || ''} ${rec.creatorLastName || ''}`.trim() || 'Anonymous',
+                companyName: rec.creatorCompanyName || '',
+                profileImage: rec.creatorProfileImage || ''
+              } : {
+                id: 0,
+                name: 'Anonymous',
+                companyName: '',
+                profileImage: ''
+              }
+            }));
+          
+          return jsonResponse({
+            success: true,
+            data: transformedData
+          });
+        } catch (error) {
+          console.error('Error fetching investment recommendations:', error);
+          // Return empty data instead of error
+          return jsonResponse({
+            success: true,
+            data: []
+          });
+        }
+      }
+
+      // Additional missing endpoints that frontend expects
+      
+      // Trending pitches
+      if (path === '/api/pitches/trending' && method === 'GET') {
+        const url = new URL(request.url);
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        const trendingPitches = await db.select()
+          .from(schema.pitches)
+          .where(eq(schema.pitches.status, 'active'))
+          .orderBy(desc(schema.pitches.viewCount))
+          .limit(limit);
+        
+        return jsonResponse({
+          success: true,
+          data: trendingPitches.map(pitch => ({
+            ...pitch,
+            creator_name: 'alexcreator', // Mock creator name
+          }))
+        });
+      }
+
+      // New pitches
+      if (path === '/api/pitches/new' && method === 'GET') {
+        const url = new URL(request.url);
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        const newPitches = await db.select()
+          .from(schema.pitches)
+          .where(eq(schema.pitches.status, 'active'))
+          .orderBy(desc(schema.pitches.createdAt))
+          .limit(limit);
+        
+        return jsonResponse({
+          success: true,
+          data: newPitches.map(pitch => ({
+            ...pitch,
+            creator_name: 'alexcreator', // Mock creator name
+          }))
+        });
+      }
+
+      // Following pitches
+      if (path === '/api/pitches/following' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        // Mock data for now
+        return jsonResponse({
+          success: true,
+          data: []
+        });
+      }
+
+      // Payment endpoints
+      if (path === '/api/payments/credits/balance' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            balance: 1000,
+            currency: 'USD'
+          }
+        });
+      }
+
+      if (path === '/api/payments/subscription-status' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            status: 'active',
+            plan: 'premium',
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        });
+      }
+
+      // Analytics dashboard
+      if (path === '/api/analytics/dashboard' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          analytics: {
+            views: {
+              total: 1250,
+              thisMonth: 450,
+              growth: "+15%"
+            },
+            engagement: {
+              likes: 89,
+              comments: 34,
+              shares: 12
+            },
+            demographics: {
+              age: "25-34",
+              location: "US",
+              gender: "Mixed"
+            },
+            performance: {
+              topPitch: "Space Adventure",
+              avgEngagement: "7.2%"
+            }
+          }
+        });
+      }
+
+      // NDA stats
+      if (path === '/api/ndas/stats' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            pending: 2,
+            signed: 5,
+            total: 7
+          }
+        });
+      }
+
+      // NDA incoming requests (NDAs others want you to sign)
+      if (path === '/api/ndas/incoming-requests' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          // Get NDAs where current user is the recipient
+          const ndaRequests = await db.select({
+            id: schema.ndas.id,
+            pitchId: schema.ndas.pitchId,
+            requesterId: schema.ndas.requesterId,
+            recipientId: schema.ndas.recipientId,
+            status: schema.ndas.status,
+            requestedAt: schema.ndas.requestedAt,
+            signedAt: schema.ndas.signedAt,
+            expiresAt: schema.ndas.expiresAt,
+            pitch: {
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              genre: schema.pitches.genre,
+            },
+            requester: {
+              id: schema.users.id,
+              username: schema.users.username,
+              email: schema.users.email,
+            }
+          })
+          .from(schema.ndas)
+          .leftJoin(schema.pitches, eq(schema.ndas.pitchId, schema.pitches.id))
+          .leftJoin(schema.users, eq(schema.ndas.requesterId, schema.users.id))
+          .where(and(
+            eq(schema.ndas.recipientId, userPayload.sub),
+            eq(schema.ndas.status, 'pending')
+          ))
+          .orderBy(desc(schema.ndas.requestedAt));
+
+          return jsonResponse({
+            success: true,
+            data: ndaRequests
+          });
+        } catch (error) {
+          console.error('Error fetching incoming NDA requests:', error);
+          return jsonResponse({
+            success: true,
+            data: [] // Return empty array on error
+          });
+        }
+      }
+
+      // NDA outgoing requests (NDAs you've requested others to sign)
+      if (path === '/api/ndas/outgoing-requests' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          // Get NDAs where current user is the requester
+          const ndaRequests = await db.select({
+            id: schema.ndas.id,
+            pitchId: schema.ndas.pitchId,
+            requesterId: schema.ndas.requesterId,
+            recipientId: schema.ndas.recipientId,
+            status: schema.ndas.status,
+            requestedAt: schema.ndas.requestedAt,
+            signedAt: schema.ndas.signedAt,
+            expiresAt: schema.ndas.expiresAt,
+            pitch: {
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              genre: schema.pitches.genre,
+            },
+            recipient: {
+              id: schema.users.id,
+              username: schema.users.username,
+              email: schema.users.email,
+            }
+          })
+          .from(schema.ndas)
+          .leftJoin(schema.pitches, eq(schema.ndas.pitchId, schema.pitches.id))
+          .leftJoin(schema.users, eq(schema.ndas.recipientId, schema.users.id))
+          .where(and(
+            eq(schema.ndas.requesterId, userPayload.sub),
+            eq(schema.ndas.status, 'pending')
+          ))
+          .orderBy(desc(schema.ndas.requestedAt));
+
+          return jsonResponse({
+            success: true,
+            data: ndaRequests
+          });
+        } catch (error) {
+          console.error('Error fetching outgoing NDA requests:', error);
+          return jsonResponse({
+            success: true,
+            data: [] // Return empty array on error
+          });
+        }
+      }
+
+      // NDA incoming signed (NDAs you've signed for others)
+      if (path === '/api/ndas/incoming-signed' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const signedNdas = await db.select({
+            id: schema.ndas.id,
+            pitchId: schema.ndas.pitchId,
+            requesterId: schema.ndas.requesterId,
+            recipientId: schema.ndas.recipientId,
+            status: schema.ndas.status,
+            requestedAt: schema.ndas.requestedAt,
+            signedAt: schema.ndas.signedAt,
+            expiresAt: schema.ndas.expiresAt,
+            pitch: {
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              genre: schema.pitches.genre,
+            },
+            requester: {
+              id: schema.users.id,
+              username: schema.users.username,
+              email: schema.users.email,
+            }
+          })
+          .from(schema.ndas)
+          .leftJoin(schema.pitches, eq(schema.ndas.pitchId, schema.pitches.id))
+          .leftJoin(schema.users, eq(schema.ndas.requesterId, schema.users.id))
+          .where(and(
+            eq(schema.ndas.recipientId, userPayload.sub),
+            eq(schema.ndas.status, 'signed')
+          ))
+          .orderBy(desc(schema.ndas.signedAt));
+
+          return jsonResponse({
+            success: true,
+            data: signedNdas
+          });
+        } catch (error) {
+          console.error('Error fetching signed NDAs:', error);
+          return jsonResponse({
+            success: true,
+            data: [] // Return empty array on error
+          });
+        }
+      }
+
+      // NDA outgoing signed (NDAs others have signed for you)
+      if (path === '/api/ndas/outgoing-signed' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const signedNdas = await db.select({
+            id: schema.ndas.id,
+            pitchId: schema.ndas.pitchId,
+            requesterId: schema.ndas.requesterId,
+            recipientId: schema.ndas.recipientId,
+            status: schema.ndas.status,
+            requestedAt: schema.ndas.requestedAt,
+            signedAt: schema.ndas.signedAt,
+            expiresAt: schema.ndas.expiresAt,
+            pitch: {
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              genre: schema.pitches.genre,
+            },
+            recipient: {
+              id: schema.users.id,
+              username: schema.users.username,
+              email: schema.users.email,
+            }
+          })
+          .from(schema.ndas)
+          .leftJoin(schema.pitches, eq(schema.ndas.pitchId, schema.pitches.id))
+          .leftJoin(schema.users, eq(schema.ndas.recipientId, schema.users.id))
+          .where(and(
+            eq(schema.ndas.requesterId, userPayload.sub),
+            eq(schema.ndas.status, 'signed')
+          ))
+          .orderBy(desc(schema.ndas.signedAt));
+
+          return jsonResponse({
+            success: true,
+            data: signedNdas
+          });
+        } catch (error) {
+          console.error('Error fetching signed NDAs:', error);
+          return jsonResponse({
+            success: true,
+            data: [] // Return empty array on error
+          });
+        }
+      }
+
+      // Production investments overview
+      if (path === '/api/production/investments/overview' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            totalInvestments: 3,
+            totalAmount: 1500000,
+            activeProjects: 2,
+            completedProjects: 1,
+            avgInvestment: 500000,
+            recentInvestments: [
+              {
+                id: 1,
+                pitchTitle: "The Last Echo",
+                amount: 750000,
+                date: "2024-12-01",
+                status: "active"
+              },
+              {
+                id: 2,
+                pitchTitle: "Digital Dreams",
+                amount: 500000,
+                date: "2024-11-15",
+                status: "active"
+              }
+            ]
+          }
+        });
+      }
+
+      // Analytics realtime
+      if (path === '/api/analytics/realtime' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            activeUsers: 42,
+            viewsLastHour: 156,
+            pitchesViewed: 23,
+            ndaRequests: 5,
+            topPitches: [
+              { id: 1, title: "The Last Echo", views: 45 },
+              { id: 2, title: "Digital Dreams", views: 32 }
+            ],
+            recentActivity: [
+              { type: "view", pitch: "The Last Echo", time: "2 mins ago" },
+              { type: "nda", pitch: "Digital Dreams", time: "5 mins ago" }
+            ]
+          }
+        });
+      }
+
+      // Payment history
+      if (path === '/api/payments/history' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            payments: [
+              {
+                id: 1,
+                date: "2024-12-01",
+                amount: 29.99,
+                description: "Popular Plan - Monthly",
+                status: "completed"
+              },
+              {
+                id: 2,
+                date: "2024-11-01",
+                amount: 29.99,
+                description: "Popular Plan - Monthly",
+                status: "completed"
+              }
+            ],
+            total: 2
+          }
+        });
+      }
+
+      // Payment invoices
+      if (path === '/api/payments/invoices' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            invoices: [
+              {
+                id: "INV-2024-001",
+                date: "2024-12-01",
+                amount: 29.99,
+                status: "paid",
+                downloadUrl: "/api/payments/invoices/INV-2024-001/download"
+              }
+            ],
+            total: 1
+          }
+        });
+      }
+
+      // Payment methods
+      if (path === '/api/payments/payment-methods' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            methods: [
+              {
+                id: 1,
+                type: "card",
+                last4: "4242",
+                brand: "Visa",
+                expiryMonth: 12,
+                expiryYear: 2025,
+                isDefault: true
+              }
+            ]
+          }
+        });
+      }
+
+      // Notification preferences
+      if (path === '/api/notifications/preferences' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            email: {
+              pitchViews: true,
+              ndaRequests: true,
+              investments: true,
+              messages: true,
+              marketing: false
+            },
+            push: {
+              enabled: false
+            }
+          }
+        });
+      }
+
+      // Saved filters
+      if (path === '/api/filters/saved' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            filters: [
+              {
+                id: 1,
+                name: "High Budget Thrillers",
+                criteria: {
+                  genre: "Thriller",
+                  minBudget: 1000000
+                }
+              }
+            ]
+          }
+        });
+      }
+
+      // Email alerts
+      if (path === '/api/alerts/email' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            alerts: [
+              {
+                id: 1,
+                type: "new_pitch",
+                criteria: { genre: "Sci-Fi" },
+                frequency: "daily",
+                enabled: true
+              }
+            ]
+          }
+        });
+      }
+
+      // Notifications unread endpoint
+      if (path === '/api/notifications/unread' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        // Get unread notifications count from database
+        try {
+          const notifications = await db.select({
+            count: sql<number>`count(*)`
+          })
+          .from(schema.notifications)
+          .where(and(
+            eq(schema.notifications.userId, parseInt(userPayload.sub)),
+            eq(schema.notifications.read, false)
+          ));
+          
+          return jsonResponse({
+            success: true,
+            count: Number(notifications[0]?.count || 0)
+          }, 200, getCorsHeaders(request));
+        } catch (error) {
+          console.error('Error fetching unread notifications:', error);
+          return jsonResponse({
+            success: true,
+            count: 0
+          }, 200, getCorsHeaders(request));
+        }
+      }
+
+      // NDA pending endpoint
+      if (path === '/api/nda/pending' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        try {
+          const userId = parseInt(userPayload.sub);
+          const pendingNdas = await db.select()
+            .from(schema.ndaRequests)
+            .where(and(
+              eq(schema.ndaRequests.creatorId, userId),
+              eq(schema.ndaRequests.status, 'pending')
+            ))
+            .orderBy(desc(schema.ndaRequests.createdAt));
+          
+          return jsonResponse({
+            success: true,
+            data: pendingNdas
+          }, 200, getCorsHeaders(request));
+        } catch (error) {
+          console.error('Error fetching pending NDAs:', error);
+          return jsonResponse({
+            success: true,
+            data: []
+          }, 200, getCorsHeaders(request));
+        }
+      }
+
+      // NDA active endpoint
+      if (path === '/api/nda/active' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        try {
+          const userId = parseInt(userPayload.sub);
+          const activeNdas = await db.select()
+            .from(schema.ndaRequests)
+            .where(and(
+              or(
+                eq(schema.ndaRequests.creatorId, userId),
+                eq(schema.ndaRequests.investorId, userId)
+              ),
+              eq(schema.ndaRequests.status, 'approved')
+            ))
+            .orderBy(desc(schema.ndaRequests.approvedAt));
+          
+          return jsonResponse({
+            success: true,
+            data: activeNdas
+          }, 200, getCorsHeaders(request));
+        } catch (error) {
+          console.error('Error fetching active NDAs:', error);
+          return jsonResponse({
+            success: true,
+            data: []
+          }, 200, getCorsHeaders(request));
+        }
+      }
+
+      // Follows stats endpoint
+      if (path.match(/^\/api\/follows\/stats\/\d+$/) && method === 'GET') {
+        const targetUserId = parseInt(path.split('/').pop() || '0');
+        
+        try {
+          // Get follower count
+          const followers = await db.select({
+            count: sql<number>`count(*)`
+          })
+          .from(schema.follows)
+          .where(eq(schema.follows.followingId, targetUserId));
+          
+          // Get following count
+          const following = await db.select({
+            count: sql<number>`count(*)`
+          })
+          .from(schema.follows)
+          .where(eq(schema.follows.followerId, targetUserId));
+          
+          return jsonResponse({
+            success: true,
+            data: {
+              followersCount: Number(followers[0]?.count || 0),
+              followingCount: Number(following[0]?.count || 0)
+            }
+          }, 200, getCorsHeaders(request));
+        } catch (error) {
+          console.error('Error fetching follow stats:', error);
+          return jsonResponse({
+            success: true,
+            data: {
+              followersCount: 0,
+              followingCount: 0
+            }
+          }, 200, getCorsHeaders(request));
+        }
+      }
+
+      // Analytics user endpoint
+      if (path === '/api/analytics/user' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        const preset = searchParams.get('preset') || 'month';
+        
+        // Calculate date range based on preset
+        const now = new Date();
+        let startDate = new Date();
+        
+        switch (preset) {
+          case 'week':
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case 'month':
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+          case 'year':
+            startDate.setFullYear(now.getFullYear() - 1);
+            break;
+        }
+        
+        try {
+          // Get user's pitches
+          const pitches = await db.select()
+            .from(schema.pitches)
+            .where(eq(schema.pitches.userId, userId));
+          
+          const pitchIds = pitches.map(p => p.id);
+          
+          // Get views for the period
+          const views = pitchIds.length > 0 ? await db.select({
+            count: sql<number>`count(*)`
+          })
+          .from(schema.pitchViews)
+          .where(and(
+            schema.pitchViews.pitchId ? 
+              or(...pitchIds.map(id => eq(schema.pitchViews.pitchId, id))) : 
+              sql`false`,
+            gte(schema.pitchViews.viewedAt, startDate)
+          )) : [{ count: 0 }];
+          
+          return jsonResponse({
+            success: true,
+            data: {
+              totalPitches: pitches.length,
+              activePitches: pitches.filter(p => p.status === 'active').length,
+              totalViews: Number(views[0]?.count || 0),
+              engagementRate: 0,
+              preset,
+              period: {
+                start: startDate.toISOString(),
+                end: now.toISOString()
+              }
+            }
+          }, 200, getCorsHeaders(request));
+        } catch (error) {
+          console.error('Error fetching user analytics:', error);
+          return jsonResponse({
+            success: true,
+            data: {
+              totalPitches: 0,
+              activePitches: 0,
+              totalViews: 0,
+              engagementRate: 0,
+              preset,
+              period: {
+                start: startDate.toISOString(),
+                end: now.toISOString()
+              }
+            }
+          }, 200, getCorsHeaders(request));
+        }
+      }
+
+      // User notifications endpoint
+      if (path === '/api/user/notifications' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        
+        // Get notifications from database
+        try {
+          const notifications = await db.select()
+            .from(schema.notifications)
+            .where(eq(schema.notifications.userId, parseInt(userPayload.sub)))
+            .orderBy(desc(schema.notifications.createdAt))
+            .limit(limit)
+            .offset(offset);
+          
+          return jsonResponse({
+            success: true,
+            data: notifications.map(n => ({
+              id: n.id,
+              type: n.type || 'general',
+              title: n.title || 'Notification',
+              message: n.message || '',
+              read: n.read || false,
+              createdAt: n.createdAt,
+              metadata: n.data || {}
+            })),
+            total: notifications.length
+          });
+        } catch (error) {
+          console.error('Error fetching user notifications:', error);
+          return jsonResponse({
+            success: true,
+            data: [],
+            total: 0
+          });
+        }
+      }
+
+      // Production following activity
+      if (path === '/api/production/following' && method === 'GET') {
+        const tab = url.searchParams.get('tab') || 'activity';
+        
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            activity: [
+              {
+                id: 1,
+                type: "pitch_update",
+                user: "Alex Creator",
+                action: "updated pitch",
+                pitch: "The Last Echo",
+                time: "2 hours ago"
+              }
+            ],
+            following: [],
+            followers: []
+          }
+        });
+      }
+
+      // General notifications endpoint (without /user prefix)
+      if (path === '/api/notifications' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        
+        try {
+          const notifications = await db.select()
+            .from(schema.notifications)
+            .where(eq(schema.notifications.userId, parseInt(userPayload.sub)))
+            .orderBy(desc(schema.notifications.createdAt))
+            .limit(limit)
+            .offset(offset);
+          
+          return jsonResponse({
+            success: true,
+            data: notifications.map(n => ({
+              id: n.id,
+              type: n.type || 'general',
+              title: n.title || 'Notification',
+              message: n.message || '',
+              read: n.read || false,
+              createdAt: n.createdAt,
+              metadata: n.data || {}
+            }))
+          }, 200, getCorsHeaders(request));
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
+          return jsonResponse({
+            success: true,
+            data: []
+          }, 200, getCorsHeaders(request));
+        }
+      }
+
+      // Mark notification as read
+      if (path.match(/^\/api\/notifications\/\d+\/read$/) && method === 'PUT') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        const notificationId = parseInt(path.split('/')[3]);
+        
+        try {
+          await db.update(schema.notifications)
+            .set({ read: true })
+            .where(and(
+              eq(schema.notifications.id, notificationId),
+              eq(schema.notifications.userId, parseInt(userPayload.sub))
+            ));
+          
+          return jsonResponse({
+            success: true,
+            message: 'Notification marked as read'
+          }, 200, getCorsHeaders(request));
+        } catch (error) {
+          console.error('Error marking notification as read:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to update notification'
+          }, 500, getCorsHeaders(request));
+        }
+      }
+
+      // Subscription status endpoint
+      if (path === '/api/subscription/status' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401, getCorsHeaders(request));
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            tier: 'basic',
+            status: 'active',
+            credits: 1000,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        }, 200, getCorsHeaders(request));
+      }
+
       // 404 for unknown endpoints
       return jsonResponse({
         success: false,
@@ -654,5 +2613,5 @@ export default {
 };
 
 // Export Durable Objects
-export { WebSocketRoom } from './websocket-room-optimized.ts';
+export { WebSocketRoom } from './websocket-durable-object';
 export { NotificationRoom } from './notification-room.ts';

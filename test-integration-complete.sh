@@ -4,7 +4,7 @@
 echo "🚀 COMPLETE PLATFORM INTEGRATION TEST"
 echo "======================================="
 
-API_URL="${API_URL:-https://pitchey-optimized.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
 
 # Color codes
 GREEN='\033[0;32m'

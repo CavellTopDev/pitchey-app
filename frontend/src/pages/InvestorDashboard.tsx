@@ -1,268 +1,155 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search, Filter, CreditCard, Coins, Users, Heart, Shield, Building2, User } from 'lucide-react';
+import { 
+  DollarSign, 
+  LogOut, 
+  TrendingUp, 
+  FileText, 
+  Bell, 
+  Search,
+  Star,
+  Clock,
+  Shield,
+  BarChart3,
+  Briefcase,
+  Plus,
+  ChevronRight,
+  Eye,
+  Users,
+  Calendar,
+  Filter,
+  Download,
+  Activity
+} from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { paymentsAPI, pitchServicesAPI } from '../lib/apiServices';
-import apiClient from '../lib/api-client';
-import FollowButton from '../components/FollowButton';
-import { QuickNDAStatus } from '../components/NDA/NDADashboardIntegration';
-import { getSubscriptionTier } from '../config/subscription-plans';
-import { InvestmentService } from '../services/investment.service';
-import InvestmentPortfolioCard from '../components/Investment/InvestmentPortfolioCardSafe';
-import InvestmentHistory from '../components/Investment/InvestmentHistory';
-import InvestmentOpportunities from '../components/Investment/InvestmentOpportunities';
-import { EnhancedInvestorAnalytics } from '../components/Analytics/EnhancedInvestorAnalytics';
-import { NotificationWidgetSafe as NotificationWidget } from '../components/Dashboard/NotificationWidgetSafe';
-import { NotificationBellSafe } from '../components/NotificationBellSafe';
-import { InvestorDashboardErrorBoundary, useInvestorDashboardErrorReporting } from '../components/ErrorBoundary/InvestorDashboardErrorBoundary';
-import * as Sentry from '@sentry/react';
+import api from '../lib/api';
 
-function InvestorDashboardContent() {
+interface PortfolioSummary {
+  totalInvested: number;
+  activeInvestments: number;
+  averageROI: number;
+  topPerformer: string;
+}
+
+interface Investment {
+  id: number;
+  pitchTitle: string;
+  amount: number;
+  status: string;
+  roi: number;
+  dateInvested: string;
+  pitchId?: number;
+}
+
+interface SavedPitch {
+  id: number;
+  title: string;
+  creator: string;
+  genre: string;
+  budget: string;
+  status: string;
+  savedAt: string;
+}
+
+interface NDARequest {
+  id: number;
+  pitchTitle: string;
+  status: string;
+  requestedAt: string;
+  signedAt?: string;
+}
+
+export default function InvestorDashboard() {
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
-  const { reportError, addBreadcrumb } = useInvestorDashboardErrorReporting();
-  const [user, setUser] = useState<any>(null);
-  const [portfolio, setPortfolio] = useState<any>(null);
-  const [portfolioPerformance, setPortfolioPerformance] = useState<any>(null);
-  const [investmentPreferences, setInvestmentPreferences] = useState<any>(null);
-  const [watchlist, setWatchlist] = useState<any[]>([]);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [followingPitches, setFollowingPitches] = useState<any[]>([]);
-  const [credits, setCredits] = useState<any>(null);
-  const [subscription, setSubscription] = useState<any>(null);
+  const { logout, user } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
   
-  // Investment tracking state
-  const [portfolioMetrics, setPortfolioMetrics] = useState<any>(null);
-  const [investmentHistory, setInvestmentHistory] = useState<any[]>([]);
-  const [investmentOpportunities, setInvestmentOpportunities] = useState<any[]>([]);
-  const [investmentLoading, setInvestmentLoading] = useState(true);
-
-
-  // Debug logging for recommendations state changes
-  useEffect(() => {
-    console.log(`🔍 RECOMMENDATIONS STATE CHANGE [${new Date().toISOString()}]:`, {
-      length: recommendations.length,
-      data: recommendations.map(r => ({ id: r.id, title: r.title }))
-    });
-  }, [recommendations]);
-
-  const fetchInvestmentData = useCallback(async () => {
-    try {
-      setInvestmentLoading(true);
-      
-      // Fetch investment portfolio metrics
-      const portfolioResponse = await InvestmentService.getInvestorPortfolio();
-      if (portfolioResponse.success) {
-        setPortfolioMetrics(portfolioResponse.data);
-      }
-      
-      // Fetch investment history
-      const historyResponse = await InvestmentService.getInvestmentHistory({ limit: 10 });
-      if (historyResponse.success) {
-        setInvestmentHistory(historyResponse.data?.investments || []);
-      }
-      
-      // Fetch investment opportunities
-      const opportunitiesResponse = await InvestmentService.getInvestmentOpportunities({ limit: 6 });
-      if (opportunitiesResponse.success) {
-        setInvestmentOpportunities(opportunitiesResponse.data || []);
-      }
-      
-    } catch (error) {
-      console.error('Error fetching investment data:', error);
-    } finally {
-      setInvestmentLoading(false);
-    }
-  }, []);
-
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Add Sentry breadcrumb for dashboard data fetch
-      addBreadcrumb('Starting dashboard data fetch', {
-        component: 'InvestorDashboard',
-        action: 'fetchDashboardData'
-      });
-      
-      console.log('🔄 Fetching investor dashboard data...');
-      
-      // Fetch dashboard data - this is the primary source of truth
-      const dashboardResponse = await apiClient.get('/api/investor/dashboard');
-      console.log('📊 Dashboard response:', dashboardResponse);
-      
-      if (dashboardResponse.success) {
-        // Handle nested data structure: data.data contains the actual data
-        const dashboardData = dashboardResponse.data?.data || dashboardResponse.data;
-        console.log('📈 Dashboard data extracted:', dashboardData);
-        console.log('📋 Recommendations count:', dashboardData.recommendations?.length || 0);
-        
-        // Set portfolio data from dashboard (primary source)
-        if (dashboardData.portfolio) {
-          console.log('💼 Setting portfolio from dashboard:', dashboardData.portfolio);
-          setPortfolio(dashboardData.portfolio);
-        }
-        
-        // Set watchlist and recommendations - these are critical
-        const watchlistData = dashboardData.watchlist || [];
-        const recommendationsData = dashboardData.recommendations || [];
-        
-        console.log('📋 Setting watchlist:', watchlistData.length, 'items');
-        console.log('🎯 Setting recommendations:', recommendationsData.length, 'items');
-        
-        setWatchlist(watchlistData);
-        setRecommendations(recommendationsData);
-        
-        // Only fetch portfolio summary if dashboard didn't provide portfolio data
-        if (!dashboardData.portfolio) {
-          try {
-            console.log('💼 Fetching portfolio summary as fallback...');
-            const portfolioResponse = await apiClient.get('/api/investor/portfolio/summary');
-            console.log('💼 Portfolio summary response:', portfolioResponse);
-            
-            if (portfolioResponse.success) {
-              const portfolioData = portfolioResponse.data?.data || portfolioResponse.data;
-              console.log('💼 Setting portfolio from summary:', portfolioData);
-              setPortfolio(portfolioData);
-            }
-          } catch (portfolioError) {
-            console.error('⚠️ Portfolio summary failed (non-critical):', portfolioError);
-          }
-        }
-      } else {
-        console.error('❌ Dashboard API failed:', dashboardResponse.error);
-        const errorMessage = dashboardResponse.error?.message || 'Unknown error';
-        
-        // Handle specific error cases with user-friendly messages
-        if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
-          setError('Session expired. Please log in again.');
-        } else if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
-          setError('Access denied. Please ensure you have investor access.');
-        } else if (errorMessage.includes('500') || errorMessage.includes('server')) {
-          setError('Server temporarily unavailable. Please try again in a few minutes.');
-        } else {
-          setError(`Failed to load dashboard: ${errorMessage}`);
-        }
-        
-        // Set fallback empty states
-        setPortfolio({
-          totalInvestments: 0,
-          activeDeals: 0,
-          totalInvested: 0,
-          averageReturn: 0,
-          pendingOpportunities: 0
-        });
-        setWatchlist([]);
-        setRecommendations([]);
-      }
-      
-      // Fetch billing info
-      try {
-        const creditsData = await paymentsAPI.getCreditBalance();
-        setCredits(creditsData);
-      } catch (creditsError) {
-        console.error('⚠️ Credits fetch failed (non-critical):', creditsError);
-        setCredits(null);
-      }
-      
-      try {
-        const subscriptionData = await paymentsAPI.getSubscriptionStatus();
-        setSubscription(subscriptionData);
-      } catch (subscriptionError) {
-        console.error('⚠️ Subscription fetch failed (non-critical):', subscriptionError);
-        setSubscription(null);
-      }
-      
-      // Fetch following pitches
-      try {
-        const followingData = await pitchServicesAPI.getFollowingPitches();
-        console.log('👥 Following response:', followingData);
-        
-        if (followingData?.success) {
-          setFollowingPitches(followingData.pitches || []);
-        } else {
-          setFollowingPitches([]);
-        }
-      } catch (followingError) {
-        console.error('⚠️ Following pitches fetch failed (non-critical):', followingError);
-        setFollowingPitches([]);
-      }
-      
-      // Get user data from localStorage
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (userError) {
-          console.error('⚠️ Failed to parse user data:', userError);
-        }
-      }
-      
-    } catch (error) {
-      console.error('💥 Critical dashboard error:', error);
-      
-      // Report error to Sentry with additional context
-      reportError(error as Error, {
-        function: 'fetchDashboardData',
-        component: 'InvestorDashboard',
-        userState: {
-          hasUser: !!user,
-          hasToken: !!localStorage.getItem('token')
-        },
-        attemptedActions: [
-          'fetch dashboard data',
-          'fetch portfolio summary',
-          'fetch credits',
-          'fetch subscription',
-          'fetch following pitches'
-        ]
-      });
-      
-      setError('Failed to load dashboard data. Please try refreshing the page.');
-      
-      // Set fallback empty states
-      setPortfolio({
-        totalInvestments: 0,
-        activeDeals: 0,
-        totalInvested: 0,
-        averageReturn: 0,
-        pendingOpportunities: 0
-      });
-      setWatchlist([]);
-      setRecommendations([]);
-      setFollowingPitches([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Empty dependency array - function only created once
+  // Data states
+  const [portfolio, setPortfolio] = useState<PortfolioSummary>({
+    totalInvested: 0,
+    activeInvestments: 0,
+    averageROI: 0,
+    topPerformer: 'None yet'
+  });
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [savedPitches, setSavedPitches] = useState<SavedPitch[]>([]);
+  const [ndaRequests, setNdaRequests] = useState<NDARequest[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
-    fetchInvestmentData(); // Fetch investment data in parallel
-  }, [fetchDashboardData, fetchInvestmentData]);
+  }, []);
 
-  const handleLogout = () => {
-    addBreadcrumb('User initiated logout from dashboard');
-    logout(); // This will automatically navigate to login page
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all dashboard data in parallel
+      const [
+        portfolioRes,
+        investmentsRes,
+        savedRes,
+        ndaRes,
+        notificationsRes,
+        recommendationsRes
+      ] = await Promise.allSettled([
+        api.get('/api/investor/portfolio/summary'),
+        api.get('/api/investor/investments'),
+        api.get('/api/saved-pitches'),
+        api.get('/api/nda/active'),
+        api.get('/api/notifications'),
+        api.get('/api/investment/recommendations')
+      ]);
+
+      // Handle portfolio summary
+      if (portfolioRes.status === 'fulfilled' && portfolioRes.value.data.success) {
+        setPortfolio(portfolioRes.value.data.data);
+      }
+
+      // Handle investments
+      if (investmentsRes.status === 'fulfilled' && investmentsRes.value.data.success) {
+        setInvestments(investmentsRes.value.data.data || []);
+      }
+
+      // Handle saved pitches
+      if (savedRes.status === 'fulfilled') {
+        setSavedPitches(savedRes.value.data.data || []);
+      }
+
+      // Handle NDAs
+      if (ndaRes.status === 'fulfilled') {
+        setNdaRequests(ndaRes.value.data.data || []);
+      }
+
+      // Handle notifications
+      if (notificationsRes.status === 'fulfilled') {
+        setNotifications(notificationsRes.value.data.data || []);
+      }
+
+      // Handle recommendations
+      if (recommendationsRes.status === 'fulfilled') {
+        setRecommendations(recommendationsRes.value.data.data || []);
+      }
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Test function for Sentry integration (development only)
-  const handleTestError = () => {
-    if (process.env.NODE_ENV === 'development') {
-      addBreadcrumb('User triggered test error from dashboard');
-      throw new Error('Test error from investor dashboard - Sentry integration verification');
-    }
+  const handleLogout = () => {
+    logout();
   };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      notation: 'compact',
-      maximumFractionDigits: 1
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -275,554 +162,485 @@ function InvestorDashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b" data-testid="investor-dashboard-header">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3 lg:gap-6">
-              {/* Pitchey Logo - Links to Homepage */}
-              <Link 
-                to="/" 
-                className="flex items-center hover:opacity-80 transition-opacity"
-                title="Go to Homepage"
-                data-testid="homepage-link"
-              >
-                <span className="text-lg lg:text-xl font-bold text-gray-900">Pitchey</span>
+      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-4">
+              <Link to="/" className="flex items-center">
+                <span className="text-2xl font-bold text-purple-600">Pitchey</span>
               </Link>
-              
-              {/* Divider - Hidden on mobile */}
-              <div className="h-8 w-px bg-gray-300 hidden lg:block"></div>
-              
-              {/* Dashboard Info - Responsive */}
-              <div className="flex items-center gap-2 lg:gap-3">
-                <div className="w-7 h-7 lg:w-9 lg:h-9 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 lg:w-5 lg:h-5 text-white" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-white" />
                 </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-lg lg:text-xl font-bold text-gray-900">Investor Dashboard</h1>
-                  <p className="text-xs text-gray-500 hidden lg:block">Welcome back, {user?.username || 'Investor'}</p>
-                </div>
-                <div className="sm:hidden">
-                  <h1 className="text-sm font-bold text-gray-900">Dashboard</h1>
-                </div>
+                <h1 className="text-lg font-bold text-gray-900">Investor Portal</h1>
               </div>
             </div>
             
-            <div className="flex items-center gap-2 lg:gap-4">
-              {/* Credits Display - Hidden on mobile */}
-              <button
-                onClick={() => navigate('/investor/billing?tab=credits')}
-                className="hidden lg:flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group"
-                data-testid="credits-display"
-              >
-                <Coins className="w-4 h-4 text-blue-600" />
-                <div className="text-sm">
-                  <span className="font-medium text-blue-900">
-                    {credits?.balance?.credits || 0} Credits
-                  </span>
-                </div>
-              </button>
-              
-              {/* Subscription Status - Hidden on mobile */}
-              <button
-                onClick={() => navigate('/investor/billing?tab=subscription')}
-                className="hidden md:flex items-center gap-2 px-2 lg:px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-                data-testid="subscription-status"
-              >
-                <span className="font-medium text-gray-700">
-                  {(() => {
-                    const tier = getSubscriptionTier(subscription?.tier || '');
-                    return tier?.name || 'The Watcher';
-                  })()}
-                </span>
-                {subscription?.status === 'active' && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <div className="flex items-center gap-3">
+              <button className="relative p-2 text-gray-400 hover:text-gray-500">
+                <Bell className="w-5 h-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
                 )}
               </button>
-              
-              {/* Search Bar - Responsive width */}
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search opportunities..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-40 lg:w-64"
-                  data-testid="search-input"
-                />
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-500">Welcome,</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {user?.firstName || 'Investor'}
+                </span>
               </div>
-              
-              {/* Search Icon for mobile */}
-              <button className="p-2 text-gray-500 hover:text-gray-700 transition md:hidden">
-                <Search className="w-5 h-5" />
-              </button>
-              
-              <Link
-                to="/investor/following"
-                className="hidden lg:flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                data-testid="following-link"
-              >
-                <Users className="w-5 h-5" />
-                Following
-              </Link>
-              
-              {/* Following icon for mobile/tablet */}
-              <Link
-                to="/investor/following"
-                className="p-2 text-gray-500 hover:text-blue-600 transition lg:hidden"
-                title="Following"
-              >
-                <Users className="w-5 h-5" />
-              </Link>
-              
-              {/* Notifications */}
-              <NotificationBellSafe size="md" />
-              
-              <button
-                onClick={() => navigate('/investor/browse')}
-                className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition"
-                data-testid="browse-deals-button"
-              >
-                <Filter className="w-4 h-4" />
-                <span className="hidden lg:block">Browse Deals</span>
-                <span className="lg:hidden">Browse</span>
-              </button>
-              
-              {/* Browse icon for mobile */}
-              <button
-                onClick={() => navigate('/investor/browse')}
-                className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition sm:hidden"
-                title="Browse Deals"
-              >
-                <Filter className="w-4 h-4" />
-              </button>
-              
-              {/* Test Error Button (Development Only) */}
-              {process.env.NODE_ENV === 'development' && (
-                <button
-                  onClick={handleTestError}
-                  className="p-2 text-red-500 hover:text-red-700 transition"
-                  title="Test Sentry Error"
-                >
-                  💥
-                </button>
-              )}
-              
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-500 hover:text-gray-700 transition"
-                title="Logout"
-                data-testid="logout-button"
+                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                title="Sign Out"
               >
-                <LogOut className="w-4 h-4 lg:w-5 lg:h-5" />
+                <LogOut className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 px-4 py-3" data-testid="error-message">
-          <div className="max-w-7xl mx-auto">
-            <p className="text-red-700 text-sm">{error}</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Portfolio Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Invested</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {formatCurrency(portfolio.totalInvested)}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <DollarSign className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+              <span className="text-green-500 font-medium">+12.5%</span>
+              <span className="text-gray-500 ml-1">vs last month</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active Deals</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {portfolio.activeInvestments}
+                </p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg">
+                <Briefcase className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <Plus className="w-4 h-4 text-blue-500 mr-1" />
+              <span className="text-gray-600">2 new this month</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Average ROI</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {portfolio.averageROI.toFixed(1)}%
+                </p>
+              </div>
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <BarChart3 className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <Activity className="w-4 h-4 text-purple-500 mr-1" />
+              <span className="text-gray-600">Industry avg: 12.3%</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Top Performer</p>
+                <p className="text-lg font-bold text-gray-900 mt-2 truncate">
+                  {portfolio.topPerformer}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-50 rounded-lg">
+                <Star className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+              <span className="text-green-500 font-medium">+45% ROI</span>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Investment Portfolio Overview */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {portfolioMetrics && !investmentLoading ? (
-          <InvestmentPortfolioCard 
-            metrics={portfolioMetrics}
-            className="mb-8"
-          />
-        ) : (
-          // Fallback to original portfolio overview
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm">Total Investments</span>
-                <Briefcase className="w-5 h-5 text-blue-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{portfolio?.totalInvestments || 0}</p>
-              <p className="text-xs text-gray-500 mt-1">All time</p>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm">Active Deals</span>
-                <TrendingUp className="w-5 h-5 text-green-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{portfolio?.activeDeals || 0}</p>
-              <p className="text-xs text-green-500 mt-1">In production</p>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm">Total Invested</span>
-                <DollarSign className="w-5 h-5 text-purple-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(portfolio?.totalInvested || 0)}</p>
-              <p className="text-xs text-gray-500 mt-1">Capital deployed</p>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm">Avg. Return</span>
-                <PieChart className="w-5 h-5 text-orange-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{portfolio?.averageReturn || 0}%</p>
-              <p className="text-xs text-orange-500 mt-1">Annual ROI</p>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-500 text-sm">Opportunities</span>
-                <Eye className="w-5 h-5 text-yellow-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{portfolio?.pendingOpportunities || 0}</p>
-              <p className="text-xs text-yellow-500 mt-1">Pending review</p>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Investment History & Pipeline */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Notifications Widget */}
-            <NotificationWidget maxNotifications={4} compact={true} />
-            {/* Investment History */}
-            {investmentHistory.length > 0 && (
-              <InvestmentHistory 
-                investments={investmentHistory}
-                loading={investmentLoading}
-                showPagination={false}
-                pageSize={5}
-                className="mb-6"
-              />
-            )}
-            {/* Following Activity */}
-            {followingPitches.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm">
-                <div className="px-6 py-4 border-b flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">Following Activity</h2>
-                  <Link 
-                    to="/investor/following"
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    View All Following
-                  </Link>
-                </div>
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {followingPitches.slice(0, 3).map((pitch) => (
-                      <div key={pitch.id} className="flex items-start gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors">
-                        <div className="flex-shrink-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            pitch.creator.userType === 'production' ? 'bg-purple-100 text-purple-600' :
-                            pitch.creator.userType === 'investor' ? 'bg-green-100 text-green-600' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {pitch.creator.userType === 'production' ? <Building2 className="w-5 h-5" /> :
-                             pitch.creator.userType === 'investor' ? <DollarSign className="w-5 h-5" /> :
-                             <User className="w-5 h-5" />}
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Link
-                              to={`/creator/${pitch.creator.id}`}
-                              className="font-medium text-gray-900 hover:text-blue-600 cursor-pointer"
-                            >
-                              {pitch.creator.companyName || pitch.creator.username}
-                            </Link>
-                            <span className="text-gray-500 text-sm">published a new pitch</span>
-                            <span className="text-gray-400 text-sm">• 2 days ago</span>
-                            <FollowButton 
-                              creatorId={pitch.creator.id} 
-                              variant="small"
-                              className="ml-auto"
-                            />
-                          </div>
-                          <div 
-                            className="cursor-pointer group"
-                            onClick={() => navigate(`/investor/pitch/${pitch.id}`)}
-                          >
-                            <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 mb-1">
-                              {pitch.title}
-                            </h4>
-                            <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                              {pitch.logline}
-                            </p>
-                            <div className="flex items-center space-x-4 text-sm text-gray-500">
-                              <span className="px-2 py-1 bg-gray-100 rounded-full">
-                                {pitch.genre}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Eye className="w-4 h-4" />
-                                {pitch.viewCount}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Heart className="w-4 h-4" />
-                                {pitch.likeCount}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Investment Pipeline */}
-            <div className="bg-white rounded-xl shadow-sm">
-              <div className="px-6 py-4 border-b flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-900">Investment Pipeline</h2>
-                <button 
-                  onClick={() => navigate('/investor/browse')}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+        {/* Tabs */}
+        <div className="bg-white rounded-xl shadow-sm mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8 px-6">
+              {['overview', 'portfolio', 'saved', 'ndas', 'analytics'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors ${
+                    activeTab === tab
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                 >
-                  View All
+                  {tab === 'ndas' ? 'NDAs' : tab}
                 </button>
-              </div>
-              <div className="p-6">
-                {watchlist.length > 0 ? (
-                  <div className="space-y-4">
-                    {watchlist.map((item, index) => (
-                      <div key={index} className="border rounded-lg p-4 hover:shadow-md transition">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                            <p className="text-sm text-gray-500">{item.genre} • Budget: {formatCurrency(item.budget)}</p>
-                            {item.creator && (
-                              <Link
-                                to={`/creator/${item.creator.id}`}
-                                className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer"
-                              >
-                                by {item.creator.companyName || item.creator.username}
-                              </Link>
-                            )}
-                          </div>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            item.status === 'Reviewing' ? 'bg-yellow-100 text-yellow-700' :
-                            item.status === 'Due Diligence' ? 'bg-blue-100 text-blue-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {item.status}
+              ))}
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Investment Recommendations */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Recommended Opportunities
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recommendations.slice(0, 3).map((pitch: any) => (
+                      <div key={pitch.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <h4 className="font-medium text-gray-900">{pitch.title}</h4>
+                          <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                            {pitch.genre}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 mt-3">
-                          <button 
-                            onClick={() => navigate(`/investor/pitch/${item.id || 1}`)}
-                            className="text-sm text-blue-600 hover:text-blue-700"
-                          >
-                            View Details
-                          </button>
-                          <button 
-                            onClick={() => alert('Coming Soon: Calendar integration for scheduling meetings with creators and production companies.')}
-                            className="text-sm text-gray-600 hover:text-gray-700"
-                          >
-                            Schedule Meeting
-                          </button>
-                          <button 
-                            onClick={() => alert('Coming Soon: Investment offer system. This will allow you to submit formal investment proposals with terms and conditions.')}
-                            className="text-sm text-green-600 hover:text-green-700"
-                          >
-                            Make Offer
+                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{pitch.tagline}</p>
+                        <div className="mt-4 flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-900">{pitch.budget}</span>
+                          <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            View Details →
                           </button>
                         </div>
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                      <Clock className="w-5 h-5 text-gray-400" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-900">New pitch saved: "The Last Echo"</p>
+                        <p className="text-xs text-gray-500">2 hours ago</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                      <Shield className="w-5 h-5 text-gray-400" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-900">NDA signed for "Digital Dreams"</p>
+                        <p className="text-xs text-gray-500">1 day ago</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                      <DollarSign className="w-5 h-5 text-gray-400" />
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-900">Investment completed: $50,000</p>
+                        <p className="text-xs text-gray-500">3 days ago</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Portfolio Tab */}
+            {activeTab === 'portfolio' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Your Investments</h3>
+                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <Plus className="w-4 h-4 inline mr-2" />
+                    New Investment
+                  </button>
+                </div>
+                
+                {investments.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Project
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            ROI
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {investments.map((investment) => (
+                          <tr key={investment.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {investment.pitchTitle}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{formatCurrency(investment.amount)}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                investment.status === 'active' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {investment.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className={`text-sm font-medium ${
+                                investment.roi > 0 ? 'text-green-600' : 'text-gray-900'
+                              }`}>
+                                {investment.roi > 0 ? '+' : ''}{investment.roi}%
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(investment.dateInvested).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <button className="text-blue-600 hover:text-blue-900">View</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">No items in your investment pipeline yet</p>
-                    <button
-                      onClick={() => navigate('/investor/browse')}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  <div className="text-center py-12">
+                    <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No investments yet</p>
+                    <button 
+                      onClick={() => navigate('/marketplace')}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
-                      Browse Investment Opportunities
+                      Browse Opportunities
                     </button>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Investment Opportunities & Recommendations */}
-          <div>
-            {/* Enhanced Investment Analytics */}
-            <div className="mb-6">
-              <EnhancedInvestorAnalytics 
-                portfolioPerformance={portfolioPerformance}
-              />
-            </div>
-
-            {/* Investment Opportunities */}
-            {investmentOpportunities.length > 0 && (
-              <InvestmentOpportunities 
-                opportunities={investmentOpportunities}
-                loading={investmentLoading}
-                showMatchScore={true}
-                className="mb-6"
-              />
             )}
 
-            {/* AI Recommendations Fallback */}
-            {(!investmentOpportunities.length || investmentLoading) && (
-              <div className="bg-white rounded-xl shadow-sm">
-                <div className="px-6 py-4 border-b">
-                  <h2 className="text-lg font-semibold text-gray-900">AI Recommendations</h2>
+            {/* Saved Pitches Tab */}
+            {activeTab === 'saved' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Saved Pitches</h3>
+                  <div className="flex gap-2">
+                    <button className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">
+                      <Filter className="w-4 h-4 inline mr-1" />
+                      Filter
+                    </button>
+                  </div>
                 </div>
-                <div className="p-6">
-                  {recommendations.length > 0 ? (
-                    <div className="space-y-4">
-                      {recommendations.map((rec, index) => (
-                        <div key={index} className="p-3 border rounded-lg hover:bg-gray-50 transition">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-medium text-gray-900">{rec.title}</h4>
-                            <div className="flex items-center gap-1">
-                              <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                              <span className="text-sm font-semibold">{rec.matchScore}%</span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-500 mb-2">{rec.genre}</p>
-                          <button 
-                            onClick={() => navigate(`/investor/pitch/${rec.id || 1}`)}
-                            className="text-sm text-blue-600 hover:text-blue-700"
-                          >
-                            View Pitch
+                
+                {savedPitches.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {savedPitches.map((pitch) => (
+                      <div key={pitch.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <h4 className="font-medium text-gray-900">{pitch.title}</h4>
+                          <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">by {pitch.creator}</p>
+                        <div className="mt-3 flex items-center gap-2 text-xs">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                            {pitch.genre}
+                          </span>
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                            {pitch.budget}
+                          </span>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">
+                            Saved {new Date(pitch.savedAt).toLocaleDateString()}
+                          </span>
+                          <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            View →
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center">No recommendations available</p>
-                  )}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Star className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No saved pitches yet</p>
+                    <button 
+                      onClick={() => navigate('/marketplace')}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Discover Pitches
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Billing & Account */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Account Management</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => navigate('/following')}
-                  className="w-full flex items-center gap-3 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
-                >
-                  <Users className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm font-medium text-purple-900">Following ({followingPitches.length})</span>
-                </button>
-                
-                <button
-                  onClick={() => navigate('/investor/billing')}
-                  className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-blue-50 hover:from-green-100 hover:to-blue-100 rounded-lg transition"
-                >
-                  <CreditCard className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-900">Billing & Payments</span>
-                </button>
-                
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Current Plan</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {(() => {
-                    const tier = getSubscriptionTier(subscription?.tier || '');
-                    return tier?.name || 'The Watcher';
-                  })()}
+            {/* NDAs Tab */}
+            {activeTab === 'ndas' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">NDA Management</h3>
+                  <div className="flex gap-2">
+                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm">
+                      Pending: 2
                     </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Credits</span>
-                    <span className="text-sm font-medium text-blue-600">
-                      {credits?.balance?.credits || 0}
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm">
+                      Active: {ndaRequests.length}
                     </span>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* NDA Quick Status */}
-            <div className="mt-6">
-              <QuickNDAStatus userType="investor" />
-            </div>
-
-            {/* Investment Criteria */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-sm p-6 mt-6">
-              <h3 className="text-white font-semibold mb-2">Investment Preferences</h3>
-              <p className="text-blue-100 text-sm mb-4">
-                {investmentPreferences?.investmentCriteria ? (
-                  `Your profile is optimized for ${investmentPreferences.investmentCriteria.preferredGenres?.join(', ')} projects with budgets ${investmentPreferences.investmentCriteria.budgetRange?.label || '$5M-$20M'}`
+                
+                {ndaRequests.length > 0 ? (
+                  <div className="space-y-3">
+                    {ndaRequests.map((nda) => (
+                      <div key={nda.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{nda.pitchTitle}</h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              Requested: {new Date(nda.requestedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              nda.status === 'signed' 
+                                ? 'bg-green-100 text-green-700'
+                                : nda.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {nda.status}
+                            </span>
+                            <button className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                              View Details
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  'Your profile is optimized for Action, Thriller, and Sci-Fi projects with budgets $5M-$20M'
+                  <div className="text-center py-12">
+                    <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No NDA requests yet</p>
+                  </div>
                 )}
-              </p>
-              <button 
-                onClick={() => alert('Coming Soon: Investment criteria customization. This will allow you to set your preferred genres, budget ranges, and investment parameters.')}
-                className="w-full py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition"
-              >
-                Update Criteria
-              </button>
-            </div>
+              </div>
+            )}
 
-            {/* Quick Stats */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Portfolio Performance</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">This Month</span>
-                  <span className="text-sm font-semibold text-green-600">
-                    +{portfolio?.monthlyGrowth || 12.5}%
-                  </span>
+            {/* Analytics Tab */}
+            {activeTab === 'analytics' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Investment Analytics</h3>
+                  <button className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <Download className="w-4 h-4 inline mr-1" />
+                    Export Report
+                  </button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">This Quarter</span>
-                  <span className="text-sm font-semibold text-green-600">
-                    +{portfolio?.quarterlyGrowth || 28.3}%
-                  </span>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* ROI Chart Placeholder */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="font-medium text-gray-900 mb-4">ROI Over Time</h4>
+                    <div className="h-48 flex items-center justify-center text-gray-400">
+                      <BarChart3 className="w-8 h-8" />
+                    </div>
+                  </div>
+                  
+                  {/* Investment Distribution */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="font-medium text-gray-900 mb-4">Portfolio Distribution</h4>
+                    <div className="h-48 flex items-center justify-center text-gray-400">
+                      <Activity className="w-8 h-8" />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">YTD Returns</span>
-                  <span className="text-sm font-semibold text-green-600">
-                    +{portfolio?.ytdGrowth || 45.7}%
-                  </span>
+                
+                {/* Key Metrics */}
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Total Returns</p>
+                    <p className="text-2xl font-bold text-gray-900">$67,500</p>
+                    <p className="text-xs text-green-600 mt-1">+15% YTD</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Success Rate</p>
+                    <p className="text-2xl font-bold text-gray-900">73%</p>
+                    <p className="text-xs text-gray-500 mt-1">11 of 15 profitable</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Avg. Deal Size</p>
+                    <p className="text-2xl font-bold text-gray-900">$75,000</p>
+                    <p className="text-xs text-gray-500 mt-1">Last 6 months</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <button 
+            onClick={() => navigate('/marketplace')}
+            className="p-4 bg-white rounded-lg border hover:shadow-md transition-shadow text-left"
+          >
+            <Search className="w-5 h-5 text-blue-600 mb-2" />
+            <p className="font-medium text-gray-900">Browse Pitches</p>
+            <p className="text-sm text-gray-500">Discover new opportunities</p>
+          </button>
+          
+          <button className="p-4 bg-white rounded-lg border hover:shadow-md transition-shadow text-left">
+            <Users className="w-5 h-5 text-green-600 mb-2" />
+            <p className="font-medium text-gray-900">Network</p>
+            <p className="text-sm text-gray-500">Connect with creators</p>
+          </button>
+          
+          <button className="p-4 bg-white rounded-lg border hover:shadow-md transition-shadow text-left">
+            <Calendar className="w-5 h-5 text-purple-600 mb-2" />
+            <p className="font-medium text-gray-900">Schedule</p>
+            <p className="text-sm text-gray-500">Manage meetings</p>
+          </button>
+          
+          <button className="p-4 bg-white rounded-lg border hover:shadow-md transition-shadow text-left">
+            <FileText className="w-5 h-5 text-orange-600 mb-2" />
+            <p className="font-medium text-gray-900">Documents</p>
+            <p className="text-sm text-gray-500">View contracts & NDAs</p>
+          </button>
         </div>
       </div>
     </div>
-  );
-}
-
-// Wrap the dashboard content with error boundary
-export default function InvestorDashboard() {
-  return (
-    <InvestorDashboardErrorBoundary
-      onError={(error, errorInfo) => {
-        // Additional logging or actions when error occurs
-        console.error('Investor Dashboard Error:', error, errorInfo);
-        
-        // Track in analytics if available
-        if (typeof window !== 'undefined' && (window as any).gtag) {
-          (window as any).gtag('event', 'exception', {
-            description: error.toString(),
-            fatal: false,
-            custom_map: {
-              component: 'InvestorDashboard'
-            }
-          });
-        }
-      }}
-    >
-      <InvestorDashboardContent />
-    </InvestorDashboardErrorBoundary>
   );
 }

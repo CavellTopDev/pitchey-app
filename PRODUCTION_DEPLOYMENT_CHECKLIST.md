@@ -245,7 +245,7 @@ echo "secret_value" | wrangler secret put SECRET_NAME
 1. **Immediate Actions**
    ```bash
    # Rollback worker
-   wrangler rollback --name pitchey-optimized
+   wrangler rollback --name pitchey-production
    
    # Rollback frontend
    wrangler pages deploy previous-dist --project-name=pitchey

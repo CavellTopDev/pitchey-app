@@ -1,69 +1,49 @@
-/**
- * Simple database connection test to diagnose issues
- */
-
 import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+import * as schema from './src/db/schema.ts';
+import { eq } from 'drizzle-orm';
 
-const databaseUrl = 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require';
+const DATABASE_URL = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
 
-async function testDatabaseConnection() {
+async function testDatabase() {
   try {
+    const sql = neon(DATABASE_URL);
+    const db = drizzle(sql);
+    
     console.log('Testing database connection...');
-    const sql = neon(databaseUrl);
     
-    // Test basic connection
-    const connectionTest = await sql`SELECT NOW() as current_time`;
-    console.log('✅ Database connected successfully:', connectionTest[0]?.current_time);
+    // Test 1: Get user by email
+    const users = await db.select()
+      .from(schema.users)
+      .where(eq(schema.users.email, 'alex.creator@demo.com'))
+      .limit(1);
     
-    // Check if pitches table exists
-    const tableCheck = await sql`
-      SELECT table_name, column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'pitches' 
-      ORDER BY ordinal_position;
-    `;
-    
-    if (tableCheck.length > 0) {
-      console.log('✅ Pitches table exists with columns:');
-      tableCheck.forEach(col => {
-        console.log(`  - ${col.column_name}: ${col.data_type}`);
+    if (users.length > 0) {
+      console.log('✅ User found:', {
+        id: users[0].id,
+        email: users[0].email,
+        username: users[0].username,
+        userType: users[0].userType,
+        hasPassword: !!users[0].passwordHash
       });
     } else {
-      console.log('❌ Pitches table does not exist');
+      console.log('❌ User not found');
     }
     
-    // Check if users table exists
-    const usersCheck = await sql`
-      SELECT table_name, column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      ORDER BY ordinal_position;
-    `;
+    // Test 2: List all users
+    const allUsers = await db.select({
+      email: schema.users.email,
+      userType: schema.users.userType
+    })
+    .from(schema.users)
+    .limit(5);
     
-    if (usersCheck.length > 0) {
-      console.log('✅ Users table exists with columns:');
-      usersCheck.forEach(col => {
-        console.log(`  - ${col.column_name}: ${col.data_type}`);
-      });
-    } else {
-      console.log('❌ Users table does not exist');
-    }
-    
-    // Try a simple query to see what happens
-    const simpleQuery = await sql`SELECT COUNT(*) as total FROM pitches`;
-    console.log('✅ Simple count query:', simpleQuery[0]?.total, 'pitches in database');
-    
-    // Try getting a few sample pitches
-    const samplePitches = await sql`
-      SELECT id, title, genre, status, visibility 
-      FROM pitches 
-      LIMIT 3;
-    `;
-    console.log('✅ Sample pitches:', samplePitches);
+    console.log('\nFirst 5 users in database:');
+    allUsers.forEach(u => console.log(`  - ${u.email} (${u.userType})`));
     
   } catch (error) {
-    console.error('❌ Database test failed:', error);
+    console.error('Database error:', error);
   }
 }
 
-testDatabaseConnection();
+testDatabase();

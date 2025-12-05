@@ -15,7 +15,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Configuration
-WORKER_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 FRONTEND_URL="https://pitchey.pages.dev"
 
 # Step tracking
@@ -178,7 +178,7 @@ node_compat = true
 
 account_id = "b1f6495b07f1a7573dbbf75b7ea2fa48"
 workers_dev = false
-route = { pattern = "pitchey-optimized.cavelltheleaddev.workers.dev/*", zone_name = "cavelltheleaddev.workers.dev" }
+route = { pattern = "pitchey-production.cavelltheleaddev.workers.dev/*", zone_name = "cavelltheleaddev.workers.dev" }
 
 [vars]
 DENO_ENV = "production"

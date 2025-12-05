@@ -2,7 +2,7 @@
 
 set -e
 
-API_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 FRONTEND_URL="https://bf53246c.pitchey.pages.dev"
 
 echo "===================================="

@@ -8,7 +8,7 @@ echo "==========================================="
 echo ""
 
 # Configuration
-WORKER_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 HEALTH_CHECK_INTERVAL=300  # 5 minutes
 ALERT_EMAIL="${ALERT_EMAIL:-admin@pitchey.com}"
 SLACK_WEBHOOK="${SLACK_WEBHOOK_URL:-}"
@@ -17,7 +17,7 @@ SLACK_WEBHOOK="${SLACK_WEBHOOK_URL:-}"
 cat > monitoring-config.json << 'EOF'
 {
   "service": "pitchey-production",
-  "worker_url": "https://pitchey-optimized.cavelltheleaddev.workers.dev",
+  "worker_url": "https://pitchey-production.cavelltheleaddev.workers.dev",
   "monitoring": {
     "endpoints": [
       {
@@ -296,7 +296,7 @@ cat > monitoring-cron.sh << 'EOF'
 #!/bin/bash
 # Add to crontab: */5 * * * * /path/to/monitoring-cron.sh
 
-WORKER_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 LOG_FILE="/var/log/pitchey-monitor.log"
 
 # Simple health check

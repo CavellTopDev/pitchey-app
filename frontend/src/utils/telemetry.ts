@@ -3,7 +3,7 @@
  * Integrates Sentry error tracking with performance monitoring for Cloudflare Pages
  */
 
-import * as Sentry from "https://esm.sh/@sentry/browser@8";
+// import * as Sentry from "https://esm.sh/@sentry/browser@8"; // Temporarily disabled
 
 interface FrontendTelemetryConfig {
   sentryDsn?: string;
@@ -42,55 +42,11 @@ export class FrontendTelemetryManager {
     }
 
     try {
-      Sentry.init({
-        dsn: this.config.sentryDsn,
-        environment: this.config.environment,
-        release: this.config.release,
+      // Sentry.init - temporarily disabled to resolve initialization errors
+      console.log("Sentry initialization temporarily disabled");
 
-        // Performance monitoring
-        tracesSampleRate: this.config.sampleRate,
-        
-        // Integrations
-        integrations: [
-          // Browser tracing for performance
-          new Sentry.BrowserTracing({
-            tracePropagationTargets: [
-              "localhost",
-              "pitchey.pages.dev",
-              "pitchey-backend-fresh.deno.dev",
-              "pitchey-production.cavelltheleaddev.workers.dev",
-              "pitchey-production.cavelltheleaddev.workers.dev",
-            ],
-          }),
-          
-          // Session replay for debugging
-          ...(this.config.enableReplay ? [
-            new Sentry.Replay({
-              maskAllText: false,
-              blockAllMedia: false,
-              maskAllInputs: true, // Protect user input
-            })
-          ] : []),
-        ],
-
-        // Session replay sampling
-        replaysSessionSampleRate: this.config.replaySampleRate,
-        replaysOnErrorSampleRate: 1.0, // Always capture on error
-
-        // Data filtering for privacy
-        beforeSend: this.filterSensitiveData.bind(this),
-        beforeSendTransaction: this.filterSensitiveTransactions.bind(this),
-
-        // Additional configuration
-        maxBreadcrumbs: 100,
-        debug: this.config.environment === "development",
-
-        // Capture unhandled rejections
-        captureUnhandledRejections: true,
-      });
-
-      // Set global context
-      Sentry.setContext("app", {
+      // Set global context - temporarily disabled
+      console.log("App context:", {
         name: "pitchey-frontend",
         version: this.config.release,
         environment: this.config.environment,
@@ -107,9 +63,9 @@ export class FrontendTelemetryManager {
   }
 
   /**
-   * Filter sensitive data from error reports
+   * Filter sensitive data from error reports - temporarily disabled
    */
-  private filterSensitiveData(event: Sentry.Event): Sentry.Event | null {
+  private filterSensitiveData(event: any): any | null {
     // Remove sensitive context data
     if (event.contexts?.user) {
       delete event.contexts.user.email;
@@ -137,9 +93,9 @@ export class FrontendTelemetryManager {
   }
 
   /**
-   * Filter sensitive data from performance transactions
+   * Filter sensitive data from performance transactions - temporarily disabled
    */
-  private filterSensitiveTransactions(transaction: Sentry.Transaction): Sentry.Transaction | null {
+  private filterSensitiveTransactions(transaction: any): any | null {
     // Skip health check transactions to reduce noise
     if (transaction.name?.includes("/api/health")) {
       return null;
@@ -154,9 +110,9 @@ export class FrontendTelemetryManager {
   setUser(user: { id?: string; email?: string; userType?: string }) {
     if (!this.isInitialized) return;
 
-    Sentry.setUser({
+    // Sentry.setUser - temporarily disabled
+    console.log("User context set:", {
       id: user.id,
-      // Don't send email for privacy
       username: user.email?.split("@")[0],
       segment: user.userType,
     });
@@ -167,7 +123,8 @@ export class FrontendTelemetryManager {
    */
   clearUser(): void {
     if (!this.isInitialized) return;
-    Sentry.setUser(null);
+    // Sentry.setUser(null) - temporarily disabled
+    console.log("User context cleared");
   }
 
   /**
@@ -176,11 +133,8 @@ export class FrontendTelemetryManager {
   captureException(error: Error | unknown, context?: Record<string, any>): void {
     if (!this.isInitialized) return;
 
-    Sentry.captureException(error, {
-      contexts: {
-        error_context: context,
-      },
-    });
+    // Sentry.captureException - temporarily disabled
+    console.error("Exception captured:", error, { context });
   }
 
   /**
@@ -188,7 +142,8 @@ export class FrontendTelemetryManager {
    */
   captureMessage(message: string, level: "info" | "warning" | "error" = "info"): void {
     if (!this.isInitialized) return;
-    Sentry.captureMessage(message, level);
+    // Sentry.captureMessage - temporarily disabled
+    console.log(`[${level.toUpperCase()}] ${message}`);
   }
 
   /**
@@ -197,11 +152,8 @@ export class FrontendTelemetryManager {
   addBreadcrumb(message: string, data?: Record<string, any>): void {
     if (!this.isInitialized) return;
 
-    Sentry.addBreadcrumb({
-      message,
-      data,
-      timestamp: Date.now() / 1000,
-    });
+    // Sentry.addBreadcrumb - temporarily disabled
+    console.debug("Breadcrumb:", { message, data, timestamp: Date.now() / 1000 });
   }
 
   /**
@@ -209,7 +161,8 @@ export class FrontendTelemetryManager {
    */
   setTag(key: string, value: string): void {
     if (!this.isInitialized) return;
-    Sentry.setTag(key, value);
+    // Sentry.setTag - temporarily disabled
+    console.debug("Tag set:", { key, value });
   }
 
   /**
@@ -297,30 +250,14 @@ export function useTelemetry() {
 }
 
 /**
- * HOC for wrapping components with error boundaries
+ * HOC for wrapping components with error boundaries - temporarily disabled
  */
 export function withTelemetry<P extends object>(
   WrappedComponent: React.ComponentType<P>
 ): React.ComponentType<P> {
   return (props: P) => {
-    return (
-      <Sentry.ErrorBoundary
-        fallback={({ error, resetError }) => (
-          <div className="error-boundary">
-            <h2>Something went wrong</h2>
-            <p>{error.message}</p>
-            <button onClick={resetError}>Try again</button>
-          </div>
-        )}
-        beforeCapture={(scope) => {
-          scope.setContext("component", {
-            name: WrappedComponent.name || "Unknown",
-          });
-        }}
-      >
-        <WrappedComponent {...props} />
-      </Sentry.ErrorBoundary>
-    );
+    // Sentry.ErrorBoundary temporarily disabled
+    return <WrappedComponent {...props} />;
   };
 }
 

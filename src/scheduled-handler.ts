@@ -69,7 +69,7 @@ const scheduledTasks: Record<string, ScheduledTask> = {
       
       const results = await Promise.allSettled(
         endpoints.map(async (endpoint) => {
-          const url = `${env.WORKER_URL || 'https://pitchey-optimized.cavelltheleaddev.workers.dev'}${endpoint}`;
+          const url = `${env.WORKER_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev'}${endpoint}`;
           const response = await fetch(url, {
             signal: AbortSignal.timeout(5000)
           });
@@ -184,7 +184,7 @@ const scheduledTasks: Record<string, ScheduledTask> = {
       
       // Collect database pool stats
       try {
-        const poolStats = await fetch(`${env.WORKER_URL || 'https://pitchey-optimized.cavelltheleaddev.workers.dev'}/api/pool/stats`);
+        const poolStats = await fetch(`${env.WORKER_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev'}/api/pool/stats`);
         if (poolStats.ok) {
           metrics.database = await poolStats.json();
         }

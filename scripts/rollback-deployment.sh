@@ -14,9 +14,9 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # Configuration
-WORKER_NAME="pitchey-optimized"
+WORKER_NAME="pitchey-production"
 FRONTEND_PROJECT="pitchey"
-WORKER_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 FRONTEND_URL="https://pitchey.pages.dev"
 
 # Rollback options

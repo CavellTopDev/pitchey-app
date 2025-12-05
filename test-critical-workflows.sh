@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-API_URL="${API_URL:-https://pitchey-optimized.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
 FRONTEND_URL="${FRONTEND_URL:-https://pitchey.pages.dev}"
 
 # Colors for output

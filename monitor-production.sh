@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pitchey Production Monitoring Script
-API_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 FRONTEND_URL="https://d066c1b9.pitchey.pages.dev"
 
 echo "🔍 PITCHEY PRODUCTION MONITORING"

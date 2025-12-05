@@ -1,32 +1,6 @@
 import React from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  Filler,
-} from 'chart.js';
-import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2';
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-  Filler
-);
+// Chart functionality temporarily disabled to resolve JavaScript initialization errors
 
 export interface ChartDataPoint {
   date: string;
@@ -113,28 +87,14 @@ export const LineChart: React.FC<LineChartProps> = ({
   fill = false,
   height = 300,
 }) => {
-  const chartData = {
-    labels: data.map(point => {
-      const date = new Date(point.date);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }),
-    datasets: [
-      {
-        label: title,
-        data: data.map(point => point.value),
-        borderColor: color,
-        backgroundColor: fill ? `${color}20` : color,
-        fill,
-        tension: 0.4,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-      },
-    ],
-  };
-
   return (
-    <div style={{ height }}>
-      <Line data={chartData} options={commonOptions} />
+    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
+      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
+      <p className="text-gray-500 text-sm mb-2">Line Chart</p>
+      <div className="text-xs text-gray-400 text-center">
+        {data.length} data points available<br />
+        Chart temporarily disabled
+      </div>
     </div>
   );
 };
@@ -155,27 +115,14 @@ export const BarChart: React.FC<BarChartProps> = ({
   horizontal = false,
   height = 300,
 }) => {
-  const chartData = {
-    labels: data.map(item => item.category),
-    datasets: [
-      {
-        label: title,
-        data: data.map(item => item.value),
-        backgroundColor: data.map((_, index) => chartColors[index % chartColors.length]),
-        borderColor: data.map((_, index) => chartColors[index % chartColors.length]),
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const options = {
-    ...commonOptions,
-    indexAxis: horizontal ? ('y' as const) : ('x' as const),
-  };
-
   return (
-    <div style={{ height }}>
-      <Bar data={chartData} options={options} />
+    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
+      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
+      <p className="text-gray-500 text-sm mb-2">Bar Chart ({horizontal ? 'Horizontal' : 'Vertical'})</p>
+      <div className="text-xs text-gray-400 text-center">
+        {data.length} categories available<br />
+        Chart temporarily disabled
+      </div>
     </div>
   );
 };
@@ -194,28 +141,13 @@ export const MultiLineChart: React.FC<MultiLineChartProps> = ({
   datasets,
   height = 300,
 }) => {
-  const labels = datasets[0]?.data.map(point => {
-    const date = new Date(point.date);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  }) || [];
-
-  const chartData = {
-    labels,
-    datasets: datasets.map(dataset => ({
-      label: dataset.label,
-      data: dataset.data.map(point => point.value),
-      borderColor: dataset.color,
-      backgroundColor: `${dataset.color}20`,
-      fill: false,
-      tension: 0.4,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-    })),
-  };
-
   return (
-    <div style={{ height }}>
-      <Line data={chartData} options={commonOptions} />
+    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
+      <h4 className="text-lg font-medium text-gray-900 mb-2">Multi-Line Chart</h4>
+      <p className="text-gray-500 text-sm mb-2">{datasets.length} datasets</p>
+      <div className="text-xs text-gray-400 text-center">
+        Chart temporarily disabled
+      </div>
     </div>
   );
 };
@@ -234,24 +166,14 @@ export const PieChart: React.FC<PieChartProps> = ({
   type = 'pie',
   height = 300,
 }) => {
-  const chartData = {
-    labels: data.map(item => item.category),
-    datasets: [
-      {
-        label: title,
-        data: data.map(item => item.value),
-        backgroundColor: data.map((_, index) => chartColors[index % chartColors.length]),
-        borderColor: '#ffffff',
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const ChartComponent = type === 'doughnut' ? Doughnut : Pie;
-
   return (
-    <div style={{ height }}>
-      <ChartComponent data={chartData} options={pieOptions} />
+    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
+      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
+      <p className="text-gray-500 text-sm mb-2">{type.charAt(0).toUpperCase() + type.slice(1)} Chart</p>
+      <div className="text-xs text-gray-400 text-center">
+        {data.length} categories available<br />
+        Chart temporarily disabled
+      </div>
     </div>
   );
 };
@@ -271,13 +193,14 @@ export const AreaChart: React.FC<AreaChartProps> = ({
   height = 300,
 }) => {
   return (
-    <LineChart
-      data={data}
-      title={title}
-      color={color}
-      fill={true}
-      height={height}
-    />
+    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
+      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
+      <p className="text-gray-500 text-sm mb-2">Area Chart</p>
+      <div className="text-xs text-gray-400 text-center">
+        {data.length} data points available<br />
+        Chart temporarily disabled
+      </div>
+    </div>
   );
 };
 
@@ -294,38 +217,14 @@ export const StackedBarChart: React.FC<StackedBarChartProps> = ({
   data,
   height = 300,
 }) => {
-  const labels = data.map(item => item.category);
-  const datasets = data[0]?.values.map((valueItem, index) => ({
-    label: valueItem.label,
-    data: data.map(item => item.values[index]?.value || 0),
-    backgroundColor: chartColors[index % chartColors.length],
-    borderColor: chartColors[index % chartColors.length],
-    borderWidth: 1,
-  })) || [];
-
-  const chartData = {
-    labels,
-    datasets,
-  };
-
-  const options = {
-    ...commonOptions,
-    scales: {
-      ...commonOptions.scales,
-      x: {
-        ...commonOptions.scales.x,
-        stacked: true,
-      },
-      y: {
-        ...commonOptions.scales.y,
-        stacked: true,
-      },
-    },
-  };
-
   return (
-    <div style={{ height }}>
-      <Bar data={chartData} options={options} />
+    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
+      <h4 className="text-lg font-medium text-gray-900 mb-2">Stacked Bar Chart</h4>
+      <p className="text-gray-500 text-sm mb-2">{data.length} categories</p>
+      <div className="text-xs text-gray-400 text-center">
+        Chart temporarily disabled<br />
+        {data.reduce((total, item) => total + item.values.length, 0)} data series
+      </div>
     </div>
   );
 };

@@ -52,11 +52,21 @@ class ApiClient {
     } catch {}
   }
 
-  constructor(baseURL: string = config.API_URL) {
-    this.baseURL = baseURL;
+  constructor(baseURL?: string) {
+    // Lazy initialization to avoid temporal dead zone issues
+    this.baseURL = baseURL || this.getBaseURL();
     this.defaultHeaders = {
       'Content-Type': 'application/json',
     };
+  }
+
+  private getBaseURL(): string {
+    try {
+      return config.API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    } catch (error) {
+      console.warn('Config not available during initialization, using fallback URL');
+      return import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    }
   }
 
   private getAuthToken(): string | null {
@@ -112,6 +122,7 @@ class ApiClient {
       const fetchOptions: RequestInit = {
         ...options,
         headers,
+        credentials: 'include', // Enable cookies for all requests
       };
 
       console.log(`API Request: ${options.method || 'GET'} ${url}`);
@@ -230,12 +241,17 @@ class ApiClient {
   }
 
   private isRetryableError(error: any): boolean {
-    // Retry on network errors, timeouts, and server errors (5xx)
+    // Retry on network errors, timeouts, DNS resolution failures, and server errors (5xx)
     return (
       error.name === 'TypeError' ||
       error.name === 'NetworkError' ||
       error.message?.includes('fetch') ||
-      error.message?.includes('network')
+      error.message?.includes('network') ||
+      error.message?.includes('ERR_NAME_NOT_RESOLVED') ||
+      error.message?.includes('getaddrinfo ENOTFOUND') ||
+      error.message?.includes('DNS lookup failed') ||
+      error.code === 'ENOTFOUND' ||
+      error.code === 'EAI_NONAME'
     );
   }
 

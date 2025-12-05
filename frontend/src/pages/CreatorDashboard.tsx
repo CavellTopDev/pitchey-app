@@ -14,7 +14,7 @@ import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreato
 import { NotificationBell } from '../components/NotificationBell';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
-import * as Sentry from '@sentry/react';
+// import * as Sentry from '@sentry/react';
 
 function CreatorDashboard() {
   const navigate = useNavigate();
@@ -211,7 +211,7 @@ function CreatorDashboard() {
                 className="flex items-center hover:opacity-80 transition-opacity"
                 title="Go to Homepage"
               >
-                <span className="text-lg sm:text-xl font-bold text-gray-900">Pitchey</span>
+                <span className="text-lg sm:text-xl font-bold text-purple-600">Pitchey</span>
               </Link>
               
               {/* Divider - Hidden on small screens */}

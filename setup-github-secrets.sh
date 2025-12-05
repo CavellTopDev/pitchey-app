@@ -333,7 +333,7 @@ set_secret "ADMIN_PASSWORD" "$ADMIN_PASSWORD" "Admin user password"
 
 # API URLs
 set_secret "STAGING_API_URL" "https://pitchey-staging.cavelltheleaddev.workers.dev" "Staging API URL"
-set_secret "PRODUCTION_API_URL" "https://pitchey-optimized.cavelltheleaddev.workers.dev" "Production API URL"
+set_secret "PRODUCTION_API_URL" "https://pitchey-production.cavelltheleaddev.workers.dev" "Production API URL"
 
 # Frontend URLs
 set_secret "STAGING_FRONTEND_URL" "https://staging.pitchey.pages.dev" "Staging frontend URL"

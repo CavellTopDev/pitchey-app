@@ -66,7 +66,7 @@ if [ $? -eq 0 ]; then
     sleep 3
     
     # Test the health endpoint
-    HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)
+    HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health)
     
     if [ "$HEALTH_CHECK" = "200" ]; then
         echo "✅ Health check passed!"
@@ -74,14 +74,14 @@ if [ $? -eq 0 ]; then
         echo "🎉 DEPLOYMENT COMPLETE!"
         echo ""
         echo "📍 Your API is live at:"
-        echo "   https://pitchey-optimized.cavelltheleaddev.workers.dev"
+        echo "   https://pitchey-production.cavelltheleaddev.workers.dev"
         echo ""
         echo "📊 View in Cloudflare Dashboard:"
         echo "   https://dash.cloudflare.com"
         echo ""
         echo "📝 Test endpoints:"
-        echo "   - Health: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health"
-        echo "   - Pitches: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/browse"
+        echo "   - Health: https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+        echo "   - Pitches: https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse"
         echo ""
     else
         echo "⚠️  Health check returned status: $HEALTH_CHECK"

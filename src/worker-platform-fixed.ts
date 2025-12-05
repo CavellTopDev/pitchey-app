@@ -366,7 +366,7 @@ const SECURITY_HEADERS = {
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
-    "connect-src 'self' https://pitchey-optimized.cavelltheleaddev.workers.dev wss://pitchey-optimized.cavelltheleaddev.workers.dev https://api.sentry.io",
+    "connect-src 'self' https://pitchey-production.cavelltheleaddev.workers.dev wss://pitchey-production.cavelltheleaddev.workers.dev https://api.sentry.io",
     "worker-src 'self' blob:",
     "frame-src 'none'",
     "object-src 'none'",

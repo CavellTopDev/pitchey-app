@@ -1,6 +1,6 @@
 import { useEffect, useState, Suspense, lazy, startTransition } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// React Query temporarily disabled to resolve JavaScript initialization errors
 import { useAuthStore } from './store/authStore';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
@@ -104,16 +104,7 @@ const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 // Error Pages
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
+// Query client temporarily disabled to resolve JavaScript initialization errors
 
 // Component to handle pitch routing - now always shows public view
 function PitchRouter() {
@@ -226,7 +217,6 @@ function App() {
 
   return (
     <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
-      <QueryClientProvider client={queryClient}>
         <WebSocketProvider>
           <NotificationToastProvider>
             <ToastProvider>
@@ -249,6 +239,9 @@ function App() {
           {/* Marketplace */}
           <Route path="/marketplace" element={<MarketplaceEnhanced />} />
           <Route path="/marketplace-old" element={<Marketplace />} />
+          
+          {/* Browse Route */}
+          <Route path="/browse" element={<MarketplaceEnhanced />} />
           <Route path="/test-marketplace" element={<TestMarketplace />} />
           
           {/* Info Pages */}
@@ -262,21 +255,9 @@ function App() {
           <Route path="/portals" element={<PortalSelect />} />
           
           {/* Multi-Portal Login Routes */}
-          <Route path="/login/creator" element={
-            !isAuthenticated ? <CreatorLogin /> : 
-            userType === 'creator' ? <Navigate to="/creator/dashboard" /> :
-            <Navigate to="/" />
-          } />
-          <Route path="/login/investor" element={
-            !isAuthenticated ? <InvestorLogin /> : 
-            userType === 'investor' ? <Navigate to="/investor/dashboard" /> :
-            <Navigate to="/" />
-          } />
-          <Route path="/login/production" element={
-            !isAuthenticated ? <ProductionLogin /> : 
-            userType === 'production' ? <Navigate to="/production/dashboard" /> :
-            <Navigate to="/" />
-          } />
+          <Route path="/login/creator" element={<CreatorLogin />} />
+          <Route path="/login/investor" element={<InvestorLogin />} />
+          <Route path="/login/production" element={<ProductionLogin />} />
           <Route path="/login/admin" element={
             !isAuthenticated ? <Login /> : 
             userType === 'admin' ? <Navigate to="/admin/dashboard" /> :
@@ -489,7 +470,6 @@ function App() {
             </ToastProvider>
           </NotificationToastProvider>
         </WebSocketProvider>
-      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

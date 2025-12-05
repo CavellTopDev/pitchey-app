@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/react';
+// import * as Sentry from '@sentry/react'; // Temporarily disabled
 import { useAuthStore } from '../store/authStore';
 
 export type PortalType = 'creator' | 'investor' | 'production' | 'admin';
@@ -20,9 +20,9 @@ export function useSentryPortal(config: SentryPortalConfig) {
   const { portalType, componentName, trackPerformance = true, customTags = {} } = config;
 
   useEffect(() => {
-    // Set user context
+    // Set user context - temporarily disabled
     if (user) {
-      Sentry.setUser({
+      console.debug('Sentry user context (disabled):', {
         id: String(user.id),
         email: user.email,
         username: user.username,
@@ -32,42 +32,22 @@ export function useSentryPortal(config: SentryPortalConfig) {
     }
 
     // Set portal-specific tags
-    Sentry.setTag('portal', portalType);
-    Sentry.setTag('component', componentName);
+    // Sentry.setTag('portal', portalType);
+    // Sentry.setTag('component', componentName);
     
     // Set custom tags
     Object.entries(customTags).forEach(([key, value]) => {
-      Sentry.setTag(key, value);
+      // Sentry.setTag(key, value);
     });
 
-    // Add breadcrumb for navigation
-    Sentry.addBreadcrumb({
-      category: 'navigation',
-      message: `Entered ${componentName} in ${portalType} portal`,
-      level: 'info',
-      data: {
-        portal: portalType,
-        component: componentName,
-        userId: user?.id,
-        timestamp: new Date().toISOString()
-      }
-    });
+    // Add breadcrumb for navigation - temporarily disabled
+    console.debug(`Portal navigation: Entered ${componentName} in ${portalType} portal`);
 
-    // Start performance transaction if enabled
-    let transaction: ReturnType<typeof Sentry.startTransaction> | undefined;
+    // Start performance transaction if enabled - temporarily disabled
+    let transaction: any | undefined;
     
-    if (trackPerformance && Sentry.getCurrentHub().getClient()) {
-      transaction = Sentry.startTransaction({
-        name: `${portalType}.${componentName}`,
-        op: 'navigation',
-        tags: {
-          portal: portalType,
-          component: componentName,
-          ...customTags
-        }
-      });
-
-      Sentry.getCurrentHub().configureScope(scope => scope.setSpan(transaction));
+    if (trackPerformance) {
+      console.debug('Performance tracking disabled:', `${portalType}.${componentName}`);
     }
 
     // Store portal activity for error context
@@ -81,17 +61,8 @@ export function useSentryPortal(config: SentryPortalConfig) {
         transaction.finish();
       }
 
-      // Add breadcrumb for leaving component
-      Sentry.addBreadcrumb({
-        category: 'navigation',
-        message: `Left ${componentName} in ${portalType} portal`,
-        level: 'info',
-        data: {
-          portal: portalType,
-          component: componentName,
-          duration: getComponentDuration()
-        }
-      });
+      // Add breadcrumb for leaving component - temporarily disabled
+      console.debug(`Portal navigation: Left ${componentName} in ${portalType} portal`);
     };
   }, [portalType, componentName, user, trackPerformance]);
 
@@ -102,61 +73,35 @@ export function useSentryPortal(config: SentryPortalConfig) {
     return Date.now() - new Date(lastActivity).getTime();
   }
 
-  // Error reporting function with portal context
+  // Error reporting function with portal context - temporarily disabled
   const reportError = (error: Error, context?: Record<string, any>) => {
-    Sentry.withScope((scope) => {
-      scope.setTag('portal', portalType);
-      scope.setTag('component', componentName);
-      scope.setContext('portal_context', {
-        portalType,
-        componentName,
-        userId: user?.id,
-        userType: user?.userType,
-        ...context
-      });
-
-      Sentry.captureException(error);
+    console.error('Portal error captured:', error, {
+      portalType,
+      componentName,
+      userId: user?.id,
+      userType: user?.userType,
+      ...context
     });
   };
 
-  // Track custom events
+  // Track custom events - temporarily disabled
   const trackEvent = (eventName: string, data?: Record<string, any>) => {
-    Sentry.addBreadcrumb({
-      category: 'user-action',
-      message: eventName,
-      level: 'info',
-      data: {
-        portal: portalType,
-        component: componentName,
-        ...data
-      }
+    console.debug(`Portal event: ${eventName}`, {
+      portal: portalType,
+      component: componentName,
+      ...data
     });
-
-    // Also track as custom event for analytics
-    if (Sentry.getCurrentHub().getClient()) {
-      Sentry.captureMessage(`${portalType}.${eventName}`, 'info');
-    }
   };
 
-  // Track API errors with context
+  // Track API errors with context - temporarily disabled
   const trackApiError = (endpoint: string, error: any, requestData?: any) => {
-    Sentry.withScope((scope) => {
-      scope.setTag('portal', portalType);
-      scope.setTag('api.endpoint', endpoint);
-      scope.setTag('api.error', true);
-      
-      scope.setContext('api_error', {
-        endpoint,
-        portal: portalType,
-        component: componentName,
-        requestData: requestData ? JSON.stringify(requestData).substring(0, 1000) : undefined,
-        responseStatus: error.status || error.response?.status,
-        responseData: error.response?.data
-      });
-
-      Sentry.captureException(new Error(`API Error: ${endpoint}`), {
-        fingerprint: [portalType, endpoint, error.status || 'unknown']
-      });
+    console.error('API Error:', {
+      endpoint,
+      portal: portalType,
+      component: componentName,
+      requestData: requestData ? JSON.stringify(requestData).substring(0, 1000) : undefined,
+      responseStatus: error.status || error.response?.status,
+      responseData: error.response?.data
     });
   };
 

@@ -52,6 +52,17 @@ export default function Marketplace() {
   const [browsePitches, setBrowsePitches] = useState<Pitch[]>([]);
   const [browseMetadata, setBrowseMetadata] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState<{
+    related: Pitch[];
+    trending: Pitch[];
+    similarGenre: Pitch[];
+    newReleases: Pitch[];
+  }>({
+    related: [],
+    trending: [],
+    similarGenre: [],
+    newReleases: []
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('');
@@ -99,6 +110,24 @@ export default function Marketplace() {
     loadConfig();
   }, []);
 
+  // Handle URL search parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const searchFromUrl = urlParams.get('search');
+    const genreFromUrl = urlParams.get('genre');
+    const formatFromUrl = urlParams.get('format');
+    
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl);
+    }
+    if (genreFromUrl) {
+      setSelectedGenre(genreFromUrl);
+    }
+    if (formatFromUrl) {
+      setSelectedFormat(formatFromUrl);
+    }
+  }, [location.search]);
+
   // Handle hash changes for different views
   useEffect(() => {
     const hash = location.hash.slice(1) || 'all';
@@ -122,12 +151,20 @@ export default function Marketplace() {
     loadNewPitches();
   }, []);
 
-  // Load browse pitches when browse view is active or filters change
+  // Load browse pitches when browse view is active or filters change (skip for search - use client-side)
   useEffect(() => {
-    if (currentView === 'browse') {
+    // Only load from API if we're in browse view or have genre/format filters (not for search)
+    if (currentView === 'browse' || (selectedGenre || selectedFormat)) {
       loadBrowsePitches();
     }
   }, [currentView, sortBy, sortOrder, selectedGenre, selectedFormat, currentPage]);
+
+  // Load recommendations when search results change
+  useEffect(() => {
+    if (filteredPitches.length > 0 || searchQuery || selectedGenre || selectedFormat) {
+      loadRecommendations();
+    }
+  }, [filteredPitches, searchQuery, selectedGenre, selectedFormat, pitches, trendingPitches, newPitches]);
 
   // Load trending and new data when those views become active
   useEffect(() => {
@@ -189,17 +226,10 @@ export default function Marketplace() {
         }
         break;
       case 'browse':
-        // For browse, data is already filtered and sorted by backend
+        // For browse, apply client-side search filtering as fallback
         filtered = [...browsePitches];
-        break;
-      case 'genres':
-      case 'formats':
-      case 'all':
-      default:
-        // For general views, apply all filters
-        filtered = [...pitches];
         
-        // Apply search filter
+        // Apply search filter even for browse results (backend search may not be working)
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
           filtered = filtered.filter(p => 
@@ -207,6 +237,25 @@ export default function Marketplace() {
             p.logline?.toLowerCase().includes(query) ||
             p.genre?.toLowerCase().includes(query)
           );
+        }
+        break;
+      case 'genres':
+      case 'formats':
+      case 'all':
+      default:
+        // For general views, implement pure client-side search (bypass broken backend)
+        if (searchQuery) {
+          // Use regular pitches and apply client-side search filter
+          filtered = [...pitches];
+          const query = searchQuery.toLowerCase();
+          filtered = filtered.filter(p => 
+            p.title?.toLowerCase().includes(query) ||
+            p.logline?.toLowerCase().includes(query) ||
+            p.genre?.toLowerCase().includes(query)
+          );
+        } else {
+          // No search, use regular pitches
+          filtered = [...pitches];
         }
         
         // Apply genre filter
@@ -303,10 +352,12 @@ export default function Marketplace() {
         order: sortOrder,
         genre: selectedGenre || undefined,
         format: selectedFormat || undefined,
+        search: searchQuery || undefined,
         limit: itemsPerPage,
         offset
       });
       
+      // Store browse results directly (no search filtering here - done in applyFilters)
       setBrowsePitches(result.pitches);
       setBrowseMetadata(result);
     } catch (err) {
@@ -315,6 +366,68 @@ export default function Marketplace() {
       setBrowseMetadata(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRecommendations = async () => {
+    try {
+      const allPitches = [...pitches];
+      
+      // Get related pitches based on search query or selected filters
+      let relatedPitches: Pitch[] = [];
+      if (searchQuery || selectedGenre || selectedFormat) {
+        relatedPitches = allPitches.filter(pitch => {
+          // Exclude pitches that match the current search to avoid duplicates
+          const matchesSearch = searchQuery && (
+            pitch.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            pitch.logline?.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          const matchesGenre = selectedGenre && pitch.genre?.toLowerCase() === selectedGenre.toLowerCase();
+          const matchesFormat = selectedFormat && pitch.format?.toLowerCase() === selectedFormat.toLowerCase();
+          
+          // Return pitches that are related but not exact matches
+          if (searchQuery && !matchesSearch) {
+            return pitch.genre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                   pitch.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+          }
+          return !matchesSearch && !matchesGenre && !matchesFormat &&
+                 (selectedGenre ? pitch.genre?.toLowerCase() === selectedGenre.toLowerCase() : true) &&
+                 (selectedFormat ? pitch.format?.toLowerCase() === selectedFormat.toLowerCase() : true);
+        }).slice(0, 6);
+      }
+      
+      // Get similar genre pitches
+      let similarGenrePitches: Pitch[] = [];
+      if (selectedGenre || filteredPitches.length > 0) {
+        const targetGenre = selectedGenre || filteredPitches[0]?.genre;
+        if (targetGenre) {
+          similarGenrePitches = allPitches
+            .filter(pitch => 
+              pitch.genre?.toLowerCase() === targetGenre.toLowerCase() &&
+              !filteredPitches.some(fp => fp.id === pitch.id)
+            )
+            .slice(0, 4);
+        }
+      }
+      
+      // Get trending recommendations
+      const trendingRecommendations = trendingPitches
+        .filter(pitch => !filteredPitches.some(fp => fp.id === pitch.id))
+        .slice(0, 4);
+      
+      // Get new release recommendations  
+      const newReleaseRecommendations = newPitches
+        .filter(pitch => !filteredPitches.some(fp => fp.id === pitch.id))
+        .slice(0, 4);
+      
+      setRecommendations({
+        related: relatedPitches,
+        trending: trendingRecommendations,
+        similarGenre: similarGenrePitches,
+        newReleases: newReleaseRecommendations
+      });
+    } catch (err) {
+      console.error('Failed to load recommendations:', err);
     }
   };
 
@@ -1274,6 +1387,194 @@ export default function Marketplace() {
               </div>
             )})}
             </div>
+            
+            {/* Recommendations Section */}
+            {(searchQuery || selectedGenre || selectedFormat) && (
+              <div className="mt-12 space-y-8">
+                <div className="border-t pt-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                    {searchQuery ? 'Recommendations Based on Your Search' : 'You Might Also Like'}
+                  </h2>
+                  
+                  {/* Related Pitches */}
+                  {recommendations.related.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        Related to Your Search
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {recommendations.related.map(pitch => (
+                          <div
+                            key={pitch.id}
+                            onClick={() => navigate(`/pitch/${pitch.id}`)}
+                            className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
+                          >
+                            <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 relative overflow-hidden">
+                              {pitch.thumbnailUrl ? (
+                                <img
+                                  src={pitch.thumbnailUrl}
+                                  alt={pitch.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full">
+                                  <Video className="w-16 h-16 text-purple-300" />
+                                </div>
+                              )}
+                              <div className="absolute top-3 left-3">
+                                <span className="bg-white/90 text-xs font-medium px-2 py-1 rounded">
+                                  {pitch.genre}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="p-4">
+                              <h4 className="font-semibold text-gray-900 mb-1 line-clamp-1">{pitch.title}</h4>
+                              <p className="text-sm text-gray-600 line-clamp-2">{pitch.logline}</p>
+                              <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Eye className="w-3 h-3" />
+                                  {pitch.viewCount}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Heart className="w-3 h-3" />
+                                  {pitch.likeCount}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Similar Genre */}
+                  {recommendations.similarGenre.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <Film className="w-5 h-5 text-blue-600" />
+                        More in {selectedGenre || 'This Genre'}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {recommendations.similarGenre.map(pitch => (
+                          <div
+                            key={pitch.id}
+                            onClick={() => navigate(`/pitch/${pitch.id}`)}
+                            className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
+                          >
+                            <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100">
+                              {pitch.thumbnailUrl ? (
+                                <img
+                                  src={pitch.thumbnailUrl}
+                                  alt={pitch.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full">
+                                  <Video className="w-12 h-12 text-blue-300" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3">
+                              <h4 className="font-medium text-gray-900 text-sm line-clamp-1">{pitch.title}</h4>
+                              <p className="text-xs text-gray-600 line-clamp-2 mt-1">{pitch.logline}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Trending Recommendations */}
+                  {recommendations.trending.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-red-600" />
+                        Trending Now
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {recommendations.trending.map(pitch => (
+                          <div
+                            key={pitch.id}
+                            onClick={() => navigate(`/pitch/${pitch.id}`)}
+                            className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
+                          >
+                            <div className="aspect-video bg-gradient-to-br from-red-100 to-orange-100">
+                              {pitch.thumbnailUrl ? (
+                                <img
+                                  src={pitch.thumbnailUrl}
+                                  alt={pitch.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full">
+                                  <TrendingUp className="w-12 h-12 text-red-300" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-3">
+                              <h4 className="font-medium text-gray-900 text-sm line-clamp-1">{pitch.title}</h4>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs text-gray-600">{pitch.genre}</span>
+                                <span className="flex items-center gap-1 text-xs text-red-600">
+                                  <TrendingUp className="w-3 h-3" />
+                                  {pitch.viewCount}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* New Releases */}
+                  {recommendations.newReleases.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <Star className="w-5 h-5 text-green-600" />
+                        Fresh Releases
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {recommendations.newReleases.map(pitch => (
+                          <div
+                            key={pitch.id}
+                            onClick={() => navigate(`/pitch/${pitch.id}`)}
+                            className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
+                          >
+                            <div className="aspect-video bg-gradient-to-br from-green-100 to-teal-100">
+                              {pitch.thumbnailUrl ? (
+                                <img
+                                  src={pitch.thumbnailUrl}
+                                  alt={pitch.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full">
+                                  <Star className="w-12 h-12 text-green-300" />
+                                </div>
+                              )}
+                              <div className="absolute top-2 right-2">
+                                <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">New</span>
+                              </div>
+                            </div>
+                            <div className="p-3">
+                              <h4 className="font-medium text-gray-900 text-sm line-clamp-1">{pitch.title}</h4>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs text-gray-600">{pitch.format}</span>
+                                <span className="text-xs text-green-600">
+                                  {formatDate(pitch.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             {/* Pagination */}
             {totalPages > 1 && (

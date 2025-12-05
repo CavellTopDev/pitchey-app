@@ -117,7 +117,7 @@ export function createAuth(env: AuthEnv) {
     // Trusted origins
     trustedOrigins: [
       "https://pitchey.pages.dev",
-      "https://pitchey-optimized.cavelltheleaddev.workers.dev",
+      "https://pitchey-production.cavelltheleaddev.workers.dev",
       "https://pitchey-production.cavelltheleaddev.workers.dev",
       env.NODE_ENV === "development" ? "http://localhost:5173" : null,
       env.NODE_ENV === "development" ? "http://localhost:8001" : null,

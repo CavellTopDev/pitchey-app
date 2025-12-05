@@ -66,7 +66,7 @@ jobs:
           sleep 15
           
           echo "Testing Worker health endpoint..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health)
           if [ "$response" = "200" ]; then
             echo "✅ Worker deployed successfully!"
           else
@@ -77,7 +77,7 @@ jobs:
           echo "Testing Authentication Fixes..."
           
           # Test Creator Portal
-          creator_response=$(curl -s -X POST "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+          creator_response=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
             -H "Content-Type: application/json" \
             -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
           
@@ -89,7 +89,7 @@ jobs:
           fi
           
           # Test Investor Portal
-          investor_response=$(curl -s -X POST "https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/investor/login" \
+          investor_response=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login" \
             -H "Content-Type: application/json" \
             -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
           
@@ -103,6 +103,6 @@ jobs:
       - name: Post Deployment Actions
         if: success()
         run: |
-          echo "🚀 Worker deployed to: https://pitchey-optimized.cavelltheleaddev.workers.dev"
+          echo "🚀 Worker deployed to: https://pitchey-production.cavelltheleaddev.workers.dev"
           echo "📊 View analytics: https://dash.cloudflare.com"
           echo "📝 Deployment complete at $(date)

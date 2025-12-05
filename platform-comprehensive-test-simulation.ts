@@ -8,7 +8,7 @@
 import { cyan, green, red, yellow, bold } from "https://deno.land/std@0.220.0/fmt/colors.ts";
 
 // Configuration
-const API_URL = Deno.env.get("API_URL") || "https://pitchey-optimized.cavelltheleaddev.workers.dev";
+const API_URL = Deno.env.get("API_URL") || "https://pitchey-production.cavelltheleaddev.workers.dev";
 const LOCAL_API = Deno.env.get("LOCAL_API") || "http://localhost:8001";
 const USE_LOCAL = Deno.env.get("USE_LOCAL") === "true";
 const BASE_URL = USE_LOCAL ? LOCAL_API : API_URL;

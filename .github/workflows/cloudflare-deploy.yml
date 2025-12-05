@@ -234,8 +234,8 @@ jobs:
       - name: Build for testing
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-optimized.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-optimized.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
           NODE_ENV: production
         run: npm run build
         
@@ -286,8 +286,8 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-optimized.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-optimized.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
           NODE_ENV: production
         run: npm run build
       
@@ -322,7 +322,7 @@ jobs:
           
           # Health check with retry
           for i in {1..10}; do
-            if curl -sf https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health; then
+            if curl -sf https://pitchey-production.cavelltheleaddev.workers.dev/api/health; then
               echo "✅ Worker health check passed"
               break
             fi
@@ -332,11 +332,11 @@ jobs:
           
           # Test API endpoints
           echo "🔍 Testing API endpoints..."
-          curl -sf https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/trending || echo "⚠️ Trending endpoint not ready yet"
+          curl -sf https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending || echo "⚠️ Trending endpoint not ready yet"
           
           # Test Worker API endpoints
           echo "🔍 Testing Worker API endpoints..."
-          curl -sf https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/validate-token || echo "⚠️ Auth endpoint not ready yet"
+          curl -sf https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/validate-token || echo "⚠️ Auth endpoint not ready yet"
       
       - name: Validate Pages deployment
         if: needs.deploy-pages.result == 'success'
@@ -366,10 +366,10 @@ jobs:
           
           # Test critical user flows
           echo "Testing authentication endpoints..."
-          curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/login | grep -q "405\|200" && echo "✅ Auth endpoint responding"
+          curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/login | grep -q "405\|200" && echo "✅ Auth endpoint responding"
           
           echo "Testing public pitch data..."
-          curl -s -o /dev/null -w "%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/trending | grep -q "200" && echo "✅ Pitches endpoint responding"
+          curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending | grep -q "200" && echo "✅ Pitches endpoint responding"
           
           echo "🎯 Smoke tests completed"
       
@@ -382,7 +382,7 @@ jobs:
           RESPONSE_TIME=$(curl -o /dev/null -s -w "%{time_total}" https://pitchey.pages.dev)
           echo "Frontend response time: ${RESPONSE_TIME}s"
           
-          WORKER_RESPONSE_TIME=$(curl -o /dev/null -s -w "%{time_total}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)
+          WORKER_RESPONSE_TIME=$(curl -o /dev/null -s -w "%{time_total}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health)
           echo "Cloudflare Worker response time: ${WORKER_RESPONSE_TIME}s"
           
           # Check if response times are acceptable
@@ -437,7 +437,7 @@ jobs:
             },
             "urls": {
               "frontend": "https://pitchey.pages.dev",
-              "api": "https://pitchey-optimized.cavelltheleaddev.workers.dev"
+              "api": "https://pitchey-production.cavelltheleaddev.workers.dev"
             }
           }
           EOF
@@ -462,7 +462,7 @@ jobs:
         run: |
           echo "🚀 Deployment completed successfully!"
           echo "Frontend: https://pitchey.pages.dev"
-          echo "API: https://pitchey-optimized.cavelltheleaddev.workers.dev"
+          echo "API: https://pitchey-production.cavelltheleaddev.workers.dev"
           
           # In a real environment, send to Slack/Teams/Email
           # curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \

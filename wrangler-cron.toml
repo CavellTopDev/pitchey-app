@@ -1,7 +1,7 @@
 # Cloudflare Worker Configuration with Cron Triggers
 # Extension of wrangler.toml for scheduled tasks
 
-name = "pitchey-optimized"
+name = "pitchey-production"
 main = "src/worker-service-optimized.ts"
 compatibility_date = "2024-11-01"
 node_compat = true
@@ -9,7 +9,7 @@ node_compat = true
 # Account and routing (same as main config)
 account_id = "b1f6495b07f1a7573dbbf75b7ea2fa48"
 workers_dev = false
-route = { pattern = "pitchey-optimized.cavelltheleaddev.workers.dev/*", zone_name = "cavelltheleaddev.workers.dev" }
+route = { pattern = "pitchey-production.cavelltheleaddev.workers.dev/*", zone_name = "cavelltheleaddev.workers.dev" }
 
 # Cron triggers for scheduled tasks
 [triggers]
@@ -52,7 +52,7 @@ id = "your-metrics-kv-id" # Replace with actual KV namespace ID for metrics
 [[durable_objects.bindings]]
 name = "WEBSOCKET_ROOMS"
 class_name = "WebSocketRoom"
-script_name = "pitchey-optimized"
+script_name = "pitchey-production"
 
 # Hyperdrive binding for database connection pooling
 [[hyperdrive]]

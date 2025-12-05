@@ -14,7 +14,7 @@ PURPLE='\033[0;35m'
 NC='\033[0m'
 
 # Configuration
-WORKER_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 FRONTEND_URL="https://pitchey.pages.dev"
 TIMEOUT=30
 RETRY_COUNT=3

@@ -71,7 +71,7 @@ sleep 3
 
 # Test the trending endpoint
 echo "Testing /api/pitches/trending endpoint..."
-RESPONSE=$(curl -s -w "\n%{http_code}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/trending?limit=5)
+RESPONSE=$(curl -s -w "\n%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending?limit=5)
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n-1)
 
@@ -108,12 +108,12 @@ echo "   - Monitor response times (should improve)"
 echo "   - Check concurrent request handling"
 echo ""
 echo "4. Test critical endpoints:"
-echo "   - https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/trending"
-echo "   - https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/new"
-echo "   - https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public"
+echo "   - https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending"
+echo "   - https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/new"
+echo "   - https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public"
 echo ""
 echo "5. If issues occur, rollback command:"
-echo "   wrangler rollback --name pitchey-optimized"
+echo "   wrangler rollback --name pitchey-production"
 echo ""
 echo -e "${GREEN}🎉 Connection pool migration deployed successfully!${NC}"
 echo "All database queries now use proper connection pooling."

@@ -30,7 +30,7 @@ wrangler deploy \
 
 if [ $? -eq 0 ]; then
     echo "✅ Deployment successful!"
-    echo "🌐 Worker URL: https://pitchey-optimized.cavelltheleaddev.workers.dev"
+    echo "🌐 Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev"
     echo "📊 View in Cloudflare Dashboard: https://dash.cloudflare.com"
 else
     echo "❌ Deployment failed. Check the error messages above."
