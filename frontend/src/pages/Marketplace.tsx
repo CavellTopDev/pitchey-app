@@ -66,7 +66,7 @@ export default function Marketplace() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedFormat, setSelectedFormat] = useState('');
-  const [sortBy, setSortBy] = useState<'alphabetical' | 'date' | 'budget' | 'views' | 'likes'>('date');
+  const [sortBy, setSortBy] = useState<'alphabetical' | 'date' | 'budget' | 'views' | 'likes' | 'investment_status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentView, setCurrentView] = useState('all');
   
@@ -182,8 +182,10 @@ export default function Marketplace() {
     // Get the appropriate data source based on the current view
     switch(currentView) {
       case 'trending':
-        // For trending, apply genre/format and search filters
+        // ONLY trending pitches - no mixing with other content
         filtered = [...trendingPitches];
+        
+        // Apply filters to trending data only
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
           filtered = filtered.filter(p => 
@@ -203,9 +205,12 @@ export default function Marketplace() {
           );
         }
         break;
+        
       case 'new':
-        // For new releases, apply genre/format and search filters
+        // ONLY new releases - sorted by creation date, no trending mixing
         filtered = [...newPitches];
+        
+        // Apply filters to new releases data only
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
           filtered = filtered.filter(p => 
@@ -225,11 +230,12 @@ export default function Marketplace() {
           );
         }
         break;
+        
       case 'browse':
-        // For browse, apply client-side search filtering as fallback
+        // Browse uses server-side sorting and pagination
         filtered = [...browsePitches];
         
-        // Apply search filter even for browse results (backend search may not be working)
+        // Apply client-side search filter if backend search isn't working
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
           filtered = filtered.filter(p => 
@@ -239,23 +245,22 @@ export default function Marketplace() {
           );
         }
         break;
+        
       case 'genres':
       case 'formats':
       case 'all':
       default:
-        // For general views, implement pure client-side search (bypass broken backend)
+        // General view uses all pitches with client-side filtering
+        filtered = [...pitches];
+        
+        // Apply search filter
         if (searchQuery) {
-          // Use regular pitches and apply client-side search filter
-          filtered = [...pitches];
           const query = searchQuery.toLowerCase();
           filtered = filtered.filter(p => 
             p.title?.toLowerCase().includes(query) ||
             p.logline?.toLowerCase().includes(query) ||
             p.genre?.toLowerCase().includes(query)
           );
-        } else {
-          // No search, use regular pitches
-          filtered = [...pitches];
         }
         
         // Apply genre filter
@@ -273,7 +278,7 @@ export default function Marketplace() {
           );
         }
         
-        // Sort the results
+        // Sort by date (newest first) for consistency
         filtered = filtered.sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
@@ -300,20 +305,29 @@ export default function Marketplace() {
 
   const loadTrendingPitches = async () => {
     try {
-      // Use the dedicated trending endpoint
+      // Use the dedicated trending endpoint for proper trending data
       const trending = await pitchService.getTrendingPitches(20);
+      console.log('Loaded trending pitches:', trending.length);
       setTrendingPitches(trending);
     } catch (err) {
       console.error('Failed to load trending pitches:', err);
-      // Fallback to manual sorting if endpoint fails
+      // Fallback: sort all pitches by view count for trending behavior
       try {
         const { pitches: pitchesData } = await pitchService.getPublicPitches();
         if (Array.isArray(pitchesData)) {
-          const trending = [...pitchesData].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+          // Sort by view count (descending) + like count as secondary
+          const trending = [...pitchesData].sort((a, b) => {
+            const viewDiff = (b.viewCount || 0) - (a.viewCount || 0);
+            if (viewDiff === 0) {
+              return (b.likeCount || 0) - (a.likeCount || 0);
+            }
+            return viewDiff;
+          });
+          console.log('Fallback trending created:', trending.length, 'pitches');
           setTrendingPitches(trending.slice(0, 20));
         }
       } catch (fallbackErr) {
-        console.error('Fallback also failed:', fallbackErr);
+        console.error('Trending fallback also failed:', fallbackErr);
         setTrendingPitches([]);
       }
     }
@@ -321,18 +335,21 @@ export default function Marketplace() {
 
   const loadNewPitches = async () => {
     try {
-      // Use the dedicated new releases endpoint
+      // Use the dedicated new releases endpoint for proper chronological data
       const newReleases = await pitchService.getNewReleases(20);
+      console.log('Loaded new releases:', newReleases.length);
       setNewPitches(newReleases);
     } catch (err) {
       console.error('Failed to load new pitches:', err);
-      // Fallback to manual sorting if endpoint fails
+      // Fallback: sort all pitches by creation date for new behavior
       try {
         const { pitches: pitchesData } = await pitchService.getPublicPitches();
         if (Array.isArray(pitchesData)) {
+          // Sort by creation date (newest first) - purely chronological
           const newReleases = [...pitchesData].sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
+          console.log('Fallback new releases created:', newReleases.length, 'pitches');
           setNewPitches(newReleases.slice(0, 20));
         }
       } catch (fallbackErr) {
@@ -736,6 +753,7 @@ export default function Marketplace() {
                     <option value="budget">Budget</option>
                     <option value="views">Views</option>
                     <option value="likes">Likes</option>
+                    <option value="investment_status">Investment Status</option>
                   </select>
                 </div>
 
@@ -761,6 +779,11 @@ export default function Marketplace() {
                       <>
                         <option value="desc">High to Low</option>
                         <option value="asc">Low to High</option>
+                      </>
+                    ) : sortBy === 'investment_status' ? (
+                      <>
+                        <option value="desc">Funded First</option>
+                        <option value="asc">Seeking Funding First</option>
                       </>
                     ) : (
                       <>
@@ -897,10 +920,13 @@ export default function Marketplace() {
               )}
               
               {/* Show info for trending/new views */}
-              {(currentView === 'trending' || currentView === 'new') && !searchQuery && (
+              {(currentView === 'trending' || currentView === 'new') && (
                 <div className="text-sm text-gray-500 italic">
-                  {currentView === 'trending' ? 'Showing curated trending content' : 'Showing latest releases'}
+                  {currentView === 'trending' && 'Sorted by views and engagement'}
+                  {currentView === 'new' && 'Sorted by publication date'}
                   {searchQuery && ' (filtered by search)'}
+                  {selectedGenre && ` (filtered by ${selectedGenre})`}
+                  {selectedFormat && ` (filtered by ${selectedFormat})`}
                 </div>
               )}
             </div>

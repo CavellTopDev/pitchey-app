@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import ReactDOM from 'react-dom';
-import { NotificationToast, ToastNotification } from './NotificationToast';
+import { NotificationToast, type ToastNotification } from './NotificationToast';
 
 interface ToastContextType {
   addToast: (toast: Omit<ToastNotification, 'id'>) => string;

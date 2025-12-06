@@ -7,7 +7,7 @@ import jwt from '@tsndr/cloudflare-worker-jwt';
 import * as bcrypt from 'bcryptjs';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, or, gte, lte, desc, asc, like, sql as sqlOperator } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, asc, like, sql as sqlOperator, count, sql } from 'drizzle-orm';
 import * as schema from './db/schema';
 import { Redis } from '@upstash/redis/cloudflare';
 import { SessionManager, RateLimiter } from './auth/session-manager';
@@ -67,11 +67,18 @@ function getCorsHeaders(request: Request): Record<string, string> {
   };
 }
 
-function jsonResponse(data: any, status = 200, headers: Record<string, string> = {}): Response {
+function jsonResponse(data: any, status = 200, headers: Record<string, string> = {}, request?: Request): Response {
+  // Always include CORS headers if request is provided
+  const corsHeaders = request ? getCorsHeaders(request) : {};
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...headers, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, ...headers, 'Content-Type': 'application/json' },
   });
+}
+
+// Helper function to create CORS-enabled JSON responses
+function corsResponse(request: Request, data: any, status = 200): Response {
+  return jsonResponse(data, status, {}, request);
 }
 
 async function hashPassword(password: string): Promise<string> {
@@ -410,14 +417,14 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
 }
 
 // Cache helpers
-async function getCachedResponse(key: string, kv: KVNamespace | undefined): Promise<Response | null> {
+async function getCachedResponse(key: string, kv: KVNamespace | undefined, request?: Request): Promise<Response | null> {
   if (!kv) return null;
   
   try {
     const cached = await kv.get(key, 'text');
     if (cached) {
       const data = JSON.parse(cached);
-      return jsonResponse(data, 200);
+      return jsonResponse(data, 200, {}, request);
     }
   } catch (error) {
     console.error('Cache read error:', error);
@@ -458,7 +465,7 @@ export default {
           success: true,
           message: 'WebSocket endpoint',
           info: 'Connect with WebSocket protocol for real-time features',
-        });
+        }, 200, {}, request);
       }
       
       // Route to Durable Object if available
@@ -885,12 +892,12 @@ export default {
           .from(schema.pitches)
           .where(and(
             eq(schema.pitches.id, pitchId),
-            eq(schema.pitches.status, 'active') // Only show active pitches
+            eq(schema.pitches.status, 'published') // Only show published pitches
           ))
           .limit(1);
         
         if (pitches.length === 0) {
-          return jsonResponse({
+          return corsResponse(request, {
             success: false,
             message: 'Pitch not found or not publicly available',
           }, 404);
@@ -917,7 +924,7 @@ export default {
 
         const creator = creators[0];
 
-        return jsonResponse({
+        return corsResponse(request, {
           success: true,
           data: {
             ...pitch,
@@ -1043,6 +1050,78 @@ export default {
         }, 201);
       }
 
+      // Create pitch (new creator endpoint)
+      if (path === '/api/creator/pitches' && method === 'POST') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return jsonResponse({
+            success: false,
+            message: 'Only creators can create pitches',
+          }, 403);
+        }
+        
+        try {
+          const body = await request.json();
+          const userId = parseInt(userPayload.sub);
+          
+          // Validate required fields
+          if (!body.title || !body.logline || !body.genre || !body.format) {
+            return jsonResponse({
+              success: false,
+              error: {
+                message: 'Missing required fields: title, logline, genre, and format are required'
+              }
+            }, 400);
+          }
+          
+          // Insert pitch with comprehensive validation
+          const newPitch = await db.insert(schema.pitches)
+            .values({
+              userId: userId,
+              title: body.title,
+              logline: body.logline,
+              genre: body.genre,
+              format: body.format,
+              formatCategory: body.formatCategory,
+              formatSubtype: body.formatSubtype, 
+              customFormat: body.customFormat,
+              shortSynopsis: body.shortSynopsis,
+              longSynopsis: body.longSynopsis,
+              themes: body.themes,
+              worldDescription: body.worldDescription,
+              characters: JSON.stringify(body.characters || []),
+              budgetBracket: body.budgetBracket || 'Medium',
+              estimatedBudget: body.estimatedBudget,
+              productionTimeline: body.productionTimeline,
+              seekingInvestment: body.seekingInvestment || false,
+              requireNDA: body.requireNDA || false,
+              aiUsed: body.aiUsed || false,
+              status: body.status || 'draft',
+              viewCount: 0,
+              likeCount: 0,
+              ndaCount: 0,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+          
+          return jsonResponse({
+            success: true,
+            message: 'Pitch created successfully',
+            data: {
+              pitch: newPitch[0]
+            }
+          }, 201);
+        } catch (error) {
+          console.error('Error creating pitch:', error);
+          return jsonResponse({
+            success: false,
+            error: {
+              message: error instanceof Error ? error.message : 'Failed to create pitch'
+            }
+          }, 500);
+        }
+      }
+
       // Get all pitches (with caching)
       if (path.startsWith('/api/pitches') && method === 'GET' && !path.match(/^\/api\/pitches\/\d+$/)) {
         const url = new URL(request.url);
@@ -1054,7 +1133,7 @@ export default {
         
         // Try to get from cache
         const cacheKey = `pitches:${limit}:${offset}:${genre || ''}:${status || ''}:${search || ''}`;
-        const cached = await getCachedResponse(cacheKey, env.KV);
+        const cached = await getCachedResponse(cacheKey, env.KV, request);
         if (cached) {
           console.log('Cache hit for pitches');
           return cached;
@@ -1192,7 +1271,7 @@ export default {
         }
         
         const user = users[0];
-        return jsonResponse({
+        return corsResponse(request, {
           success: true,
           data: {
             id: user.id,
@@ -1334,7 +1413,7 @@ export default {
         
         // Try cache first
         const cacheKey = `browse:${sort}:${order}:${limit}:${offset}:${genre || ''}:${format || ''}:${budget || ''}`;
-        const cached = await getCachedResponse(cacheKey, env.KV);
+        const cached = await getCachedResponse(cacheKey, env.KV, request);
         if (cached) {
           console.log('Cache hit for enhanced browse');
           return cached;
@@ -1347,7 +1426,7 @@ export default {
         
         // Apply filters
         const conditions = [];
-        conditions.push(eq(schema.pitches.status, 'active')); // Only show active pitches
+        conditions.push(eq(schema.pitches.status, 'published')); // Only show published pitches
         if (genre) conditions.push(eq(schema.pitches.genre, genre));
         if (format) conditions.push(eq(schema.pitches.format, format));
         if (budget) conditions.push(eq(schema.pitches.budgetRange, budget));
@@ -1401,7 +1480,139 @@ export default {
         // Cache the response
         await setCachedResponse(cacheKey, responseData, env.KV, 300); // Cache for 5 minutes
         
-        return jsonResponse(responseData);
+        return corsResponse(request, responseData);
+      }
+
+      // General browse endpoint for marketplace with advanced sorting
+      if (path.startsWith('/api/pitches/browse/general') && method === 'GET') {
+        const url = new URL(request.url);
+        const sort = url.searchParams.get('sort') || 'date';
+        const order = url.searchParams.get('order') || 'desc';
+        const limit = parseInt(url.searchParams.get('limit') || '24');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        const genre = url.searchParams.get('genre');
+        const format = url.searchParams.get('format');
+        
+        try {
+          let query;
+          
+          // Investment status sorting requires join with investments table
+          if (sort === 'investment_status') {
+            // Use raw SQL for complex investment status sorting
+            const orderClause = order === 'desc' ? 'DESC' : 'ASC';
+            const sqlQuery = `
+              SELECT 
+                p.*,
+                CASE 
+                  WHEN SUM(CASE WHEN i.status = 'funded' THEN 1 ELSE 0 END) > 0 THEN 'funded'
+                  WHEN SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) > 0 THEN 'in_production'
+                  ELSE 'seeking_funding'
+                END as investment_status_order
+              FROM pitches p
+              LEFT JOIN investments i ON p.id = i.pitch_id
+              WHERE p.status = 'active'
+              ${genre ? `AND p.genre = '${genre}'` : ''}
+              ${format ? `AND p.format = '${format}'` : ''}
+              GROUP BY p.id
+              ORDER BY 
+                CASE 
+                  WHEN investment_status_order = 'funded' THEN ${order === 'desc' ? 1 : 3}
+                  WHEN investment_status_order = 'in_production' THEN 2
+                  WHEN investment_status_order = 'seeking_funding' THEN ${order === 'desc' ? 3 : 1}
+                END,
+                p.created_at DESC
+              LIMIT ${limit} OFFSET ${offset}
+            `;
+            
+            const result = await db.execute(sql`${sqlQuery}`);
+            const pitches = result.rows as any[];
+            
+            // Get total count
+            const countResult = await db.execute(sql`
+              SELECT COUNT(DISTINCT p.id) as count
+              FROM pitches p
+              LEFT JOIN investments i ON p.id = i.pitch_id
+              WHERE p.status = 'active'
+              ${genre ? `AND p.genre = '${genre}'` : ''}
+              ${format ? `AND p.format = '${format}'` : ''}
+            `);
+            const totalCount = Number(countResult.rows[0]?.count || 0);
+            
+            return jsonResponse({
+              success: true,
+              data: pitches,
+              totalCount,
+              pagination: {
+                limit,
+                offset,
+                totalPages: Math.ceil(totalCount / limit),
+                currentPage: Math.floor(offset / limit) + 1,
+              },
+            });
+          }
+          
+          // Standard sorting (alphabetical, date, budget, views, likes)
+          query = db.select().from(schema.pitches).limit(limit).offset(offset);
+          
+          // Apply filters
+          const conditions = [];
+          conditions.push(eq(schema.pitches.status, 'active'));
+          if (genre) conditions.push(eq(schema.pitches.genre, genre));
+          if (format) conditions.push(eq(schema.pitches.format, format));
+          
+          if (conditions.length > 0) {
+            query = query.where(and(...conditions));
+          }
+          
+          // Apply sorting
+          switch (sort) {
+            case 'alphabetical':
+              query = query.orderBy(order === 'asc' ? asc(schema.pitches.title) : desc(schema.pitches.title));
+              break;
+            case 'date':
+              query = query.orderBy(order === 'asc' ? asc(schema.pitches.createdAt) : desc(schema.pitches.createdAt));
+              break;
+            case 'budget':
+              query = query.orderBy(order === 'asc' ? asc(schema.pitches.budgetAmount) : desc(schema.pitches.budgetAmount));
+              break;
+            case 'views':
+              query = query.orderBy(order === 'asc' ? asc(schema.pitches.viewCount) : desc(schema.pitches.viewCount));
+              break;
+            case 'likes':
+              query = query.orderBy(order === 'asc' ? asc(schema.pitches.likeCount) : desc(schema.pitches.likeCount));
+              break;
+            default:
+              query = query.orderBy(desc(schema.pitches.createdAt));
+          }
+          
+          const pitches = await query;
+          
+          // Get total count
+          let countQuery = db.select({ count: count() }).from(schema.pitches);
+          if (conditions.length > 0) {
+            countQuery = countQuery.where(and(...conditions));
+          }
+          const [{ count: totalCount }] = await countQuery;
+          
+          return jsonResponse({
+            success: true,
+            data: pitches,
+            totalCount,
+            pagination: {
+              limit,
+              offset,
+              totalPages: Math.ceil(totalCount / limit),
+              currentPage: Math.floor(offset / limit) + 1,
+            },
+          });
+        } catch (error) {
+          console.error('Error in general browse:', error);
+          return jsonResponse({
+            success: false,
+            error: { message: 'Failed to fetch pitches' },
+            data: [],
+          }, 500);
+        }
       }
 
       // Creator dashboard stats
@@ -1511,7 +1722,7 @@ export default {
           }, 403);
         }
         
-        return jsonResponse({
+        return corsResponse(request, {
           success: true,
           data: {
             totalInvested: 450000,
@@ -1543,7 +1754,7 @@ export default {
           }
         ];
         
-        return jsonResponse({
+        return corsResponse(request, {
           success: true,
           data: investments
         });
@@ -1609,14 +1820,14 @@ export default {
               }
             }));
           
-          return jsonResponse({
+          return corsResponse(request, {
             success: true,
             data: transformedData
           });
         } catch (error) {
           console.error('Error fetching investment recommendations:', error);
           // Return empty data instead of error
-          return jsonResponse({
+          return corsResponse(request, {
             success: true,
             data: []
           });
@@ -1769,6 +1980,87 @@ export default {
             total: 7
           }
         });
+      }
+
+      // Create NDA request
+      if (path === '/api/nda/request' && method === 'POST') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const body = await request.json();
+          const { pitchId, purpose, message } = body;
+          
+          if (!pitchId) {
+            return corsResponse(request, {
+              success: false,
+              message: 'Pitch ID is required',
+            }, 400);
+          }
+          
+          // Get the pitch to find the creator
+          const pitches = await db.select()
+            .from(schema.pitches)
+            .where(eq(schema.pitches.id, pitchId))
+            .limit(1);
+          
+          if (pitches.length === 0) {
+            return corsResponse(request, {
+              success: false,
+              message: 'Pitch not found',
+            }, 404);
+          }
+          
+          const pitch = pitches[0];
+          const requesterId = parseInt(userPayload.sub);
+          
+          // Check if NDA request already exists
+          const existingRequests = await db.select()
+            .from(schema.ndaRequests)
+            .where(and(
+              eq(schema.ndaRequests.pitchId, pitchId),
+              eq(schema.ndaRequests.requesterId, requesterId),
+              eq(schema.ndaRequests.status, 'pending')
+            ))
+            .limit(1);
+          
+          if (existingRequests.length > 0) {
+            return corsResponse(request, {
+              success: false,
+              message: 'NDA request already exists for this pitch',
+            }, 409);
+          }
+          
+          // Create the NDA request
+          const newRequest = await db.insert(schema.ndaRequests)
+            .values({
+              pitchId,
+              requesterId,
+              creatorId: pitch.userId,
+              status: 'pending',
+              purpose: purpose || 'Investment opportunity',
+              message: message || null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+          
+          return corsResponse(request, {
+            success: true,
+            message: 'NDA request sent successfully',
+            data: newRequest[0],
+          }, 201);
+        } catch (error) {
+          console.error('Error creating NDA request:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to create NDA request',
+          }, 500);
+        }
       }
 
       // NDA incoming requests (NDAs others want you to sign)

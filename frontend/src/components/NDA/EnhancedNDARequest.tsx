@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Shield, Upload, FileText, AlertCircle, CheckCircle, User, Building2, DollarSign } from 'lucide-react';
+import { X, Shield, Upload, FileText, AlertCircle, CheckCircle, User, Building2, DollarSign, Eye } from 'lucide-react';
 import { ndaService } from '../../services/nda.service';
 import { useAuthStore } from '../../store/authStore';
 
@@ -41,6 +41,7 @@ export default function EnhancedNDARequest({
   const [step, setStep] = useState<'info' | 'details' | 'submit'>('info');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showNDAPreview, setShowNDAPreview] = useState(false);
   const [formData, setFormData] = useState<RequestFormData>({
     message: '',
     companyInfo: {
@@ -154,6 +155,113 @@ This is a ${formData.urgency} priority request.
       default:
         return "This creator provides access to full treatments, detailed budgets, production timelines, and confidential project development information.";
     }
+  };
+
+  const getStandardNDAText = () => {
+    return `
+MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("Agreement") is entered into on ${new Date().toLocaleDateString()} by and between:
+
+DISCLOSING PARTY: ${creatorName} (${getCreatorTypeLabel()})
+RECEIVING PARTY: ${user?.firstName} ${user?.lastName} (${user?.userType || 'Professional'})
+
+PROJECT: "${pitchTitle}"
+
+1. CONFIDENTIAL INFORMATION
+All information disclosed in relation to the above project, including but not limited to:
+• Creative concepts, treatments, and scripts
+• Financial projections and budget information
+• Production timelines and business plans
+• Distribution strategies and market analysis
+• Talent attachments and deal structures
+
+2. OBLIGATIONS
+The Receiving Party agrees to:
+• Keep all information strictly confidential
+• Use information solely for evaluation purposes
+• Not disclose to any third parties
+• Return or destroy information upon request
+
+3. TERM
+This agreement shall remain in effect for 2 years from the date of signature.
+
+4. EXCEPTIONS
+This agreement does not apply to information that:
+• Is already publicly available
+• Was known prior to disclosure
+• Is independently developed
+
+By proceeding, you acknowledge that you have read, understood, and agree to be bound by the terms of this Non-Disclosure Agreement.
+
+ELECTRONIC SIGNATURE NOTICE
+By clicking "Submit NDA Request" below, you are providing your electronic signature and consent to be legally bound by this agreement. Electronic signatures have the same legal effect as handwritten signatures.
+    `.trim();
+  };
+
+  // NDA Preview Modal Component
+  const NDAPreviewModal = () => {
+    if (!showNDAPreview) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          {/* Preview Header */}
+          <div className="p-6 border-b bg-blue-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Eye className="w-6 h-6 text-blue-600" />
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">NDA Preview</h3>
+                  <p className="text-sm text-gray-600">Review the agreement terms before submission</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNDAPreview(false)}
+                className="p-2 hover:bg-blue-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Preview Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="bg-gray-50 rounded-lg p-6 font-mono text-sm leading-relaxed whitespace-pre-line">
+              {formData.ndaType === 'standard' ? getStandardNDAText() : 
+               formData.customFile ? `Custom NDA Document: ${formData.customFile.name}\n\nThis custom NDA will be reviewed and processed separately. The standard terms above serve as a reference for the type of agreement that will be established.` : 
+               getStandardNDAText()}
+            </div>
+          </div>
+
+          {/* Preview Footer */}
+          <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
+            <div className="text-sm text-gray-600">
+              <p className="font-semibold mb-1">Legal Notice:</p>
+              <p>This {formData.ndaType === 'standard' ? 'standard' : 'custom'} NDA will be legally binding upon your submission.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowNDAPreview(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+              >
+                Close Preview
+              </button>
+              <button
+                onClick={() => {
+                  setShowNDAPreview(false);
+                  handleSubmit();
+                }}
+                disabled={loading}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:bg-gray-300"
+              >
+                {loading ? 'Submitting...' : 'Accept & Submit Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -649,21 +757,38 @@ Best regards`}
             )}
             
             {step === 'submit' && (
-              <button
-                onClick={handleSubmit}
-                disabled={loading || !canSubmit()}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  loading || !canSubmit()
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-              >
-                {loading ? 'Submitting...' : 'Submit NDA Request'}
-              </button>
+              <>
+                <button
+                  onClick={() => setShowNDAPreview(true)}
+                  disabled={!canSubmit()}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    !canSubmit()
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  <Eye className="w-4 h-4 mr-2 inline" />
+                  Preview NDA
+                </button>
+                <button
+                  onClick={() => setShowNDAPreview(true)}
+                  disabled={loading || !canSubmit()}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    loading || !canSubmit()
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  {loading ? 'Submitting...' : 'Review & Submit Request'}
+                </button>
+              </>
             )}
           </div>
         </div>
       </div>
+      
+      {/* NDA Preview Modal */}
+      <NDAPreviewModal />
     </div>
   );
 }

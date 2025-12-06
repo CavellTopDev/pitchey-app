@@ -434,7 +434,7 @@ export class PitchService {
 
   // Get pitches with general browse and sorting
   static async getGeneralBrowse(filters?: {
-    sort?: 'alphabetical' | 'date' | 'budget' | 'views' | 'likes';
+    sort?: 'alphabetical' | 'date' | 'budget' | 'views' | 'likes' | 'investment_status';
     order?: 'asc' | 'desc';
     genre?: string;
     format?: string;

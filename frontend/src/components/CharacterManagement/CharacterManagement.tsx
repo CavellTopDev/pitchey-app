@@ -7,7 +7,7 @@ import { getCharacterStats } from '../../utils/characterUtils';
 import { characterService } from '../../services/character.service';
 
 interface CharacterManagementProps {
-  pitchId: number;
+  pitchId?: number; // Optional - if not provided, operates in local mode for pitch creation
   characters: Character[];
   onChange: (characters: Character[]) => void;
   maxCharacters?: number;
@@ -62,54 +62,72 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   };
 
   const handleSaveCharacter = async (character: Character) => {
-    if (!pitchId) return;
-    
     setIsLoading(true);
     setError(null);
     
     try {
-      let updatedCharacter: Character;
-      
-      if (editingCharacter && editingCharacter.id) {
-        // Update existing character
-        const characterData = {
-          name: character.name,
-          description: character.description,
-          age: character.age,
-          gender: character.gender,
-          actor: character.actor,
-          role: character.role,
-          relationship: character.relationship,
-        };
+      if (pitchId) {
+        // API mode - pitch already exists
+        let updatedCharacter: Character;
         
-        updatedCharacter = await characterService.updateCharacter(
-          pitchId, 
-          parseInt(editingCharacter.id), 
-          characterData
-        );
-        
-        // Update local state
-        const updatedCharacters = normalizedCharacters.map(char => 
-          char.id === editingCharacter.id ? { ...updatedCharacter, id: updatedCharacter.id?.toString() } : char
-        );
-        onChange(updatedCharacters);
+        if (editingCharacter && editingCharacter.id) {
+          // Update existing character via API
+          const characterData = {
+            name: character.name,
+            description: character.description,
+            age: character.age,
+            gender: character.gender,
+            actor: character.actor,
+            role: character.role,
+            relationship: character.relationship,
+          };
+          
+          updatedCharacter = await characterService.updateCharacter(
+            pitchId, 
+            parseInt(editingCharacter.id), 
+            characterData
+          );
+          
+          // Update local state
+          const updatedCharacters = normalizedCharacters.map(char => 
+            char.id === editingCharacter.id ? { ...updatedCharacter, id: updatedCharacter.id?.toString() } : char
+          );
+          onChange(updatedCharacters);
+        } else {
+          // Add new character via API
+          const characterData = {
+            name: character.name,
+            description: character.description,
+            age: character.age,
+            gender: character.gender,
+            actor: character.actor,
+            role: character.role,
+            relationship: character.relationship,
+          };
+          
+          updatedCharacter = await characterService.addCharacter(pitchId, characterData);
+          
+          // Add to local state
+          const newCharacter = { ...updatedCharacter, id: updatedCharacter.id?.toString() };
+          onChange([...normalizedCharacters, newCharacter]);
+        }
       } else {
-        // Add new character
-        const characterData = {
-          name: character.name,
-          description: character.description,
-          age: character.age,
-          gender: character.gender,
-          actor: character.actor,
-          role: character.role,
-          relationship: character.relationship,
-        };
-        
-        updatedCharacter = await characterService.addCharacter(pitchId, characterData);
-        
-        // Add to local state
-        const newCharacter = { ...updatedCharacter, id: updatedCharacter.id?.toString() };
-        onChange([...normalizedCharacters, newCharacter]);
+        // Local mode - for pitch creation
+        if (editingCharacter && editingCharacter.id) {
+          // Update existing character locally
+          const updatedCharacters = normalizedCharacters.map(char => 
+            char.id === editingCharacter.id ? { ...char, ...character, id: char.id } : char
+          );
+          onChange(updatedCharacters);
+        } else {
+          // Add new character locally
+          const newCharacter: Character = {
+            ...character,
+            id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            displayOrder: normalizedCharacters.length
+          };
+          onChange([...normalizedCharacters, newCharacter]);
+        }
       }
       
       setIsFormOpen(false);
@@ -123,7 +141,7 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   };
 
   const handleDeleteCharacter = async (id: string) => {
-    if (!pitchId || !confirm('Are you sure you want to delete this character?')) {
+    if (!confirm('Are you sure you want to delete this character?')) {
       return;
     }
     
@@ -131,9 +149,11 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
     setError(null);
     
     try {
-      await characterService.deleteCharacter(pitchId, parseInt(id));
-      
-      // Remove from local state
+      if (pitchId) {
+        // API mode - delete from server
+        await characterService.deleteCharacter(pitchId, parseInt(id));
+      }
+      // In both API and local mode, remove from local state
       const updatedCharacters = normalizedCharacters.filter(char => char.id !== id);
       onChange(updatedCharacters);
     } catch (error) {
@@ -145,7 +165,7 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   };
 
   const handleMoveCharacter = useCallback(async (fromIndex: number, toIndex: number) => {
-    if (!pitchId || toIndex < 0 || toIndex >= normalizedCharacters.length || fromIndex === toIndex) return;
+    if (toIndex < 0 || toIndex >= normalizedCharacters.length || fromIndex === toIndex) return;
     
     setIsLoading(true);
     setError(null);
@@ -156,22 +176,32 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
       const [movedCharacter] = updatedCharacters.splice(fromIndex, 1);
       updatedCharacters.splice(toIndex, 0, movedCharacter);
       
-      // Update display orders for API
-      const characterOrders = updatedCharacters.map((char, index) => ({
-        id: parseInt(char.id || '0'),
+      // Update display orders
+      const charactersWithOrder = updatedCharacters.map((char, index) => ({
+        ...char,
         displayOrder: index
       }));
       
-      // Call API
-      const reorderedCharacters = await characterService.reorderCharacters(pitchId, characterOrders);
-      
-      // Update with API response (convert IDs to strings for frontend compatibility)
-      const formattedCharacters = reorderedCharacters.map(char => ({
-        ...char,
-        id: char.id?.toString()
-      }));
-      
-      onChange(formattedCharacters);
+      if (pitchId) {
+        // API mode - sync with server
+        const characterOrders = charactersWithOrder.map((char, index) => ({
+          id: parseInt(char.id || '0'),
+          displayOrder: index
+        }));
+        
+        const reorderedCharacters = await characterService.reorderCharacters(pitchId, characterOrders);
+        
+        // Update with API response (convert IDs to strings for frontend compatibility)
+        const formattedCharacters = reorderedCharacters.map(char => ({
+          ...char,
+          id: char.id?.toString()
+        }));
+        
+        onChange(formattedCharacters);
+      } else {
+        // Local mode - just update local state
+        onChange(charactersWithOrder);
+      }
     } catch (error) {
       console.error('Error reordering characters:', error);
       setError(error instanceof Error ? error.message : 'Failed to reorder characters');
@@ -181,7 +211,7 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   }, [pitchId, normalizedCharacters, onChange]);
 
   const handleMoveUp = useCallback(async (index: number) => {
-    if (!pitchId || index <= 0) return;
+    if (index <= 0) return;
     
     const character = normalizedCharacters[index];
     if (!character.id) return;
@@ -190,15 +220,31 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
     setError(null);
     
     try {
-      const updatedCharacters = await characterService.moveCharacter(pitchId, parseInt(character.id), 'up');
-      
-      // Update with API response
-      const formattedCharacters = updatedCharacters.map(char => ({
-        ...char,
-        id: char.id?.toString()
-      }));
-      
-      onChange(formattedCharacters);
+      if (pitchId) {
+        // API mode - call server
+        const updatedCharacters = await characterService.moveCharacter(pitchId, parseInt(character.id), 'up');
+        
+        // Update with API response
+        const formattedCharacters = updatedCharacters.map(char => ({
+          ...char,
+          id: char.id?.toString()
+        }));
+        
+        onChange(formattedCharacters);
+      } else {
+        // Local mode - just reorder locally
+        const updatedCharacters = [...normalizedCharacters];
+        const [movedCharacter] = updatedCharacters.splice(index, 1);
+        updatedCharacters.splice(index - 1, 0, movedCharacter);
+        
+        // Update display orders
+        const charactersWithOrder = updatedCharacters.map((char, idx) => ({
+          ...char,
+          displayOrder: idx
+        }));
+        
+        onChange(charactersWithOrder);
+      }
     } catch (error) {
       console.error('Error moving character up:', error);
       setError(error instanceof Error ? error.message : 'Failed to move character');
@@ -208,7 +254,7 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
   }, [pitchId, normalizedCharacters, onChange]);
 
   const handleMoveDown = useCallback(async (index: number) => {
-    if (!pitchId || index >= normalizedCharacters.length - 1) return;
+    if (index >= normalizedCharacters.length - 1) return;
     
     const character = normalizedCharacters[index];
     if (!character.id) return;
@@ -217,15 +263,31 @@ export const CharacterManagement: React.FC<CharacterManagementProps> = ({
     setError(null);
     
     try {
-      const updatedCharacters = await characterService.moveCharacter(pitchId, parseInt(character.id), 'down');
-      
-      // Update with API response
-      const formattedCharacters = updatedCharacters.map(char => ({
-        ...char,
-        id: char.id?.toString()
-      }));
-      
-      onChange(formattedCharacters);
+      if (pitchId) {
+        // API mode - call server
+        const updatedCharacters = await characterService.moveCharacter(pitchId, parseInt(character.id), 'down');
+        
+        // Update with API response
+        const formattedCharacters = updatedCharacters.map(char => ({
+          ...char,
+          id: char.id?.toString()
+        }));
+        
+        onChange(formattedCharacters);
+      } else {
+        // Local mode - just reorder locally
+        const updatedCharacters = [...normalizedCharacters];
+        const [movedCharacter] = updatedCharacters.splice(index, 1);
+        updatedCharacters.splice(index + 1, 0, movedCharacter);
+        
+        // Update display orders
+        const charactersWithOrder = updatedCharacters.map((char, idx) => ({
+          ...char,
+          displayOrder: idx
+        }));
+        
+        onChange(charactersWithOrder);
+      }
     } catch (error) {
       console.error('Error moving character down:', error);
       setError(error instanceof Error ? error.message : 'Failed to move character');
