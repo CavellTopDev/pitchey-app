@@ -891,6 +891,18 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 // ============================================
 
 // Investments table (was missing)
+export const investmentInterests = pgTable("investment_interests", {
+  id: serial("id").primaryKey(),
+  investorId: integer("investor_id").references(() => users.id, { onDelete: "cascade" }),
+  pitchId: integer("pitch_id").references(() => pitches.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+  interestLevel: text("interest_level").default('moderate'),
+  notes: text("notes"),
+  status: text("status").default('active'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const investments = pgTable("investments", {
   id: serial("id").primaryKey(),
   investorId: integer("investor_id").references(() => users.id, { onDelete: "cascade" }),

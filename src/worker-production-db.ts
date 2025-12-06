@@ -7,10 +7,10 @@ import jwt from '@tsndr/cloudflare-worker-jwt';
 import * as bcrypt from 'bcryptjs';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, or, gte, lte, desc, asc, like, sql as sqlOperator, count, sql } from 'drizzle-orm';
-import * as schema from './db/schema';
+import { eq, and, or, gte, lte, desc, asc, like, sql, count } from 'drizzle-orm';
+import * as schema from './db/schema.ts';
 import { Redis } from '@upstash/redis/cloudflare';
-import { SessionManager, RateLimiter } from './auth/session-manager';
+import { SessionManager, RateLimiter } from './auth/session-manager.ts';
 
 // Wrapper for Redis client to work with Cloudflare Workers
 function createRedisClient(env: Env) {
@@ -857,29 +857,129 @@ export default {
 
       // Public pitch endpoints
       if (path === '/api/pitches/public') {
-        const pitches = await db.select({
-          id: schema.pitches.id,
-          title: schema.pitches.title,
-          tagline: schema.pitches.tagline,
-          genre: schema.pitches.genre,
-          format: schema.pitches.format,
-          budget: schema.pitches.budget,
-          status: schema.pitches.status,
-          thumbnail: schema.pitches.thumbnail,
-          views: schema.pitches.views,
-          rating: schema.pitches.rating,
-          creatorId: schema.pitches.userId,
-          createdAt: schema.pitches.createdAt,
-        })
-        .from(schema.pitches)
-        .where(eq(schema.pitches.status, 'published'))
-        .orderBy(desc(schema.pitches.createdAt))
-        .limit(20);
+        const url = new URL(request.url);
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        const tab = url.searchParams.get('tab') || 'all';
+        const genre = url.searchParams.get('genre');
+        
+        // Use specific queries for each tab to avoid SQL template issues
+        let result;
+        
+        if (tab === 'film') {
+          result = await sql`
+            SELECT 
+              id, title, logline, genre, format, 
+              estimated_budget as "estimatedBudget", 
+              budget_bracket as "budgetBracket", 
+              status, 
+              thumbnail_url as "thumbnail", 
+              view_count as "viewCount", 
+              like_count as "likeCount", 
+              user_id as "creatorId", 
+              created_at as "createdAt"
+            FROM pitches
+            WHERE status = 'published' AND format = 'Film'
+            ORDER BY created_at DESC
+            LIMIT ${limit}
+          `;
+        } else if (tab === 'television') {
+          result = await sql`
+            SELECT 
+              id, title, logline, genre, format, 
+              estimated_budget as "estimatedBudget", 
+              budget_bracket as "budgetBracket", 
+              status, 
+              thumbnail_url as "thumbnail", 
+              view_count as "viewCount", 
+              like_count as "likeCount", 
+              user_id as "creatorId", 
+              created_at as "createdAt"
+            FROM pitches
+            WHERE status = 'published' AND format IN ('Television - Scripted', 'Television - Unscripted', 'Limited Series')
+            ORDER BY created_at DESC
+            LIMIT ${limit}
+          `;
+        } else if (tab === 'web-series') {
+          result = await sql`
+            SELECT 
+              id, title, logline, genre, format, 
+              estimated_budget as "estimatedBudget", 
+              budget_bracket as "budgetBracket", 
+              status, 
+              thumbnail_url as "thumbnail", 
+              view_count as "viewCount", 
+              like_count as "likeCount", 
+              user_id as "creatorId", 
+              created_at as "createdAt"
+            FROM pitches
+            WHERE status = 'published' AND format = 'Web Series'
+            ORDER BY created_at DESC
+            LIMIT ${limit}
+          `;
+        } else if (tab === 'documentary') {
+          result = await sql`
+            SELECT 
+              id, title, logline, genre, format, 
+              estimated_budget as "estimatedBudget", 
+              budget_bracket as "budgetBracket", 
+              status, 
+              thumbnail_url as "thumbnail", 
+              view_count as "viewCount", 
+              like_count as "likeCount", 
+              user_id as "creatorId", 
+              created_at as "createdAt"
+            FROM pitches
+            WHERE status = 'published' AND format = 'Documentary'
+            ORDER BY created_at DESC
+            LIMIT ${limit}
+          `;
+        } else {
+          // Default: show all published pitches
+          if (genre) {
+            result = await sql`
+              SELECT 
+                id, title, logline, genre, format, 
+                estimated_budget as "estimatedBudget", 
+                budget_bracket as "budgetBracket", 
+                status, 
+                thumbnail_url as "thumbnail", 
+                view_count as "viewCount", 
+                like_count as "likeCount", 
+                user_id as "creatorId", 
+                created_at as "createdAt"
+              FROM pitches
+              WHERE status = 'published' AND genre = ${genre}
+              ORDER BY created_at DESC
+              LIMIT ${limit}
+            `;
+          } else {
+            result = await sql`
+              SELECT 
+                id, title, logline, genre, format, 
+                estimated_budget as "estimatedBudget", 
+                budget_bracket as "budgetBracket", 
+                status, 
+                thumbnail_url as "thumbnail", 
+                view_count as "viewCount", 
+                like_count as "likeCount", 
+                user_id as "creatorId", 
+                created_at as "createdAt"
+              FROM pitches
+              WHERE status = 'published'
+              ORDER BY created_at DESC
+              LIMIT ${limit}
+            `;
+          }
+        }
 
         return jsonResponse({
           success: true,
-          pitches,
-          total: pitches.length,
+          data: result || [],
+          total: result?.length || 0,
+          tab: tab,
+          filters: {
+            genre: genre || null
+          }
         });
       }
 
@@ -1123,7 +1223,7 @@ export default {
       }
 
       // Get all pitches (with caching)
-      if (path.startsWith('/api/pitches') && method === 'GET' && !path.match(/^\/api\/pitches\/\d+$/)) {
+      if (path.startsWith('/api/pitches') && method === 'GET' && !path.match(/^\/api\/pitches\/\d+$/) && !path.match(/^\/api\/pitches\/\d+\/investment-interests$/) && !path.startsWith('/api/pitches/browse')) {
         const url = new URL(request.url);
         const limit = parseInt(url.searchParams.get('limit') || '10');
         const offset = parseInt(url.searchParams.get('offset') || '0');
@@ -1199,7 +1299,7 @@ export default {
           }, 404);
         }
         
-        if (pitches[0].creatorId !== userId) {
+        if (pitches[0].userId !== userId) {
           return jsonResponse({
             success: false,
             message: 'You can only edit your own pitches',
@@ -1214,6 +1314,88 @@ export default {
           .where(eq(schema.pitches.id, pitchId))
           .returning();
         
+        // Generate notifications for interested parties
+        if (updated[0].status === 'published') {
+          // Notify investors who expressed interest
+          const interestedInvestors = await db.select({
+            userId: schema.investmentInterests.investorId
+          })
+          .from(schema.investmentInterests)
+          .where(eq(schema.investmentInterests.pitchId, pitchId));
+          
+          for (const investor of interestedInvestors) {
+            await db.insert(schema.notifications)
+              .values({
+                userId: investor.userId,
+                type: 'pitch_updated',
+                title: 'Pitch Updated',
+                message: `"${updated[0].title}" has been updated with new information`,
+                relatedId: pitchId,
+                relatedType: 'pitch',
+                data: {
+                  pitchId: pitchId,
+                  pitchTitle: updated[0].title,
+                  updatedFields: Object.keys(body)
+                }
+              });
+          }
+          
+          // Notify users with approved NDAs
+          const ndaHolders = await db.select({
+            userId: schema.ndaRequests.requesterId
+          })
+          .from(schema.ndaRequests)
+          .where(
+            and(
+              eq(schema.ndaRequests.pitchId, pitchId),
+              eq(schema.ndaRequests.status, 'approved')
+            )
+          );
+          
+          for (const holder of ndaHolders) {
+            await db.insert(schema.notifications)
+              .values({
+                userId: holder.userId,
+                type: 'pitch_updated',
+                title: 'Protected Pitch Updated',
+                message: `"${updated[0].title}" (NDA protected) has been updated`,
+                relatedId: pitchId,
+                relatedType: 'pitch',
+                data: {
+                  pitchId: pitchId,
+                  pitchTitle: updated[0].title,
+                  hasNDA: true,
+                  updatedFields: Object.keys(body)
+                }
+              });
+          }
+          
+          // Notify production companies who reviewed the pitch (using raw SQL)
+          const productionReviewers = await sql`
+            SELECT DISTINCT production_id as "userId"
+            FROM production_reviews
+            WHERE pitch_id = ${pitchId}
+          `;
+          
+          for (const reviewer of productionReviewers) {
+            await db.insert(schema.notifications)
+              .values({
+                userId: reviewer.userId,
+                type: 'pitch_updated',
+                title: 'Reviewed Pitch Updated',
+                message: `"${updated[0].title}" that you reviewed has been updated`,
+                relatedId: pitchId,
+                relatedType: 'pitch',
+                data: {
+                  pitchId: pitchId,
+                  pitchTitle: updated[0].title,
+                  wasReviewed: true,
+                  updatedFields: Object.keys(body)
+                }
+              });
+          }
+        }
+        
         return jsonResponse({
           success: true,
           message: 'Pitch updated successfully',
@@ -1221,6 +1403,355 @@ export default {
         });
       }
 
+      // Character management endpoints
+      const characterMatch = path.match(/^\/api\/pitches\/(\d+)\/characters$/);
+      const singleCharacterMatch = path.match(/^\/api\/pitches\/(\d+)\/characters\/(\d+)$/);
+      
+      // Get all characters for a pitch
+      if (characterMatch && method === 'GET') {
+        const pitchId = parseInt(characterMatch[1]);
+        
+        const pitches = await sql`
+          SELECT id, user_id, characters 
+          FROM pitches 
+          WHERE id = ${pitchId}
+        `;
+        
+        if (pitches.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch not found',
+          }, 404);
+        }
+        
+        let characters = [];
+        try {
+          characters = JSON.parse(pitches[0].characters || '[]');
+        } catch (e) {
+          characters = [];
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: characters
+        });
+      }
+      
+      // Update all characters (used for reordering)
+      if (characterMatch && method === 'PUT') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pitchId = parseInt(characterMatch[1]);
+        const userId = parseInt(userPayload.sub);
+        const { characters } = await request.json();
+        
+        // Check ownership
+        const pitches = await sql`
+          SELECT user_id FROM pitches WHERE id = ${pitchId}
+        `;
+        
+        if (pitches.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch not found',
+          }, 404);
+        }
+        
+        if (pitches[0].user_id !== userId) {
+          return jsonResponse({
+            success: false,
+            message: 'You can only edit your own pitches',
+          }, 403);
+        }
+        
+        // Update characters
+        await sql`
+          UPDATE pitches 
+          SET characters = ${JSON.stringify(characters)},
+              updated_at = NOW()
+          WHERE id = ${pitchId}
+        `;
+        
+        return jsonResponse({
+          success: true,
+          message: 'Characters updated successfully',
+          data: characters
+        });
+      }
+      
+      // Add a new character
+      if (characterMatch && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pitchId = parseInt(characterMatch[1]);
+        const userId = parseInt(userPayload.sub);
+        const newCharacter = await request.json();
+        
+        // Check ownership
+        const pitches = await sql`
+          SELECT user_id, characters FROM pitches WHERE id = ${pitchId}
+        `;
+        
+        if (pitches.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch not found',
+          }, 404);
+        }
+        
+        if (pitches[0].user_id !== userId) {
+          return jsonResponse({
+            success: false,
+            message: 'You can only edit your own pitches',
+          }, 403);
+        }
+        
+        // Parse existing characters
+        let characters = [];
+        try {
+          characters = JSON.parse(pitches[0].characters || '[]');
+        } catch (e) {
+          characters = [];
+        }
+        
+        // Add new character with ID
+        newCharacter.id = Date.now(); // Simple ID generation
+        characters.push(newCharacter);
+        
+        // Update database
+        await sql`
+          UPDATE pitches 
+          SET characters = ${JSON.stringify(characters)},
+              updated_at = NOW()
+          WHERE id = ${pitchId}
+        `;
+        
+        return jsonResponse({
+          success: true,
+          message: 'Character added successfully',
+          data: newCharacter
+        });
+      }
+      
+      // Update a single character
+      if (singleCharacterMatch && method === 'PUT') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pitchId = parseInt(singleCharacterMatch[1]);
+        const characterId = parseInt(singleCharacterMatch[2]);
+        const userId = parseInt(userPayload.sub);
+        const updatedCharacter = await request.json();
+        
+        // Check ownership
+        const pitches = await sql`
+          SELECT user_id, characters FROM pitches WHERE id = ${pitchId}
+        `;
+        
+        if (pitches.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch not found',
+          }, 404);
+        }
+        
+        if (pitches[0].user_id !== userId) {
+          return jsonResponse({
+            success: false,
+            message: 'You can only edit your own pitches',
+          }, 403);
+        }
+        
+        // Parse and update characters
+        let characters = [];
+        try {
+          characters = JSON.parse(pitches[0].characters || '[]');
+        } catch (e) {
+          characters = [];
+        }
+        
+        const characterIndex = characters.findIndex(c => c.id === characterId);
+        if (characterIndex === -1) {
+          return jsonResponse({
+            success: false,
+            message: 'Character not found',
+          }, 404);
+        }
+        
+        characters[characterIndex] = { ...characters[characterIndex], ...updatedCharacter, id: characterId };
+        
+        // Update database
+        await sql`
+          UPDATE pitches 
+          SET characters = ${JSON.stringify(characters)},
+              updated_at = NOW()
+          WHERE id = ${pitchId}
+        `;
+        
+        return jsonResponse({
+          success: true,
+          message: 'Character updated successfully',
+          data: characters[characterIndex]
+        });
+      }
+      
+      // Delete a character
+      if (singleCharacterMatch && method === 'DELETE') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pitchId = parseInt(singleCharacterMatch[1]);
+        const characterId = parseInt(singleCharacterMatch[2]);
+        const userId = parseInt(userPayload.sub);
+        
+        // Check ownership
+        const pitches = await sql`
+          SELECT user_id, characters FROM pitches WHERE id = ${pitchId}
+        `;
+        
+        if (pitches.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch not found',
+          }, 404);
+        }
+        
+        if (pitches[0].user_id !== userId) {
+          return jsonResponse({
+            success: false,
+            message: 'You can only edit your own pitches',
+          }, 403);
+        }
+        
+        // Parse and filter characters
+        let characters = [];
+        try {
+          characters = JSON.parse(pitches[0].characters || '[]');
+        } catch (e) {
+          characters = [];
+        }
+        
+        const filteredCharacters = characters.filter(c => c.id !== characterId);
+        
+        if (filteredCharacters.length === characters.length) {
+          return jsonResponse({
+            success: false,
+            message: 'Character not found',
+          }, 404);
+        }
+        
+        // Update database
+        await sql`
+          UPDATE pitches 
+          SET characters = ${JSON.stringify(filteredCharacters)},
+              updated_at = NOW()
+          WHERE id = ${pitchId}
+        `;
+        
+        return jsonResponse({
+          success: true,
+          message: 'Character deleted successfully'
+        });
+      }
+      
+      // Update pitch themes and world description
+      const pitchFieldsMatch = path.match(/^\/api\/pitches\/(\d+)\/fields$/);
+      if (pitchFieldsMatch && method === 'PATCH') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pitchId = parseInt(pitchFieldsMatch[1]);
+        const userId = parseInt(userPayload.sub);
+        const { themes, worldDescription } = await request.json();
+        
+        // Check ownership
+        const pitches = await sql`
+          SELECT user_id FROM pitches WHERE id = ${pitchId}
+        `;
+        
+        if (pitches.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch not found',
+          }, 404);
+        }
+        
+        if (pitches[0].user_id !== userId) {
+          return jsonResponse({
+            success: false,
+            message: 'You can only edit your own pitches',
+          }, 403);
+        }
+        
+        // Build update query dynamically
+        const updates = [];
+        const values = [pitchId];
+        let paramIndex = 2;
+        
+        if (themes !== undefined) {
+          updates.push(`themes = $${paramIndex}`);
+          values.push(themes);
+          paramIndex++;
+        }
+        
+        if (worldDescription !== undefined) {
+          updates.push(`world_description = $${paramIndex}`);
+          values.push(worldDescription);
+          paramIndex++;
+        }
+        
+        if (updates.length === 0) {
+          return jsonResponse({
+            success: false,
+            message: 'No fields to update',
+          }, 400);
+        }
+        
+        updates.push('updated_at = NOW()');
+        
+        // Execute update with raw SQL for flexibility
+        const updateQuery = `
+          UPDATE pitches 
+          SET ${updates.join(', ')}
+          WHERE id = $1
+          RETURNING id, themes, world_description
+        `;
+        
+        const result = await sql.unsafe(updateQuery, values);
+        
+        return jsonResponse({
+          success: true,
+          message: 'Pitch fields updated successfully',
+          data: {
+            id: result[0].id,
+            themes: result[0].themes,
+            worldDescription: result[0].world_description
+          }
+        });
+      }
+      
       // Get single pitch
       if (pitchMatch && method === 'GET') {
         const pitchId = parseInt(pitchMatch[1]);
@@ -1660,55 +2191,121 @@ export default {
           }, 403);
         }
         
-        const userId = parseInt(userPayload.sub);
+        const investorId = parseInt(userPayload.sub);
         
         try {
-          // Get investment summary (mock data for now - would need investments table)
+          // Get real investment interests data
+          const investmentInterests = await sql`
+            SELECT 
+              ii.*,
+              p.title as pitch_title,
+              p.logline,
+              p.genre,
+              p.format,
+              p.status as pitch_status,
+              u.first_name as creator_first_name,
+              u.last_name as creator_last_name,
+              u.company_name as creator_company
+            FROM investment_interests ii
+            JOIN pitches p ON ii.pitch_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE ii.investor_id = ${investorId}
+            ORDER BY ii.created_at DESC
+          `;
+          
+          // Calculate portfolio summary from real data
+          const totalInvested = investmentInterests.reduce((sum, inv) => 
+            sum + (parseFloat(inv.amount) || 0), 0
+          );
+          
           const portfolio = {
-            totalInvested: "450000.00",
-            activeInvestments: "6",
-            roi: 0
+            totalInvested: totalInvested.toFixed(2),
+            activeInvestments: investmentInterests.length.toString(),
+            roi: 0 // ROI would need tracking of returns
           };
 
-          // Get recent activity (mock data - would need real investment tracking)
-          const recentActivity = [
-            {
-              id: 1,
-              investor_id: userId,
-              pitch_id: 1,
-              amount: "50000.00",
-              status: "active",
-              notes: "Strong concept with experienced creator",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              roi_percentage: "15.50"
-            }
-          ];
+          // Get recent activity from investment interests
+          const recentActivity = investmentInterests.slice(0, 5).map(inv => ({
+            id: inv.id,
+            investor_id: investorId,
+            pitch_id: inv.pitch_id,
+            pitch_title: inv.pitch_title,
+            creator_name: `${inv.creator_first_name} ${inv.creator_last_name}`,
+            amount: inv.amount,
+            investment_level: inv.investment_level,
+            status: inv.pitch_status === 'published' ? 'active' : 'pending',
+            notes: inv.message || 'Investment interest expressed',
+            created_at: inv.created_at,
+            updated_at: inv.updated_at || inv.created_at
+          }));
 
-          // Get investment opportunities 
-          const opportunities = await db.select()
-            .from(schema.pitches)
-            .where(eq(schema.pitches.status, 'active'))
-            .orderBy(desc(schema.pitches.createdAt))
-            .limit(6);
+          // Get investment opportunities (published pitches seeking investment)
+          const opportunities = await sql`
+            SELECT 
+              p.*,
+              u.first_name as creator_first_name,
+              u.last_name as creator_last_name,
+              u.company_name as creator_company,
+              COUNT(DISTINCT ii.id) as investor_count,
+              SUM(CAST(ii.amount AS DECIMAL)) as total_interest
+            FROM pitches p
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN investment_interests ii ON p.id = ii.pitch_id
+            WHERE p.status = 'published' 
+              AND p.seeking_investment = true
+              AND p.id NOT IN (
+                SELECT pitch_id FROM investment_interests WHERE investor_id = ${investorId}
+              )
+            GROUP BY p.id, u.id, u.first_name, u.last_name, u.company_name
+            ORDER BY p.created_at DESC
+            LIMIT 6
+          `;
+          
+          // Get saved pitches count
+          const savedPitchesCount = await sql`
+            SELECT COUNT(*)::integer as count
+            FROM saved_pitches
+            WHERE user_id = ${investorId}
+          `;
+          
+          // Get NDA stats
+          const ndaStats = await sql`
+            SELECT 
+              COUNT(*)::integer as total_ndas,
+              COUNT(CASE WHEN status = 'approved' THEN 1 END)::integer as approved_ndas,
+              COUNT(CASE WHEN status = 'pending' THEN 1 END)::integer as pending_ndas
+            FROM nda_requests
+            WHERE requester_id = ${investorId}
+          `;
 
           return jsonResponse({
             success: true,
-            portfolio,
-            recentActivity,
-            opportunities: opportunities.map(pitch => ({
-              ...pitch,
-              creator_name: 'Creator Name', // Would need join
-              seeking_investment: true,
-              production_stage: 'concept',
-            }))
+            data: {
+              portfolio,
+              recentActivity,
+              opportunities: opportunities.map(opp => ({
+                ...opp,
+                creator_name: `${opp.creator_first_name} ${opp.creator_last_name}`,
+                creator_company: opp.creator_company,
+                investor_count: parseInt(opp.investor_count) || 0,
+                total_interest: parseFloat(opp.total_interest) || 0,
+                seeking_investment: true,
+                production_stage: 'Development'
+              })),
+              stats: {
+                savedPitches: savedPitchesCount[0]?.count || 0,
+                totalNdas: ndaStats[0]?.total_ndas || 0,
+                approvedNdas: ndaStats[0]?.approved_ndas || 0,
+                pendingNdas: ndaStats[0]?.pending_ndas || 0
+              }
+            }
           });
         } catch (error) {
           console.error('Investor dashboard error:', error);
           return jsonResponse({
             success: false,
-            message: 'Dashboard temporarily unavailable',
-            error: 'Please try again in a moment'
+            message: 'Dashboard data unavailable',
+            error: error.message
           }, 500);
         }
       }
@@ -1742,22 +2339,64 @@ export default {
           }, 403);
         }
         
-        // Mock data for now
-        const investments = [
-          {
-            id: 1,
-            pitchTitle: 'The Last Echo',
-            amount: 50000,
-            status: 'active',
-            roi: 15.5,
-            dateInvested: new Date().toISOString()
-          }
-        ];
+        const investorId = parseInt(userPayload.sub);
         
-        return corsResponse(request, {
-          success: true,
-          data: investments
-        });
+        try {
+          // Get real investment data from investment_interests table
+          const investments = await sql`
+            SELECT 
+              ii.id,
+              ii.pitch_id,
+              ii.amount,
+              ii.investment_level,
+              ii.message,
+              ii.created_at as date_invested,
+              p.title as pitch_title,
+              p.logline,
+              p.genre,
+              p.format,
+              p.status as pitch_status,
+              p.budget_bracket,
+              p.estimated_budget,
+              u.first_name as creator_first_name,
+              u.last_name as creator_last_name,
+              u.company_name as creator_company
+            FROM investment_interests ii
+            JOIN pitches p ON ii.pitch_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE ii.investor_id = ${investorId}
+            ORDER BY ii.created_at DESC
+          `;
+          
+          const formattedInvestments = investments.map(inv => ({
+            id: inv.id,
+            pitchId: inv.pitch_id,
+            pitchTitle: inv.pitch_title,
+            pitchLogline: inv.logline,
+            creatorName: `${inv.creator_first_name} ${inv.creator_last_name}`,
+            creatorCompany: inv.creator_company,
+            amount: parseFloat(inv.amount) || 0,
+            investmentLevel: inv.investment_level,
+            status: inv.pitch_status === 'published' ? 'active' : 'pending',
+            roi: 0, // Would need actual returns tracking
+            dateInvested: inv.date_invested,
+            genre: inv.genre,
+            format: inv.format,
+            estimatedBudget: inv.estimated_budget
+          }));
+          
+          return jsonResponse({
+            success: true,
+            data: formattedInvestments
+          });
+        } catch (error) {
+          console.error('Error fetching investments:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch investments',
+            error: error.message
+          }, 500);
+        }
       }
 
       // Investment recommendations
@@ -1834,6 +2473,289 @@ export default {
         }
       }
 
+      // Express investment interest in a pitch
+      if (path === '/api/investment/express-interest' && method === 'POST') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Only investors can express investment interest',
+          }, 403);
+        }
+        
+        try {
+          const body = await request.json();
+          const { pitchId, amount, message } = body;
+          
+          if (!pitchId) {
+            return corsResponse(request, {
+              success: false,
+              message: 'Pitch ID is required',
+            }, 400);
+          }
+          
+          const investorId = parseInt(userPayload.sub);
+          
+          // Check if interest already exists
+          const existingInterest = await db.select()
+            .from(schema.investmentInterests)
+            .where(and(
+              eq(schema.investmentInterests.pitchId, pitchId),
+              eq(schema.investmentInterests.investorId, investorId),
+              eq(schema.investmentInterests.status, 'active')
+            ))
+            .limit(1);
+          
+          if (existingInterest.length > 0) {
+            return corsResponse(request, {
+              success: false,
+              message: 'You have already expressed interest in this pitch',
+            }, 409);
+          }
+          
+          // Get the pitch to find the creator
+          const pitches = await db.select()
+            .from(schema.pitches)
+            .where(eq(schema.pitches.id, pitchId))
+            .limit(1);
+          
+          if (pitches.length === 0) {
+            return corsResponse(request, {
+              success: false,
+              message: 'Pitch not found',
+            }, 404);
+          }
+          
+          const pitch = pitches[0];
+          
+          // Create investment interest record
+          const newInterest = await db.insert(schema.investmentInterests)
+            .values({
+              pitchId,
+              investorId,
+              creatorId: pitch.userId,
+              amount: amount || 0,
+              message: message || null,
+              status: 'active',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+          
+          // Create notification for the pitch creator
+          await db.insert(schema.notifications)
+            .values({
+              userId: pitch.userId,
+              type: 'investment_interest',
+              title: 'New Investment Interest',
+              message: amount 
+                ? `An investor has expressed interest of $${amount.toLocaleString()} in "${pitch.title}"`
+                : `An investor has expressed interest in "${pitch.title}"`,
+              relatedId: newInterest[0].id,
+              relatedType: 'investment_interest',
+              data: {
+                pitchId: pitchId,
+                pitchTitle: pitch.title,
+                investorId: investorId,
+                amount: amount,
+                interestLevel: interestLevel,
+                interestId: newInterest[0].id
+              },
+              createdAt: new Date(),
+            });
+          
+          return corsResponse(request, {
+            success: true,
+            message: 'Investment interest expressed successfully',
+            data: newInterest[0],
+          }, 201);
+        } catch (error) {
+          console.error('Error expressing investment interest:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to express investment interest',
+          }, 500);
+        }
+      }
+
+      // Get investment interests for a pitch (creator view)
+      if (path.match(/^\/api\/pitches\/\d+\/investment-interests$/) && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pitchId = parseInt(path.split('/')[3]);
+        
+        try {
+          // Get all investment interests for the pitch with investor details
+          const interests = await db.select({
+            id: schema.investmentInterests.id,
+            investorId: schema.investmentInterests.investorId,
+            amount: schema.investmentInterests.amount,
+            interestLevel: schema.investmentInterests.interestLevel,
+            notes: schema.investmentInterests.notes,
+            status: schema.investmentInterests.status,
+            createdAt: schema.investmentInterests.createdAt,
+            investorFirstName: schema.users.firstName,
+            investorLastName: schema.users.lastName,
+            investorCompany: schema.users.companyName,
+            investorEmail: schema.users.email,
+          })
+            .from(schema.investmentInterests)
+            .leftJoin(schema.users, eq(schema.investmentInterests.investorId, schema.users.id))
+            .where(eq(schema.investmentInterests.pitchId, pitchId))
+            .orderBy(desc(schema.investmentInterests.createdAt));
+          
+          return corsResponse(request, {
+            success: true,
+            data: interests,
+          });
+        } catch (error) {
+          console.error('Error fetching investment interests:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment interests';
+          return corsResponse(request, {
+            success: false,
+            message: errorMessage,
+            error: error instanceof Error ? error.toString() : undefined,
+          }, 500);
+        }
+      }
+
+      // Production company review workflow
+      if (path === '/api/production/reviews' && method === 'POST') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Only production companies can create reviews',
+          }, 403);
+        }
+        
+        try {
+          const body = await request.json();
+          const { pitchId, status, feedback, meetingRequested } = body;
+          
+          if (!pitchId || !status) {
+            return corsResponse(request, {
+              success: false,
+              message: 'Pitch ID and status are required',
+            }, 400);
+          }
+          
+          const productionId = parseInt(userPayload.sub);
+          
+          // Create review record (use 'approved' status for now)
+          const newReview = await db.insert(schema.reviews)
+            .values({
+              pitchId,
+              reviewerId: productionId,
+              status: 'approved', // Valid values: approved, rejected, pending, needs_revision
+              feedback: feedback || null,
+              rating: 5, // Add a default rating
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning();
+          
+          // Get pitch details for notification
+          const pitches = await db.select()
+            .from(schema.pitches)
+            .where(eq(schema.pitches.id, pitchId))
+            .limit(1);
+          
+          if (pitches.length > 0) {
+            const pitch = pitches[0];
+            
+            // Create notification for the pitch creator
+            await db.insert(schema.notifications)
+              .values({
+                userId: pitch.userId,
+                type: 'production_review',
+                title: 'Production Company Review',
+                message: `A production company has reviewed "${pitch.title}" - Status: ${status}`,
+                relatedId: newReview[0].id,
+                relatedType: 'review',
+                data: {
+                  pitchId: pitchId,
+                  pitchTitle: pitch.title,
+                  reviewId: newReview[0].id,
+                  status: status,
+                  meetingRequested: meetingRequested
+                },
+                createdAt: new Date(),
+              });
+            
+            // If meeting requested, create notification
+            if (meetingRequested) {
+              // Create notification for meeting request
+              await db.insert(schema.notifications)
+                .values({
+                  userId: pitch.userId,
+                  type: 'meeting_request',
+                  title: 'Meeting Request',
+                  message: `A production company wants to schedule a meeting about "${pitch.title}"`,
+                  relatedId: pitchId,
+                  relatedType: 'pitch',
+                  data: {
+                    pitchId: pitchId,
+                    pitchTitle: pitch.title,
+                    requesterId: productionId,
+                    meetingRequested: true
+                  },
+                  createdAt: new Date(),
+                });
+            }
+          }
+          
+          return corsResponse(request, {
+            success: true,
+            message: 'Review submitted successfully',
+            data: newReview[0],
+          }, 201);
+        } catch (error) {
+          console.error('Error creating review:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Failed to create review';
+          return corsResponse(request, {
+            success: false,
+            message: errorMessage,
+            error: error instanceof Error ? error.toString() : undefined,
+          }, 500);
+        }
+      }
+      
+      // Get production reviews for a pitch
+      if (path.match(/^\/api\/pitches\/(\d+)\/reviews$/) && method === 'GET') {
+        const pitchId = parseInt(path.split('/')[3]);
+        
+        try {
+          const reviews = await db.select({
+            id: schema.reviews.id,
+            reviewerId: schema.reviews.reviewerId,
+            status: schema.reviews.status,
+            feedback: schema.reviews.feedback,
+            reviewedAt: schema.reviews.reviewedAt,
+            reviewerName: sql`${schema.users.firstName} || ' ' || ${schema.users.lastName}`,
+            reviewerCompany: schema.users.companyName,
+          })
+            .from(schema.reviews)
+            .leftJoin(schema.users, eq(schema.reviews.reviewerId, schema.users.id))
+            .where(eq(schema.reviews.pitchId, pitchId))
+            .orderBy(desc(schema.reviews.reviewedAt));
+          
+          return corsResponse(request, {
+            success: true,
+            data: reviews,
+          });
+        } catch (error) {
+          console.error('Error fetching reviews:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch reviews',
+          }, 500);
+        }
+      }
+      
       // Additional missing endpoints that frontend expects
       
       // Trending pitches
@@ -2040,14 +2962,30 @@ export default {
             .values({
               pitchId,
               requesterId,
-              creatorId: pitch.userId,
+              ownerId: pitch.userId,
               status: 'pending',
-              purpose: purpose || 'Investment opportunity',
-              message: message || null,
-              createdAt: new Date(),
-              updatedAt: new Date(),
+              requestMessage: message || 'Requesting NDA for investment opportunity',
+              requestedAt: new Date(),
             })
             .returning();
+          
+          // Create notification for the pitch owner
+          await db.insert(schema.notifications)
+            .values({
+              userId: pitch.userId,
+              type: 'nda_request',
+              title: 'New NDA Request',
+              message: `You have received an NDA request for "${pitch.title}"`,
+              relatedId: newRequest[0].id,
+              relatedType: 'nda_request',
+              data: {
+                pitchId: pitchId,
+                pitchTitle: pitch.title,
+                requesterId: requesterId,
+                requestId: newRequest[0].id
+              },
+              createdAt: new Date(),
+            });
           
           return corsResponse(request, {
             success: true,
@@ -2059,6 +2997,171 @@ export default {
           return corsResponse(request, {
             success: false,
             message: 'Failed to create NDA request',
+          }, 500);
+        }
+      }
+
+      // Approve or reject NDA request
+      if (path.match(/^\/api\/nda\/request\/\d+\/(approve|reject)$/) && method === 'POST') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pathParts = path.split('/');
+        const requestId = parseInt(pathParts[4]);
+        const action = pathParts[5] as 'approve' | 'reject';
+        
+        try {
+          // Get the NDA request
+          const ndaRequests = await db.select()
+            .from(schema.ndaRequests)
+            .where(eq(schema.ndaRequests.id, requestId))
+            .limit(1);
+          
+          if (ndaRequests.length === 0) {
+            return corsResponse(request, {
+              success: false,
+              message: 'NDA request not found',
+            }, 404);
+          }
+          
+          const ndaRequest = ndaRequests[0];
+          
+          // Verify the user is the creator/owner of the pitch
+          const pitches = await db.select()
+            .from(schema.pitches)
+            .where(eq(schema.pitches.id, ndaRequest.pitchId))
+            .limit(1);
+          
+          if (pitches.length === 0 || pitches[0].userId !== parseInt(userPayload.sub)) {
+            return corsResponse(request, {
+              success: false,
+              message: 'You are not authorized to approve/reject this NDA request',
+            }, 403);
+          }
+          
+          const body = await request.json().catch(() => ({}));
+          
+          if (action === 'approve') {
+            // Update NDA request to approved
+            await db.update(schema.ndaRequests)
+              .set({
+                status: 'approved',
+                respondedAt: new Date(),
+              })
+              .where(eq(schema.ndaRequests.id, requestId));
+            
+            // Create signed NDA record
+            await db.insert(schema.ndas)
+              .values({
+                pitchId: ndaRequest.pitchId,
+                signerId: ndaRequest.requesterId,
+                userId: ndaRequest.requesterId,
+                status: 'active',
+                accessGranted: true,
+                signedAt: new Date(),
+                expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year expiry
+              });
+            
+            // Create notification for the requester
+            await db.insert(schema.notifications)
+              .values({
+                userId: ndaRequest.requesterId,
+                type: 'nda_approved',
+                title: 'NDA Approved',
+                message: `Your NDA request has been approved. You now have access to protected content.`,
+                relatedId: requestId,
+                relatedType: 'nda_request',
+                data: {
+                  pitchId: ndaRequest.pitchId,
+                  requestId: requestId
+                },
+                createdAt: new Date(),
+              });
+            
+            return corsResponse(request, {
+              success: true,
+              message: 'NDA request approved successfully',
+            });
+          } else {
+            // Reject NDA request
+            await db.update(schema.ndaRequests)
+              .set({
+                status: 'rejected',
+                rejectionReason: body.reason || 'No reason provided',
+                respondedAt: new Date(),
+              })
+              .where(eq(schema.ndaRequests.id, requestId));
+            
+            return corsResponse(request, {
+              success: true,
+              message: 'NDA request rejected',
+            });
+          }
+        } catch (error) {
+          console.error('Error handling NDA request:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to process NDA request',
+          }, 500);
+        }
+      }
+
+      // Check NDA status for a pitch
+      if (path.match(/^\/api\/pitches\/\d+\/nda-status$/) && method === 'GET') {
+        const pitchId = parseInt(path.split('/')[3]);
+        
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          // Check if user has an approved NDA for this pitch
+          const ndas = await db.select()
+            .from(schema.ndas)
+            .where(and(
+              eq(schema.ndas.pitchId, pitchId),
+              eq(schema.ndas.requesterId, userId),
+              eq(schema.ndas.status, 'signed')
+            ))
+            .limit(1);
+          
+          const hasApprovedNDA = ndas.length > 0;
+          
+          // Check for pending requests
+          const pendingRequests = await db.select()
+            .from(schema.ndaRequests)
+            .where(and(
+              eq(schema.ndaRequests.pitchId, pitchId),
+              eq(schema.ndaRequests.requesterId, userId),
+              eq(schema.ndaRequests.status, 'pending')
+            ))
+            .limit(1);
+          
+          const hasPendingRequest = pendingRequests.length > 0;
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              hasApprovedNDA,
+              hasPendingRequest,
+              ndaRequired: true, // Would be fetched from pitch data
+              canViewProtectedContent: hasApprovedNDA,
+            }
+          });
+        } catch (error) {
+          console.error('Error checking NDA status:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to check NDA status',
           }, 500);
         }
       }
@@ -2720,6 +3823,127 @@ export default {
         }
       }
 
+      // Creator dashboard stats endpoint
+      if (path === '/api/creator/dashboard/stats' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return jsonResponse({
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        const creatorId = parseInt(userPayload.sub);
+        
+        try {
+          // Get pitch statistics
+          const totalPitchesResult = await sql`
+            SELECT COUNT(*)::integer as count 
+            FROM pitches 
+            WHERE user_id = ${creatorId}
+          `;
+          
+          const publishedPitchesResult = await sql`
+            SELECT COUNT(*)::integer as count 
+            FROM pitches 
+            WHERE user_id = ${creatorId} AND status = 'published'
+          `;
+          
+          const draftPitchesResult = await sql`
+            SELECT COUNT(*)::integer as count 
+            FROM pitches 
+            WHERE user_id = ${creatorId} AND status = 'draft'
+          `;
+          
+          // Get total views and engagement
+          const engagementResult = await sql`
+            SELECT 
+              COALESCE(SUM(view_count), 0)::integer as total_views,
+              COALESCE(SUM(like_count), 0)::integer as total_likes,
+              COALESCE(SUM(comment_count), 0)::integer as total_comments
+            FROM pitches 
+            WHERE user_id = ${creatorId}
+          `;
+          
+          // Get NDA statistics  
+          const ndaResult = await sql`
+            SELECT 
+              COUNT(*)::integer as total_ndas,
+              COUNT(CASE WHEN nr.status = 'approved' THEN 1 END)::integer as approved,
+              COUNT(CASE WHEN nr.status = 'pending' THEN 1 END)::integer as pending,
+              COUNT(CASE WHEN nr.status = 'rejected' THEN 1 END)::integer as rejected
+            FROM nda_requests nr
+            JOIN pitches p ON nr.pitch_id = p.id
+            WHERE p.user_id = ${creatorId}
+          `;
+          
+          // Get investment interest count
+          const investmentResult = await sql`
+            SELECT 
+              COUNT(*)::integer as total_interests,
+              COALESCE(SUM(ii.amount), 0)::numeric as total_amount
+            FROM investment_interests ii
+            JOIN pitches p ON ii.pitch_id = p.id
+            WHERE p.user_id = ${creatorId} AND ii.status = 'active'
+          `;
+          
+          // Get recent activity (last 30 days)
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          
+          const recentActivityResult = await sql`
+            SELECT 
+              COUNT(*)::integer as recent_views
+            FROM pitch_views 
+            WHERE pitch_id IN (
+              SELECT id FROM pitches WHERE user_id = ${creatorId}
+            ) 
+            AND viewed_at >= ${thirtyDaysAgo.toISOString()}
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: {
+              pitches: {
+                total: totalPitchesResult[0]?.count || 0,
+                published: publishedPitchesResult[0]?.count || 0,
+                draft: draftPitchesResult[0]?.count || 0
+              },
+              engagement: {
+                totalViews: engagementResult[0]?.total_views || 0,
+                totalLikes: engagementResult[0]?.total_likes || 0,
+                totalComments: engagementResult[0]?.total_comments || 0,
+                recentViews: recentActivityResult[0]?.recent_views || 0
+              },
+              ndas: {
+                total: ndaResult[0]?.total_ndas || 0,
+                approved: ndaResult[0]?.approved || 0,
+                pending: ndaResult[0]?.pending || 0,
+                rejected: ndaResult[0]?.rejected || 0
+              },
+              investments: {
+                totalInterests: investmentResult[0]?.total_interests || 0,
+                totalAmount: parseFloat(investmentResult[0]?.total_amount || '0')
+              },
+              performance: {
+                conversionRate: ndaResult[0]?.total_ndas > 0 
+                  ? ((ndaResult[0]?.approved / ndaResult[0]?.total_ndas) * 100).toFixed(1) + '%'
+                  : '0%',
+                engagementRate: totalPitchesResult[0]?.count > 0 && engagementResult[0]?.total_views > 0
+                  ? ((engagementResult[0]?.total_likes / engagementResult[0]?.total_views) * 100).toFixed(1) + '%'
+                  : '0%'
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching creator dashboard stats:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch dashboard statistics',
+            error: error instanceof Error ? error.message : undefined,
+          }, 500);
+        }
+      }
+
       // User notifications endpoint
       if (path === '/api/user/notifications' && method === 'GET') {
         if (!userPayload) {
@@ -2887,6 +4111,1669 @@ export default {
         }, 200, getCorsHeaders(request));
       }
 
+      // Saved pitches endpoints
+      if (path === '/api/user/saved-pitches' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        
+        try {
+          // Get saved pitches for the user
+          const savedPitches = await sql`
+            SELECT 
+              p.id, p.title, p.logline, p.genre, p.format,
+              p.estimated_budget as "estimatedBudget",
+              p.budget_bracket as "budgetBracket",
+              p.thumbnail_url as "thumbnail",
+              p.view_count as "viewCount",
+              p.like_count as "likeCount",
+              p.user_id as "creatorId",
+              p.created_at as "createdAt",
+              sp.saved_at as "savedAt"
+            FROM saved_pitches sp
+            JOIN pitches p ON sp.pitch_id = p.id
+            WHERE sp.user_id = ${userId}
+            ORDER BY sp.saved_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+          
+          const totalResult = await sql`
+            SELECT COUNT(*)::integer as count
+            FROM saved_pitches
+            WHERE user_id = ${userId}
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: savedPitches || [],
+            pagination: {
+              limit,
+              offset,
+              total: totalResult[0]?.count || 0
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching saved pitches:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch saved pitches',
+            error: error instanceof Error ? error.message : undefined,
+          }, 500);
+        }
+      }
+      
+      // Save a pitch
+      if (path === '/api/pitches/save' && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const { pitchId } = await request.json();
+        const userId = parseInt(userPayload.sub);
+        
+        if (!pitchId) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch ID is required',
+          }, 400);
+        }
+        
+        try {
+          // Check if already saved
+          const existing = await sql`
+            SELECT id FROM saved_pitches
+            WHERE user_id = ${userId} AND pitch_id = ${pitchId}
+            LIMIT 1
+          `;
+          
+          if (existing && existing.length > 0) {
+            return jsonResponse({
+              success: false,
+              message: 'Pitch already saved',
+            }, 409);
+          }
+          
+          // Save the pitch
+          await sql`
+            INSERT INTO saved_pitches (user_id, pitch_id, saved_at)
+            VALUES (${userId}, ${pitchId}, NOW())
+          `;
+          
+          return jsonResponse({
+            success: true,
+            message: 'Pitch saved successfully',
+          });
+        } catch (error) {
+          console.error('Error saving pitch:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to save pitch',
+            error: error instanceof Error ? error.message : undefined,
+          }, 500);
+        }
+      }
+      
+      // Unsave a pitch
+      if (path === '/api/pitches/unsave' && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const { pitchId } = await request.json();
+        const userId = parseInt(userPayload.sub);
+        
+        if (!pitchId) {
+          return jsonResponse({
+            success: false,
+            message: 'Pitch ID is required',
+          }, 400);
+        }
+        
+        try {
+          await sql`
+            DELETE FROM saved_pitches
+            WHERE user_id = ${userId} AND pitch_id = ${pitchId}
+          `;
+          
+          return jsonResponse({
+            success: true,
+            message: 'Pitch unsaved successfully',
+          });
+        } catch (error) {
+          console.error('Error unsaving pitch:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to unsave pitch',
+            error: error instanceof Error ? error.message : undefined,
+          }, 500);
+        }
+      }
+
+      // Browse pitches with tab filtering - Back to Drizzle with fixed implementation
+      if (path === '/api/pitches/browse' && method === 'GET') {
+        const tab = url.searchParams.get('tab') || 'all';
+        const genre = url.searchParams.get('genre');
+        const limit = parseInt(url.searchParams.get('limit') || '20');
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+        
+        try {
+          // Start with base query selecting all published pitches
+          let query = db.select({
+            id: schema.pitches.id,
+            title: schema.pitches.title,
+            logline: schema.pitches.logline,
+            genre: schema.pitches.genre,
+            format: schema.pitches.format,
+            estimatedBudget: schema.pitches.estimatedBudget,
+            budgetBracket: schema.pitches.budgetBracket,
+            thumbnail: schema.pitches.thumbnail,
+            viewCount: schema.pitches.viewCount,
+            likeCount: schema.pitches.likeCount,
+            creatorId: schema.pitches.userId,
+            createdAt: schema.pitches.createdAt,
+            status: schema.pitches.status,
+          })
+          .from(schema.pitches)
+          .where(eq(schema.pitches.status, 'published'));
+          
+          // Apply format filter based on tab
+          if (tab === 'film') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Film')
+            ));
+          } else if (tab === 'television') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Television - Scripted')
+            ));
+          } else if (tab === 'web-series') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Web Series')
+            ));
+          } else if (tab === 'documentary') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Documentary')
+            ));
+          }
+          
+          // Add genre filter if provided
+          if (genre && tab === 'all') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.genre, genre)
+            ));
+          }
+          
+          // Apply sorting
+          if (tab === 'trending') {
+            query = query.orderBy(desc(schema.pitches.viewCount));
+          } else if (tab === 'new') {
+            query = query.orderBy(desc(schema.pitches.createdAt));
+          } else {
+            query = query.orderBy(desc(schema.pitches.createdAt));
+          }
+          
+          // Execute query with pagination
+          const results = await query.limit(limit).offset(offset);
+          
+          // Get total count (simple for now, can be optimized later)
+          const total = results.length < limit ? offset + results.length : offset + limit + 1;
+          
+          return jsonResponse({
+            success: true,
+            data: results,
+            pagination: {
+              limit,
+              offset,
+              total
+            },
+            tab: tab,
+            filters: {
+              genre: genre || null
+            }
+          });
+        } catch (error) {
+          console.error('Error browsing pitches:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch pitches',
+            error: error instanceof Error ? error.message : undefined,
+          }, 500);
+        }
+      }
+
+      // Enhanced Browse Section with sorting and filtering
+      if (path === '/api/browse/enhanced' && method === 'GET') {
+        try {
+          // Extract query parameters
+          const tab = url.searchParams.get('tab') || 'all';
+          const sortBy = url.searchParams.get('sortBy') || 'date'; // date, views, rating, investment
+          const sortOrder = url.searchParams.get('sortOrder') || 'desc'; // asc, desc
+          const genre = url.searchParams.get('genre');
+          const budgetRange = url.searchParams.get('budgetRange'); // low, medium, high, mega
+          const seekingInvestment = url.searchParams.get('seekingInvestment');
+          const hasNDA = url.searchParams.get('hasNDA');
+          const search = url.searchParams.get('search');
+          const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+          const offset = parseInt(url.searchParams.get('offset') || '0');
+          
+          // Build base query with JOINs for creator info and stats
+          let baseQuery = `
+            SELECT 
+              p.id,
+              p.title,
+              p.logline,
+              p.genre,
+              p.format,
+              p.format_category,
+              p.estimated_budget,
+              p.budget_bracket,
+              p.thumbnail_url,
+              p.poster_url,
+              p.view_count,
+              p.like_count,
+              p.nda_count,
+              p.seeking_investment,
+              p.require_nda,
+              p.status,
+              p.created_at,
+              p.updated_at,
+              u.id as creator_id,
+              u.first_name as creator_first_name,
+              u.last_name as creator_last_name,
+              u.company_name as creator_company,
+              COALESCE(ii.investment_count, 0) as investment_count,
+              COALESCE(ii.total_investment, 0) as total_investment,
+              COALESCE(pr.avg_rating, 0) as avg_rating,
+              COALESCE(pr.review_count, 0) as review_count
+            FROM pitches p
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN (
+              SELECT 
+                pitch_id,
+                COUNT(*) as investment_count,
+                SUM(CAST(amount AS DECIMAL)) as total_investment
+              FROM investment_interests
+              GROUP BY pitch_id
+            ) ii ON p.id = ii.pitch_id
+            LEFT JOIN (
+              SELECT 
+                pitch_id,
+                AVG(rating) as avg_rating,
+                COUNT(*) as review_count
+              FROM production_reviews
+              GROUP BY pitch_id
+            ) pr ON p.id = pr.pitch_id
+            WHERE p.status = 'published'
+          `;
+          
+          // Apply filters
+          const filters = [];
+          const params = [];
+          let paramIndex = 1;
+          
+          // Tab/Format filter
+          if (tab !== 'all') {
+            if (tab === 'film') {
+              filters.push(`p.format = 'Film'`);
+            } else if (tab === 'television') {
+              filters.push(`p.format IN ('Television - Scripted', 'Television - Unscripted', 'Limited Series')`);
+            } else if (tab === 'web-series') {
+              filters.push(`p.format = 'Web Series'`);
+            } else if (tab === 'documentary') {
+              filters.push(`p.format = 'Documentary'`);
+            } else if (tab === 'short') {
+              filters.push(`p.format = 'Short Film'`);
+            } else if (tab === 'animation') {
+              filters.push(`p.format_category = 'Animation'`);
+            }
+          }
+          
+          // Genre filter
+          if (genre) {
+            filters.push(`p.genre = $${paramIndex}`);
+            params.push(genre);
+            paramIndex++;
+          }
+          
+          // Budget range filter
+          if (budgetRange) {
+            if (budgetRange === 'low') {
+              filters.push(`p.estimated_budget < 1000000`);
+            } else if (budgetRange === 'medium') {
+              filters.push(`p.estimated_budget BETWEEN 1000000 AND 10000000`);
+            } else if (budgetRange === 'high') {
+              filters.push(`p.estimated_budget BETWEEN 10000000 AND 50000000`);
+            } else if (budgetRange === 'mega') {
+              filters.push(`p.estimated_budget > 50000000`);
+            }
+          }
+          
+          // Investment filter
+          if (seekingInvestment === 'true') {
+            filters.push(`p.seeking_investment = true`);
+          }
+          
+          // NDA filter
+          if (hasNDA === 'true') {
+            filters.push(`p.require_nda = true`);
+          }
+          
+          // Search filter (title or logline)
+          if (search) {
+            filters.push(`(LOWER(p.title) LIKE LOWER($${paramIndex}) OR LOWER(p.logline) LIKE LOWER($${paramIndex + 1}))`);
+            params.push(`%${search}%`, `%${search}%`);
+            paramIndex += 2;
+          }
+          
+          // Add filters to query
+          if (filters.length > 0) {
+            baseQuery += ` AND ${filters.join(' AND ')}`;
+          }
+          
+          // Apply sorting
+          let orderClause = '';
+          const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
+          
+          switch (sortBy) {
+            case 'views':
+              orderClause = `p.view_count ${order}`;
+              break;
+            case 'rating':
+              orderClause = `avg_rating ${order}, review_count ${order}`;
+              break;
+            case 'investment':
+              orderClause = `total_investment ${order}, investment_count ${order}`;
+              break;
+            case 'likes':
+              orderClause = `p.like_count ${order}`;
+              break;
+            case 'updated':
+              orderClause = `p.updated_at ${order}`;
+              break;
+            case 'date':
+            default:
+              orderClause = `p.created_at ${order}`;
+              break;
+          }
+          
+          baseQuery += ` ORDER BY ${orderClause}`;
+          
+          // Add pagination
+          baseQuery += ` LIMIT ${limit} OFFSET ${offset}`;
+          
+          // Execute query
+          const results = await sql.unsafe(baseQuery, params);
+          
+          // Get total count for pagination
+          let countQuery = `
+            SELECT COUNT(*) as total
+            FROM pitches p
+            WHERE p.status = 'published'
+          `;
+          
+          if (filters.length > 0) {
+            countQuery += ` AND ${filters.join(' AND ')}`;
+          }
+          
+          const countResult = await sql.unsafe(countQuery, params);
+          const total = parseInt(countResult[0]?.total || 0);
+          
+          // Format results
+          const formattedResults = results.map(pitch => ({
+            id: pitch.id,
+            title: pitch.title,
+            logline: pitch.logline,
+            genre: pitch.genre,
+            format: pitch.format,
+            formatCategory: pitch.format_category,
+            estimatedBudget: pitch.estimated_budget,
+            budgetBracket: pitch.budget_bracket,
+            thumbnail: pitch.thumbnail_url,
+            poster: pitch.poster_url,
+            viewCount: pitch.view_count,
+            likeCount: pitch.like_count,
+            ndaCount: pitch.nda_count,
+            seekingInvestment: pitch.seeking_investment,
+            requireNDA: pitch.require_nda,
+            createdAt: pitch.created_at,
+            updatedAt: pitch.updated_at,
+            creator: {
+              id: pitch.creator_id,
+              name: `${pitch.creator_first_name} ${pitch.creator_last_name}`,
+              company: pitch.creator_company
+            },
+            stats: {
+              investmentCount: parseInt(pitch.investment_count),
+              totalInvestment: parseFloat(pitch.total_investment) || 0,
+              avgRating: parseFloat(pitch.avg_rating) || 0,
+              reviewCount: parseInt(pitch.review_count)
+            }
+          }));
+          
+          return jsonResponse({
+            success: true,
+            data: formattedResults,
+            pagination: {
+              total,
+              limit,
+              offset,
+              hasMore: offset + limit < total,
+              page: Math.floor(offset / limit) + 1,
+              totalPages: Math.ceil(total / limit)
+            },
+            filters: {
+              tab,
+              sortBy,
+              sortOrder,
+              genre,
+              budgetRange,
+              seekingInvestment,
+              hasNDA,
+              search
+            }
+          });
+        } catch (error) {
+          console.error('Browse error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch pitches',
+            error: error.message
+          }, 500);
+        }
+      }
+      
+      // Get available genres for filtering
+      if (path === '/api/browse/genres' && method === 'GET') {
+        try {
+          const genres = await sql`
+            SELECT DISTINCT genre 
+            FROM pitches 
+            WHERE status = 'published' 
+              AND genre IS NOT NULL
+            ORDER BY genre
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: genres.map(g => g.genre).filter(Boolean)
+          });
+        } catch (error) {
+          console.error('Error fetching genres:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch genres',
+            error: error.message
+          }, 500);
+        }
+      }
+      
+      // Get browse statistics
+      if (path === '/api/browse/stats' && method === 'GET') {
+        try {
+          const stats = await sql`
+            SELECT 
+              COUNT(*) as total_pitches,
+              COUNT(DISTINCT user_id) as total_creators,
+              COUNT(CASE WHEN seeking_investment = true THEN 1 END) as seeking_investment,
+              COUNT(CASE WHEN require_nda = true THEN 1 END) as require_nda,
+              COUNT(CASE WHEN format = 'Film' THEN 1 END) as film_count,
+              COUNT(CASE WHEN format LIKE 'Television%' OR format = 'Limited Series' THEN 1 END) as tv_count,
+              COUNT(CASE WHEN format = 'Web Series' THEN 1 END) as web_count,
+              COUNT(CASE WHEN format = 'Documentary' THEN 1 END) as doc_count
+            FROM pitches
+            WHERE status = 'published'
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: {
+              totalPitches: parseInt(stats[0].total_pitches),
+              totalCreators: parseInt(stats[0].total_creators),
+              seekingInvestment: parseInt(stats[0].seeking_investment),
+              requireNDA: parseInt(stats[0].require_nda),
+              byFormat: {
+                film: parseInt(stats[0].film_count),
+                television: parseInt(stats[0].tv_count),
+                webSeries: parseInt(stats[0].web_count),
+                documentary: parseInt(stats[0].doc_count)
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching browse stats:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch statistics',
+            error: error.message
+          }, 500);
+        }
+      }
+      
+      // File upload endpoints
+      // Upload single file
+      if (path === '/api/upload' && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        if (!env.R2_BUCKET) {
+          return jsonResponse({
+            success: false,
+            message: 'Storage service not configured',
+          }, 503);
+        }
+        
+        try {
+          const formData = await request.formData();
+          const file = formData.get('file') as File;
+          const type = formData.get('type') as string || 'general';
+          const pitchId = formData.get('pitchId') as string;
+          
+          if (!file) {
+            return jsonResponse({
+              success: false,
+              message: 'No file provided',
+            }, 400);
+          }
+          
+          // Validate file size (50MB limit)
+          if (file.size > 50 * 1024 * 1024) {
+            return jsonResponse({
+              success: false,
+              message: 'File size exceeds 50MB limit',
+            }, 400);
+          }
+          
+          // Generate unique filename
+          const timestamp = Date.now();
+          const userId = userPayload.sub;
+          const extension = file.name.split('.').pop();
+          const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const key = `${userId}/${pitchId || 'general'}/${timestamp}_${safeFileName}`;
+          
+          // Upload to R2
+          const arrayBuffer = await file.arrayBuffer();
+          await env.R2_BUCKET.put(key, arrayBuffer, {
+            httpMetadata: {
+              contentType: file.type,
+            },
+            customMetadata: {
+              userId: userId,
+              pitchId: pitchId || '',
+              uploadType: type,
+              originalName: file.name,
+              uploadedAt: new Date().toISOString(),
+            },
+          });
+          
+          // Store file reference in database
+          const fileRecord = await sql`
+            INSERT INTO uploaded_files (
+              user_id,
+              pitch_id,
+              file_type,
+              file_name,
+              original_name,
+              file_size,
+              mime_type,
+              r2_key,
+              uploaded_at
+            ) VALUES (
+              ${parseInt(userId)},
+              ${pitchId ? parseInt(pitchId) : null},
+              ${type},
+              ${safeFileName},
+              ${file.name},
+              ${file.size},
+              ${file.type},
+              ${key},
+              NOW()
+            )
+            RETURNING id, file_name, original_name, file_size, mime_type
+          `;
+          
+          return jsonResponse({
+            success: true,
+            message: 'File uploaded successfully',
+            data: {
+              id: fileRecord[0].id,
+              fileName: fileRecord[0].file_name,
+              originalName: fileRecord[0].original_name,
+              size: fileRecord[0].file_size,
+              mimeType: fileRecord[0].mime_type,
+              url: `/api/files/${fileRecord[0].id}`,
+            },
+          });
+        } catch (error) {
+          console.error('Upload error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to upload file',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Upload multiple files
+      if (path === '/api/upload/multiple' && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        if (!env.R2_BUCKET) {
+          return jsonResponse({
+            success: false,
+            message: 'Storage service not configured',
+          }, 503);
+        }
+        
+        try {
+          const formData = await request.formData();
+          const files = formData.getAll('files') as File[];
+          const type = formData.get('type') as string || 'general';
+          const pitchId = formData.get('pitchId') as string;
+          
+          if (!files || files.length === 0) {
+            return jsonResponse({
+              success: false,
+              message: 'No files provided',
+            }, 400);
+          }
+          
+          // Limit to 10 files at once
+          if (files.length > 10) {
+            return jsonResponse({
+              success: false,
+              message: 'Maximum 10 files allowed per upload',
+            }, 400);
+          }
+          
+          const uploadedFiles = [];
+          const userId = userPayload.sub;
+          
+          for (const file of files) {
+            // Validate each file size
+            if (file.size > 50 * 1024 * 1024) {
+              continue; // Skip files over 50MB
+            }
+            
+            const timestamp = Date.now();
+            const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const key = `${userId}/${pitchId || 'general'}/${timestamp}_${safeFileName}`;
+            
+            // Upload to R2
+            const arrayBuffer = await file.arrayBuffer();
+            await env.R2_BUCKET.put(key, arrayBuffer, {
+              httpMetadata: {
+                contentType: file.type,
+              },
+              customMetadata: {
+                userId: userId,
+                pitchId: pitchId || '',
+                uploadType: type,
+                originalName: file.name,
+              },
+            });
+            
+            // Store in database
+            const fileRecord = await sql`
+              INSERT INTO uploaded_files (
+                user_id,
+                pitch_id,
+                file_type,
+                file_name,
+                original_name,
+                file_size,
+                mime_type,
+                r2_key,
+                uploaded_at
+              ) VALUES (
+                ${parseInt(userId)},
+                ${pitchId ? parseInt(pitchId) : null},
+                ${type},
+                ${safeFileName},
+                ${file.name},
+                ${file.size},
+                ${file.type},
+                ${key},
+                NOW()
+              )
+              RETURNING id, file_name, original_name, file_size, mime_type
+            `;
+            
+            uploadedFiles.push({
+              id: fileRecord[0].id,
+              fileName: fileRecord[0].file_name,
+              originalName: fileRecord[0].original_name,
+              size: fileRecord[0].file_size,
+              mimeType: fileRecord[0].mime_type,
+              url: `/api/files/${fileRecord[0].id}`,
+            });
+          }
+          
+          return jsonResponse({
+            success: true,
+            message: `${uploadedFiles.length} files uploaded successfully`,
+            data: uploadedFiles,
+          });
+        } catch (error) {
+          console.error('Multiple upload error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to upload files',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Upload custom NDA document
+      if (path === '/api/pitches/nda/upload' && method === 'POST') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return jsonResponse({
+            success: false,
+            message: 'Creator access required',
+          }, 403);
+        }
+        
+        if (!env.R2_BUCKET) {
+          return jsonResponse({
+            success: false,
+            message: 'Storage service not configured',
+          }, 503);
+        }
+        
+        try {
+          const formData = await request.formData();
+          const file = formData.get('file') as File;
+          const pitchId = formData.get('pitchId') as string;
+          
+          if (!file || !pitchId) {
+            return jsonResponse({
+              success: false,
+              message: 'File and pitch ID are required',
+            }, 400);
+          }
+          
+          // Verify ownership
+          const pitch = await sql`
+            SELECT user_id FROM pitches WHERE id = ${parseInt(pitchId)}
+          `;
+          
+          if (pitch.length === 0 || pitch[0].user_id !== parseInt(userPayload.sub)) {
+            return jsonResponse({
+              success: false,
+              message: 'You can only upload NDAs for your own pitches',
+            }, 403);
+          }
+          
+          // Only allow PDF files for NDAs
+          if (file.type !== 'application/pdf') {
+            return jsonResponse({
+              success: false,
+              message: 'NDA documents must be PDF files',
+            }, 400);
+          }
+          
+          const userId = userPayload.sub;
+          const timestamp = Date.now();
+          const key = `${userId}/ndas/${pitchId}/${timestamp}_nda.pdf`;
+          
+          // Upload to R2
+          const arrayBuffer = await file.arrayBuffer();
+          await env.R2_BUCKET.put(key, arrayBuffer, {
+            httpMetadata: {
+              contentType: 'application/pdf',
+            },
+            customMetadata: {
+              userId: userId,
+              pitchId: pitchId,
+              uploadType: 'nda',
+              originalName: file.name,
+            },
+          });
+          
+          // Store NDA document reference
+          const ndaRecord = await sql`
+            INSERT INTO uploaded_files (
+              user_id,
+              pitch_id,
+              file_type,
+              file_name,
+              original_name,
+              file_size,
+              mime_type,
+              r2_key,
+              uploaded_at
+            ) VALUES (
+              ${parseInt(userId)},
+              ${parseInt(pitchId)},
+              'nda',
+              'custom_nda.pdf',
+              ${file.name},
+              ${file.size},
+              'application/pdf',
+              ${key},
+              NOW()
+            )
+            RETURNING id
+          `;
+          
+          // Update pitch to indicate custom NDA
+          await sql`
+            UPDATE pitches 
+            SET custom_nda_id = ${ndaRecord[0].id},
+                require_nda = true,
+                updated_at = NOW()
+            WHERE id = ${parseInt(pitchId)}
+          `;
+          
+          return jsonResponse({
+            success: true,
+            message: 'Custom NDA uploaded successfully',
+            data: {
+              id: ndaRecord[0].id,
+              pitchId: pitchId,
+              url: `/api/files/${ndaRecord[0].id}`,
+            },
+          });
+        } catch (error) {
+          console.error('NDA upload error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to upload NDA',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Get file by ID
+      const fileMatch = path.match(/^\/api\/files\/(\d+)$/);
+      if (fileMatch && method === 'GET') {
+        const fileId = parseInt(fileMatch[1]);
+        
+        try {
+          const file = await sql`
+            SELECT * FROM uploaded_files WHERE id = ${fileId}
+          `;
+          
+          if (file.length === 0) {
+            return jsonResponse({
+              success: false,
+              message: 'File not found',
+            }, 404);
+          }
+          
+          // Check access permissions
+          if (userPayload) {
+            const userId = parseInt(userPayload.sub);
+            const fileUserId = file[0].user_id;
+            const pitchId = file[0].pitch_id;
+            
+            // Owner can always access
+            if (userId === fileUserId) {
+              // Get file from R2
+              const object = await env.R2_BUCKET.get(file[0].r2_key);
+              
+              if (!object) {
+                return jsonResponse({
+                  success: false,
+                  message: 'File not found in storage',
+                }, 404);
+              }
+              
+              return new Response(object.body, {
+                headers: {
+                  'Content-Type': file[0].mime_type || 'application/octet-stream',
+                  'Content-Disposition': `inline; filename="${file[0].original_name}"`,
+                },
+              });
+            }
+            
+            // For NDA files, check if user has signed NDA
+            if (file[0].file_type === 'nda' && pitchId) {
+              const hasNDA = await sql`
+                SELECT id FROM nda_requests 
+                WHERE pitch_id = ${pitchId} 
+                  AND requester_id = ${userId}
+                  AND status = 'approved'
+              `;
+              
+              if (hasNDA.length > 0) {
+                const object = await env.R2_BUCKET.get(file[0].r2_key);
+                
+                if (!object) {
+                  return jsonResponse({
+                    success: false,
+                    message: 'File not found in storage',
+                  }, 404);
+                }
+                
+                return new Response(object.body, {
+                  headers: {
+                    'Content-Type': file[0].mime_type || 'application/octet-stream',
+                    'Content-Disposition': `inline; filename="${file[0].original_name}"`,
+                  },
+                });
+              }
+            }
+          }
+          
+          return jsonResponse({
+            success: false,
+            message: 'Access denied',
+          }, 403);
+        } catch (error) {
+          console.error('File retrieval error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to retrieve file',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Rename file
+      if (path === '/api/files/rename' && method === 'PATCH') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const { fileId, newName } = await request.json();
+          
+          if (!fileId || !newName) {
+            return jsonResponse({
+              success: false,
+              message: 'File ID and new name are required',
+            }, 400);
+          }
+          
+          // Verify ownership
+          const file = await sql`
+            SELECT user_id FROM uploaded_files WHERE id = ${fileId}
+          `;
+          
+          if (file.length === 0) {
+            return jsonResponse({
+              success: false,
+              message: 'File not found',
+            }, 404);
+          }
+          
+          if (file[0].user_id !== parseInt(userPayload.sub)) {
+            return jsonResponse({
+              success: false,
+              message: 'You can only rename your own files',
+            }, 403);
+          }
+          
+          // Update file name
+          await sql`
+            UPDATE uploaded_files 
+            SET original_name = ${newName},
+                updated_at = NOW()
+            WHERE id = ${fileId}
+          `;
+          
+          return jsonResponse({
+            success: true,
+            message: 'File renamed successfully',
+            data: {
+              id: fileId,
+              newName: newName,
+            },
+          });
+        } catch (error) {
+          console.error('File rename error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to rename file',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Delete file
+      const deleteFileMatch = path.match(/^\/api\/files\/(\d+)$/);
+      if (deleteFileMatch && method === 'DELETE') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const fileId = parseInt(deleteFileMatch[1]);
+        
+        try {
+          // Verify ownership
+          const file = await sql`
+            SELECT user_id, r2_key FROM uploaded_files WHERE id = ${fileId}
+          `;
+          
+          if (file.length === 0) {
+            return jsonResponse({
+              success: false,
+              message: 'File not found',
+            }, 404);
+          }
+          
+          if (file[0].user_id !== parseInt(userPayload.sub)) {
+            return jsonResponse({
+              success: false,
+              message: 'You can only delete your own files',
+            }, 403);
+          }
+          
+          // Delete from R2
+          await env.R2_BUCKET.delete(file[0].r2_key);
+          
+          // Delete from database
+          await sql`
+            DELETE FROM uploaded_files WHERE id = ${fileId}
+          `;
+          
+          return jsonResponse({
+            success: true,
+            message: 'File deleted successfully',
+          });
+        } catch (error) {
+          console.error('File deletion error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to delete file',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Get files for a pitch
+      const pitchFilesMatch = path.match(/^\/api\/pitches\/(\d+)\/files$/);
+      if (pitchFilesMatch && method === 'GET') {
+        const pitchId = parseInt(pitchFilesMatch[1]);
+        
+        try {
+          const files = await sql`
+            SELECT 
+              id,
+              file_type,
+              file_name,
+              original_name,
+              file_size,
+              mime_type,
+              uploaded_at
+            FROM uploaded_files
+            WHERE pitch_id = ${pitchId}
+            ORDER BY uploaded_at DESC
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: files.map(f => ({
+              ...f,
+              url: `/api/files/${f.id}`,
+            })),
+          });
+        } catch (error) {
+          console.error('Error fetching pitch files:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch files',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // ================== ACCESS CONTROL & PERMISSIONS ==================
+      
+      // Create team
+      if (path === '/api/teams' && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const { name, description } = await request.json();
+          const userId = parseInt(userPayload.sub);
+          
+          if (!name) {
+            return jsonResponse({
+              success: false,
+              message: 'Team name is required',
+            }, 400);
+          }
+          
+          // Create team
+          const team = await sql`
+            INSERT INTO teams (name, owner_id, description)
+            VALUES (${name}, ${userId}, ${description})
+            RETURNING *
+          `;
+          
+          // Add owner as team member
+          await sql`
+            INSERT INTO team_members (team_id, user_id, role, permissions)
+            VALUES (${team[0].id}, ${userId}, 'owner', '{"full_access": true}')
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: team[0],
+          });
+        } catch (error) {
+          console.error('Team creation error:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to create team',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Get user's teams
+      if (path === '/api/teams' && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const userId = parseInt(userPayload.sub);
+          
+          const teams = await sql`
+            SELECT 
+              t.*,
+              tm.role,
+              tm.permissions,
+              COUNT(DISTINCT tm2.user_id) as member_count
+            FROM teams t
+            JOIN team_members tm ON t.id = tm.team_id
+            LEFT JOIN team_members tm2 ON t.id = tm2.team_id
+            WHERE tm.user_id = ${userId}
+            GROUP BY t.id, tm.role, tm.permissions
+            ORDER BY t.created_at DESC
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: teams,
+          });
+        } catch (error) {
+          console.error('Error fetching teams:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch teams',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Add team member
+      const teamMemberMatch = path.match(/^\/api\/teams\/(\d+)\/members$/);
+      if (teamMemberMatch && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const teamId = parseInt(teamMemberMatch[1]);
+          const userId = parseInt(userPayload.sub);
+          const { userEmail, role = 'member' } = await request.json();
+          
+          // Verify user is team owner or admin
+          const memberRole = await sql`
+            SELECT role FROM team_members 
+            WHERE team_id = ${teamId} AND user_id = ${userId}
+          `;
+          
+          if (memberRole.length === 0 || !['owner', 'admin'].includes(memberRole[0].role)) {
+            return jsonResponse({
+              success: false,
+              message: 'You do not have permission to add members to this team',
+            }, 403);
+          }
+          
+          // Find user by email
+          const invitedUser = await sql`
+            SELECT id FROM users WHERE email = ${userEmail}
+          `;
+          
+          if (invitedUser.length === 0) {
+            return jsonResponse({
+              success: false,
+              message: 'User not found',
+            }, 404);
+          }
+          
+          // Add member
+          const member = await sql`
+            INSERT INTO team_members (team_id, user_id, role, invited_by)
+            VALUES (${teamId}, ${invitedUser[0].id}, ${role}, ${userId})
+            ON CONFLICT (team_id, user_id) DO UPDATE SET role = ${role}
+            RETURNING *
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: member[0],
+          });
+        } catch (error) {
+          console.error('Error adding team member:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to add team member',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Add pitch collaborator
+      const collaboratorMatch = path.match(/^\/api\/pitches\/(\d+)\/collaborators$/);
+      if (collaboratorMatch && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const pitchId = parseInt(collaboratorMatch[1]);
+          const userId = parseInt(userPayload.sub);
+          const { 
+            userEmail, 
+            teamId, 
+            role = 'viewer', 
+            canEdit = false,
+            canDelete = false,
+            canShare = false,
+            canManageNda = false 
+          } = await request.json();
+          
+          // Verify user owns the pitch
+          const pitch = await sql`
+            SELECT user_id FROM pitches WHERE id = ${pitchId}
+          `;
+          
+          if (pitch.length === 0 || pitch[0].user_id !== userId) {
+            return jsonResponse({
+              success: false,
+              message: 'You do not have permission to manage collaborators for this pitch',
+            }, 403);
+          }
+          
+          if (userEmail) {
+            // Find user by email
+            const invitedUser = await sql`
+              SELECT id FROM users WHERE email = ${userEmail}
+            `;
+            
+            if (invitedUser.length === 0) {
+              return jsonResponse({
+                success: false,
+                message: 'User not found',
+              }, 404);
+            }
+            
+            // Add user collaborator
+            const collaborator = await sql`
+              INSERT INTO pitch_collaborators (
+                pitch_id, user_id, role, can_edit, can_delete, can_share, can_manage_nda, invited_by
+              ) VALUES (
+                ${pitchId}, ${invitedUser[0].id}, ${role}, ${canEdit}, ${canDelete}, ${canShare}, ${canManageNda}, ${userId}
+              ) ON CONFLICT (pitch_id, user_id) DO UPDATE SET 
+                role = ${role},
+                can_edit = ${canEdit},
+                can_delete = ${canDelete},
+                can_share = ${canShare},
+                can_manage_nda = ${canManageNda}
+              RETURNING *
+            `;
+            
+            return jsonResponse({
+              success: true,
+              data: collaborator[0],
+            });
+          } else if (teamId) {
+            // Add team collaborator
+            const collaborator = await sql`
+              INSERT INTO pitch_collaborators (
+                pitch_id, team_id, role, can_edit, can_delete, can_share, can_manage_nda, invited_by
+              ) VALUES (
+                ${pitchId}, ${teamId}, ${role}, ${canEdit}, ${canDelete}, ${canShare}, ${canManageNda}, ${userId}
+              ) RETURNING *
+            `;
+            
+            return jsonResponse({
+              success: true,
+              data: collaborator[0],
+            });
+          } else {
+            return jsonResponse({
+              success: false,
+              message: 'Either userEmail or teamId is required',
+            }, 400);
+          }
+        } catch (error) {
+          console.error('Error adding collaborator:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to add collaborator',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Get pitch collaborators
+      if (collaboratorMatch && method === 'GET') {
+        try {
+          const pitchId = parseInt(collaboratorMatch[1]);
+          
+          const collaborators = await sql`
+            SELECT 
+              pc.*,
+              u.email as user_email,
+              u.first_name,
+              u.last_name,
+              u.company_name,
+              t.name as team_name,
+              inviter.email as invited_by_email
+            FROM pitch_collaborators pc
+            LEFT JOIN users u ON pc.user_id = u.id
+            LEFT JOIN teams t ON pc.team_id = t.id
+            LEFT JOIN users inviter ON pc.invited_by = inviter.id
+            WHERE pc.pitch_id = ${pitchId}
+            ORDER BY pc.added_at DESC
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: collaborators,
+          });
+        } catch (error) {
+          console.error('Error fetching collaborators:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to fetch collaborators',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Check user permissions for a resource
+      if (path === '/api/permissions/check' && method === 'POST') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        try {
+          const userId = parseInt(userPayload.sub);
+          const { resourceType, resourceId, action } = await request.json();
+          
+          if (!resourceType || !resourceId || !action) {
+            return jsonResponse({
+              success: false,
+              message: 'resourceType, resourceId, and action are required',
+            }, 400);
+          }
+          
+          // Check if user owns the resource
+          if (resourceType === 'pitch') {
+            const pitch = await sql`
+              SELECT user_id FROM pitches WHERE id = ${resourceId}
+            `;
+            
+            if (pitch.length > 0 && pitch[0].user_id === userId) {
+              return jsonResponse({
+                success: true,
+                data: { hasPermission: true, role: 'owner' },
+              });
+            }
+            
+            // Check if user is a collaborator
+            const collaborator = await sql`
+              SELECT role, can_edit, can_delete, can_share, can_manage_nda
+              FROM pitch_collaborators
+              WHERE pitch_id = ${resourceId} AND user_id = ${userId}
+            `;
+            
+            if (collaborator.length > 0) {
+              let hasPermission = false;
+              const role = collaborator[0].role;
+              
+              if (action === 'read') hasPermission = true;
+              else if (action === 'edit') hasPermission = collaborator[0].can_edit;
+              else if (action === 'delete') hasPermission = collaborator[0].can_delete;
+              else if (action === 'share') hasPermission = collaborator[0].can_share;
+              else if (action === 'manage_nda') hasPermission = collaborator[0].can_manage_nda;
+              
+              return jsonResponse({
+                success: true,
+                data: { hasPermission, role },
+              });
+            }
+            
+            // Check if user is part of a team that has access
+            const teamAccess = await sql`
+              SELECT pc.role, pc.can_edit, pc.can_delete, pc.can_share, pc.can_manage_nda
+              FROM pitch_collaborators pc
+              JOIN team_members tm ON pc.team_id = tm.team_id
+              WHERE pc.pitch_id = ${resourceId} AND tm.user_id = ${userId}
+            `;
+            
+            if (teamAccess.length > 0) {
+              let hasPermission = false;
+              const role = teamAccess[0].role;
+              
+              if (action === 'read') hasPermission = true;
+              else if (action === 'edit') hasPermission = teamAccess[0].can_edit;
+              else if (action === 'delete') hasPermission = teamAccess[0].can_delete;
+              else if (action === 'share') hasPermission = teamAccess[0].can_share;
+              else if (action === 'manage_nda') hasPermission = teamAccess[0].can_manage_nda;
+              
+              return jsonResponse({
+                success: true,
+                data: { hasPermission, role },
+              });
+            }
+          }
+          
+          // Log access attempt
+          await sql`
+            INSERT INTO access_logs (user_id, resource_type, resource_id, action, success, ip_address)
+            VALUES (${userId}, ${resourceType}, ${resourceId}, ${action}, false, ${request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown'})
+          `;
+          
+          return jsonResponse({
+            success: true,
+            data: { hasPermission: false, role: null },
+          });
+        } catch (error) {
+          console.error('Error checking permissions:', error);
+          return jsonResponse({
+            success: false,
+            message: 'Failed to check permissions',
+            error: error.message,
+          }, 500);
+        }
+      }
+      
+      // Get access logs for a resource
+      if (path.startsWith('/api/access-logs/') && method === 'GET') {
+        if (!userPayload) {
+          return jsonResponse({
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const logMatch = path.match(/^\/api\/access-logs\/(\w+)\/(\d+)$/);
+        if (logMatch) {
+          try {
+            const userId = parseInt(userPayload.sub);
+            const resourceType = logMatch[1];
+            const resourceId = parseInt(logMatch[2]);
+            
+            // Verify user owns the resource (simplified check for pitch)
+            if (resourceType === 'pitch') {
+              const pitch = await sql`
+                SELECT user_id FROM pitches WHERE id = ${resourceId}
+              `;
+              
+              if (pitch.length === 0 || pitch[0].user_id !== userId) {
+                return jsonResponse({
+                  success: false,
+                  message: 'Access denied',
+                }, 403);
+              }
+            }
+            
+            const logs = await sql`
+              SELECT 
+                al.*,
+                u.email,
+                u.first_name,
+                u.last_name
+              FROM access_logs al
+              LEFT JOIN users u ON al.user_id = u.id
+              WHERE al.resource_type = ${resourceType} 
+                AND al.resource_id = ${resourceId}
+              ORDER BY al.created_at DESC
+              LIMIT 100
+            `;
+            
+            return jsonResponse({
+              success: true,
+              data: logs,
+            });
+          } catch (error) {
+            console.error('Error fetching access logs:', error);
+            return jsonResponse({
+              success: false,
+              message: 'Failed to fetch access logs',
+              error: error.message,
+            }, 500);
+          }
+        }
+      }
+      
       // 404 for unknown endpoints
       return jsonResponse({
         success: false,
@@ -2905,5 +5792,5 @@ export default {
 };
 
 // Export Durable Objects
-export { WebSocketRoom } from './websocket-durable-object';
+export { WebSocketRoom } from './websocket-durable-object.ts';
 export { NotificationRoom } from './notification-room.ts';
