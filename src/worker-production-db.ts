@@ -3191,39 +3191,8 @@ export default {
             .orderBy(desc(schema.pitches.createdAt))
             .limit(20);
           } else {
-            // No followed creators, return latest pitches instead (for demo purposes)
-            followedPitches = await db.select({
-              // Pitch fields
-              id: schema.pitches.id,
-              title: schema.pitches.title,
-              logline: schema.pitches.logline,
-              genre: schema.pitches.genre,
-              format: schema.pitches.format,
-              status: schema.pitches.status,
-              posterUrl: schema.pitches.posterUrl,
-              titleImage: schema.pitches.titleImage,
-              viewCount: schema.pitches.viewCount,
-              createdAt: schema.pitches.createdAt,
-              userId: schema.pitches.userId,
-              // Creator fields
-              creatorId: schema.users.id,
-              creatorUsername: schema.users.username,
-              creatorFirstName: schema.users.firstName,
-              creatorLastName: schema.users.lastName,
-              creatorCompanyName: schema.users.companyName,
-              creatorProfileImage: schema.users.profileImageUrl,
-              creatorUserType: schema.users.userType,
-            })
-            .from(schema.pitches)
-            .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
-            .where(
-              or(
-                eq(schema.pitches.status, 'published'),
-                eq(schema.pitches.status, 'active')
-              )
-            )
-            .orderBy(desc(schema.pitches.createdAt))
-            .limit(20);
+            // No followed creators, return empty array instead of showing all pitches
+            followedPitches = [];
           }
           
           // Format the response to include creator as nested object
