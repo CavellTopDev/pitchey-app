@@ -1178,6 +1178,49 @@ export default {
         }, 201);
       }
 
+      // Get creator's pitches
+      if (path === '/api/creator/pitches' && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+
+        const userId = userPayload.userId;
+        
+        try {
+          const pitches = await db.select({
+            id: schema.pitches.id,
+            title: schema.pitches.title,
+            logline: schema.pitches.logline,
+            genre: schema.pitches.genre,
+            formatCategory: schema.pitches.formatCategory,
+            status: schema.pitches.status,
+            views: schema.pitches.views,
+            likes: schema.pitches.likes,
+            createdAt: schema.pitches.createdAt,
+            updatedAt: schema.pitches.updatedAt,
+            thumbnail: schema.pitches.thumbnail,
+            seekingFunding: schema.pitches.seekingFunding
+          })
+          .from(schema.pitches)
+          .where(eq(schema.pitches.userId, userId))
+          .orderBy(desc(schema.pitches.createdAt));
+
+          return corsResponse(request, {
+            success: true,
+            data: pitches
+          });
+        } catch (error) {
+          console.error('Failed to fetch creator pitches:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch pitches',
+          }, 500);
+        }
+      }
+
       // Create pitch (new creator endpoint)
       if (path === '/api/creator/pitches' && method === 'POST') {
         if (!userPayload || userPayload.userType !== 'creator') {
