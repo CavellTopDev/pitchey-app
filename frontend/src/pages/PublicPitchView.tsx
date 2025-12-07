@@ -40,12 +40,10 @@ export default function PublicPitchView() {
   const fetchPitch = async (pitchId: number) => {
     try {
       console.log('Fetching pitch with ID:', pitchId);
-      const response = await pitchAPI.getPublicById(pitchId);
-      console.log('Fetched pitch data:', response);
+      const pitchData = await pitchAPI.getPublicById(pitchId);
+      console.log('Fetched pitch data:', pitchData);
       
-      // Handle both response formats (direct pitch or wrapped in success/pitch)
-      const pitchData = response?.pitch || response;
-      
+      // The API now returns the pitch data directly
       if (pitchData && pitchData.id) {
         setPitch(pitchData);
         setHasSignedNDA(pitchData.hasSignedNDA || false);
