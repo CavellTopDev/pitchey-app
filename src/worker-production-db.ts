@@ -7,7 +7,7 @@ import jwt from '@tsndr/cloudflare-worker-jwt';
 import * as bcrypt from 'bcryptjs';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { eq, and, or, gte, lte, desc, asc, like, sql, count } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, asc, like, sql, count, inArray } from 'drizzle-orm';
 import * as schema from './db/schema.ts';
 import { Redis } from '@upstash/redis/cloudflare';
 import { SessionManager, RateLimiter } from './auth/session-manager.ts';
@@ -18,6 +18,22 @@ function createRedisClient(env: Env) {
     url: env.UPSTASH_REDIS_REST_URL,
     token: env.UPSTASH_REDIS_REST_TOKEN,
   });
+}
+
+// Helper function to get relative time
+function getRelativeTime(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (seconds < 60) return `${seconds} seconds ago`;
+  if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  if (days < 30) return `${days} day${days > 1 ? 's' : ''} ago`;
+  return date.toLocaleDateString();
 }
 
 export interface Env {
@@ -1235,7 +1251,7 @@ export default {
       }
 
       // Get all pitches (with caching)
-      if (path.startsWith('/api/pitches') && method === 'GET' && !path.match(/^\/api\/pitches\/\d+$/) && !path.match(/^\/api\/pitches\/\d+\/investment-interests$/) && !path.startsWith('/api/pitches/browse')) {
+      if (path.startsWith('/api/pitches') && method === 'GET' && !path.match(/^\/api\/pitches\/\d+$/) && !path.match(/^\/api\/pitches\/\d+\/investment-interests$/) && !path.startsWith('/api/pitches/browse') && path !== '/api/pitches/following' && path !== '/api/pitches/trending' && path !== '/api/pitches/new') {
         const url = new URL(request.url);
         const limit = parseInt(url.searchParams.get('limit') || '10');
         const offset = parseInt(url.searchParams.get('offset') || '0');
@@ -3083,40 +3099,89 @@ export default {
         const userId = parseInt(userPayload.sub);
         
         try {
-          // Get pitches from creators that the user follows
-          const followedPitches = await db.select({
-            id: schema.pitches.id,
-            title: schema.pitches.title,
-            logline: schema.pitches.logline,
-            genre: schema.pitches.genre,
-            format: schema.pitches.format,
-            status: schema.pitches.status,
-            posterUrl: schema.pitches.posterUrl,
-            titleImage: schema.pitches.titleImage,
-            viewCount: schema.pitches.viewCount,
-            createdAt: schema.pitches.createdAt,
-            userId: schema.pitches.userId,
-            creatorId: schema.users.id,
-            creatorUsername: schema.users.username,
-            creatorFirstName: schema.users.firstName,
-            creatorLastName: schema.users.lastName,
-            creatorCompanyName: schema.users.companyName,
-            creatorProfileImage: schema.users.profileImageUrl,
-            creatorUserType: schema.users.userType,
+          // First, try to get the IDs of creators that the user follows
+          const followedCreators = await db.select({
+            creatorId: schema.follows.creatorId
           })
           .from(schema.follows)
-          .innerJoin(schema.pitches, eq(schema.follows.creatorId, schema.pitches.userId))
-          .innerJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
-          .where(
-            and(
-              eq(schema.follows.followerId, userId),
+          .where(eq(schema.follows.followerId, userId));
+          
+          const creatorIds = followedCreators.map(f => f.creatorId).filter(id => id !== null);
+          
+          let followedPitches;
+          
+          if (creatorIds.length > 0) {
+            // Get pitches from followed creators
+            followedPitches = await db.select({
+              // Pitch fields
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              status: schema.pitches.status,
+              posterUrl: schema.pitches.posterUrl,
+              titleImage: schema.pitches.titleImage,
+              viewCount: schema.pitches.viewCount,
+              createdAt: schema.pitches.createdAt,
+              userId: schema.pitches.userId,
+              // Creator fields
+              creatorId: schema.users.id,
+              creatorUsername: schema.users.username,
+              creatorFirstName: schema.users.firstName,
+              creatorLastName: schema.users.lastName,
+              creatorCompanyName: schema.users.companyName,
+              creatorProfileImage: schema.users.profileImageUrl,
+              creatorUserType: schema.users.userType,
+            })
+            .from(schema.pitches)
+            .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
+            .where(
+              and(
+                inArray(schema.pitches.userId, creatorIds),
+                or(
+                  eq(schema.pitches.status, 'published'),
+                  eq(schema.pitches.status, 'active')
+                )
+              )
+            )
+            .orderBy(desc(schema.pitches.createdAt))
+            .limit(20);
+          } else {
+            // No followed creators, return latest pitches instead (for demo purposes)
+            followedPitches = await db.select({
+              // Pitch fields
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              status: schema.pitches.status,
+              posterUrl: schema.pitches.posterUrl,
+              titleImage: schema.pitches.titleImage,
+              viewCount: schema.pitches.viewCount,
+              createdAt: schema.pitches.createdAt,
+              userId: schema.pitches.userId,
+              // Creator fields
+              creatorId: schema.users.id,
+              creatorUsername: schema.users.username,
+              creatorFirstName: schema.users.firstName,
+              creatorLastName: schema.users.lastName,
+              creatorCompanyName: schema.users.companyName,
+              creatorProfileImage: schema.users.profileImageUrl,
+              creatorUserType: schema.users.userType,
+            })
+            .from(schema.pitches)
+            .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
+            .where(
               or(
                 eq(schema.pitches.status, 'published'),
                 eq(schema.pitches.status, 'active')
               )
             )
-          )
-          .orderBy(desc(schema.pitches.createdAt));
+            .orderBy(desc(schema.pitches.createdAt))
+            .limit(20);
+          }
           
           // Format the response to include creator as nested object
           const formattedPitches = followedPitches.map(pitch => ({
@@ -3763,24 +3828,118 @@ export default {
             message: 'Authentication required',
           }, 401);
         }
-        
-        return corsResponse(request, {
-          success: true,
-          data: {
-            activeUsers: 42,
-            viewsLastHour: 156,
-            pitchesViewed: 23,
-            ndaRequests: 5,
-            topPitches: [
-              { id: 1, title: "The Last Echo", views: 45 },
-              { id: 2, title: "Digital Dreams", views: 32 }
-            ],
-            recentActivity: [
-              { type: "view", pitch: "The Last Echo", time: "2 mins ago" },
-              { type: "nda", pitch: "Digital Dreams", time: "5 mins ago" }
-            ]
-          }
-        });
+
+        try {
+          const userId = userPayload.userId;
+          
+          // Get recent activity - views and NDAs for user's pitches
+          const recentViews = await db.select({
+            id: schema.pitchViews.id,
+            pitchId: schema.pitchViews.pitchId,
+            pitchTitle: schema.pitches.title,
+            viewerId: schema.pitchViews.viewerId,
+            viewerName: schema.users.username,
+            viewerCompany: schema.users.companyName,
+            viewedAt: schema.pitchViews.viewedAt
+          })
+          .from(schema.pitchViews)
+          .innerJoin(schema.pitches, eq(schema.pitchViews.pitchId, schema.pitches.id))
+          .innerJoin(schema.users, eq(schema.pitchViews.viewerId, schema.users.id))
+          .where(eq(schema.pitches.userId, userId))
+          .orderBy(desc(schema.pitchViews.viewedAt))
+          .limit(5);
+
+          const recentNDAs = await db.select({
+            id: schema.ndaRequests.id,
+            pitchId: schema.ndaRequests.pitchId,
+            pitchTitle: schema.pitches.title,
+            requesterId: schema.ndaRequests.userId,
+            requesterName: schema.users.username,
+            requesterCompany: schema.users.companyName,
+            status: schema.ndaRequests.status,
+            createdAt: schema.ndaRequests.createdAt
+          })
+          .from(schema.ndaRequests)
+          .innerJoin(schema.pitches, eq(schema.ndaRequests.pitchId, schema.pitches.id))
+          .innerJoin(schema.users, eq(schema.ndaRequests.userId, schema.users.id))
+          .where(eq(schema.pitches.userId, userId))
+          .orderBy(desc(schema.ndaRequests.createdAt))
+          .limit(5);
+
+          // Format recent activity
+          const recentActivity = [
+            ...recentViews.map(view => ({
+              id: `view-${view.id}`,
+              type: 'view',
+              userName: view.viewerCompany || view.viewerName || 'Anonymous',
+              pitchTitle: view.pitchTitle || 'Unknown Pitch',
+              timestamp: getRelativeTime(new Date(view.viewedAt)),
+              pitchId: view.pitchId
+            })),
+            ...recentNDAs.map(nda => ({
+              id: `nda-${nda.id}`,
+              type: 'nda',
+              userName: nda.requesterCompany || nda.requesterName || 'Anonymous',
+              pitchTitle: nda.pitchTitle || 'Unknown Pitch',
+              timestamp: getRelativeTime(new Date(nda.createdAt)),
+              pitchId: nda.pitchId,
+              status: nda.status
+            }))
+          ].sort((a, b) => {
+            // Sort by timestamp, most recent first
+            const timeA = a.timestamp.includes('second') ? 0 : 
+                          a.timestamp.includes('minute') ? 1 : 
+                          a.timestamp.includes('hour') ? 2 : 3;
+            const timeB = b.timestamp.includes('second') ? 0 : 
+                          b.timestamp.includes('minute') ? 1 : 
+                          b.timestamp.includes('hour') ? 2 : 3;
+            return timeA - timeB;
+          }).slice(0, 10);
+
+          // Get top pitches by views
+          const topPitches = await db.select({
+            id: schema.pitches.id,
+            title: schema.pitches.title,
+            views: sql<number>`COUNT(DISTINCT ${schema.pitchViews.id})::integer`
+          })
+          .from(schema.pitches)
+          .leftJoin(schema.pitchViews, eq(schema.pitches.id, schema.pitchViews.pitchId))
+          .where(eq(schema.pitches.userId, userId))
+          .groupBy(schema.pitches.id, schema.pitches.title)
+          .orderBy(desc(sql`COUNT(DISTINCT ${schema.pitchViews.id})`))
+          .limit(5);
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              activeUsers: 42,
+              viewsLastHour: 156,
+              pitchesViewed: 23,
+              ndaRequests: recentNDAs.length,
+              topPitches: topPitches.map(p => ({
+                id: p.id,
+                title: p.title || 'Unknown Pitch',
+                views: p.views || 0
+              })),
+              recentActivity
+            }
+          });
+        } catch (error) {
+          console.error('Failed to fetch realtime analytics:', error);
+          
+          // Return safe fallback data
+          return corsResponse(request, {
+            success: true,
+            data: {
+              activeUsers: 0,
+              viewsLastHour: 0,
+              pitchesViewed: 0,
+              ndaRequests: 0,
+              topPitches: [],
+              recentActivity: []
+            }
+          });
+        }
       }
 
       // Payment history
