@@ -258,8 +258,9 @@ export const pitchAPI = {
 
   async getPublicById(id: number) {
     const response = await api.get(`/api/pitches/public/${id}`);
-    // The API returns the pitch directly in response.data
-    return response.data;
+    // Axios returns the response in response.data
+    // The API structure is { success: true, data: { ...pitchData } }
+    return response.data.data;
   },
 
   async getAll(params?: {

@@ -39,9 +39,7 @@ export default function PublicPitchView() {
 
   const fetchPitch = async (pitchId: number) => {
     try {
-      console.log('Fetching pitch with ID:', pitchId);
       const pitchData = await pitchAPI.getPublicById(pitchId);
-      console.log('Fetched pitch data:', pitchData);
       
       // The API now returns the pitch data directly
       if (pitchData && pitchData.id) {
@@ -182,11 +180,11 @@ export default function PublicPitchView() {
     );
   }
 
-  if (error || !pitch || !pitch.creator) {
+  if (error || !pitch) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">{error || 'Pitch not found or incomplete data'}</p>
+          <p className="text-gray-600 mb-4">{error || 'Pitch not found'}</p>
           <button
             onClick={() => navigate('/marketplace')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
