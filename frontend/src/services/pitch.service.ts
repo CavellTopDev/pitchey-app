@@ -214,18 +214,18 @@ export class PitchService {
 
   // Get a single pitch
   static async getById(id: number): Promise<Pitch> {
+    // Use the public endpoint which actually exists
     const response = await apiClient.get<any>(
-      `/api/pitches/${id}`
+      `/api/pitches/public/${id}`
     );
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Pitch not found');
     }
 
-    // Handle the nested response structure from backend
-    // Backend returns: { success: true, data: { pitch: {...}, message: "..." } }
-    // apiClient returns: { success: true, data: { pitch: {...}, message: "..." } }
-    const pitch = response.data?.pitch;
+    // The public endpoint returns the pitch directly in data
+    // Backend returns: { success: true, data: { ...pitchData } }
+    const pitch = response.data;
     
     if (!pitch) {
       throw new Error('Invalid response structure from server');
