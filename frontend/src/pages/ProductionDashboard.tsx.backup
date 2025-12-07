@@ -97,12 +97,6 @@ function ProductionDashboard() {
   const [investmentOpportunities, setInvestmentOpportunities] = useState<any[]>([]);
   const [investmentLoading, setInvestmentLoading] = useState(true);
 
-  // Handle logout
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   // NDA Template Upload State
   interface NDATemplate {
     id: string;
@@ -679,7 +673,6 @@ function ProductionDashboard() {
 
   const verificationStatus = user?.companyDetails?.verificationStatus || 'verified';
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Responsive Header */}
@@ -690,55 +683,126 @@ function ProductionDashboard() {
         credits={credits}
         subscription={subscription}
         onLogout={handleLogout}
-      >
-        {/* Tabs as part of header */}
-        <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-7xl mx-auto">
-            <nav className="-mb-px flex flex-wrap gap-x-4 sm:gap-x-8 px-4 sm:px-6 lg:px-8 overflow-x-auto">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'overview'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Overview
+                <div className="text-sm">
+                  <span className="font-medium text-purple-900">
+                    {credits?.balance?.credits || 0} Credits
+                  </span>
+                </div>
               </button>
+              
+              {/* Subscription Status */}
               <button
-                onClick={() => setActiveTab('my-pitches')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'my-pitches'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+                onClick={() => navigate('/production/billing?tab=subscription')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
               >
-                Saved Pitches
+                <span className="font-medium text-gray-700">
+                  {(() => {
+                    const tier = getSubscriptionTier(subscription?.tier || '');
+                    return tier?.name || 'The Watcher';
+                  })()}
+                </span>
+                {subscription?.status === 'active' && (
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                )}
               </button>
-              <button
-                onClick={() => setActiveTab('following')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'following'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+              
+              <button className="p-2 text-gray-600 hover:text-gray-900 relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              </button>
+              <Link
+                to="/production/following"
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
               >
+                <Users className="w-5 h-5" />
                 Following
-              </button>
-              <button
-                onClick={() => setActiveTab('ndas')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'ndas'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+              </Link>
+              <Link
+                to="/marketplace"
+                className="flex items-center gap-2 px-4 py-2 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50"
               >
-                NDAs
-              </button>
-            </nav>
+                Browse Marketplace
+              </Link>
+              {/* Production companies cannot create pitches - removed Upload Pitch button */}
+              
+              {/* Notifications */}
+              <NotificationBell size="md" />
+              
+              {/* User Menu */}
+              <div className="relative user-menu-container">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <span className="hidden sm:inline text-sm font-medium">
+                    {user?.companyName || user?.username || 'Production'}
+                  </span>
+                </button>
+                
+                {/* Dropdown Menu */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user?.companyName || 'Production Company'}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {user?.email || 'production@example.com'}
+                      </p>
+                    </div>
+                    
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Profile Settings
+                      </div>
+                    </Link>
+                    
+                    <Link
+                      to="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Settings className="w-4 h-4" />
+                        Account Settings
+                      </div>
+                    </Link>
+                    
+                    <Link
+                      to="/production/billing"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        Billing & Payments
+                      </div>
+                    </Link>
+                    
+                    <div className="border-t border-gray-200 mt-1 pt-1">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </DashboardHeader>
+      </header>
 
       {/* Verification Warning */}
       {verificationStatus === 'pending' && (
@@ -753,6 +817,59 @@ function ProductionDashboard() {
           </div>
         </div>
       )}
+
+      {/* Tabs */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'overview'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('my-pitches')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'my-pitches'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              My Pitches ({myPitches.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('following')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'following'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Following ({followingPitches.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('ndas')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors relative ${
+                activeTab === 'ndas'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              NDAs
+              {incomingNDARequests.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full animate-pulse">
+                  {incomingNDARequests.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && (
@@ -1282,32 +1399,30 @@ function ProductionDashboard() {
                       <div key={pitch.id} className="flex items-start gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors">
                         <div className="flex-shrink-0">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            pitch.creator?.userType === 'production' ? 'bg-purple-100 text-purple-600' :
-                            pitch.creator?.userType === 'investor' ? 'bg-green-100 text-green-600' :
+                            pitch.creator.userType === 'production' ? 'bg-purple-100 text-purple-600' :
+                            pitch.creator.userType === 'investor' ? 'bg-green-100 text-green-600' :
                             'bg-gray-100 text-gray-600'
                           }`}>
-                            {pitch.creator?.userType === 'production' ? <Building2 className="w-5 h-5" /> :
-                             pitch.creator?.userType === 'investor' ? <DollarSign className="w-5 h-5" /> :
+                            {pitch.creator.userType === 'production' ? <Building2 className="w-5 h-5" /> :
+                             pitch.creator.userType === 'investor' ? <DollarSign className="w-5 h-5" /> :
                              <User className="w-5 h-5" />}
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <Link
-                              to={`/creator/${pitch.creator?.id || pitch.creatorId}`}
+                              to={`/creator/${pitch.creator.id}`}
                               className="font-medium text-gray-900 hover:text-purple-600 cursor-pointer"
                             >
-                              {pitch.creator?.companyName || pitch.creator?.username || 'Unknown Creator'}
+                              {pitch.creator.companyName || pitch.creator.username}
                             </Link>
                             <span className="text-gray-500 text-sm">published a new pitch</span>
                             <span className="text-gray-400 text-sm">• 2 days ago</span>
-                            {pitch.creator?.id && (
-                              <FollowButton 
-                                creatorId={pitch.creator.id} 
-                                variant="small"
-                                className="ml-auto"
-                              />
-                            )}
+                            <FollowButton 
+                              creatorId={pitch.creator.id} 
+                              variant="small"
+                              className="ml-auto"
+                            />
                           </div>
                           <div 
                             className="cursor-pointer group"
@@ -1412,17 +1527,17 @@ function ProductionDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {Array.isArray(followingPitches) && followingPitches.slice(0, 6).map((pitch) => (
                     <div key={pitch.id} className={`bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow border-2 ${
-                      pitch.creator?.userType === 'production' ? 'border-purple-200' :
-                      pitch.creator?.userType === 'investor' ? 'border-green-200' :
+                      pitch.creator.userType === 'production' ? 'border-purple-200' :
+                      pitch.creator.userType === 'investor' ? 'border-green-200' :
                       'border-gray-200'
                     }`}>
                       <div className={`aspect-video bg-gradient-to-br ${
-                        pitch.creator?.userType === 'production' ? 'from-purple-400 to-purple-600' :
-                        pitch.creator?.userType === 'investor' ? 'from-green-400 to-green-600' :
+                        pitch.creator.userType === 'production' ? 'from-purple-400 to-purple-600' :
+                        pitch.creator.userType === 'investor' ? 'from-green-400 to-green-600' :
                         'from-gray-400 to-gray-600'
                       } flex items-center justify-center relative`}>
                         <Film className="w-12 h-12 text-white" />
-                        {pitch.creator?.userType && pitch.creator.userType !== 'creator' && (
+                        {pitch.creator.userType !== 'creator' && (
                           <span className="absolute top-2 right-2 bg-white/20 backdrop-blur px-2 py-1 rounded text-xs text-white">
                             {pitch.creator.userType === 'production' ? 'Production Co.' : 'Investor'}
                           </span>
@@ -1431,11 +1546,11 @@ function ProductionDashboard() {
                       <div className="p-6">
                         <div className="flex items-center justify-between mb-2">
                           <Link
-                            to={`/creator/${pitch.creator?.id || pitch.creatorId}`}
+                            to={`/creator/${pitch.creator.id}`}
                             className="text-xs text-purple-600 hover:text-purple-700 cursor-pointer"
                           >
-                            by @{pitch.creator?.username || 'Unknown'}
-                            {pitch.creator?.companyName && ` • ${pitch.creator.companyName}`}
+                            by @{pitch.creator.username}
+                            {pitch.creator.companyName && ` • ${pitch.creator.companyName}`}
                           </Link>
                           <div className="flex items-center gap-2">
                             <button 

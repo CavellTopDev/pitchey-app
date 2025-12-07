@@ -913,6 +913,7 @@ export const investments = pgTable("investments", {
   currentValue: decimal("current_value", { precision: 10, scale: 2 }),
   documents: jsonb("documents").$type<any[]>().default([]),
   notes: text("notes"),
+  roiPercentage: decimal("roi_percentage", { precision: 5, scale: 2 }).default('0'),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

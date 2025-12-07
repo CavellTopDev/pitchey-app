@@ -232,6 +232,8 @@ export default function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
+                          id="email-notifications"
+                          name="emailNotifications"
                           type="checkbox"
                           checked={notifications.emailNotifications}
                           onChange={(e) => handleNotificationChange('emailNotifications', e.target.checked)}
@@ -251,6 +253,8 @@ export default function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
+                          id="push-notifications"
+                          name="pushNotifications"
                           type="checkbox"
                           checked={notifications.pushNotifications}
                           onChange={(e) => handleNotificationChange('pushNotifications', e.target.checked)}
@@ -316,6 +320,8 @@ export default function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
+                          id="privacy-show-email"
+                          name="showEmail"
                           type="checkbox"
                           checked={privacy.showEmail}
                           onChange={(e) => handlePrivacyChange('showEmail', e.target.checked)}
@@ -332,6 +338,8 @@ export default function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
+                          id="privacy-show-phone"
+                          name="showPhone"
                           type="checkbox"
                           checked={privacy.showPhone}
                           onChange={(e) => handlePrivacyChange('showPhone', e.target.checked)}
@@ -348,6 +356,8 @@ export default function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
+                          id="privacy-direct-messages"
+                          name="allowDirectMessages"
                           type="checkbox"
                           checked={privacy.allowDirectMessages}
                           onChange={(e) => handlePrivacyChange('allowDirectMessages', e.target.checked)}
@@ -364,6 +374,8 @@ export default function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
+                          id="privacy-pitch-requests"
+                          name="allowPitchRequests"
                           type="checkbox"
                           checked={privacy.allowPitchRequests}
                           onChange={(e) => handlePrivacyChange('allowPitchRequests', e.target.checked)}
@@ -430,6 +442,8 @@ export default function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
+                          id="security-login-notifications"
+                          name="loginNotifications"
                           type="checkbox"
                           checked={security.loginNotifications}
                           onChange={(e) => handleSecurityChange('loginNotifications', e.target.checked)}

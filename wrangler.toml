@@ -46,6 +46,6 @@ new_sqlite_classes = ["WebSocketRoom"]
 tag = "v4"
 new_sqlite_classes = ["NotificationRoom"]
 
-# Scheduled tasks
-[triggers]
-crons = ["*/5 * * * *", "0 * * * *"]
+# Scheduled tasks (disabled for now due to limit)
+# [triggers]
+# crons = ["*/5 * * * *", "0 * * * *"]

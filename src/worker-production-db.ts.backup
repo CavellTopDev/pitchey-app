@@ -67,13 +67,18 @@ function getCorsHeaders(request: Request): Record<string, string> {
   };
 }
 
-// Helper function to create CORS-enabled JSON responses
-function corsResponse(request: Request, data: any, status = 200, headers: Record<string, string> = {}): Response {
-  const corsHeaders = getCorsHeaders(request);
+function jsonResponse(data: any, status = 200, headers: Record<string, string> = {}, request?: Request): Response {
+  // Always include CORS headers if request is provided
+  const corsHeaders = request ? getCorsHeaders(request) : {};
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, ...headers, 'Content-Type': 'application/json' },
   });
+}
+
+// Helper function to create CORS-enabled JSON responses
+function corsResponse(request: Request, data: any, status = 200): Response {
+  return jsonResponse(data, status, {}, request);
 }
 
 async function hashPassword(password: string): Promise<string> {
@@ -177,7 +182,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
     console.log('Login attempt for email:', email);
 
     if (!email || !password) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'Email and password are required',
       }, 400, getCorsHeaders(request));
@@ -191,7 +196,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
     const { allowed, remaining } = await rateLimiter.checkLimit(`auth:${identifier}`);
     
     if (!allowed) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'Too many login attempts. Please try again later.',
       }, 429, getCorsHeaders(request));
@@ -206,7 +211,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
     console.log('Database query completed, users found:', users.length);
 
     if (users.length === 0) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'Invalid credentials',
       }, 401, getCorsHeaders(request));
@@ -219,7 +224,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
     const passwordValid = await verifyPassword(password, user.passwordHash);
     console.log('Password verification result:', passwordValid);
     if (!passwordValid) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'Invalid credentials',
       }, 401, getCorsHeaders(request));
@@ -227,7 +232,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
 
     // Check user type (unless admin)
     if (userType !== 'admin' && user.userType !== userType) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: `Invalid ${userType} credentials`,
       }, 401, getCorsHeaders(request));
@@ -272,7 +277,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
       'Set-Cookie': cookie,
     };
 
-    return corsResponse(request, {
+    return jsonResponse({
       success: true,
       data: {
         token, // Include JWT for backward compatibility
@@ -293,7 +298,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
     // Always include error details for debugging
     const errorMessage = error instanceof Error ? error.message : String(error);
     
-    return corsResponse(request, {
+    return jsonResponse({
       success: false,
       message: `Login failed: ${errorMessage}`,
       error: String(error),
@@ -312,14 +317,14 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
 
     // Validate input
     if (!email || !password || !firstName || !lastName) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'All fields are required',
       }, 400);
     }
 
     if (password.length < 8) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'Password must be at least 8 characters',
       }, 400);
@@ -332,7 +337,7 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
       .limit(1);
 
     if (existingUsers.length > 0) {
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'Email already registered',
       }, 409);
@@ -388,7 +393,7 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
       exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
     }, env.JWT_SECRET);
 
-    return corsResponse(request, {
+    return jsonResponse({
       success: true,
       message: 'Registration successful. Please check your email to verify your account.',
       data: {
@@ -404,7 +409,7 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
     }, 201);
   } catch (error) {
     console.error('Registration error:', error);
-    return corsResponse(request, {
+    return jsonResponse({
       success: false,
       message: 'Registration failed',
     }, 500);
@@ -419,7 +424,7 @@ async function getCachedResponse(key: string, kv: KVNamespace | undefined, reque
     const cached = await kv.get(key, 'text');
     if (cached) {
       const data = JSON.parse(cached);
-      return corsResponse(request, data, 200, {}, request);
+      return jsonResponse(data, 200, {}, request);
     }
   } catch (error) {
     console.error('Cache read error:', error);
@@ -473,7 +478,7 @@ export default {
       const upgradeHeader = request.headers.get('Upgrade');
       if (!upgradeHeader || upgradeHeader !== 'websocket') {
         // Return info for non-WebSocket requests
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'WebSocket endpoint',
           info: 'Connect with WebSocket protocol for real-time features',
@@ -517,7 +522,7 @@ export default {
         });
       } catch (error) {
         console.error('WebSocket error:', error);
-        return corsResponse(request, {
+        return jsonResponse({
           success: false,
           message: 'WebSocket initialization failed',
         }, 500);
@@ -540,7 +545,7 @@ export default {
           console.error('Database health check failed:', error);
         }
 
-        return corsResponse(request, {
+        return jsonResponse({
           status: 'healthy',
           timestamp: new Date().toISOString(),
           version: 'production-db-v1.0',
@@ -599,7 +604,7 @@ export default {
           env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined
         );
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Logged out successfully',
         }, 200, {
@@ -617,7 +622,7 @@ export default {
           // Also check for JWT token for backward compatibility
           const authHeader = request.headers.get('Authorization');
           if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'Authentication required',
             }, 401, getCorsHeaders(request));
@@ -636,14 +641,14 @@ export default {
               .limit(1);
             
             if (users.length === 0) {
-              return corsResponse(request, {
+              return jsonResponse({
                 success: false,
                 message: 'User not found',
               }, 404, getCorsHeaders(request));
             }
             
             const user = users[0];
-            return corsResponse(request, {
+            return jsonResponse({
               success: true,
               data: {
                 id: user.id,
@@ -658,7 +663,7 @@ export default {
               },
             }, 200, getCorsHeaders(request));
           } catch (error) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'Invalid token',
             }, 401, getCorsHeaders(request));
@@ -677,7 +682,7 @@ export default {
         const session = await sessionManager.getSession(sessionId);
         
         if (!session) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Invalid or expired session',
           }, 401, getCorsHeaders(request));
@@ -690,14 +695,14 @@ export default {
           .limit(1);
         
         if (users.length === 0) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'User not found',
           }, 404, getCorsHeaders(request));
         }
         
         const user = users[0];
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             id: user.id,
@@ -719,7 +724,7 @@ export default {
         const sessionId = SessionManager.parseSessionFromCookie(cookieHeader);
         
         if (!sessionId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'No session found',
           }, 401, getCorsHeaders(request));
@@ -736,7 +741,7 @@ export default {
         const session = await sessionManager.getSession(sessionId);
         
         if (!session) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Invalid or expired session',
           }, 401, getCorsHeaders(request));
@@ -749,7 +754,7 @@ export default {
           .limit(1);
         
         if (users.length === 0) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'User not found',
           }, 404, getCorsHeaders(request));
@@ -757,7 +762,7 @@ export default {
         
         const user = users[0];
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           user: {
             id: user.id,
@@ -781,7 +786,7 @@ export default {
         const { email } = body;
         
         if (!email) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Email is required',
           }, 400);
@@ -811,7 +816,7 @@ export default {
         }
 
         // Always return success (don't reveal if email exists)
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'If that email exists, we sent password reset instructions',
         });
@@ -823,14 +828,14 @@ export default {
         const { token, newPassword } = body;
         
         if (!token || !newPassword) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Token and new password are required',
           }, 400);
         }
 
         if (newPassword.length < 8) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Password must be at least 8 characters',
           }, 400);
@@ -854,14 +859,14 @@ export default {
             // Delete token
             await env.KV.delete(`reset:${token}`);
             
-            return corsResponse(request, {
+            return jsonResponse({
               success: true,
               message: 'Password has been reset successfully',
             });
           }
         }
 
-        return corsResponse(request, {
+        return jsonResponse({
           success: false,
           message: 'Invalid or expired reset token',
         }, 400);
@@ -984,7 +989,7 @@ export default {
           }
         }
 
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: result || [],
           total: result?.length || 0,
@@ -1094,7 +1099,7 @@ export default {
         
         const results = await query.limit(50);
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           results,
           total: results.length,
@@ -1122,7 +1127,7 @@ export default {
           draftPitches: pitches.filter(p => p.status === 'draft').length,
         };
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             stats,
@@ -1134,7 +1139,7 @@ export default {
       // Create pitch
       if (path === '/api/pitches' && method === 'POST') {
         if (!userPayload || userPayload.userType !== 'creator') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Only creators can create pitches',
           }, 403);
@@ -1155,7 +1160,7 @@ export default {
           })
           .returning();
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Pitch created successfully',
           data: newPitch[0],
@@ -1165,7 +1170,7 @@ export default {
       // Create pitch (new creator endpoint)
       if (path === '/api/creator/pitches' && method === 'POST') {
         if (!userPayload || userPayload.userType !== 'creator') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Only creators can create pitches',
           }, 403);
@@ -1177,7 +1182,7 @@ export default {
           
           // Validate required fields
           if (!body.title || !body.logline || !body.genre || !body.format) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               error: {
                 message: 'Missing required fields: title, logline, genre, and format are required'
@@ -1216,7 +1221,7 @@ export default {
             })
             .returning();
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'Pitch created successfully',
             data: {
@@ -1225,7 +1230,7 @@ export default {
           }, 201);
         } catch (error) {
           console.error('Error creating pitch:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             error: {
               message: error instanceof Error ? error.message : 'Failed to create pitch'
@@ -1281,14 +1286,14 @@ export default {
         // Cache the response
         await setCachedResponse(cacheKey, responseData, env.KV, 300); // Cache for 5 minutes
         
-        return corsResponse(request, responseData);
+        return jsonResponse(responseData);
       }
 
       // Update pitch
       const pitchMatch = path.match(/^\/api\/pitches\/(\d+)$/);
       if (pitchMatch && method === 'PUT') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -1312,7 +1317,7 @@ export default {
         }
         
         if (pitches[0].userId !== userId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'You can only edit your own pitches',
           }, 403);
@@ -1408,7 +1413,7 @@ export default {
           }
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Pitch updated successfully',
           data: updated[0],
@@ -1443,7 +1448,7 @@ export default {
           characters = [];
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: characters
         });
@@ -1452,7 +1457,7 @@ export default {
       // Update all characters (used for reordering)
       if (characterMatch && method === 'PUT') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -1475,7 +1480,7 @@ export default {
         }
         
         if (pitches[0].user_id !== userId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'You can only edit your own pitches',
           }, 403);
@@ -1489,7 +1494,7 @@ export default {
           WHERE id = ${pitchId}
         `;
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Characters updated successfully',
           data: characters
@@ -1499,7 +1504,7 @@ export default {
       // Add a new character
       if (characterMatch && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -1522,7 +1527,7 @@ export default {
         }
         
         if (pitches[0].user_id !== userId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'You can only edit your own pitches',
           }, 403);
@@ -1548,7 +1553,7 @@ export default {
           WHERE id = ${pitchId}
         `;
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Character added successfully',
           data: newCharacter
@@ -1558,7 +1563,7 @@ export default {
       // Update a single character
       if (singleCharacterMatch && method === 'PUT') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -1582,7 +1587,7 @@ export default {
         }
         
         if (pitches[0].user_id !== userId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'You can only edit your own pitches',
           }, 403);
@@ -1598,7 +1603,7 @@ export default {
         
         const characterIndex = characters.findIndex(c => c.id === characterId);
         if (characterIndex === -1) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Character not found',
           }, 404);
@@ -1614,7 +1619,7 @@ export default {
           WHERE id = ${pitchId}
         `;
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Character updated successfully',
           data: characters[characterIndex]
@@ -1624,7 +1629,7 @@ export default {
       // Delete a character
       if (singleCharacterMatch && method === 'DELETE') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -1647,7 +1652,7 @@ export default {
         }
         
         if (pitches[0].user_id !== userId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'You can only edit your own pitches',
           }, 403);
@@ -1664,7 +1669,7 @@ export default {
         const filteredCharacters = characters.filter(c => c.id !== characterId);
         
         if (filteredCharacters.length === characters.length) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Character not found',
           }, 404);
@@ -1678,7 +1683,7 @@ export default {
           WHERE id = ${pitchId}
         `;
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Character deleted successfully'
         });
@@ -1688,7 +1693,7 @@ export default {
       const pitchFieldsMatch = path.match(/^\/api\/pitches\/(\d+)\/fields$/);
       if (pitchFieldsMatch && method === 'PATCH') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -1711,7 +1716,7 @@ export default {
         }
         
         if (pitches[0].user_id !== userId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'You can only edit your own pitches',
           }, 403);
@@ -1735,7 +1740,7 @@ export default {
         }
         
         if (updates.length === 0) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'No fields to update',
           }, 400);
@@ -1753,7 +1758,7 @@ export default {
         
         const result = await sql.unsafe(updateQuery, values);
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           message: 'Pitch fields updated successfully',
           data: {
@@ -1768,44 +1773,8 @@ export default {
       if (pitchMatch && method === 'GET') {
         const pitchId = parseInt(pitchMatch[1]);
         
-        const pitches = await db.select({
-          // Pitch fields
-          id: schema.pitches.id,
-          title: schema.pitches.title,
-          logline: schema.pitches.logline,
-          synopsis: schema.pitches.synopsis,
-          genre: schema.pitches.genre,
-          format: schema.pitches.format,
-          status: schema.pitches.status,
-          budget: schema.pitches.budget,
-          targetAudience: schema.pitches.targetAudience,
-          posterUrl: schema.pitches.posterUrl,
-          titleImage: schema.pitches.titleImage,
-          videoUrl: schema.pitches.videoUrl,
-          viewCount: schema.pitches.viewCount,
-          views: schema.pitches.views,
-          tags: schema.pitches.tags,
-          characters: schema.pitches.characters,
-          themes: schema.pitches.themes,
-          worldDescription: schema.pitches.worldDescription,
-          isNdaRequired: schema.pitches.isNdaRequired,
-          ndaUrl: schema.pitches.ndaUrl,
-          protectedContent: schema.pitches.protectedContent,
-          createdAt: schema.pitches.createdAt,
-          updatedAt: schema.pitches.updatedAt,
-          userId: schema.pitches.userId,
-          // Creator fields
-          creatorId: schema.users.id,
-          creatorUsername: schema.users.username,
-          creatorFirstName: schema.users.firstName,
-          creatorLastName: schema.users.lastName,
-          creatorEmail: schema.users.email,
-          creatorCompanyName: schema.users.companyName,
-          creatorProfileImage: schema.users.profileImageUrl,
-          creatorUserType: schema.users.userType,
-        })
+        const pitches = await db.select()
           .from(schema.pitches)
-          .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
           .where(eq(schema.pitches.id, pitchId))
           .limit(1);
         
@@ -1821,55 +1790,16 @@ export default {
           .set({ views: (pitches[0].views || 0) + 1 })
           .where(eq(schema.pitches.id, pitchId));
         
-        // Format the response to include creator as nested object
-        const pitch = pitches[0];
-        const formattedPitch = {
-          id: pitch.id,
-          title: pitch.title,
-          logline: pitch.logline,
-          synopsis: pitch.synopsis,
-          genre: pitch.genre,
-          format: pitch.format,
-          status: pitch.status,
-          budget: pitch.budget,
-          targetAudience: pitch.targetAudience,
-          posterUrl: pitch.posterUrl,
-          titleImage: pitch.titleImage,
-          videoUrl: pitch.videoUrl,
-          viewCount: pitch.viewCount,
-          views: (pitch.views || 0) + 1,
-          tags: pitch.tags,
-          characters: pitch.characters,
-          themes: pitch.themes,
-          worldDescription: pitch.worldDescription,
-          isNdaRequired: pitch.isNdaRequired,
-          ndaUrl: pitch.ndaUrl,
-          protectedContent: pitch.protectedContent,
-          createdAt: pitch.createdAt,
-          updatedAt: pitch.updatedAt,
-          userId: pitch.userId,
-          creator: pitch.creatorId ? {
-            id: pitch.creatorId,
-            username: pitch.creatorUsername || `${pitch.creatorFirstName} ${pitch.creatorLastName}`,
-            firstName: pitch.creatorFirstName,
-            lastName: pitch.creatorLastName,
-            email: pitch.creatorEmail,
-            companyName: pitch.creatorCompanyName,
-            profileImageUrl: pitch.creatorProfileImage,
-            userType: pitch.creatorUserType
-          } : null
-        };
-        
         return corsResponse(request, {
           success: true,
-          data: formattedPitch,
+          data: pitches[0],
         });
       }
 
       // Get user profile
       if (path === '/api/profile' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -1882,7 +1812,7 @@ export default {
           .limit(1);
         
         if (users.length === 0) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'User not found',
           }, 404);
@@ -1908,14 +1838,14 @@ export default {
       // Validate token
       if (path === '/api/validate-token' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             valid: false,
             message: 'Invalid token',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           valid: true,
           user: {
@@ -1954,7 +1884,7 @@ export default {
           .orderBy(desc(schema.pitches.createdAt))
           .limit(limit);
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: pitches,
         });
@@ -1963,14 +1893,14 @@ export default {
       // User preferences
       if (path === '/api/user/preferences' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
         // Return default preferences for now
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             emailAlerts: true,
@@ -1989,14 +1919,14 @@ export default {
       // Saved filters
       if (path === '/api/filters/saved' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
         // Return empty array for now (no saved filters)
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: [],
         });
@@ -2005,14 +1935,14 @@ export default {
       // Email alerts
       if (path === '/api/alerts/email' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
         // Return empty array for now (no email alerts)
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: [],
         });
@@ -2037,32 +1967,8 @@ export default {
           return cached;
         }
         
-        let query = db.select({
-          // Pitch fields
-          id: schema.pitches.id,
-          title: schema.pitches.title,
-          logline: schema.pitches.logline,
-          genre: schema.pitches.genre,
-          format: schema.pitches.format,
-          status: schema.pitches.status,
-          posterUrl: schema.pitches.posterUrl,
-          titleImage: schema.pitches.titleImage,
-          viewCount: schema.pitches.viewCount,
-          tags: schema.pitches.tags,
-          budgetRange: schema.pitches.budgetRange,
-          createdAt: schema.pitches.createdAt,
-          userId: schema.pitches.userId,
-          // Creator fields
-          creatorId: schema.users.id,
-          creatorUsername: schema.users.username,
-          creatorFirstName: schema.users.firstName,
-          creatorLastName: schema.users.lastName,
-          creatorCompanyName: schema.users.companyName,
-          creatorProfileImage: schema.users.profileImageUrl,
-          creatorUserType: schema.users.userType,
-        })
+        let query = db.select()
           .from(schema.pitches)
-          .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
           .limit(limit)
           .offset(offset);
         
@@ -2103,33 +2009,13 @@ export default {
         const responseData = {
           success: true,
           data: pitches.map(pitch => ({
-            id: pitch.id,
-            title: pitch.title,
-            logline: pitch.logline,
-            genre: pitch.genre,
-            format: pitch.format,
-            status: pitch.status,
-            posterUrl: pitch.posterUrl,
-            titleImage: pitch.titleImage,
-            viewCount: pitch.viewCount,
-            tags: pitch.tags || [],
-            budgetRange: pitch.budgetRange,
-            createdAt: pitch.createdAt,
-            userId: pitch.userId,
-            creatorId: pitch.creatorId,
+            ...pitch,
             // Add enhanced fields
             thumbnail: pitch.posterUrl || pitch.titleImage || '/placeholder.jpg',
+            creatorName: 'Creator', // Would need join to get real name
+            tags: pitch.tags || [],
             isNew: new Date(pitch.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000,
             isTrending: (pitch.viewCount || 0) > 100,
-            creator: pitch.creatorId ? {
-              id: pitch.creatorId,
-              username: pitch.creatorUsername || `${pitch.creatorFirstName} ${pitch.creatorLastName}`,
-              firstName: pitch.creatorFirstName,
-              lastName: pitch.creatorLastName,
-              companyName: pitch.creatorCompanyName,
-              profileImageUrl: pitch.creatorProfileImage,
-              userType: pitch.creatorUserType
-            } : null
           })),
           pagination: {
             total: totalCount,
@@ -2205,7 +2091,7 @@ export default {
             `);
             const totalCount = Number(countResult.rows[0]?.count || 0);
             
-            return corsResponse(request, {
+            return jsonResponse({
               success: true,
               data: pitches,
               totalCount,
@@ -2261,7 +2147,7 @@ export default {
           }
           const [{ count: totalCount }] = await countQuery;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: pitches,
             totalCount,
@@ -2274,7 +2160,7 @@ export default {
           });
         } catch (error) {
           console.error('Error in general browse:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             error: { message: 'Failed to fetch pitches' },
             data: [],
@@ -2285,7 +2171,7 @@ export default {
       // Creator dashboard stats
       if (path === '/api/creator/dashboard' && method === 'GET') {
         if (!userPayload || userPayload.userType !== 'creator') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Creator access required',
           }, 403);
@@ -2303,7 +2189,7 @@ export default {
         const totalPitches = pitches.length;
         const activePitches = pitches.filter(p => p.status === 'active').length;
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             stats: {
@@ -2321,7 +2207,7 @@ export default {
       // Investor dashboard endpoints
       if (path === '/api/investor/dashboard' && method === 'GET') {
         if (!userPayload || userPayload.userType !== 'investor') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Investor access required',
           }, 403);
@@ -2414,7 +2300,7 @@ export default {
             WHERE requester_id = ${investorId}
           `;
 
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: {
               portfolio,
@@ -2438,7 +2324,7 @@ export default {
           });
         } catch (error) {
           console.error('Investor dashboard error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Dashboard data unavailable',
             error: error.message
@@ -2449,7 +2335,7 @@ export default {
       // Investor portfolio summary
       if (path === '/api/investor/portfolio/summary' && method === 'GET') {
         if (!userPayload || userPayload.userType !== 'investor') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Investor access required',
           }, 403);
@@ -2458,59 +2344,42 @@ export default {
         const investorId = parseInt(userPayload.sub);
         
         try {
-          // Simplified approach to avoid stack overflow
-          // Get all investments for the investor
-          const investments = await db
-            .select()
+          // Get real investment data
+          const investmentData = await db
+            .select({
+              totalInvested: sql<number>`COALESCE(SUM(amount), 0)`,
+              activeInvestments: sql<number>`COUNT(*)`,
+              averageROI: sql<number>`COALESCE(AVG(roi_percentage), 0)`
+            })
             .from(schema.investments)
             .where(eq(schema.investments.investorId, investorId));
           
-          // Calculate aggregates in JavaScript
-          const totalInvested = investments.reduce((sum, inv) => sum + Number(inv.amount || 0), 0);
-          const activeInvestments = investments.filter(inv => inv.status === 'active').length;
-          const averageROI = investments.length > 0 
-            ? investments.reduce((sum, inv) => sum + Number(inv.roiPercentage || 0), 0) / investments.length
-            : 0;
-          
-          // Get top performer title
-          let topPerformerTitle = 'No investments yet';
-          if (investments.length > 0) {
-            const topInvestment = investments
-              .sort((a, b) => Number(b.roiPercentage || 0) - Number(a.roiPercentage || 0))[0];
-            
-            if (topInvestment && topInvestment.pitchId) {
-              const pitch = await db
-                .select()
-                .from(schema.pitches)
-                .where(eq(schema.pitches.id, topInvestment.pitchId))
-                .limit(1);
-              
-              if (pitch[0]) {
-                topPerformerTitle = pitch[0].title;
-              }
-            }
-          }
+          // Get top performing investment
+          const topPerformer = await db
+            .select({
+              title: schema.pitches.title,
+              roi: schema.investments.roiPercentage
+            })
+            .from(schema.investments)
+            .leftJoin(schema.pitches, eq(schema.investments.pitchId, schema.pitches.id))
+            .where(eq(schema.investments.investorId, investorId))
+            .orderBy(desc(schema.investments.roiPercentage))
+            .limit(1);
           
           return corsResponse(request, {
             success: true,
             data: {
-              totalInvested,
-              activeInvestments,
-              averageROI: parseFloat(averageROI.toFixed(2)),
-              topPerformer: topPerformerTitle
+              totalInvested: investmentData[0]?.totalInvested || 0,
+              activeInvestments: investmentData[0]?.activeInvestments || 0,
+              averageROI: investmentData[0]?.averageROI || 0,
+              topPerformer: topPerformer[0]?.title || 'No investments yet'
             }
           });
         } catch (error) {
           console.error('Failed to fetch portfolio summary:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error('Detailed error:', errorMessage);
-          
-          // Always show error in response for debugging
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch portfolio summary',
-            error: errorMessage,
-            details: 'Check if investments table has roi_percentage column'
           }, 500);
         }
       }
@@ -2518,7 +2387,7 @@ export default {
       // Investor investments list
       if (path === '/api/investor/investments' && method === 'GET') {
         if (!userPayload || userPayload.userType !== 'investor') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Investor access required',
           }, 403);
@@ -2587,7 +2456,7 @@ export default {
       // Investment recommendations
       if (path === '/api/investment/recommendations' && method === 'GET') {
         if (!userPayload || (userPayload.userType !== 'investor' && userPayload.userType !== 'production')) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Investor or production access required',
           }, 403);
@@ -2948,30 +2817,8 @@ export default {
         const url = new URL(request.url);
         const limit = parseInt(url.searchParams.get('limit') || '10');
         
-        const trendingPitches = await db.select({
-          // Pitch fields
-          id: schema.pitches.id,
-          title: schema.pitches.title,
-          logline: schema.pitches.logline,
-          genre: schema.pitches.genre,
-          format: schema.pitches.format,
-          status: schema.pitches.status,
-          posterUrl: schema.pitches.posterUrl,
-          titleImage: schema.pitches.titleImage,
-          viewCount: schema.pitches.viewCount,
-          createdAt: schema.pitches.createdAt,
-          userId: schema.pitches.userId,
-          // Creator fields
-          creatorId: schema.users.id,
-          creatorUsername: schema.users.username,
-          creatorFirstName: schema.users.firstName,
-          creatorLastName: schema.users.lastName,
-          creatorCompanyName: schema.users.companyName,
-          creatorProfileImage: schema.users.profileImageUrl,
-          creatorUserType: schema.users.userType,
-        })
+        const trendingPitches = await db.select()
           .from(schema.pitches)
-          .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
           .where(or(
             eq(schema.pitches.status, 'active'),
             eq(schema.pitches.status, 'published')
@@ -2982,27 +2829,8 @@ export default {
         return corsResponse(request, {
           success: true,
           data: trendingPitches.map(pitch => ({
-            id: pitch.id,
-            title: pitch.title,
-            logline: pitch.logline,
-            genre: pitch.genre,
-            format: pitch.format,
-            status: pitch.status,
-            posterUrl: pitch.posterUrl,
-            titleImage: pitch.titleImage,
-            viewCount: pitch.viewCount,
-            createdAt: pitch.createdAt,
-            userId: pitch.userId,
-            creatorId: pitch.creatorId,
-            creator: pitch.creatorId ? {
-              id: pitch.creatorId,
-              username: pitch.creatorUsername || `${pitch.creatorFirstName} ${pitch.creatorLastName}`,
-              firstName: pitch.creatorFirstName,
-              lastName: pitch.creatorLastName,
-              companyName: pitch.creatorCompanyName,
-              profileImageUrl: pitch.creatorProfileImage,
-              userType: pitch.creatorUserType
-            } : null
+            ...pitch,
+            creator_name: 'alexcreator', // Mock creator name
           }))
         });
       }
@@ -3012,30 +2840,8 @@ export default {
         const url = new URL(request.url);
         const limit = parseInt(url.searchParams.get('limit') || '10');
         
-        const newPitches = await db.select({
-          // Pitch fields
-          id: schema.pitches.id,
-          title: schema.pitches.title,
-          logline: schema.pitches.logline,
-          genre: schema.pitches.genre,
-          format: schema.pitches.format,
-          status: schema.pitches.status,
-          posterUrl: schema.pitches.posterUrl,
-          titleImage: schema.pitches.titleImage,
-          viewCount: schema.pitches.viewCount,
-          createdAt: schema.pitches.createdAt,
-          userId: schema.pitches.userId,
-          // Creator fields
-          creatorId: schema.users.id,
-          creatorUsername: schema.users.username,
-          creatorFirstName: schema.users.firstName,
-          creatorLastName: schema.users.lastName,
-          creatorCompanyName: schema.users.companyName,
-          creatorProfileImage: schema.users.profileImageUrl,
-          creatorUserType: schema.users.userType,
-        })
+        const newPitches = await db.select()
           .from(schema.pitches)
-          .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
           .where(or(
             eq(schema.pitches.status, 'active'),
             eq(schema.pitches.status, 'published')
@@ -3046,27 +2852,8 @@ export default {
         return corsResponse(request, {
           success: true,
           data: newPitches.map(pitch => ({
-            id: pitch.id,
-            title: pitch.title,
-            logline: pitch.logline,
-            genre: pitch.genre,
-            format: pitch.format,
-            status: pitch.status,
-            posterUrl: pitch.posterUrl,
-            titleImage: pitch.titleImage,
-            viewCount: pitch.viewCount,
-            createdAt: pitch.createdAt,
-            userId: pitch.userId,
-            creatorId: pitch.creatorId,
-            creator: pitch.creatorId ? {
-              id: pitch.creatorId,
-              username: pitch.creatorUsername || `${pitch.creatorFirstName} ${pitch.creatorLastName}`,
-              firstName: pitch.creatorFirstName,
-              lastName: pitch.creatorLastName,
-              companyName: pitch.creatorCompanyName,
-              profileImageUrl: pitch.creatorProfileImage,
-              userType: pitch.creatorUserType
-            } : null
+            ...pitch,
+            creator_name: 'alexcreator', // Mock creator name
           }))
         });
       }
@@ -3074,86 +2861,17 @@ export default {
       // Following pitches
       if (path === '/api/pitches/following' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        const userId = parseInt(userPayload.sub);
-        
-        try {
-          // Get pitches from creators that the user follows
-          const followedPitches = await db.select({
-            id: schema.pitches.id,
-            title: schema.pitches.title,
-            logline: schema.pitches.logline,
-            genre: schema.pitches.genre,
-            format: schema.pitches.format,
-            status: schema.pitches.status,
-            posterUrl: schema.pitches.posterUrl,
-            titleImage: schema.pitches.titleImage,
-            viewCount: schema.pitches.viewCount,
-            createdAt: schema.pitches.createdAt,
-            userId: schema.pitches.userId,
-            creatorId: schema.users.id,
-            creatorUsername: schema.users.username,
-            creatorFirstName: schema.users.firstName,
-            creatorLastName: schema.users.lastName,
-            creatorCompanyName: schema.users.companyName,
-            creatorProfileImage: schema.users.profileImageUrl,
-            creatorUserType: schema.users.userType,
-          })
-          .from(schema.follows)
-          .innerJoin(schema.pitches, eq(schema.follows.creatorId, schema.pitches.userId))
-          .innerJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
-          .where(
-            and(
-              eq(schema.follows.followerId, userId),
-              or(
-                eq(schema.pitches.status, 'published'),
-                eq(schema.pitches.status, 'active')
-              )
-            )
-          )
-          .orderBy(desc(schema.pitches.createdAt));
-          
-          // Format the response to include creator as nested object
-          const formattedPitches = followedPitches.map(pitch => ({
-            id: pitch.id,
-            title: pitch.title,
-            logline: pitch.logline,
-            genre: pitch.genre,
-            format: pitch.format,
-            status: pitch.status,
-            posterUrl: pitch.posterUrl,
-            titleImage: pitch.titleImage,
-            viewCount: pitch.viewCount,
-            createdAt: pitch.createdAt,
-            userId: pitch.userId,
-            creator: {
-              id: pitch.creatorId,
-              username: pitch.creatorUsername || `${pitch.creatorFirstName} ${pitch.creatorLastName}`,
-              firstName: pitch.creatorFirstName,
-              lastName: pitch.creatorLastName,
-              companyName: pitch.creatorCompanyName,
-              profileImageUrl: pitch.creatorProfileImage,
-              userType: pitch.creatorUserType
-            }
-          }));
-          
-          return corsResponse(request, {
-            success: true,
-            data: formattedPitches
-          });
-        } catch (error) {
-          console.error('Error fetching followed pitches:', error);
-          return corsResponse(request, {
-            success: false,
-            message: 'Failed to fetch followed pitches',
-            error: error.message
-          }, 500);
-        }
+        // Mock data for now
+        return jsonResponse({
+          success: true,
+          data: []
+        });
       }
 
       // Payment endpoints
@@ -3176,13 +2894,13 @@ export default {
 
       if (path === '/api/payments/subscription-status' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             status: 'active',
@@ -3548,13 +3266,13 @@ export default {
           ))
           .orderBy(desc(schema.ndas.requestedAt));
 
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: ndaRequests
           });
         } catch (error) {
           console.error('Error fetching incoming NDA requests:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: [] // Return empty array on error
           });
@@ -3564,7 +3282,7 @@ export default {
       // NDA outgoing requests (NDAs you've requested others to sign)
       if (path === '/api/ndas/outgoing-requests' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -3653,13 +3371,13 @@ export default {
           ))
           .orderBy(desc(schema.ndas.signedAt));
 
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: signedNdas
           });
         } catch (error) {
           console.error('Error fetching signed NDAs:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: [] // Return empty array on error
           });
@@ -3669,7 +3387,7 @@ export default {
       // NDA outgoing signed (NDAs others have signed for you)
       if (path === '/api/ndas/outgoing-signed' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -3705,13 +3423,13 @@ export default {
           ))
           .orderBy(desc(schema.ndas.signedAt));
 
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: signedNdas
           });
         } catch (error) {
           console.error('Error fetching signed NDAs:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: [] // Return empty array on error
           });
@@ -3758,13 +3476,13 @@ export default {
       // Analytics realtime
       if (path === '/api/analytics/realtime' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             activeUsers: 42,
@@ -3786,13 +3504,13 @@ export default {
       // Payment history
       if (path === '/api/payments/history' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             payments: [
@@ -3819,13 +3537,13 @@ export default {
       // Payment invoices
       if (path === '/api/payments/invoices' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             invoices: [
@@ -3845,13 +3563,13 @@ export default {
       // Payment methods
       if (path === '/api/payments/payment-methods' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             methods: [
@@ -3872,13 +3590,13 @@ export default {
       // Notification preferences
       if (path === '/api/notifications/preferences' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             email: {
@@ -3898,13 +3616,13 @@ export default {
       // Saved filters
       if (path === '/api/filters/saved' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             filters: [
@@ -3924,13 +3642,13 @@ export default {
       // Email alerts
       if (path === '/api/alerts/email' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             alerts: [
@@ -3949,7 +3667,7 @@ export default {
       // Notifications unread endpoint
       if (path === '/api/notifications/unread' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401, getCorsHeaders(request));
@@ -3966,13 +3684,13 @@ export default {
             eq(schema.notifications.read, false)
           ));
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             count: Number(notifications[0]?.count || 0)
           }, 200, getCorsHeaders(request));
         } catch (error) {
           console.error('Error fetching unread notifications:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             count: 0
           }, 200, getCorsHeaders(request));
@@ -3982,7 +3700,7 @@ export default {
       // NDA pending endpoint
       if (path === '/api/nda/pending' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401, getCorsHeaders(request));
@@ -3998,13 +3716,13 @@ export default {
             ))
             .orderBy(desc(schema.ndaRequests.createdAt));
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: pendingNdas
           }, 200, getCorsHeaders(request));
         } catch (error) {
           console.error('Error fetching pending NDAs:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: []
           }, 200, getCorsHeaders(request));
@@ -4014,7 +3732,7 @@ export default {
       // NDA active endpoint
       if (path === '/api/nda/active' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401, getCorsHeaders(request));
@@ -4033,13 +3751,13 @@ export default {
             ))
             .orderBy(desc(schema.ndaRequests.approvedAt));
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: activeNdas
           }, 200, getCorsHeaders(request));
         } catch (error) {
           console.error('Error fetching active NDAs:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: []
           }, 200, getCorsHeaders(request));
@@ -4065,7 +3783,7 @@ export default {
           .from(schema.follows)
           .where(eq(schema.follows.followerId, targetUserId));
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: {
               followersCount: Number(followers[0]?.count || 0),
@@ -4074,7 +3792,7 @@ export default {
           }, 200, getCorsHeaders(request));
         } catch (error) {
           console.error('Error fetching follow stats:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: {
               followersCount: 0,
@@ -4087,14 +3805,14 @@ export default {
       // Analytics user endpoint
       if (path === '/api/analytics/user' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401, getCorsHeaders(request));
         }
         
         const userId = parseInt(userPayload.sub);
-        const preset = url.searchParams.get('preset') || 'month';
+        const preset = searchParams.get('preset') || 'month';
         
         // Calculate date range based on preset
         const now = new Date();
@@ -4120,31 +3838,24 @@ export default {
           
           const pitchIds = pitches.map(p => p.id);
           
-          // Get views for the period - with better error handling
-          let viewCount = 0;
-          if (pitchIds.length > 0) {
-            try {
-              const views = await db.select({
-                count: sql<number>`count(*)`
-              })
-              .from(schema.pitchViews)
-              .where(and(
-                or(...pitchIds.map(id => eq(schema.pitchViews.pitchId, id))),
-                gte(schema.pitchViews.viewedAt, startDate)
-              ));
-              viewCount = views[0]?.count || 0;
-            } catch (e) {
-              console.error('Error fetching views:', e);
-              // Continue with 0 views if table doesn't exist
-            }
-          }
+          // Get views for the period
+          const views = pitchIds.length > 0 ? await db.select({
+            count: sql<number>`count(*)`
+          })
+          .from(schema.pitchViews)
+          .where(and(
+            schema.pitchViews.pitchId ? 
+              or(...pitchIds.map(id => eq(schema.pitchViews.pitchId, id))) : 
+              sql`false`,
+            gte(schema.pitchViews.viewedAt, startDate)
+          )) : [{ count: 0 }];
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: {
               totalPitches: pitches.length,
               activePitches: pitches.filter(p => p.status === 'active').length,
-              totalViews: viewCount,
+              totalViews: Number(views[0]?.count || 0),
               engagementRate: 0,
               preset,
               period: {
@@ -4155,7 +3866,7 @@ export default {
           }, 200, getCorsHeaders(request));
         } catch (error) {
           console.error('Error fetching user analytics:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: {
               totalPitches: 0,
@@ -4175,7 +3886,7 @@ export default {
       // Creator dashboard stats endpoint
       if (path === '/api/creator/dashboard/stats' && method === 'GET') {
         if (!userPayload || userPayload.userType !== 'creator') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Creator authentication required',
           }, 401);
@@ -4249,7 +3960,7 @@ export default {
             AND viewed_at >= ${thirtyDaysAgo.toISOString()}
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: {
               pitches: {
@@ -4285,7 +3996,7 @@ export default {
           });
         } catch (error) {
           console.error('Error fetching creator dashboard stats:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch dashboard statistics',
             error: error instanceof Error ? error.message : undefined,
@@ -4296,7 +4007,7 @@ export default {
       // User notifications endpoint
       if (path === '/api/user/notifications' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -4314,7 +4025,7 @@ export default {
             .limit(limit)
             .offset(offset);
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: notifications.map(n => ({
               id: n.id,
@@ -4329,7 +4040,7 @@ export default {
           });
         } catch (error) {
           console.error('Error fetching user notifications:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: [],
             total: 0
@@ -4370,7 +4081,7 @@ export default {
       // General notifications endpoint (without /user prefix)
       if (path === '/api/notifications' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401, getCorsHeaders(request));
@@ -4387,7 +4098,7 @@ export default {
             .limit(limit)
             .offset(offset);
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: notifications.map(n => ({
               id: n.id,
@@ -4401,7 +4112,7 @@ export default {
           }, 200, getCorsHeaders(request));
         } catch (error) {
           console.error('Error fetching notifications:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: []
           }, 200, getCorsHeaders(request));
@@ -4411,7 +4122,7 @@ export default {
       // Mark notification as read
       if (path.match(/^\/api\/notifications\/\d+\/read$/) && method === 'PUT') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401, getCorsHeaders(request));
@@ -4427,13 +4138,13 @@ export default {
               eq(schema.notifications.userId, parseInt(userPayload.sub))
             ));
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'Notification marked as read'
           }, 200, getCorsHeaders(request));
         } catch (error) {
           console.error('Error marking notification as read:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to update notification'
           }, 500, getCorsHeaders(request));
@@ -4443,13 +4154,13 @@ export default {
       // Subscription status endpoint
       if (path === '/api/subscription/status' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401, getCorsHeaders(request));
         }
         
-        return corsResponse(request, {
+        return jsonResponse({
           success: true,
           data: {
             tier: 'basic',
@@ -4521,7 +4232,7 @@ export default {
       // Save a pitch
       if (path === '/api/pitches/save' && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -4531,7 +4242,7 @@ export default {
         const userId = parseInt(userPayload.sub);
         
         if (!pitchId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Pitch ID is required',
           }, 400);
@@ -4546,7 +4257,7 @@ export default {
           `;
           
           if (existing && existing.length > 0) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'Pitch already saved',
             }, 409);
@@ -4558,13 +4269,13 @@ export default {
             VALUES (${userId}, ${pitchId}, NOW())
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'Pitch saved successfully',
           });
         } catch (error) {
           console.error('Error saving pitch:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to save pitch',
             error: error instanceof Error ? error.message : undefined,
@@ -4575,7 +4286,7 @@ export default {
       // Unsave a pitch
       if (path === '/api/pitches/unsave' && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -4585,7 +4296,7 @@ export default {
         const userId = parseInt(userPayload.sub);
         
         if (!pitchId) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Pitch ID is required',
           }, 400);
@@ -4597,13 +4308,13 @@ export default {
             WHERE user_id = ${userId} AND pitch_id = ${pitchId}
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'Pitch unsaved successfully',
           });
         } catch (error) {
           console.error('Error unsaving pitch:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to unsave pitch',
             error: error instanceof Error ? error.message : undefined,
@@ -4619,8 +4330,8 @@ export default {
         const offset = parseInt(url.searchParams.get('offset') || '0');
         
         try {
-          // Define the base select fields including creator data
-          const selectFields = {
+          // Start with base query selecting all published pitches
+          let query = db.select({
             id: schema.pitches.id,
             title: schema.pitches.title,
             logline: schema.pitches.logline,
@@ -4629,99 +4340,160 @@ export default {
             estimatedBudget: schema.pitches.estimatedBudget,
             budgetBracket: schema.pitches.budgetBracket,
             thumbnail: schema.pitches.thumbnail,
-            posterUrl: schema.pitches.posterUrl,
-            titleImage: schema.pitches.titleImage,
             viewCount: schema.pitches.viewCount,
             likeCount: schema.pitches.likeCount,
             creatorId: schema.pitches.userId,
             createdAt: schema.pitches.createdAt,
             status: schema.pitches.status,
-            // Creator fields
-            creatorUserId: schema.users.id,
-            creatorUsername: schema.users.username,
-            creatorFirstName: schema.users.firstName,
-            creatorLastName: schema.users.lastName,
-            creatorCompanyName: schema.users.companyName,
-            creatorProfileImage: schema.users.profileImageUrl,
-            creatorUserType: schema.users.userType,
-          };
-          
-          // Build conditions based on tab and filters
-          const conditions = [eq(schema.pitches.status, 'published')];
+          })
+          .from(schema.pitches)
+          .where(eq(schema.pitches.status, 'published'));
           
           // Apply format filter based on tab
           if (tab === 'film') {
-            conditions.push(eq(schema.pitches.format, 'Film'));
-          } else if (tab === 'television') {
-            conditions.push(eq(schema.pitches.format, 'Television - Scripted'));
-          } else if (tab === 'web-series') {
-            conditions.push(eq(schema.pitches.format, 'Web Series'));
-          } else if (tab === 'documentary') {
-            conditions.push(eq(schema.pitches.format, 'Documentary'));
-          }
-          
-          // Apply genre filter if provided
-          if (genre) {
-            conditions.push(eq(schema.pitches.genre, genre));
-          }
-          
-          // Create query with all conditions
-          let query = db.select(selectFields)
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
             .from(schema.pitches)
-            .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
-            .where(and(...conditions))
-            .orderBy(desc(schema.pitches.createdAt))
-            .limit(limit)
-            .offset(offset);
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Film')
+            ));
+          } else if (tab === 'television') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Television - Scripted')
+            ));
+          } else if (tab === 'web-series') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Web Series')
+            ));
+          } else if (tab === 'documentary') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.format, 'Documentary')
+            ));
+          }
           
-          // Execute query and get results
-          const pitches = await query;
+          // Add genre filter if provided
+          if (genre && tab === 'all') {
+            query = db.select({
+              id: schema.pitches.id,
+              title: schema.pitches.title,
+              logline: schema.pitches.logline,
+              genre: schema.pitches.genre,
+              format: schema.pitches.format,
+              estimatedBudget: schema.pitches.estimatedBudget,
+              budgetBracket: schema.pitches.budgetBracket,
+              thumbnail: schema.pitches.thumbnail,
+              viewCount: schema.pitches.viewCount,
+              likeCount: schema.pitches.likeCount,
+              creatorId: schema.pitches.userId,
+              createdAt: schema.pitches.createdAt,
+              status: schema.pitches.status,
+            })
+            .from(schema.pitches)
+            .where(and(
+              eq(schema.pitches.status, 'published'),
+              eq(schema.pitches.genre, genre)
+            ));
+          }
           
-          // Format the response with creator data
-          const formattedPitches = pitches.map(pitch => ({
-            id: pitch.id,
-            title: pitch.title,
-            logline: pitch.logline,
-            genre: pitch.genre,
-            format: pitch.format,
-            estimatedBudget: pitch.estimatedBudget,
-            budgetBracket: pitch.budgetBracket,
-            thumbnail: pitch.thumbnail || pitch.posterUrl || pitch.titleImage,
-            posterUrl: pitch.posterUrl,
-            titleImage: pitch.titleImage,
-            viewCount: pitch.viewCount,
-            likeCount: pitch.likeCount,
-            creatorId: pitch.creatorId,
-            createdAt: pitch.createdAt,
-            status: pitch.status,
-            creator: pitch.creatorUserId ? {
-              id: pitch.creatorUserId,
-              username: pitch.creatorUsername || `${pitch.creatorFirstName} ${pitch.creatorLastName}`,
-              firstName: pitch.creatorFirstName,
-              lastName: pitch.creatorLastName,
-              companyName: pitch.creatorCompanyName,
-              profileImageUrl: pitch.creatorProfileImage,
-              userType: pitch.creatorUserType
-            } : null
-          }));
+          // Apply sorting
+          if (tab === 'trending') {
+            query = query.orderBy(desc(schema.pitches.viewCount));
+          } else if (tab === 'new') {
+            query = query.orderBy(desc(schema.pitches.createdAt));
+          } else {
+            query = query.orderBy(desc(schema.pitches.createdAt));
+          }
           
-          return corsResponse(request, {
+          // Execute query with pagination
+          const results = await query.limit(limit).offset(offset);
+          
+          // Get total count (simple for now, can be optimized later)
+          const total = results.length < limit ? offset + results.length : offset + limit + 1;
+          
+          return jsonResponse({
             success: true,
-            data: formattedPitches,
+            data: results,
             pagination: {
-              total: formattedPitches.length,
               limit,
               offset,
-              hasMore: formattedPitches.length === limit,
+              total
             },
-            filters: { tab, genre },
+            tab: tab,
+            filters: {
+              genre: genre || null
+            }
           });
         } catch (error) {
-          console.error('Error fetching browse pitches:', error);
-          return corsResponse(request, {
+          console.error('Error browsing pitches:', error);
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch pitches',
-            error: error instanceof Error ? error.message : String(error),
+            error: error instanceof Error ? error.message : undefined,
           }, 500);
         }
       }
@@ -4935,7 +4707,7 @@ export default {
             }
           }));
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: formattedResults,
             pagination: {
@@ -4959,7 +4731,7 @@ export default {
           });
         } catch (error) {
           console.error('Browse error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch pitches',
             error: error.message
@@ -4978,13 +4750,13 @@ export default {
             ORDER BY genre
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: genres.map(g => g.genre).filter(Boolean)
           });
         } catch (error) {
           console.error('Error fetching genres:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch genres',
             error: error.message
@@ -5009,7 +4781,7 @@ export default {
             WHERE status = 'published'
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: {
               totalPitches: parseInt(stats[0].total_pitches),
@@ -5026,7 +4798,7 @@ export default {
           });
         } catch (error) {
           console.error('Error fetching browse stats:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch statistics',
             error: error.message
@@ -5038,14 +4810,14 @@ export default {
       // Upload single file
       if (path === '/api/upload' && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
         if (!env.R2_BUCKET) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Storage service not configured',
           }, 503);
@@ -5058,7 +4830,7 @@ export default {
           const pitchId = formData.get('pitchId') as string;
           
           if (!file) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'No file provided',
             }, 400);
@@ -5066,7 +4838,7 @@ export default {
           
           // Validate file size (50MB limit)
           if (file.size > 50 * 1024 * 1024) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'File size exceeds 50MB limit',
             }, 400);
@@ -5120,7 +4892,7 @@ export default {
             RETURNING id, file_name, original_name, file_size, mime_type
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'File uploaded successfully',
             data: {
@@ -5134,7 +4906,7 @@ export default {
           });
         } catch (error) {
           console.error('Upload error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to upload file',
             error: error.message,
@@ -5145,14 +4917,14 @@ export default {
       // Upload multiple files
       if (path === '/api/upload/multiple' && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
         }
         
         if (!env.R2_BUCKET) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Storage service not configured',
           }, 503);
@@ -5165,7 +4937,7 @@ export default {
           const pitchId = formData.get('pitchId') as string;
           
           if (!files || files.length === 0) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'No files provided',
             }, 400);
@@ -5173,7 +4945,7 @@ export default {
           
           // Limit to 10 files at once
           if (files.length > 10) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'Maximum 10 files allowed per upload',
             }, 400);
@@ -5242,14 +5014,14 @@ export default {
             });
           }
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: `${uploadedFiles.length} files uploaded successfully`,
             data: uploadedFiles,
           });
         } catch (error) {
           console.error('Multiple upload error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to upload files',
             error: error.message,
@@ -5260,14 +5032,14 @@ export default {
       // Upload custom NDA document
       if (path === '/api/pitches/nda/upload' && method === 'POST') {
         if (!userPayload || userPayload.userType !== 'creator') {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Creator access required',
           }, 403);
         }
         
         if (!env.R2_BUCKET) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Storage service not configured',
           }, 503);
@@ -5279,7 +5051,7 @@ export default {
           const pitchId = formData.get('pitchId') as string;
           
           if (!file || !pitchId) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'File and pitch ID are required',
             }, 400);
@@ -5291,7 +5063,7 @@ export default {
           `;
           
           if (pitch.length === 0 || pitch[0].user_id !== parseInt(userPayload.sub)) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'You can only upload NDAs for your own pitches',
             }, 403);
@@ -5299,7 +5071,7 @@ export default {
           
           // Only allow PDF files for NDAs
           if (file.type !== 'application/pdf') {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'NDA documents must be PDF files',
             }, 400);
@@ -5358,7 +5130,7 @@ export default {
             WHERE id = ${parseInt(pitchId)}
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'Custom NDA uploaded successfully',
             data: {
@@ -5369,7 +5141,7 @@ export default {
           });
         } catch (error) {
           console.error('NDA upload error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to upload NDA',
             error: error.message,
@@ -5388,7 +5160,7 @@ export default {
           `;
           
           if (file.length === 0) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'File not found',
             }, 404);
@@ -5406,7 +5178,7 @@ export default {
               const object = await env.R2_BUCKET.get(file[0].r2_key);
               
               if (!object) {
-                return corsResponse(request, {
+                return jsonResponse({
                   success: false,
                   message: 'File not found in storage',
                 }, 404);
@@ -5433,7 +5205,7 @@ export default {
                 const object = await env.R2_BUCKET.get(file[0].r2_key);
                 
                 if (!object) {
-                  return corsResponse(request, {
+                  return jsonResponse({
                     success: false,
                     message: 'File not found in storage',
                   }, 404);
@@ -5449,13 +5221,13 @@ export default {
             }
           }
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Access denied',
           }, 403);
         } catch (error) {
           console.error('File retrieval error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to retrieve file',
             error: error.message,
@@ -5466,7 +5238,7 @@ export default {
       // Rename file
       if (path === '/api/files/rename' && method === 'PATCH') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -5476,7 +5248,7 @@ export default {
           const { fileId, newName } = await request.json();
           
           if (!fileId || !newName) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'File ID and new name are required',
             }, 400);
@@ -5488,14 +5260,14 @@ export default {
           `;
           
           if (file.length === 0) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'File not found',
             }, 404);
           }
           
           if (file[0].user_id !== parseInt(userPayload.sub)) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'You can only rename your own files',
             }, 403);
@@ -5509,7 +5281,7 @@ export default {
             WHERE id = ${fileId}
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'File renamed successfully',
             data: {
@@ -5519,7 +5291,7 @@ export default {
           });
         } catch (error) {
           console.error('File rename error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to rename file',
             error: error.message,
@@ -5531,7 +5303,7 @@ export default {
       const deleteFileMatch = path.match(/^\/api\/files\/(\d+)$/);
       if (deleteFileMatch && method === 'DELETE') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -5546,14 +5318,14 @@ export default {
           `;
           
           if (file.length === 0) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'File not found',
             }, 404);
           }
           
           if (file[0].user_id !== parseInt(userPayload.sub)) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'You can only delete your own files',
             }, 403);
@@ -5567,13 +5339,13 @@ export default {
             DELETE FROM uploaded_files WHERE id = ${fileId}
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             message: 'File deleted successfully',
           });
         } catch (error) {
           console.error('File deletion error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to delete file',
             error: error.message,
@@ -5601,7 +5373,7 @@ export default {
             ORDER BY uploaded_at DESC
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: files.map(f => ({
               ...f,
@@ -5610,7 +5382,7 @@ export default {
           });
         } catch (error) {
           console.error('Error fetching pitch files:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch files',
             error: error.message,
@@ -5623,7 +5395,7 @@ export default {
       // Create team
       if (path === '/api/teams' && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -5634,7 +5406,7 @@ export default {
           const userId = parseInt(userPayload.sub);
           
           if (!name) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'Team name is required',
             }, 400);
@@ -5653,13 +5425,13 @@ export default {
             VALUES (${team[0].id}, ${userId}, 'owner', '{"full_access": true}')
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: team[0],
           });
         } catch (error) {
           console.error('Team creation error:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to create team',
             error: error.message,
@@ -5670,7 +5442,7 @@ export default {
       // Get user's teams
       if (path === '/api/teams' && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -5693,13 +5465,13 @@ export default {
             ORDER BY t.created_at DESC
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: teams,
           });
         } catch (error) {
           console.error('Error fetching teams:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch teams',
             error: error.message,
@@ -5711,7 +5483,7 @@ export default {
       const teamMemberMatch = path.match(/^\/api\/teams\/(\d+)\/members$/);
       if (teamMemberMatch && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -5729,7 +5501,7 @@ export default {
           `;
           
           if (memberRole.length === 0 || !['owner', 'admin'].includes(memberRole[0].role)) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'You do not have permission to add members to this team',
             }, 403);
@@ -5741,7 +5513,7 @@ export default {
           `;
           
           if (invitedUser.length === 0) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'User not found',
             }, 404);
@@ -5755,13 +5527,13 @@ export default {
             RETURNING *
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: member[0],
           });
         } catch (error) {
           console.error('Error adding team member:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to add team member',
             error: error.message,
@@ -5773,7 +5545,7 @@ export default {
       const collaboratorMatch = path.match(/^\/api\/pitches\/(\d+)\/collaborators$/);
       if (collaboratorMatch && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -5798,7 +5570,7 @@ export default {
           `;
           
           if (pitch.length === 0 || pitch[0].user_id !== userId) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'You do not have permission to manage collaborators for this pitch',
             }, 403);
@@ -5811,7 +5583,7 @@ export default {
             `;
             
             if (invitedUser.length === 0) {
-              return corsResponse(request, {
+              return jsonResponse({
                 success: false,
                 message: 'User not found',
               }, 404);
@@ -5832,7 +5604,7 @@ export default {
               RETURNING *
             `;
             
-            return corsResponse(request, {
+            return jsonResponse({
               success: true,
               data: collaborator[0],
             });
@@ -5846,19 +5618,19 @@ export default {
               ) RETURNING *
             `;
             
-            return corsResponse(request, {
+            return jsonResponse({
               success: true,
               data: collaborator[0],
             });
           } else {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'Either userEmail or teamId is required',
             }, 400);
           }
         } catch (error) {
           console.error('Error adding collaborator:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to add collaborator',
             error: error.message,
@@ -5888,13 +5660,13 @@ export default {
             ORDER BY pc.added_at DESC
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: collaborators,
           });
         } catch (error) {
           console.error('Error fetching collaborators:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to fetch collaborators',
             error: error.message,
@@ -5905,7 +5677,7 @@ export default {
       // Check user permissions for a resource
       if (path === '/api/permissions/check' && method === 'POST') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -5916,7 +5688,7 @@ export default {
           const { resourceType, resourceId, action } = await request.json();
           
           if (!resourceType || !resourceId || !action) {
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'resourceType, resourceId, and action are required',
             }, 400);
@@ -5929,7 +5701,7 @@ export default {
             `;
             
             if (pitch.length > 0 && pitch[0].user_id === userId) {
-              return corsResponse(request, {
+              return jsonResponse({
                 success: true,
                 data: { hasPermission: true, role: 'owner' },
               });
@@ -5952,7 +5724,7 @@ export default {
               else if (action === 'share') hasPermission = collaborator[0].can_share;
               else if (action === 'manage_nda') hasPermission = collaborator[0].can_manage_nda;
               
-              return corsResponse(request, {
+              return jsonResponse({
                 success: true,
                 data: { hasPermission, role },
               });
@@ -5976,7 +5748,7 @@ export default {
               else if (action === 'share') hasPermission = teamAccess[0].can_share;
               else if (action === 'manage_nda') hasPermission = teamAccess[0].can_manage_nda;
               
-              return corsResponse(request, {
+              return jsonResponse({
                 success: true,
                 data: { hasPermission, role },
               });
@@ -5989,13 +5761,13 @@ export default {
             VALUES (${userId}, ${resourceType}, ${resourceId}, ${action}, false, ${request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown'})
           `;
           
-          return corsResponse(request, {
+          return jsonResponse({
             success: true,
             data: { hasPermission: false, role: null },
           });
         } catch (error) {
           console.error('Error checking permissions:', error);
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Failed to check permissions',
             error: error.message,
@@ -6006,7 +5778,7 @@ export default {
       // Get access logs for a resource
       if (path.startsWith('/api/access-logs/') && method === 'GET') {
         if (!userPayload) {
-          return corsResponse(request, {
+          return jsonResponse({
             success: false,
             message: 'Authentication required',
           }, 401);
@@ -6026,7 +5798,7 @@ export default {
               `;
               
               if (pitch.length === 0 || pitch[0].user_id !== userId) {
-                return corsResponse(request, {
+                return jsonResponse({
                   success: false,
                   message: 'Access denied',
                 }, 403);
@@ -6047,13 +5819,13 @@ export default {
               LIMIT 100
             `;
             
-            return corsResponse(request, {
+            return jsonResponse({
               success: true,
               data: logs,
             });
           } catch (error) {
             console.error('Error fetching access logs:', error);
-            return corsResponse(request, {
+            return jsonResponse({
               success: false,
               message: 'Failed to fetch access logs',
               error: error.message,
@@ -6063,14 +5835,14 @@ export default {
       }
       
       // 404 for unknown endpoints
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: `Endpoint ${path} not found`,
       }, 404);
 
     } catch (error) {
       console.error('Worker error:', error);
-      return corsResponse(request, {
+      return jsonResponse({
         success: false,
         message: 'Internal server error',
         error: error.message,

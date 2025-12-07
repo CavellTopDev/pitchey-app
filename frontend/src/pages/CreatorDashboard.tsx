@@ -14,6 +14,7 @@ import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreato
 import { NotificationBell } from '../components/NotificationBell';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
+import DashboardHeader from '../components/DashboardHeader';
 // import * as Sentry from '@sentry/react';
 
 function CreatorDashboard() {
@@ -200,105 +201,15 @@ function CreatorDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3 sm:gap-6">
-              {/* Pitchey Logo - Links to Homepage */}
-              <Link 
-                to="/" 
-                className="flex items-center hover:opacity-80 transition-opacity"
-                title="Go to Homepage"
-              >
-                <span className="text-lg sm:text-xl font-bold text-purple-600">Pitchey</span>
-              </Link>
-              
-              {/* Divider - Hidden on small screens */}
-              <div className="hidden sm:block h-8 w-px bg-gray-300"></div>
-              
-              {/* Dashboard Info */}
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Creator Dashboard</h1>
-                <p className="text-xs text-gray-500 truncate">Welcome back, {user?.username || 'Creator'}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* Credits Display */}
-              <button
-                onClick={() => navigate('/creator/billing?tab=credits')}
-                className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
-              >
-                <Coins className="w-4 sm:w-5 h-4 sm:h-5 text-purple-600" />
-                <div className="text-xs sm:text-sm">
-                  <div className="font-semibold text-purple-900">
-                    {credits?.balance?.credits || 0} Credits
-                  </div>
-                  <div className="hidden sm:block text-xs text-purple-600 group-hover:text-purple-700">
-                    Click to manage
-                  </div>
-                </div>
-              </button>
-              
-              {/* Subscription Status */}
-              <button
-                onClick={() => navigate('/creator/billing?tab=subscription')}
-                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-              >
-                <span className="font-medium text-gray-700 truncate max-w-20">
-                  {(() => {
-                    const tier = getSubscriptionTier(subscription?.tier || '');
-                    return tier?.name || 'The Watcher';
-                  })()}
-                </span>
-                {subscription?.status === 'active' && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                )}
-              </button>
-              
-              {/* Notifications */}
-              <NotificationBell size="sm" className="sm:size-md" />
-              
-              <Link
-                to="/creator/following"
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Following
-              </Link>
-              
-              <button
-                onClick={() => navigate('/marketplace')}
-                className="flex items-center gap-2 px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition"
-              >
-                <Eye className="w-4 h-4" />
-                Browse Marketplace
-              </button>
-              
-              <button
-                onClick={() => navigate('/creator/pitch/new')}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition"
-              >
-                <Plus className="w-4 h-4" />
-                New Pitch
-              </button>
-              
-              {/* NDA Notifications */}
-              <NDANotificationBadge className="" />
-              
-              <button
-                onClick={handleLogout}
-                className="p-2 text-gray-500 hover:text-gray-700 transition"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Responsive Header */}
+      <DashboardHeader
+        user={user}
+        userType="creator"
+        title="Creator Dashboard"
+        credits={credits}
+        subscription={subscription}
+        onLogout={handleLogout}
+      />
 
       {/* Error Message */}
       {error && (

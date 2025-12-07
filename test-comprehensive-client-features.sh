@@ -13,8 +13,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # API Configuration
-API_URL="http://localhost:8001"
-#API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+#API_URL="http://localhost:8001"
+API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
 
 # Test accounts
 CREATOR_EMAIL="alex.creator@demo.com"

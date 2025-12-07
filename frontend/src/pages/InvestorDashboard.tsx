@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
+import DashboardHeader from '../components/DashboardHeader';
 
 interface PortfolioSummary {
   totalInvested: number;
@@ -163,46 +164,34 @@ export default function InvestorDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <Link to="/" className="flex items-center">
-                <span className="text-2xl font-bold text-purple-600">Pitchey</span>
-              </Link>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-white" />
-                </div>
-                <h1 className="text-lg font-bold text-gray-900">Investor Portal</h1>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <button className="relative p-2 text-gray-400 hover:text-gray-500">
-                <Bell className="w-5 h-5" />
-                {notifications.length > 0 && (
-                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
-                )}
-              </button>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-500">Welcome,</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {user?.firstName || 'Investor'}
-                </span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                title="Sign Out"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Responsive Header */}
+      <DashboardHeader
+        user={user}
+        userType="investor"
+        title="Investor Portal"
+        onLogout={handleLogout}
+      >
+        {/* Tabs as part of header */}
+        <div className="border-t border-gray-200 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <nav className="-mb-px flex flex-wrap gap-x-4 sm:gap-x-8 px-4 sm:px-6 lg:px-8 overflow-x-auto">
+              {['overview', 'portfolio', 'saved', 'ndas', 'analytics'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm capitalize transition-colors whitespace-nowrap ${
+                    activeTab === tab
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {tab === 'ndas' ? 'NDAs' : tab}
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
-      </header>
+      </DashboardHeader>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Portfolio Summary Cards */}
@@ -281,26 +270,8 @@ export default function InvestorDashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8 px-6">
-              {['overview', 'portfolio', 'saved', 'ndas', 'analytics'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors ${
-                    activeTab === tab
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {tab === 'ndas' ? 'NDAs' : tab}
-                </button>
-              ))}
-            </nav>
-          </div>
-
+        {/* Tab Content */}
+        <div className="bg-white rounded-xl shadow-sm">
           <div className="p-6">
             {/* Overview Tab */}
             {activeTab === 'overview' && (
