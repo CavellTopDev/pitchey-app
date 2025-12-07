@@ -258,8 +258,8 @@ export const pitchAPI = {
 
   async getPublicById(id: number) {
     const response = await api.get(`/api/pitches/public/${id}`);
-    // Handle both current backend format (pitch) and future expected format (data.pitch)
-    return response.data.pitch || response.data.data?.pitch;
+    // The API returns the pitch directly in response.data
+    return response.data;
   },
 
   async getAll(params?: {
