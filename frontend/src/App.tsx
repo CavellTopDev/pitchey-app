@@ -98,8 +98,43 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const UserManagement = lazy(() => import('./pages/Admin/UserManagement'));
 const ContentModeration = lazy(() => import('./pages/Admin/ContentModeration'));
+
+// Coming Soon Page for unimplemented routes
+const ComingSoon = lazy(() => import('./pages/ComingSoon'));
+
+// New Pages
+const ProductionProjects = lazy(() => import('./pages/production/ProductionProjects'));
+const ProductionProjectsDevelopment = lazy(() => import('./pages/production/ProductionProjectsDevelopment'));
+const ProductionProjectsActive = lazy(() => import('./pages/production/ProductionProjectsActive'));
+const ProductionProjectsPost = lazy(() => import('./pages/production/ProductionProjectsPost'));
+const ProductionProjectsCompleted = lazy(() => import('./pages/production/ProductionProjectsCompleted'));
+const ProductionPipeline = lazy(() => import('./pages/production/ProductionPipeline'));
+const ProductionSubmissions = lazy(() => import('./pages/production/ProductionSubmissions'));
+const ProductionSubmissionsNew = lazy(() => import('./pages/production/ProductionSubmissionsNew'));
+const ProductionSubmissionsReview = lazy(() => import('./pages/production/ProductionSubmissionsReview'));
+const ProductionSubmissionsShortlisted = lazy(() => import('./pages/production/ProductionSubmissionsShortlisted'));
+const ProductionSubmissionsAccepted = lazy(() => import('./pages/production/ProductionSubmissionsAccepted'));
+const ProductionSubmissionsRejected = lazy(() => import('./pages/production/ProductionSubmissionsRejected'));
+const ProductionSubmissionsArchive = lazy(() => import('./pages/production/ProductionSubmissionsArchive'));
+const ProductionAnalytics = lazy(() => import('./pages/production/ProductionAnalytics'));
+const ProductionActivity = lazy(() => import('./pages/production/ProductionActivity'));
+const ProductionStats = lazy(() => import('./pages/production/ProductionStats'));
+const TeamManagement = lazy(() => import('./pages/TeamManagement'));
+const TeamInvite = lazy(() => import('./pages/production/TeamInvite'));
+const TeamRoles = lazy(() => import('./pages/production/TeamRoles'));
+const ProductionCollaborations = lazy(() => import('./pages/production/ProductionCollaborations'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
+const SettingsProfile = lazy(() => import('./pages/settings/SettingsProfile'));
+const InvestorPortfolio = lazy(() => import('./pages/investor/InvestorPortfolio'));
 const Transactions = lazy(() => import('./pages/Admin/Transactions'));
 const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
+
+// Test Pages
+const TestNavigation = lazy(() => import('./pages/TestNavigation'));
+
+// Browse Pages
+const BrowseGenres = lazy(() => import('./pages/BrowseGenres'));
+const BrowseTopRated = lazy(() => import('./pages/BrowseTopRated'));
 
 // Error Pages
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -250,6 +285,9 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          
+          {/* Test Pages */}
+          <Route path="/test/navigation" element={<TestNavigation />} />
           
           {/* Portal Selection */}
           <Route path="/portals" element={<PortalSelect />} />
@@ -461,6 +499,69 @@ function App() {
               <Navigate to="/portals" />
             } />
           </Route>
+          
+          {/* Enhanced Navigation Routes - Using Functional Pages */}
+          {/* Production Routes */}
+          <Route path="/production/projects" element={isAuthenticated && userType === 'production' ? <ProductionProjects /> : <Navigate to="/login/production" />} />
+          <Route path="/production/projects/development" element={isAuthenticated && userType === 'production' ? <ProductionProjectsDevelopment /> : <Navigate to="/login/production" />} />
+          <Route path="/production/projects/production" element={isAuthenticated && userType === 'production' ? <ProductionProjectsActive /> : <Navigate to="/login/production" />} />
+          <Route path="/production/projects/post" element={isAuthenticated && userType === 'production' ? <ProductionProjectsPost /> : <Navigate to="/login/production" />} />
+          <Route path="/production/projects/completed" element={isAuthenticated && userType === 'production' ? <ProductionProjectsCompleted /> : <Navigate to="/login/production" />} />
+          <Route path="/production/pipeline" element={isAuthenticated && userType === 'production' ? <ProductionPipeline /> : <Navigate to="/login/production" />} />
+          <Route path="/production/submissions" element={isAuthenticated && userType === 'production' ? <ProductionSubmissions /> : <Navigate to="/login/production" />} />
+          <Route path="/production/submissions/new" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsNew /> : <Navigate to="/login/production" />} />
+          <Route path="/production/submissions/review" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsReview /> : <Navigate to="/login/production" />} />
+          <Route path="/production/submissions/shortlisted" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsShortlisted /> : <Navigate to="/login/production" />} />
+          <Route path="/production/submissions/accepted" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsAccepted /> : <Navigate to="/login/production" />} />
+          <Route path="/production/submissions/rejected" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsRejected /> : <Navigate to="/login/production" />} />
+          <Route path="/production/submissions/archive" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsArchive /> : <Navigate to="/login/production" />} />
+          <Route path="/production/team" element={isAuthenticated && userType === 'production' ? <TeamManagement /> : <Navigate to="/login/production" />} />
+          <Route path="/production/team/invite" element={isAuthenticated && userType === 'production' ? <TeamInvite /> : <Navigate to="/login/production" />} />
+          <Route path="/production/team/roles" element={isAuthenticated && userType === 'production' ? <TeamRoles /> : <Navigate to="/login/production" />} />
+          <Route path="/production/collaborations" element={isAuthenticated && userType === 'production' ? <ProductionCollaborations /> : <Navigate to="/login/production" />} />
+          <Route path="/production/analytics" element={isAuthenticated && userType === 'production' ? <ProductionAnalytics /> : <Navigate to="/login/production" />} />
+          <Route path="/production/activity" element={isAuthenticated && userType === 'production' ? <ProductionActivity /> : <Navigate to="/login/production" />} />
+          <Route path="/production/stats" element={isAuthenticated && userType === 'production' ? <ProductionStats /> : <Navigate to="/login/production" />} />
+          
+          {/* Creator Routes */}
+          <Route path="/creator/activity" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/stats" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/published" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/drafts" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/review" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/analytics" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team/invite" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team/roles" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/collaborations" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          
+          {/* Investor Routes */}
+          <Route path="/investor/activity" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/stats" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/portfolio" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/saved" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/watchlist" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/deals" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/ndas" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          
+          {/* Browse Routes - Public access */}
+          <Route path="/browse/genres" element={<BrowseGenres />} />
+          <Route path="/browse/top-rated" element={<BrowseTopRated />} />
+          <Route path="/search" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
+          <Route path="/search/advanced" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
+          <Route path="/search/genre" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
+          <Route path="/search/budget" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
+          <Route path="/search/creators" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
+          <Route path="/search/companies" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
+          <Route path="/settings/profile" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
+          <Route path="/settings/account" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
+          <Route path="/settings/privacy" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
+          <Route path="/settings/notifications" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
+          <Route path="/settings/billing" element={isAuthenticated ? <Billing /> : <Navigate to="/portals" />} />
+          <Route path="/settings/api" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
+          <Route path="/messages" element={isAuthenticated ? <Messages /> : <Navigate to="/portals" />} />
           
                 {/* 404 - Must be last */}
                 <Route path="*" element={<NotFound />} />
