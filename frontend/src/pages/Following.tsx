@@ -102,14 +102,16 @@ const Following: React.FC = () => {
       console.log('Active tab:', activeTab);
       
       if (result.success) {
-        console.log('Setting data:', result.data);
         // Handle different response formats based on the tab
         if (activeTab === 'activity') {
-          setData(result.data.activities || result.activities || []);
+          // For activity tab, the API returns activities directly at root level
+          const activities = result.activities || [];
+          console.log('Setting activities:', activities);
+          setData(activities);
         } else if (activeTab === 'followers') {
-          setData(result.data.followers || result.followers || result.data || []);
+          setData(result.data?.followers || result.followers || result.data || []);
         } else if (activeTab === 'following') {
-          setData(result.data.following || result.following || result.data || []);
+          setData(result.data?.following || result.following || result.data || []);
         } else {
           // Fallback to data directly if it's an array
           setData(Array.isArray(result.data) ? result.data : []);
