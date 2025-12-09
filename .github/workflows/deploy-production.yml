@@ -68,12 +68,12 @@ jobs:
           restore-keys: ${{ runner.os }}-deno-
       
       - name: Validate TypeScript
-        run: deno check src/worker-production-complete.ts
+        run: deno check src/worker-production-db.ts
       
       - name: Run Worker Tests
         run: |
           # Test worker compilation
-          deno run --allow-all --check src/worker-production-complete.ts --help || true
+          deno run --allow-all --check src/worker-production-db.ts --help || true
           
           # Validate wrangler.toml
           if command -v wrangler &> /dev/null; then
@@ -177,7 +177,7 @@ jobs:
       - name: Deploy Worker
         run: |
           echo "Deploying worker to production..."
-          wrangler deploy --config wrangler-production-fixed.toml
+          wrangler deploy
           
           # Verify deployment
           sleep 10
