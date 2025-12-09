@@ -6213,7 +6213,7 @@ export default {
               u.email as requester_email
             FROM nda_requests n
             JOIN pitches p ON n.pitch_id = p.id
-            LEFT JOIN users u ON n.user_id = u.id
+            LEFT JOIN users u ON n.requester_id = u.id
             WHERE p.user_id = ${creatorId}
             ORDER BY n.created_at DESC
           `;
@@ -6265,7 +6265,7 @@ export default {
                 COUNT(DISTINCT p.id) as total_pitches,
                 COALESCE(SUM(p.views), 0) as total_views
               FROM users u
-              LEFT JOIN follows f ON f.following_id = u.id
+              LEFT JOIN follows f ON f.creator_id = u.id
               LEFT JOIN pitches p ON p.user_id = u.id AND p.status = 'published'
               WHERE u.id = ${creatorId}
               GROUP BY u.id
