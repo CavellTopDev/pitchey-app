@@ -309,7 +309,6 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
     console.error('Login error:', errorMessage);
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     // Always include error details for debugging
-    const errorMessage = error instanceof Error ? error.message : String(error);
     
     return corsResponse(request, {
       success: false,
@@ -2708,7 +2707,6 @@ export default {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error('Failed to fetch portfolio summary:', errorMessage);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error('Detailed error:', errorMessage);
           
           // Always show error in response for debugging
@@ -3274,9 +3272,8 @@ export default {
             data: interests,
           });
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error('Error fetching investment interests:', errorMessage);
           const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment interests';
+          console.error('Error fetching investment interests:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: errorMessage,
@@ -3376,9 +3373,8 @@ export default {
             data: newReview[0],
           }, 201);
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error('Error creating review:', errorMessage);
           const errorMessage = error instanceof Error ? error.message : 'Failed to create review';
+          console.error('Error creating review:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: errorMessage,
