@@ -1,4 +1,4 @@
-import { useEffect, useState, Suspense, lazy, startTransition } from 'react';
+import React, { useEffect, useState, Suspense, lazy, startTransition } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 // React Query temporarily disabled to resolve JavaScript initialization errors
 import { useAuthStore } from './store/authStore';
@@ -124,6 +124,13 @@ const TeamMembers = lazy(() => import('./pages/team/TeamMembers'));
 const TeamInvite = lazy(() => import('./pages/team/TeamInvite'));
 const TeamRoles = lazy(() => import('./pages/production/TeamRoles'));
 const ProductionCollaborations = lazy(() => import('./pages/production/ProductionCollaborations'));
+const ProductionRevenue = lazy(() => import('./pages/production/ProductionRevenue'));
+const ProductionSaved = lazy(() => import('./pages/production/ProductionSaved'));
+const ProductionSettingsProfile = lazy(() => import('./pages/production/settings/ProductionSettingsProfile'));
+const ProductionSettingsNotifications = lazy(() => import('./pages/production/settings/ProductionSettingsNotifications'));
+const ProductionSettingsBilling = lazy(() => import('./pages/production/settings/ProductionSettingsBilling'));
+const ProductionSettingsSecurity = lazy(() => import('./pages/production/settings/ProductionSettingsSecurity'));
+const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const SettingsProfile = lazy(() => import('./pages/settings/SettingsProfile'));
 const NotificationSettings = lazy(() => import('./pages/settings/NotificationSettings'));
@@ -526,6 +533,12 @@ function App() {
           <Route path="/production/analytics" element={isAuthenticated && userType === 'production' ? <ProductionAnalytics /> : <Navigate to="/login/production" />} />
           <Route path="/production/activity" element={isAuthenticated && userType === 'production' ? <ProductionActivity /> : <Navigate to="/login/production" />} />
           <Route path="/production/stats" element={isAuthenticated && userType === 'production' ? <ProductionStats /> : <Navigate to="/login/production" />} />
+          <Route path="/production/revenue" element={isAuthenticated && userType === 'production' ? <ProductionRevenue /> : <Navigate to="/login/production" />} />
+          <Route path="/production/saved" element={isAuthenticated && userType === 'production' ? <ProductionSaved /> : <Navigate to="/login/production" />} />
+          <Route path="/production/settings/profile" element={isAuthenticated && userType === 'production' ? <ProductionSettingsProfile /> : <Navigate to="/login/production" />} />
+          <Route path="/production/settings/notifications" element={isAuthenticated && userType === 'production' ? <ProductionSettingsNotifications /> : <Navigate to="/login/production" />} />
+          <Route path="/production/settings/billing" element={isAuthenticated && userType === 'production' ? <ProductionSettingsBilling /> : <Navigate to="/login/production" />} />
+          <Route path="/production/settings/security" element={isAuthenticated && userType === 'production' ? <ProductionSettingsSecurity /> : <Navigate to="/login/production" />} />
           
           {/* Creator Routes */}
           <Route path="/creator/activity" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
@@ -555,7 +568,7 @@ function App() {
           <Route path="/browse/genres" element={<BrowseGenres />} />
           <Route path="/browse/top-rated" element={<BrowseTopRated />} />
           <Route path="/search" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
-          <Route path="/search/advanced" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
+          <Route path="/search/advanced" element={isAuthenticated ? <AdvancedSearch /> : <Navigate to="/portals" />} />
           <Route path="/search/genre" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
           <Route path="/search/budget" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
           <Route path="/search/creators" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />

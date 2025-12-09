@@ -62,19 +62,31 @@ export function EnhancedNavigationShadcn({
     production: [
       { label: 'Overview', href: `${portalPrefix}/dashboard`, icon: Home },
       { label: 'Analytics', href: `${portalPrefix}/analytics`, icon: BarChart3 },
-      { label: 'Pipeline', href: `${portalPrefix}/pipeline`, icon: Layers },
+      { label: 'Revenue Reports', href: `${portalPrefix}/revenue`, icon: DollarSign },
       { label: 'Activity', href: `${portalPrefix}/activity`, icon: Activity },
     ]
   };
 
-  const browseMenuItems = [
-    { label: 'All Pitches', href: '/marketplace', icon: Globe },
-    { label: 'By Genre', href: '/browse/genres', icon: Film },
-    { label: 'Trending', href: '/browse/trending', icon: TrendingUp },
-    { label: 'New Releases', href: '/browse/new', icon: Star },
-    { label: 'Top Rated', href: '/browse/top-rated', icon: Award },
-    { label: 'Coming Soon', href: '/coming-soon', icon: Clock },
-  ];
+  const browseMenuItems = {
+    creator: [
+      { label: 'All Pitches', href: '/browse', icon: Globe },
+      { label: 'Trending', href: '/browse?tab=trending', icon: TrendingUp },
+      { label: 'New Releases', href: '/browse?tab=new', icon: Star },
+      { label: 'By Genre', href: '/browse/genres', icon: Film },
+    ],
+    investor: [
+      { label: 'All Pitches', href: '/browse', icon: Globe },
+      { label: 'Trending', href: '/browse?tab=trending', icon: TrendingUp },
+      { label: 'New Releases', href: '/browse?tab=new', icon: Star },
+      { label: 'Saved Pitches', href: `${portalPrefix}/saved`, icon: Star },
+    ],
+    production: [
+      { label: 'All Pitches', href: '/browse', icon: Globe },
+      { label: 'Trending', href: '/browse?tab=trending', icon: TrendingUp },
+      { label: 'New Submissions', href: '/browse?tab=new', icon: Star },
+      { label: 'Saved Pitches', href: `${portalPrefix}/saved`, icon: Star },
+    ]
+  };
 
   const projectMenuItems = {
     creator: [
@@ -91,32 +103,56 @@ export function EnhancedNavigationShadcn({
     ],
     production: [
       { label: 'Active Projects', href: `${portalPrefix}/projects`, icon: Briefcase },
-      { label: 'Submissions', href: `${portalPrefix}/submissions`, icon: Upload },
-      { label: 'In Development', href: `${portalPrefix}/development`, icon: Target },
-      { label: 'Completed', href: `${portalPrefix}/completed`, icon: CheckCircle },
+      { label: 'In Development', href: `${portalPrefix}/projects/development`, icon: Target },
+      { label: 'Pipeline', href: `${portalPrefix}/pipeline`, icon: Layers },
+      { label: 'Completed', href: `${portalPrefix}/projects/completed`, icon: CheckCircle },
     ]
   };
 
-  const teamMenuItems = [
-    { label: 'Team Overview', href: '/team', icon: Users },
-    { label: 'Members', href: '/team/members', icon: UserPlus },
-    { label: 'Roles', href: '/team/roles', icon: Shield },
-    { label: 'Invitations', href: '/team/invite', icon: MessageSquare },
-  ];
+  const teamMenuItems = {
+    creator: [
+      { label: 'Team Overview', href: `${portalPrefix}/team`, icon: Users },
+      { label: 'Members', href: `${portalPrefix}/team/members`, icon: UserPlus },
+      { label: 'Collaborations', href: `${portalPrefix}/collaborations`, icon: MessageSquare },
+    ],
+    investor: [
+      { label: 'Team Overview', href: `${portalPrefix}/team`, icon: Users },
+      { label: 'Members', href: `${portalPrefix}/team/members`, icon: UserPlus },
+      { label: 'Advisors', href: `${portalPrefix}/team/advisors`, icon: Shield },
+    ],
+    production: [
+      { label: 'Team Members', href: `${portalPrefix}/team/members`, icon: Users },
+      { label: 'Roles', href: `${portalPrefix}/team/roles`, icon: Shield },
+      { label: 'Invite Members', href: `${portalPrefix}/team/invite`, icon: UserPlus },
+    ]
+  };
 
   const searchMenuItems = [
-    { label: 'Search All', href: '/search', icon: Search },
+    { label: 'Search Pitches', href: '/search?type=pitches', icon: Film },
+    { label: 'Search Creators', href: '/search?type=creators', icon: Users },
     { label: 'Advanced Search', href: '/search/advanced', icon: Target },
-    { label: 'Search by Genre', href: '/search/genre', icon: Film },
-    { label: 'Search by Format', href: '/search/format', icon: PlayCircle },
   ];
 
-  const settingsMenuItems = [
-    { label: 'Profile', href: `${portalPrefix}/settings/profile`, icon: UserCircle },
-    { label: 'Notifications', href: '/settings/notifications', icon: Bell },
-    { label: 'Privacy', href: '/settings/privacy', icon: Shield },
-    { label: 'Billing', href: `${portalPrefix}/billing`, icon: CreditCard },
-  ];
+  const settingsMenuItems = {
+    creator: [
+      { label: 'Profile', href: `${portalPrefix}/settings/profile`, icon: UserCircle },
+      { label: 'Notifications', href: `${portalPrefix}/settings/notifications`, icon: Bell },
+      { label: 'Privacy', href: `${portalPrefix}/settings/privacy`, icon: Shield },
+      { label: 'Billing', href: `${portalPrefix}/settings/billing`, icon: CreditCard },
+    ],
+    investor: [
+      { label: 'Profile', href: `${portalPrefix}/settings/profile`, icon: UserCircle },
+      { label: 'Notifications', href: `${portalPrefix}/settings/notifications`, icon: Bell },
+      { label: 'Privacy', href: `${portalPrefix}/settings/privacy`, icon: Shield },
+      { label: 'Billing', href: `${portalPrefix}/settings/billing`, icon: CreditCard },
+    ],
+    production: [
+      { label: 'Company Profile', href: `${portalPrefix}/settings/profile`, icon: UserCircle },
+      { label: 'Notifications', href: `${portalPrefix}/settings/notifications`, icon: Bell },
+      { label: 'Billing', href: `${portalPrefix}/settings/billing`, icon: CreditCard },
+      { label: 'Security', href: `${portalPrefix}/settings/security`, icon: Shield },
+    ]
+  };
 
   const navigationItemStyle = "flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer";
   const activeItemStyle = "flex items-center gap-2 px-3 py-2 text-purple-600 bg-purple-50 rounded-lg";
@@ -141,7 +177,7 @@ export function EnhancedNavigationShadcn({
                   <span>Dashboard</span>
                   <ChevronDown className="w-4 h-4 ml-1" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
+                <DropdownMenuContent className="w-56 bg-white border shadow-lg">
                   <DropdownMenuLabel>Dashboard</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
@@ -166,11 +202,11 @@ export function EnhancedNavigationShadcn({
                   <span>Browse</span>
                   <ChevronDown className="w-4 h-4 ml-1" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
+                <DropdownMenuContent className="w-56 bg-white border shadow-lg">
                   <DropdownMenuLabel>Browse Content</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
-                    {browseMenuItems.map((item) => (
+                    {browseMenuItems[userType].map((item) => (
                       <DropdownMenuItem 
                         key={item.href}
                         onClick={() => navigate(item.href)}
@@ -191,7 +227,7 @@ export function EnhancedNavigationShadcn({
                   <span>{userType === 'creator' ? 'Pitches' : 'Projects'}</span>
                   <ChevronDown className="w-4 h-4 ml-1" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
+                <DropdownMenuContent className="w-56 bg-white border shadow-lg">
                   <DropdownMenuLabel>
                     {userType === 'creator' ? 'My Pitches' : 'Projects'}
                   </DropdownMenuLabel>
@@ -218,11 +254,11 @@ export function EnhancedNavigationShadcn({
                   <span>Team</span>
                   <ChevronDown className="w-4 h-4 ml-1" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
+                <DropdownMenuContent className="w-56 bg-white border shadow-lg">
                   <DropdownMenuLabel>Team Management</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
-                    {teamMenuItems.map((item) => (
+                    {teamMenuItems[userType].map((item) => (
                       <DropdownMenuItem 
                         key={item.href}
                         onClick={() => navigate(item.href)}
@@ -243,7 +279,7 @@ export function EnhancedNavigationShadcn({
                   <span>Search</span>
                   <ChevronDown className="w-4 h-4 ml-1" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
+                <DropdownMenuContent className="w-56 bg-white border shadow-lg">
                   <DropdownMenuLabel>Search Options</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
@@ -268,11 +304,11 @@ export function EnhancedNavigationShadcn({
                   <span>Settings</span>
                   <ChevronDown className="w-4 h-4 ml-1" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
+                <DropdownMenuContent className="w-56 bg-white border shadow-lg">
                   <DropdownMenuLabel>Settings</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
-                    {settingsMenuItems.map((item) => (
+                    {settingsMenuItems[userType].map((item) => (
                       <DropdownMenuItem 
                         key={item.href}
                         onClick={() => navigate(item.href)}

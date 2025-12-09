@@ -62,7 +62,7 @@ function getCorsHeaders(request: Request): Record<string, string> {
   
   // Check if origin matches allowed list or is a Cloudflare Pages subdomain
   const isAllowed = allowedOrigins.includes(origin) || 
-                    origin.match(/^https:\/\/[a-z0-9]+\.pitchey\.pages\.dev$/);
+                    origin.match(/^https:\/\/[a-z0-9-]+\.pitchey\.pages\.dev$/);
   
   // If credentials are needed, we must return the exact origin (not *)
   if (isAllowed) {
@@ -2777,6 +2777,269 @@ export default {
         }
       }
 
+      // Investor NDA Requests
+      if (path === '/api/investor/nda-requests' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        const investorId = parseInt(userPayload.sub);
+        
+        try {
+          const ndaRequests = await db.select({
+            id: schema.ndaRequests.id,
+            pitchId: schema.ndaRequests.pitchId,
+            pitchTitle: schema.pitches.title,
+            status: schema.ndaRequests.status,
+            requestedAt: schema.ndaRequests.requestedAt,
+            respondedAt: schema.ndaRequests.respondedAt
+          })
+          .from(schema.ndaRequests)
+          .leftJoin(schema.pitches, eq(schema.ndaRequests.pitchId, schema.pitches.id))
+          .where(eq(schema.ndaRequests.requesterId, investorId))
+          .orderBy(desc(schema.ndaRequests.requestedAt));
+          
+          return corsResponse(request, {
+            success: true,
+            data: ndaRequests
+          });
+        } catch (error) {
+          console.error('Error fetching NDA requests:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch NDA requests'
+          }, 500);
+        }
+      }
+
+      // Investor Notifications
+      if (path === '/api/investor/notifications' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: [
+            {
+              id: 1,
+              type: 'nda_approved',
+              message: 'Your NDA for "Space Adventure" has been approved',
+              timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+              read: false
+            },
+            {
+              id: 2,
+              type: 'new_pitch',
+              message: 'New pitch matching your interests: "Time Travel Mystery"',
+              timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+              read: true
+            }
+          ]
+        });
+      }
+
+      // Investor Recommendations
+      if (path === '/api/investor/recommendations' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        try {
+          const recommendations = await db.select({
+            id: schema.pitches.id,
+            title: schema.pitches.title,
+            logline: schema.pitches.logline,
+            genre: schema.pitches.genre,
+            format: schema.pitches.format,
+            estimatedBudget: schema.pitches.estimatedBudget,
+            thumbnail: schema.pitches.posterUrl,
+            creatorFirstName: schema.users.firstName,
+            creatorLastName: schema.users.lastName,
+            creatorCompany: schema.users.companyName
+          })
+          .from(schema.pitches)
+          .leftJoin(schema.users, eq(schema.pitches.userId, schema.users.id))
+          .where(and(
+            eq(schema.pitches.status, 'published'),
+            eq(schema.pitches.visibility, 'public')
+          ))
+          .orderBy(desc(schema.pitches.createdAt))
+          .limit(6);
+          
+          return corsResponse(request, {
+            success: true,
+            data: recommendations
+          });
+        } catch (error) {
+          console.error('Error fetching recommendations:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch recommendations'
+          }, 500);
+        }
+      }
+
+      // Investor Analytics
+      if (path === '/api/investor/analytics' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            portfolio: {
+              totalInvested: 750000,
+              activeInvestments: 8,
+              averageROI: 0.15,
+              topPerformer: { title: 'Space Adventure', roi: 0.42 }
+            },
+            activity: {
+              pitchesViewed: 145,
+              ndasSigned: 23,
+              investmentsMade: 8,
+              messagesExchanged: 67
+            },
+            trends: {
+              monthly: [
+                { month: 'Jan', invested: 120000, returns: 15000 },
+                { month: 'Feb', invested: 95000, returns: 18000 },
+                { month: 'Mar', invested: 150000, returns: 22000 }
+              ]
+            }
+          }
+        });
+      }
+
+      // Investor Following
+      if (path === '/api/investor/following' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        const investorId = parseInt(userPayload.sub);
+        
+        try {
+          // Get creators that the investor follows
+          const following = await db.select({
+            id: schema.users.id,
+            username: schema.users.username,
+            firstName: schema.users.firstName,
+            lastName: schema.users.lastName,
+            companyName: schema.users.companyName,
+            profileImageUrl: schema.users.profileImageUrl,
+            userType: schema.users.userType,
+            followedAt: schema.follows.followedAt
+          })
+          .from(schema.follows)
+          .innerJoin(schema.users, eq(schema.follows.creatorId, schema.users.id))
+          .where(eq(schema.follows.followerId, investorId))
+          .orderBy(desc(schema.follows.followedAt));
+          
+          return corsResponse(request, {
+            success: true,
+            data: following
+          });
+        } catch (error) {
+          console.error('Error fetching following:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch following list'
+          }, 500);
+        }
+      }
+
+      // Investor Watchlist
+      if (path === '/api/investor/watchlist' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        const investorId = parseInt(userPayload.sub);
+        
+        try {
+          const watchlistItems = await db.select({
+            id: schema.watchlist.id,
+            pitchId: schema.watchlist.pitchId,
+            title: schema.pitches.title,
+            logline: schema.pitches.logline,
+            genre: schema.pitches.genre,
+            format: schema.pitches.format,
+            thumbnail: schema.pitches.posterUrl,
+            addedAt: schema.watchlist.createdAt,
+            status: schema.pitches.status
+          })
+          .from(schema.watchlist)
+          .leftJoin(schema.pitches, eq(schema.watchlist.pitchId, schema.pitches.id))
+          .where(eq(schema.watchlist.userId, investorId))
+          .orderBy(desc(schema.watchlist.createdAt));
+          
+          return corsResponse(request, {
+            success: true,
+            data: watchlistItems
+          });
+        } catch (error) {
+          console.error('Error fetching watchlist:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch watchlist'
+          }, 500);
+        }
+      }
+
+      // Investor Activity Feed
+      if (path === '/api/investor/activity' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: [
+            {
+              id: 1,
+              type: 'pitch_view',
+              title: 'Viewed "Space Adventure"',
+              timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+            },
+            {
+              id: 2,
+              type: 'nda_signed',
+              title: 'Signed NDA for "Time Mystery"',
+              timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: 3,
+              type: 'investment_made',
+              title: 'Invested $50,000 in "Urban Legend"',
+              timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+            }
+          ]
+        });
+      }
+
       // Investment recommendations
       if (path === '/api/investment/recommendations' && method === 'GET') {
         if (!userPayload || (userPayload.userType !== 'investor' && userPayload.userType !== 'production')) {
@@ -3452,28 +3715,305 @@ export default {
           }, 401);
         }
         
+        // Get user ID
+        const userId = parseInt(userPayload.sub);
+        
+        // Mock data - in production this would come from actual database queries
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        
+        return corsResponse(request, {
+          success: true,
+          metrics: {
+            overview: {
+              totalViews: 1250,
+              totalLikes: 89,
+              totalFollowers: 234,
+              totalPitches: 12,
+              viewsChange: 15.5,
+              likesChange: 8.2,
+              followersChange: 12.1,
+              pitchesChange: 2.0
+            },
+            performance: {
+              topPitches: [],
+              recentActivity: [
+                {
+                  id: 1,
+                  type: 'view',
+                  entityType: 'pitch',
+                  entityId: 1,
+                  entityName: 'Space Adventure',
+                  timestamp: new Date().toISOString(),
+                  metadata: {}
+                },
+                {
+                  id: 2,
+                  type: 'like',
+                  entityType: 'pitch',
+                  entityId: 2,
+                  entityName: 'Time Travel Mystery',
+                  timestamp: new Date(Date.now() - 3600000).toISOString(),
+                  metadata: {}
+                },
+                {
+                  id: 3,
+                  type: 'follow',
+                  entityType: 'user',
+                  entityId: userId,
+                  entityName: userPayload.username || 'User',
+                  timestamp: new Date(Date.now() - 7200000).toISOString(),
+                  metadata: {}
+                }
+              ],
+              engagementTrend: [
+                { date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), rate: 6.8 },
+                { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), rate: 7.2 },
+                { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), rate: 6.9 },
+                { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), rate: 7.5 },
+                { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), rate: 7.8 },
+                { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), rate: 8.1 },
+                { date: new Date().toISOString(), rate: 8.3 }
+              ]
+            },
+            revenue: userPayload.userType === 'creator' ? {
+              total: 2450.00,
+              subscriptions: 1200.00,
+              transactions: 1250.00,
+              growth: 18.5
+            } : undefined
+          }
+        });
+      }
+
+      // Pitch analytics
+      if (path.startsWith('/api/analytics/pitch/') && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const pitchId = parseInt(path.split('/')[4]);
+        if (!pitchId) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Invalid pitch ID',
+          }, 400);
+        }
+        
+        // Mock analytics data - in production this would come from actual database queries
         return corsResponse(request, {
           success: true,
           analytics: {
-            views: {
-              total: 1250,
-              thisMonth: 450,
-              growth: "+15%"
-            },
-            engagement: {
-              likes: 89,
-              comments: 34,
-              shares: 12
-            },
-            demographics: {
-              age: "25-34",
-              location: "US",
-              gender: "Mixed"
-            },
-            performance: {
-              topPitch: "Space Adventure",
-              avgEngagement: "7.2%"
+            pitchId,
+            title: 'Sample Pitch',
+            views: 1250,
+            uniqueViews: 892,
+            likes: 89,
+            shares: 34,
+            ndaRequests: 15,
+            ndaApproved: 12,
+            messages: 45,
+            avgViewDuration: 180, // seconds
+            bounceRate: 0.35,
+            conversionRate: 0.12,
+            engagementRate: 0.08,
+            viewsByDate: [
+              { date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), count: 145 },
+              { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), count: 178 },
+              { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), count: 202 },
+              { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), count: 189 },
+              { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), count: 234 },
+              { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), count: 198 },
+              { date: new Date().toISOString(), count: 104 }
+            ],
+            viewsBySource: [
+              { source: 'direct', count: 450 },
+              { source: 'search', count: 380 },
+              { source: 'browse', count: 280 },
+              { source: 'social', count: 140 }
+            ],
+            viewsByLocation: [
+              { location: 'United States', count: 650 },
+              { location: 'United Kingdom', count: 230 },
+              { location: 'Canada', count: 180 },
+              { location: 'Australia', count: 190 }
+            ],
+            viewerDemographics: {
+              userType: [
+                { type: 'investor', count: 520 },
+                { type: 'production', count: 380 },
+                { type: 'creator', count: 350 }
+              ],
+              industry: [
+                { industry: 'Film', count: 680 },
+                { industry: 'Television', count: 320 },
+                { industry: 'Streaming', count: 250 }
+              ]
             }
+          }
+        });
+      }
+
+      // Analytics - Funnel
+      if (path.startsWith('/api/analytics/funnel/') && method === 'GET') {
+        const pitchId = parseInt(path.split('/')[4]);
+        
+        return corsResponse(request, {
+          success: true,
+          funnel: {
+            views: 1250,
+            detailViews: 892,
+            ndaRequests: 156,
+            ndaSigned: 89,
+            messages: 45,
+            conversions: 12,
+            dropoffRates: {
+              viewToDetail: 0.286,
+              detailToNDA: 0.825,
+              ndaToMessage: 0.494,
+              messageToConversion: 0.733
+            }
+          }
+        });
+      }
+
+      // Analytics - Engagement
+      if (path === '/api/analytics/engagement' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          metrics: {
+            engagementRate: 0.082,
+            averageTimeSpent: 240,
+            bounceRate: 0.35,
+            interactionRate: 0.145,
+            shareRate: 0.034,
+            conversionRate: 0.012,
+            trends: [
+              { date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), rate: 0.068 },
+              { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), rate: 0.072 },
+              { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), rate: 0.069 },
+              { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), rate: 0.075 },
+              { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), rate: 0.078 },
+              { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), rate: 0.081 },
+              { date: new Date().toISOString(), rate: 0.082 }
+            ]
+          }
+        });
+      }
+
+      // Analytics - Revenue
+      if (path === '/api/analytics/revenue' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          revenue: {
+            totalRevenue: 5450.00,
+            subscriptionRevenue: 3200.00,
+            transactionRevenue: 2250.00,
+            averageOrderValue: 89.50,
+            customerLifetimeValue: 450.00,
+            churnRate: 0.05,
+            growthRate: 0.18,
+            revenueByDate: [
+              { date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), amount: 680 },
+              { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), amount: 720 },
+              { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), amount: 890 },
+              { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), amount: 750 },
+              { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), amount: 980 },
+              { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), amount: 820 },
+              { date: new Date().toISOString(), amount: 610 }
+            ],
+            revenueBySource: [
+              { source: 'subscriptions', amount: 3200 },
+              { source: 'nda_access', amount: 1450 },
+              { source: 'premium_features', amount: 800 }
+            ]
+          }
+        });
+      }
+
+      // Analytics - Trending
+      if (path === '/api/analytics/trending' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          pitches: [
+            {
+              pitchId: 1,
+              title: 'Space Adventure',
+              views: 2450,
+              uniqueViews: 1890,
+              likes: 234,
+              shares: 89,
+              ndaRequests: 45,
+              ndaApproved: 38,
+              messages: 67,
+              avgViewDuration: 210,
+              bounceRate: 0.28,
+              conversionRate: 0.15,
+              engagementRate: 0.12,
+              viewsByDate: [],
+              viewsBySource: [],
+              viewsByLocation: [],
+              viewerDemographics: {
+                userType: [],
+                industry: []
+              }
+            },
+            {
+              pitchId: 2,
+              title: 'Time Travel Mystery',
+              views: 1980,
+              uniqueViews: 1456,
+              likes: 189,
+              shares: 67,
+              ndaRequests: 34,
+              ndaApproved: 28,
+              messages: 45,
+              avgViewDuration: 195,
+              bounceRate: 0.32,
+              conversionRate: 0.10,
+              engagementRate: 0.09,
+              viewsByDate: [],
+              viewsBySource: [],
+              viewsByLocation: [],
+              viewerDemographics: {
+                userType: [],
+                industry: []
+              }
+            }
+          ]
+        });
+      }
+
+      // Analytics - Comparison
+      if (path.startsWith('/api/analytics/compare/') && method === 'GET') {
+        const pathParts = path.split('/');
+        const compareType = pathParts[4]; // pitch, user, or dashboard
+        
+        return corsResponse(request, {
+          success: true,
+          comparison: {
+            current: {
+              views: 1250,
+              likes: 89,
+              engagement: 0.082
+            },
+            previous: {
+              views: 980,
+              likes: 72,
+              engagement: 0.068
+            },
+            change: 270,
+            changePercentage: 27.6
           }
         });
       }
@@ -3490,9 +4030,11 @@ export default {
         return corsResponse(request, {
           success: true,
           data: {
-            pending: 2,
-            signed: 5,
-            total: 7
+            stats: {
+              pending: 2,
+              signed: 5,
+              total: 7
+            }
           }
         });
       }
@@ -4386,6 +4928,304 @@ export default {
         }
       }
 
+      // Production Investments
+      if (path === '/api/production/investments' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            totalInvested: 2500000,
+            activeDeals: 5,
+            pipelineValue: 8500000,
+            recentDeals: [
+              {
+                id: 1,
+                projectTitle: 'Space Adventure',
+                investmentAmount: 500000,
+                investmentType: 'Equity',
+                status: 'Active',
+                expectedROI: 0.25,
+                dateInvested: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+              },
+              {
+                id: 2,
+                projectTitle: 'Time Mystery',
+                investmentAmount: 750000,
+                investmentType: 'Revenue Share',
+                status: 'In Negotiation',
+                expectedROI: 0.18,
+                dateInvested: null
+              }
+            ]
+          }
+        });
+      }
+
+      // Production Analytics
+      if (path === '/api/production/analytics' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            performance: {
+              projectsCompleted: 12,
+              projectsInProgress: 5,
+              averageCompletionTime: 95,
+              onTimeDelivery: 0.68
+            },
+            financial: {
+              totalRevenue: 8500000,
+              totalCosts: 6200000,
+              profitMargin: 0.27,
+              averageBudgetVariance: 0.08
+            },
+            trends: {
+              monthly: [
+                { month: 'Jan', revenue: 680000, projects: 2 },
+                { month: 'Feb', revenue: 720000, projects: 1 },
+                { month: 'Mar', revenue: 890000, projects: 3 }
+              ]
+            }
+          }
+        });
+      }
+
+      // Production Pipeline
+      if (path === '/api/production/pipeline' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            stages: {
+              development: [
+                { id: 1, title: 'Future Wars', budget: 2500000, status: 'Script Development' },
+                { id: 2, title: 'Lost Kingdom', budget: 1800000, status: 'Concept Art' }
+              ],
+              preProduction: [
+                { id: 3, title: 'Night Shift', budget: 3200000, status: 'Casting' },
+                { id: 4, title: 'The Signal', budget: 2800000, status: 'Location Scouting' }
+              ],
+              production: [
+                { id: 5, title: 'Digital Rebellion', budget: 4500000, status: 'Principal Photography' }
+              ],
+              postProduction: [
+                { id: 6, title: 'Forgotten City', budget: 2200000, status: 'VFX' },
+                { id: 7, title: 'Ocean Secret', budget: 1900000, status: 'Color Grading' }
+              ],
+              distribution: [
+                { id: 8, title: 'Time Loop', budget: 1500000, status: 'Festival Circuit' }
+              ]
+            },
+            totalValue: 18350000,
+            projectCount: 8
+          }
+        });
+      }
+
+      // Production Team
+      if (path === '/api/production/team' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            departments: [
+              {
+                name: 'Directors',
+                members: [
+                  { id: 1, name: 'John Smith', role: 'Lead Director', projects: 3 },
+                  { id: 2, name: 'Sarah Johnson', role: 'Director', projects: 2 }
+                ]
+              },
+              {
+                name: 'Producers',
+                members: [
+                  { id: 3, name: 'Mike Williams', role: 'Executive Producer', projects: 5 },
+                  { id: 4, name: 'Lisa Chen', role: 'Producer', projects: 4 }
+                ]
+              },
+              {
+                name: 'Post-Production',
+                members: [
+                  { id: 5, name: 'David Brown', role: 'VFX Supervisor', projects: 6 },
+                  { id: 6, name: 'Emma Davis', role: 'Editor', projects: 4 }
+                ]
+              }
+            ],
+            totalMembers: 45,
+            activeProjects: 8
+          }
+        });
+      }
+
+      // Production Contracts
+      if (path === '/api/production/contracts' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: [
+            {
+              id: 1,
+              projectTitle: 'Space Adventure',
+              contractType: 'Production Agreement',
+              value: 2500000,
+              status: 'Active',
+              startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+              endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: 2,
+              projectTitle: 'Time Mystery',
+              contractType: 'Distribution Rights',
+              value: 1800000,
+              status: 'Under Review',
+              startDate: null,
+              endDate: null
+            }
+          ]
+        });
+      }
+
+      // Production Budget Overview
+      if (path === '/api/production/budget' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            totalBudget: 18500000,
+            allocated: 15200000,
+            spent: 8900000,
+            remaining: 9600000,
+            projects: [
+              {
+                title: 'Space Adventure',
+                budget: 4500000,
+                spent: 2100000,
+                completion: 0.47
+              },
+              {
+                title: 'Digital Rebellion',
+                budget: 3200000,
+                spent: 1800000,
+                completion: 0.56
+              },
+              {
+                title: 'Forgotten City',
+                budget: 2800000,
+                spent: 1500000,
+                completion: 0.54
+              }
+            ]
+          }
+        });
+      }
+
+      // Production Schedule
+      if (path === '/api/production/schedule' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            upcomingMilestones: [
+              {
+                id: 1,
+                projectTitle: 'Space Adventure',
+                milestone: 'Principal Photography Complete',
+                dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'On Track'
+              },
+              {
+                id: 2,
+                projectTitle: 'Digital Rebellion',
+                milestone: 'Post-Production Start',
+                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'At Risk'
+              }
+            ],
+            weeklySchedule: [
+              {
+                day: 'Monday',
+                activities: ['Space Adventure - Scene 45-48', 'Digital Rebellion - VFX Review']
+              },
+              {
+                day: 'Tuesday',
+                activities: ['Forgotten City - Color Grading', 'Team Meeting']
+              }
+            ]
+          }
+        });
+      }
+
+      // Investment Opportunities (shared endpoint)
+      if (path === '/api/investment-opportunities' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: [
+            {
+              id: 1,
+              title: 'Next Gen Sci-Fi Epic',
+              description: 'A groundbreaking science fiction project seeking co-production partners',
+              requiredInvestment: 5000000,
+              expectedROI: 0.35,
+              riskLevel: 'Medium',
+              category: 'Feature Film',
+              deadline: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: 2,
+              title: 'Historical Drama Series',
+              description: '8-episode limited series about a pivotal moment in history',
+              requiredInvestment: 3200000,
+              expectedROI: 0.28,
+              riskLevel: 'Low',
+              category: 'TV Series',
+              deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
+            }
+          ]
+        });
+      }
+
       // Smart Pitch Discovery for NDAs Tab
       if (path === '/api/production/smart-pitch-discovery' && method === 'GET') {
         if (!userPayload || userPayload.userType !== 'production') {
@@ -4712,17 +5552,20 @@ export default {
           
           return corsResponse(request, {
             success: true,
-            data: {
+            stats: {
               activeUsers: 42,
-              viewsLastHour: 156,
-              pitchesViewed: 23,
-              ndaRequests: recentNDAs.length,
-              topPitches: topPitches.map(p => ({
-                id: p.id,
-                title: p.title || 'Unknown Pitch',
-                views: p.views || 0
-              })),
-              recentActivity
+              currentViews: 156,
+              recentActivities: recentActivity,
+              trending: [
+                {
+                  type: 'pitches',
+                  items: topPitches.map(p => ({
+                    id: p.id,
+                    title: p.title || 'Unknown Pitch',
+                    views: p.views || 0
+                  }))
+                }
+              ]
             }
           });
         } catch (error) {
@@ -4731,13 +5574,11 @@ export default {
           // Return safe fallback data
           return corsResponse(request, {
             success: true,
-            data: {
+            stats: {
               activeUsers: 0,
-              viewsLastHour: 0,
-              pitchesViewed: 0,
-              ndaRequests: 0,
-              topPitches: [],
-              recentActivity: []
+              currentViews: 0,
+              recentActivities: [],
+              trending: []
             }
           });
         }
@@ -5203,17 +6044,45 @@ export default {
             }
           }
           
+          // Get follower count
+          const followers = await db.select({
+            count: sql<number>`count(*)`
+          })
+          .from(schema.follows)
+          .where(eq(schema.follows.followedId, userId));
+          
+          const followerCount = followers[0]?.count || 0;
+          
+          // Get top pitches
+          const topPitchesData = pitches
+            .filter(p => p.status === 'published' || p.status === 'active')
+            .slice(0, 5)
+            .map(p => ({
+              id: p.id,
+              title: p.title || 'Untitled',
+              views: 0, // Would come from actual view data
+              engagement: 0
+            }));
+          
+          // Format as UserAnalytics type
           return corsResponse(request, {
             success: true,
-            data: {
+            analytics: {
+              userId,
+              username: userPayload.username || 'User',
               totalPitches: pitches.length,
-              activePitches: pitches.filter(p => p.status === 'active').length,
+              publishedPitches: pitches.filter(p => p.status === 'published' || p.status === 'active').length,
               totalViews: viewCount,
-              engagementRate: 0,
-              preset,
-              period: {
-                start: startDate.toISOString(),
-                end: now.toISOString()
+              totalLikes: 0, // Would come from likes table
+              totalFollowers: followerCount,
+              totalNDAs: 0, // Would come from NDA table
+              avgEngagement: 0,
+              topPitches: topPitchesData,
+              growthMetrics: [],
+              audienceInsights: {
+                topLocations: [],
+                topUserTypes: [],
+                peakActivity: []
               }
             }
           }, 200, getCorsHeaders(request));
@@ -5221,19 +6090,106 @@ export default {
           console.error('Error fetching user analytics:', error);
           return corsResponse(request, {
             success: true,
-            data: {
+            analytics: {
+              userId,
+              username: userPayload.username || 'User',
               totalPitches: 0,
-              activePitches: 0,
+              publishedPitches: 0,
               totalViews: 0,
-              engagementRate: 0,
-              preset,
-              period: {
-                start: startDate.toISOString(),
-                end: now.toISOString()
+              totalLikes: 0,
+              totalFollowers: 0,
+              totalNDAs: 0,
+              avgEngagement: 0,
+              topPitches: [],
+              growthMetrics: [],
+              audienceInsights: {
+                topLocations: [],
+                topUserTypes: [],
+                peakActivity: []
               }
             }
           }, 200, getCorsHeaders(request));
         }
+      }
+
+      // Creator Analytics endpoint
+      if (path === '/api/creator/analytics' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        const creatorId = parseInt(userPayload.sub);
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            overview: {
+              totalViews: 12450,
+              totalEngagement: 892,
+              averageRating: 4.2,
+              conversionRate: 0.082
+            },
+            trends: {
+              daily: [
+                { date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), views: 1450 },
+                { date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), views: 1780 },
+                { date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), views: 2020 },
+                { date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), views: 1890 },
+                { date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), views: 2340 },
+                { date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), views: 1980 },
+                { date: new Date().toISOString(), views: 990 }
+              ]
+            },
+            topContent: [
+              { id: 1, title: 'Space Adventure', views: 4520, engagement: 234 },
+              { id: 2, title: 'Time Mystery', views: 3890, engagement: 189 },
+              { id: 3, title: 'Urban Legend', views: 3040, engagement: 145 }
+            ]
+          }
+        });
+      }
+
+      // Creator Funding endpoint
+      if (path === '/api/creator/funding' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        return corsResponse(request, {
+          success: true,
+          data: {
+            totalRaised: 450000,
+            activeInvestors: 12,
+            pendingRequests: 3,
+            recentInvestments: [
+              {
+                id: 1,
+                investorName: 'Venture Studios',
+                amount: 150000,
+                date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'completed'
+              },
+              {
+                id: 2,
+                investorName: 'Film Finance Corp',
+                amount: 200000,
+                date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'completed'
+              }
+            ],
+            milestones: [
+              { target: 100000, reached: true, date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
+              { target: 250000, reached: true, date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString() },
+              { target: 500000, reached: false, date: null }
+            ]
+          }
+        });
       }
 
       // Creator dashboard stats endpoint

@@ -33,36 +33,8 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: isProduction ? 'assets/[name].[hash].js' : '[name].js',
           assetFileNames: isProduction ? 'assets/[name].[hash].[ext]' : '[name].[ext]',
           
-          // Simplified manual chunking to prevent temporal dead zone issues
-          manualChunks: (id) => {
-            // Node modules chunking - simplified to prevent initialization order issues
-            if (id.includes('node_modules')) {
-              // React ecosystem - keep together to maintain initialization order
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-                return 'react-vendor'
-              }
-              // All other vendor code in single chunk to prevent cross-dependencies
-              return 'vendor'
-            }
-            
-            // Application code - less aggressive chunking
-            if (id.includes('src/')) {
-              // Only split large page chunks
-              if (id.includes('pages/creator') || id.includes('Creator')) {
-                return 'creator'
-              }
-              if (id.includes('pages/investor') || id.includes('Investor')) {
-                return 'investor'
-              }
-              if (id.includes('pages/production') || id.includes('Production')) {
-                return 'production'
-              }
-              if (id.includes('pages/Admin')) {
-                return 'admin'
-              }
-              // Keep everything else in main bundle to prevent initialization issues
-            }
-          },
+          // Disable manual chunking to prevent initialization order issues
+          manualChunks: undefined,
           // Don't include source code in sourcemaps for security
           sourcemapExcludeSources: true,
         },
@@ -93,6 +65,8 @@ export default defineConfig(({ mode }) => {
 
     esbuild: {
       jsx: 'automatic',
+      jsxFactory: 'React.createElement',
+      jsxFragment: 'React.Fragment',
       jsxDev: false, // force production JSX transform
       legalComments: 'none', // Remove all comments
       drop: isProduction ? ['debugger'] : [], // Keep console for debugging temporal dead zone

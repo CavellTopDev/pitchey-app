@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, Shield, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
