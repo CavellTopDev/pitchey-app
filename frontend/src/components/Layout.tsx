@@ -1,10 +1,9 @@
+import React, { useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { 
   Home, Film, LogOut, Search, Menu, X, Plus 
 } from 'lucide-react';
-import { useState } from 'react';
-import NotificationDropdown from './NotificationDropdown';
 import { NotificationBell } from './NotificationBell';
 import { useRealTimeNotifications } from '../hooks/useRealTimeNotifications';
 
