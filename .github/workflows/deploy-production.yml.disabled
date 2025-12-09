@@ -3,11 +3,6 @@ name: Deploy Production
 on:
   push:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'frontend/**'
-      - 'wrangler.toml'
-      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       force_deploy:

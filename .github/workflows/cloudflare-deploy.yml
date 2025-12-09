@@ -44,6 +44,7 @@ jobs:
             backend:
               - 'src/**'
               - 'working-server.ts'
+              - 'wrangler.toml'
               - 'deno.json'
             frontend:
               - 'frontend/**'
@@ -197,7 +198,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env production --var JWT_SECRET:${{ secrets.JWT_SECRET }} --var DATABASE_URL:${{ secrets.DATABASE_URL }}
+          command: deploy
           workingDirectory: "."
 
   # Build and test frontend

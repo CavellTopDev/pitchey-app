@@ -1,0 +1,432 @@
+import { useState, useEffect } from 'react';
+import { 
+  TrendingUp, TrendingDown, DollarSign, Target, Award,
+  Calendar, BarChart3, PieChart, Download, RefreshCw,
+  ArrowUp, ArrowDown, Activity, Globe, Users, Building
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
+import { 
+  LineChart, Line, 
+  BarChart, Bar, 
+  PieChart as RechartsPieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, ResponsiveContainer
+} from 'recharts';
+import DashboardHeader from '../../components/DashboardHeader';
+import { useAuthStore } from '../../store/authStore';
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
+interface PerformanceMetrics {
+  totalReturn: number;
+  annualizedReturn: number;
+  volatility: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  hitRate: number;
+  averageHoldingPeriod: number;
+  activeInvestments: number;
+}
+
+interface PortfolioAllocation {
+  genre: string;
+  allocation: number;
+  performance: number;
+  count: number;
+}
+
+export default function InvestorPerformance() {
+  const { user, logout } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('1y');
+  const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
+  const [allocations, setAllocations] = useState<PortfolioAllocation[]>([]);
+
+  useEffect(() => {
+    loadPerformanceData();
+  }, [timeRange]);
+
+  const loadPerformanceData = async () => {
+    try {
+      setLoading(true);
+      // Simulate API call
+      setTimeout(() => {
+        setMetrics({
+          totalReturn: 28.5,
+          annualizedReturn: 24.3,
+          volatility: 18.2,
+          sharpeRatio: 1.34,
+          maxDrawdown: -12.5,
+          hitRate: 75,
+          averageHoldingPeriod: 3.2,
+          activeInvestments: 12
+        });
+
+        setAllocations([
+          { genre: 'Sci-Fi/Fantasy', allocation: 35, performance: 32.1, count: 4 },
+          { genre: 'Drama', allocation: 28, performance: 18.5, count: 3 },
+          { genre: 'Horror/Thriller', allocation: 20, performance: 41.2, count: 3 },
+          { genre: 'Comedy', allocation: 12, performance: 15.8, count: 2 },
+          { genre: 'Documentary', allocation: 5, performance: 8.3, count: 1 }
+        ]);
+
+        setLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to load performance data:', error);
+      setLoading(false);
+    }
+  };
+
+  // Chart data
+  const performanceChartData = {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    datasets: [
+      {
+        label: 'Portfolio Performance',
+        data: [100, 102.5, 108.2, 104.7, 112.3, 118.9, 115.6, 122.8, 119.4, 125.7, 128.3, 128.5],
+        borderColor: 'rgb(147, 51, 234)',
+        backgroundColor: 'rgba(147, 51, 234, 0.1)',
+        fill: true,
+        tension: 0.4
+      },
+      {
+        label: 'Market Benchmark',
+        data: [100, 101.2, 103.8, 102.1, 106.5, 108.9, 107.2, 111.4, 109.8, 113.2, 115.6, 116.8],
+        borderColor: 'rgb(156, 163, 175)',
+        backgroundColor: 'rgba(156, 163, 175, 0.1)',
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  };
+
+  const allocationChartData = {
+    labels: allocations.map(a => a.genre),
+    datasets: [
+      {
+        data: allocations.map(a => a.allocation),
+        backgroundColor: [
+          'rgba(147, 51, 234, 0.8)',
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(34, 197, 94, 0.8)',
+          'rgba(251, 146, 60, 0.8)',
+          'rgba(239, 68, 68, 0.8)'
+        ]
+      }
+    ]
+  };
+
+  const performanceByGenreData = {
+    labels: allocations.map(a => a.genre),
+    datasets: [
+      {
+        label: 'Performance (%)',
+        data: allocations.map(a => a.performance),
+        backgroundColor: 'rgba(147, 51, 234, 0.8)',
+        borderColor: 'rgb(147, 51, 234)',
+        borderWidth: 1
+      }
+    ]
+  };
+
+  const formatPercentage = (value: number) => {
+    const sign = value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)}%`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <DashboardHeader
+          user={user}
+          userType="investor"
+          title="Performance Analysis"
+          onLogout={logout}
+          useEnhancedNav={true}
+        />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <DashboardHeader
+        user={user}
+        userType="investor"
+        title="Performance Analysis"
+        onLogout={logout}
+        useEnhancedNav={true}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Performance Analysis</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Detailed analysis of your investment portfolio performance
+            </p>
+          </div>
+          <div className="mt-4 sm:mt-0 flex gap-3">
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="1m">Last Month</option>
+              <option value="3m">Last 3 Months</option>
+              <option value="6m">Last 6 Months</option>
+              <option value="1y">Last Year</option>
+              <option value="all">All Time</option>
+            </select>
+            
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              <Download className="w-4 h-4 mr-2" />
+              Export Report
+            </button>
+            
+            <button onClick={loadPerformanceData} className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Key Metrics */}
+        {metrics && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-900">Total Return</h3>
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-3xl font-bold text-gray-900">{formatPercentage(metrics.totalReturn)}</p>
+                <ArrowUp className="w-4 h-4 text-green-600" />
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Since inception</p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-900">Annualized Return</h3>
+                <Target className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="flex items-center gap-2">
+                <p className="text-3xl font-bold text-gray-900">{formatPercentage(metrics.annualizedReturn)}</p>
+                <ArrowUp className="w-4 h-4 text-green-600" />
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Year over year</p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-900">Sharpe Ratio</h3>
+                <Award className="w-5 h-5 text-yellow-600" />
+              </div>
+              <p className="text-3xl font-bold text-gray-900">{metrics.sharpeRatio.toFixed(2)}</p>
+              <p className="text-sm text-gray-500 mt-1">Risk-adjusted return</p>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-900">Hit Rate</h3>
+                <Activity className="w-5 h-5 text-blue-600" />
+              </div>
+              <p className="text-3xl font-bold text-gray-900">{metrics.hitRate}%</p>
+              <p className="text-sm text-gray-500 mt-1">Successful investments</p>
+            </div>
+          </div>
+        )}
+
+        {/* Performance Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Portfolio vs Market</h2>
+              <BarChart3 className="w-5 h-5 text-gray-400" />
+            </div>
+            <Line 
+              data={performanceChartData} 
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: {
+                    position: 'top'
+                  }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: false
+                  }
+                }
+              }}
+            />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Genre Allocation</h2>
+              <PieChart className="w-5 h-5 text-gray-400" />
+            </div>
+            <Doughnut 
+              data={allocationChartData}
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: {
+                    position: 'bottom'
+                  }
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Performance by Genre */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Performance by Genre</h2>
+              <BarChart3 className="w-5 h-5 text-gray-400" />
+            </div>
+            <Bar 
+              data={performanceByGenreData}
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: {
+                    display: false
+                  }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      callback: function(value) {
+                        return value + '%';
+                      }
+                    }
+                  }
+                }
+              }}
+            />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Risk Metrics</h2>
+              <Activity className="w-5 h-5 text-gray-400" />
+            </div>
+            {metrics && (
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Volatility</span>
+                    <span className="font-medium">{metrics.volatility.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(metrics.volatility, 50) * 2}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Max Drawdown</span>
+                    <span className="font-medium text-red-600">{metrics.maxDrawdown.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.abs(metrics.maxDrawdown) * 4}%` }}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-600">Avg Holding Period</span>
+                    <span className="font-medium">{metrics.averageHoldingPeriod.toFixed(1)} years</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Detailed Allocation Table */}
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="px-6 py-4 border-b">
+            <h2 className="text-xl font-semibold text-gray-900">Genre Breakdown</h2>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Genre
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Allocation
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Investments
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Performance
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {allocations.map((allocation, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{allocation.genre}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm text-gray-900">{allocation.allocation}%</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-sm text-gray-900">{allocation.count}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className={`text-sm font-medium ${
+                        allocation.performance > 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {formatPercentage(allocation.performance)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center">
+                        {allocation.performance > 20 ? (
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                        ) : allocation.performance > 0 ? (
+                          <ArrowUp className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4 text-red-600" />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

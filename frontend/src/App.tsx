@@ -120,11 +120,14 @@ const ProductionAnalytics = lazy(() => import('./pages/production/ProductionAnal
 const ProductionActivity = lazy(() => import('./pages/production/ProductionActivity'));
 const ProductionStats = lazy(() => import('./pages/production/ProductionStats'));
 const TeamManagement = lazy(() => import('./pages/TeamManagement'));
-const TeamInvite = lazy(() => import('./pages/production/TeamInvite'));
+const TeamMembers = lazy(() => import('./pages/team/TeamMembers'));
+const TeamInvite = lazy(() => import('./pages/team/TeamInvite'));
 const TeamRoles = lazy(() => import('./pages/production/TeamRoles'));
 const ProductionCollaborations = lazy(() => import('./pages/production/ProductionCollaborations'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
 const SettingsProfile = lazy(() => import('./pages/settings/SettingsProfile'));
+const NotificationSettings = lazy(() => import('./pages/settings/NotificationSettings'));
+const PrivacySettings = lazy(() => import('./pages/settings/PrivacySettings'));
 const InvestorPortfolio = lazy(() => import('./pages/investor/InvestorPortfolio'));
 const Transactions = lazy(() => import('./pages/Admin/Transactions'));
 const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
@@ -516,6 +519,7 @@ function App() {
           <Route path="/production/submissions/rejected" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsRejected /> : <Navigate to="/login/production" />} />
           <Route path="/production/submissions/archive" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsArchive /> : <Navigate to="/login/production" />} />
           <Route path="/production/team" element={isAuthenticated && userType === 'production' ? <TeamManagement /> : <Navigate to="/login/production" />} />
+          <Route path="/production/team/members" element={isAuthenticated && userType === 'production' ? <TeamMembers /> : <Navigate to="/login/production" />} />
           <Route path="/production/team/invite" element={isAuthenticated && userType === 'production' ? <TeamInvite /> : <Navigate to="/login/production" />} />
           <Route path="/production/team/roles" element={isAuthenticated && userType === 'production' ? <TeamRoles /> : <Navigate to="/login/production" />} />
           <Route path="/production/collaborations" element={isAuthenticated && userType === 'production' ? <ProductionCollaborations /> : <Navigate to="/login/production" />} />
@@ -531,7 +535,8 @@ function App() {
           <Route path="/creator/pitches/review" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/pitches/analytics" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/team" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team/invite" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team/members" element={isAuthenticated && userType === 'creator' ? <TeamMembers /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team/invite" element={isAuthenticated && userType === 'creator' ? <TeamInvite /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/team/roles" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/collaborations" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
           
@@ -557,11 +562,16 @@ function App() {
           <Route path="/search/companies" element={isAuthenticated ? <SearchPage /> : <Navigate to="/portals" />} />
           <Route path="/settings/profile" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
           <Route path="/settings/account" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
-          <Route path="/settings/privacy" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
-          <Route path="/settings/notifications" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
+          <Route path="/settings/privacy" element={isAuthenticated ? <PrivacySettings /> : <Navigate to="/portals" />} />
+          <Route path="/settings/notifications" element={isAuthenticated ? <NotificationSettings /> : <Navigate to="/portals" />} />
           <Route path="/settings/billing" element={isAuthenticated ? <Billing /> : <Navigate to="/portals" />} />
           <Route path="/settings/api" element={isAuthenticated ? <SettingsProfile /> : <Navigate to="/portals" />} />
           <Route path="/messages" element={isAuthenticated ? <Messages /> : <Navigate to="/portals" />} />
+          
+          {/* Generic Team Routes - Available to all authenticated users */}
+          <Route path="/team" element={isAuthenticated ? <TeamManagement /> : <Navigate to="/portals" />} />
+          <Route path="/team/members" element={isAuthenticated ? <TeamMembers /> : <Navigate to="/portals" />} />
+          <Route path="/team/invite" element={isAuthenticated ? <TeamInvite /> : <Navigate to="/portals" />} />
           
                 {/* 404 - Must be last */}
                 <Route path="*" element={<NotFound />} />

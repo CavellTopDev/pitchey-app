@@ -67,8 +67,12 @@ export default function MarketplaceEnhanced() {
     order: 'desc'
   });
 
-  // Browse tabs state
-  const [activeTab, setActiveTab] = useState<'trending' | 'new' | 'all'>('all');
+  // Browse tabs state - initialize from URL params
+  const initialTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'trending' | 'new' | 'all'>(
+    initialTab === 'trending' ? 'trending' : 
+    initialTab === 'latest' ? 'new' : 'all'
+  );
 
   // Load configuration on mount
   useEffect(() => {
@@ -92,16 +96,18 @@ export default function MarketplaceEnhanced() {
       // Build query parameters
       const params = new URLSearchParams();
       
-      // Set sort based on active tab
+      // Set sort and filtering based on active tab
       if (activeTab === 'trending') {
-        params.set('sort', 'views');
+        // Use dedicated trending endpoint
+        params.set('sort', 'trending');
         params.set('order', 'desc');
-        // Add trending algorithm parameters
-        params.set('trending', 'true');
+        params.set('minViews', '50'); // Only show pitches with 50+ views for trending
         params.set('timeframe', '7d'); // Last 7 days for trending
       } else if (activeTab === 'new') {
+        // Use dedicated latest endpoint
         params.set('sort', 'date');
         params.set('order', 'desc');
+        params.set('latest', 'true');
       } else {
         params.set('sort', sortOption.field);
         params.set('order', sortOption.order);
@@ -140,8 +146,15 @@ export default function MarketplaceEnhanced() {
         params.set('seekingInvestment', filters.seekingInvestment.toString());
       }
       
-      // Try enhanced endpoint first with multi-select support
-      const response = await fetch(`${getApiUrl()}/api/pitches/browse/enhanced?${params.toString()}`, {
+      // Use appropriate endpoint based on active tab
+      let endpoint = '/api/pitches/browse/enhanced';
+      if (activeTab === 'trending') {
+        endpoint = '/api/pitches/trending';
+      } else if (activeTab === 'new') {
+        endpoint = '/api/pitches/latest';
+      }
+      
+      const response = await fetch(`${getApiUrl()}${endpoint}?${params.toString()}`, {
         headers: token ? {
           'Authorization': `Bearer ${token}`
         } : {}
@@ -160,6 +173,20 @@ export default function MarketplaceEnhanced() {
             pitch.logline?.toLowerCase().includes(query) ||
             pitch.genre?.toLowerCase().includes(query)
           );
+        }
+        
+        // Apply tab-based filtering on API results too
+        if (activeTab === 'trending') {
+          // Filter to show only trending content (100+ views)
+          resultPitches = resultPitches.filter(p => (p.viewCount || 0) >= 100);
+        } else if (activeTab === 'new') {
+          // Filter to show only recent content (last 7 days)
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          resultPitches = resultPitches.filter(p => {
+            const createdDate = new Date(p.createdAt);
+            return createdDate >= sevenDaysAgo;
+          });
         }
         
         // Worker API returns { success, items/data, total, totalPages, ... }
@@ -200,6 +227,23 @@ export default function MarketplaceEnhanced() {
             if (publicPitches && publicPitches.length > 0) {
               // Apply client-side filtering and sorting
               let filtered = [...publicPitches];
+              
+              // Apply tab-based filtering
+              if (activeTab === 'trending') {
+                // Show only pitches with significant views (top 30% by views)
+                const sortedByViews = [...filtered].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+                const topPercentileIndex = Math.floor(sortedByViews.length * 0.3);
+                const minViews = topPercentileIndex > 0 ? sortedByViews[topPercentileIndex - 1].viewCount || 0 : 0;
+                filtered = filtered.filter(p => (p.viewCount || 0) >= Math.max(minViews, 100));
+              } else if (activeTab === 'new') {
+                // Show only pitches from last 7 days
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                filtered = filtered.filter(p => {
+                  const createdDate = new Date(p.createdAt);
+                  return createdDate >= sevenDaysAgo;
+                });
+              }
               
               // Apply search filter
               if (filters.searchQuery && filters.searchQuery.trim()) {
@@ -271,6 +315,16 @@ export default function MarketplaceEnhanced() {
     }
   }, [currentPage, filters, sortOption, activeTab, toast]);
 
+  // Sync tab state with URL params
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const newTab = tabParam === 'trending' ? 'trending' : 
+                   tabParam === 'latest' ? 'new' : 'all';
+    if (newTab !== activeTab) {
+      setActiveTab(newTab);
+    }
+  }, [searchParams]);
+
   // Fetch pitches when dependencies change
   useEffect(() => {
     fetchPitches();
@@ -292,6 +346,20 @@ export default function MarketplaceEnhanced() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleTabChange = (tab: 'trending' | 'new' | 'all') => {
+    setActiveTab(tab);
+    // Update URL params
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (tab === 'trending') {
+      newSearchParams.set('tab', 'trending');
+    } else if (tab === 'new') {
+      newSearchParams.set('tab', 'latest');
+    } else {
+      newSearchParams.delete('tab');
+    }
+    setSearchParams(newSearchParams);
   };
 
   const formatBudget = (budget: any) => {
@@ -432,7 +500,7 @@ export default function MarketplaceEnhanced() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-8">
             <button
-              onClick={() => setActiveTab('all')}
+              onClick={() => handleTabChange('all')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'all'
                   ? 'border-purple-500 text-purple-600'
@@ -443,7 +511,7 @@ export default function MarketplaceEnhanced() {
               All Pitches
             </button>
             <button
-              onClick={() => setActiveTab('trending')}
+              onClick={() => handleTabChange('trending')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
                 activeTab === 'trending'
                   ? 'border-purple-500 text-purple-600'
@@ -455,7 +523,7 @@ export default function MarketplaceEnhanced() {
               Trending
             </button>
             <button
-              onClick={() => setActiveTab('new')}
+              onClick={() => handleTabChange('new')}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${
                 activeTab === 'new'
                   ? 'border-purple-500 text-purple-600'

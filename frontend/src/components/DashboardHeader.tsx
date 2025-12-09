@@ -8,6 +8,7 @@ import {
 import { NotificationBell } from './NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
 import { getSubscriptionTier } from '../config/subscription-plans';
+import { EnhancedNavigationShadcn } from './EnhancedNavigationShadcn';
 
 interface DashboardHeaderProps {
   user: any;
@@ -17,6 +18,7 @@ interface DashboardHeaderProps {
   subscription?: any;
   onLogout: () => void;
   children?: React.ReactNode;
+  useEnhancedNav?: boolean;
 }
 
 export default function DashboardHeader({ 
@@ -26,11 +28,36 @@ export default function DashboardHeader({
   credits,
   subscription,
   onLogout,
-  children
+  children,
+  useEnhancedNav = true
 }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+
+  // Debug logging
+  console.log('DashboardHeader render:', { useEnhancedNav, userType, user });
+
+  // Use enhanced navigation for better dropdown experience
+  // FORCE enhanced navigation to always render for testing
+  if (true || useEnhancedNav) {
+    console.log('Rendering EnhancedNavigationShadcn');
+    return (
+      <>
+        <EnhancedNavigationShadcn
+          user={user}
+          userType={userType}
+          onLogout={onLogout}
+        />
+        {/* Additional content like tabs */}
+        {children && (
+          <div className="bg-white border-b">
+            {children}
+          </div>
+        )}
+      </>
+    );
+  }
 
   // Define navigation items based on user type
   const getNavigationItems = () => {

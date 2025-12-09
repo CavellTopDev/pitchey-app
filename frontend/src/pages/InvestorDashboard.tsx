@@ -23,7 +23,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
-import DashboardHeader from '../components/DashboardHeader';
+// import DashboardHeader from '../components/DashboardHeader';
+import { EnhancedNavigationShadcn } from '../components/EnhancedNavigationShadcn';
 
 interface PortfolioSummary {
   totalInvested: number;
@@ -164,34 +165,33 @@ export default function InvestorDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Responsive Header */}
-      <DashboardHeader
+      {/* Enhanced Navigation */}
+      <EnhancedNavigationShadcn
         user={user}
         userType="investor"
-        title="Investor Portal"
         onLogout={handleLogout}
-      >
-        {/* Tabs as part of header */}
-        <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-7xl mx-auto">
-            <nav className="-mb-px flex flex-wrap gap-x-4 sm:gap-x-8 px-4 sm:px-6 lg:px-8 overflow-x-auto">
-              {['overview', 'portfolio', 'saved', 'ndas', 'analytics'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm capitalize transition-colors whitespace-nowrap ${
-                    activeTab === tab
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {tab === 'ndas' ? 'NDAs' : tab}
-                </button>
-              ))}
-            </nav>
-          </div>
+      />
+
+      {/* Tab Navigation */}
+      <div className="border-t border-gray-200 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <nav className="-mb-px flex flex-wrap gap-x-4 sm:gap-x-8 px-4 sm:px-6 lg:px-8 overflow-x-auto">
+            {['overview', 'portfolio', 'saved', 'ndas', 'analytics'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm capitalize transition-colors whitespace-nowrap ${
+                  activeTab === tab
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab === 'ndas' ? 'NDAs' : tab}
+              </button>
+            ))}
+          </nav>
         </div>
-      </DashboardHeader>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Portfolio Summary Cards */}

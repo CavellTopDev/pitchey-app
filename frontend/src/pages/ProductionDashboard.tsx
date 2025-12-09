@@ -26,7 +26,8 @@ import InvestmentOpportunities from '../components/Investment/InvestmentOpportun
 import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
-import DashboardHeader from '../components/DashboardHeader';
+// import DashboardHeader from '../components/DashboardHeader';
+import { EnhancedNavigationShadcn } from '../components/EnhancedNavigationShadcn';
 // import * as Sentry from '@sentry/react';
 
 interface Analytics {
@@ -682,63 +683,60 @@ function ProductionDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Responsive Header */}
-      <DashboardHeader
+      {/* Enhanced Navigation */}
+      <EnhancedNavigationShadcn
         user={user}
         userType="production"
-        title="Production Dashboard"
-        credits={credits}
-        subscription={subscription}
         onLogout={handleLogout}
-      >
-        {/* Tabs as part of header */}
-        <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-7xl mx-auto">
-            <nav className="-mb-px flex flex-wrap gap-x-4 sm:gap-x-8 px-4 sm:px-6 lg:px-8 overflow-x-auto">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'overview'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('my-pitches')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'my-pitches'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Saved Pitches
-              </button>
-              <button
-                onClick={() => setActiveTab('following')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'following'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Following
-              </button>
-              <button
-                onClick={() => setActiveTab('ndas')}
-                className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === 'ndas'
-                    ? 'border-purple-500 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                NDAs
-              </button>
-            </nav>
-          </div>
+      />
+
+      {/* Tab Navigation */}
+      <div className="border-t border-gray-200 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <nav className="-mb-px flex flex-wrap gap-x-4 sm:gap-x-8 px-4 sm:px-6 lg:px-8 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
+                activeTab === 'overview'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('my-pitches')}
+              className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
+                activeTab === 'my-pitches'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Saved Pitches
+            </button>
+            <button
+              onClick={() => setActiveTab('following')}
+              className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
+                activeTab === 'following'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Following
+            </button>
+            <button
+              onClick={() => setActiveTab('ndas')}
+              className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
+                activeTab === 'ndas'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              NDAs
+            </button>
+          </nav>
         </div>
-      </DashboardHeader>
+      </div>
 
       {/* Verification Warning */}
       {verificationStatus === 'pending' && (

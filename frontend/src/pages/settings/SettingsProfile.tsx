@@ -1,0 +1,365 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  User, Camera, Mail, Phone, MapPin, Globe, 
+  Briefcase, Calendar, Save, X, Upload,
+  Twitter, Linkedin, Instagram, Youtube
+} from 'lucide-react';
+import DashboardHeader from '../../components/DashboardHeader';
+import { useAuthStore } from '../../store/authStore';
+import { toast } from 'react-hot-toast';
+
+interface ProfileData {
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone: string;
+  bio: string;
+  company: string;
+  position: string;
+  location: string;
+  website: string;
+  socialLinks: {
+    twitter?: string;
+    linkedin?: string;
+    instagram?: string;
+    youtube?: string;
+  };
+  avatar?: string;
+  coverImage?: string;
+}
+
+export default function SettingsProfile() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+  const [profileData, setProfileData] = useState<ProfileData>({
+    firstName: user?.username?.split(' ')[0] || '',
+    lastName: user?.username?.split(' ')[1] || '',
+    username: user?.username || '',
+    email: user?.email || '',
+    phone: '',
+    bio: 'Passionate filmmaker with over 10 years of experience in the industry. Specializing in psychological thrillers and science fiction narratives.',
+    company: 'Stellar Productions',
+    position: 'Executive Producer',
+    location: 'Los Angeles, CA',
+    website: 'https://example.com',
+    socialLinks: {
+      twitter: '@username',
+      linkedin: 'linkedin.com/in/username',
+      instagram: '@username',
+      youtube: 'youtube.com/@username'
+    }
+  });
+
+  const handleInputChange = (field: keyof ProfileData | string, value: string) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setProfileData(prev => ({
+        ...prev,
+        [parent]: {
+          ...(prev[parent as keyof ProfileData] as any),
+          [child]: value
+        }
+      }));
+    } else {
+      setProfileData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast.success('Profile updated successfully!');
+    } catch (error) {
+      toast.error('Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageUpload = (type: 'avatar' | 'cover') => {
+    // Handle image upload
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setProfileData(prev => ({
+            ...prev,
+            [type === 'avatar' ? 'avatar' : 'coverImage']: e.target?.result as string
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <DashboardHeader
+        user={user}
+        userType={user?.userType || 'creator'}
+        title="Profile Settings"
+        onLogout={logout}
+      />
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Cover Image */}
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+          <div className="relative h-48 bg-gradient-to-r from-purple-500 to-indigo-600">
+            {profileData.coverImage && (
+              <img src={profileData.coverImage} alt="Cover" className="w-full h-full object-cover" />
+            )}
+            <button
+              onClick={() => handleImageUpload('cover')}
+              className="absolute bottom-4 right-4 px-4 py-2 bg-white/90 backdrop-blur text-gray-700 rounded-lg hover:bg-white transition flex items-center gap-2"
+            >
+              <Camera className="w-4 h-4" />
+              Change Cover
+            </button>
+          </div>
+
+          {/* Avatar and Basic Info */}
+          <div className="px-8 pb-8">
+            <div className="flex items-end -mt-12 mb-6">
+              <div className="relative">
+                <div className="w-24 h-24 bg-white rounded-full border-4 border-white overflow-hidden">
+                  {profileData.avatar ? (
+                    <img src={profileData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+                      {profileData.firstName[0]}{profileData.lastName[0]}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleImageUpload('avatar')}
+                  className="absolute bottom-0 right-0 p-1.5 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition"
+                >
+                  <Camera className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-6">
+              {/* Personal Information */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input
+                      type="text"
+                      value={profileData.firstName}
+                      onChange={(e) => handleInputChange('firstName', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input
+                      type="text"
+                      value={profileData.lastName}
+                      onChange={(e) => handleInputChange('lastName', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input
+                      type="text"
+                      value={profileData.username}
+                      onChange={(e) => handleInputChange('username', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={profileData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={profileData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      placeholder="+1 (555) 000-0000"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <input
+                      type="text"
+                      value={profileData.location}
+                      onChange={(e) => handleInputChange('location', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                  <textarea
+                    value={profileData.bio}
+                    onChange={(e) => handleInputChange('bio', e.target.value)}
+                    rows={4}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="Tell us about yourself..."
+                  />
+                </div>
+              </div>
+
+              {/* Professional Information */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                    <input
+                      type="text"
+                      value={profileData.company}
+                      onChange={(e) => handleInputChange('company', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                    <input
+                      type="text"
+                      value={profileData.position}
+                      onChange={(e) => handleInputChange('position', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                    <input
+                      type="url"
+                      value={profileData.website}
+                      onChange={(e) => handleInputChange('website', e.target.value)}
+                      placeholder="https://your-website.com"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Social Links */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Social Media</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Twitter className="inline w-4 h-4 mr-1" />
+                      Twitter
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.socialLinks.twitter}
+                      onChange={(e) => handleInputChange('socialLinks.twitter', e.target.value)}
+                      placeholder="@username"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Linkedin className="inline w-4 h-4 mr-1" />
+                      LinkedIn
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.socialLinks.linkedin}
+                      onChange={(e) => handleInputChange('socialLinks.linkedin', e.target.value)}
+                      placeholder="linkedin.com/in/username"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Instagram className="inline w-4 h-4 mr-1" />
+                      Instagram
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.socialLinks.instagram}
+                      onChange={(e) => handleInputChange('socialLinks.instagram', e.target.value)}
+                      placeholder="@username"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Youtube className="inline w-4 h-4 mr-1" />
+                      YouTube
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.socialLinks.youtube}
+                      onChange={(e) => handleInputChange('socialLinks.youtube', e.target.value)}
+                      placeholder="youtube.com/@username"
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => navigate(-1)}
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
+                >
+                  <X className="w-5 h-5" />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

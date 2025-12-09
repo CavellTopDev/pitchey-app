@@ -1,6 +1,21 @@
 import React from 'react';
-
-// Chart functionality temporarily disabled to resolve JavaScript initialization errors
+import {
+  LineChart as RechartsLineChart,
+  Line,
+  BarChart as RechartsBarChart,
+  Bar,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  AreaChart as RechartsAreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 export interface ChartDataPoint {
   date: string;
@@ -88,13 +103,42 @@ export const LineChart: React.FC<LineChartProps> = ({
   height = 300,
 }) => {
   return (
-    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
-      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
-      <p className="text-gray-500 text-sm mb-2">Line Chart</p>
-      <div className="text-xs text-gray-400 text-center">
-        {data.length} data points available<br />
-        Chart temporarily disabled
-      </div>
+    <div style={{ height }} className="bg-white rounded-lg border border-gray-200 p-4">
+      <h4 className="text-lg font-medium text-gray-900 mb-4">{title}</h4>
+      <ResponsiveContainer width="100%" height={height - 60}>
+        <RechartsLineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="date" 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <YAxis 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Line 
+            type="monotone" 
+            dataKey="value" 
+            stroke={color}
+            strokeWidth={2}
+            fill={fill ? color : 'none'}
+            fillOpacity={fill ? 0.1 : 0}
+            dot={{ fill: color, strokeWidth: 2, r: 4 }}
+            activeDot={{ r: 6, stroke: color, strokeWidth: 2 }}
+          />
+        </RechartsLineChart>
+      </ResponsiveContainer>
     </div>
   );
 };
@@ -116,13 +160,62 @@ export const BarChart: React.FC<BarChartProps> = ({
   height = 300,
 }) => {
   return (
-    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
-      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
-      <p className="text-gray-500 text-sm mb-2">Bar Chart ({horizontal ? 'Horizontal' : 'Vertical'})</p>
-      <div className="text-xs text-gray-400 text-center">
-        {data.length} categories available<br />
-        Chart temporarily disabled
-      </div>
+    <div style={{ height }} className="bg-white rounded-lg border border-gray-200 p-4">
+      <h4 className="text-lg font-medium text-gray-900 mb-4">{title}</h4>
+      <ResponsiveContainer width="100%" height={height - 60}>
+        <RechartsBarChart 
+          data={data}
+          layout={horizontal ? 'horizontal' : 'vertical'}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          {horizontal ? (
+            <>
+              <XAxis 
+                type="number"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#666' }}
+              />
+              <YAxis 
+                type="category"
+                dataKey="category"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#666' }}
+              />
+            </>
+          ) : (
+            <>
+              <XAxis 
+                type="category"
+                dataKey="category"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#666' }}
+              />
+              <YAxis 
+                type="number"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#666' }}
+              />
+            </>
+          )}
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Bar 
+            dataKey="value" 
+            fill={color}
+            radius={[2, 2, 0, 0]}
+          />
+        </RechartsBarChart>
+      </ResponsiveContainer>
     </div>
   );
 };
@@ -141,13 +234,54 @@ export const MultiLineChart: React.FC<MultiLineChartProps> = ({
   datasets,
   height = 300,
 }) => {
+  // Combine all datasets into one data array for Recharts
+  const combinedData = datasets[0]?.data.map((point, index) => {
+    const dataPoint: any = { date: point.date };
+    datasets.forEach((dataset) => {
+      dataPoint[dataset.label] = dataset.data[index]?.value || 0;
+    });
+    return dataPoint;
+  }) || [];
+
   return (
-    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
-      <h4 className="text-lg font-medium text-gray-900 mb-2">Multi-Line Chart</h4>
-      <p className="text-gray-500 text-sm mb-2">{datasets.length} datasets</p>
-      <div className="text-xs text-gray-400 text-center">
-        Chart temporarily disabled
-      </div>
+    <div style={{ height }} className="bg-white rounded-lg border border-gray-200 p-4">
+      <h4 className="text-lg font-medium text-gray-900 mb-4">Multi-Line Chart</h4>
+      <ResponsiveContainer width="100%" height={height - 60}>
+        <RechartsLineChart data={combinedData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="date" 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <YAxis 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Legend />
+          {datasets.map((dataset, index) => (
+            <Line 
+              key={dataset.label}
+              type="monotone" 
+              dataKey={dataset.label}
+              stroke={dataset.color}
+              strokeWidth={2}
+              dot={{ fill: dataset.color, strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: dataset.color, strokeWidth: 2 }}
+            />
+          ))}
+        </RechartsLineChart>
+      </ResponsiveContainer>
     </div>
   );
 };
@@ -167,13 +301,35 @@ export const PieChart: React.FC<PieChartProps> = ({
   height = 300,
 }) => {
   return (
-    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
-      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
-      <p className="text-gray-500 text-sm mb-2">{type.charAt(0).toUpperCase() + type.slice(1)} Chart</p>
-      <div className="text-xs text-gray-400 text-center">
-        {data.length} categories available<br />
-        Chart temporarily disabled
-      </div>
+    <div style={{ height }} className="bg-white rounded-lg border border-gray-200 p-4">
+      <h4 className="text-lg font-medium text-gray-900 mb-4">{title}</h4>
+      <ResponsiveContainer width="100%" height={height - 60}>
+        <RechartsPieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            outerRadius={type === 'doughnut' ? 80 : 60}
+            innerRadius={type === 'doughnut' ? 40 : 0}
+            fill="#8884d8"
+            dataKey="value"
+            label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
+            ))}
+          </Pie>
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Legend />
+        </RechartsPieChart>
+      </ResponsiveContainer>
     </div>
   );
 };
@@ -193,13 +349,40 @@ export const AreaChart: React.FC<AreaChartProps> = ({
   height = 300,
 }) => {
   return (
-    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
-      <h4 className="text-lg font-medium text-gray-900 mb-2">{title}</h4>
-      <p className="text-gray-500 text-sm mb-2">Area Chart</p>
-      <div className="text-xs text-gray-400 text-center">
-        {data.length} data points available<br />
-        Chart temporarily disabled
-      </div>
+    <div style={{ height }} className="bg-white rounded-lg border border-gray-200 p-4">
+      <h4 className="text-lg font-medium text-gray-900 mb-4">{title}</h4>
+      <ResponsiveContainer width="100%" height={height - 60}>
+        <RechartsAreaChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="date" 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <YAxis 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="value" 
+            stroke={color}
+            strokeWidth={2}
+            fill={color}
+            fillOpacity={0.1}
+          />
+        </RechartsAreaChart>
+      </ResponsiveContainer>
     </div>
   );
 };
@@ -217,14 +400,54 @@ export const StackedBarChart: React.FC<StackedBarChartProps> = ({
   data,
   height = 300,
 }) => {
+  // Transform data for Recharts
+  const chartData = data.map(item => {
+    const dataPoint: any = { category: item.category };
+    item.values.forEach(val => {
+      dataPoint[val.label] = val.value;
+    });
+    return dataPoint;
+  });
+
+  // Get all unique labels for stacked bars
+  const allLabels = Array.from(new Set(data.flatMap(item => item.values.map(val => val.label))));
+
   return (
-    <div style={{ height }} className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center">
-      <h4 className="text-lg font-medium text-gray-900 mb-2">Stacked Bar Chart</h4>
-      <p className="text-gray-500 text-sm mb-2">{data.length} categories</p>
-      <div className="text-xs text-gray-400 text-center">
-        Chart temporarily disabled<br />
-        {data.reduce((total, item) => total + item.values.length, 0)} data series
-      </div>
+    <div style={{ height }} className="bg-white rounded-lg border border-gray-200 p-4">
+      <h4 className="text-lg font-medium text-gray-900 mb-4">Stacked Bar Chart</h4>
+      <ResponsiveContainer width="100%" height={height - 60}>
+        <RechartsBarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="category"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <YAxis 
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#666' }}
+          />
+          <Tooltip 
+            contentStyle={{
+              backgroundColor: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          />
+          <Legend />
+          {allLabels.map((label, index) => (
+            <Bar 
+              key={label}
+              dataKey={label}
+              stackId="stack"
+              fill={chartColors[index % chartColors.length]}
+            />
+          ))}
+        </RechartsBarChart>
+      </ResponsiveContainer>
     </div>
   );
 };

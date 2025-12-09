@@ -14,7 +14,9 @@ import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreato
 import { NotificationBell } from '../components/NotificationBell';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
-import DashboardHeader from '../components/DashboardHeader';
+// Using shadcn enhanced navigation with dropdown menus
+import { EnhancedNavigationShadcn } from '../components/EnhancedNavigationShadcn';
+// import DashboardHeader from '../components/DashboardHeader';
 // import * as Sentry from '@sentry/react';
 
 function CreatorDashboard() {
@@ -201,13 +203,10 @@ function CreatorDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
-      {/* Responsive Header */}
-      <DashboardHeader
+      {/* Responsive Header with Shadcn Dropdown Menus */}
+      <EnhancedNavigationShadcn
         user={user}
         userType="creator"
-        title="Creator Dashboard"
-        credits={credits}
-        subscription={subscription}
         onLogout={handleLogout}
       />
 
