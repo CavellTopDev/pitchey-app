@@ -6005,11 +6005,11 @@ export default {
           if (tab === 'activity') {
             // Get activity updates from creators this user follows
             const followedCreators = await sql`
-              SELECT COALESCE(f.following_id, f.creator_id) as followed_id, u.username, u.company_name
+              SELECT f.creator_id as followed_id, u.username, u.company_name
               FROM follows f
-              JOIN users u ON u.id = COALESCE(f.following_id, f.creator_id)
+              JOIN users u ON u.id = f.creator_id
               WHERE f.follower_id = ${userId}
-                AND (f.following_id IS NOT NULL OR f.creator_id IS NOT NULL)
+                AND f.creator_id IS NOT NULL
             `;
             
             const followedIds = followedCreators.rows.map(row => row.followed_id);
@@ -6122,11 +6122,11 @@ export default {
           if (tab === 'activity') {
             // Get activity updates from creators this investor follows
             const followedCreators = await sql`
-              SELECT COALESCE(f.following_id, f.creator_id) as followed_id, u.username, u.company_name
+              SELECT f.creator_id as followed_id, u.username, u.company_name
               FROM follows f
-              JOIN users u ON u.id = COALESCE(f.following_id, f.creator_id)
+              JOIN users u ON u.id = f.creator_id
               WHERE f.follower_id = ${userId}
-                AND (f.following_id IS NOT NULL OR f.creator_id IS NOT NULL)
+                AND f.creator_id IS NOT NULL
             `;
             
             const followedIds = followedCreators.rows.map(row => row.followed_id);
@@ -6237,10 +6237,11 @@ export default {
           if (tab === 'activity') {
             // Get activity updates from creators this production company follows
             const followedCreators = await sql`
-              SELECT f.followed_id, u.username, u.company_name
+              SELECT f.creator_id as followed_id, u.username, u.company_name
               FROM follows f
-              JOIN users u ON u.id = f.followed_id
+              JOIN users u ON u.id = f.creator_id
               WHERE f.follower_id = ${userId}
+                AND f.creator_id IS NOT NULL
             `;
             
             const followedIds = followedCreators.rows.map(row => row.followed_id);
