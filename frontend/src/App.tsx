@@ -357,6 +357,11 @@ function App() {
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/creator" />
           } />
+          <Route path="/creator/pitch/:id/edit" element={
+            isAuthenticated && userType === 'creator' ? <PitchEdit /> : 
+            isAuthenticated ? <Navigate to="/" /> :
+            <Navigate to="/login/creator" />
+          } />
           <Route path="/creator/pitches/:id/edit" element={
             isAuthenticated && userType === 'creator' ? <PitchEdit /> : 
             isAuthenticated ? <Navigate to="/" /> :
