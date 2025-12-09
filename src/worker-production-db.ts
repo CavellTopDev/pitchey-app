@@ -570,6 +570,153 @@ export default {
         });
       }
 
+      // Configuration endpoints
+      if (path === '/api/config/genres' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: [
+            'Abstract / Non-Narrative', 'Action', 'Action-Comedy', 'Action-Thriller',
+            'Adventure', 'Animation', 'Avant-Garde', 'Biographical Documentary',
+            'Biographical Drama (Biopic)', 'Comedy', 'Coming-of-Age', 'Crime Drama',
+            'Crime Thriller', 'Dramedy', 'Documentary', 'Docudrama', 'Essay Film',
+            'Experimental Documentary', 'Family / Kids', 'Fantasy', 'Fantasy Adventure',
+            'Historical Drama', 'Historical Fiction', 'Horror', 'Hybrid Experimental',
+            'Meta-Cinema', 'Mockumentary', 'Musical', 'Musical Drama', 'Mystery Thriller',
+            'Noir / Neo-Noir', 'Parody / Spoof', 'Performance Film', 'Period Piece',
+            'Political Drama', 'Political Thriller', 'Psychological Thriller',
+            'Reality-Drama', 'Romance', 'Romantic Comedy (Rom-Com)', 'Romantic Drama',
+            'Satire', 'Science Fiction (Sci-Fi)', 'Sci-Fi Horror', 'Slow Cinema',
+            'Sports Drama', 'Superhero', 'Surrealist', 'Thriller', 'True Crime',
+            'Visual Poetry', 'War', 'Western'
+          ]
+        });
+      }
+
+      if (path === '/api/config/formats' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: ['Feature Film', 'Short Film', 'TV Series', 'Web Series']
+        });
+      }
+
+      if (path === '/api/config/budget-ranges' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: [
+            'Under $1M', '$1M-$5M', '$5M-$15M', '$15M-$30M',
+            '$30M-$50M', '$50M-$100M', 'Over $100M'
+          ]
+        });
+      }
+
+      if (path === '/api/config/stages' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: [
+            'Development', 'Pre-Production', 'Production',
+            'Post-Production', 'Distribution'
+          ]
+        });
+      }
+
+      if (path === '/api/config/all' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: {
+            genres: [
+              'Abstract / Non-Narrative', 'Action', 'Action-Comedy', 'Action-Thriller',
+              'Adventure', 'Animation', 'Avant-Garde', 'Biographical Documentary',
+              'Biographical Drama (Biopic)', 'Comedy', 'Coming-of-Age', 'Crime Drama',
+              'Crime Thriller', 'Dramedy', 'Documentary', 'Docudrama', 'Essay Film',
+              'Experimental Documentary', 'Family / Kids', 'Fantasy', 'Fantasy Adventure',
+              'Historical Drama', 'Historical Fiction', 'Horror', 'Hybrid Experimental',
+              'Meta-Cinema', 'Mockumentary', 'Musical', 'Musical Drama', 'Mystery Thriller',
+              'Noir / Neo-Noir', 'Parody / Spoof', 'Performance Film', 'Period Piece',
+              'Political Drama', 'Political Thriller', 'Psychological Thriller',
+              'Reality-Drama', 'Romance', 'Romantic Comedy (Rom-Com)', 'Romantic Drama',
+              'Satire', 'Science Fiction (Sci-Fi)', 'Sci-Fi Horror', 'Slow Cinema',
+              'Sports Drama', 'Superhero', 'Surrealist', 'Thriller', 'True Crime',
+              'Visual Poetry', 'War', 'Western'
+            ],
+            formats: ['Feature Film', 'Short Film', 'TV Series', 'Web Series'],
+            budgetRanges: [
+              'Under $1M', '$1M-$5M', '$5M-$15M', '$15M-$30M',
+              '$30M-$50M', '$50M-$100M', 'Over $100M'
+            ],
+            stages: [
+              'Development', 'Pre-Production', 'Production',
+              'Post-Production', 'Distribution'
+            ]
+          }
+        });
+      }
+
+      // Content endpoints
+      if (path === '/api/content/about' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: {
+            title: "About Pitchey",
+            content: "Pitchey is the premier platform connecting filmmakers with investors and production companies. Our mission is to democratize film financing and bring great stories to life.",
+            sections: [
+              {
+                title: "Our Mission",
+                content: "We believe every great film starts with a compelling pitch. Our platform makes it easy for creators to share their vision and for investors to discover the next big opportunity."
+              },
+              {
+                title: "For Creators",
+                content: "Upload your pitch, connect with investors, and bring your vision to life with the funding and support you need."
+              },
+              {
+                title: "For Investors",
+                content: "Discover curated film projects, connect directly with creators, and invest in the future of cinema."
+              }
+            ]
+          }
+        });
+      }
+
+      if (path === '/api/content/how-it-works' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: {
+            title: "How It Works",
+            steps: [
+              { number: 1, title: "Create Your Pitch", description: "Upload your script, visuals, and budget breakdown" },
+              { number: 2, title: "Get Discovered", description: "Investors browse and search for projects that match their interests" },
+              { number: 3, title: "Connect & Collaborate", description: "Chat directly with interested parties and negotiate terms" },
+              { number: 4, title: "Secure Funding", description: "Finalize agreements and start production" }
+            ]
+          }
+        });
+      }
+
+      if (path === '/api/content/stats' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: {
+            totalPitches: 1247,
+            totalInvestors: 382,
+            totalFunding: 28500000,
+            successStories: 47,
+            activeProjects: 156
+          }
+        });
+      }
+
+      if (path === '/api/content/team' && method === 'GET') {
+        return corsResponse(request, {
+          success: true,
+          data: {
+            members: [
+              { name: "John Smith", role: "CEO & Founder", image: "/team/john.jpg", bio: "20+ years in film production" },
+              { name: "Sarah Johnson", role: "CTO", image: "/team/sarah.jpg", bio: "Tech innovator and film enthusiast" },
+              { name: "Michael Chen", role: "Head of Partnerships", image: "/team/michael.jpg", bio: "Connecting creators with opportunities" }
+            ]
+          }
+        });
+      }
+
       // Authentication endpoints
       if (path === '/api/auth/creator/login' && method === 'POST') {
         return handleLogin(request, env, 'creator');
@@ -3254,6 +3401,46 @@ export default {
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
           }
         });
+      }
+
+      // Analytics tracking endpoint
+      if (path === '/api/analytics/track' && method === 'POST') {
+        try {
+          const body = await request.json() as any;
+          const { type, entityType, entityId, metadata } = body;
+
+          // Log the tracking event (in production, save to database)
+          console.log('Tracking event:', { type, entityType, entityId, metadata });
+
+          // If tracking a view, update view count in database
+          if (type === 'view' && entityType === 'pitch' && entityId) {
+            try {
+              // Insert view record
+              await db.insert(schema.pitchViews).values({
+                pitchId: entityId,
+                userId: userPayload?.sub ? parseInt(userPayload.sub) : null,
+                viewedAt: new Date(),
+                duration: metadata?.duration || 0,
+                source: metadata?.source || 'direct',
+                deviceType: metadata?.deviceType || 'unknown',
+                location: metadata?.location || 'unknown'
+              });
+            } catch (error) {
+              console.error('Failed to record pitch view:', error);
+            }
+          }
+
+          return corsResponse(request, {
+            success: true,
+            message: 'Event tracked successfully'
+          });
+        } catch (error) {
+          console.error('Failed to track event:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to track event'
+          }, 500);
+        }
       }
 
       // Analytics dashboard
