@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DashboardHeader } from '../../components/DashboardHeader';
+import DashboardHeader from '../../components/DashboardHeader';
 import { 
   Star, Filter, Search, Calendar, Clock, 
   MoreVertical, Eye, MessageSquare, FileText,
