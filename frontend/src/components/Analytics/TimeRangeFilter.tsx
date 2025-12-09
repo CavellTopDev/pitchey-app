@@ -5,14 +5,23 @@ type TimeRange = '7d' | '30d' | '90d' | '1y';
 
 interface TimeRangeFilterProps {
   onChange: (range: TimeRange) => void;
+  value?: TimeRange;
   defaultRange?: TimeRange;
 }
 
 export const TimeRangeFilter: React.FC<TimeRangeFilterProps> = ({ 
   onChange, 
+  value,
   defaultRange = '30d' 
 }) => {
-  const [selectedRange, setSelectedRange] = useState<TimeRange>(defaultRange);
+  const [selectedRange, setSelectedRange] = useState<TimeRange>(value || defaultRange);
+
+  // Update local state when value prop changes
+  React.useEffect(() => {
+    if (value) {
+      setSelectedRange(value);
+    }
+  }, [value]);
 
   const handleRangeChange = (range: TimeRange) => {
     setSelectedRange(range);

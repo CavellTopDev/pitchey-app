@@ -36,7 +36,7 @@ import {
 
 export default function MarketplaceEnhanced() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, user } = useAuthStore();
   const toast = useToast();
   const userType = localStorage.getItem('userType');

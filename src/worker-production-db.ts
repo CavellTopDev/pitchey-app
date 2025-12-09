@@ -5989,6 +5989,352 @@ export default {
         }
       }
 
+      // Creator following activity endpoint
+      if (path === '/api/creator/following' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        const tab = url.searchParams.get('tab') || 'activity';
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          if (tab === 'activity') {
+            // Get activity updates from creators this user follows
+            const followedCreators = await sql`
+              SELECT COALESCE(f.following_id, f.creator_id) as followed_id, u.username, u.company_name
+              FROM follows f
+              JOIN users u ON u.id = COALESCE(f.following_id, f.creator_id)
+              WHERE f.follower_id = ${userId}
+                AND (f.following_id IS NOT NULL OR f.creator_id IS NOT NULL)
+            `;
+            
+            const followedIds = followedCreators.rows.map(row => row.followed_id);
+            
+            if (followedIds.length === 0) {
+              return corsResponse(request, {
+                success: true,
+                activities: [],
+                summary: {
+                  newPitches: 0,
+                  activeCreators: 0,
+                  engagementRate: 0
+                }
+              });
+            }
+            
+            // Get recent activities from followed creators (last 30 days)
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            // Fetch activities if there are followed users
+            let activities = { rows: [] };
+            if (followedIds.length > 0) {
+              activities = await sql`
+                SELECT 
+                  p.id,
+                  'pitch_created' as type,
+                  p.user_id as creator_id,
+                  u.username,
+                  u.company_name,
+                  u.profile_image,
+                  u.user_type,
+                  p.title,
+                  p.genre,
+                  p.logline,
+                  p.created_at
+                FROM pitches p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.user_id = ANY(${followedIds})
+                  AND p.status = 'published'
+                  AND p.created_at >= ${thirtyDaysAgo.toISOString()}
+                ORDER BY p.created_at DESC
+                LIMIT 50
+              `;
+            }
+            
+            const formattedActivities = activities.rows.map(activity => ({
+              id: activity.id,
+              type: activity.type,
+              creator: {
+                id: activity.creator_id,
+                username: activity.username,
+                companyName: activity.company_name,
+                profileImage: activity.profile_image,
+                userType: activity.user_type
+              },
+              action: 'created a new pitch',
+              pitch: {
+                id: activity.id,
+                title: activity.title,
+                genre: activity.genre,
+                logline: activity.logline
+              },
+              createdAt: activity.created_at
+            }));
+            
+            // Calculate summary metrics
+            const newPitches = activities.rows.length;
+            const activeCreators = new Set(activities.rows.map(a => a.creator_id)).size;
+            const engagementRate = followedIds.length > 0 ? (activeCreators / followedIds.length) * 100 : 0;
+            
+            return corsResponse(request, {
+              success: true,
+              activities: formattedActivities,
+              summary: {
+                newPitches,
+                activeCreators,
+                engagementRate: Math.round(engagementRate)
+              }
+            });
+          }
+          
+          // For other tabs, redirect to existing endpoints
+          return corsResponse(request, {
+            success: false,
+            message: 'Use /api/follows/followers or /api/follows/following for other tabs'
+          }, 400);
+        } catch (error) {
+          console.error('Error fetching creator following activity:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch following activity',
+          }, 500);
+        }
+      }
+
+      // Investor following activity endpoint
+      if (path === '/api/investor/following' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'investor') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Investor authentication required',
+          }, 401);
+        }
+        
+        const tab = url.searchParams.get('tab') || 'activity';
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          if (tab === 'activity') {
+            // Get activity updates from creators this investor follows
+            const followedCreators = await sql`
+              SELECT COALESCE(f.following_id, f.creator_id) as followed_id, u.username, u.company_name
+              FROM follows f
+              JOIN users u ON u.id = COALESCE(f.following_id, f.creator_id)
+              WHERE f.follower_id = ${userId}
+                AND (f.following_id IS NOT NULL OR f.creator_id IS NOT NULL)
+            `;
+            
+            const followedIds = followedCreators.rows.map(row => row.followed_id);
+            
+            if (followedIds.length === 0) {
+              return corsResponse(request, {
+                success: true,
+                activities: [],
+                summary: {
+                  newPitches: 0,
+                  activeCreators: 0,
+                  engagementRate: 0
+                }
+              });
+            }
+            
+            // Get recent activities from followed creators
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            // Fetch activities if there are followed users
+            let activities = { rows: [] };
+            if (followedIds.length > 0) {
+              activities = await sql`
+                SELECT 
+                  p.id,
+                  'pitch_created' as type,
+                  p.user_id as creator_id,
+                  u.username,
+                  u.company_name,
+                  u.profile_image,
+                  u.user_type,
+                  p.title,
+                  p.genre,
+                  p.logline,
+                  p.created_at
+                FROM pitches p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.user_id = ANY(${followedIds})
+                  AND p.status = 'published'
+                  AND p.created_at >= ${thirtyDaysAgo.toISOString()}
+                ORDER BY p.created_at DESC
+                LIMIT 50
+              `;
+            }
+            
+            const formattedActivities = activities.rows.map(activity => ({
+              id: activity.id,
+              type: activity.type,
+              creator: {
+                id: activity.creator_id,
+                username: activity.username,
+                companyName: activity.company_name,
+                profileImage: activity.profile_image,
+                userType: activity.user_type
+              },
+              action: 'created a new pitch',
+              pitch: {
+                id: activity.id,
+                title: activity.title,
+                genre: activity.genre,
+                logline: activity.logline
+              },
+              createdAt: activity.created_at
+            }));
+            
+            const newPitches = activities.rows.length;
+            const activeCreators = new Set(activities.rows.map(a => a.creator_id)).size;
+            const engagementRate = followedIds.length > 0 ? (activeCreators / followedIds.length) * 100 : 0;
+            
+            return corsResponse(request, {
+              success: true,
+              activities: formattedActivities,
+              summary: {
+                newPitches,
+                activeCreators,
+                engagementRate: Math.round(engagementRate)
+              }
+            });
+          }
+          
+          return corsResponse(request, {
+            success: false,
+            message: 'Use /api/follows/followers or /api/follows/following for other tabs'
+          }, 400);
+        } catch (error) {
+          console.error('Error fetching investor following activity:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch following activity',
+          }, 500);
+        }
+      }
+
+      // Production following activity endpoint  
+      if (path === '/api/production/following' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'production') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Production authentication required',
+          }, 401);
+        }
+        
+        const tab = url.searchParams.get('tab') || 'activity';
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          if (tab === 'activity') {
+            // Get activity updates from creators this production company follows
+            const followedCreators = await sql`
+              SELECT f.followed_id, u.username, u.company_name
+              FROM follows f
+              JOIN users u ON u.id = f.followed_id
+              WHERE f.follower_id = ${userId}
+            `;
+            
+            const followedIds = followedCreators.rows.map(row => row.followed_id);
+            
+            if (followedIds.length === 0) {
+              return corsResponse(request, {
+                success: true,
+                activities: [],
+                summary: {
+                  newPitches: 0,
+                  activeCreators: 0,
+                  engagementRate: 0
+                }
+              });
+            }
+            
+            // Get recent activities from followed creators
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            // Fetch activities if there are followed users
+            let activities = { rows: [] };
+            if (followedIds.length > 0) {
+              activities = await sql`
+                SELECT 
+                  p.id,
+                  'pitch_created' as type,
+                  p.user_id as creator_id,
+                  u.username,
+                  u.company_name,
+                  u.profile_image,
+                  u.user_type,
+                  p.title,
+                  p.genre,
+                  p.logline,
+                  p.created_at
+                FROM pitches p
+                JOIN users u ON u.id = p.user_id
+                WHERE p.user_id = ANY(${followedIds})
+                  AND p.status = 'published'
+                  AND p.created_at >= ${thirtyDaysAgo.toISOString()}
+                ORDER BY p.created_at DESC
+                LIMIT 50
+              `;
+            }
+            
+            const formattedActivities = activities.rows.map(activity => ({
+              id: activity.id,
+              type: activity.type,
+              creator: {
+                id: activity.creator_id,
+                username: activity.username,
+                companyName: activity.company_name,
+                profileImage: activity.profile_image,
+                userType: activity.user_type
+              },
+              action: 'created a new pitch',
+              pitch: {
+                id: activity.id,
+                title: activity.title,
+                genre: activity.genre,
+                logline: activity.logline
+              },
+              createdAt: activity.created_at
+            }));
+            
+            const newPitches = activities.rows.length;
+            const activeCreators = new Set(activities.rows.map(a => a.creator_id)).size;
+            const engagementRate = followedIds.length > 0 ? (activeCreators / followedIds.length) * 100 : 0;
+            
+            return corsResponse(request, {
+              success: true,
+              activities: formattedActivities,
+              summary: {
+                newPitches,
+                activeCreators,
+                engagementRate: Math.round(engagementRate)
+              }
+            });
+          }
+          
+          return corsResponse(request, {
+            success: false,
+            message: 'Use /api/follows/followers or /api/follows/following for other tabs'
+          }, 400);
+        } catch (error) {
+          console.error('Error fetching production following activity:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch following activity',
+          }, 500);
+        }
+      }
+
       // Analytics user endpoint
       if (path === '/api/analytics/user' && method === 'GET') {
         if (!userPayload) {

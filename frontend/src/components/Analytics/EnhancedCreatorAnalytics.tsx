@@ -112,16 +112,22 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
+      console.log('Fetching analytics data for time range:', timeRange);
       
       // Map time range to preset
       const preset: TimeRange['preset'] = timeRange === '7d' ? 'week' : 
                                          timeRange === '30d' ? 'month' :
                                          timeRange === '90d' ? 'quarter' : 'year';
       
+      console.log('Using preset:', preset);
+      
       const [dashboardMetrics, userAnalytics] = await Promise.all([
         analyticsService.getDashboardMetrics({ preset }),
         analyticsService.getUserAnalytics(undefined, { preset })
       ]);
+      
+      console.log('Dashboard metrics received:', dashboardMetrics);
+      console.log('User analytics received:', userAnalytics);
 
       // Transform the data
       const transformedData: CreatorAnalyticsData = {
@@ -311,6 +317,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
             </button>
             
             <TimeRangeFilter 
+              value={timeRange}
               onChange={(range) => setTimeRange(range)}
               defaultRange="30d"
             />

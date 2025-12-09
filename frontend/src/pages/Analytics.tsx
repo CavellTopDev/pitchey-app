@@ -77,25 +77,52 @@ export default function Analytics() {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/creator/analytics?timeRange=${timeRange}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
       
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Analytics response:', result);
+      // Map timeRange to preset values used by the API
+      const presetMap: Record<string, string> = {
+        '7d': 'week',
+        '30d': 'month',
+        '90d': 'quarter',
+        '1y': 'year'
+      };
+      const preset = presetMap[timeRange] || 'month';
+      
+      // Fetch both dashboard and user analytics
+      const [dashboardResponse, userResponse] = await Promise.all([
+        fetch(`${API_URL}/api/analytics/dashboard?preset=${preset}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+        fetch(`${API_URL}/api/analytics/user?preset=${preset}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+      ]);
+      
+      if (dashboardResponse.ok && userResponse.ok) {
+        const [dashboardResult, userResult] = await Promise.all([
+          dashboardResponse.json(),
+          userResponse.json()
+        ]);
         
-        // Handle both direct data and wrapped data structures
-        const data = result.data || result;
+        console.log('Dashboard analytics response:', dashboardResult);
+        console.log('User analytics response:', userResult);
         
-        console.log('Analytics data received:', data);
-        console.log('Pitch performance:', data.pitchPerformance);
-        console.log('Top genres:', data.audienceInsights?.topGenres);
-        setAnalyticsData(data);
+        // Combine the data from both endpoints
+        const combinedData = {
+          overview: dashboardResult.data?.overview || dashboardResult.overview || {},
+          pitchPerformance: dashboardResult.data?.pitchPerformance || dashboardResult.pitchPerformance || [],
+          audienceInsights: userResult.data?.audienceInsights || userResult.audienceInsights || {},
+          engagementMetrics: userResult.data?.engagementMetrics || userResult.engagementMetrics || {},
+          timeRange: preset
+        };
+        
+        console.log('Combined analytics data:', combinedData);
+        setAnalyticsData(combinedData);
       } else {
-        console.error('Analytics request failed:', response.status, response.statusText);
+        console.error('Analytics request failed:', dashboardResponse.status, userResponse.status);
       }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
