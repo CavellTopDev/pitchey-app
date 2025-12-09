@@ -6192,6 +6192,263 @@ export default {
         });
       }
 
+      // Creator NDA management endpoint
+      if (path === '/api/creator/ndas' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        const creatorId = parseInt(userPayload.sub);
+        
+        try {
+          // Get all NDAs for creator's pitches
+          const ndas = await sql`
+            SELECT 
+              n.*,
+              p.title as pitch_title,
+              u.username as requester_name,
+              u.email as requester_email
+            FROM nda_requests n
+            JOIN pitches p ON n.pitch_id = p.id
+            LEFT JOIN users u ON n.user_id = u.id
+            WHERE p.user_id = ${creatorId}
+            ORDER BY n.created_at DESC
+          `;
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              ndas,
+              stats: {
+                total: ndas.length,
+                pending: ndas.filter(n => n.status === 'pending').length,
+                approved: ndas.filter(n => n.status === 'approved').length,
+                rejected: ndas.filter(n => n.status === 'rejected').length
+              }
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching creator NDAs:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch NDA data',
+          }, 500);
+        }
+      }
+
+      // Creator portfolio endpoint
+      if (path === '/api/creator/portfolio' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        const creatorId = parseInt(userPayload.sub);
+        
+        try {
+          // Get creator profile and published pitches
+          const [creator, pitches, stats] = await Promise.all([
+            sql`SELECT * FROM users WHERE id = ${creatorId}`,
+            sql`
+              SELECT * FROM pitches 
+              WHERE user_id = ${creatorId} AND status = 'published'
+              ORDER BY created_at DESC
+            `,
+            sql`
+              SELECT 
+                COUNT(DISTINCT f.follower_id) as followers,
+                COUNT(DISTINCT p.id) as total_pitches,
+                COALESCE(SUM(p.views), 0) as total_views
+              FROM users u
+              LEFT JOIN follows f ON f.following_id = u.id
+              LEFT JOIN pitches p ON p.user_id = u.id AND p.status = 'published'
+              WHERE u.id = ${creatorId}
+              GROUP BY u.id
+            `
+          ]);
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              creator: creator[0],
+              pitches,
+              stats: stats[0] || { followers: 0, total_pitches: 0, total_views: 0 }
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching creator portfolio:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch portfolio data',
+          }, 500);
+        }
+      }
+
+      // Messages endpoint
+      if (path === '/api/messages' && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          // Get user's messages/conversations
+          const messages = await sql`
+            SELECT 
+              m.*,
+              sender.username as sender_name,
+              receiver.username as receiver_name
+            FROM messages m
+            LEFT JOIN users sender ON m.sender_id = sender.id
+            LEFT JOIN users receiver ON m.receiver_id = receiver.id
+            WHERE m.sender_id = ${userId} OR m.receiver_id = ${userId}
+            ORDER BY m.created_at DESC
+            LIMIT 50
+          `;
+          
+          return corsResponse(request, {
+            success: true,
+            data: messages
+          });
+        } catch (error) {
+          console.error('Error fetching messages:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch messages',
+          }, 500);
+        }
+      }
+
+      // Creator calendar endpoint
+      if (path === '/api/creator/calendar' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator authentication required',
+          }, 401);
+        }
+        
+        const creatorId = parseInt(userPayload.sub);
+        
+        try {
+          // Get upcoming meetings, deadlines, and events
+          const events = await sql`
+            SELECT 
+              'pitch_deadline' as type,
+              p.title,
+              p.deadline as date,
+              p.id as reference_id
+            FROM pitches p
+            WHERE p.user_id = ${creatorId} 
+              AND p.deadline IS NOT NULL
+              AND p.deadline >= NOW()
+            
+            UNION ALL
+            
+            SELECT 
+              'nda_review' as type,
+              CONCAT('NDA Review: ', p.title) as title,
+              n.created_at + INTERVAL '7 days' as date,
+              n.id as reference_id
+            FROM nda_requests n
+            JOIN pitches p ON n.pitch_id = p.id
+            WHERE p.user_id = ${creatorId}
+              AND n.status = 'pending'
+            
+            ORDER BY date ASC
+            LIMIT 100
+          `;
+          
+          return corsResponse(request, {
+            success: true,
+            data: events
+          });
+        } catch (error) {
+          console.error('Error fetching calendar events:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch calendar data',
+          }, 500);
+        }
+      }
+
+      // Billing credits endpoint
+      if (path === '/api/billing/credits' && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          // Get user's credit balance
+          const credits = await sql`
+            SELECT credits, subscription_tier FROM users WHERE id = ${userId}
+          `;
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              balance: credits[0]?.credits || 0,
+              tier: credits[0]?.subscription_tier || 'free'
+            }
+          });
+        } catch (error) {
+          console.error('Error fetching credits:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch credit balance',
+          }, 500);
+        }
+      }
+
+      // Billing subscription endpoint
+      if (path === '/api/billing/subscription' && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          // Get user's subscription details
+          const subscription = await sql`
+            SELECT 
+              subscription_tier as tier,
+              subscription_status as status,
+              subscription_end_date as end_date
+            FROM users 
+            WHERE id = ${userId}
+          `;
+          
+          return corsResponse(request, {
+            success: true,
+            data: subscription[0] || { tier: 'free', status: 'inactive' }
+          });
+        } catch (error) {
+          console.error('Error fetching subscription:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch subscription data',
+          }, 500);
+        }
+      }
+
       // Creator dashboard stats endpoint
       if (path === '/api/creator/dashboard/stats' && method === 'GET') {
         if (!userPayload || userPayload.userType !== 'creator') {
