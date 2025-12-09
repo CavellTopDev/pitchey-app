@@ -167,7 +167,8 @@ async function authenticateRequest(request: Request, env: Env, db: any): Promise
         }
       }
     } catch (error) {
-      console.error('Session validation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Session validation error:', errorMessage);
     }
   }
   
@@ -304,7 +305,8 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
       },
     }, 200, responseHeaders);
   } catch (error) {
-    console.error('Login error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Login error:', errorMessage);
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     // Always include error details for debugging
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -419,7 +421,8 @@ async function handleRegister(request: Request, env: Env, userType: string): Pro
       },
     }, 201);
   } catch (error) {
-    console.error('Registration error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Registration error:', errorMessage);
     return corsResponse(request, {
       success: false,
       message: 'Registration failed',
@@ -438,7 +441,8 @@ async function getCachedResponse(key: string, kv: KVNamespace | undefined, reque
       return corsResponse(request, data, 200, {}, request);
     }
   } catch (error) {
-    console.error('Cache read error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Cache read error:', errorMessage);
   }
   
   return null;
@@ -452,7 +456,8 @@ async function setCachedResponse(key: string, data: any, kv: KVNamespace | undef
       expirationTtl: ttl, // Cache for 5 minutes by default
     });
   } catch (error) {
-    console.error('Cache write error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Cache write error:', errorMessage);
   }
 }
 
@@ -532,7 +537,8 @@ export default {
           webSocket: client,
         });
       } catch (error) {
-        console.error('WebSocket error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('WebSocket error:', errorMessage);
         return corsResponse(request, {
           success: false,
           message: 'WebSocket initialization failed',
@@ -553,7 +559,8 @@ export default {
           await sql`SELECT 1`;
           dbHealthy = true;
         } catch (error) {
-          console.error('Database health check failed:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Database health check failed:', errorMessage);
         }
 
         return corsResponse(request, {
@@ -1347,7 +1354,8 @@ export default {
             pitches: pitches
           });
         } catch (error) {
-          console.error('Failed to fetch creator pitches:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Failed to fetch creator pitches:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch pitches'
@@ -1417,7 +1425,8 @@ export default {
             }
           }, 201);
         } catch (error) {
-          console.error('Error creating pitch:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error creating pitch:', errorMessage);
           return corsResponse(request, {
             success: false,
             error: {
@@ -2289,7 +2298,8 @@ export default {
             .where(conditions.length > 0 ? and(...conditions) : undefined);
           totalCount = countResult.length;
         } catch (e) {
-          console.error('Count query error:', e);
+          const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+          console.error('Count query error:', errorMessage);
           totalCount = pitches.length;
         }
         
@@ -2466,7 +2476,8 @@ export default {
             },
           });
         } catch (error) {
-          console.error('Error in general browse:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error in general browse:', errorMessage);
           return corsResponse(request, {
             success: false,
             error: { message: 'Failed to fetch pitches' },
@@ -2630,7 +2641,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Investor dashboard error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Investor dashboard error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Dashboard data unavailable',
@@ -2694,7 +2706,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Failed to fetch portfolio summary:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Failed to fetch portfolio summary:', errorMessage);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error('Detailed error:', errorMessage);
           
@@ -2768,7 +2781,8 @@ export default {
             data: formattedInvestments
           });
         } catch (error) {
-          console.error('Error fetching investments:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching investments:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch investments',
@@ -2807,7 +2821,8 @@ export default {
             data: ndaRequests
           });
         } catch (error) {
-          console.error('Error fetching NDA requests:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching NDA requests:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch NDA requests'
@@ -2881,7 +2896,8 @@ export default {
             data: recommendations
           });
         } catch (error) {
-          console.error('Error fetching recommendations:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching recommendations:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch recommendations'
@@ -2957,7 +2973,8 @@ export default {
             data: following
           });
         } catch (error) {
-          console.error('Error fetching following:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching following:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch following list'
@@ -2998,7 +3015,8 @@ export default {
             data: watchlistItems
           });
         } catch (error) {
-          console.error('Error fetching watchlist:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching watchlist:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch watchlist'
@@ -3105,7 +3123,8 @@ export default {
             data: transformedData
           });
         } catch (error) {
-          console.error('Error fetching investment recommendations:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching investment recommendations:', errorMessage);
           // Return empty data instead of error
           return corsResponse(request, {
             success: true,
@@ -3210,7 +3229,8 @@ export default {
             data: newInterest[0],
           }, 201);
         } catch (error) {
-          console.error('Error expressing investment interest:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error expressing investment interest:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to express investment interest',
@@ -3254,7 +3274,8 @@ export default {
             data: interests,
           });
         } catch (error) {
-          console.error('Error fetching investment interests:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching investment interests:', errorMessage);
           const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment interests';
           return corsResponse(request, {
             success: false,
@@ -3355,7 +3376,8 @@ export default {
             data: newReview[0],
           }, 201);
         } catch (error) {
-          console.error('Error creating review:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error creating review:', errorMessage);
           const errorMessage = error instanceof Error ? error.message : 'Failed to create review';
           return corsResponse(request, {
             success: false,
@@ -3389,7 +3411,8 @@ export default {
             data: reviews,
           });
         } catch (error) {
-          console.error('Error fetching reviews:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching reviews:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch reviews',
@@ -3621,7 +3644,8 @@ export default {
             data: formattedPitches
           });
         } catch (error) {
-          console.error('Error fetching followed pitches:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching followed pitches:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch followed pitches',
@@ -3689,7 +3713,8 @@ export default {
                 location: metadata?.location || 'unknown'
               });
             } catch (error) {
-              console.error('Failed to record pitch view:', error);
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              console.error('Failed to record pitch view:', errorMessage);
             }
           }
 
@@ -3698,7 +3723,8 @@ export default {
             message: 'Event tracked successfully'
           });
         } catch (error) {
-          console.error('Failed to track event:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Failed to track event:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to track event'
@@ -4128,7 +4154,8 @@ export default {
             data: newRequest[0],
           }, 201);
         } catch (error) {
-          console.error('Error creating NDA request:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error creating NDA request:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to create NDA request',
@@ -4237,7 +4264,8 @@ export default {
             });
           }
         } catch (error) {
-          console.error('Error handling NDA request:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error handling NDA request:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to process NDA request',
@@ -4293,7 +4321,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error checking NDA status:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error checking NDA status:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to check NDA status',
@@ -4346,7 +4375,8 @@ export default {
             data: ndaRequests
           });
         } catch (error) {
-          console.error('Error fetching incoming NDA requests:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching incoming NDA requests:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: [] // Return empty array on error
@@ -4399,7 +4429,8 @@ export default {
             data: ndaRequests
           });
         } catch (error) {
-          console.error('Error fetching outgoing NDA requests:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching outgoing NDA requests:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: [] // Return empty array on error
@@ -4451,7 +4482,8 @@ export default {
             data: signedNdas
           });
         } catch (error) {
-          console.error('Error fetching signed NDAs:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching signed NDAs:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: [] // Return empty array on error
@@ -4503,7 +4535,8 @@ export default {
             data: signedNdas
           });
         } catch (error) {
-          console.error('Error fetching signed NDAs:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching signed NDAs:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: [] // Return empty array on error
@@ -4591,7 +4624,8 @@ export default {
             hasAccess: status === 'signed'
           });
         } catch (error) {
-          console.error('Error checking NDA status:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error checking NDA status:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to check NDA status',
@@ -4875,7 +4909,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Production dashboard error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Production dashboard error:', errorMessage);
           // Return safe fallback data
           return corsResponse(request, {
             success: true,
@@ -5291,7 +5326,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Smart pitch discovery error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Smart pitch discovery error:', errorMessage);
           // Return fallback data
           return corsResponse(request, {
             success: true,
@@ -5569,7 +5605,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Failed to fetch realtime analytics:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Failed to fetch realtime analytics:', errorMessage);
           
           // Return safe fallback data
           return corsResponse(request, {
@@ -5772,7 +5809,9 @@ export default {
             count: Number(notifications[0]?.count || 0)
           }, 200, getCorsHeaders(request));
         } catch (error) {
-          console.error('Error fetching unread notifications:', error);
+          // Avoid circular reference in error logging
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching unread notifications:', errorMessage);
           return corsResponse(request, {
             success: true,
             count: 0
@@ -5804,7 +5843,8 @@ export default {
             data: pendingNdas
           }, 200, getCorsHeaders(request));
         } catch (error) {
-          console.error('Error fetching pending NDAs:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching pending NDAs:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: []
@@ -5839,7 +5879,8 @@ export default {
             data: activeNdas
           }, 200, getCorsHeaders(request));
         } catch (error) {
-          console.error('Error fetching active NDAs:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching active NDAs:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: []
@@ -5874,7 +5915,8 @@ export default {
             }
           }, 200, getCorsHeaders(request));
         } catch (error) {
-          console.error('Error fetching follow stats:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching follow stats:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: {
@@ -5929,7 +5971,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching followers:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching followers:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch followers',
@@ -5981,7 +6024,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching following:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching following:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch following',
@@ -6098,7 +6142,8 @@ export default {
             message: 'Use /api/follows/followers or /api/follows/following for other tabs'
           }, 400);
         } catch (error) {
-          console.error('Error fetching creator following activity:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching creator following activity:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch following activity',
@@ -6213,7 +6258,8 @@ export default {
             message: 'Use /api/follows/followers or /api/follows/following for other tabs'
           }, 400);
         } catch (error) {
-          console.error('Error fetching investor following activity:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching investor following activity:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch following activity',
@@ -6328,7 +6374,8 @@ export default {
             message: 'Use /api/follows/followers or /api/follows/following for other tabs'
           }, 400);
         } catch (error) {
-          console.error('Error fetching production following activity:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching production following activity:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch following activity',
@@ -6386,7 +6433,8 @@ export default {
               ));
               viewCount = views[0]?.count || 0;
             } catch (e) {
-              console.error('Error fetching views:', e);
+              const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+              console.error('Error fetching views:', errorMessage);
               // Continue with 0 views if table doesn't exist
             }
           }
@@ -6434,7 +6482,9 @@ export default {
             }
           }, 200, getCorsHeaders(request));
         } catch (error) {
-          console.error('Error fetching user analytics:', error);
+          // Avoid circular reference in error logging
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching user analytics:', errorMessage);
           return corsResponse(request, {
             success: true,
             analytics: {
@@ -6578,7 +6628,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching creator NDAs:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching creator NDAs:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch NDA data',
@@ -6628,7 +6679,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching creator portfolio:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching creator portfolio:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch portfolio data',
@@ -6667,7 +6719,8 @@ export default {
             data: messages
           });
         } catch (error) {
-          console.error('Error fetching messages:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching messages:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch messages',
@@ -6720,7 +6773,8 @@ export default {
             data: events
           });
         } catch (error) {
-          console.error('Error fetching calendar events:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching calendar events:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch calendar data',
@@ -6753,7 +6807,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching credits:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching credits:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch credit balance',
@@ -6788,7 +6843,8 @@ export default {
             data: subscription[0] || { tier: 'free', status: 'inactive' }
           });
         } catch (error) {
-          console.error('Error fetching subscription:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching subscription:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch subscription data',
@@ -6908,7 +6964,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching creator dashboard stats:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching creator dashboard stats:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch dashboard statistics',
@@ -6952,7 +7009,8 @@ export default {
             total: notifications.length
           });
         } catch (error) {
-          console.error('Error fetching user notifications:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching user notifications:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: [],
@@ -7024,7 +7082,8 @@ export default {
             }))
           }, 200, getCorsHeaders(request));
         } catch (error) {
-          console.error('Error fetching notifications:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching notifications:', errorMessage);
           return corsResponse(request, {
             success: true,
             data: []
@@ -7056,7 +7115,8 @@ export default {
             message: 'Notification marked as read'
           }, 200, getCorsHeaders(request));
         } catch (error) {
-          console.error('Error marking notification as read:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error marking notification as read:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to update notification'
@@ -7133,7 +7193,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching saved pitches:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching saved pitches:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch saved pitches',
@@ -7187,7 +7248,8 @@ export default {
             message: 'Pitch saved successfully',
           });
         } catch (error) {
-          console.error('Error saving pitch:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error saving pitch:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to save pitch',
@@ -7226,7 +7288,8 @@ export default {
             message: 'Pitch unsaved successfully',
           });
         } catch (error) {
-          console.error('Error unsaving pitch:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error unsaving pitch:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to unsave pitch',
@@ -7341,7 +7404,8 @@ export default {
             filters: { tab, genre },
           });
         } catch (error) {
-          console.error('Error fetching browse pitches:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching browse pitches:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch pitches',
@@ -7582,7 +7646,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Browse error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Browse error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch pitches',
@@ -7607,7 +7672,8 @@ export default {
             data: genres.map(g => g.genre).filter(Boolean)
           });
         } catch (error) {
-          console.error('Error fetching genres:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching genres:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch genres',
@@ -7649,7 +7715,8 @@ export default {
             }
           });
         } catch (error) {
-          console.error('Error fetching browse stats:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching browse stats:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch statistics',
@@ -7757,7 +7824,8 @@ export default {
             },
           });
         } catch (error) {
-          console.error('Upload error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Upload error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to upload file',
@@ -7872,7 +7940,8 @@ export default {
             data: uploadedFiles,
           });
         } catch (error) {
-          console.error('Multiple upload error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Multiple upload error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to upload files',
@@ -7992,7 +8061,8 @@ export default {
             },
           });
         } catch (error) {
-          console.error('NDA upload error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('NDA upload error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to upload NDA',
@@ -8078,7 +8148,8 @@ export default {
             message: 'Access denied',
           }, 403);
         } catch (error) {
-          console.error('File retrieval error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('File retrieval error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to retrieve file',
@@ -8142,7 +8213,8 @@ export default {
             },
           });
         } catch (error) {
-          console.error('File rename error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('File rename error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to rename file',
@@ -8196,7 +8268,8 @@ export default {
             message: 'File deleted successfully',
           });
         } catch (error) {
-          console.error('File deletion error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('File deletion error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to delete file',
@@ -8233,7 +8306,8 @@ export default {
             })),
           });
         } catch (error) {
-          console.error('Error fetching pitch files:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching pitch files:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch files',
@@ -8282,7 +8356,8 @@ export default {
             data: team[0],
           });
         } catch (error) {
-          console.error('Team creation error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Team creation error:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to create team',
@@ -8322,7 +8397,8 @@ export default {
             data: teams,
           });
         } catch (error) {
-          console.error('Error fetching teams:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching teams:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch teams',
@@ -8384,7 +8460,8 @@ export default {
             data: member[0],
           });
         } catch (error) {
-          console.error('Error adding team member:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error adding team member:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to add team member',
@@ -8481,7 +8558,8 @@ export default {
             }, 400);
           }
         } catch (error) {
-          console.error('Error adding collaborator:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error adding collaborator:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to add collaborator',
@@ -8517,7 +8595,8 @@ export default {
             data: collaborators,
           });
         } catch (error) {
-          console.error('Error fetching collaborators:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error fetching collaborators:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to fetch collaborators',
@@ -8618,7 +8697,8 @@ export default {
             data: { hasPermission: false, role: null },
           });
         } catch (error) {
-          console.error('Error checking permissions:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Error checking permissions:', errorMessage);
           return corsResponse(request, {
             success: false,
             message: 'Failed to check permissions',
@@ -8676,7 +8756,8 @@ export default {
               data: logs,
             });
           } catch (error) {
-            console.error('Error fetching access logs:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Error fetching access logs:', errorMessage);
             return corsResponse(request, {
               success: false,
               message: 'Failed to fetch access logs',
@@ -8693,7 +8774,8 @@ export default {
       }, 404);
 
     } catch (error) {
-      console.error('Worker error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Worker error:', errorMessage);
       return corsResponse(request, {
         success: false,
         message: 'Internal server error',
