@@ -6012,7 +6012,7 @@ export default {
                 AND f.creator_id IS NOT NULL
             `;
             
-            const followedIds = followedCreators.rows.map(row => row.followed_id);
+            const followedIds = followedCreators.map(row => row.followed_id);
             
             if (followedIds.length === 0) {
               return corsResponse(request, {
@@ -6031,7 +6031,7 @@ export default {
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             
             // Fetch activities if there are followed users
-            let activities = { rows: [] };
+            let activities = [];
             if (followedIds.length > 0) {
               activities = await sql`
                 SELECT 
@@ -6056,7 +6056,7 @@ export default {
               `;
             }
             
-            const formattedActivities = activities.rows.map(activity => ({
+            const formattedActivities = activities.map(activity => ({
               id: activity.id,
               type: activity.type,
               creator: {
@@ -6077,8 +6077,8 @@ export default {
             }));
             
             // Calculate summary metrics
-            const newPitches = activities.rows.length;
-            const activeCreators = new Set(activities.rows.map(a => a.creator_id)).size;
+            const newPitches = activities.length;
+            const activeCreators = new Set(activities.map(a => a.creator_id)).size;
             const engagementRate = followedIds.length > 0 ? (activeCreators / followedIds.length) * 100 : 0;
             
             return corsResponse(request, {
@@ -6129,7 +6129,7 @@ export default {
                 AND f.creator_id IS NOT NULL
             `;
             
-            const followedIds = followedCreators.rows.map(row => row.followed_id);
+            const followedIds = followedCreators.map(row => row.followed_id);
             
             if (followedIds.length === 0) {
               return corsResponse(request, {
@@ -6148,7 +6148,7 @@ export default {
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             
             // Fetch activities if there are followed users
-            let activities = { rows: [] };
+            let activities = [];
             if (followedIds.length > 0) {
               activities = await sql`
                 SELECT 
@@ -6173,7 +6173,7 @@ export default {
               `;
             }
             
-            const formattedActivities = activities.rows.map(activity => ({
+            const formattedActivities = activities.map(activity => ({
               id: activity.id,
               type: activity.type,
               creator: {
@@ -6193,8 +6193,8 @@ export default {
               createdAt: activity.created_at
             }));
             
-            const newPitches = activities.rows.length;
-            const activeCreators = new Set(activities.rows.map(a => a.creator_id)).size;
+            const newPitches = activities.length;
+            const activeCreators = new Set(activities.map(a => a.creator_id)).size;
             const engagementRate = followedIds.length > 0 ? (activeCreators / followedIds.length) * 100 : 0;
             
             return corsResponse(request, {
@@ -6244,7 +6244,7 @@ export default {
                 AND f.creator_id IS NOT NULL
             `;
             
-            const followedIds = followedCreators.rows.map(row => row.followed_id);
+            const followedIds = followedCreators.map(row => row.followed_id);
             
             if (followedIds.length === 0) {
               return corsResponse(request, {
@@ -6263,7 +6263,7 @@ export default {
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             
             // Fetch activities if there are followed users
-            let activities = { rows: [] };
+            let activities = [];
             if (followedIds.length > 0) {
               activities = await sql`
                 SELECT 
@@ -6288,7 +6288,7 @@ export default {
               `;
             }
             
-            const formattedActivities = activities.rows.map(activity => ({
+            const formattedActivities = activities.map(activity => ({
               id: activity.id,
               type: activity.type,
               creator: {
@@ -6308,8 +6308,8 @@ export default {
               createdAt: activity.created_at
             }));
             
-            const newPitches = activities.rows.length;
-            const activeCreators = new Set(activities.rows.map(a => a.creator_id)).size;
+            const newPitches = activities.length;
+            const activeCreators = new Set(activities.map(a => a.creator_id)).size;
             const engagementRate = followedIds.length > 0 ? (activeCreators / followedIds.length) * 100 : 0;
             
             return corsResponse(request, {
