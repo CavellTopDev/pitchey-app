@@ -1,0 +1,294 @@
+import React from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { 
+  Home, Globe, Briefcase, Users, Search, Settings, Bell, 
+  ChevronDown, CircleUser, Film, Plus, BarChart3, Shield,
+  TrendingUp, Star, Award, FileText, MessageSquare, Calendar,
+  DollarSign, Eye, Activity, FolderOpen, Upload, Target,
+  LogOut, User, CreditCard, HelpCircle, Moon, Sun
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuGroup,
+} from "@/components/ui/dropdown-menu";
+
+interface CreatorNavigationProps {
+  user: any;
+  onLogout: () => void;
+}
+
+export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [notificationCount, setNotificationCount] = React.useState(0);
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
+  return (
+    <div className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+      {/* Logo */}
+      <Link to="/" className="flex items-center gap-2" data-discover="true">
+        <span className="text-2xl font-bold text-purple-600">Pitchey</span>
+      </Link>
+
+      {/* Main Navigation */}
+      <nav className="flex items-center gap-1">
+        {/* Dashboard Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer">
+            <Home className="w-4 h-4" aria-hidden="true" />
+            <span>Dashboard</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/dashboard')}>
+              <Home className="w-4 h-4 mr-2" />
+              Overview
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/analytics')}>
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/metrics')}>
+              <Activity className="w-4 h-4 mr-2" />
+              Performance Metrics
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/activity')}>
+              <Calendar className="w-4 h-4 mr-2" />
+              Recent Activity
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Browse Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer">
+            <Globe className="w-4 h-4" aria-hidden="true" />
+            <span>Browse</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/browse')}>
+              <Globe className="w-4 h-4 mr-2" />
+              All Pitches
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/browse?tab=trending')}>
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Trending
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/browse?tab=new')}>
+              <Star className="w-4 h-4 mr-2" />
+              New Releases
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/browse?tab=featured')}>
+              <Award className="w-4 h-4 mr-2" />
+              Featured
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/browse/genres')}>
+              <Film className="w-4 h-4 mr-2" />
+              Browse by Genre
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Projects Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer">
+            <Briefcase className="w-4 h-4" aria-hidden="true" />
+            <span>Projects</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/pitches')}>
+              <Film className="w-4 h-4 mr-2" />
+              My Pitches
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/pitch/new')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Pitch
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/drafts')}>
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Drafts
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/pitch-analytics')}>
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Pitch Analytics
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/ndas')}>
+              <Shield className="w-4 h-4 mr-2" />
+              NDA Management
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Team Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer">
+            <Users className="w-4 h-4" aria-hidden="true" />
+            <span>Team</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/team')}>
+              <Users className="w-4 h-4 mr-2" />
+              Team Members
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/collaborators')}>
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Collaborators
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/investors')}>
+              <DollarSign className="w-4 h-4 mr-2" />
+              Connected Investors
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/invitations')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Invite Members
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Search Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer">
+            <Search className="w-4 h-4" aria-hidden="true" />
+            <span>Search</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/search')}>
+              <Search className="w-4 h-4 mr-2" />
+              Search Pitches
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/search/investors')}>
+              <Users className="w-4 h-4 mr-2" />
+              Find Investors
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/search/companies')}>
+              <Briefcase className="w-4 h-4 mr-2" />
+              Production Companies
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/search/advanced')}>
+              <Target className="w-4 h-4 mr-2" />
+              Advanced Search
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Settings Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer">
+            <Settings className="w-4 h-4" aria-hidden="true" />
+            <span>Settings</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/settings')}>
+              <Settings className="w-4 h-4 mr-2" />
+              General Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/profile')}>
+              <User className="w-4 h-4 mr-2" />
+              Profile Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/billing')}>
+              <CreditCard className="w-4 h-4 mr-2" />
+              Billing & Subscription
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/notifications')}>
+              <Bell className="w-4 h-4 mr-2" />
+              Notification Preferences
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/help')}>
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Help & Support
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </nav>
+
+      {/* Right Section */}
+      <div className="flex items-center gap-4">
+        {/* Notification Bell */}
+        <div className="relative">
+          <button 
+            className="relative p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+            aria-label="Notifications"
+            title="Notifications"
+            onClick={() => handleNavigation('/creator/notifications')}
+          >
+            <Bell className="w-6 h-6" aria-hidden="true" />
+            {notificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {notificationCount > 9 ? '9+' : notificationCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* User Profile Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 cursor-pointer">
+            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+              <CircleUser className="w-5 h-5 text-purple-600" aria-hidden="true" />
+            </div>
+            <ChevronDown className="w-4 h-4 text-gray-600" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col">
+                <span className="font-semibold">{user?.firstName || 'Creator'} {user?.lastName || ''}</span>
+                <span className="text-sm text-gray-500">{user?.email}</span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => handleNavigation('/creator/profile')}>
+                <User className="w-4 h-4 mr-2" />
+                View Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNavigation('/creator/dashboard')}>
+                <Home className="w-4 h-4 mr-2" />
+                Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNavigation('/creator/settings')}>
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/billing')}>
+              <CreditCard className="w-4 h-4 mr-2" />
+              Billing
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/creator/help')}>
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Help
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={onLogout}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}

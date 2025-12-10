@@ -23,8 +23,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
-// import DashboardHeader from '../components/DashboardHeader';
-import { EnhancedNavigationShadcn } from '../components/EnhancedNavigationShadcn';
+// Using the new Investor-specific navigation with dropdown menus
+import { InvestorNavigation } from '../components/InvestorNavigation';
 
 interface PortfolioSummary {
   totalInvested: number;
@@ -166,10 +166,9 @@ export default function InvestorDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Enhanced Navigation */}
-      <EnhancedNavigationShadcn
+      {/* Clean, modern Investor navigation with dropdowns */}
+      <InvestorNavigation
         user={user}
-        userType="investor"
         onLogout={handleLogout}
       />
 
