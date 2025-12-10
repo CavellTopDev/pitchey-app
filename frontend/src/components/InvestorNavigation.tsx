@@ -48,7 +48,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <span>Dashboard</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/dashboard')}>
               <Home className="w-4 h-4 mr-2" />
               Overview
@@ -80,7 +80,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <span>Browse</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/browse')}>
               <Globe className="w-4 h-4 mr-2" />
               All Opportunities
@@ -116,7 +116,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <span>Investments</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/investments')}>
               <Briefcase className="w-4 h-4 mr-2" />
               Active Investments
@@ -152,7 +152,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <span>Due Diligence</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/ndas')}>
               <Shield className="w-4 h-4 mr-2" />
               NDA Management
@@ -184,7 +184,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <span>Network</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/creators')}>
               <Users className="w-4 h-4 mr-2" />
               Connected Creators
@@ -220,7 +220,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <span>Search</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/search')}>
               <Search className="w-4 h-4 mr-2" />
               Search Projects
@@ -252,7 +252,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <span>Settings</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/settings')}>
               <Settings className="w-4 h-4 mr-2" />
               General Settings
@@ -313,7 +313,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             </div>
             <ChevronDown className="w-4 h-4 text-gray-600" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-56 bg-white">
             <DropdownMenuLabel>
               <div className="flex flex-col">
                 <span className="font-semibold">{user?.firstName || 'Investor'} {user?.lastName || ''}</span>

@@ -47,7 +47,7 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
             <span>Dashboard</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/creator/dashboard')}>
               <Home className="w-4 h-4 mr-2" />
               Overview
@@ -74,7 +74,7 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
             <span>Browse</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/creator/browse')}>
               <Globe className="w-4 h-4 mr-2" />
               All Pitches
@@ -106,7 +106,7 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
             <span>Projects</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/creator/pitches')}>
               <Film className="w-4 h-4 mr-2" />
               My Pitches
@@ -138,7 +138,7 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
             <span>Team</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/creator/team')}>
               <Users className="w-4 h-4 mr-2" />
               Team Members
@@ -166,7 +166,7 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
             <span>Search</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/creator/search')}>
               <Search className="w-4 h-4 mr-2" />
               Search Pitches
@@ -194,7 +194,7 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
             <span>Settings</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/creator/settings')}>
               <Settings className="w-4 h-4 mr-2" />
               General Settings
@@ -247,7 +247,7 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
             </div>
             <ChevronDown className="w-4 h-4 text-gray-600" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-56 bg-white">
             <DropdownMenuLabel>
               <div className="flex flex-col">
                 <span className="font-semibold">{user?.firstName || 'Creator'} {user?.lastName || ''}</span>
