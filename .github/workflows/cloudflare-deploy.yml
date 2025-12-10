@@ -237,7 +237,15 @@ jobs:
       
       - name: Run tests
         working-directory: frontend
-        run: npm test || true
+        run: |
+          npm test || TEST_EXIT_CODE=$?
+          # Allow deployment to continue if tests fail but log warning
+          if [ "${TEST_EXIT_CODE:-0}" -ne 0 ]; then
+            echo "⚠️ Some tests failed but continuing with deployment"
+            echo "Please review test failures in a follow-up PR"
+          else
+            echo "✅ All tests passed"
+          fi
         
       - name: Build for testing
         working-directory: frontend
