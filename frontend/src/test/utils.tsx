@@ -5,6 +5,16 @@ import { WebSocketProvider } from '../contexts/WebSocketContext'
 import { NotificationToastProvider } from '../components/Toast/NotificationToastContainer'
 import { vi } from 'vitest'
 
+// Mock react-router-dom
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom')
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  }
+})
+
 // Mock WebSocket + Notifications context to avoid real sockets in tests
 vi.mock('../contexts/WebSocketContext', () => {
   const React = require('react')
@@ -88,6 +98,15 @@ const mockPitchStore = {
 vi.mock('../store/authStore', () => ({
   useAuthStore: () => mockAuthStore,
 }))
+
+// Enhanced auth store with login methods
+Object.assign(mockAuthStore, {
+  loginCreator: vi.fn(),
+  loginInvestor: vi.fn(), 
+  loginProduction: vi.fn(),
+  loading: false,
+  error: null,
+})
 
 vi.mock('../store/pitchStore', () => ({
   usePitchStore: () => mockPitchStore,
@@ -186,7 +205,13 @@ const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
 const customRender = (
   ui: ReactElement,
   options?: Omit<RenderOptions, 'wrapper'>
-) => render(ui, { wrapper: AllTheProviders, ...options })
+) => {
+  const result = render(ui, { wrapper: AllTheProviders, ...options })
+  return {
+    ...result,
+    navigate: mockNavigate,
+  }
+}
 
 // Helper functions
 export const mockLocalStorage = () => {
@@ -256,6 +281,7 @@ export const expectElementToHaveAccessibleName = (
 // Store getters for testing
 export const getMockAuthStore = () => mockAuthStore
 export const getMockPitchStore = () => mockPitchStore
+export const getMockNavigate = () => mockNavigate
 
 // Re-export everything
 export * from '@testing-library/react'

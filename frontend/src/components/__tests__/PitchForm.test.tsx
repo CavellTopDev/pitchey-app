@@ -23,7 +23,56 @@ vi.mock('../../components/Toast/ToastProvider', () => ({
   useToast: () => ({
     success: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
   }),
+}))
+
+// Mock validation utilities
+vi.mock('../../utils/validation', () => ({
+  validatePitchForm: vi.fn(() => ({ isValid: true, errors: {} })),
+  FormValidator: vi.fn(() => ({
+    validate: vi.fn(() => ({ isValid: true, errors: {} })),
+  })),
+  validationSchemas: {
+    pitch: {
+      title: vi.fn(() => true),
+      logline: vi.fn(() => true),
+    },
+  },
+}))
+
+// Mock character utilities  
+vi.mock('../../utils/characterUtils', () => ({
+  serializeCharacters: vi.fn(() => []),
+}))
+
+// Mock constants
+vi.mock('../../constants/pitchConstants', () => ({
+  getGenresSync: vi.fn(() => ['Drama', 'Comedy', 'Thriller']),
+  getFormatsSync: vi.fn(() => ['Feature Film', 'TV Series', 'Short Film']),
+  FALLBACK_GENRES: ['Drama', 'Comedy', 'Thriller'],
+}))
+
+// Mock constants/messages
+vi.mock('../../constants/messages', () => ({
+  MESSAGES: {
+    pitch: {
+      create: {
+        success: 'Pitch created successfully',
+        error: 'Failed to create pitch',
+      },
+    },
+  },
+  VALIDATION_MESSAGES: {
+    required: 'This field is required',
+  },
+  SUCCESS_MESSAGES: {
+    pitchCreated: 'Pitch created successfully',
+  },
+  ERROR_MESSAGES: {
+    pitchCreateFailed: 'Failed to create pitch',
+  },
 }))
 
 vi.mock('../../utils/accessibility', () => ({

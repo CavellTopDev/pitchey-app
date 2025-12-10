@@ -29,6 +29,20 @@ Object.defineProperty(window, 'ENV', {
   writable: true,
 })
 
+// Set environment variables for Vite
+Object.defineProperty(import.meta, 'env', {
+  value: {
+    VITE_API_URL: 'http://localhost:8001',
+    VITE_WS_URL: 'ws://localhost:8001',
+    MODE: 'test',
+    DEV: true,
+    PROD: false,
+    SSR: false,
+    BASE_URL: '/'
+  },
+  writable: true,
+})
+
 // Mock WebSocket
 class MockWebSocket {
   static CONNECTING = 0
@@ -96,5 +110,35 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock scrollTo
 Object.defineProperty(window, 'scrollTo', {
   value: vi.fn(),
+  writable: true,
+})
+
+// Mock window.alert for NDA tests
+Object.defineProperty(window, 'alert', {
+  value: vi.fn(),
+  writable: true,
+})
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+}
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+})
+
+// Mock sessionStorage
+const sessionStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+}
+Object.defineProperty(window, 'sessionStorage', {
+  value: sessionStorageMock,
   writable: true,
 })
