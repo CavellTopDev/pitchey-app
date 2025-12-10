@@ -5,7 +5,8 @@ import {
   ChevronDown, CircleUser, Film, Plus, BarChart3, Shield,
   TrendingUp, Star, Award, FileText, MessageSquare, Calendar,
   DollarSign, Eye, Activity, FolderOpen, Upload, Target,
-  LogOut, User, CreditCard, HelpCircle, Moon, Sun
+  LogOut, User, CreditCard, HelpCircle, Moon, Sun, Menu, X,
+  ChevronRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -16,6 +17,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface CreatorNavigationProps {
   user: any;
@@ -26,20 +40,354 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [notificationCount, setNotificationCount] = React.useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   const handleNavigation = (path: string) => {
     navigate(path);
+    setIsMobileMenuOpen(false); // Close mobile menu after navigation
   };
 
   return (
-    <div className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
-      {/* Logo */}
-      <Link to="/" className="flex items-center gap-2" data-discover="true">
-        <span className="text-2xl font-bold text-purple-600">Pitchey</span>
-      </Link>
+    <div className="flex items-center justify-between h-16 px-4 sm:px-6 bg-white border-b border-gray-200">
+      {/* Logo and Mobile Menu */}
+      <div className="flex items-center gap-4">
+        {/* Mobile Menu Button */}
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <button
+              className="lg:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-80 p-0">
+            <SheetHeader className="px-6 py-4 border-b">
+              <SheetTitle className="text-xl font-bold text-purple-600">Menu</SheetTitle>
+            </SheetHeader>
+            <div className="px-4 py-4">
+              <Accordion type="single" collapsible className="w-full">
+                {/* Dashboard Accordion */}
+                <AccordionItem value="dashboard" className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Home className="w-4 h-4" />
+                      <span>Dashboard</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="flex flex-col gap-1 pl-6">
+                      <button
+                        onClick={() => handleNavigation('/creator/dashboard')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Home className="w-4 h-4" />
+                        Overview
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/analytics')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                        Analytics
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/metrics')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Activity className="w-4 h-4" />
+                        Performance Metrics
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/activity')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Recent Activity
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-      {/* Main Navigation */}
-      <nav className="flex items-center gap-1">
+                {/* Browse Accordion */}
+                <AccordionItem value="browse" className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      <span>Browse</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="flex flex-col gap-1 pl-6">
+                      <button
+                        onClick={() => handleNavigation('/creator/browse')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Globe className="w-4 h-4" />
+                        All Pitches
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/browse?tab=trending')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <TrendingUp className="w-4 h-4" />
+                        Trending
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/browse?tab=new')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Star className="w-4 h-4" />
+                        New Releases
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/browse?tab=featured')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Award className="w-4 h-4" />
+                        Featured
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/browse/genres')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Film className="w-4 h-4" />
+                        Browse by Genre
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Projects Accordion */}
+                <AccordionItem value="projects" className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-4 h-4" />
+                      <span>Projects</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="flex flex-col gap-1 pl-6">
+                      <button
+                        onClick={() => handleNavigation('/creator/pitches')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Film className="w-4 h-4" />
+                        My Pitches
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/pitch/new')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Create New Pitch
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/drafts')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <FolderOpen className="w-4 h-4" />
+                        Drafts
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/pitch-analytics')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                        Pitch Analytics
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/ndas')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Shield className="w-4 h-4" />
+                        NDA Management
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Team Accordion */}
+                <AccordionItem value="team" className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      <span>Team</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="flex flex-col gap-1 pl-6">
+                      <button
+                        onClick={() => handleNavigation('/creator/team')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Users className="w-4 h-4" />
+                        Team Members
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/collaborators')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Collaborators
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/investors')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        Connected Investors
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/invitations')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Invite Members
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Search Accordion */}
+                <AccordionItem value="search" className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Search className="w-4 h-4" />
+                      <span>Search</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="flex flex-col gap-1 pl-6">
+                      <button
+                        onClick={() => handleNavigation('/creator/search')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Search className="w-4 h-4" />
+                        Search Pitches
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/search/investors')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Users className="w-4 h-4" />
+                        Find Investors
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/search/companies')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Briefcase className="w-4 h-4" />
+                        Production Companies
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/search/advanced')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Target className="w-4 h-4" />
+                        Advanced Search
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Settings Accordion */}
+                <AccordionItem value="settings" className="border-b">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      <span>Settings</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="flex flex-col gap-1 pl-6">
+                      <button
+                        onClick={() => handleNavigation('/creator/settings')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Settings className="w-4 h-4" />
+                        General Settings
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/profile')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <User className="w-4 h-4" />
+                        Profile Settings
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/billing')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Billing & Subscription
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/notifications')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <Bell className="w-4 h-4" />
+                        Notification Preferences
+                      </button>
+                      <button
+                        onClick={() => handleNavigation('/creator/help')}
+                        className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+                      >
+                        <HelpCircle className="w-4 h-4" />
+                        Help & Support
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
+              {/* User Profile Section */}
+              <div className="mt-6 pt-6 border-t">
+                <div className="flex items-center gap-3 px-2 py-3 bg-purple-50 rounded-lg">
+                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                    <CircleUser className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{user?.firstName || 'Creator'} {user?.lastName || ''}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-col gap-1">
+                  <button
+                    onClick={() => handleNavigation('/creator/profile')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    View Profile
+                  </button>
+                  <button
+                    onClick={() => handleNavigation('/creator/billing')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Billing
+                  </button>
+                  <button
+                    onClick={onLogout}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2" data-discover="true">
+          <span className="text-xl sm:text-2xl font-bold text-purple-600">Pitchey</span>
+        </Link>
+      </div>
+
+      {/* Main Navigation - Hidden on mobile */}
+      <nav className="hidden lg:flex items-center gap-1">
         {/* Dashboard Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer">
