@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, DollarSign, TrendingUp, TrendingDown, Download, Search, Filter, Eye, ExternalLink } from 'lucide-react';
 import { InvestmentService } from '../../services/investment.service';
 
@@ -41,11 +41,7 @@ export default function TransactionHistory({
 
   const pageSize = compact ? (maxItems || 5) : 20;
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [currentPage, filterType, filterStatus, sortBy, sortOrder, searchTerm]);
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -157,24 +153,28 @@ export default function TransactionHistory({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, filterType, filterStatus, sortBy, sortOrder, searchTerm, pageSize]);
 
-  const formatCurrency = (amount: number) => {
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       notation: 'compact',
       maximumFractionDigits: 1
     }).format(Math.abs(amount));
-  };
+  }, []);
 
-  const formatDate = (date: Date) => {
+  const formatDate = useCallback((date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
-  };
+  }, []);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -216,7 +216,7 @@ export default function TransactionHistory({
     }
   };
 
-  const exportTransactions = () => {
+  const exportTransactions = useCallback(() => {
     const csvContent = [
       'Date,Type,Amount,Status,Pitch,Creator,Description',
       ...transactions.map(t => 
@@ -233,7 +233,7 @@ export default function TransactionHistory({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }, [transactions, formatDate]);
 
   if (loading) {
     return (

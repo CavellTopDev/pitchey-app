@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socialService } from '../services/social.service';
 
@@ -24,11 +24,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
   const [checking, setChecking] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    checkFollowStatus();
-  }, [creatorId, pitchId]);
-
-  const checkFollowStatus = async () => {
+  const checkFollowStatus = useCallback(async () => {
     if (!creatorId && !pitchId) {
       setChecking(false);
       return;
@@ -66,9 +62,13 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     } finally {
       setChecking(false);
     }
-  };
+  }, [creatorId, pitchId]);
 
-  const handleFollow = async () => {
+  useEffect(() => {
+    checkFollowStatus();
+  }, [checkFollowStatus]);
+
+  const handleFollow = useCallback(async () => {
     const token = localStorage.getItem('authToken');
     if (!token) {
       navigate('/login');
@@ -103,9 +103,9 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [isFollowing, pitchId, creatorId, onFollowChange, navigate]);
 
-  const getButtonClasses = () => {
+  const getButtonClasses = useCallback(() => {
     const baseClasses = 'font-medium rounded-lg transition-colors duration-200 flex items-center justify-center';
     
     const variantClasses = {
@@ -121,9 +121,9 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     const disabledClasses = (loading || checking) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
 
     return `${baseClasses} ${variantClasses[variant]} ${stateClasses} ${disabledClasses} ${className}`;
-  };
+  }, [isFollowing, loading, checking, variant, className]);
 
-  const getButtonText = () => {
+  const getButtonText = useCallback(() => {
     if (loading) return 'Loading...';
     if (checking) return 'Loading...';
     
@@ -132,9 +132,9 @@ const FollowButton: React.FC<FollowButtonProps> = ({
     }
     
     return 'Follow';
-  };
+  }, [loading, checking, isFollowing, showFollowingText]);
 
-  const getIcon = () => {
+  const getIcon = useCallback(() => {
     if (loading || checking) {
       return (
         <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -157,7 +157,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
       </svg>
     );
-  };
+  }, [loading, checking, isFollowing]);
 
   // Don't render if we're still checking and no token
   if (checking && !localStorage.getItem('authToken')) {

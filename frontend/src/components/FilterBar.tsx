@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SavedFilters from './SavedFilters';
 import EmailAlerts from './EmailAlerts';
@@ -169,46 +169,46 @@ export default function FilterBar({
       hasNDA,
       seekingInvestment
     });
-  }, [selectedGenres, selectedFormats, selectedStages, budgetRange, searchQuery, selectedCreatorTypes, hasNDA, seekingInvestment]);
+  }, [selectedGenres, selectedFormats, selectedStages, budgetRange, searchQuery, selectedCreatorTypes, hasNDA, seekingInvestment, sortField, sortOrder, setSearchParams, onFiltersChange]);
 
   // Update sort when it changes
   useEffect(() => {
     onSortChange({ field: sortField, order: sortOrder });
-  }, [sortField, sortOrder]);
+  }, [sortField, sortOrder, onSortChange]);
 
-  const handleGenreToggle = (genre: string) => {
+  const handleGenreToggle = useCallback((genre: string) => {
     setSelectedGenres(prev =>
       prev.includes(genre)
         ? prev.filter(g => g !== genre)
         : [...prev, genre]
     );
-  };
+  }, []);
 
-  const handleFormatToggle = (format: string) => {
+  const handleFormatToggle = useCallback((format: string) => {
     setSelectedFormats(prev =>
       prev.includes(format)
         ? prev.filter(f => f !== format)
         : [...prev, format]
     );
-  };
+  }, []);
 
-  const handleStageToggle = (stage: string) => {
+  const handleStageToggle = useCallback((stage: string) => {
     setSelectedStages(prev =>
       prev.includes(stage)
         ? prev.filter(s => s !== stage)
         : [...prev, stage]
     );
-  };
+  }, []);
 
-  const handleBudgetChange = (values: number[]) => {
+  const handleBudgetChange = useCallback((values: number[]) => {
     setBudgetSliderValue(values);
     // Convert percentage to actual budget values
     const min = Math.floor((values[0] / 100) * 100000000);
     const max = Math.floor((values[1] / 100) * 100000000);
     setBudgetRange({ min, max });
-  };
+  }, []);
 
-  const formatBudget = (value: number) => {
+  const formatBudget = useCallback((value: number) => {
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(1)}M`;
     } else if (value >= 1000) {
@@ -216,9 +216,9 @@ export default function FilterBar({
     } else {
       return `$${value}`;
     }
-  };
+  }, []);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSelectedGenres([]);
     setSelectedFormats([]);
     setSelectedStages([]);
@@ -231,7 +231,7 @@ export default function FilterBar({
     setSortField('date');
     setSortOrder('desc');
     setSearchParams(new URLSearchParams());
-  };
+  }, [setSearchParams]);
 
   const activeFilterCount = 
     selectedGenres.length + 

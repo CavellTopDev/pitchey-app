@@ -8,6 +8,10 @@ import { getMockAuthStore } from '../../test/utils'
 
 // Mock the NDA service
 vi.mock('../../services/nda.service', () => ({
+  NDAService: {
+    canRequestNDA: vi.fn(),
+    requestNDA: vi.fn(),
+  },
   ndaService: {
     canRequestNDA: vi.fn(),
     requestNDA: vi.fn(),
@@ -185,7 +189,6 @@ describe('NDARequestModal', () => {
 
   describe('Form Submission', () => {
     it('should submit NDA request with standard terms', async () => {
-      const { ndaService } = require('../../services/nda.service')
       render(<NDAModal {...mockProps} />)
 
       const textarea = screen.getByPlaceholderText(/add any specific terms/i)
@@ -195,6 +198,7 @@ describe('NDARequestModal', () => {
       await user.click(submitButton)
 
       await waitFor(() => {
+        const { ndaService } = require('../../services/nda.service')
         expect(ndaService.canRequestNDA).toHaveBeenCalledWith(1)
         expect(ndaService.requestNDA).toHaveBeenCalledWith({
           pitchId: 1,
@@ -206,13 +210,13 @@ describe('NDARequestModal', () => {
     })
 
     it('should use default message when no custom terms provided', async () => {
-      const { ndaService } = require('../../services/nda.service')
       render(<NDAModal {...mockProps} />)
 
       const submitButton = screen.getByRole('button', { name: /submit nda request/i })
       await user.click(submitButton)
 
       await waitFor(() => {
+        const { ndaService } = require('../../services/nda.service')
         expect(ndaService.requestNDA).toHaveBeenCalledWith(
           expect.objectContaining({
             message: 'Requesting access to enhanced information for Test Pitch',

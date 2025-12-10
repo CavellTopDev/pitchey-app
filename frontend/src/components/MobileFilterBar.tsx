@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   X, 
   ChevronDown, 
@@ -44,7 +44,7 @@ export default function MobileFilterBar({
   const [activeTab, setActiveTab] = useState<'filters' | 'sort'>('filters');
 
   // Handle search changes
-  const handleSearchChange = (value: string) => {
+  const handleSearchChange = useCallback((value: string) => {
     setSearchQuery(value);
     onFiltersChange({
       genres: selectedGenres,
@@ -57,7 +57,7 @@ export default function MobileFilterBar({
       hasNDA: undefined,
       seekingInvestment: undefined
     });
-  };
+  }, [selectedGenres, selectedFormats, onFiltersChange]);
 
   // Handle filter changes
   useEffect(() => {
@@ -72,36 +72,36 @@ export default function MobileFilterBar({
       hasNDA: undefined,
       seekingInvestment: undefined
     });
-  }, [selectedGenres, selectedFormats]);
+  }, [selectedGenres, selectedFormats, searchQuery, onFiltersChange]);
 
   // Handle sort changes
-  const handleSortChange = (field: string) => {
+  const handleSortChange = useCallback((field: string) => {
     setSortField(field);
     onSortChange({ field, order: 'desc' });
     setShowMobileMenu(false);
-  };
+  }, [onSortChange]);
 
-  const handleGenreToggle = (genre: string) => {
+  const handleGenreToggle = useCallback((genre: string) => {
     setSelectedGenres(prev =>
       prev.includes(genre)
         ? prev.filter(g => g !== genre)
         : [...prev, genre]
     );
-  };
+  }, []);
 
-  const handleFormatToggle = (format: string) => {
+  const handleFormatToggle = useCallback((format: string) => {
     setSelectedFormats(prev =>
       prev.includes(format)
         ? prev.filter(f => f !== format)
         : [...prev, format]
     );
-  };
+  }, []);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSelectedGenres([]);
     setSelectedFormats([]);
     setSearchQuery('');
-  };
+  }, []);
 
   const activeFilterCount = selectedGenres.length + selectedFormats.length;
 

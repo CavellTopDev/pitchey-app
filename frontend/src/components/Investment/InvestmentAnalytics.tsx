@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, TrendingDown, PieChart, BarChart3, Calendar, Download, Filter } from 'lucide-react';
 import { InvestmentService } from '../../services/investment.service';
 
@@ -38,11 +38,7 @@ export default function InvestmentAnalytics({ userType, className = '' }: Invest
   const [timeRange, setTimeRange] = useState<'3m' | '6m' | '1y' | 'all'>('6m');
   const [selectedMetric, setSelectedMetric] = useState<'value' | 'roi' | 'volume'>('value');
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeRange, userType]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -59,30 +55,34 @@ export default function InvestmentAnalytics({ userType, className = '' }: Invest
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange, userType]);
 
-  const formatCurrency = (amount: number) => {
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       notation: 'compact',
       maximumFractionDigits: 1
     }).format(amount);
-  };
+  }, []);
 
-  const formatPercentage = (percentage: number) => {
+  const formatPercentage = useCallback((percentage: number) => {
     return `${percentage >= 0 ? '+' : ''}${percentage.toFixed(1)}%`;
-  };
+  }, []);
 
-  const getGenreColors = (genre: string, index: number) => {
+  const getGenreColors = useCallback((genre: string, index: number) => {
     const colors = [
       'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-yellow-500',
       'bg-red-500', 'bg-indigo-500', 'bg-pink-500', 'bg-gray-500'
     ];
     return colors[index % colors.length];
-  };
+  }, []);
 
-  const exportAnalytics = () => {
+  const exportAnalytics = useCallback(() => {
     if (!analytics) return;
     
     const data = {
@@ -105,7 +105,7 @@ export default function InvestmentAnalytics({ userType, className = '' }: Invest
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }, [analytics, timeRange]);
 
   if (loading) {
     return (

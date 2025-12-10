@@ -48,6 +48,10 @@ const Skeleton: React.FC<SkeletonProps> = ({
     <div
       className={`${baseClasses} ${variantClasses[variant]} ${className}`}
       style={style}
+      role="status"
+      aria-label="Loading content"
+      aria-hidden="true"
+      data-testid="skeleton"
     />
   );
 };
