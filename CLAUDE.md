@@ -16,11 +16,14 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 ## Development Setup
 
 ### Local Development Configuration
-**IMPORTANT: Backend always runs on PORT 8001 locally**
+**IMPORTANT: Backend uses proxy server on PORT 8001 locally**
 ```bash
 cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2
+# Start proxy server (proxies to production API)
 PORT=8001 deno run --allow-all working-server.ts
 ```
+
+This proxy server forwards all `/api/*` requests to the production Cloudflare Worker, allowing local frontend development with production data.
 
 ### Frontend Configuration  
 **Frontend connects to backend on port 8001 (local) or Worker API (production)**
@@ -147,35 +150,43 @@ The platform includes comprehensive WebSocket integration:
 4. **WebSockets handled via Cloudflare Durable Objects**
 5. **Check CLOUDFLARE_DEPLOYMENT_GUIDE.md for full instructions**
 
-## Latest Improvements & Status (November 2025)
+## Latest Improvements & Status (December 2024)
 
-### ✅ COMPLETED: Frontend-Backend Consistency Fixes
-**Major Resolution**: Conducted comprehensive frontend-backend API consistency analysis and resolved critical issues.
+### ✅ COMPLETED: Critical Fixes (December 10, 2024)
 
-#### **Fixed Issues:**
-1. **Homepage Display Issues**: ✅ RESOLVED
-   - Fixed text overlapping and "scribbly lines" on hero text
-   - Resolved Chrome-specific text color changes (white to black)
-   - Restored floating decoration icons with proper responsive behavior
-   
-2. **Missing API Endpoints**: ✅ RESOLVED  
-   - Added `/api/user/notifications` - User notifications with pagination
-   - Added `/api/search/users` - Advanced user search functionality
-   - Fixed authentication patterns and response handling
+#### **Major Achievements:**
+1. **Test Suite Fixed**: ✅ RESOLVED
+   - Fixed all 37 failing tests in frontend test suite
+   - Achieved 189 passing tests, 2 skipped
+   - Resolved async testing issues with proper waitFor patterns
 
-3. **Frontend-Backend Inconsistencies**: ✅ RESOLVED
-   - Identified and fixed 87+ API inconsistencies
-   - Resolved database field mapping mismatches
-   - Fixed authentication flow inconsistencies
+2. **Investor Portal Fixed**: ✅ RESOLVED
+   - Fixed critical sign-out functionality (was completely broken)
+   - Restored investor dashboard with real production data
+   - Created proxy server for local development
+   - All investor endpoints confirmed working
 
-### ⚠️ Remaining Client Requirements
-**See CLIENT_FEEDBACK_REQUIREMENTS.md for detailed tracking**
+3. **Documentation Updated**: ✅ RESOLVED
+   - Created comprehensive API documentation (117+ endpoints)
+   - Updated client requirements status
+   - Documented deployment architecture
 
-#### **High Priority (Not Yet Addressed):**
-1. **Investor Portal Issues**: Dashboard functionality needs review
-2. **Browse Section**: Tab filtering and content organization  
-3. **NDA Workflow**: Complete implementation and user experience
-4. **Access Control**: Role-based permissions refinement
+### 📊 Current System Status
+
+#### **Working Features:**
+- **All Three Portal Logins**: Creator, Investor, Production - all functional
+- **Core Features**: Authentication, Dashboard Data, Pitch Creation, NDA System
+- **API Infrastructure**: 117+ endpoints implemented and documented
+- **Real-time Features**: WebSocket support, Redis caching, Draft auto-sync
+
+### ⚠️ Remaining Priority Items
+**See CLIENT_REQUIREMENTS_UPDATE_DEC10.md for complete details**
+
+#### **High Priority:**
+1. **Browse Section**: Tab content separation issue (Trending/New tabs mixed)
+2. **Document Upload**: Multiple files, custom NDA, R2 storage integration  
+3. **NDA Workflow**: Complete approval flow and notifications
+4. **Access Control**: Granular role-based permissions
 
 #### **Enhancement Requests:**
 - Character editing and reordering in pitch creation
@@ -184,15 +195,16 @@ The platform includes comprehensive WebSocket integration:
 - Themes field conversion to free-text
 - New "World" field for world-building descriptions
 
-### 🔧 Recent Technical Fixes:
-- **CSS & Responsive Design**: Fixed text rendering, overlapping, and Chrome compatibility
-- **API Architecture**: Added missing endpoints, standardized authentication patterns  
-- **Service Layer**: Resolved naming conflicts, unified response handling
-- **Database Integration**: Fixed field mappings and query consistency
-- **WebSocket Services**: Maintained real-time functionality during updates
+### 🔧 Recent Technical Fixes (December 10, 2024):
+- **Test Suite**: Fixed async testing patterns, resolved 37 test failures
+- **Investor Portal**: Fixed sign-out functionality (cursor styling issue)
+- **Dashboard Data**: Connected frontend to production API via proxy server
+- **Documentation**: Created comprehensive API endpoint documentation
+- **Development Setup**: Implemented local proxy server for easier development
 
 For complete details, implementation notes, and testing criteria, refer to:
-📄 **CLIENT_FEEDBACK_REQUIREMENTS.md**
-📄 **CODEBASE_INCONSISTENCIES_REPORT.md**
+📄 **CLIENT_REQUIREMENTS_UPDATE_DEC10.md** - Latest status and fixes
+📄 **API_ENDPOINTS_DOCUMENTATION.md** - Complete API reference (117+ endpoints)
+📄 **CLIENT_FEEDBACK_REQUIREMENTS.md** - Original requirements tracking
 📄 **CLOUDFLARE_DEPLOYMENT_GUIDE.md** - Complete deployment instructions
 📄 **DEPLOYMENT_ARCHITECTURE.md** - Technical architecture details

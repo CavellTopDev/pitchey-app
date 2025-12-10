@@ -143,6 +143,7 @@ export default function InvestorDashboard() {
   };
 
   const handleLogout = () => {
+    console.log('handleLogout called in InvestorDashboard');
     logout();
   };
 

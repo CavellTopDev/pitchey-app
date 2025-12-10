@@ -321,8 +321,12 @@ export function EnhancedNavigationShadcn({
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={onLogout}
-                    className="cursor-pointer text-red-600 focus:text-red-600"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('Logout clicked from settings dropdown');
+                      onLogout();
+                    }}
+                    className="text-red-600 hover:text-red-700 focus:text-red-600 cursor-pointer"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
@@ -376,8 +380,12 @@ export function EnhancedNavigationShadcn({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={onLogout}
-                    className="text-red-600 focus:text-red-600"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('Logout clicked from user profile dropdown');
+                      onLogout();
+                    }}
+                    className="text-red-600 hover:text-red-700 focus:text-red-600 cursor-pointer"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>

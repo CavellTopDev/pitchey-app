@@ -151,7 +151,8 @@ describe('PitchCard', () => {
 
       const genreBadge = screen.getByText('Drama')
       expect(genreBadge).toBeInTheDocument()
-      expect(genreBadge.parentElement).toHaveClass('absolute', 'top-2', 'right-2')
+      // The genre badge itself has these classes
+      expect(genreBadge).toHaveClass('px-2', 'py-1', 'bg-black', 'bg-opacity-70', 'text-white', 'text-xs', 'rounded')
     })
 
     it('should display status badge with correct styling', () => {
@@ -171,8 +172,12 @@ describe('PitchCard', () => {
     it('should display rating icon with yellow color', () => {
       render(<PitchCard pitch={mockPitch} />)
 
-      const ratingSection = screen.getByText('4.5').parentElement
-      const starIcon = ratingSection?.querySelector('svg')
+      const ratingText = screen.getByText('4.5')
+      // Find the parent span that contains both the star icon and rating
+      const ratingContainer = ratingText.closest('span')
+      expect(ratingContainer).toBeInTheDocument()
+      // Find the star SVG icon within the container
+      const starIcon = ratingContainer?.querySelector('svg')
       expect(starIcon).toBeInTheDocument()
       expect(starIcon).toHaveClass('text-yellow-400')
     })

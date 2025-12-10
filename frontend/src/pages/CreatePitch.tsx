@@ -7,7 +7,8 @@ import LoadingSpinner from '../components/Loading/LoadingSpinner';
 import { pitchService } from '../services/pitch.service';
 import { uploadService } from '../services/upload.service';
 import { getGenresSync, getFormatsSync, FALLBACK_GENRES } from '../constants/pitchConstants';
-import { validatePitchForm, FormValidator, validationSchemas } from '../utils/validation';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { PitchFormSchema, type PitchFormData, getCharacterCountInfo } from '../schemas/pitch.schema';
 import { a11y } from '../utils/accessibility';
 import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../constants/messages';
 import { CharacterManagement } from '../components/CharacterManagement';
@@ -16,31 +17,7 @@ import { serializeCharacters } from '../utils/characterUtils';
 import { DocumentUpload } from '../components/DocumentUpload';
 import type { DocumentFile } from '../components/DocumentUpload';
 
-// DocumentFile interface is now imported from DocumentUpload component
-
-interface PitchFormData {
-  title: string;
-  genre: string;
-  format: string;
-  formatCategory: string;
-  formatSubtype: string;
-  customFormat: string;
-  logline: string;
-  shortSynopsis: string;
-  themes: string;
-  worldDescription: string;
-  image: File | null;
-  video: File | null;
-  documents: DocumentFile[];
-  ndaConfig: {
-    requireNDA: boolean;
-    ndaType: 'none' | 'platform' | 'custom';
-    customNDA: File | null;
-  };
-  characters: Character[];
-  seekingInvestment: boolean;
-  budgetRange?: string;
-}
+// PitchFormData type is now imported from pitch.schema.ts
 
 export default function CreatePitch() {
   const navigate = useNavigate();
@@ -49,11 +26,13 @@ export default function CreatePitch() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [genres, setGenres] = useState<string[]>(getGenresSync() || []);
   const [formats, setFormats] = useState<string[]>(getFormatsSync() || []);
-  const [formData, setFormData] = useState<PitchFormData>({
+  
+  // Initial form data
+  const initialData: PitchFormData = {
     title: '',
     genre: '',
     format: '',
-    formatCategory: '',
+    formatCategory: 'Television - Scripted',
     formatSubtype: '',
     customFormat: '',
     logline: '',
@@ -71,11 +50,30 @@ export default function CreatePitch() {
     characters: [],
     seekingInvestment: false,
     budgetRange: ''
+  };
+  
+  // Use Valibot validation hook
+  const {
+    data: formData,
+    errors: fieldErrors,
+    isValid,
+    isValidating,
+    touchedFields,
+    getFieldProps,
+    handleFieldChange,
+    handleFieldBlur,
+    handleSubmit: validateAndSubmit,
+    validateField,
+    setValue,
+    setValues,
+    hasFieldError,
+    getFieldError
+  } = useFormValidation(initialData, {
+    schema: PitchFormSchema,
+    mode: 'onBlur',
+    debounceMs: 300
   });
   
-  // Form validation state
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const formRef = useRef<HTMLFormElement>(null);
   const customNDARef = useRef<HTMLInputElement>(null);
   
@@ -153,102 +151,69 @@ export default function CreatePitch() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Real-time validation for touched fields
-    if (touched[name]) {
-      validateField(name, value);
-    }
+    handleFieldChange(name as keyof PitchFormData)(value);
   };
   
   const handleBlur = (fieldName: string) => {
-    markFieldTouched(fieldName);
-    validateField(fieldName, formData[fieldName as keyof PitchFormData]);
+    handleFieldBlur(fieldName as keyof PitchFormData)();
   };
 
   const handleFormatCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const category = e.target.value;
-    const newFormData = {
-      ...formData,
-      formatCategory: category,
+    setValues({
+      formatCategory: category as any,
       formatSubtype: '', // Reset subtype when category changes
       customFormat: '', // Reset custom format
       format: category // Set the main format to the category
-    };
-    setFormData(newFormData);
+    });
     
-    // Mark field as touched and validate with the new value
-    markFieldTouched('formatCategory');
-    validateField('formatCategory', category);
-    
-    // Clear errors for formatSubtype since we're resetting it
-    setFieldErrors(prev => ({ ...prev, formatSubtype: [] }));
+    // Validate the category field
+    handleFieldChange('formatCategory')(category);
   };
 
   const handleFormatSubtypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const subtype = e.target.value;
-    const newFormData = {
-      ...formData,
+    setValues({
       formatSubtype: subtype,
       format: subtype === 'Custom Format (please specify)' ? 'Custom' : subtype
-    };
-    setFormData(newFormData);
+    });
     
-    // Mark field as touched and validate with the new value
-    markFieldTouched('formatSubtype');
-    validateField('formatSubtype', subtype);
+    // Validate the subtype field
+    handleFieldChange('formatSubtype')(subtype);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'image' | 'video') => {
     const file = e.target.files?.[0] || null;
     
-    // Clear previous errors for this field
-    setFieldErrors(prev => ({ ...prev, [fileType]: [] }));
-    
     if (file) {
-      // Validate using centralized validation
-      const isValid = validateField(fileType, file);
-      
-      if (!isValid) {
-        // Announce file error
-        const errorMsg = fieldErrors[fileType]?.[0] || 'Invalid file';
-        a11y.validation.announceFieldError(fileType, errorMsg);
-        return;
-      }
-      
-      // Announce successful file selection
-      a11y.announcer.announce(MESSAGES.A11Y.FILE_SELECTED(file.name));
+      // Validate the file immediately
+      validateField(fileType, file).then(errors => {
+        if (errors.length > 0) {
+          // Announce file error
+          a11y.validation.announceFieldError(fileType, errors[0]);
+          return;
+        }
+        
+        // Set the file if valid
+        setValue(fileType as keyof PitchFormData, file as any);
+        
+        // Announce successful file selection
+        a11y.announcer.announce(`File ${file.name} selected`);
+      });
+    } else {
+      setValue(fileType as keyof PitchFormData, null as any);
     }
-    
-    setFormData(prev => ({
-      ...prev,
-      [fileType]: file
-    }));
-    
-    markFieldTouched(fileType);
   };
 
   const removeFile = (fileType: 'image' | 'video') => {
-    setFormData(prev => ({
-      ...prev,
-      [fileType]: null
-    }));
-    
-    // Clear errors for this field
-    setFieldErrors(prev => ({ ...prev, [fileType]: [] }));
+    setValue(fileType as keyof PitchFormData, null as any);
     
     // Announce file removal
-    a11y.announcer.announce(MESSAGES.A11Y.FILE_REMOVED);
+    a11y.announcer.announce('File removed');
   };
 
   const handleDocumentChange = (documents: DocumentFile[]) => {
-    setFormData(prev => ({
-      ...prev,
-      documents
-    }));
+    setValue('documents', documents as any);
   };
   
   // Document type detection is now handled by the DocumentUpload component
@@ -258,15 +223,11 @@ export default function CreatePitch() {
   // Document removal is now handled by the DocumentUpload component
   
   const handleNDAChange = (ndaType: 'none' | 'platform' | 'custom') => {
-    setFormData(prev => ({
-      ...prev,
-      ndaConfig: {
-        ...prev.ndaConfig,
-        requireNDA: ndaType !== 'none',
-        ndaType,
-        customNDA: ndaType !== 'custom' ? null : prev.ndaConfig.customNDA
-      }
-    }));
+    setValue('ndaConfig', {
+      requireNDA: ndaType !== 'none',
+      ndaType,
+      customNDA: ndaType !== 'custom' ? null : formData.ndaConfig.customNDA
+    } as any);
   };
   
   const handleCustomNDAUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -282,112 +243,73 @@ export default function CreatePitch() {
         return;
       }
       
-      setFormData(prev => ({
-        ...prev,
-        ndaConfig: {
-          ...prev.ndaConfig,
-          customNDA: file
-        }
-      }));
+      setValue('ndaConfig', {
+        ...formData.ndaConfig,
+        customNDA: file
+      } as any);
     }
-  };
-  
-  // Document icon function is now handled by the DocumentUpload component
-  
-  // Document type label function is now handled by the DocumentUpload component
-
-  // Real-time field validation
-  const validateField = (fieldName: string, value: any) => {
-    const result = validatePitchForm({ ...formData, [fieldName]: value });
-    const errors = result.fieldErrors[fieldName] || [];
-    
-    setFieldErrors(prev => ({
-      ...prev,
-      [fieldName]: errors
-    }));
-    
-    return errors.length === 0;
-  };
-  
-  // Mark field as touched
-  const markFieldTouched = (fieldName: string) => {
-    setTouched(prev => ({ ...prev, [fieldName]: true }));
-  };
-  
-  // Validate entire form
-  const validateForm = () => {
-    const result = validatePitchForm(formData);
-    setFieldErrors(result.fieldErrors);
-    
-    if (!result.isValid) {
-      // Announce errors to screen readers
-      a11y.validation.announceErrors(result.errors);
-      
-      // Focus first field with error
-      const firstErrorField = Object.keys(result.fieldErrors)[0];
-      if (firstErrorField) {
-        a11y.focus.focusById(firstErrorField);
-      }
-      
-      error(VALIDATION_MESSAGES.FORM_HAS_ERRORS, result.errors.join(', '));
-      return false;
-    }
-    
-    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
-
     setIsSubmitting(true);
 
-    try {
-      // Use the new pitch service
-      const finalFormat = formData.formatSubtype === 'Custom Format (please specify)' 
-        ? formData.customFormat 
-        : formData.formatSubtype || formData.formatCategory;
-        
-      const pitch = await pitchService.create({
-        title: formData.title,
-        genre: formData.genre,
-        format: finalFormat,
-        logline: formData.logline,
-        shortSynopsis: formData.shortSynopsis,
-        requireNDA: formData.ndaConfig.requireNDA,
-        seekingInvestment: formData.seekingInvestment,
-        budgetRange: formData.budgetRange || undefined,
-        budgetBracket: formData.budgetRange || 'Medium',
-        estimatedBudget: 1000000,
-        productionTimeline: '6-12 months',
-        themes: formData.themes,
-        worldDescription: formData.worldDescription,
-        characters: serializeCharacters(formData.characters),
-        aiUsed: false
-      });
+    // Use Valibot validation hook for form submission
+    const isFormValid = await validateAndSubmit(async (validatedData) => {
+      try {
+        // Use the validated data from Valibot
+        const finalFormat = validatedData.formatSubtype === 'Custom Format (please specify)' 
+          ? validatedData.customFormat 
+          : validatedData.formatSubtype || validatedData.formatCategory;
+          
+        const pitch = await pitchService.create({
+          title: validatedData.title,
+          genre: validatedData.genre,
+          format: finalFormat,
+          logline: validatedData.logline,
+          shortSynopsis: validatedData.shortSynopsis,
+          requireNDA: validatedData.ndaConfig.requireNDA,
+          seekingInvestment: validatedData.seekingInvestment,
+          budgetRange: validatedData.budgetRange || undefined,
+          budgetBracket: validatedData.budgetRange || 'Medium',
+          estimatedBudget: 1000000,
+          productionTimeline: '6-12 months',
+          themes: validatedData.themes,
+          worldDescription: validatedData.worldDescription,
+          characters: serializeCharacters(validatedData.characters),
+          aiUsed: false
+        });
 
-      console.log('Pitch created successfully:', pitch);
-      
-      // Announce success to screen readers
-      a11y.validation.announceSuccess(SUCCESS_MESSAGES.PITCH_CREATED);
-      
-      success(SUCCESS_MESSAGES.PITCH_CREATED, 'Your pitch has been created and is ready for review.');
-      
-      // Navigate to manage pitches or the created pitch
-      navigate('/creator/pitches');
-    } catch (err: any) {
-      console.error('Error creating pitch:', err);
-      const errorMessage = err.message || ERROR_MESSAGES.UNEXPECTED_ERROR;
-      
-      // Announce error to screen readers
-      a11y.announcer.announce(`Error: ${errorMessage}`, 'assertive');
-      
-      error('Failed to create pitch', errorMessage);
-    } finally {
+        console.log('Pitch created successfully:', pitch);
+        
+        // Announce success to screen readers
+        a11y.validation.announceSuccess(SUCCESS_MESSAGES.PITCH_CREATED || 'Pitch created successfully');
+        
+        success(SUCCESS_MESSAGES.PITCH_CREATED || 'Pitch created successfully', 'Your pitch has been created and is ready for review.');
+        
+        // Navigate to manage pitches or the created pitch
+        navigate('/creator/pitches');
+      } catch (err: any) {
+        console.error('Error creating pitch:', err);
+        const errorMessage = err.message || ERROR_MESSAGES?.UNEXPECTED_ERROR || 'An unexpected error occurred';
+        
+        // Announce error to screen readers
+        a11y.announcer.announce(`Error: ${errorMessage}`, 'assertive');
+        
+        error('Failed to create pitch', errorMessage);
+      } finally {
+        setIsSubmitting(false);
+      }
+    });
+    
+    if (!isFormValid) {
       setIsSubmitting(false);
+      // Focus first field with error
+      const firstErrorField = Object.keys(fieldErrors)[0];
+      if (firstErrorField) {
+        a11y.focus.focusById(firstErrorField);
+      }
     }
   };
 
@@ -454,32 +376,33 @@ export default function CreatePitch() {
                 <label 
                   {...a11y.formField.getLabelAttributes('title', true)}
                 >
-                  {MESSAGES.LABELS.TITLE}
+                  Title
                 </label>
                 <input
                   {...a11y.formField.getAttributes({
                     id: 'title',
-                    label: MESSAGES.LABELS.TITLE,
+                    label: 'Title',
                     required: true,
-                    invalid: fieldErrors.title?.length > 0,
-                    errorId: fieldErrors.title?.length > 0 ? 'title-error' : undefined
+                    invalid: hasFieldError('title'),
+                    errorId: hasFieldError('title') ? 'title-error' : undefined
                   })}
                   type="text"
+                  name="title"
                   value={formData.title}
                   onChange={handleInputChange}
                   onBlur={() => handleBlur('title')}
                   className={`w-full px-3 py-2 border rounded-lg transition-colors ${
-                    fieldErrors.title?.length > 0 
+                    hasFieldError('title')
                       ? 'border-red-500 focus:ring-red-500' 
                       : 'border-gray-300 focus:ring-purple-500'
                   } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
-                  placeholder={MESSAGES.PLACEHOLDERS.TITLE}
+                  placeholder="Enter your pitch title"
                   data-testid="title-input"
                 />
-                {fieldErrors.title?.length > 0 && (
+                {hasFieldError('title') && (
                   <div {...a11y.formField.getErrorAttributes('title')}>
                     <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
-                    {fieldErrors.title[0]}
+                    {getFieldError('title')[0]}
                   </div>
                 )}
               </div>
@@ -488,21 +411,22 @@ export default function CreatePitch() {
                 <label 
                   {...a11y.formField.getLabelAttributes('genre', true)}
                 >
-                  {MESSAGES.LABELS.GENRE}
+                  Genre
                 </label>
                 <select
                   {...a11y.formField.getAttributes({
                     id: 'genre',
-                    label: MESSAGES.LABELS.GENRE,
+                    label: 'Genre',
                     required: true,
-                    invalid: fieldErrors.genre?.length > 0,
-                    errorId: fieldErrors.genre?.length > 0 ? 'genre-error' : undefined
+                    invalid: hasFieldError('genre'),
+                    errorId: hasFieldError('genre') ? 'genre-error' : undefined
                   })}
+                  name="genre"
                   value={formData.genre}
                   onChange={handleInputChange}
                   onBlur={() => handleBlur('genre')}
                   className={`w-full px-3 py-2 border rounded-lg transition-colors ${
-                    fieldErrors.genre?.length > 0 
+                    hasFieldError('genre')
                       ? 'border-red-500 focus:ring-red-500' 
                       : 'border-gray-300 focus:ring-purple-500'
                   } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
@@ -513,10 +437,10 @@ export default function CreatePitch() {
                     <option key={genre} value={genre}>{genre}</option>
                   ))}
                 </select>
-                {fieldErrors.genre?.length > 0 && (
+                {hasFieldError('genre') && (
                   <div {...a11y.formField.getErrorAttributes('genre')}>
                     <AlertCircle className="w-4 h-4 inline mr-1" aria-hidden="true" />
-                    {fieldErrors.genre[0]}
+                    {getFieldError('genre')[0]}
                   </div>
                 )}
               </div>
@@ -525,12 +449,12 @@ export default function CreatePitch() {
                 <label 
                   {...a11y.formField.getLabelAttributes('formatCategory', true)}
                 >
-                  {MESSAGES.LABELS.FORMAT_CATEGORY}
+                  Format Category
                 </label>
                 <select
                   {...a11y.formField.getAttributes({
                     id: 'formatCategory',
-                    label: MESSAGES.LABELS.FORMAT_CATEGORY,
+                    label: 'Format Category',
                     required: true,
                     invalid: fieldErrors.formatCategory?.length > 0,
                     errorId: fieldErrors.formatCategory?.length > 0 ? 'formatCategory-error' : undefined
@@ -561,12 +485,12 @@ export default function CreatePitch() {
                   <label 
                     {...a11y.formField.getLabelAttributes('formatSubtype', true)}
                   >
-                    {MESSAGES.LABELS.FORMAT_SUBTYPE}
+                    Format Subtype
                   </label>
                   <select
                     {...a11y.formField.getAttributes({
                       id: 'formatSubtype',
-                      label: MESSAGES.LABELS.FORMAT_SUBTYPE,
+                      label: 'Format Subtype',
                       required: true,
                       invalid: fieldErrors.formatSubtype?.length > 0,
                       errorId: fieldErrors.formatSubtype?.length > 0 ? 'formatSubtype-error' : undefined
@@ -598,12 +522,12 @@ export default function CreatePitch() {
                   <label 
                     {...a11y.formField.getLabelAttributes('customFormat', true)}
                   >
-                    {MESSAGES.LABELS.CUSTOM_FORMAT}
+                    Custom Format
                   </label>
                   <input
                     {...a11y.formField.getAttributes({
                       id: 'customFormat',
-                      label: MESSAGES.LABELS.CUSTOM_FORMAT,
+                      label: 'Custom Format',
                       required: true,
                       invalid: fieldErrors.customFormat?.length > 0,
                       errorId: fieldErrors.customFormat?.length > 0 ? 'customFormat-error' : undefined
@@ -617,7 +541,7 @@ export default function CreatePitch() {
                         ? 'border-red-500 focus:ring-red-500' 
                         : 'border-gray-300 focus:ring-purple-500'
                     } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
-                    placeholder={MESSAGES.PLACEHOLDERS.CUSTOM_FORMAT}
+                    placeholder="Please specify your custom format"
                   />
                   {fieldErrors.customFormat?.length > 0 && (
                     <div {...a11y.formField.getErrorAttributes('customFormat')}>
@@ -633,12 +557,12 @@ export default function CreatePitch() {
               <label 
                 {...a11y.formField.getLabelAttributes('logline', true)}
               >
-                {MESSAGES.LABELS.LOGLINE}
+                Logline
               </label>
               <textarea
                 {...a11y.formField.getAttributes({
                   id: 'logline',
-                  label: MESSAGES.LABELS.LOGLINE,
+                  label: 'Logline',
                   required: true,
                   invalid: fieldErrors.logline?.length > 0,
                   errorId: fieldErrors.logline?.length > 0 ? 'logline-error' : undefined,
@@ -653,7 +577,7 @@ export default function CreatePitch() {
                     ? 'border-red-500 focus:ring-red-500' 
                     : 'border-gray-300 focus:ring-purple-500'
                 } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
-                placeholder={MESSAGES.PLACEHOLDERS.LOGLINE}
+                placeholder="A one-sentence summary of your story"
                 data-testid="logline-textarea"
               />
               {fieldErrors.logline?.length > 0 && (
@@ -671,12 +595,12 @@ export default function CreatePitch() {
               <label 
                 {...a11y.formField.getLabelAttributes('shortSynopsis', true)}
               >
-                {MESSAGES.LABELS.SHORT_SYNOPSIS}
+                Short Synopsis
               </label>
               <textarea
                 {...a11y.formField.getAttributes({
                   id: 'shortSynopsis',
-                  label: MESSAGES.LABELS.SHORT_SYNOPSIS,
+                  label: 'Short Synopsis',
                   required: true,
                   invalid: fieldErrors.shortSynopsis?.length > 0,
                   errorId: fieldErrors.shortSynopsis?.length > 0 ? 'shortSynopsis-error' : undefined,
@@ -691,7 +615,7 @@ export default function CreatePitch() {
                     ? 'border-red-500 focus:ring-red-500' 
                     : 'border-gray-300 focus:ring-purple-500'
                 } focus:outline-none focus:ring-2 ${a11y.classes.focusVisible}`}
-                placeholder={MESSAGES.PLACEHOLDERS.SYNOPSIS}
+                placeholder="A brief overview of your story"
               />
               {fieldErrors.shortSynopsis?.length > 0 && (
                 <div {...a11y.formField.getErrorAttributes('shortSynopsis')}>
@@ -700,7 +624,7 @@ export default function CreatePitch() {
                 </div>
               )}
               <p {...a11y.formField.getHelpAttributes('shortSynopsis')}>
-                {MESSAGES.INFO.CHARACTER_COUNT(formData.shortSynopsis.length, 1000)} | {MESSAGES.INFO.RECOMMENDED_LENGTH(formData.shortSynopsis.length, 500)}
+                {formData.shortSynopsis.length}/1000 characters | {formData.shortSynopsis.length < 500 ? `${formData.shortSynopsis.length}/500` : '✓'} characters recommended
               </p>
             </div>
           </div>
@@ -791,7 +715,7 @@ export default function CreatePitch() {
                     name="seekingInvestment"
                     type="checkbox"
                     checked={formData.seekingInvestment}
-                    onChange={(e) => setFormData(prev => ({ ...prev, seekingInvestment: e.target.checked }))}
+                    onChange={(e) => setValue('seekingInvestment', e.target.checked)}
                     className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                   />
                 </div>
@@ -839,7 +763,7 @@ export default function CreatePitch() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <CharacterManagement
               characters={formData.characters}
-              onChange={(characters) => setFormData(prev => ({ ...prev, characters }))}
+              onChange={(characters) => setValue('characters', characters as any)}
               maxCharacters={10}
             />
           </div>
@@ -1022,7 +946,7 @@ export default function CreatePitch() {
                 id="image-label"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                {MESSAGES.LABELS.COVER_IMAGE}
+                Cover Image
               </label>
               <div 
                 {...a11y.fileUpload.getDropZoneAttributes({
@@ -1047,7 +971,7 @@ export default function CreatePitch() {
                       {...a11y.button.getAttributes({
                         type: 'button',
                         disabled: isSubmitting,
-                        ariaLabel: MESSAGES.A11Y.REMOVE_FILE_BUTTON
+                        ariaLabel: 'Remove file'
                       })}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1061,7 +985,7 @@ export default function CreatePitch() {
                 ) : (
                   <div>
                     <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" aria-hidden="true" />
-                    <p className="text-sm text-gray-600 mb-2">{MESSAGES.INFO.IMAGE_UPLOAD_INSTRUCTIONS}</p>
+                    <p className="text-sm text-gray-600 mb-2">Upload a cover image for your pitch (JPG, PNG, GIF, WebP - Max 10MB)</p>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
                       <Upload className="w-4 h-4" aria-hidden="true" />
                       Choose Image
@@ -1078,7 +1002,7 @@ export default function CreatePitch() {
                 onChange={(e) => handleFileChange(e, 'image')}
               />
               <div id="image-upload-instructions" className={a11y.classes.srOnly}>
-                {MESSAGES.A11Y.FILE_UPLOAD_INSTRUCTIONS}
+                {'Click to upload or drag and drop'}
               </div>
               {fieldErrors.image?.length > 0 && (
                 <div {...a11y.formField.getErrorAttributes('image')}>
@@ -1098,7 +1022,7 @@ export default function CreatePitch() {
                 id="video-label"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                {MESSAGES.LABELS.PITCH_VIDEO} ({MESSAGES.INFO.OPTIONAL_FIELD})
+                Pitch Video (Optional)
               </label>
               <div 
                 {...a11y.fileUpload.getDropZoneAttributes({
@@ -1123,7 +1047,7 @@ export default function CreatePitch() {
                       {...a11y.button.getAttributes({
                         type: 'button',
                         disabled: isSubmitting,
-                        ariaLabel: MESSAGES.A11Y.REMOVE_FILE_BUTTON
+                        ariaLabel: 'Remove file'
                       })}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1137,7 +1061,7 @@ export default function CreatePitch() {
                 ) : (
                   <div>
                     <Video className="w-8 h-8 text-gray-400 mx-auto mb-2" aria-hidden="true" />
-                    <p className="text-sm text-gray-600 mb-2">{MESSAGES.INFO.VIDEO_UPLOAD_INSTRUCTIONS}</p>
+                    <p className="text-sm text-gray-600 mb-2">Upload a pitch video (MP4, MOV, AVI - Max 100MB)</p>
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
                       <Upload className="w-4 h-4" aria-hidden="true" />
                       Choose Video
@@ -1154,7 +1078,7 @@ export default function CreatePitch() {
                 onChange={(e) => handleFileChange(e, 'video')}
               />
               <div id="video-upload-instructions" className={a11y.classes.srOnly}>
-                {MESSAGES.A11Y.FILE_UPLOAD_INSTRUCTIONS}
+                {'Click to upload or drag and drop'}
               </div>
               {fieldErrors.video?.length > 0 && (
                 <div {...a11y.formField.getErrorAttributes('video')}>
@@ -1174,7 +1098,7 @@ export default function CreatePitch() {
               {...a11y.button.getAttributes({
                 type: 'button',
                 disabled: isSubmitting,
-                ariaLabel: MESSAGES.A11Y.CANCEL_BUTTON
+                ariaLabel: 'Cancel'
               })}
               onClick={() => navigate('/creator/dashboard')}
               className={`px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition ${a11y.classes.focusVisible} ${isSubmitting ? a11y.classes.disabledElement : ''}`}
@@ -1187,7 +1111,7 @@ export default function CreatePitch() {
                 type: 'submit',
                 disabled: isSubmitting,
                 loading: isSubmitting,
-                ariaLabel: isSubmitting ? MESSAGES.INFO.CREATING_PITCH : MESSAGES.A11Y.SUBMIT_BUTTON
+                ariaLabel: isSubmitting ? 'Creating pitch...' : 'Submit pitch'
               })}
               className={`px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition flex items-center gap-2 ${a11y.classes.focusVisible} ${isSubmitting ? a11y.classes.disabledElement : ''}`}
               data-testid="submit-button"
@@ -1195,7 +1119,7 @@ export default function CreatePitch() {
               {isSubmitting ? (
                 <>
                   <LoadingSpinner size="sm" color="white" aria-hidden="true" />
-                  <span aria-live="polite">{MESSAGES.INFO.CREATING_PITCH}</span>
+                  <span aria-live="polite">Creating pitch...</span>
                 </>
               ) : (
                 'Create Pitch'

@@ -25,6 +25,11 @@ export class BrowseEndpoints {
     const url = new URL(request.url);
     const method = request.method;
 
+    // Unified browse endpoint with tab support
+    if (pathname === '/api/browse' && method === 'GET') {
+      return this.handleBrowseWithTabs(url.searchParams, sqlConnection);
+    }
+
     // Trending pitches
     if (pathname === '/api/browse/trending' && method === 'GET') {
       return this.getTrending(sqlConnection);
@@ -91,6 +96,171 @@ export class BrowseEndpoints {
     }
 
     return null;
+  }
+
+  /**
+   * Handle browse with tabs (Trending, New, Popular)
+   */
+  private async handleBrowseWithTabs(params: URLSearchParams, sqlConnection: any): Promise<Response> {
+    try {
+      const tab = params.get('tab') || 'trending';
+      const genre = params.get('genre');
+      const format = params.get('format');
+      const budgetRange = params.get('budgetRange');
+      const riskLevel = params.get('riskLevel');
+      const productionStage = params.get('productionStage');
+      const limit = parseInt(params.get('limit') || '24');
+      const page = parseInt(params.get('page') || '1');
+      const offset = (page - 1) * limit;
+
+      // Base query for all tabs
+      let query = sqlConnection
+        .select({
+          id: pitches.id,
+          title: pitches.title,
+          logline: pitches.logline,
+          genre: pitches.genre,
+          format: pitches.format,
+          formatCategory: pitches.formatCategory,
+          formatSubtype: pitches.formatSubtype,
+          budget: pitches.budgetBracket,
+          viewCount: pitches.viewCount,
+          likeCount: pitches.likeCount,
+          ndaCount: pitches.ndaCount,
+          createdAt: pitches.createdAt,
+          status: pitches.status,
+          expectedROI: pitches.expectedROI,
+          productionStage: pitches.productionStage,
+          attachedTalent: pitches.attachedTalent,
+          investmentTarget: pitches.investmentTarget,
+          riskLevel: pitches.riskLevel,
+          similarProjects: pitches.similarProjects,
+          creator: users.username,
+          creatorId: users.id,
+          creatorType: users.userType,
+          companyName: users.companyName
+        })
+        .from(pitches)
+        .leftJoin(users, eq(pitches.userId, users.id))
+        .where(and(
+          or(eq(pitches.status, 'published'), eq(pitches.status, 'active')),
+          eq(pitches.visibility, 'public')
+        ));
+
+      // Apply filters
+      const conditions = [];
+      if (genre) conditions.push(eq(pitches.genre, genre));
+      if (format) conditions.push(eq(pitches.format, format));
+      if (riskLevel) conditions.push(eq(pitches.riskLevel, riskLevel));
+      if (productionStage) conditions.push(eq(pitches.productionStage, productionStage));
+      
+      // Budget range filter
+      if (budgetRange) {
+        switch (budgetRange) {
+          case 'under-5m':
+            conditions.push(sql`CAST(REGEXP_REPLACE(${pitches.budgetBracket}, '[^0-9]', '', 'g') AS INTEGER) < 5000000`);
+            break;
+          case '5m-15m':
+            conditions.push(sql`CAST(REGEXP_REPLACE(${pitches.budgetBracket}, '[^0-9]', '', 'g') AS INTEGER) BETWEEN 5000000 AND 15000000`);
+            break;
+          case '15m-50m':
+            conditions.push(sql`CAST(REGEXP_REPLACE(${pitches.budgetBracket}, '[^0-9]', '', 'g') AS INTEGER) BETWEEN 15000001 AND 50000000`);
+            break;
+          case 'over-50m':
+            conditions.push(sql`CAST(REGEXP_REPLACE(${pitches.budgetBracket}, '[^0-9]', '', 'g') AS INTEGER) > 50000000`);
+            break;
+        }
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+
+      // Apply sorting based on tab
+      switch (tab) {
+        case 'trending':
+          // Trending: Sort by a combination of views, likes, and recency
+          query = query.orderBy(
+            desc(sql`${pitches.viewCount} * 0.5 + ${pitches.likeCount} * 2 + 
+                    EXTRACT(EPOCH FROM (NOW() - ${pitches.createdAt})) / -86400`)
+          );
+          break;
+        case 'new':
+          // New: Sort by creation date (newest first)
+          query = query.orderBy(desc(pitches.createdAt));
+          break;
+        case 'popular':
+          // Popular: Sort by view count
+          query = query.orderBy(desc(pitches.viewCount));
+          break;
+        default:
+          // Default to newest
+          query = query.orderBy(desc(pitches.createdAt));
+          break;
+      }
+
+      query = query.limit(limit).offset(offset);
+      const results = await query;
+
+      // Format the response
+      const formattedResults = results.map(pitch => ({
+        id: pitch.id,
+        title: pitch.title,
+        logline: pitch.logline,
+        genre: pitch.genre,
+        format: pitch.format,
+        formatCategory: pitch.formatCategory,
+        formatSubtype: pitch.formatSubtype,
+        budget: pitch.budget || '$0',
+        viewCount: pitch.viewCount || 0,
+        likeCount: pitch.likeCount || 0,
+        ndaCount: pitch.ndaCount || 0,
+        createdAt: pitch.createdAt?.toISOString(),
+        status: pitch.status,
+        expectedROI: pitch.expectedROI || '10-20%',
+        productionStage: pitch.productionStage || 'Development',
+        attachedTalent: pitch.attachedTalent ? 
+          (typeof pitch.attachedTalent === 'string' ? 
+            pitch.attachedTalent.split(',').map(t => t.trim()) : 
+            pitch.attachedTalent) : [],
+        investmentTarget: pitch.investmentTarget || '$1M - $5M',
+        riskLevel: pitch.riskLevel || 'medium',
+        similarProjects: pitch.similarProjects ? 
+          (typeof pitch.similarProjects === 'string' ? 
+            pitch.similarProjects.split(',').map(p => p.trim()) : 
+            pitch.similarProjects) : [],
+        creator: {
+          id: pitch.creatorId,
+          username: pitch.creator,
+          userType: pitch.creatorType,
+          companyName: pitch.companyName
+        }
+      }));
+
+      return new Response(JSON.stringify({
+        success: true,
+        items: formattedResults,
+        tab: tab,
+        message: `Found ${formattedResults.length} ${tab} pitches`,
+        pagination: {
+          page,
+          limit,
+          hasMore: formattedResults.length === limit
+        }
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+    } catch (error) {
+      console.error('Browse with tabs error:', error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to load pitches', code: 'BROWSE_ERROR' }
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   /**

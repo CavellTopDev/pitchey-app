@@ -70,7 +70,7 @@ export default function InvestorBrowse() {
 
   useEffect(() => {
     filterAndSortPitches();
-  }, [pitches, searchTerm, filters, sortBy]);
+  }, [pitches, searchTerm, sortBy]);
 
   useEffect(() => {
     fetchPitches(activeTab);
@@ -140,6 +140,8 @@ export default function InvestorBrowse() {
   const handleTabChange = (tab: 'trending' | 'new' | 'popular') => {
     setActiveTab(tab);
     setLoading(true);
+    setPitches([]); // Clear existing pitches when switching tabs
+    setFilteredPitches([]); // Clear filtered results too
   };
 
   const filterAndSortPitches = () => {
