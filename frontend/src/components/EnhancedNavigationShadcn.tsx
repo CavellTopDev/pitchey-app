@@ -5,7 +5,8 @@ import {
   Settings, UserCircle, ChevronDown, Briefcase, TrendingUp,
   Calendar, MessageSquare, Star, Globe, PlayCircle, Upload,
   FolderOpen, UserPlus, Layers, Target, Activity, Award,
-  DollarSign, PieChart, Clock, CheckCircle, AlertCircle
+  DollarSign, PieChart, Clock, CheckCircle, AlertCircle,
+  ChevronRight
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
@@ -18,6 +19,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useState } from 'react';
 
 interface EnhancedNavigationShadcnProps {
@@ -34,6 +48,22 @@ export function EnhancedNavigationShadcn({
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    setMobileMenuOpen(false); // Close mobile menu after navigation
+  };
+
+  const getThemeColor = () => {
+    switch (userType) {
+      case 'creator': return 'purple';
+      case 'investor': return 'green';
+      case 'production': return 'blue';
+      default: return 'gray';
+    }
+  };
+
+  const themeColor = getThemeColor();
 
   const getPortalPrefix = () => {
     switch (userType) {
@@ -154,18 +184,31 @@ export function EnhancedNavigationShadcn({
     ]
   };
 
-  const navigationItemStyle = "flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer";
-  const activeItemStyle = "flex items-center gap-2 px-3 py-2 text-purple-600 bg-purple-50 rounded-lg";
+  const getNavigationItemStyle = () => {
+    const baseStyle = "flex items-center gap-2 px-3 py-2 text-gray-600 rounded-lg transition-colors cursor-pointer";
+    switch (themeColor) {
+      case 'purple':
+        return `${baseStyle} hover:text-purple-600 hover:bg-purple-50`;
+      case 'green':
+        return `${baseStyle} hover:text-green-600 hover:bg-green-50`;
+      case 'blue':
+        return `${baseStyle} hover:text-blue-600 hover:bg-blue-50`;
+      default:
+        return `${baseStyle} hover:text-gray-900 hover:bg-gray-100`;
+    }
+  };
+
+  const navigationItemStyle = getNavigationItemStyle();
 
   return (
     <header className="bg-white border-b">
-      {/* Desktop Navigation */}
-      <div className="hidden md:block">
+      {/* Desktop Navigation - Hidden when content doesn't fit */}
+      <div className="hidden xl:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-purple-600">Pitchey</span>
+              <span className={`text-2xl font-bold text-${themeColor}-600`}>Pitchey</span>
             </Link>
 
             {/* Center Navigation with Dropdowns */}
@@ -397,61 +440,223 @@ export function EnhancedNavigationShadcn({
         </div>
       </div>
 
-      {/* Mobile Navigation */}
-      <div className="md:hidden">
-        <div className="flex items-center justify-between px-4 h-16">
-          <Link to="/" className="text-xl font-bold text-purple-600">Pitchey</Link>
-          
+      {/* Mobile Navigation - Shows when desktop navigation doesn't fit */}
+      <div className="xl:hidden">
+        <div className="flex items-center justify-between px-4 sm:px-6 h-16">
+          {/* Logo and Mobile Menu */}
+          <div className="flex items-center gap-4">
+            {/* Mobile Menu Button */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <button
+                  className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  aria-label="Open menu"
+                >
+                  <Menu className="w-6 h-6" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-80 p-0">
+                <SheetHeader className="px-6 py-4 border-b">
+                  <SheetTitle className={`text-xl font-bold text-${themeColor}-600`}>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="px-4 py-4">
+                  <Accordion type="single" collapsible className="w-full">
+                    {/* Dashboard Accordion */}
+                    <AccordionItem value="dashboard" className="border-b">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Home className="w-4 h-4" />
+                          <span>Dashboard</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-col gap-1 pl-6">
+                          {dashboardMenuItems[userType].map((item) => (
+                            <button
+                              key={item.href}
+                              onClick={() => handleNavigation(item.href)}
+                              className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 transition-colors`}
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Browse Accordion */}
+                    <AccordionItem value="browse" className="border-b">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4" />
+                          <span>Browse</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-col gap-1 pl-6">
+                          {browseMenuItems[userType].map((item) => (
+                            <button
+                              key={item.href}
+                              onClick={() => handleNavigation(item.href)}
+                              className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 transition-colors`}
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Projects Accordion */}
+                    <AccordionItem value="projects" className="border-b">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="w-4 h-4" />
+                          <span>Projects</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-col gap-1 pl-6">
+                          {projectMenuItems[userType].map((item) => (
+                            <button
+                              key={item.href}
+                              onClick={() => handleNavigation(item.href)}
+                              className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 transition-colors`}
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Team Accordion */}
+                    <AccordionItem value="team" className="border-b">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          <span>Team</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-col gap-1 pl-6">
+                          {teamMenuItems[userType].map((item) => (
+                            <button
+                              key={item.href}
+                              onClick={() => handleNavigation(item.href)}
+                              className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 transition-colors`}
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Search Accordion */}
+                    <AccordionItem value="search" className="border-b">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Search className="w-4 h-4" />
+                          <span>Search</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-col gap-1 pl-6">
+                          {searchMenuItems.map((item) => (
+                            <button
+                              key={item.href}
+                              onClick={() => handleNavigation(item.href)}
+                              className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 transition-colors`}
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    {/* Settings Accordion */}
+                    <AccordionItem value="settings" className="border-b">
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Settings className="w-4 h-4" />
+                          <span>Settings</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex flex-col gap-1 pl-6">
+                          {settingsMenuItems[userType].map((item) => (
+                            <button
+                              key={item.href}
+                              onClick={() => handleNavigation(item.href)}
+                              className={`flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 transition-colors`}
+                            >
+                              <item.icon className="w-4 h-4" />
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+
+                  {/* User Profile Section */}
+                  <div className="mt-6 pt-6 border-t">
+                    <div className={`flex items-center gap-3 px-2 py-3 bg-${themeColor}-50 rounded-lg`}>
+                      <div className={`w-10 h-10 bg-${themeColor}-100 rounded-full flex items-center justify-center`}>
+                        <UserCircle className={`w-6 h-6 text-${themeColor}-600`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold">{user?.name || userType.charAt(0).toUpperCase() + userType.slice(1)}</p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-col gap-1">
+                      <button
+                        onClick={() => handleNavigation(`${portalPrefix}/profile`)}
+                        className={`flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 hover:bg-${themeColor}-50 rounded-lg transition-colors`}
+                      >
+                        <UserCircle className="w-4 h-4" />
+                        View Profile
+                      </button>
+                      <button
+                        onClick={() => handleNavigation(`${portalPrefix}/settings`)}
+                        className={`flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-${themeColor}-600 hover:bg-${themeColor}-50 rounded-lg transition-colors`}
+                      >
+                        <Settings className="w-4 h-4" />
+                        Settings
+                      </button>
+                      <button
+                        onClick={onLogout}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2">
+              <span className={`text-xl sm:text-2xl font-bold text-${themeColor}-600`}>Pitchey</span>
+            </Link>
+          </div>
+
+          {/* Right Section */}
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            <NDANotificationBadge />
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <nav className="px-4 pb-4 space-y-2">
-            <Link
-              to={`${portalPrefix}/dashboard`}
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Home className="w-5 h-5" />
-              Dashboard
-            </Link>
-            <Link
-              to="/marketplace"
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Globe className="w-5 h-5" />
-              Browse
-            </Link>
-            <Link
-              to={`${portalPrefix}/pitches`}
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Film className="w-5 h-5" />
-              {userType === 'creator' ? 'My Pitches' : 'Projects'}
-            </Link>
-            <button
-              onClick={() => {
-                onLogout();
-                setMobileMenuOpen(false);
-              }}
-              className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg w-full text-left"
-            >
-              <LogOut className="w-5 h-5" />
-              Logout
-            </button>
-          </nav>
-        )}
       </div>
     </header>
   );

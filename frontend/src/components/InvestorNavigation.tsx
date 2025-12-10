@@ -56,7 +56,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
             <button
-              className="lg:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              className="xl:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
               aria-label="Open menu"
             >
               <Menu className="w-6 h-6" />
@@ -394,8 +394,8 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
         </Link>
       </div>
 
-      {/* Main Navigation - Hidden on mobile */}
-      <nav className="hidden lg:flex items-center gap-1">
+      {/* Main Navigation - Hidden on mobile and tablet */}
+      <nav className="hidden xl:flex items-center gap-1">
         {/* Dashboard Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
