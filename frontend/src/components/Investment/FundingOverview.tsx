@@ -34,13 +34,14 @@ export default function FundingOverview({
 }: FundingOverviewProps) {
   const navigate = useNavigate();
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | undefined | null) => {
+    const safeAmount = amount || 0;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       notation: 'compact',
       maximumFractionDigits: 1
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   const formatDate = (date: Date) => {
@@ -50,8 +51,8 @@ export default function FundingOverview({
     });
   };
 
-  const progressPercentage = metrics.fundingGoal 
-    ? Math.min((metrics.totalRaised / metrics.fundingGoal) * 100, 100)
+  const progressPercentage = (metrics.fundingGoal && metrics.totalRaised) 
+    ? Math.min(((metrics.totalRaised || 0) / metrics.fundingGoal) * 100, 100)
     : 0;
 
   return (
@@ -71,7 +72,7 @@ export default function FundingOverview({
             <DollarSign className="w-4 h-4 text-green-600" />
             <span className="text-sm text-gray-600">Total Raised</span>
           </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(metrics.totalRaised)}</p>
+          <p className="text-xl font-bold text-gray-900">{formatCurrency(metrics.totalRaised || 0)}</p>
           {metrics.monthlyGrowth && (
             <p className="text-sm text-green-600">+{metrics.monthlyGrowth}% this month</p>
           )}
@@ -82,7 +83,7 @@ export default function FundingOverview({
             <Users className="w-4 h-4 text-blue-600" />
             <span className="text-sm text-gray-600">Active Investors</span>
           </div>
-          <p className="text-xl font-bold text-gray-900">{metrics.activeInvestors}</p>
+          <p className="text-xl font-bold text-gray-900">{metrics.activeInvestors || 0}</p>
           <p className="text-sm text-gray-500">backing your projects</p>
         </div>
 
@@ -91,7 +92,7 @@ export default function FundingOverview({
             <TrendingUp className="w-4 h-4 text-purple-600" />
             <span className="text-sm text-gray-600">Avg Investment</span>
           </div>
-          <p className="text-xl font-bold text-gray-900">{formatCurrency(metrics.averageInvestment)}</p>
+          <p className="text-xl font-bold text-gray-900">{formatCurrency(metrics.averageInvestment || 0)}</p>
           <p className="text-sm text-gray-500">per investor</p>
         </div>
 
@@ -100,7 +101,7 @@ export default function FundingOverview({
             <Target className="w-4 h-4 text-orange-600" />
             <span className="text-sm text-gray-600">Progress</span>
           </div>
-          <p className="text-xl font-bold text-gray-900">{metrics.fundingProgress.toFixed(0)}%</p>
+          <p className="text-xl font-bold text-gray-900">{(metrics.fundingProgress || 0).toFixed(0)}%</p>
           <p className="text-sm text-gray-500">of funding goals</p>
         </div>
       </div>

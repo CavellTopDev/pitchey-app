@@ -8798,7 +8798,23 @@ export default {
           return corsResponse(request, {
             success: true,
             data: {
-              totalRaised,
+              totalRaised: totalRaised || 0,
+              activeInvestors: uniqueInvestors || 0,
+              averageInvestment: uniqueInvestors > 0 ? totalRaised / uniqueInvestors : 0,
+              fundingProgress: 0, // TODO: Calculate based on funding goals
+              fundingGoal: null, // Optional field
+              monthlyGrowth: null, // Optional field
+              recentInvestments: investments.slice(0, 5).map(inv => ({
+                id: inv.id,
+                amount: parseFloat(inv.amount) || 0,
+                investorName: `${inv.investor_first_name} ${inv.investor_last_name}`,
+                date: new Date(inv.created_at)
+              })),
+              topInvestor: investments.length > 0 ? {
+                name: `${investments[0].investor_first_name} ${investments[0].investor_last_name}`,
+                amount: parseFloat(investments[0].amount) || 0
+              } : null,
+              // Legacy fields for backward compatibility
               activeDeals,
               investors: uniqueInvestors,
               averageDealSize: uniqueInvestors > 0 ? totalRaised / uniqueInvestors : 0,
