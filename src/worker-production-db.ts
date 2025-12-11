@@ -8750,6 +8750,246 @@ export default {
         }
       }
       
+      // ====================================
+      // Creator Funding Endpoints
+      // ====================================
+      if (path === '/api/creator/funding/overview' && method === 'GET') {
+        if (!userPayload || userPayload.userType !== 'creator') {
+          return corsResponse(request, {
+            success: false,
+            message: 'Creator access required',
+          }, 403);
+        }
+        
+        const creatorId = parseInt(userPayload.sub);
+        
+        try {
+          // Get funding metrics for the creator
+          const investments = await sql`
+            SELECT 
+              ii.*,
+              p.title as pitch_title,
+              u.first_name as investor_first_name,
+              u.last_name as investor_last_name,
+              u.company_name as investor_company
+            FROM investment_interests ii
+            JOIN pitches p ON ii.pitch_id = p.id
+            JOIN users u ON ii.investor_id = u.id
+            WHERE p.user_id = ${creatorId}
+            ORDER BY ii.created_at DESC
+          `;
+          
+          // Calculate metrics
+          const totalRaised = investments.reduce((sum, inv) => 
+            sum + (parseFloat(inv.amount) || 0), 0
+          );
+          
+          const uniqueInvestors = new Set(investments.map(i => i.investor_id)).size;
+          const activeDeals = investments.filter(i => i.status === 'active').length;
+          
+          // Get recent activity
+          const recentActivity = investments.slice(0, 5).map(inv => ({
+            type: 'investment',
+            message: `${inv.investor_first_name} ${inv.investor_last_name} expressed interest in "${inv.pitch_title}"`,
+            amount: inv.amount,
+            date: inv.created_at,
+          }));
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              totalRaised,
+              activeDeals,
+              investors: uniqueInvestors,
+              averageDealSize: uniqueInvestors > 0 ? totalRaised / uniqueInvestors : 0,
+              recentActivity,
+              investments: investments.slice(0, 10),
+            },
+          });
+        } catch (error) {
+          console.error('Error fetching funding overview:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch funding data',
+          }, 500);
+        }
+      }
+      
+      // ====================================
+      // NDA Endpoints (Legacy support - redirect to info-requests)
+      // ====================================
+      
+      // Get NDAs list with filters
+      if (path === '/api/ndas' && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        const params = new URL(request.url).searchParams;
+        const status = params.get('status');
+        const creatorId = params.get('creatorId');
+        const limit = parseInt(params.get('limit') || '10');
+        
+        try {
+          let query = sql`
+            SELECT 
+              ir.*,
+              p.title as pitch_title,
+              p.logline as pitch_logline,
+              requester.first_name as requester_first_name,
+              requester.last_name as requester_last_name,
+              requester.email as requester_email,
+              requester.company_name as requester_company,
+              creator.first_name as creator_first_name,
+              creator.last_name as creator_last_name
+            FROM info_requests ir
+            JOIN pitches p ON ir.pitch_id = p.id
+            JOIN users requester ON ir.requester_id = requester.id
+            JOIN users creator ON p.user_id = creator.id
+            WHERE 1=1
+          `;
+          
+          // Build dynamic WHERE clause
+          let conditions = [];
+          if (status) {
+            conditions.push(`ir.status = '${status}'`);
+          }
+          if (creatorId) {
+            conditions.push(`p.user_id = ${parseInt(creatorId)}`);
+          } else {
+            // Show NDAs relevant to the current user
+            conditions.push(`(ir.requester_id = ${userId} OR p.user_id = ${userId})`);
+          }
+          
+          const whereClause = conditions.length > 0 ? ` AND ${conditions.join(' AND ')}` : '';
+          const fullQuery = `
+            SELECT 
+              ir.*,
+              p.title as pitch_title,
+              p.logline as pitch_logline,
+              requester.first_name as requester_first_name,
+              requester.last_name as requester_last_name,
+              requester.email as requester_email,
+              requester.company_name as requester_company,
+              creator.first_name as creator_first_name,
+              creator.last_name as creator_last_name
+            FROM info_requests ir
+            JOIN pitches p ON ir.pitch_id = p.id
+            JOIN users requester ON ir.requester_id = requester.id
+            JOIN users creator ON p.user_id = creator.id
+            WHERE 1=1 ${whereClause}
+            ORDER BY ir.created_at DESC
+            LIMIT ${limit}
+          `;
+          
+          const ndas = await sql(fullQuery);
+          
+          // Transform info_requests to NDA format for backward compatibility
+          const transformedNDAs = ndas.map(ir => ({
+            id: ir.id,
+            pitchId: ir.pitch_id,
+            requesterId: ir.requester_id,
+            status: ir.status,
+            message: ir.message,
+            signedAt: ir.approved_at,
+            expiresAt: ir.expires_at,
+            createdAt: ir.created_at,
+            updatedAt: ir.updated_at,
+            pitch: {
+              id: ir.pitch_id,
+              title: ir.pitch_title,
+              logline: ir.pitch_logline,
+            },
+            requester: {
+              id: ir.requester_id,
+              firstName: ir.requester_first_name,
+              lastName: ir.requester_last_name,
+              email: ir.requester_email,
+              companyName: ir.requester_company,
+            },
+            creator: {
+              firstName: ir.creator_first_name,
+              lastName: ir.creator_last_name,
+            }
+          }));
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              ndas: transformedNDAs,
+              total: ndas.length,
+            },
+          });
+        } catch (error) {
+          console.error('Error fetching NDAs:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch NDAs',
+          }, 500);
+        }
+      }
+      
+      // Get NDA stats
+      if (path === '/api/ndas/stats' && method === 'GET') {
+        if (!userPayload) {
+          return corsResponse(request, {
+            success: false,
+            message: 'Authentication required',
+          }, 401);
+        }
+        
+        const userId = parseInt(userPayload.sub);
+        
+        try {
+          // Get stats based on user type
+          const isCreator = userPayload.userType === 'creator';
+          const statsQuery = isCreator ? `
+            SELECT 
+              COUNT(*)::integer as total,
+              COUNT(CASE WHEN ir.status = 'pending' THEN 1 END)::integer as pending,
+              COUNT(CASE WHEN ir.status = 'approved' THEN 1 END)::integer as approved,
+              COUNT(CASE WHEN ir.status = 'rejected' THEN 1 END)::integer as rejected
+            FROM info_requests ir
+            JOIN pitches p ON ir.pitch_id = p.id
+            WHERE p.user_id = ${userId}
+          ` : `
+            SELECT 
+              COUNT(*)::integer as total,
+              COUNT(CASE WHEN ir.status = 'pending' THEN 1 END)::integer as pending,
+              COUNT(CASE WHEN ir.status = 'approved' THEN 1 END)::integer as approved,
+              COUNT(CASE WHEN ir.status = 'rejected' THEN 1 END)::integer as rejected
+            FROM info_requests ir
+            WHERE ir.requester_id = ${userId}
+          `;
+          
+          const stats = await sql(statsQuery);
+          
+          return corsResponse(request, {
+            success: true,
+            data: {
+              total: stats[0].total || 0,
+              pending: stats[0].pending || 0,
+              approved: stats[0].approved || 0,
+              rejected: stats[0].rejected || 0,
+              expired: 0, // Not tracking expired in info_requests
+              revoked: 0, // Not tracking revoked in info_requests
+              approvalRate: stats[0].total > 0 ? 
+                (stats[0].approved / stats[0].total * 100).toFixed(1) : 0,
+            },
+          });
+        } catch (error) {
+          console.error('Error fetching NDA stats:', error);
+          return corsResponse(request, {
+            success: false,
+            message: 'Failed to fetch NDA stats',
+          }, 500);
+        }
+      }
+      
       // 404 for unknown endpoints
       return corsResponse(request, {
         success: false,
