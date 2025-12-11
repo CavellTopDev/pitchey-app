@@ -62,21 +62,21 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
               <Menu className="w-6 h-6" />
             </button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-80 p-0">
-            <SheetHeader className="px-6 py-4 border-b">
+          <SheetContent side="left" className="w-80 p-0 bg-white">
+            <SheetHeader className="px-6 py-4 border-b bg-white">
               <SheetTitle className="text-xl font-bold text-green-600">Menu</SheetTitle>
             </SheetHeader>
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 bg-white">
               <Accordion type="single" collapsible className="w-full">
                 {/* Dashboard Accordion */}
-                <AccordionItem value="dashboard" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="dashboard" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Home className="w-4 h-4" />
                       <span>Dashboard</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
                         onClick={() => handleNavigation('/investor/dashboard')}
@@ -111,14 +111,14 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                 </AccordionItem>
 
                 {/* Discover Accordion */}
-                <AccordionItem value="discover" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="discover" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4" />
                       <span>Discover</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
                         onClick={() => handleNavigation('/investor/discover')}
@@ -167,14 +167,14 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                 </AccordionItem>
 
                 {/* Portfolio Accordion */}
-                <AccordionItem value="portfolio" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="portfolio" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Briefcase className="w-4 h-4" />
                       <span>Portfolio</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
                         onClick={() => handleNavigation('/investor/portfolio')}
@@ -223,14 +223,14 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                 </AccordionItem>
 
                 {/* Network Accordion */}
-                <AccordionItem value="network" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="network" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4" />
                       <span>Network</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
                         onClick={() => handleNavigation('/investor/network')}
@@ -265,14 +265,14 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                 </AccordionItem>
 
                 {/* Analytics Accordion */}
-                <AccordionItem value="analytics" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="analytics" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <PieChart className="w-4 h-4" />
                       <span>Analytics</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
                         onClick={() => handleNavigation('/investor/analytics')}
@@ -307,14 +307,14 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                 </AccordionItem>
 
                 {/* Financials Accordion */}
-                <AccordionItem value="financials" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="financials" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Wallet className="w-4 h-4" />
                       <span>Financials</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
                         onClick={() => handleNavigation('/investor/financials')}

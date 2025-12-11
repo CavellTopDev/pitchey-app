@@ -61,22 +61,22 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
               <Menu className="w-6 h-6" />
             </button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-80 p-0">
-            <SheetHeader className="px-6 py-4 border-b">
+          <SheetContent side="left" className="w-80 p-0 bg-white">
+            <SheetHeader className="px-6 py-4 border-b bg-white">
               <SheetTitle className="text-xl font-bold text-purple-600">Menu</SheetTitle>
             </SheetHeader>
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 bg-white">
               <Accordion type="single" collapsible className="w-full">
                 {/* Dashboard Accordion */}
-                <AccordionItem value="dashboard" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="dashboard" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Home className="w-4 h-4" />
                       <span>Dashboard</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-col gap-1 pl-6">
+                  <AccordionContent className="bg-white">
+                    <div className="flex flex-col gap-1 pl-6 bg-white">
                       <button
                         onClick={() => handleNavigation('/creator/dashboard')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
@@ -110,15 +110,15 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
                 </AccordionItem>
 
                 {/* Browse Accordion */}
-                <AccordionItem value="browse" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="browse" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4" />
                       <span>Browse</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-col gap-1 pl-6">
+                  <AccordionContent className="bg-white">
+                    <div className="flex flex-col gap-1 pl-6 bg-white">
                       <button
                         onClick={() => handleNavigation('/creator/browse')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
@@ -159,15 +159,15 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
                 </AccordionItem>
 
                 {/* Projects Accordion */}
-                <AccordionItem value="projects" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="projects" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Briefcase className="w-4 h-4" />
                       <span>Projects</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-col gap-1 pl-6">
+                  <AccordionContent className="bg-white">
+                    <div className="flex flex-col gap-1 pl-6 bg-white">
                       <button
                         onClick={() => handleNavigation('/creator/pitches')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
@@ -208,15 +208,15 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
                 </AccordionItem>
 
                 {/* Team Accordion */}
-                <AccordionItem value="team" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="team" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4" />
                       <span>Team</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-col gap-1 pl-6">
+                  <AccordionContent className="bg-white">
+                    <div className="flex flex-col gap-1 pl-6 bg-white">
                       <button
                         onClick={() => handleNavigation('/creator/team')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
@@ -250,15 +250,15 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
                 </AccordionItem>
 
                 {/* Search Accordion */}
-                <AccordionItem value="search" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="search" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Search className="w-4 h-4" />
                       <span>Search</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-col gap-1 pl-6">
+                  <AccordionContent className="bg-white">
+                    <div className="flex flex-col gap-1 pl-6 bg-white">
                       <button
                         onClick={() => handleNavigation('/creator/search')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"
@@ -292,15 +292,15 @@ export function CreatorNavigation({ user, onLogout }: CreatorNavigationProps) {
                 </AccordionItem>
 
                 {/* Settings Accordion */}
-                <AccordionItem value="settings" className="border-b">
-                  <AccordionTrigger className="hover:no-underline">
+                <AccordionItem value="settings" className="border-b bg-white">
+                  <AccordionTrigger className="hover:no-underline bg-white">
                     <div className="flex items-center gap-2">
                       <Settings className="w-4 h-4" />
                       <span>Settings</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-col gap-1 pl-6">
+                  <AccordionContent className="bg-white">
+                    <div className="flex flex-col gap-1 pl-6 bg-white">
                       <button
                         onClick={() => handleNavigation('/creator/settings')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-purple-600 transition-colors"

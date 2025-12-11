@@ -455,21 +455,21 @@ export function EnhancedNavigationShadcn({
                   <Menu className="w-6 h-6" />
                 </button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-80 p-0">
-                <SheetHeader className="px-6 py-4 border-b">
+              <SheetContent side="left" className="w-80 p-0 bg-white">
+                <SheetHeader className="px-6 py-4 border-b bg-white">
                   <SheetTitle className={`text-xl font-bold text-${themeColor}-600`}>Menu</SheetTitle>
                 </SheetHeader>
-                <div className="px-4 py-4">
+                <div className="px-4 py-4 bg-white">
                   <Accordion type="single" collapsible className="w-full">
                     {/* Dashboard Accordion */}
-                    <AccordionItem value="dashboard" className="border-b">
-                      <AccordionTrigger className="hover:no-underline">
+                    <AccordionItem value="dashboard" className="border-b bg-white">
+                      <AccordionTrigger className="hover:no-underline bg-white">
                         <div className="flex items-center gap-2">
                           <Home className="w-4 h-4" />
                           <span>Dashboard</span>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent>
+                      <AccordionContent className="bg-white">
                         <div className="flex flex-col gap-1 pl-6">
                           {dashboardMenuItems[userType].map((item) => (
                             <button
@@ -486,14 +486,14 @@ export function EnhancedNavigationShadcn({
                     </AccordionItem>
 
                     {/* Browse Accordion */}
-                    <AccordionItem value="browse" className="border-b">
-                      <AccordionTrigger className="hover:no-underline">
+                    <AccordionItem value="browse" className="border-b bg-white">
+                      <AccordionTrigger className="hover:no-underline bg-white">
                         <div className="flex items-center gap-2">
                           <Globe className="w-4 h-4" />
                           <span>Browse</span>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent>
+                      <AccordionContent className="bg-white">
                         <div className="flex flex-col gap-1 pl-6">
                           {browseMenuItems[userType].map((item) => (
                             <button
@@ -510,14 +510,14 @@ export function EnhancedNavigationShadcn({
                     </AccordionItem>
 
                     {/* Projects Accordion */}
-                    <AccordionItem value="projects" className="border-b">
-                      <AccordionTrigger className="hover:no-underline">
+                    <AccordionItem value="projects" className="border-b bg-white">
+                      <AccordionTrigger className="hover:no-underline bg-white">
                         <div className="flex items-center gap-2">
                           <Briefcase className="w-4 h-4" />
                           <span>Projects</span>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent>
+                      <AccordionContent className="bg-white">
                         <div className="flex flex-col gap-1 pl-6">
                           {projectMenuItems[userType].map((item) => (
                             <button
@@ -534,14 +534,14 @@ export function EnhancedNavigationShadcn({
                     </AccordionItem>
 
                     {/* Team Accordion */}
-                    <AccordionItem value="team" className="border-b">
-                      <AccordionTrigger className="hover:no-underline">
+                    <AccordionItem value="team" className="border-b bg-white">
+                      <AccordionTrigger className="hover:no-underline bg-white">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4" />
                           <span>Team</span>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent>
+                      <AccordionContent className="bg-white">
                         <div className="flex flex-col gap-1 pl-6">
                           {teamMenuItems[userType].map((item) => (
                             <button
@@ -558,14 +558,14 @@ export function EnhancedNavigationShadcn({
                     </AccordionItem>
 
                     {/* Search Accordion */}
-                    <AccordionItem value="search" className="border-b">
-                      <AccordionTrigger className="hover:no-underline">
+                    <AccordionItem value="search" className="border-b bg-white">
+                      <AccordionTrigger className="hover:no-underline bg-white">
                         <div className="flex items-center gap-2">
                           <Search className="w-4 h-4" />
                           <span>Search</span>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent>
+                      <AccordionContent className="bg-white">
                         <div className="flex flex-col gap-1 pl-6">
                           {searchMenuItems.map((item) => (
                             <button
@@ -582,14 +582,14 @@ export function EnhancedNavigationShadcn({
                     </AccordionItem>
 
                     {/* Settings Accordion */}
-                    <AccordionItem value="settings" className="border-b">
-                      <AccordionTrigger className="hover:no-underline">
+                    <AccordionItem value="settings" className="border-b bg-white">
+                      <AccordionTrigger className="hover:no-underline bg-white">
                         <div className="flex items-center gap-2">
                           <Settings className="w-4 h-4" />
                           <span>Settings</span>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent>
+                      <AccordionContent className="bg-white">
                         <div className="flex flex-col gap-1 pl-6">
                           {settingsMenuItems[userType].map((item) => (
                             <button
