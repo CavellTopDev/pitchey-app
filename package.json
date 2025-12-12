@@ -6,7 +6,15 @@
     "deploy": "wrangler deploy --env production",
     "deploy:local": "./deploy-cloudflare.sh",
     "dev": "wrangler dev",
-    "tail": "wrangler tail"
+    "tail": "wrangler tail",
+    "db:migrate": "deno run --allow-all src/db/migrate.ts",
+    "db:migrate:prod": "DENO_ENV=production deno run --allow-all src/db/migrate.ts",
+    "db:migrate:create": "deno run --allow-all src/db/create-migration.ts",
+    "db:migrate:status": "deno run --allow-all src/db/migrate.ts status",
+    "db:migrate:rollback": "deno run --allow-all src/db/migrate.ts rollback",
+    "db:seed:preview": "deno run --allow-all src/db/seed-preview.ts",
+    "db:health-check": "deno run --allow-all src/db/health-check.ts",
+    "test:e2e:smoke": "deno test --allow-all tests/e2e/smoke.test.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
