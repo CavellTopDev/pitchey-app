@@ -1,0 +1,194 @@
+name: Neon Database Preview Environments
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+jobs:
+  # Create or update preview branch
+  setup-preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create/Get Neon Branch
+        id: create-branch
+        uses: neondatabase/create-branch-action@v4
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          # Use PR number for unique branch name
+          branch_name: preview/pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run database migrations
+        run: |
+          echo "Running migrations on preview branch..."
+          npm run db:migrate
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.connection_string }}
+          
+      - name: Seed preview data (optional)
+        run: |
+          # Only seed if this is a new branch
+          if [ "${{ steps.create-branch.outputs.branch_created }}" = "true" ]; then
+            echo "Seeding preview database..."
+            npm run db:seed:preview || true
+          fi
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.connection_string }}
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend for preview
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: https://pitchey-pr-${{ github.event.pull_request.number }}.workers.dev
+          VITE_WS_URL: wss://pitchey-pr-${{ github.event.pull_request.number }}.workers.dev
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      
+      - name: Deploy preview to Cloudflare Pages
+        id: cloudflare
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: pitchey
+          directory: frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          deploymentName: pr-${{ github.event.pull_request.number }}
+          wranglerVersion: '3'
+        env:
+          VITE_API_URL: https://pitchey-pr-${{ github.event.pull_request.number }}.workers.dev
+          DATABASE_URL: ${{ steps.create-branch.outputs.connection_string }}
+          
+      - name: Deploy Worker preview
+        run: |
+          npm install -g wrangler
+          wrangler deploy --name pitchey-pr-${{ github.event.pull_request.number }} --env preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_URL: ${{ steps.create-branch.outputs.connection_string }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+      
+      - name: Comment PR with preview links
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.issue.number;
+            const neonBranch = 'preview/pr-' + prNumber;
+            const dbHost = '${{ steps.create-branch.outputs.host }}';
+            const previewUrl = 'https://pr-' + prNumber + '.pitchey.pages.dev';
+            const apiUrl = 'https://pitchey-pr-' + prNumber + '.workers.dev';
+            
+            const comment = `## 🚀 Preview Environment Ready!
+            
+            | Component | URL/Details |
+            |-----------|-------------|
+            | 🌐 **Frontend** | [${previewUrl}](${previewUrl}) |
+            | ⚡ **API** | [${apiUrl}](${apiUrl}) |
+            | 🗄️ **Database** | \`${neonBranch}\` |
+            | 🔌 **DB Host** | \`${dbHost}\` |
+            | 📊 **Status** | ✅ Ready |
+            
+            ### Test Accounts
+            - Creator: \`alex.creator@demo.com\` / \`Demo123\`
+            - Investor: \`sarah.investor@demo.com\` / \`Demo123\`
+            - Production: \`stellar.production@demo.com\` / \`Demo123\`
+            
+            ### Useful Commands
+            \`\`\`bash
+            # Connect to preview database
+            psql "${{ steps.create-branch.outputs.connection_string }}"
+            
+            # View logs
+            wrangler tail --name pitchey-pr-${prNumber}
+            \`\`\`
+            
+            ---
+            *This preview will be automatically deleted when the PR is merged or closed.*`;
+            
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Preview Environment Ready')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: comment,
+              });
+            }
+  
+  # Cleanup preview branch when PR is closed
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    
+    steps:
+      - name: Delete Neon Branch
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: preview/pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+          
+      - name: Delete Cloudflare Worker preview
+        run: |
+          npm install -g wrangler
+          wrangler delete --name pitchey-pr-${{ github.event.pull_request.number }} || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          
+      - name: Comment PR about cleanup
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🧹 Preview environment has been cleaned up.',
+            });
