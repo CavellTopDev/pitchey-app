@@ -38,6 +38,10 @@ jobs:
           
       - name: Install dependencies
         run: npm ci
+
+      - name: Create Deno config for node_modules compatibility
+        run: |
+          echo '{"nodeModulesDir": "auto"}' > deno.json
         
       - name: Run database migrations
         run: |
