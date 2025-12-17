@@ -1,7 +1,5 @@
-// NDA Service with complete Drizzle ORM integration and Email Notifications
+// NDA Service with raw SQL queries and Email Notifications
 import { db } from '../db/client.ts';
-import { ndas, ndaRequests, pitches, users, notifications } from '../db/schema.ts';
-import { eq, and, or, desc, sql } from 'npm:drizzle-orm@0.35.3';
 import { z } from 'npm:zod@3.22.4';
 import { sendNDARequestEmail, sendNDAResponseEmail } from './email/index.ts';
 
@@ -37,66 +35,82 @@ export class NDAService {
       console.log("NDA Request data validated:", validatedData);
       
       // Get the pitch owner
-      const pitch = await db.select().from(pitches)
-        .where(eq(pitches.id, validatedData.pitchId))
-        .limit(1);
+      const pitchResult = await db.query(
+        'SELECT id, user_id, title FROM pitches WHERE id = $1 LIMIT 1',
+        [validatedData.pitchId]
+      );
       
-      if (!pitch || pitch.length === 0) {
+      if (!pitchResult.rows || pitchResult.rows.length === 0) {
         throw new Error('Pitch not found');
       }
       
-      // Check if an active request already exists
-      const existingRequest = await db.select().from(ndaRequests)
-        .where(and(
-          eq(ndaRequests.pitchId, validatedData.pitchId),
-          eq(ndaRequests.requesterId, validatedData.requesterId),
-          eq(ndaRequests.status, 'pending')
-        ))
-        .limit(1);
+      const pitch = pitchResult.rows[0];
       
-      if (existingRequest.length > 0) {
+      // Check if an active request already exists
+      const existingRequestResult = await db.query(
+        'SELECT id FROM nda_requests WHERE pitch_id = $1 AND requester_id = $2 AND status = $3 LIMIT 1',
+        [validatedData.pitchId, validatedData.requesterId, 'pending']
+      );
+      
+      if (existingRequestResult.rows && existingRequestResult.rows.length > 0) {
         throw new Error('An NDA request is already pending for this pitch');
       }
       
       // Create new NDA request
-      const [newRequest] = await db.insert(ndaRequests).values({
-        pitchId: validatedData.pitchId,
-        requesterId: validatedData.requesterId,
-        ownerId: pitch[0].userId,
-        ndaType: validatedData.ndaType,
-        requestMessage: validatedData.requestMessage,
-        companyInfo: validatedData.companyInfo,
-        status: 'pending',
-        requestedAt: new Date(),
-      }).returning();
+      const newRequestResult = await db.query(
+        `INSERT INTO nda_requests (pitch_id, requester_id, owner_id, nda_type, request_message, company_info, status, requested_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          validatedData.pitchId,
+          validatedData.requesterId,
+          pitch.user_id,
+          validatedData.ndaType,
+          validatedData.requestMessage,
+          validatedData.companyInfo ? JSON.stringify(validatedData.companyInfo) : null,
+          'pending',
+          new Date()
+        ]
+      );
+      
+      const newRequest = newRequestResult.rows[0];
       
       // Create notification for pitch owner
-      await db.insert(notifications).values({
-        userId: pitch[0].userId,
-        type: 'nda_request',
-        title: 'New NDA Request',
-        message: `You have a new NDA request for "${pitch[0].title}"`,
-        relatedPitchId: validatedData.pitchId,
-        relatedUserId: validatedData.requesterId,
-        relatedNdaRequestId: newRequest.id,
-        actionUrl: `/creator/nda-requests/${newRequest.id}`,
-      });
+      await db.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          pitch.user_id,
+          'nda_request',
+          'New NDA Request',
+          `You have a new NDA request for "${pitch.title}"`,
+          validatedData.pitchId,
+          validatedData.requesterId,
+          newRequest.id,
+          `/creator/nda-requests/${newRequest.id}`
+        ]
+      );
       
       // Send email notification to pitch owner
       try {
-        const pitchOwner = await db.select().from(users)
-          .where(eq(users.id, pitch[0].userId))
-          .limit(1);
+        const pitchOwnerResult = await db.query(
+          'SELECT id, email, first_name, username FROM users WHERE id = $1 LIMIT 1',
+          [pitch.user_id]
+        );
         
-        const requesterInfo = await db.select().from(users)
-          .where(eq(users.id, validatedData.requesterId))
-          .limit(1);
+        const requesterInfoResult = await db.query(
+          'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
+          [validatedData.requesterId]
+        );
         
-        if (pitchOwner[0] && requesterInfo[0]) {
-          await sendNDARequestEmail(pitchOwner[0].email, {
-            recipientName: pitchOwner[0].firstName || pitchOwner[0].username,
-            senderName: requesterInfo[0].firstName ? `${requesterInfo[0].firstName} ${requesterInfo[0].lastName || ''}`.trim() : requesterInfo[0].username,
-            pitchTitle: pitch[0].title,
+        if (pitchOwnerResult.rows[0] && requesterInfoResult.rows[0]) {
+          const pitchOwner = pitchOwnerResult.rows[0];
+          const requesterInfo = requesterInfoResult.rows[0];
+          
+          await sendNDARequestEmail(pitchOwner.email, {
+            recipientName: pitchOwner.first_name || pitchOwner.username,
+            senderName: requesterInfo.first_name ? `${requesterInfo.first_name} ${requesterInfo.last_name || ''}`.trim() : requesterInfo.username,
+            pitchTitle: pitch.title,
             requestMessage: validatedData.requestMessage,
             actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/creator/nda-requests/${newRequest.id}`,
             unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
@@ -128,16 +142,56 @@ export class NDAService {
   // Get NDA requests for a user (incoming)
   static async getIncomingRequests(userId: number) {
     try {
-      const requests = await db.select({
-        request: ndaRequests,
-        pitch: pitches,
-        requester: users,
-      })
-      .from(ndaRequests)
-      .innerJoin(pitches, eq(ndaRequests.pitchId, pitches.id))
-      .innerJoin(users, eq(ndaRequests.requesterId, users.id))
-      .where(eq(ndaRequests.ownerId, userId))
-      .orderBy(desc(ndaRequests.requestedAt));
+      const result = await db.query(
+        `SELECT 
+           nr.id, nr.pitch_id, nr.requester_id, nr.owner_id, nr.nda_type, 
+           nr.request_message, nr.company_info, nr.status, nr.requested_at,
+           nr.responded_at, nr.rejection_reason,
+           p.id as pitch_id, p.title as pitch_title, p.logline as pitch_logline,
+           p.genre as pitch_genre, p.budget as pitch_budget, p.user_id as pitch_user_id,
+           u.id as requester_id, u.email as requester_email, u.username as requester_username,
+           u.first_name as requester_first_name, u.last_name as requester_last_name,
+           u.user_type as requester_user_type
+         FROM nda_requests nr
+         INNER JOIN pitches p ON nr.pitch_id = p.id
+         INNER JOIN users u ON nr.requester_id = u.id
+         WHERE nr.owner_id = $1
+         ORDER BY nr.requested_at DESC`,
+        [userId]
+      );
+      
+      // Transform the results to match the expected structure
+      const requests = result.rows.map(row => ({
+        request: {
+          id: row.id,
+          pitchId: row.pitch_id,
+          requesterId: row.requester_id,
+          ownerId: row.owner_id,
+          ndaType: row.nda_type,
+          requestMessage: row.request_message,
+          companyInfo: row.company_info ? JSON.parse(row.company_info) : null,
+          status: row.status,
+          requestedAt: row.requested_at,
+          respondedAt: row.responded_at,
+          rejectionReason: row.rejection_reason
+        },
+        pitch: {
+          id: row.pitch_id,
+          title: row.pitch_title,
+          logline: row.pitch_logline,
+          genre: row.pitch_genre,
+          budget: row.pitch_budget,
+          userId: row.pitch_user_id
+        },
+        requester: {
+          id: row.requester_id,
+          email: row.requester_email,
+          username: row.requester_username,
+          firstName: row.requester_first_name,
+          lastName: row.requester_last_name,
+          userType: row.requester_user_type
+        }
+      }));
       
       return requests;
     } catch (error) {
@@ -149,16 +203,56 @@ export class NDAService {
   // Get NDA requests by a user (outgoing)
   static async getOutgoingRequests(userId: number) {
     try {
-      const requests = await db.select({
-        request: ndaRequests,
-        pitch: pitches,
-        owner: users,
-      })
-      .from(ndaRequests)
-      .innerJoin(pitches, eq(ndaRequests.pitchId, pitches.id))
-      .innerJoin(users, eq(ndaRequests.ownerId, users.id))
-      .where(eq(ndaRequests.requesterId, userId))
-      .orderBy(desc(ndaRequests.requestedAt));
+      const result = await db.query(
+        `SELECT 
+           nr.id, nr.pitch_id, nr.requester_id, nr.owner_id, nr.nda_type, 
+           nr.request_message, nr.company_info, nr.status, nr.requested_at,
+           nr.responded_at, nr.rejection_reason,
+           p.id as pitch_id, p.title as pitch_title, p.logline as pitch_logline,
+           p.genre as pitch_genre, p.budget as pitch_budget, p.user_id as pitch_user_id,
+           u.id as owner_id, u.email as owner_email, u.username as owner_username,
+           u.first_name as owner_first_name, u.last_name as owner_last_name,
+           u.user_type as owner_user_type
+         FROM nda_requests nr
+         INNER JOIN pitches p ON nr.pitch_id = p.id
+         INNER JOIN users u ON nr.owner_id = u.id
+         WHERE nr.requester_id = $1
+         ORDER BY nr.requested_at DESC`,
+        [userId]
+      );
+      
+      // Transform the results to match the expected structure
+      const requests = result.rows.map(row => ({
+        request: {
+          id: row.id,
+          pitchId: row.pitch_id,
+          requesterId: row.requester_id,
+          ownerId: row.owner_id,
+          ndaType: row.nda_type,
+          requestMessage: row.request_message,
+          companyInfo: row.company_info ? JSON.parse(row.company_info) : null,
+          status: row.status,
+          requestedAt: row.requested_at,
+          respondedAt: row.responded_at,
+          rejectionReason: row.rejection_reason
+        },
+        pitch: {
+          id: row.pitch_id,
+          title: row.pitch_title,
+          logline: row.pitch_logline,
+          genre: row.pitch_genre,
+          budget: row.pitch_budget,
+          userId: row.pitch_user_id
+        },
+        owner: {
+          id: row.owner_id,
+          email: row.owner_email,
+          username: row.owner_username,
+          firstName: row.owner_first_name,
+          lastName: row.owner_last_name,
+          userType: row.owner_user_type
+        }
+      }));
       
       return requests;
     } catch (error) {
@@ -171,73 +265,89 @@ export class NDAService {
   static async approveRequest(requestId: number, ownerId: number) {
     try {
       // Verify ownership
-      const [request] = await db.select().from(ndaRequests)
-        .where(and(
-          eq(ndaRequests.id, requestId),
-          eq(ndaRequests.ownerId, ownerId),
-          eq(ndaRequests.status, 'pending')
-        ))
-        .limit(1);
+      const requestResult = await db.query(
+        'SELECT * FROM nda_requests WHERE id = $1 AND owner_id = $2 AND status = $3 LIMIT 1',
+        [requestId, ownerId, 'pending']
+      );
       
-      if (!request) {
+      if (!requestResult.rows || requestResult.rows.length === 0) {
         throw new Error('NDA request not found or already processed');
       }
       
+      const request = requestResult.rows[0];
+      
       // Update request status
-      await db.update(ndaRequests)
-        .set({
-          status: 'approved',
-          respondedAt: new Date(),
-        })
-        .where(eq(ndaRequests.id, requestId));
+      await db.query(
+        'UPDATE nda_requests SET status = $1, responded_at = $2 WHERE id = $3',
+        ['approved', new Date(), requestId]
+      );
       
       // Create NDA record
-      const [nda] = await db.insert(ndas).values({
-        pitchId: request.pitchId,
-        signerId: request.requesterId,
-        status: 'signed',
-        signedAt: new Date(),
-        documentUrl: `/api/nda/documents/${request.id}/download`, // Will be updated with real ID after creation
-      }).returning();
+      const ndaResult = await db.query(
+        `INSERT INTO ndas (pitch_id, signer_id, status, signed_at, document_url)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [
+          request.pitch_id,
+          request.requester_id,
+          'signed',
+          new Date(),
+          `/api/nda/documents/${requestId}/download`
+        ]
+      );
+      
+      const nda = ndaResult.rows[0];
 
       // Update with correct document URL
-      await db.update(ndas)
-        .set({ documentUrl: `/api/nda/documents/${nda.id}/download` })
-        .where(eq(ndas.id, nda.id));
+      await db.query(
+        'UPDATE ndas SET document_url = $1 WHERE id = $2',
+        [`/api/nda/documents/${nda.id}/download`, nda.id]
+      );
       
       // Create notification for requester
-      await db.insert(notifications).values({
-        userId: request.requesterId,
-        type: 'nda_approved',
-        title: 'NDA Request Approved',
-        message: 'Your NDA request has been approved',
-        relatedPitchId: request.pitchId,
-        relatedUserId: ownerId,
-        relatedNdaRequestId: requestId,
-        actionUrl: `/pitch/${request.pitchId}`,
-      });
+      await db.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          request.requester_id,
+          'nda_approved',
+          'NDA Request Approved',
+          'Your NDA request has been approved',
+          request.pitch_id,
+          ownerId,
+          requestId,
+          `/pitch/${request.pitch_id}`
+        ]
+      );
       
       // Send email notification to requester
       try {
-        const requesterInfo = await db.select().from(users)
-          .where(eq(users.id, request.requesterId))
-          .limit(1);
+        const requesterInfoResult = await db.query(
+          'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
+          [request.requester_id]
+        );
         
-        const ownerInfo = await db.select().from(users)
-          .where(eq(users.id, ownerId))
-          .limit(1);
+        const ownerInfoResult = await db.query(
+          'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
+          [ownerId]
+        );
         
-        const pitchInfo = await db.select().from(pitches)
-          .where(eq(pitches.id, request.pitchId))
-          .limit(1);
+        const pitchInfoResult = await db.query(
+          'SELECT id, title FROM pitches WHERE id = $1 LIMIT 1',
+          [request.pitch_id]
+        );
         
-        if (requesterInfo[0] && ownerInfo[0] && pitchInfo[0]) {
-          await sendNDAResponseEmail(requesterInfo[0].email, {
-            recipientName: requesterInfo[0].firstName || requesterInfo[0].username,
-            senderName: ownerInfo[0].firstName ? `${ownerInfo[0].firstName} ${ownerInfo[0].lastName || ''}`.trim() : ownerInfo[0].username,
-            pitchTitle: pitchInfo[0].title,
+        if (requesterInfoResult.rows[0] && ownerInfoResult.rows[0] && pitchInfoResult.rows[0]) {
+          const requesterInfo = requesterInfoResult.rows[0];
+          const ownerInfo = ownerInfoResult.rows[0];
+          const pitchInfo = pitchInfoResult.rows[0];
+          
+          await sendNDAResponseEmail(requesterInfo.email, {
+            recipientName: requesterInfo.first_name || requesterInfo.username,
+            senderName: ownerInfo.first_name ? `${ownerInfo.first_name} ${ownerInfo.last_name || ''}`.trim() : ownerInfo.username,
+            pitchTitle: pitchInfo.title,
             approved: true,
-            actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pitch/${request.pitchId}`,
+            actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pitch/${request.pitch_id}`,
             unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
           });
         }
@@ -247,11 +357,10 @@ export class NDAService {
       }
       
       // Increment NDA count on pitch
-      await db.update(pitches)
-        .set({
-          ndaCount: sql`${pitches.ndaCount} + 1`,
-        })
-        .where(eq(pitches.id, request.pitchId));
+      await db.query(
+        'UPDATE pitches SET nda_count = nda_count + 1 WHERE id = $1',
+        [request.pitch_id]
+      );
       
       return nda;
     } catch (error) {
@@ -264,57 +373,64 @@ export class NDAService {
   static async rejectRequest(requestId: number, ownerId: number, rejectionReason?: string) {
     try {
       // Verify ownership
-      const [request] = await db.select().from(ndaRequests)
-        .where(and(
-          eq(ndaRequests.id, requestId),
-          eq(ndaRequests.ownerId, ownerId),
-          eq(ndaRequests.status, 'pending')
-        ))
-        .limit(1);
+      const requestResult = await db.query(
+        'SELECT * FROM nda_requests WHERE id = $1 AND owner_id = $2 AND status = $3 LIMIT 1',
+        [requestId, ownerId, 'pending']
+      );
       
-      if (!request) {
+      if (!requestResult.rows || requestResult.rows.length === 0) {
         throw new Error('NDA request not found or already processed');
       }
       
+      const request = requestResult.rows[0];
+      
       // Update request status
-      await db.update(ndaRequests)
-        .set({
-          status: 'rejected',
-          rejectionReason: rejectionReason,
-          respondedAt: new Date(),
-        })
-        .where(eq(ndaRequests.id, requestId));
+      await db.query(
+        'UPDATE nda_requests SET status = $1, rejection_reason = $2, responded_at = $3 WHERE id = $4',
+        ['rejected', rejectionReason, new Date(), requestId]
+      );
       
       // Create notification for requester
-      await db.insert(notifications).values({
-        userId: request.requesterId,
-        type: 'nda_rejected',
-        title: 'NDA Request Rejected',
-        message: rejectionReason || 'Your NDA request has been rejected',
-        relatedPitchId: request.pitchId,
-        relatedUserId: ownerId,
-        relatedNdaRequestId: requestId,
-      });
+      await db.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          request.requester_id,
+          'nda_rejected',
+          'NDA Request Rejected',
+          rejectionReason || 'Your NDA request has been rejected',
+          request.pitch_id,
+          ownerId,
+          requestId
+        ]
+      );
       
       // Send email notification to requester
       try {
-        const requesterInfo = await db.select().from(users)
-          .where(eq(users.id, request.requesterId))
-          .limit(1);
+        const requesterInfoResult = await db.query(
+          'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
+          [request.requester_id]
+        );
         
-        const ownerInfo = await db.select().from(users)
-          .where(eq(users.id, ownerId))
-          .limit(1);
+        const ownerInfoResult = await db.query(
+          'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
+          [ownerId]
+        );
         
-        const pitchInfo = await db.select().from(pitches)
-          .where(eq(pitches.id, request.pitchId))
-          .limit(1);
+        const pitchInfoResult = await db.query(
+          'SELECT id, title FROM pitches WHERE id = $1 LIMIT 1',
+          [request.pitch_id]
+        );
         
-        if (requesterInfo[0] && ownerInfo[0] && pitchInfo[0]) {
-          await sendNDAResponseEmail(requesterInfo[0].email, {
-            recipientName: requesterInfo[0].firstName || requesterInfo[0].username,
-            senderName: ownerInfo[0].firstName ? `${ownerInfo[0].firstName} ${ownerInfo[0].lastName || ''}`.trim() : ownerInfo[0].username,
-            pitchTitle: pitchInfo[0].title,
+        if (requesterInfoResult.rows[0] && ownerInfoResult.rows[0] && pitchInfoResult.rows[0]) {
+          const requesterInfo = requesterInfoResult.rows[0];
+          const ownerInfo = ownerInfoResult.rows[0];
+          const pitchInfo = pitchInfoResult.rows[0];
+          
+          await sendNDAResponseEmail(requesterInfo.email, {
+            recipientName: requesterInfo.first_name || requesterInfo.username,
+            senderName: ownerInfo.first_name ? `${ownerInfo.first_name} ${ownerInfo.last_name || ''}`.trim() : ownerInfo.username,
+            pitchTitle: pitchInfo.title,
             approved: false,
             reason: rejectionReason,
             actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/marketplace`,
@@ -336,15 +452,12 @@ export class NDAService {
   // Check if user has signed NDA for a pitch
   static async hasSignedNDA(userId: number, pitchId: number) {
     try {
-      const [nda] = await db.select().from(ndas)
-        .where(and(
-          eq(ndas.pitchId, pitchId),
-          eq(ndas.signerId, userId),
-          eq(ndas.accessGranted, true)
-        ))
-        .limit(1);
+      const result = await db.query(
+        'SELECT id FROM ndas WHERE pitch_id = $1 AND signer_id = $2 AND access_granted = $3 LIMIT 1',
+        [pitchId, userId, true]
+      );
       
-      return !!nda;
+      return result.rows && result.rows.length > 0;
     } catch (error) {
       console.error('Error checking NDA status:', error);
       return false;
@@ -354,14 +467,40 @@ export class NDAService {
   // Get all NDAs signed by a user
   static async getUserSignedNDAs(userId: number) {
     try {
-      const ndaRecords = await db.select({
-        nda: ndas,
-        pitch: pitches,
-      })
-      .from(ndas)
-      .innerJoin(pitches, eq(ndas.pitchId, pitches.id))
-      .where(eq(ndas.signerId, userId))
-      .orderBy(desc(ndas.signedAt));
+      const result = await db.query(
+        `SELECT 
+           n.id, n.pitch_id, n.signer_id, n.status, n.signed_at, n.document_url,
+           n.access_granted, n.access_revoked_at,
+           p.id as pitch_id, p.title as pitch_title, p.logline as pitch_logline,
+           p.genre as pitch_genre, p.budget as pitch_budget, p.user_id as pitch_user_id
+         FROM ndas n
+         INNER JOIN pitches p ON n.pitch_id = p.id
+         WHERE n.signer_id = $1
+         ORDER BY n.signed_at DESC`,
+        [userId]
+      );
+      
+      // Transform the results to match the expected structure
+      const ndaRecords = result.rows.map(row => ({
+        nda: {
+          id: row.id,
+          pitchId: row.pitch_id,
+          signerId: row.signer_id,
+          status: row.status,
+          signedAt: row.signed_at,
+          documentUrl: row.document_url,
+          accessGranted: row.access_granted,
+          accessRevokedAt: row.access_revoked_at
+        },
+        pitch: {
+          id: row.pitch_id,
+          title: row.pitch_title,
+          logline: row.pitch_logline,
+          genre: row.pitch_genre,
+          budget: row.pitch_budget,
+          userId: row.pitch_user_id
+        }
+      }));
       
       return ndaRecords;
     } catch (error) {
@@ -374,25 +513,50 @@ export class NDAService {
   static async getPitchNDAs(pitchId: number, ownerId: number) {
     try {
       // Verify ownership
-      const [pitch] = await db.select().from(pitches)
-        .where(and(
-          eq(pitches.id, pitchId),
-          eq(pitches.userId, ownerId)
-        ))
-        .limit(1);
+      const pitchResult = await db.query(
+        'SELECT id FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
+        [pitchId, ownerId]
+      );
       
-      if (!pitch) {
+      if (!pitchResult.rows || pitchResult.rows.length === 0) {
         throw new Error('Pitch not found or unauthorized');
       }
       
-      const ndaRecords = await db.select({
-        nda: ndas,
-        signer: users,
-      })
-      .from(ndas)
-      .innerJoin(users, eq(ndas.signerId, users.id))
-      .where(eq(ndas.pitchId, pitchId))
-      .orderBy(desc(ndas.signedAt));
+      const result = await db.query(
+        `SELECT 
+           n.id, n.pitch_id, n.signer_id, n.status, n.signed_at, n.document_url,
+           n.access_granted, n.access_revoked_at,
+           u.id as signer_id, u.email as signer_email, u.username as signer_username,
+           u.first_name as signer_first_name, u.last_name as signer_last_name,
+           u.user_type as signer_user_type
+         FROM ndas n
+         INNER JOIN users u ON n.signer_id = u.id
+         WHERE n.pitch_id = $1
+         ORDER BY n.signed_at DESC`,
+        [pitchId]
+      );
+      
+      // Transform the results to match the expected structure
+      const ndaRecords = result.rows.map(row => ({
+        nda: {
+          id: row.id,
+          pitchId: row.pitch_id,
+          signerId: row.signer_id,
+          status: row.status,
+          signedAt: row.signed_at,
+          documentUrl: row.document_url,
+          accessGranted: row.access_granted,
+          accessRevokedAt: row.access_revoked_at
+        },
+        signer: {
+          id: row.signer_id,
+          email: row.signer_email,
+          username: row.signer_username,
+          firstName: row.signer_first_name,
+          lastName: row.signer_last_name,
+          userType: row.signer_user_type
+        }
+      }));
       
       return ndaRecords;
     } catch (error) {
@@ -405,39 +569,42 @@ export class NDAService {
   static async revokeAccess(ndaId: number, ownerId: number) {
     try {
       // Get NDA details
-      const [nda] = await db.select({
-        nda: ndas,
-        pitch: pitches,
-      })
-      .from(ndas)
-      .innerJoin(pitches, eq(ndas.pitchId, pitches.id))
-      .where(and(
-        eq(ndas.id, ndaId),
-        eq(pitches.userId, ownerId)
-      ))
-      .limit(1);
+      const result = await db.query(
+        `SELECT 
+           n.id, n.pitch_id, n.signer_id, n.status, n.signed_at,
+           p.id as pitch_id, p.title as pitch_title, p.user_id as pitch_user_id
+         FROM ndas n
+         INNER JOIN pitches p ON n.pitch_id = p.id
+         WHERE n.id = $1 AND p.user_id = $2
+         LIMIT 1`,
+        [ndaId, ownerId]
+      );
       
-      if (!nda) {
+      if (!result.rows || result.rows.length === 0) {
         throw new Error('NDA not found or unauthorized');
       }
       
+      const nda = result.rows[0];
+      
       // Revoke access
-      await db.update(ndas)
-        .set({
-          accessGranted: false,
-          accessRevokedAt: new Date(),
-        })
-        .where(eq(ndas.id, ndaId));
+      await db.query(
+        'UPDATE ndas SET access_granted = $1, access_revoked_at = $2 WHERE id = $3',
+        [false, new Date(), ndaId]
+      );
       
       // Create notification for signer
-      await db.insert(notifications).values({
-        userId: nda.nda.signerId,
-        type: 'nda_revoked',
-        title: 'NDA Access Revoked',
-        message: `Access to "${nda.pitch.title}" has been revoked`,
-        relatedPitchId: nda.pitch.id,
-        relatedUserId: ownerId,
-      });
+      await db.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          nda.signer_id,
+          'nda_revoked',
+          'NDA Access Revoked',
+          `Access to "${nda.pitch_title}" has been revoked`,
+          nda.pitch_id,
+          ownerId
+        ]
+      );
       
       return { success: true, message: 'NDA access revoked' };
     } catch (error) {
@@ -452,54 +619,66 @@ export class NDAService {
       const validatedData = signNDASchema.parse(data);
       
       // Check if already signed
-      const existing = await db.select().from(ndas)
-        .where(and(
-          eq(ndas.pitchId, validatedData.pitchId),
-          eq(ndas.signerId, validatedData.signerId)
-        ))
-        .limit(1);
+      const existingResult = await db.query(
+        'SELECT id FROM ndas WHERE pitch_id = $1 AND signer_id = $2 LIMIT 1',
+        [validatedData.pitchId, validatedData.signerId]
+      );
       
-      if (existing.length > 0) {
+      if (existingResult.rows && existingResult.rows.length > 0) {
         throw new Error('NDA already signed for this pitch');
       }
       
       // Create NDA record
-      const [nda] = await db.insert(ndas).values({
-        pitchId: validatedData.pitchId,
-        signerId: validatedData.signerId,
-        status: 'signed',
-        signedAt: new Date(),
-        documentUrl: validatedData.customNdaUrl || `/api/nda/documents/temp/download`, // Will be updated after creation
-      }).returning();
+      const ndaResult = await db.query(
+        `INSERT INTO ndas (pitch_id, signer_id, status, signed_at, document_url)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [
+          validatedData.pitchId,
+          validatedData.signerId,
+          'signed',
+          new Date(),
+          validatedData.customNdaUrl || `/api/nda/documents/temp/download`
+        ]
+      );
+      
+      const nda = ndaResult.rows[0];
 
       // Update with correct document URL if not custom
       if (!validatedData.customNdaUrl) {
-        await db.update(ndas)
-          .set({ documentUrl: `/api/nda/documents/${nda.id}/download` })
-          .where(eq(ndas.id, nda.id));
+        await db.query(
+          'UPDATE ndas SET document_url = $1 WHERE id = $2',
+          [`/api/nda/documents/${nda.id}/download`, nda.id]
+        );
       }
       
       // Increment NDA count
-      await db.update(pitches)
-        .set({
-          ndaCount: sql`${pitches.ndaCount} + 1`,
-        })
-        .where(eq(pitches.id, validatedData.pitchId));
+      await db.query(
+        'UPDATE pitches SET nda_count = nda_count + 1 WHERE id = $1',
+        [validatedData.pitchId]
+      );
       
       // Get pitch details for notification
-      const [pitch] = await db.select().from(pitches)
-        .where(eq(pitches.id, validatedData.pitchId))
-        .limit(1);
+      const pitchResult = await db.query(
+        'SELECT id, user_id, title FROM pitches WHERE id = $1 LIMIT 1',
+        [validatedData.pitchId]
+      );
+      
+      const pitch = pitchResult.rows[0];
       
       // Notify pitch owner
-      await db.insert(notifications).values({
-        userId: pitch.userId,
-        type: 'nda_signed',
-        title: 'New NDA Signed',
-        message: `Someone signed an NDA for "${pitch.title}"`,
-        relatedPitchId: validatedData.pitchId,
-        relatedUserId: validatedData.signerId,
-      });
+      await db.query(
+        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          pitch.user_id,
+          'nda_signed',
+          'New NDA Signed',
+          `Someone signed an NDA for "${pitch.title}"`,
+          validatedData.pitchId,
+          validatedData.signerId
+        ]
+      );
       
       return nda;
     } catch (error) {
@@ -511,20 +690,27 @@ export class NDAService {
   // Get NDA statistics for a user
   static async getUserNDAStats(userId: number) {
     try {
-      const [stats] = await db.select({
-        totalRequests: sql<number>`COUNT(DISTINCT ${ndaRequests.id})`,
-        pendingRequests: sql<number>`COUNT(DISTINCT CASE WHEN ${ndaRequests.status} = 'pending' THEN ${ndaRequests.id} END)`,
-        approvedRequests: sql<number>`COUNT(DISTINCT CASE WHEN ${ndaRequests.status} = 'approved' THEN ${ndaRequests.id} END)`,
-        rejectedRequests: sql<number>`COUNT(DISTINCT CASE WHEN ${ndaRequests.status} = 'rejected' THEN ${ndaRequests.id} END)`,
-        signedNDAs: sql<number>`(SELECT COUNT(*) FROM ${ndas} WHERE ${ndas.signerId} = ${userId})`,
-      })
-      .from(ndaRequests)
-      .where(or(
-        eq(ndaRequests.requesterId, userId),
-        eq(ndaRequests.ownerId, userId)
-      ));
+      const result = await db.query(
+        `SELECT 
+           COUNT(DISTINCT nr.id) as total_requests,
+           COUNT(DISTINCT CASE WHEN nr.status = 'pending' THEN nr.id END) as pending_requests,
+           COUNT(DISTINCT CASE WHEN nr.status = 'approved' THEN nr.id END) as approved_requests,
+           COUNT(DISTINCT CASE WHEN nr.status = 'rejected' THEN nr.id END) as rejected_requests,
+           (SELECT COUNT(*) FROM ndas WHERE signer_id = $1) as signed_ndas
+         FROM nda_requests nr
+         WHERE nr.requester_id = $1 OR nr.owner_id = $1`,
+        [userId]
+      );
       
-      return stats;
+      const row = result.rows[0];
+      
+      return {
+        totalRequests: parseInt(row.total_requests) || 0,
+        pendingRequests: parseInt(row.pending_requests) || 0,
+        approvedRequests: parseInt(row.approved_requests) || 0,
+        rejectedRequests: parseInt(row.rejected_requests) || 0,
+        signedNDAs: parseInt(row.signed_ndas) || 0
+      };
     } catch (error) {
       console.error('Error fetching NDA stats:', error);
       throw error;

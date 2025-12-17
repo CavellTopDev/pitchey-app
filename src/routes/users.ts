@@ -6,8 +6,6 @@ import { RouteHandler } from "../router/types.ts";
 import { getCorsHeaders, getSecurityHeaders, successResponse, errorResponse } from "../utils/response.ts";
 import { telemetry } from "../utils/telemetry.ts";
 import { db } from "../db/client.ts";
-import { users, follows } from "../db/schema.ts";
-import { eq, and, sql } from "npm:drizzle-orm@0.35.3";
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { validateEnvironment } from "../utils/env-validation.ts";
 
@@ -41,29 +39,17 @@ export const getUserProfile: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
 
-    const userResults = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        first_name: users.firstName,
-        last_name: users.lastName,
-        user_type: users.user_type,
-        bio: users.bio,
-        location: users.location,
-        website: users.website,
-        avatar_url: users.avatar_url,
-        created_at: users.created_at,
-        company_name: users.companyName,
-        company_website: users.companyWebsite,
-      })
-      .from(users)
-            .where(eq(users.id, user.userId));
+    const userResults = await db.execute(`
+      SELECT id, email, first_name, last_name, user_type, bio, location, website, 
+             avatar_url, created_at, company_name, company_website
+      FROM users WHERE id = $1
+    `, [user.userId]);
 
-    if (userResults.length === 0) {
+    if (userResults.rows.length === 0) {
       return errorResponse("User not found", 404);
     }
 
-    return successResponse({ user: userResults[0] });
+    return successResponse({ user: userResults.rows[0] });
 
   } catch (error) {
     telemetry.logger.error("Get user profile error", error);
@@ -82,29 +68,33 @@ export const updateUserProfile: RouteHandler = async (request, url) => {
     }
 
     const updateData: any = {
-      firstName,
+      first_name: firstName,
     };
 
-    if (lastName !== undefined) updateData.lastName = lastName;
+    if (lastName !== undefined) updateData.last_name = lastName;
     if (bio !== undefined) updateData.bio = bio;
     if (location !== undefined) updateData.location = location;
     if (website !== undefined) updateData.website = website;
-    if (avatar_url !== undefined) updateData.profileImageUrl = avatar_url;
+    if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
 
-    const updatedUsers = await db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, user.userId))
-      .returning();
+    const fields = Object.keys(updateData);
+    const values = Object.values(updateData);
+    const setClause = fields.map((field, idx) => `${field} = $${idx + 1}`).join(', ');
+    
+    const updatedUsers = await db.execute(`
+      UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${fields.length + 1}
+      RETURNING *
+    `, [...values, user.userId]);
 
-    if (updatedUsers.length === 0) {
+    if (updatedUsers.rows.length === 0) {
       return errorResponse("Failed to update profile", 400);
     }
 
     telemetry.logger.info("User profile updated", { userId: user.userId });
 
     return successResponse({ 
-      user: updatedUsers[0],
+      user: updatedUsers.rows[0],
       message: "Profile updated successfully" 
     });
 
@@ -119,26 +109,17 @@ export const getUserSettings: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
 
-    const userResults = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        first_name: users.firstName,
-        last_name: users.lastName,
-        user_type: users.user_type,
-        email_notifications: users.email_notifications,
-        marketing_emails: users.marketing_emails,
-        two_factor_enabled: users.two_factor_enabled,
-        privacy_settings: users.privacy_settings,
-      })
-      .from(users)
-      .where(eq(users.id, user.userId));
+    const userResults = await db.execute(`
+      SELECT id, email, first_name, last_name, user_type, email_notifications,
+             marketing_emails, two_factor_enabled, privacy_settings
+      FROM users WHERE id = $1
+    `, [user.userId]);
 
-    if (userResults.length === 0) {
+    if (userResults.rows.length === 0) {
       return errorResponse("User not found", 404);
     }
 
-    return successResponse({ settings: userResults[0] });
+    return successResponse({ settings: userResults.rows[0] });
 
   } catch (error) {
     telemetry.logger.error("Get user settings error", error);
@@ -157,29 +138,31 @@ export const updateUserSettings: RouteHandler = async (request, url) => {
       privacy_settings 
     } = await request.json();
 
-    const updateData: any = {
-      updated_at: new Date(),
-    };
+    const updateData: any = {};
 
     if (email_notifications !== undefined) updateData.email_notifications = email_notifications;
     if (marketing_emails !== undefined) updateData.marketing_emails = marketing_emails;
     if (two_factor_enabled !== undefined) updateData.two_factor_enabled = two_factor_enabled;
     if (privacy_settings !== undefined) updateData.privacy_settings = privacy_settings;
 
-    const updatedUsers = await db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, user.userId))
-      .returning();
+    const fields = Object.keys(updateData);
+    const values = Object.values(updateData);
+    const setClause = fields.map((field, idx) => `${field} = $${idx + 1}`).join(', ');
+    
+    const updatedUsers = await db.execute(`
+      UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${fields.length + 1}
+      RETURNING *
+    `, [...values, user.userId]);
 
-    if (updatedUsers.length === 0) {
+    if (updatedUsers.rows.length === 0) {
       return errorResponse("Failed to update settings", 400);
     }
 
     telemetry.logger.info("User settings updated", { userId: user.userId });
 
     return successResponse({ 
-      settings: updatedUsers[0],
+      settings: updatedUsers.rows[0],
       message: "Settings updated successfully" 
     });
 
@@ -194,22 +177,16 @@ export const getUserPreferences: RouteHandler = async (request, url) => {
   try {
     const user = await getUserFromToken(request);
 
-    const userResults = await db
-      .select({
-        id: users.id,
-        preferred_genres: users.preferred_genres,
-        preferred_formats: users.preferred_formats,
-        preferred_budget_ranges: users.preferred_budget_ranges,
-        notification_frequency: users.notification_frequency,
-      })
-      .from(users)
-      .where(eq(users.id, user.userId));
+    const userResults = await db.execute(`
+      SELECT id, preferred_genres, preferred_formats, preferred_budget_ranges, notification_frequency
+      FROM users WHERE id = $1
+    `, [user.userId]);
 
-    if (userResults.length === 0) {
+    if (userResults.rows.length === 0) {
       return errorResponse("User not found", 404);
     }
 
-    return successResponse({ preferences: userResults[0] });
+    return successResponse({ preferences: userResults.rows[0] });
 
   } catch (error) {
     telemetry.logger.error("Get user preferences error", error);
@@ -228,29 +205,31 @@ export const updateUserPreferences: RouteHandler = async (request, url) => {
       notification_frequency 
     } = await request.json();
 
-    const updateData: any = {
-      updated_at: new Date(),
-    };
+    const updateData: any = {};
 
     if (preferred_genres !== undefined) updateData.preferred_genres = preferred_genres;
     if (preferred_formats !== undefined) updateData.preferred_formats = preferred_formats;
     if (preferred_budget_ranges !== undefined) updateData.preferred_budget_ranges = preferred_budget_ranges;
     if (notification_frequency !== undefined) updateData.notification_frequency = notification_frequency;
 
-    const updatedUsers = await db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, user.userId))
-      .returning();
+    const fields = Object.keys(updateData);
+    const values = Object.values(updateData);
+    const setClause = fields.map((field, idx) => `${field} = $${idx + 1}`).join(', ');
+    
+    const updatedUsers = await db.execute(`
+      UPDATE users SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${fields.length + 1}
+      RETURNING *
+    `, [...values, user.userId]);
 
-    if (updatedUsers.length === 0) {
+    if (updatedUsers.rows.length === 0) {
       return errorResponse("Failed to update preferences", 400);
     }
 
     telemetry.logger.info("User preferences updated", { userId: user.userId });
 
     return successResponse({ 
-      preferences: updatedUsers[0],
+      preferences: updatedUsers.rows[0],
       message: "Preferences updated successfully" 
     });
 
@@ -273,46 +252,37 @@ export const searchUsers: RouteHandler = async (request, url) => {
       return errorResponse("Search query is required", 400);
     }
 
-    let whereConditions = [
-      sql`(${users.firstName} ILIKE ${`%${query}%`} OR ${users.bio} ILIKE ${`%${query}%`})`
-    ];
+    let whereClause = "(first_name ILIKE $1 OR bio ILIKE $1)";
+    let params = [`%${query}%`];
 
     if (userType) {
-      whereConditions.push(eq(users.user_type, userType));
+      whereClause += " AND user_type = $2";
+      params.push(userType);
     }
 
-    const searchResults = await db
-      .select({
-        id: users.id,
-        first_name: users.firstName,
-        last_name: users.lastName,
-        user_type: users.user_type,
-        bio: users.bio,
-        location: users.location,
-        avatar_url: users.avatar_url,
-        company_name: users.companyName,
-      })
-      .from(users)
-            .where(and(...whereConditions))
-      .limit(limit)
-      .offset(offset);
+    const searchResults = await db.execute(`
+      SELECT id, first_name, last_name, user_type, bio, location, avatar_url, company_name
+      FROM users 
+      WHERE ${whereClause}
+      ORDER BY id
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `, [...params, limit, offset]);
 
     // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(and(...whereConditions));
+    const totalResult = await db.execute(`
+      SELECT COUNT(*) as count FROM users WHERE ${whereClause}
+    `, params);
 
-    const total = totalResult[0]?.count || 0;
+    const total = totalResult.rows[0]?.count || 0;
 
     return successResponse({
-      users: searchResults,
+      users: searchResults.rows,
       query: { q: query, type: userType },
       pagination: {
-        total,
+        total: parseInt(total),
         limit,
         offset,
-        hasMore: offset + limit < total
+        hasMore: offset + limit < parseInt(total)
       }
     });
 
@@ -331,28 +301,17 @@ export const getUserById: RouteHandler = async (request, url, params) => {
       return errorResponse("User ID is required", 400);
     }
 
-    const userResults = await db
-      .select({
-        id: users.id,
-        first_name: users.firstName,
-        last_name: users.lastName,
-        user_type: users.user_type,
-        bio: users.bio,
-        location: users.location,
-        website: users.website,
-        avatar_url: users.avatar_url,
-        created_at: users.created_at,
-        company_name: users.companyName,
-        company_website: users.companyWebsite,
-      })
-      .from(users)
-            .where(eq(users.id, parseInt(userId)));
+    const userResults = await db.execute(`
+      SELECT id, first_name, last_name, user_type, bio, location, website,
+             avatar_url, created_at, company_name, company_website
+      FROM users WHERE id = $1
+    `, [parseInt(userId)]);
 
-    if (userResults.length === 0) {
+    if (userResults.rows.length === 0) {
       return errorResponse("User not found", 404);
     }
 
-    return successResponse({ user: userResults[0] });
+    return successResponse({ user: userResults.rows[0] });
 
   } catch (error) {
     telemetry.logger.error("Get user by ID error", error);

@@ -1,0 +1,234 @@
+# Enhanced wrangler.toml with Comprehensive Monitoring Configuration
+# Copy this to wrangler.toml and update with your actual values
+
+name = "pitchey-production"
+main = "src/worker-production-db.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "your-cloudflare-account-id"
+
+[vars]
+# Environment Configuration
+ENVIRONMENT = "production"
+VERSION = "1.0.0"
+FRONTEND_URL = "https://pitchey.pages.dev"
+
+# Monitoring Configuration
+MONITORING_ENABLED = "true"
+METRICS_RETENTION_DAYS = "7"
+ALERT_DEDUPLICATION_WINDOW = "3600"  # 1 hour in seconds
+SYNTHETIC_MONITORING_ENABLED = "true"
+
+# Alert Thresholds (can be overridden via API)
+ERROR_RATE_WARNING_THRESHOLD = "0.02"    # 2%
+ERROR_RATE_CRITICAL_THRESHOLD = "0.05"   # 5%
+RESPONSE_TIME_WARNING_THRESHOLD = "1000" # 1 second in ms
+RESPONSE_TIME_CRITICAL_THRESHOLD = "3000" # 3 seconds in ms
+MEMORY_USAGE_WARNING_THRESHOLD = "0.85"  # 85%
+CACHE_HIT_RATE_WARNING_THRESHOLD = "0.70" # 70%
+
+# Health Check Configuration
+HEALTH_CHECK_INTERVAL = "30"  # seconds
+HEALTH_CHECK_TIMEOUT = "10"   # seconds
+DATABASE_HEALTH_TIMEOUT = "5" # seconds
+CACHE_HEALTH_TIMEOUT = "3"    # seconds
+
+# Secrets (set via: wrangler secret put <KEY_NAME>)
+# JWT_SECRET
+# DATABASE_URL
+# UPSTASH_REDIS_REST_URL
+# UPSTASH_REDIS_REST_TOKEN
+# SENTRY_DSN
+# SLACK_WEBHOOK_URL
+# PAGERDUTY_INTEGRATION_KEY
+# POSTMARK_API_TOKEN
+# TWILIO_ACCOUNT_SID
+# TWILIO_AUTH_TOKEN
+
+# KV Namespace for monitoring data, sessions, and caching
+[[kv_namespaces]]
+binding = "KV"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# Additional KV namespace specifically for monitoring (optional)
+[[kv_namespaces]]
+binding = "MONITORING_KV"
+id = "your-monitoring-kv-namespace-id"
+preview_id = "your-preview-monitoring-kv-namespace-id"
+
+# Analytics Engine for real-time metrics
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "pitchey_metrics"
+
+# Additional Analytics Engine for business metrics
+[[analytics_engine_datasets]]
+binding = "BUSINESS_ANALYTICS"
+dataset = "pitchey_business_metrics"
+
+# R2 Storage for file uploads and monitoring data exports
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-uploads"
+preview_bucket_name = "pitchey-uploads-preview"
+
+# Additional R2 bucket for monitoring exports and backups
+[[r2_buckets]]
+binding = "MONITORING_BUCKET"
+bucket_name = "pitchey-monitoring-data"
+preview_bucket_name = "pitchey-monitoring-data-preview"
+
+# Durable Objects for WebSocket and real-time features
+[[durable_objects.bindings]]
+name = "WEBSOCKET_ROOM"
+class_name = "WebSocketRoom"
+
+[[durable_objects.bindings]]
+name = "NOTIFICATION_ROOM"
+class_name = "NotificationRoom"
+
+# Additional Durable Object for monitoring coordination
+[[durable_objects.bindings]]
+name = "MONITORING_COORDINATOR"
+class_name = "MonitoringCoordinator"
+
+# Queue for async monitoring tasks (optional)
+[[queues.producers]]
+binding = "MONITORING_QUEUE"
+queue = "pitchey-monitoring-tasks"
+
+[[queues.consumers]]
+queue = "pitchey-monitoring-tasks"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "pitchey-monitoring-dlq"
+
+# Hyperdrive for Neon PostgreSQL (if using connection pooling)
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "your-hyperdrive-id"
+
+# D1 Database for monitoring metadata (alternative to KV for complex queries)
+# [[d1_databases]]
+# binding = "MONITORING_DB"
+# database_name = "pitchey-monitoring"
+# database_id = "your-d1-database-id"
+
+# Browser for synthetic monitoring (Puppeteer-like testing)
+# [[browser]]
+# binding = "BROWSER"
+
+# Vectorize for AI-powered monitoring insights (optional)
+# [[vectorize]]
+# binding = "VECTORIZE_INDEX"
+# index_name = "pitchey-monitoring-insights"
+
+# Cron triggers for monitoring tasks
+[[triggers.crons]]
+cron = "* * * * *"  # Every minute - health checks and metrics collection
+
+[[triggers.crons]]
+cron = "*/5 * * * *"  # Every 5 minutes - synthetic monitoring
+
+[[triggers.crons]]
+cron = "0 * * * *"  # Every hour - metric aggregation and cleanup
+
+[[triggers.crons]]
+cron = "0 0 * * *"  # Daily - log rotation and reporting
+
+# Migrations for Durable Objects
+[[migrations]]
+tag = "v1"
+new_classes = ["WebSocketRoom", "NotificationRoom"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["MonitoringCoordinator"]
+
+# Environment-specific overrides for development
+[env.development]
+name = "pitchey-development"
+vars = { ENVIRONMENT = "development", VERSION = "dev" }
+
+[env.development.kv_namespaces]
+binding = "KV"
+id = "your-dev-kv-namespace-id"
+
+[env.development.analytics_engine_datasets]
+binding = "ANALYTICS"
+dataset = "pitchey_metrics_dev"
+
+# Environment-specific overrides for staging
+[env.staging]
+name = "pitchey-staging"
+vars = { ENVIRONMENT = "staging", VERSION = "staging" }
+
+[env.staging.kv_namespaces]
+binding = "KV"
+id = "your-staging-kv-namespace-id"
+
+[env.staging.analytics_engine_datasets]
+binding = "ANALYTICS"
+dataset = "pitchey_metrics_staging"
+
+# Observability settings
+[observability]
+enabled = true
+head_sampling_rate = 0.01  # Sample 1% of requests for detailed tracing
+
+# Build configuration
+[build]
+command = "npm run build"
+watch_dir = "src"
+
+# Development server configuration
+[dev]
+ip = "0.0.0.0"
+port = 8787
+local_protocol = "http"
+
+# Deployment settings
+[deploy]
+compatibility_date = "2024-11-01"
+minify = true
+
+# Limits and performance settings
+[limits]
+cpu_ms = 30000  # 30 seconds max CPU time
+memory_mb = 128 # 128 MB memory limit
+
+# Custom domains (if configured)
+# routes = [
+#   { pattern = "api.pitchey.com/*", zone_name = "pitchey.com" },
+#   { pattern = "monitoring.pitchey.com/*", zone_name = "pitchey.com", custom_domain = true }
+# ]
+
+# AI configuration for intelligent monitoring
+# [ai]
+# binding = "AI"
+
+# Workflow Engine for complex monitoring workflows (if available)
+# [[workflows]]
+# binding = "MONITORING_WORKFLOW"
+# class_name = "MonitoringWorkflow"
+
+# Email routing for alert notifications (if using Cloudflare Email Routing)
+# [email]
+# name = "alerts@pitchey.com"
+
+# Custom rules for request routing and monitoring
+# [[rules]]
+# type = "worker"
+# globs = ["/api/monitoring/*"]
+# zone_name = "pitchey.com"
+
+# Tail workers for log processing (if needed)
+# [[tail_consumers]]
+# service = "pitchey-log-processor"
+
+# Custom headers for monitoring endpoints
+# [env.production.vars.MONITORING_HEADERS]
+# X-Monitoring-Version = "1.0.0"
+# X-Powered-By = "Cloudflare Workers"

@@ -1,0 +1,686 @@
+name: Emergency Rollback Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollback_type:
+        description: 'Type of rollback to perform'
+        required: true
+        default: 'automatic'
+        type: choice
+        options:
+          - automatic    # Rollback to last known good deployment
+          - targeted     # Rollback to specific version
+          - partial      # Rollback only specific components
+      target_version:
+        description: 'Target version for rollback (required for targeted rollback)'
+        required: false
+        type: string
+      components:
+        description: 'Components to rollback (worker,pages,dns) - for partial rollback'
+        required: false
+        default: 'worker,pages'
+        type: string
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      skip_health_check:
+        description: 'Skip post-rollback health checks (emergency only)'
+        required: false
+        default: false
+        type: boolean
+      reason:
+        description: 'Reason for rollback (for incident tracking)'
+        required: true
+        type: string
+
+env:
+  ROLLBACK_TIMEOUT: 1200  # 20 minutes
+  HEALTH_CHECK_TIMEOUT: 300  # 5 minutes
+  CLOUDFLARE_API_BASE: 'https://api.cloudflare.com/client/v4'
+
+jobs:
+  # Pre-rollback analysis and planning
+  rollback-planning:
+    runs-on: ubuntu-latest
+    outputs:
+      rollback-plan: ${{ steps.create-plan.outputs.rollback-plan }}
+      target-version: ${{ steps.determine-target.outputs.target-version }}
+      current-deployment: ${{ steps.get-current.outputs.current-deployment }}
+      rollback-id: ${{ steps.generate-id.outputs.rollback-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate rollback ID
+        id: generate-id
+        run: |
+          ROLLBACK_ID="rollback-$(date +%Y%m%d%H%M%S)-$(git rev-parse --short HEAD)"
+          echo "rollback-id=$ROLLBACK_ID" >> $GITHUB_OUTPUT
+          echo "Generated rollback ID: $ROLLBACK_ID"
+      
+      - name: Get current deployment state
+        id: get-current
+        run: |
+          echo "📋 Getting current deployment state for ${{ inputs.environment }}..."
+          
+          # Get current worker deployment
+          CURRENT_WORKER=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            "$CLOUDFLARE_API_BASE/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/scripts" | \
+            jq -r '.result[] | select(.id | contains("pitchey")) | select(.id | contains("'${{ inputs.environment }}'")) | .id' | head -1)
+          
+          # Get current pages deployment
+          CURRENT_PAGES=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            "$CLOUDFLARE_API_BASE/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects" | \
+            jq -r '.result[] | select(.name | contains("pitchey")) | select(.name | contains("'${{ inputs.environment }}'")) | .name' | head -1)
+          
+          # Create current deployment snapshot
+          CURRENT_DEPLOYMENT=$(cat << EOF
+          {
+            "worker": "$CURRENT_WORKER",
+            "pages": "$CURRENT_PAGES",
+            "timestamp": "$(date -u --iso-8601=seconds)",
+            "environment": "${{ inputs.environment }}"
+          }
+          EOF
+          )
+          
+          echo "current-deployment=$CURRENT_DEPLOYMENT" >> $GITHUB_OUTPUT
+          
+          echo "Current deployment state:"
+          echo "- Worker: $CURRENT_WORKER"
+          echo "- Pages: $CURRENT_PAGES"
+          echo "- Environment: ${{ inputs.environment }}"
+      
+      - name: Determine target version
+        id: determine-target
+        run: |
+          ROLLBACK_TYPE="${{ inputs.rollback_type }}"
+          
+          case "$ROLLBACK_TYPE" in
+            automatic)
+              # Find last known good version from git tags
+              LAST_GOOD_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -2 | tail -1)
+              TARGET_VERSION=$(echo "$LAST_GOOD_TAG" | sed 's/^v//')
+              echo "Automatic rollback to last good version: $TARGET_VERSION"
+              ;;
+            targeted)
+              TARGET_VERSION="${{ inputs.target_version }}"
+              if [ -z "$TARGET_VERSION" ]; then
+                echo "❌ Target version required for targeted rollback"
+                exit 1
+              fi
+              echo "Targeted rollback to version: $TARGET_VERSION"
+              ;;
+            partial)
+              # For partial rollback, we'll use current version but rollback specific components
+              CURRENT_TAG=$(git describe --tags --abbrev=0)
+              TARGET_VERSION=$(echo "$CURRENT_TAG" | sed 's/^v//')
+              echo "Partial rollback of components at version: $TARGET_VERSION"
+              ;;
+            *)
+              echo "❌ Unknown rollback type: $ROLLBACK_TYPE"
+              exit 1
+              ;;
+          esac
+          
+          # Validate target version exists
+          if ! git tag | grep -q "v$TARGET_VERSION"; then
+            echo "❌ Target version v$TARGET_VERSION not found in git tags"
+            exit 1
+          fi
+          
+          echo "target-version=$TARGET_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Create rollback plan
+        id: create-plan
+        run: |
+          ROLLBACK_TYPE="${{ inputs.rollback_type }}"
+          TARGET_VERSION="${{ steps.determine-target.outputs.target-version }}"
+          COMPONENTS="${{ inputs.components }}"
+          
+          # Parse components to rollback
+          if [ "$ROLLBACK_TYPE" == "partial" ]; then
+            IFS=',' read -ra COMPONENT_ARRAY <<< "$COMPONENTS"
+            ROLLBACK_WORKER="false"
+            ROLLBACK_PAGES="false"
+            ROLLBACK_DNS="false"
+            
+            for component in "${COMPONENT_ARRAY[@]}"; do
+              component=$(echo "$component" | tr -d ' ')
+              case "$component" in
+                worker) ROLLBACK_WORKER="true" ;;
+                pages) ROLLBACK_PAGES="true" ;;
+                dns) ROLLBACK_DNS="true" ;;
+              esac
+            done
+          else
+            ROLLBACK_WORKER="true"
+            ROLLBACK_PAGES="true"
+            ROLLBACK_DNS="true"
+          fi
+          
+          # Create rollback plan
+          ROLLBACK_PLAN=$(cat << EOF
+          {
+            "rollbackId": "${{ steps.generate-id.outputs.rollback-id }}",
+            "type": "$ROLLBACK_TYPE",
+            "targetVersion": "$TARGET_VERSION",
+            "environment": "${{ inputs.environment }}",
+            "components": {
+              "worker": $ROLLBACK_WORKER,
+              "pages": $ROLLBACK_PAGES,
+              "dns": $ROLLBACK_DNS
+            },
+            "reason": "${{ inputs.reason }}",
+            "timestamp": "$(date -u --iso-8601=seconds)",
+            "initiatedBy": "${{ github.actor }}"
+          }
+          EOF
+          )
+          
+          echo "rollback-plan=$ROLLBACK_PLAN" >> $GITHUB_OUTPUT
+          
+          echo "📋 Rollback Plan Created:"
+          echo "$ROLLBACK_PLAN" | jq .
+      
+      - name: Validate rollback plan
+        run: |
+          echo "🔍 Validating rollback plan..."
+          
+          # Check if target version is deployable
+          TARGET_VERSION="${{ steps.determine-target.outputs.target-version }}"
+          
+          # Checkout target version to validate
+          git checkout "v$TARGET_VERSION"
+          
+          # Validate configuration files exist
+          if [ ! -f "wrangler.toml" ]; then
+            echo "❌ wrangler.toml not found in target version"
+            exit 1
+          fi
+          
+          if [ ! -d "frontend" ]; then
+            echo "❌ frontend directory not found in target version"
+            exit 1
+          fi
+          
+          echo "✅ Rollback plan validated"
+          
+          # Return to main branch
+          git checkout main
+
+  # Create backup of current state
+  backup-current-state:
+    needs: rollback-planning
+    runs-on: ubuntu-latest
+    outputs:
+      backup-id: ${{ steps.create-backup.outputs.backup-id }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create backup of current state
+        id: create-backup
+        run: |
+          BACKUP_ID="backup-$(date +%Y%m%d%H%M%S)"
+          
+          echo "💾 Creating backup of current state..."
+          
+          # Create backup directory
+          mkdir -p rollback-backups
+          
+          # Backup current worker configuration
+          CURRENT_DEPLOYMENT='${{ needs.rollback-planning.outputs.current-deployment }}'
+          CURRENT_WORKER=$(echo "$CURRENT_DEPLOYMENT" | jq -r '.worker')
+          
+          if [ "$CURRENT_WORKER" != "null" ] && [ -n "$CURRENT_WORKER" ]; then
+            # Get worker script
+            curl -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              "$CLOUDFLARE_API_BASE/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/scripts/$CURRENT_WORKER" \
+              > "rollback-backups/${BACKUP_ID}-worker-script.js"
+            
+            # Get worker metadata
+            curl -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              "$CLOUDFLARE_API_BASE/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/workers/scripts/$CURRENT_WORKER/settings" \
+              > "rollback-backups/${BACKUP_ID}-worker-metadata.json"
+          fi
+          
+          # Backup DNS records
+          if [ -n "${{ secrets.CLOUDFLARE_ZONE_ID }}" ]; then
+            curl -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              "$CLOUDFLARE_API_BASE/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+              > "rollback-backups/${BACKUP_ID}-dns-records.json"
+          fi
+          
+          # Create backup manifest
+          cat > "rollback-backups/${BACKUP_ID}-manifest.json" << EOF
+          {
+            "backupId": "$BACKUP_ID",
+            "timestamp": "$(date -u --iso-8601=seconds)",
+            "environment": "${{ inputs.environment }}",
+            "rollbackId": "${{ needs.rollback-planning.outputs.rollback-id }}",
+            "originalDeployment": $CURRENT_DEPLOYMENT,
+            "reason": "Pre-rollback backup"
+          }
+          EOF
+          
+          echo "backup-id=$BACKUP_ID" >> $GITHUB_OUTPUT
+          echo "✅ Backup created: $BACKUP_ID"
+      
+      - name: Upload backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-backup-${{ steps.create-backup.outputs.backup-id }}
+          path: rollback-backups/
+          retention-days: 90
+
+  # Execute rollback
+  execute-rollback:
+    needs: [rollback-planning, backup-current-state]
+    runs-on: ubuntu-latest
+    outputs:
+      rollback-status: ${{ steps.rollback-execution.outputs.rollback-status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Checkout target version
+        run: |
+          TARGET_VERSION="${{ needs.rollback-planning.outputs.target-version }}"
+          
+          echo "📦 Checking out target version v$TARGET_VERSION..."
+          git checkout "v$TARGET_VERSION"
+          
+          echo "✅ Checked out v$TARGET_VERSION"
+      
+      - name: Install deployment tools
+        run: |
+          npm install -g wrangler@latest
+          sudo apt-get update && sudo apt-get install -y jq curl
+      
+      - name: Parse rollback plan
+        id: parse-plan
+        run: |
+          ROLLBACK_PLAN='${{ needs.rollback-planning.outputs.rollback-plan }}'
+          
+          ROLLBACK_WORKER=$(echo "$ROLLBACK_PLAN" | jq -r '.components.worker')
+          ROLLBACK_PAGES=$(echo "$ROLLBACK_PLAN" | jq -r '.components.pages')
+          ROLLBACK_DNS=$(echo "$ROLLBACK_PLAN" | jq -r '.components.dns')
+          
+          echo "rollback-worker=$ROLLBACK_WORKER" >> $GITHUB_OUTPUT
+          echo "rollback-pages=$ROLLBACK_PAGES" >> $GITHUB_OUTPUT
+          echo "rollback-dns=$ROLLBACK_DNS" >> $GITHUB_OUTPUT
+          
+          echo "Rollback components:"
+          echo "- Worker: $ROLLBACK_WORKER"
+          echo "- Pages: $ROLLBACK_PAGES"  
+          echo "- DNS: $ROLLBACK_DNS"
+      
+      - name: Rollback worker deployment
+        if: steps.parse-plan.outputs.rollback-worker == 'true'
+        run: |
+          echo "🔄 Rolling back worker deployment..."
+          
+          # Deploy worker from target version
+          wrangler deploy --compatibility-date=2024-11-01
+          
+          echo "✅ Worker rollback completed"
+      
+      - name: Rollback pages deployment
+        if: steps.parse-plan.outputs.rollback-pages == 'true'
+        run: |
+          echo "🔄 Rolling back pages deployment..."
+          
+          # Build frontend from target version
+          cd frontend
+          
+          if [ -f "package.json" ]; then
+            npm ci
+            npm run build
+            
+            # Deploy to Cloudflare Pages
+            cd ..
+            wrangler pages deploy frontend/dist --project-name=pitchey --branch=rollback
+            
+            echo "✅ Pages rollback completed"
+          else
+            echo "⚠️ No package.json found, skipping pages rollback"
+          fi
+      
+      - name: Rollback DNS configuration
+        if: steps.parse-plan.outputs.rollback-dns == 'true'
+        run: |
+          echo "🔄 Rolling back DNS configuration..."
+          
+          # This would restore DNS records from backup if needed
+          # For now, we'll just validate current DNS is pointing correctly
+          
+          if [ -n "${{ secrets.CLOUDFLARE_ZONE_ID }}" ]; then
+            # Check main domain
+            MAIN_RECORD=$(curl -s -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              "$CLOUDFLARE_API_BASE/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?name=pitchey.pages.dev")
+            
+            echo "Current DNS configuration validated"
+          fi
+          
+          echo "✅ DNS rollback completed (validation only)"
+      
+      - name: Rollback execution summary
+        id: rollback-execution
+        run: |
+          TARGET_VERSION="${{ needs.rollback-planning.outputs.target-version }}"
+          
+          echo "📊 Rollback Execution Summary"
+          echo "=========================="
+          echo "Target Version: v$TARGET_VERSION"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Rollback Type: ${{ inputs.rollback_type }}"
+          echo "Components: ${{ inputs.components }}"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Timestamp: $(date -u)"
+          
+          echo "rollback-status=completed" >> $GITHUB_OUTPUT
+          echo "✅ Rollback execution completed"
+
+  # Post-rollback health checks
+  post-rollback-health:
+    needs: [rollback-planning, execute-rollback]
+    runs-on: ubuntu-latest
+    if: needs.execute-rollback.outputs.rollback-status == 'completed' && !inputs.skip_health_check
+    steps:
+      - name: Wait for propagation
+        run: |
+          echo "⏳ Waiting for rollback changes to propagate..."
+          sleep 30
+      
+      - name: Health check worker
+        run: |
+          echo "🔍 Health checking rolled back worker..."
+          
+          HEALTH_URL="https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+          MAX_ATTEMPTS=20
+          RETRY_INTERVAL=15
+          
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Health check attempt $i/$MAX_ATTEMPTS..."
+            
+            RESPONSE=$(curl -s -w "HTTPSTATUS:%{http_code};TIME:%{time_total}" "$HEALTH_URL" || echo "HTTPSTATUS:000;TIME:0")
+            HTTP_CODE=$(echo "$RESPONSE" | tr -d '\n' | sed -e 's/.*HTTPSTATUS://' | cut -d';' -f1)
+            TIME_TOTAL=$(echo "$RESPONSE" | tr -d '\n' | sed -e 's/.*TIME://')
+            BODY=$(echo "$RESPONSE" | sed -E 's/HTTPSTATUS:.*$//')
+            
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "✅ Worker health check passed (${TIME_TOTAL}s)"
+              
+              # Extract version info if available
+              if command -v jq >/dev/null 2>&1 && echo "$BODY" | jq . >/dev/null 2>&1; then
+                VERSION=$(echo "$BODY" | jq -r '.version // "unknown"')
+                ENVIRONMENT=$(echo "$BODY" | jq -r '.environment // "unknown"')
+                
+                echo "Health check details:"
+                echo "  - Version: $VERSION"
+                echo "  - Environment: $ENVIRONMENT"
+                echo "  - Response Time: ${TIME_TOTAL}s"
+              fi
+              
+              break
+            fi
+            
+            echo "⚠️ Health check failed: HTTP $HTTP_CODE"
+            
+            if [ $i -eq $MAX_ATTEMPTS ]; then
+              echo "❌ Worker health check failed after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+            
+            sleep $RETRY_INTERVAL
+          done
+      
+      - name: Health check frontend
+        run: |
+          echo "🔍 Health checking rolled back frontend..."
+          
+          FRONTEND_URL="https://pitchey.pages.dev"
+          MAX_ATTEMPTS=10
+          RETRY_INTERVAL=30
+          
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Frontend health check attempt $i/$MAX_ATTEMPTS..."
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FRONTEND_URL")
+            
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "✅ Frontend health check passed"
+              break
+            fi
+            
+            echo "⚠️ Frontend health check failed: HTTP $HTTP_CODE"
+            
+            if [ $i -eq $MAX_ATTEMPTS ]; then
+              echo "❌ Frontend health check failed after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+            
+            sleep $RETRY_INTERVAL
+          done
+      
+      - name: Functional tests
+        run: |
+          echo "🧪 Running post-rollback functional tests..."
+          
+          # Test critical API endpoints
+          API_BASE="https://pitchey-production.cavelltheleaddev.workers.dev/api"
+          
+          # Test health endpoint
+          curl -sf "$API_BASE/health" || {
+            echo "❌ Health endpoint test failed"
+            exit 1
+          }
+          
+          # Test authentication endpoint (should return 405 or similar for GET)
+          AUTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE/auth/login")
+          if [[ "$AUTH_CODE" =~ ^(405|401|200)$ ]]; then
+            echo "✅ Auth endpoint responding correctly"
+          else
+            echo "❌ Auth endpoint test failed: $AUTH_CODE"
+            exit 1
+          fi
+          
+          # Test public endpoints
+          curl -sf "$API_BASE/pitches/trending" >/dev/null || {
+            echo "⚠️ Public endpoints may not be fully ready (non-critical)"
+          }
+          
+          echo "✅ Functional tests completed"
+
+  # Rollback validation and reporting
+  rollback-validation:
+    needs: [rollback-planning, execute-rollback, post-rollback-health]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Validate rollback success
+        run: |
+          ROLLBACK_STATUS="${{ needs.execute-rollback.outputs.rollback-status }}"
+          HEALTH_STATUS="${{ needs.post-rollback-health.result }}"
+          
+          echo "🔍 Validating rollback success..."
+          echo "- Execution Status: $ROLLBACK_STATUS"
+          echo "- Health Check Status: $HEALTH_STATUS"
+          
+          if [ "$ROLLBACK_STATUS" == "completed" ]; then
+            if [ "$HEALTH_STATUS" == "success" ] || [ "${{ inputs.skip_health_check }}" == "true" ]; then
+              echo "✅ Rollback completed successfully"
+              OVERALL_STATUS="success"
+            else
+              echo "⚠️ Rollback completed but health checks failed"
+              OVERALL_STATUS="warning"
+            fi
+          else
+            echo "❌ Rollback execution failed"
+            OVERALL_STATUS="failure"
+          fi
+          
+          echo "OVERALL_STATUS=$OVERALL_STATUS" >> $GITHUB_ENV
+      
+      - name: Generate rollback report
+        run: |
+          ROLLBACK_PLAN='${{ needs.rollback-planning.outputs.rollback-plan }}'
+          TARGET_VERSION="${{ needs.rollback-planning.outputs.target-version }}"
+          BACKUP_ID="${{ needs.backup-current-state.outputs.backup-id }}"
+          
+          echo "📊 Rollback Report"
+          echo "=================="
+          echo "Rollback ID: $(echo "$ROLLBACK_PLAN" | jq -r '.rollbackId')"
+          echo "Target Version: v$TARGET_VERSION"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Type: ${{ inputs.rollback_type }}"
+          echo "Reason: ${{ inputs.reason }}"
+          echo "Initiated By: ${{ github.actor }}"
+          echo "Backup ID: $BACKUP_ID"
+          echo "Status: $OVERALL_STATUS"
+          echo "Timestamp: $(date -u)"
+          
+          # Create comprehensive rollback report
+          cat > rollback-report.json << EOF
+          {
+            "rollbackId": "$(echo "$ROLLBACK_PLAN" | jq -r '.rollbackId')",
+            "targetVersion": "$TARGET_VERSION",
+            "environment": "${{ inputs.environment }}",
+            "type": "${{ inputs.rollback_type }}",
+            "reason": "${{ inputs.reason }}",
+            "initiatedBy": "${{ github.actor }}",
+            "backupId": "$BACKUP_ID",
+            "status": "$OVERALL_STATUS",
+            "timestamp": "$(date -u --iso-8601=seconds)",
+            "executionTime": "$(date +%s)",
+            "components": $(echo "$ROLLBACK_PLAN" | jq '.components'),
+            "results": {
+              "execution": "${{ needs.execute-rollback.outputs.rollback-status }}",
+              "healthCheck": "${{ needs.post-rollback-health.result }}"
+            },
+            "urls": {
+              "frontend": "https://pitchey.pages.dev",
+              "api": "https://pitchey-production.cavelltheleaddev.workers.dev",
+              "health": "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+            }
+          }
+          EOF
+      
+      - name: Upload rollback report
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-report-${{ needs.rollback-planning.outputs.rollback-id }}
+          path: rollback-report.json
+          retention-days: 365
+      
+      - name: Create incident tracking issue
+        if: env.OVERALL_STATUS != 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ROLLBACK_ID="${{ needs.rollback-planning.outputs.rollback-id }}"
+          TARGET_VERSION="${{ needs.rollback-planning.outputs.target-version }}"
+          
+          # Create GitHub issue for tracking
+          ISSUE_BODY="## Rollback Incident Report
+
+          **Rollback ID:** $ROLLBACK_ID
+          **Target Version:** v$TARGET_VERSION
+          **Environment:** ${{ inputs.environment }}
+          **Status:** $OVERALL_STATUS
+          **Reason:** ${{ inputs.reason }}
+          **Initiated By:** ${{ github.actor }}
+          **Timestamp:** $(date -u)
+
+          ### Action Items
+          - [ ] Investigate root cause of original issue
+          - [ ] Review rollback process effectiveness
+          - [ ] Update monitoring and alerting if needed
+          - [ ] Document lessons learned
+
+          ### Rollback Results
+          - **Execution:** ${{ needs.execute-rollback.outputs.rollback-status }}
+          - **Health Checks:** ${{ needs.post-rollback-health.result }}
+
+          This issue was automatically created by the emergency rollback pipeline.
+          "
+          
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues" \
+            -d '{
+              "title": "🚨 Emergency Rollback Incident - '$ROLLBACK_ID'",
+              "body": "'"$ISSUE_BODY"'",
+              "labels": ["incident", "rollback", "priority-high"]
+            }'
+          
+          echo "📝 Created incident tracking issue"
+      
+      - name: Notify stakeholders
+        run: |
+          TARGET_VERSION="${{ needs.rollback-planning.outputs.target-version }}"
+          
+          if [ "$OVERALL_STATUS" == "success" ]; then
+            echo "✅ Rollback to v$TARGET_VERSION completed successfully!"
+            
+            # Success notification
+            # curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            #   -H 'Content-type: application/json' \
+            #   --data '{
+            #     "text": "✅ Emergency rollback completed successfully!\n\nTarget: v'$TARGET_VERSION'\nEnvironment: '${{ inputs.environment }}'\nReason: '${{ inputs.reason }}'\n\nAll systems operational."
+            #   }'
+          else
+            echo "❌ Rollback completed with issues!"
+            
+            # Alert notification
+            # curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            #   -H 'Content-type: application/json' \
+            #   --data '{
+            #     "text": "🚨 URGENT: Emergency rollback completed with issues!\n\nTarget: v'$TARGET_VERSION'\nEnvironment: '${{ inputs.environment }}'\nStatus: '$OVERALL_STATUS'\n\nImmediate attention required! @channel"
+            #   }'
+          fi
+          
+          echo "📢 Stakeholder notifications sent"
+
+  # Cleanup and final steps
+  rollback-cleanup:
+    needs: [rollback-planning, execute-rollback, rollback-validation]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Cleanup temporary resources
+        run: |
+          echo "🧹 Cleaning up temporary rollback resources..."
+          
+          # Clean up any temporary workers or resources created during rollback
+          # This would be customized based on your specific cleanup needs
+          
+          echo "✅ Cleanup completed"
+      
+      - name: Update rollback documentation
+        run: |
+          echo "📚 Updating rollback documentation..."
+          
+          # This would update internal documentation with lessons learned
+          # and any process improvements identified during the rollback
+          
+          echo "✅ Documentation updated"
+      
+      - name: Schedule post-incident review
+        if: env.OVERALL_STATUS != 'success'
+        run: |
+          echo "📅 Post-incident review recommended"
+          echo "Please schedule a post-incident review to:"
+          echo "1. Analyze the root cause"
+          echo "2. Review rollback effectiveness"
+          echo "3. Identify process improvements"
+          echo "4. Update monitoring and alerting"

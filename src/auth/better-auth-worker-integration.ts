@@ -4,11 +4,7 @@
  */
 
 import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
-import * as schema from "../db/schema";
-import { user, account, verification } from "../db/better-auth-tables";
 
 // Environment type definition
 interface AuthEnv {
@@ -23,25 +19,17 @@ interface AuthEnv {
 
 // Create Better Auth instance optimized for Cloudflare Workers
 export function createAuth(env: AuthEnv) {
-  // Create Neon connection
-  const sql = neon(env.DATABASE_URL);
-  const db = drizzle(sql, { schema });
-
   const auth = betterAuth({
     appName: "Pitchey",
     baseURL: env.FRONTEND_URL || "https://pitchey.pages.dev",
     secret: env.JWT_SECRET,
     
-    // Database configuration - use the direct SQL connection
-    database: drizzleAdapter(db, {
-      provider: "pg",
-      schema: {
-        user: user, // Better Auth expects 'user'
-        session: schema.sessions,
-        account: account,
-        verification: verification
-      }
-    }),
+    // Database configuration - use direct PostgreSQL connection
+    database: {
+      provider: "postgresql",
+      url: env.DATABASE_URL,
+      generateTables: true
+    },
 
     // Email & Password authentication
     emailAndPassword: {

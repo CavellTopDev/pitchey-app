@@ -1,0 +1,32 @@
+[
+  {
+    "id": "user-1",
+    "email": "alex.creator@demo.com",
+    "type": "creator",
+    "name": "Alex Creator"
+  },
+  {
+    "id": "user-2", 
+    "email": "sarah.investor@demo.com",
+    "type": "investor",
+    "name": "Sarah Investor"
+  },
+  {
+    "id": "user-3",
+    "email": "stellar.production@demo.com", 
+    "type": "production",
+    "name": "Stellar Productions"
+  },
+  {
+    "id": "user-4",
+    "email": "test.creator1@demo.com",
+    "type": "creator", 
+    "name": "Test Creator 1"
+  },
+  {
+    "id": "user-5",
+    "email": "test.investor1@demo.com",
+    "type": "investor",
+    "name": "Test Investor 1"
+  }
+]

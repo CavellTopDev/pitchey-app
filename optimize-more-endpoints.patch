@@ -1,0 +1,237 @@
+/**
+ * Additional Endpoint Optimizations
+ * Apply these changes to worker-production-db.ts
+ */
+
+// ============================================
+// 1. OPTIMIZE LOGIN ENDPOINTS
+// ============================================
+
+// Creator Login - Add retry logic
+if (path === '/api/auth/creator/login' && method === 'POST') {
+  const body = await request.json();
+  const { email, password } = body;
+  
+  // Use retry logic for database query
+  const user = await dbQuery(() => 
+    db.select()
+      .from(schema.users)
+      .where(and(
+        eq(schema.users.email, email.toLowerCase()),
+        eq(schema.users.userType, 'creator')
+      ))
+      .limit(1)
+  );
+  
+  // ... rest of login logic
+}
+
+// ============================================
+// 2. OPTIMIZE DASHBOARD ENDPOINTS
+// ============================================
+
+// Creator Dashboard Stats - Add caching
+if (path === '/api/creator/dashboard/stats' && method === 'GET') {
+  const userId = parseInt(userPayload.sub);
+  
+  // Cache dashboard stats for 2 minutes
+  const cacheKey = `dashboard:creator:${userId}`;
+  const cached = await perf.getCachedResponse(request);
+  if (cached) return cached;
+  
+  // Use retry logic for all queries
+  const [pitchesCount, viewsCount, investorInterest] = await Promise.all([
+    dbQuery(() => 
+      db.select({ count: count() })
+        .from(schema.pitches)
+        .where(eq(schema.pitches.userId, userId))
+    ),
+    dbQuery(() =>
+      db.select({ total: sum(schema.pitches.viewCount) })
+        .from(schema.pitches)
+        .where(eq(schema.pitches.userId, userId))
+    ),
+    dbQuery(() =>
+      db.select({ count: count() })
+        .from(schema.ndaRequests)
+        .leftJoin(schema.pitches, eq(schema.ndaRequests.pitchId, schema.pitches.id))
+        .where(eq(schema.pitches.userId, userId))
+    )
+  ]);
+  
+  const stats = {
+    totalPitches: pitchesCount[0]?.count || 0,
+    totalViews: viewsCount[0]?.total || 0,
+    investorInterest: investorInterest[0]?.count || 0
+  };
+  
+  return corsResponse(request, { success: true, data: stats }, 200, {}, perf, ctx);
+}
+
+// ============================================
+// 3. OPTIMIZE SEARCH ENDPOINTS
+// ============================================
+
+// Search Pitches - Add caching with query params
+if (path === '/api/search/pitches' && method === 'GET') {
+  const url = new URL(request.url);
+  const query = url.searchParams.get('q') || '';
+  const genre = url.searchParams.get('genre');
+  const format = url.searchParams.get('format');
+  
+  // Use performance middleware's automatic caching
+  // It will cache based on URL including query params
+  
+  const results = await dbQuery(() => {
+    let searchQuery = db.select()
+      .from(schema.pitches)
+      .where(and(
+        eq(schema.pitches.status, 'published'),
+        or(
+          like(schema.pitches.title, `%${query}%`),
+          like(schema.pitches.logline, `%${query}%`)
+        )
+      ));
+    
+    if (genre) {
+      searchQuery = searchQuery.where(eq(schema.pitches.genre, genre));
+    }
+    if (format) {
+      searchQuery = searchQuery.where(eq(schema.pitches.format, format));
+    }
+    
+    return searchQuery.limit(20);
+  });
+  
+  return corsResponse(request, {
+    success: true,
+    data: results
+  }, 200, {}, perf, ctx);
+}
+
+// ============================================
+// 4. OPTIMIZE PITCH DETAILS
+// ============================================
+
+// Get Pitch by ID - Add caching
+if (path.match(/^\/api\/pitches\/\d+$/) && method === 'GET') {
+  const pitchId = parseInt(path.split('/').pop());
+  
+  // Cache individual pitch details for 5 minutes
+  const pitch = await dbQuery(() =>
+    db.select()
+      .from(schema.pitches)
+      .where(eq(schema.pitches.id, pitchId))
+      .limit(1)
+  );
+  
+  if (!pitch || pitch.length === 0) {
+    return corsResponse(request, {
+      success: false,
+      message: 'Pitch not found'
+    }, 404, {}, perf, ctx);
+  }
+  
+  // Increment view count asynchronously
+  ctx.waitUntil(
+    dbQuery(() =>
+      db.update(schema.pitches)
+        .set({ viewCount: sql`${schema.pitches.viewCount} + 1` })
+        .where(eq(schema.pitches.id, pitchId))
+    )
+  );
+  
+  return corsResponse(request, {
+    success: true,
+    data: pitch[0]
+  }, 200, {}, perf, ctx);
+}
+
+// ============================================
+// 5. OPTIMIZE USER PROFILE
+// ============================================
+
+// Get User Profile - Add caching
+if (path.match(/^\/api\/users\/\d+$/) && method === 'GET') {
+  const userId = parseInt(path.split('/').pop());
+  
+  // Cache user profiles for 10 minutes
+  const user = await dbQuery(() =>
+    db.select({
+      id: schema.users.id,
+      username: schema.users.username,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      userType: schema.users.userType,
+      bio: schema.users.bio,
+      profileImageUrl: schema.users.profileImageUrl,
+      createdAt: schema.users.createdAt
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1)
+  );
+  
+  if (!user || user.length === 0) {
+    return corsResponse(request, {
+      success: false,
+      message: 'User not found'
+    }, 404, {}, perf, ctx);
+  }
+  
+  return corsResponse(request, {
+    success: true,
+    data: user[0]
+  }, 200, {}, perf, ctx);
+}
+
+// ============================================
+// 6. CACHE INVALIDATION FOR MUTATIONS
+// ============================================
+
+// Update Pitch - Invalidate cache
+if (path.match(/^\/api\/pitches\/\d+$/) && method === 'PUT') {
+  const pitchId = parseInt(path.split('/').pop());
+  const body = await request.json();
+  
+  const updated = await dbQuery(() =>
+    db.update(schema.pitches)
+      .set({ ...body, updatedAt: new Date() })
+      .where(eq(schema.pitches.id, pitchId))
+      .returning()
+  );
+  
+  // Invalidate related caches
+  await Promise.all([
+    perf.invalidateCache(`api/pitches/${pitchId}`),
+    perf.invalidateCache('api/pitches/browse'),
+    perf.invalidateCache('api/search/pitches')
+  ]);
+  
+  return corsResponse(request, {
+    success: true,
+    data: updated[0]
+  }, 200, {}, perf, ctx);
+}
+
+// Delete Pitch - Invalidate cache
+if (path.match(/^\/api\/pitches\/\d+$/) && method === 'DELETE') {
+  const pitchId = parseInt(path.split('/').pop());
+  
+  await dbQuery(() =>
+    db.delete(schema.pitches)
+      .where(eq(schema.pitches.id, pitchId))
+  );
+  
+  // Invalidate related caches
+  await Promise.all([
+    perf.invalidateCache(`api/pitches/${pitchId}`),
+    perf.invalidateCache('api/pitches/browse'),
+    perf.invalidateCache('api/creator/dashboard')
+  ]);
+  
+  return corsResponse(request, {
+    success: true,
+    message: 'Pitch deleted successfully'
+  }, 200, {}, perf, ctx);
+}

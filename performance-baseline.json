@@ -1,0 +1,20 @@
+{
+  "api_response_time_p95": 800,
+  "api_response_time_avg": 300,
+  "api_error_rate_threshold": 0.01,
+  "lighthouse_performance_score": 85,
+  "lighthouse_lcp_threshold": 2500,
+  "lighthouse_fid_threshold": 100,
+  "lighthouse_cls_threshold": 0.1,
+  "websocket_connection_time": 1000,
+  "websocket_message_latency": 250,
+  "websocket_error_rate": 0.02,
+  "database_query_time_p95": 500,
+  "database_query_time_avg": 150,
+  "database_connection_error_rate": 0.01,
+  "database_slow_query_rate": 0.05,
+  "overall_performance_threshold": 70,
+  "last_updated": "2024-12-13T00:00:00.000Z",
+  "version": "1.0.0",
+  "description": "Performance baseline for Pitchey platform - Cloudflare Workers + Neon PostgreSQL architecture"
+}

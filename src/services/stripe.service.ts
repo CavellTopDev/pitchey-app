@@ -1,13 +1,5 @@
 import Stripe from "npm:stripe";
 import { db } from "../db/client.ts";
-import { 
-  users, 
-  transactions, 
-  payments, 
-  creditTransactions, 
-  userCredits
-} from "../db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
 import { getTierFromPriceId, getCreditsFromPriceId, SUBSCRIPTION_TIERS } from "../../utils/stripe.ts";
 import { getMockStripeService, shouldUseMockStripe } from "./stripe-mock.service.ts";
 
@@ -47,63 +39,73 @@ export class StripeService {
       });
     }
     
-    await db.update(users)
-      .set({ stripeCustomerId: customer.id })
-      .where(eq(users.id, userId));
+    await db.query(`
+      UPDATE users SET stripe_customer_id = $1 WHERE id = $2
+    `, [customer.id, userId]);
     
     return customer;
   }
   
   static async createSubscription(userId: number, priceId: string) {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
+    const userResult = await db.query(`
+      SELECT * FROM users WHERE id = $1
+    `, [userId]);
     
-    if (!user?.stripeCustomerId) {
+    const user = userResult[0];
+    
+    if (!user?.stripe_customer_id) {
       await this.createCustomer(userId, user!.email);
       // Refetch user to get the updated stripeCustomerId
-      const updatedUser = await db.query.users.findFirst({
-        where: eq(users.id, userId),
-      });
-      user!.stripeCustomerId = updatedUser!.stripeCustomerId;
+      const updatedUserResult = await db.query(`
+        SELECT stripe_customer_id FROM users WHERE id = $1
+      `, [userId]);
+      user!.stripe_customer_id = updatedUserResult[0]!.stripe_customer_id;
     }
     
     let subscription;
     
     if (shouldUseMockStripe()) {
       subscription = await mockStripe.createSubscription({
-        customer: user!.stripeCustomerId!,
+        customer: user!.stripe_customer_id!,
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
       });
     } else {
       subscription = await stripe!.subscriptions.create({
-        customer: user!.stripeCustomerId!,
+        customer: user!.stripe_customer_id!,
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
       });
     }
     
-    await db.update(users)
-      .set({
-        stripeSubscriptionId: subscription.id,
-        subscriptionTier: this.getTierFromPriceId(priceId),
-        subscriptionStartDate: new Date(subscription.current_period_start * 1000),
-        subscriptionEndDate: new Date(subscription.current_period_end * 1000),
-      })
-      .where(eq(users.id, userId));
+    await db.query(`
+      UPDATE users SET 
+        stripe_subscription_id = $1,
+        subscription_tier = $2,
+        subscription_start_date = $3,
+        subscription_end_date = $4
+      WHERE id = $5
+    `, [
+      subscription.id,
+      this.getTierFromPriceId(priceId),
+      new Date(subscription.current_period_start * 1000),
+      new Date(subscription.current_period_end * 1000),
+      userId
+    ]);
     
     return subscription;
   }
   
   static async cancelSubscription(userId: number) {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
+    const userResult = await db.query(`
+      SELECT * FROM users WHERE id = $1
+    `, [userId]);
     
-    if (!user?.stripeSubscriptionId) {
+    const user = userResult[0];
+    
+    if (!user?.stripe_subscription_id) {
       throw new Error("No active subscription");
     }
     
@@ -111,12 +113,12 @@ export class StripeService {
     
     if (shouldUseMockStripe()) {
       subscription = await mockStripe.updateSubscription(
-        user.stripeSubscriptionId,
+        user.stripe_subscription_id,
         { cancel_at_period_end: true }
       );
     } else {
       subscription = await stripe!.subscriptions.update(
-        user.stripeSubscriptionId,
+        user.stripe_subscription_id,
         { cancel_at_period_end: true }
       );
     }
@@ -125,16 +127,18 @@ export class StripeService {
   }
   
   static async createCheckoutSession(userId: number, priceId: string) {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
+    const userResult = await db.query(`
+      SELECT * FROM users WHERE id = $1
+    `, [userId]);
+    
+    const user = userResult[0];
     
     let session;
     
     if (shouldUseMockStripe()) {
       session = await mockStripe.createCheckoutSession({
-        customer: user?.stripeCustomerId || undefined,
-        customer_email: user?.stripeCustomerId ? undefined : user?.email,
+        customer: user?.stripe_customer_id || undefined,
+        customer_email: user?.stripe_customer_id ? undefined : user?.email,
         line_items: [
           {
             price: priceId,
@@ -150,8 +154,8 @@ export class StripeService {
       });
     } else {
       session = await stripe!.checkout.sessions.create({
-        customer: user?.stripeCustomerId || undefined,
-        customer_email: user?.stripeCustomerId ? undefined : user?.email,
+        customer: user?.stripe_customer_id || undefined,
+        customer_email: user?.stripe_customer_id ? undefined : user?.email,
         line_items: [
           {
             price: priceId,
@@ -176,25 +180,31 @@ export class StripeService {
     });
     
     // Create payment record
-    const payment = await db.insert(payments).values({
+    const paymentResult = await db.query(`
+      INSERT INTO payments (user_id, type, amount, currency, status, description, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [
       userId,
-      type: "credits",
-      amount: String(getCreditsFromPriceId(priceId) * 10), // Store in cents equivalent
-      currency: "USD",
-      status: "pending",
-      description: `Credit purchase: ${credits} credits (${packageType} package)`,
-      metadata: {
+      "credits",
+      String(getCreditsFromPriceId(priceId) * 10), // Store in cents equivalent
+      "USD",
+      "pending",
+      `Credit purchase: ${credits} credits (${packageType} package)`,
+      JSON.stringify({
         creditAmount: credits,
         originalAmount: String(credits * 10), // Store original amount
-      },
-    }).returning();
+      })
+    ]);
+    
+    const payment = paymentResult;
     
     let session;
     
     if (shouldUseMockStripe()) {
       session = await mockStripe.createCheckoutSession({
-        customer: user?.stripeCustomerId || undefined,
-        customer_email: user?.stripeCustomerId ? undefined : user?.email,
+        customer: user?.stripe_customer_id || undefined,
+        customer_email: user?.stripe_customer_id ? undefined : user?.email,
         line_items: [
           {
             price: priceId,
@@ -213,8 +223,8 @@ export class StripeService {
       });
     } else {
       session = await stripe!.checkout.sessions.create({
-        customer: user?.stripeCustomerId || undefined,
-        customer_email: user?.stripeCustomerId ? undefined : user?.email,
+        customer: user?.stripe_customer_id || undefined,
+        customer_email: user?.stripe_customer_id ? undefined : user?.email,
         line_items: [
           {
             price: priceId,
@@ -335,7 +345,7 @@ export class StripeService {
     const tier = getTierFromPriceId(priceId);
     
     // Update user subscription
-    await db.update(users)
+    await db.query(`UPDATE users`
       .set({
         stripeSubscriptionId: subscription.id,
         subscriptionTier: tier as any || "free",
@@ -429,7 +439,7 @@ export class StripeService {
           subscription = await stripe!.subscriptions.retrieve(invoice.subscription);
         }
         
-        await db.update(users)
+        await db.query(`UPDATE users`
           .set({
             subscriptionEndDate: new Date(subscription.current_period_end * 1000),
           })
@@ -498,7 +508,7 @@ export class StripeService {
       const userId = parseInt((customer as any).metadata.userId);
       
       // Update user subscription details
-      await db.update(users)
+      await db.query(`UPDATE users`
         .set({
           subscriptionEndDate: new Date(subscription.current_period_end * 1000),
         })
@@ -519,7 +529,7 @@ export class StripeService {
       }
       const userId = parseInt((customer as any).metadata.userId);
       
-      await db.update(users)
+      await db.query(`UPDATE users`
         .set({
           subscriptionTier: "free",
           stripeSubscriptionId: null,
@@ -591,7 +601,7 @@ export class StripeService {
       const userId = parseInt(customer.metadata.userId);
       
       // Update user with Stripe customer ID
-      await db.update(users)
+      await db.query(`UPDATE users`
         .set({ stripeCustomerId: customer.id })
         .where(eq(users.id, userId));
         

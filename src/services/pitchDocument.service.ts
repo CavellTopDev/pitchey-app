@@ -1,7 +1,4 @@
-import { db } from "../db/index.ts";
-import { pitchDocuments, pitches, ndas, users } from "../db/schema.ts";
-import { eq, and, desc, count } from "npm:drizzle-orm@0.35.3";
-import type { PitchDocument } from "../db/schema.ts";
+import { db } from "../db/client.ts";
 
 export interface CreatePitchDocumentData {
   pitchId: number;
@@ -25,25 +22,34 @@ export class PitchDocumentService {
    */
   static async createDocument(data: CreatePitchDocumentData): Promise<any> {
     try {
-      const [document] = await db.insert(pitchDocuments).values({
-        pitchId: data.pitchId,
-        fileName: data.fileName,
-        originalFileName: data.originalFileName,
-        fileUrl: data.fileUrl,
-        fileKey: data.fileKey || null,
-        fileType: data.fileType,
-        mimeType: data.mimeType,
-        fileSize: data.fileSize,
-        documentType: data.documentType,
-        isPublic: data.isPublic || false,
-        requiresNda: data.requiresNda || false,
-        uploadedBy: data.uploadedBy,
-        uploadedAt: new Date(),
-        lastModified: new Date(),
-        downloadCount: 0,
-        metadata: data.metadata || {}
-      }).returning();
+      const documentResult = await db.query(`
+        INSERT INTO pitch_documents (
+          pitch_id, file_name, original_file_name, file_url, file_key,
+          file_type, mime_type, file_size, document_type, is_public,
+          requires_nda, uploaded_by, uploaded_at, last_modified, download_count, metadata
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+        ) RETURNING *
+      `, [
+        data.pitchId,
+        data.fileName,
+        data.originalFileName,
+        data.fileUrl,
+        data.fileKey || null,
+        data.fileType,
+        data.mimeType,
+        data.fileSize,
+        data.documentType,
+        data.isPublic || false,
+        data.requiresNda || false,
+        data.uploadedBy,
+        new Date(),
+        new Date(),
+        0,
+        JSON.stringify(data.metadata || {})
+      ]);
 
+      const document = documentResult[0];
       console.log(`Created document record: ${document.id} for pitch ${data.pitchId}`);
       return document;
     } catch (error: any) {
@@ -57,13 +63,11 @@ export class PitchDocumentService {
    */
   static async getDocument(documentId: number): Promise<any | null> {
     try {
-      const [document] = await db
-        .select()
-        .from(pitchDocuments)
-        .where(eq(pitchDocuments.id, documentId))
-        .limit(1);
+      const documentResult = await db.query(`
+        SELECT * FROM pitch_documents WHERE id = $1 LIMIT 1
+      `, [documentId]);
 
-      return document || null;
+      return documentResult[0] || null;
     } catch (error: any) {
       console.error('Failed to get document:', error);
       throw new Error(`Failed to retrieve document: ${error.message}`);
@@ -82,48 +86,35 @@ export class PitchDocumentService {
     } = {}
   ): Promise<any[]> {
     try {
-      let query = db
-        .select({
-          id: pitchDocuments.id,
-          fileName: pitchDocuments.fileName,
-          originalFileName: pitchDocuments.originalFileName,
-          fileUrl: pitchDocuments.fileUrl,
-          fileType: pitchDocuments.fileType,
-          mimeType: pitchDocuments.mimeType,
-          fileSize: pitchDocuments.fileSize,
-          documentType: pitchDocuments.documentType,
-          isPublic: pitchDocuments.isPublic,
-          requiresNda: pitchDocuments.requiresNda,
-          uploadedAt: pitchDocuments.uploadedAt,
-          downloadCount: pitchDocuments.downloadCount,
-          uploadedBy: pitchDocuments.uploadedBy,
-          uploaderName: users.username,
-          uploaderEmail: users.email
-        })
-        .from(pitchDocuments)
-        .leftJoin(users, eq(pitchDocuments.uploadedBy, users.id))
-        .where(eq(pitchDocuments.pitchId, pitchId));
+      let querySQL = `
+        SELECT 
+          pd.id, pd.file_name, pd.original_file_name, pd.file_url,
+          pd.file_type, pd.mime_type, pd.file_size, pd.document_type,
+          pd.is_public, pd.requires_nda, pd.uploaded_at, pd.download_count,
+          pd.uploaded_by, u.username as uploader_name, u.email as uploader_email
+        FROM pitch_documents pd
+        LEFT JOIN users u ON pd.uploaded_by = u.id
+        WHERE pd.pitch_id = $1
+      `;
+      const queryParams = [pitchId];
 
       // Filter by document type if specified
       if (options.documentType) {
-        query = query.where(
-          and(
-            eq(pitchDocuments.pitchId, pitchId),
-            eq(pitchDocuments.documentType, options.documentType)
-          )
-        );
+        querySQL += ` AND pd.document_type = $2`;
+        queryParams.push(options.documentType);
       }
 
-      const documents = await query.orderBy(desc(pitchDocuments.uploadedAt));
+      querySQL += ` ORDER BY pd.uploaded_at DESC`;
+      const documents = await db.query(querySQL, queryParams);
 
       // Filter out private documents if user doesn't have access
       if (!options.includePrivate && options.userId) {
         const filteredDocuments = [];
         
         for (const doc of documents) {
-          if (doc.isPublic || doc.uploadedBy === options.userId) {
+          if (doc.is_public || doc.uploaded_by === options.userId) {
             filteredDocuments.push(doc);
-          } else if (doc.requiresNda) {
+          } else if (doc.requires_nda) {
             // Check if user has signed NDA
             const hasNdaAccess = await this.checkNdaAccess(pitchId, options.userId);
             if (hasNdaAccess) {
@@ -147,9 +138,9 @@ export class PitchDocumentService {
    */
   static async deleteDocument(documentId: number): Promise<void> {
     try {
-      await db
-        .delete(pitchDocuments)
-        .where(eq(pitchDocuments.id, documentId));
+      await db.query(`
+        DELETE FROM pitch_documents WHERE id = $1
+      `, [documentId]);
 
       console.log(`Deleted document: ${documentId}`);
     } catch (error: any) {
@@ -167,24 +158,22 @@ export class PitchDocumentService {
       if (!document) return false;
 
       // Document owner always has access
-      if (document.uploadedBy === userId) return true;
+      if (document.uploaded_by === userId) return true;
 
       // Public documents are accessible to all
-      if (document.isPublic) return true;
+      if (document.is_public) return true;
 
       // Check NDA requirements
-      if (document.requiresNda) {
-        return await this.checkNdaAccess(document.pitchId, userId);
+      if (document.requires_nda) {
+        return await this.checkNdaAccess(document.pitch_id, userId);
       }
 
       // Check if user is the pitch owner
-      const [pitch] = await db
-        .select({ userId: pitches.userId })
-        .from(pitches)
-        .where(eq(pitches.id, document.pitchId))
-        .limit(1);
+      const pitchResult = await db.query(`
+        SELECT user_id FROM pitches WHERE id = $1 LIMIT 1
+      `, [document.pitch_id]);
 
-      return pitch?.userId === userId;
+      return pitchResult[0]?.user_id === userId;
     } catch (error: any) {
       console.error('Failed to check document access:', error);
       return false;
@@ -196,20 +185,13 @@ export class PitchDocumentService {
    */
   private static async checkNdaAccess(pitchId: number, userId: number): Promise<boolean> {
     try {
-      const [nda] = await db
-        .select()
-        .from(ndas)
-        .where(
-          and(
-            eq(ndas.pitchId, pitchId),
-            eq(ndas.signerId, userId),
-            eq(ndas.status, 'signed'),
-            eq(ndas.accessGranted, true)
-          )
-        )
-        .limit(1);
+      const ndaResult = await db.query(`
+        SELECT * FROM ndas 
+        WHERE pitch_id = $1 AND signer_id = $2 AND status = 'signed' AND access_granted = true
+        LIMIT 1
+      `, [pitchId, userId]);
 
-      return !!nda;
+      return !!ndaResult[0];
     } catch (error) {
       console.error('Failed to check NDA access:', error);
       return false;

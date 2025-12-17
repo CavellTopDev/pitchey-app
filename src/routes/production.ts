@@ -6,8 +6,6 @@ import { RouteHandler } from "../router/types.ts";
 import { getCorsHeaders, getSecurityHeaders, successResponse, errorResponse } from "../utils/response.ts";
 import { telemetry } from "../utils/telemetry.ts";
 import { db } from "../db/client.ts";
-import { pitches, users, investments, notifications } from "../db/schema.ts";
-import { eq, and, sql, desc, count, or } from "npm:drizzle-orm@0.35.3";
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { validateEnvironment } from "../utils/env-validation.ts";
 
@@ -42,92 +40,89 @@ export const getProductionDashboard: RouteHandler = async (request, url) => {
     const user = await getUserFromToken(request);
 
     // Verify user is a production company
-    const userResult = await db
-      .select({ userType: users.userType })
-      .from(users)
-      .where(eq(users.id, user.userId));
+    const userResult = await db.execute(`
+      SELECT user_type FROM users WHERE id = $1
+    `, [user.userId]);
 
-    if (userResult.length === 0 || userResult[0].userType !== "production") {
+    if (userResult.rows.length === 0 || userResult.rows[0].user_type !== "production") {
       return errorResponse("Access denied - production companies only", 403);
     }
 
     // Get investment/acquisition stats
-    const acquisitionStats = await db
-      .select({
-        total_acquisitions: sql<number>`count(*)`,
-        active_investments: sql<number>`sum(case when ${investments.status} = 'active' then 1 else 0 end)`,
-        completed_investments: sql<number>`sum(case when ${investments.status} = 'completed' then 1 else 0 end)`,
-        pending_investments: sql<number>`sum(case when ${investments.status} = 'pending' then 1 else 0 end)`,
-      })
-      .from(investments)
-      .where(eq(investments.investorId, user.userId));
+    const acquisitionStats = await db.execute(`
+      SELECT 
+        count(*) as total_acquisitions,
+        sum(case when status = 'active' then 1 else 0 end) as active_investments,
+        sum(case when status = 'completed' then 1 else 0 end) as completed_investments,
+        sum(case when status = 'pending' then 1 else 0 end) as pending_investments
+      FROM investments WHERE investor_id = $1
+    `, [user.userId]);
 
     // Get investment/acquisition pipeline stats
-    const pipelineStats = await db
-      .select({
-        total_investments: sql<number>`count(*)`,
-        pending_investments: sql<number>`sum(case when ${investments.status} = 'pending' then 1 else 0 end)`,
-        active_investments: sql<number>`sum(case when ${investments.status} = 'active' then 1 else 0 end)`,
-        total_amount_invested: sql<number>`coalesce(sum(${investments.amount}), 0)`,
-      })
-      .from(investments)
-      .where(eq(investments.investorId, user.userId));
+    const pipelineStats = await db.execute(`
+      SELECT 
+        count(*) as total_investments,
+        sum(case when status = 'pending' then 1 else 0 end) as pending_investments,
+        sum(case when status = 'active' then 1 else 0 end) as active_investments,
+        coalesce(sum(amount), 0) as total_amount_invested
+      FROM investments WHERE investor_id = $1
+    `, [user.userId]);
 
     // Get recent investments/acquisitions
-    const recentInvestments = await db
-      .select({
-        id: investments.id,
-        amount: investments.amount,
-        status: investments.status,
-        pitch_id: pitches.id,
-        pitch_title: pitches.title,
-        pitch_genre: pitches.genre,
-        creator_name: users.firstName,
-        invested_at: investments.createdAt,
-      })
-      .from(investments)
-      .innerJoin(pitches, eq(investments.pitchId, pitches.id))
-      .innerJoin(users, eq(pitches.userId, users.id))
-      .where(eq(investments.investorId, user.userId))
-      .orderBy(desc(investments.createdAt))
-      .limit(5);
+    const recentInvestments = await db.execute(`
+      SELECT 
+        i.id,
+        i.amount,
+        i.status,
+        p.id as pitch_id,
+        p.title as pitch_title,
+        p.genre as pitch_genre,
+        u.first_name as creator_name,
+        i.created_at as invested_at
+      FROM investments i
+      INNER JOIN pitches p ON i.pitch_id = p.id
+      INNER JOIN users u ON p.user_id = u.id
+      WHERE i.investor_id = $1
+      ORDER BY i.created_at DESC
+      LIMIT 5
+    `, [user.userId]);
 
     // Get potential acquisitions (trending pitches)
-    const potentialAcquisitions = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        genre: pitches.genre,
-        budgetRange: pitches.budgetRange,
-        stage: pitches.stage,
-        viewCount: pitches.viewCount,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .innerJoin(users, eq(pitches.userId, users.id))
-      .where(eq(pitches.status, "published"))
-      .orderBy(desc(pitches.viewCount))
-      .limit(6);
+    const potentialAcquisitions = await db.execute(`
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.budget_range,
+        p.stage,
+        p.view_count,
+        u.first_name as creator_name,
+        u.company_name
+      FROM pitches p
+      INNER JOIN users u ON p.user_id = u.id
+      WHERE p.status = 'published'
+      ORDER BY p.view_count DESC
+      LIMIT 6
+    `, []);
 
     const dashboard = {
       stats: {
-        ...(acquisitionStats[0] || { 
+        ...(acquisitionStats.rows[0] || { 
           total_acquisitions: 0, 
           active_investments: 0, 
           completed_investments: 0, 
           pending_investments: 0 
         }),
-        ...(pipelineStats[0] || { 
+        ...(pipelineStats.rows[0] || { 
           total_investments: 0, 
           pending_investments: 0, 
           active_investments: 0, 
           total_amount_invested: 0 
         }),
       },
-      recent_investments: recentInvestments,
-      potential_acquisitions: potentialAcquisitions,
+      recent_investments: recentInvestments.rows,
+      potential_acquisitions: potentialAcquisitions.rows,
       generated_at: new Date(),
     };
 
@@ -148,60 +143,59 @@ export const getProductionInvestments: RouteHandler = async (request, url) => {
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
     // Verify user is a production company
-    const userResult = await db
-      .select({ userType: users.userType })
-      .from(users)
-      .where(eq(users.id, user.userId));
+    const userResult = await db.execute(`
+      SELECT user_type FROM users WHERE id = $1
+    `, [user.userId]);
 
-    if (userResult.length === 0 || userResult[0].userType !== "production") {
+    if (userResult.rows.length === 0 || userResult.rows[0].user_type !== "production") {
       return errorResponse("Access denied - production companies only", 403);
     }
 
-    let whereConditions = [eq(investments.investorId, user.userId)];
+    let whereClause = "i.investor_id = $1";
+    let params = [user.userId];
 
     if (status) {
-      whereConditions.push(eq(investments.status, status));
+      whereClause += " AND i.status = $2";
+      params.push(status);
     }
 
-    const investmentsList = await db
-      .select({
-        id: investments.id,
-        amount: investments.amount,
-        equity_percentage: investments.equityPercentage,
-        status: investments.status,
-        pitch_id: pitches.id,
-        pitch_title: pitches.title,
-        pitch_genre: pitches.genre,
-        pitch_budget_range: pitches.budgetRange,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-        invested_at: investments.createdAt,
-        updated_at: investments.updatedAt,
-      })
-      .from(investments)
-      .innerJoin(pitches, eq(investments.pitchId, pitches.id))
-      .innerJoin(users, eq(pitches.userId, users.id))
-      .where(and(...whereConditions))
-      .orderBy(desc(investments.updatedAt))
-      .limit(limit)
-      .offset(offset);
+    const investmentsList = await db.execute(`
+      SELECT 
+        i.id,
+        i.amount,
+        i.equity_percentage,
+        i.status,
+        p.id as pitch_id,
+        p.title as pitch_title,
+        p.genre as pitch_genre,
+        p.budget_range as pitch_budget_range,
+        u.first_name as creator_name,
+        u.company_name,
+        i.created_at as invested_at,
+        i.updated_at
+      FROM investments i
+      INNER JOIN pitches p ON i.pitch_id = p.id
+      INNER JOIN users u ON p.user_id = u.id
+      WHERE ${whereClause}
+      ORDER BY i.updated_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `, [...params, limit, offset]);
 
     // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(investments)
-      .where(and(...whereConditions));
+    const totalResult = await db.execute(`
+      SELECT COUNT(*) as count FROM investments i WHERE ${whereClause}
+    `, params);
 
-    const total = totalResult[0]?.count || 0;
+    const total = totalResult.rows[0]?.count || 0;
 
     return successResponse({
-      investments: investmentsList,
+      investments: investmentsList.rows,
       filters: { status },
       pagination: {
-        total,
+        total: parseInt(total),
         limit,
         offset,
-        hasMore: offset + limit < total
+        hasMore: offset + limit < parseInt(total)
       }
     });
 
@@ -227,27 +221,24 @@ export const updateInvestmentStatus: RouteHandler = async (request, url, params)
     }
 
     // Verify investment exists and user owns it
-    const investmentResults = await db
-      .select({ investorId: investments.investorId })
-      .from(investments)
-      .where(eq(investments.id, parseInt(investmentId)));
+    const investmentResults = await db.execute(`
+      SELECT investor_id FROM investments WHERE id = $1
+    `, [parseInt(investmentId)]);
 
-    if (investmentResults.length === 0) {
+    if (investmentResults.rows.length === 0) {
       return errorResponse("Investment not found", 404);
     }
 
-    if (investmentResults[0].investorId !== user.userId) {
+    if (investmentResults.rows[0].investor_id !== user.userId) {
       return errorResponse("Access denied - you can only update your own investments", 403);
     }
 
-    const updatedInvestment = await db
-      .update(investments)
-      .set({ 
-        status,
-        updatedAt: new Date()
-      })
-      .where(eq(investments.id, parseInt(investmentId)))
-      .returning();
+    const updatedInvestment = await db.execute(`
+      UPDATE investments 
+      SET status = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `, [status, parseInt(investmentId)]);
 
     telemetry.logger.info("Investment status updated", { 
       investmentId: parseInt(investmentId), 
@@ -256,7 +247,7 @@ export const updateInvestmentStatus: RouteHandler = async (request, url, params)
     });
 
     return successResponse({
-      investment: updatedInvestment[0],
+      investment: updatedInvestment.rows[0],
       message: "Investment status updated successfully"
     });
 
@@ -277,68 +268,69 @@ export const getAcquisitionPipeline: RouteHandler = async (request, url) => {
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
     // Verify user is a production company
-    const userResult = await db
-      .select({ userType: users.userType })
-      .from(users)
-      .where(eq(users.id, user.userId));
+    const userResult = await db.execute(`
+      SELECT user_type FROM users WHERE id = $1
+    `, [user.userId]);
 
-    if (userResult.length === 0 || userResult[0].userType !== "production") {
+    if (userResult.rows.length === 0 || userResult.rows[0].user_type !== "production") {
       return errorResponse("Access denied - production companies only", 403);
     }
 
-    let whereConditions = [eq(pitches.status, "published")];
+    let whereClause = "p.status = 'published'";
+    let params: any[] = [];
 
     if (stage) {
-      whereConditions.push(eq(pitches.stage, stage));
+      whereClause += ` AND p.stage = $${params.length + 1}`;
+      params.push(stage);
     }
 
     if (genre) {
-      whereConditions.push(eq(pitches.genre, genre));
+      whereClause += ` AND p.genre = $${params.length + 1}`;
+      params.push(genre);
     }
 
     if (budgetRange) {
-      whereConditions.push(eq(pitches.budgetRange, budgetRange));
+      whereClause += ` AND p.budget_range = $${params.length + 1}`;
+      params.push(budgetRange);
     }
 
-    const pipeline = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        description: pitches.description,
-        genre: pitches.genre,
-        format: pitches.format,
-        budgetRange: pitches.budgetRange,
-        stage: pitches.stage,
-        viewCount: pitches.viewCount,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-        creator_email: users.email,
-        created_at: pitches.createdAt,
-      })
-      .from(pitches)
-      .innerJoin(users, eq(pitches.userId, users.id))
-      .where(and(...whereConditions))
-      .orderBy(desc(pitches.viewCount))
-      .limit(limit)
-      .offset(offset);
+    const pipeline = await db.execute(`
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.description,
+        p.genre,
+        p.format,
+        p.budget_range,
+        p.stage,
+        p.view_count,
+        u.first_name as creator_name,
+        u.company_name,
+        u.email as creator_email,
+        p.created_at
+      FROM pitches p
+      INNER JOIN users u ON p.user_id = u.id
+      WHERE ${whereClause}
+      ORDER BY p.view_count DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `, [...params, limit, offset]);
 
     // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pitches)
-      .where(and(...whereConditions));
+    const totalResult = await db.execute(`
+      SELECT COUNT(*) as count FROM pitches p WHERE ${whereClause}
+    `, params);
 
-    const total = totalResult[0]?.count || 0;
+    const total = totalResult.rows[0]?.count || 0;
 
     return successResponse({
-      pitches: pipeline,
+      pitches: pipeline.rows,
       filters: { stage, genre, budget_range: budgetRange },
       pagination: {
-        total,
+        total: parseInt(total),
         limit,
         offset,
-        hasMore: offset + limit < total
+        hasMore: offset + limit < parseInt(total)
       }
     });
 
@@ -355,12 +347,11 @@ export const getProductionAnalytics: RouteHandler = async (request, url) => {
     const timeframe = url.searchParams.get("timeframe") || "30d";
 
     // Verify user is a production company
-    const userResult = await db
-      .select({ userType: users.userType })
-      .from(users)
-      .where(eq(users.id, user.userId));
+    const userResult = await db.execute(`
+      SELECT user_type FROM users WHERE id = $1
+    `, [user.userId]);
 
-    if (userResult.length === 0 || userResult[0].userType !== "production") {
+    if (userResult.rows.length === 0 || userResult.rows[0].user_type !== "production") {
       return errorResponse("Access denied - production companies only", 403);
     }
 
@@ -382,57 +373,51 @@ export const getProductionAnalytics: RouteHandler = async (request, url) => {
     }
 
     // Investment analytics
-    const allTimeInvestmentStats = await db
-      .select({
-        total_investments: sql<number>`count(*)`,
-        active_investments: sql<number>`sum(case when ${investments.status} = 'active' then 1 else 0 end)`,
-        completed_investments: sql<number>`sum(case when ${investments.status} = 'completed' then 1 else 0 end)`,
-        total_invested: sql<number>`coalesce(sum(${investments.amount}), 0)`,
-      })
-      .from(investments)
-      .where(eq(investments.investorId, user.userId));
+    const allTimeInvestmentStats = await db.execute(`
+      SELECT 
+        count(*) as total_investments,
+        sum(case when status = 'active' then 1 else 0 end) as active_investments,
+        sum(case when status = 'completed' then 1 else 0 end) as completed_investments,
+        coalesce(sum(amount), 0) as total_invested
+      FROM investments WHERE investor_id = $1
+    `, [user.userId]);
 
     // Recent investment activity
-    const recentInvestmentStats = await db
-      .select({
-        new_investments: sql<number>`count(*)`,
-        recent_amount: sql<number>`coalesce(sum(${investments.amount}), 0)`,
-      })
-      .from(investments)
-      .where(
-        and(
-          eq(investments.investorId, user.userId),
-          sql`${investments.createdAt} >= ${dateFilter}`
-        )
-      );
+    const recentInvestmentStats = await db.execute(`
+      SELECT 
+        count(*) as new_investments,
+        coalesce(sum(amount), 0) as recent_amount
+      FROM investments 
+      WHERE investor_id = $1 AND created_at >= $2
+    `, [user.userId, dateFilter]);
 
     // Investment breakdown by genre (via pitches)
-    const genreBreakdown = await db
-      .select({
-        genre: pitches.genre,
-        investment_count: sql<number>`count(*)`,
-        total_invested: sql<number>`coalesce(sum(${investments.amount}), 0)`,
-      })
-      .from(investments)
-      .innerJoin(pitches, eq(investments.pitchId, pitches.id))
-      .where(eq(investments.investorId, user.userId))
-      .groupBy(pitches.genre)
-      .orderBy(desc(sql<number>`count(*)`));
+    const genreBreakdown = await db.execute(`
+      SELECT 
+        p.genre,
+        count(*) as investment_count,
+        coalesce(sum(i.amount), 0) as total_invested
+      FROM investments i
+      INNER JOIN pitches p ON i.pitch_id = p.id
+      WHERE i.investor_id = $1
+      GROUP BY p.genre
+      ORDER BY count(*) DESC
+    `, [user.userId]);
 
     const analytics = {
       timeframe,
       investments: {
-        all_time: allTimeInvestmentStats[0] || {
+        all_time: allTimeInvestmentStats.rows[0] || {
           total_investments: 0,
           active_investments: 0,
           completed_investments: 0,
           total_invested: 0,
         },
-        recent: recentInvestmentStats[0] || {
+        recent: recentInvestmentStats.rows[0] || {
           new_investments: 0,
           recent_amount: 0,
         },
-        genre_breakdown: genreBreakdown,
+        genre_breakdown: genreBreakdown.rows,
       },
       generated_at: new Date(),
     };

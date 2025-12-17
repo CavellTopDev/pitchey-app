@@ -1,0 +1,15 @@
+# Pitchey Performance Monitoring Cron Jobs
+# Add these to your crontab with 'crontab -e'
+
+# Run performance baseline every hour
+0 * * * * cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2/monitoring/performance && /usr/bin/deno run --allow-net --allow-read --allow-write comprehensive-baseline-monitor.ts >> baseline-data/cron.log 2>&1
+
+# Run alert manager every 5 minutes (if not using daemon)
+*/5 * * * * cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2/monitoring/performance && /usr/bin/deno run --allow-net --allow-read --allow-write --allow-env alert-manager.ts >> alerts/cron.log 2>&1
+
+# Generate dashboard every minute (if not using daemon)  
+* * * * * cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2/monitoring/performance && /usr/bin/deno run --allow-net --allow-read --allow-write real-time-dashboard.ts >> dashboard-data/cron.log 2>&1
+
+# Clean up old logs weekly
+0 0 * * 0 find /home/supremeisbeing/pitcheymovie/pitchey_v0.2/monitoring/performance/health-logs -name "*.jsonl" -mtime +7 -delete
+0 0 * * 0 find /home/supremeisbeing/pitcheymovie/pitchey_v0.2/monitoring/performance/baseline-data -name "*.json" -mtime +30 -delete

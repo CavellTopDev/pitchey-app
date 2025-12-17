@@ -1,21 +1,41 @@
-# Single production configuration - no environments
+# Production configuration with enhanced features
 name = "pitchey-production"
-main = "src/worker-production-db.ts"
+main = "src/worker-integrated.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 account_id = "e16d3bf549153de23459a6c6a06a431b"
 
 [vars]
-JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
-DATABASE_URL = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
-UPSTASH_REDIS_REST_URL = "https://chief-anteater-20186.upstash.io"
-UPSTASH_REDIS_REST_TOKEN = "AU7aAAIncDI3ZGVjNWMxZGUyOWQ0ZmYyYjI4NzdkYjM4OGMxZTE3NnAyMjAxODY"
+# SECURITY: All sensitive values moved to Cloudflare dashboard secrets
+# Set these via: wrangler secret put <KEY_NAME>
+# Required secrets:
+# DATABASE_URL - PostgreSQL connection string
+# JWT_SECRET - JWT signing secret (for legacy compatibility)
+# BETTER_AUTH_SECRET - Better Auth secret
+# BETTER_AUTH_URL - Better Auth URL
+# UPSTASH_REDIS_REST_URL - Redis URL for caching
+# UPSTASH_REDIS_REST_TOKEN - Redis auth token
+# SENTRY_DSN - Error tracking
+# STRIPE_SECRET_KEY - Payment processing
+# SENDGRID_API_KEY - Email service
+# ADMIN_TOKEN - Admin API authentication
 FRONTEND_URL = "https://pitchey.pages.dev"
 ENVIRONMENT = "production"
+CORS_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
 
 # KV for static content caching and sessions
 [[kv_namespaces]]
 binding = "KV"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+# KV for Better Auth sessions
+[[kv_namespaces]]
+binding = "SESSIONS_KV"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+# KV for Better Auth rate limiting
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
 id = "98c88a185eb448e4868fcc87e458b3ac"
 
 # R2 for file storage
@@ -23,29 +43,62 @@ id = "98c88a185eb448e4868fcc87e458b3ac"
 binding = "R2_BUCKET"
 bucket_name = "pitchey-uploads"
 
-# Durable Objects for real-time features
-[[durable_objects.bindings]]
-name = "WEBSOCKET_ROOM"
-class_name = "WebSocketRoom"
+# Durable Objects for real-time features - Temporarily disabled for migration
+# [[durable_objects.bindings]]
+# name = "DURABLE_OBJECTS"
+# class_name = "WebSocketDurableObject"
+# script_name = "pitchey-production"
 
-[[durable_objects.bindings]]
-name = "NOTIFICATION_ROOM"
-class_name = "NotificationRoom"
+# Cache namespace for efficient data storage
+[[kv_namespaces]]
+binding = "CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# Neon PostgreSQL via Hyperdrive (commented out for now, using direct connection)
-# [[hyperdrive]]
-# binding = "HYPERDRIVE"
-# id = "983d4a1818264b5dbdca26bacf167dee"
+# Neon PostgreSQL via Hyperdrive - Using direct connection
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "0cc3dc7f6d6e4216808a9ee3d736b328"
 
-# Migrations
-[[migrations]]
-tag = "v3"
-new_sqlite_classes = ["WebSocketRoom"]
+# Analytics Engine for metrics (disabled for free plan)
+# [[analytics_engine_datasets]]
+# binding = "ANALYTICS"
+# dataset = "pitchey_analytics"
 
-[[migrations]]
-tag = "v4"
-new_sqlite_classes = ["NotificationRoom"]
+# Queue for background jobs (disabled for free plan)
+# [[queues.producers]]
+# binding = "QUEUE"
+# queue = "pitchey-jobs"
 
-# Scheduled tasks (disabled for now due to limit)
-# [triggers]
-# crons = ["*/5 * * * *", "0 * * * *"]
+# [[queues.consumers]]
+# queue = "pitchey-jobs"
+# max_batch_size = 10
+# max_batch_timeout = 30
+
+# Scheduled tasks for cache warming and monitoring
+[triggers]
+crons = [
+  "*/30 * * * *"   # Combined cache warming and metrics every 30 minutes
+]
+
+# Observability
+[observability]
+enabled = true
+
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"
+upstream_protocol = "https"
+host = "localhost"
+
+# Build settings
+[build]
+command = "npm run build:worker"
+
+# CPU limits (commented out for free plan)
+# [limits]
+# cpu_ms = 50
+
+# Production environment configuration
+[env.production]
+name = "pitchey-production"

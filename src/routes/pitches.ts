@@ -6,8 +6,6 @@ import { RouteHandler } from "../router/types.ts";
 import { getCorsHeaders, getSecurityHeaders, successResponse, errorResponse } from "../utils/response.ts";
 import { telemetry } from "../utils/telemetry.ts";
 import { db } from "../db/client.ts";
-import { pitches, users } from "../db/schema.ts";
-import { eq, desc, asc, like, and, or, sql, inArray } from "npm:drizzle-orm@0.35.3";
 import { AdvancedSearchService } from "../services/advanced-search.service.ts";
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { validateEnvironment } from "../utils/env-validation.ts";
@@ -48,41 +46,44 @@ export const getPublicPitches: RouteHandler = async (request, url) => {
 
     const validSortFields = ["created_at", "updated_at", "view_count", "title"];
     const sortField = validSortFields.includes(sortBy) ? sortBy : "created_at";
-    const orderDirection = order === "asc" ? asc : desc;
+    const orderDirection = order === "asc" ? "ASC" : "DESC";
 
     // Get pitches with user and company info
-    const pitchesData = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        genre: pitches.genre,
-        format: pitches.format,
-        budgetRange: pitches.budgetRange,
-        stage: pitches.stage,
-        viewCount: pitches.viewCount,
-        createdAt: pitches.createdAt,
-        updatedAt: pitches.updatedAt,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-            .where(eq(pitches.status, "published"))
-      .orderBy(orderDirection(sql.raw(sortField)))
-      .limit(limit)
-      .offset(offset);
+    const pitchesQuery = `
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.format,
+        p.budget_range as "budgetRange",
+        p.stage,
+        p.view_count as "viewCount",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt",
+        u.first_name as "creator_name",
+        u.company_name as "company_name"
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.status = 'published'
+      ORDER BY p.${sortField} ${orderDirection}
+      LIMIT $1 OFFSET $2
+    `;
+
+    const pitchesData = await db.execute(pitchesQuery, [limit, offset]);
 
     // Get total count for pagination
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pitches)
-      .where(eq(pitches.status, "published"));
+    const totalQuery = `
+      SELECT COUNT(*) as count
+      FROM pitches 
+      WHERE status = 'published'
+    `;
 
-    const total = totalResult[0]?.count || 0;
+    const totalResult = await db.execute(totalQuery, []);
+    const total = parseInt(totalResult.rows[0]?.count as string) || 0;
 
     return successResponse({
-      pitches: pitchesData,
+      pitches: pitchesData.rows,
       pagination: {
         total,
         limit,
@@ -109,55 +110,80 @@ export const searchPitches: RouteHandler = async (request, url) => {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    let whereConditions = [eq(pitches.status, "published")];
+    // Build WHERE conditions
+    const conditions = ["p.status = 'published'"];
+    const params: any[] = [];
+    let paramIndex = 1;
 
     // Add search conditions
     if (query.trim()) {
-      whereConditions.push(
-        or(
-          like(pitches.title, `%${query}%`),
-          like(pitches.logline, `%${query}%`),
-          like(pitches.description, `%${query}%`)
-        )
-      );
+      conditions.push(`(p.title ILIKE $${paramIndex} OR p.logline ILIKE $${paramIndex} OR p.description ILIKE $${paramIndex})`);
+      params.push(`%${query}%`);
+      paramIndex++;
     }
 
-    if (genre) whereConditions.push(eq(pitches.genre, genre));
-    if (format) whereConditions.push(eq(pitches.format, format));
-    if (budgetRange) whereConditions.push(eq(pitches.budgetRange, budgetRange));
-    if (stage) whereConditions.push(eq(pitches.stage, stage));
+    if (genre) {
+      conditions.push(`p.genre = $${paramIndex}`);
+      params.push(genre);
+      paramIndex++;
+    }
 
-    const searchResults = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        genre: pitches.genre,
-        format: pitches.format,
-        budget_range: pitches.budget_range,
-        stage: pitches.stage,
-        view_count: pitches.view_count,
-        created_at: pitches.created_at,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-            .where(and(...whereConditions))
-      .orderBy(desc(pitches.created_at))
-      .limit(limit)
-      .offset(offset);
+    if (format) {
+      conditions.push(`p.format = $${paramIndex}`);
+      params.push(format);
+      paramIndex++;
+    }
+
+    if (budgetRange) {
+      conditions.push(`p.budget_range = $${paramIndex}`);
+      params.push(budgetRange);
+      paramIndex++;
+    }
+
+    if (stage) {
+      conditions.push(`p.stage = $${paramIndex}`);
+      params.push(stage);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(" AND ");
+
+    // Main search query
+    const searchQuery = `
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.format,
+        p.budget_range,
+        p.stage,
+        p.view_count,
+        p.created_at,
+        u.first_name as "creator_name",
+        u.company_name as "company_name"
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE ${whereClause}
+      ORDER BY p.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    params.push(limit, offset);
+    const searchResults = await db.execute(searchQuery, params);
 
     // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pitches)
-      .where(and(...whereConditions));
+    const countQuery = `
+      SELECT COUNT(*) as count
+      FROM pitches p
+      WHERE ${whereClause}
+    `;
 
-    const total = totalResult[0]?.count || 0;
+    const totalResult = await db.execute(countQuery, params.slice(0, -2)); // Remove limit/offset for count
+    const total = parseInt(totalResult.rows[0]?.count as string) || 0;
 
     return successResponse({
-      pitches: searchResults,
+      pitches: searchResults.rows,
       query: {
         q: query,
         genre,
@@ -185,30 +211,28 @@ export const getTrendingPitches: RouteHandler = async (request, url) => {
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "10"), 50);
 
     // Get pitches with highest view counts in the last 7 days
-    const trendingPitches = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        genre: pitches.genre,
-        format: pitches.format,
-        view_count: pitches.view_count,
-        created_at: pitches.created_at,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-            .where(
-        and(
-          eq(pitches.status, "published"),
-          sql`${pitches.created_at} > NOW() - INTERVAL '7 days'`
-        )
-      )
-      .orderBy(desc(pitches.view_count))
-      .limit(limit);
+    const trendingQuery = `
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.format,
+        p.view_count,
+        p.created_at,
+        u.first_name as "creator_name",
+        u.company_name as "company_name"
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.status = 'published' 
+        AND p.created_at > NOW() - INTERVAL '7 days'
+      ORDER BY p.view_count DESC
+      LIMIT $1
+    `;
 
-    return successResponse({ pitches: trendingPitches });
+    const trendingPitches = await db.execute(trendingQuery, [limit]);
+
+    return successResponse({ pitches: trendingPitches.rows });
 
   } catch (error) {
     telemetry.logger.error("Get trending pitches error", error);
@@ -221,25 +245,27 @@ export const getNewestPitches: RouteHandler = async (request, url) => {
   try {
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "10"), 50);
 
-    const newestPitches = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        genre: pitches.genre,
-        format: pitches.format,
-        view_count: pitches.view_count,
-        created_at: pitches.created_at,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-            .where(eq(pitches.status, "published"))
-      .orderBy(desc(pitches.created_at))
-      .limit(limit);
+    const newestQuery = `
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.format,
+        p.view_count,
+        p.created_at,
+        u.first_name as "creator_name",
+        u.company_name as "company_name"
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.status = 'published'
+      ORDER BY p.created_at DESC
+      LIMIT $1
+    `;
 
-    return successResponse({ pitches: newestPitches });
+    const newestPitches = await db.execute(newestQuery, [limit]);
+
+    return successResponse({ pitches: newestPitches.rows });
 
   } catch (error) {
     telemetry.logger.error("Get newest pitches error", error);
@@ -253,25 +279,27 @@ export const getFeaturedPitches: RouteHandler = async (request, url) => {
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "10"), 50);
 
     // Featured pitches are those with highest view counts and good ratings
-    const featuredPitches = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        genre: pitches.genre,
-        format: pitches.format,
-        view_count: pitches.view_count,
-        created_at: pitches.created_at,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-            .where(eq(pitches.status, "published"))
-      .orderBy(desc(pitches.view_count))
-      .limit(limit);
+    const featuredQuery = `
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.format,
+        p.view_count,
+        p.created_at,
+        u.first_name as "creator_name",
+        u.company_name as "company_name"
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.status = 'published'
+      ORDER BY p.view_count DESC
+      LIMIT $1
+    `;
 
-    return successResponse({ pitches: featuredPitches });
+    const featuredPitches = await db.execute(featuredQuery, [limit]);
+
+    return successResponse({ pitches: featuredPitches.rows });
 
   } catch (error) {
     telemetry.logger.error("Get featured pitches error", error);
@@ -290,63 +318,87 @@ export const browsePitches: RouteHandler = async (request, url) => {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    let whereConditions = [eq(pitches.status, "published")];
+    // Build WHERE conditions
+    const conditions = ["p.status = 'published'"];
+    const params: any[] = [];
+    let paramIndex = 1;
 
     // Apply tab-based filtering
     switch (tab) {
       case "trending":
-        whereConditions.push(sql`${pitches.created_at} > NOW() - INTERVAL '7 days'`);
+        conditions.push("p.created_at > NOW() - INTERVAL '7 days'");
         break;
       case "new":
-        whereConditions.push(sql`${pitches.created_at} > NOW() - INTERVAL '30 days'`);
+        conditions.push("p.created_at > NOW() - INTERVAL '30 days'");
         break;
       case "featured":
-        whereConditions.push(sql`${pitches.view_count} > 100`);
+        conditions.push("p.view_count > 100");
         break;
     }
 
     // Apply filters
-    if (genre) whereConditions.push(eq(pitches.genre, genre));
-    if (format) whereConditions.push(eq(pitches.format, format));
-    if (stage) whereConditions.push(eq(pitches.stage, stage));
-
-    // Determine sort order based on tab
-    let orderBy = desc(pitches.created_at);
-    if (tab === "trending") {
-      orderBy = desc(pitches.view_count);
+    if (genre) {
+      conditions.push(`p.genre = $${paramIndex}`);
+      params.push(genre);
+      paramIndex++;
     }
 
-    const results = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        genre: pitches.genre,
-        format: pitches.format,
-        budget_range: pitches.budget_range,
-        stage: pitches.stage,
-        view_count: pitches.view_count,
-        created_at: pitches.created_at,
-        creator_name: users.firstName,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-            .where(and(...whereConditions))
-      .orderBy(orderBy)
-      .limit(limit)
-      .offset(offset);
+    if (format) {
+      conditions.push(`p.format = $${paramIndex}`);
+      params.push(format);
+      paramIndex++;
+    }
+
+    if (stage) {
+      conditions.push(`p.stage = $${paramIndex}`);
+      params.push(stage);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(" AND ");
+
+    // Determine sort order based on tab
+    let orderClause = "ORDER BY p.created_at DESC";
+    if (tab === "trending") {
+      orderClause = "ORDER BY p.view_count DESC";
+    }
+
+    // Main browse query
+    const browseQuery = `
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.genre,
+        p.format,
+        p.budget_range,
+        p.stage,
+        p.view_count,
+        p.created_at,
+        u.first_name as "creator_name",
+        u.company_name as "company_name"
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE ${whereClause}
+      ${orderClause}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    params.push(limit, offset);
+    const results = await db.execute(browseQuery, params);
 
     // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pitches)
-      .where(and(...whereConditions));
+    const countQuery = `
+      SELECT COUNT(*) as count
+      FROM pitches p
+      WHERE ${whereClause}
+    `;
 
-    const total = totalResult[0]?.count || 0;
+    const totalResult = await db.execute(countQuery, params.slice(0, -2)); // Remove limit/offset for count
+    const total = parseInt(totalResult.rows[0]?.count as string) || 0;
 
     return successResponse({
-      pitches: results,
+      pitches: results.rows,
       filters: { tab, genre, format, stage },
       pagination: {
         total,
@@ -371,41 +423,45 @@ export const getPitchById: RouteHandler = async (request, url, params) => {
       return errorResponse("Pitch ID is required", 400);
     }
 
-    const pitchResults = await db
-      .select({
-        id: pitches.id,
-        title: pitches.title,
-        logline: pitches.logline,
-        description: pitches.description,
-        genre: pitches.genre,
-        format: pitches.format,
-        budget_range: pitches.budget_range,
-        stage: pitches.stage,
-        status: pitches.status,
-        view_count: pitches.view_count,
-        created_at: pitches.created_at,
-        updated_at: pitches.updated_at,
-        user_id: pitches.user_id,
-        creator_name: users.firstName,
-        creator_email: users.email,
-        company_name: users.companyName,
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-            .where(eq(pitches.id, parseInt(pitchId)));
+    const pitchQuery = `
+      SELECT 
+        p.id,
+        p.title,
+        p.logline,
+        p.description,
+        p.genre,
+        p.format,
+        p.budget_range,
+        p.stage,
+        p.status,
+        p.view_count,
+        p.created_at,
+        p.updated_at,
+        p.user_id,
+        u.first_name as "creator_name",
+        u.email as "creator_email",
+        u.company_name as "company_name"
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.id = $1
+    `;
 
-    if (pitchResults.length === 0) {
+    const pitchResults = await db.execute(pitchQuery, [parseInt(pitchId)]);
+
+    if (pitchResults.rows.length === 0) {
       return errorResponse("Pitch not found", 404);
     }
 
-    const pitch = pitchResults[0];
+    const pitch = pitchResults.rows[0];
 
     // Increment view count
     try {
-      await db
-        .update(pitches)
-        .set({ view_count: sql`${pitches.view_count} + 1` })
-        .where(eq(pitches.id, parseInt(pitchId)));
+      const updateViewQuery = `
+        UPDATE pitches 
+        SET view_count = view_count + 1 
+        WHERE id = $1
+      `;
+      await db.execute(updateViewQuery, [parseInt(pitchId)]);
     } catch (viewError) {
       telemetry.logger.warn("Failed to update view count", viewError);
     }

@@ -1,29 +1,4 @@
 import { db } from "../db/client.ts";
-import { 
-  pitches, 
-  users, 
-  ndas, 
-  follows, 
-  analyticsEvents,
-  userSessions 
-} from "../db/schema.ts";
-import { 
-  eq, 
-  and, 
-  or, 
-  gte, 
-  lte, 
-  like, 
-  ilike,
-  sql, 
-  desc, 
-  asc, 
-  inArray,
-  isNull,
-  isNotNull,
-  count,
-  exists
-} from "drizzle-orm";
 import { searchCache, SearchCacheService } from "./search-cache.service.ts";
 
 // Define search interfaces

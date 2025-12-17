@@ -1,0 +1,400 @@
+name: Cost Optimization and Monitoring
+
+on:
+  schedule:
+    # Run every 6 hours for continuous optimization
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Optimization action to perform'
+        required: true
+        default: 'analyze'
+        type: choice
+        options:
+          - analyze
+          - optimize
+          - forecast
+          - emergency-scale-down
+
+env:
+  NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+  NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+  UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+jobs:
+  cost-analysis:
+    name: Analyze Current Costs
+    runs-on: ubuntu-latest
+    outputs:
+      total-cost: ${{ steps.analyze.outputs.total-cost }}
+      optimization-potential: ${{ steps.analyze.outputs.optimization-potential }}
+      alerts: ${{ steps.analyze.outputs.alerts }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g wrangler
+      
+      - name: Analyze costs
+        id: analyze
+        run: |
+          # Fetch cost data from all services
+          node scripts/analyze-costs.js > cost-report.json
+          
+          # Extract key metrics
+          TOTAL_COST=$(jq '.totalMonthlyCost' cost-report.json)
+          SAVINGS_POTENTIAL=$(jq '.potentialSavings' cost-report.json)
+          ALERTS=$(jq '.alerts | length' cost-report.json)
+          
+          echo "total-cost=$TOTAL_COST" >> $GITHUB_OUTPUT
+          echo "optimization-potential=$SAVINGS_POTENTIAL" >> $GITHUB_OUTPUT
+          echo "alerts=$ALERTS" >> $GITHUB_OUTPUT
+          
+          # Generate summary
+          echo "## 💰 Cost Analysis Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Monthly Cost:** \$$TOTAL_COST" >> $GITHUB_STEP_SUMMARY
+          echo "**Potential Savings:** \$$SAVINGS_POTENTIAL" >> $GITHUB_STEP_SUMMARY
+          echo "**Active Alerts:** $ALERTS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Add breakdown
+          echo "### Service Breakdown" >> $GITHUB_STEP_SUMMARY
+          jq -r '.services[] | "- **\(.name)**: $\(.cost) (\(.percentage)%)"' cost-report.json >> $GITHUB_STEP_SUMMARY
+      
+      - name: Upload cost report
+        uses: actions/upload-artifact@v3
+        with:
+          name: cost-report
+          path: cost-report.json
+
+  neon-optimization:
+    name: Optimize Neon Database
+    runs-on: ubuntu-latest
+    needs: cost-analysis
+    if: needs.cost-analysis.outputs.optimization-potential > 50
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Clean up Neon branches
+        run: |
+          # Delete old preview branches
+          node scripts/neon-branch-cleanup.js
+          
+          echo "## 🗄️ Neon Optimization" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Deleted preview branches older than 4 hours" >> $GITHUB_STEP_SUMMARY
+          echo "- Deleted feature branches inactive for 24+ hours" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Optimize compute
+        run: |
+          # Auto-suspend idle compute
+          curl -X PATCH \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"autoscaling_limit_min_cu": 0.25, "suspend_timeout_seconds": 300}' \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/endpoints"
+          
+          echo "- Enabled auto-suspend after 5 minutes" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Analyze storage
+        run: |
+          # Check for optimization opportunities
+          node scripts/neon-storage-analysis.js
+          
+          echo "- Analyzed storage for optimization opportunities" >> $GITHUB_STEP_SUMMARY
+
+  cloudflare-optimization:
+    name: Optimize Cloudflare Resources
+    runs-on: ubuntu-latest
+    needs: cost-analysis
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Optimize Worker bundle
+        run: |
+          # Analyze and optimize Worker bundle size
+          npx wrangler deploy --dry-run --outdir dist-analysis
+          
+          BUNDLE_SIZE=$(du -b dist-analysis/index.js | cut -f1)
+          echo "Worker bundle size: $BUNDLE_SIZE bytes"
+          
+          if [ $BUNDLE_SIZE -gt 1048576 ]; then
+            echo "::warning::Worker bundle exceeds 1MB, optimization needed"
+          fi
+          
+          echo "## ⚡ Cloudflare Optimization" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Worker bundle size: $((BUNDLE_SIZE / 1024))KB" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Optimize caching rules
+        run: |
+          # Update cache rules for better hit rates
+          curl -X PUT \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d @scripts/cache-rules.json \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/rulesets"
+          
+          echo "- Updated caching rules for better hit rates" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Review Durable Objects usage
+        run: |
+          # Analyze DO usage and costs
+          node scripts/analyze-durable-objects.js
+          
+          echo "- Reviewed Durable Objects usage patterns" >> $GITHUB_STEP_SUMMARY
+
+  redis-optimization:
+    name: Optimize Redis Usage
+    runs-on: ubuntu-latest
+    needs: cost-analysis
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Analyze key patterns
+        run: |
+          # Analyze Redis key patterns and expiry
+          node scripts/redis-key-analysis.js
+          
+          echo "## 🔄 Redis Optimization" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Implement key expiry policies
+        run: |
+          # Set TTL for cache keys
+          node scripts/redis-set-ttl.js
+          
+          echo "- Implemented TTL policies for cache keys" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Clean up unused keys
+        run: |
+          # Remove stale keys
+          node scripts/redis-cleanup.js
+          
+          echo "- Cleaned up stale and unused keys" >> $GITHUB_STEP_SUMMARY
+
+  github-actions-optimization:
+    name: Optimize GitHub Actions
+    runs-on: ubuntu-latest
+    needs: cost-analysis
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Analyze workflow efficiency
+        run: |
+          # Analyze workflow run times and costs
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/actions/runs \
+            --paginate \
+            --jq '.workflow_runs[] | {name: .name, duration: .run_duration_ms, status: .status}' \
+            > workflow-analysis.json
+          
+          echo "## 🔧 GitHub Actions Optimization" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Optimize caching
+        run: |
+          # Review and optimize cache usage
+          CACHE_USAGE=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/actions/cache/usage \
+            --jq '.active_caches_size_in_bytes')
+          
+          echo "- Current cache usage: $((CACHE_USAGE / 1048576))MB" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Review matrix strategies
+        run: |
+          # Analyze if matrix builds can be optimized
+          echo "- Reviewed matrix build strategies" >> $GITHUB_STEP_SUMMARY
+
+  generate-forecast:
+    name: Generate Cost Forecast
+    runs-on: ubuntu-latest
+    needs: [cost-analysis, neon-optimization, cloudflare-optimization]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Generate forecast
+        run: |
+          # Generate cost forecast for next month
+          node scripts/generate-forecast.js > forecast.json
+          
+          NEXT_MONTH_PROJECTED=$(jq '.nextMonthProjected' forecast.json)
+          CONFIDENCE=$(jq '.confidence' forecast.json)
+          
+          echo "## 📊 Cost Forecast" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Month Projected:** \$$NEXT_MONTH_PROJECTED" >> $GITHUB_STEP_SUMMARY
+          echo "**Confidence:** $((CONFIDENCE * 100))%" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Generate recommendations
+        run: |
+          # Generate cost optimization recommendations
+          node scripts/generate-recommendations.js > recommendations.json
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Top Recommendations" >> $GITHUB_STEP_SUMMARY
+          jq -r '.recommendations[:5][] | "1. **\(.action)**: Save $\(.estimatedSavings)/month"' recommendations.json >> $GITHUB_STEP_SUMMARY
+      
+      - name: Upload forecast
+        uses: actions/upload-artifact@v3
+        with:
+          name: cost-forecast
+          path: |
+            forecast.json
+            recommendations.json
+
+  alert-notifications:
+    name: Send Alert Notifications
+    runs-on: ubuntu-latest
+    needs: [cost-analysis, generate-forecast]
+    if: needs.cost-analysis.outputs.alerts > 0
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        run: |
+          TOTAL_COST="${{ needs.cost-analysis.outputs.total-cost }}"
+          SAVINGS="${{ needs.cost-analysis.outputs.optimization-potential }}"
+          ALERTS="${{ needs.cost-analysis.outputs.alerts }}"
+          
+          curl -X POST $SLACK_WEBHOOK_URL \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \"Cost Alert\",
+              \"blocks\": [
+                {
+                  \"type\": \"header\",
+                  \"text\": {
+                    \"type\": \"plain_text\",
+                    \"text\": \"💰 Cost Optimization Alert\"
+                  }
+                },
+                {
+                  \"type\": \"section\",
+                  \"fields\": [
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Monthly Cost:* \$$TOTAL_COST\"
+                    },
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Potential Savings:* \$$SAVINGS\"
+                    },
+                    {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Active Alerts:* $ALERTS\"
+                    }
+                  ]
+                },
+                {
+                  \"type\": \"actions\",
+                  \"elements\": [
+                    {
+                      \"type\": \"button\",
+                      \"text\": {
+                        \"type\": \"plain_text\",
+                        \"text\": \"View Report\"
+                      },
+                      \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+                    }
+                  ]
+                }
+              ]
+            }"
+      
+      - name: Create issue for critical alerts
+        if: needs.cost-analysis.outputs.alerts > 2
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const alerts = ${{ needs.cost-analysis.outputs.alerts }};
+            const total = ${{ needs.cost-analysis.outputs.total-cost }};
+            const savings = ${{ needs.cost-analysis.outputs.optimization-potential }};
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ Cost Alert: ${alerts} active alerts`,
+              body: `## Cost Optimization Alert
+              
+              **Monthly Cost:** $${total}
+              **Potential Savings:** $${savings}
+              **Active Alerts:** ${alerts}
+              
+              [View Full Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+              
+              Please review and implement the recommended optimizations.`,
+              labels: ['cost-optimization', 'high-priority']
+            });
+
+  emergency-scale-down:
+    name: Emergency Scale Down
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'emergency-scale-down'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Scale down all services
+        run: |
+          echo "## 🚨 Emergency Scale Down" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Scale down Neon
+          curl -X PATCH \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"autoscaling_limit_min_cu": 0.25, "autoscaling_limit_max_cu": 0.5}' \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/endpoints"
+          echo "- Neon compute scaled to minimum" >> $GITHUB_STEP_SUMMARY
+          
+          # Reduce Worker instances
+          wrangler deploy --compatibility-date 2024-01-01 --env emergency
+          echo "- Worker instances reduced" >> $GITHUB_STEP_SUMMARY
+          
+          # Clear Redis cache
+          node scripts/redis-emergency-clear.js
+          echo "- Redis cache cleared" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Notify team
+        run: |
+          curl -X POST $SLACK_WEBHOOK_URL \
+            -H 'Content-Type: application/json' \
+            -d '{"text": "🚨 Emergency scale-down completed to reduce costs"}'

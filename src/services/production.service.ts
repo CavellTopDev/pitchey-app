@@ -1,6 +1,4 @@
 import { db } from "../db/client.ts";
-import { pitches, users } from "../db/schema.ts";
-import { eq, and, desc, sql, gte, lte } from "npm:drizzle-orm@0.35.3";
 import { NotificationService } from "./notification.service.ts";
 
 // Production interface (until we have the table in schema)
@@ -46,27 +44,30 @@ export class ProductionService {
   static async createProduction(data: CreateProductionData) {
     try {
       // Verify the pitch exists and is ready for production
-      const pitchResult = await db
-        .select({
-          pitch: pitches,
-          creator: {
-            id: users.id,
-            username: users.username,
-            email: users.email,
-          },
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(eq(pitches.id, data.pitchId))
-        .limit(1);
+      const pitchResult = await db.query(`
+        SELECT 
+          p.*,
+          u.id as creator_id,
+          u.username as creator_username,
+          u.email as creator_email
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.id = $1
+        LIMIT 1
+      `, [data.pitchId]);
 
-      if (!pitchResult.length || !pitchResult[0].pitch) {
+      if (!pitchResult.length) {
         return { success: false, error: "Pitch not found" };
       }
 
+      const pitchData = pitchResult[0];
       const pitch = {
-        ...pitchResult[0].pitch,
-        creator: pitchResult[0].creator,
+        ...pitchData,
+        creator: {
+          id: pitchData.creator_id,
+          username: pitchData.creator_username,
+          email: pitchData.creator_email,
+        },
       };
 
       // For now, simulate production creation

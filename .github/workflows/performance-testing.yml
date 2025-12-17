@@ -1,0 +1,572 @@
+name: Performance Testing & Monitoring
+
+on:
+  # Trigger on pushes to main and develop branches
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'frontend/**'
+      - 'wrangler.toml'
+      - '.github/workflows/performance-testing.yml'
+  
+  # Trigger on pull requests to main
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'frontend/**'
+      - 'wrangler.toml'
+  
+  # Scheduled performance monitoring (daily at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # Manual trigger for on-demand testing
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of performance test to run'
+        required: true
+        default: 'comprehensive'
+        type: choice
+        options:
+        - comprehensive
+        - api_load
+        - websocket_load
+        - database_stress
+        - core_web_vitals
+      intensity:
+        description: 'Test intensity level'
+        required: true
+        default: 'medium'
+        type: choice
+        options:
+        - light
+        - medium
+        - heavy
+      target_environment:
+        description: 'Target environment for testing'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+env:
+  # Performance test configuration
+  K6_VERSION: '0.47.0'
+  NODE_VERSION: '18'
+  PERFORMANCE_BUDGET_FAIL_THRESHOLD: '70' # Fail if performance score < 70
+  LIGHTHOUSE_CI_BUILD_PATH: './frontend/dist'
+  
+  # Environment URLs
+  PRODUCTION_API_URL: 'https://pitchey-production.cavelltheleaddev.workers.dev'
+  PRODUCTION_WS_URL: 'wss://pitchey-production.cavelltheleaddev.workers.dev/ws'
+  PRODUCTION_FRONTEND_URL: 'https://pitchey.pages.dev'
+
+jobs:
+  # Job 1: Setup and environment preparation
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      test-types: ${{ steps.determine-tests.outputs.test-types }}
+      intensity: ${{ steps.determine-tests.outputs.intensity }}
+      target-url: ${{ steps.determine-tests.outputs.target-url }}
+      should-run-lighthouse: ${{ steps.determine-tests.outputs.lighthouse }}
+      should-run-k6: ${{ steps.determine-tests.outputs.k6 }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Need history for change detection
+      
+      - name: Determine test configuration
+        id: determine-tests
+        run: |
+          # Determine what tests to run based on trigger and changes
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TEST_TYPE="${{ github.event.inputs.test_type }}"
+            INTENSITY="${{ github.event.inputs.intensity }}"
+            TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            TEST_TYPE="comprehensive"
+            INTENSITY="medium"
+            TARGET_ENV="production"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TEST_TYPE="api_load"
+            INTENSITY="light"
+            TARGET_ENV="production"
+          else
+            # Push to main/develop
+            if git diff --name-only HEAD~1 | grep -E "frontend/"; then
+              TEST_TYPE="core_web_vitals"
+            else
+              TEST_TYPE="api_load"
+            fi
+            INTENSITY="medium"
+            TARGET_ENV="production"
+          fi
+          
+          # Set outputs
+          echo "test-types=$TEST_TYPE" >> $GITHUB_OUTPUT
+          echo "intensity=$INTENSITY" >> $GITHUB_OUTPUT
+          
+          if [[ "$TARGET_ENV" == "production" ]]; then
+            echo "target-url=${{ env.PRODUCTION_API_URL }}" >> $GITHUB_OUTPUT
+          else
+            echo "target-url=${{ env.STAGING_API_URL }}" >> $GITHUB_OUTPUT
+          fi
+          
+          # Determine which test suites to run
+          if [[ "$TEST_TYPE" == "comprehensive" ]]; then
+            echo "lighthouse=true" >> $GITHUB_OUTPUT
+            echo "k6=true" >> $GITHUB_OUTPUT
+          elif [[ "$TEST_TYPE" == "core_web_vitals" ]]; then
+            echo "lighthouse=true" >> $GITHUB_OUTPUT
+            echo "k6=false" >> $GITHUB_OUTPUT
+          else
+            echo "lighthouse=false" >> $GITHUB_OUTPUT
+            echo "k6=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check API health
+        run: |
+          echo "🔍 Checking API health..."
+          response=$(curl -s -w "HTTP_CODE:%{http_code}" "${{ env.PRODUCTION_API_URL }}/api/health" || echo "HTTP_CODE:000")
+          http_code=$(echo "$response" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+          
+          if [[ "$http_code" != "200" ]]; then
+            echo "❌ API health check failed (HTTP $http_code)"
+            echo "Response: $response"
+            exit 1
+          fi
+          
+          echo "✅ API health check passed"
+
+  # Job 2: K6 Load Testing
+  k6-performance-tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should-run-k6 == 'true'
+    
+    strategy:
+      matrix:
+        test-suite: [api-load, websocket-load, database-stress]
+        exclude:
+          # Exclude websocket tests for light intensity
+          - test-suite: websocket-load
+            intensity: ${{ needs.setup.outputs.intensity == 'light' }}
+          # Exclude database stress tests for light intensity  
+          - test-suite: database-stress
+            intensity: ${{ needs.setup.outputs.intensity == 'light' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install K6
+        run: |
+          curl https://github.com/grafana/k6/releases/download/v${{ env.K6_VERSION }}/k6-v${{ env.K6_VERSION }}-linux-amd64.tar.gz -L | tar xvz
+          sudo mv k6-v${{ env.K6_VERSION }}-linux-amd64/k6 /usr/local/bin
+      
+      - name: Prepare K6 test configuration
+        run: |
+          # Create test configuration based on intensity
+          case "${{ needs.setup.outputs.intensity }}" in
+            "light")
+              export K6_VUS=10
+              export K6_DURATION=2m
+              export K6_ITERATIONS=100
+              ;;
+            "medium")
+              export K6_VUS=50
+              export K6_DURATION=5m
+              export K6_ITERATIONS=500
+              ;;
+            "heavy")
+              export K6_VUS=100
+              export K6_DURATION=10m
+              export K6_ITERATIONS=1000
+              ;;
+          esac
+          
+          echo "K6_VUS=$K6_VUS" >> $GITHUB_ENV
+          echo "K6_DURATION=$K6_DURATION" >> $GITHUB_ENV
+          echo "K6_ITERATIONS=$K6_ITERATIONS" >> $GITHUB_ENV
+      
+      - name: Create reports directory
+        run: mkdir -p performance/reports
+      
+      - name: Run API Load Test
+        if: matrix.test-suite == 'api-load' || needs.setup.outputs.test-types == 'comprehensive'
+        run: |
+          echo "🚀 Running API Load Test (Intensity: ${{ needs.setup.outputs.intensity }})"
+          k6 run \
+            --env BASE_URL=${{ needs.setup.outputs.target-url }} \
+            --env SCENARIO=normal_load \
+            --quiet \
+            --no-usage-report \
+            performance/k6/api-load-test.js
+        continue-on-error: true
+      
+      - name: Run WebSocket Load Test
+        if: matrix.test-suite == 'websocket-load' || needs.setup.outputs.test-types == 'comprehensive'
+        run: |
+          echo "🔌 Running WebSocket Load Test"
+          k6 run \
+            --env WS_URL=${{ env.PRODUCTION_WS_URL }} \
+            --env API_URL=${{ needs.setup.outputs.target-url }} \
+            --env SCENARIO=messaging_load \
+            --quiet \
+            --no-usage-report \
+            performance/k6/websocket-load-test.js
+        continue-on-error: true
+      
+      - name: Run Database Stress Test
+        if: matrix.test-suite == 'database-stress' || needs.setup.outputs.test-types == 'comprehensive'
+        run: |
+          echo "🗄️ Running Database Stress Test"
+          k6 run \
+            --env API_URL=${{ needs.setup.outputs.target-url }} \
+            --env SCENARIO=heavy_queries \
+            --quiet \
+            --no-usage-report \
+            performance/k6/database-stress-test.js
+        continue-on-error: true
+      
+      - name: Upload K6 reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-reports-${{ matrix.test-suite }}
+          path: performance/reports/
+          retention-days: 30
+      
+      - name: Parse K6 results for PR comment
+        if: github.event_name == 'pull_request'
+        id: parse-k6
+        run: |
+          # Extract key metrics from K6 JSON output
+          if [[ -f "performance/reports/k6-summary-*.json" ]]; then
+            LATEST_REPORT=$(ls -t performance/reports/k6-summary-*.json | head -n1)
+            
+            # Parse metrics using jq
+            AVG_RESPONSE_TIME=$(cat "$LATEST_REPORT" | jq -r '.metrics.http_req_duration.avg // 0')
+            P95_RESPONSE_TIME=$(cat "$LATEST_REPORT" | jq -r '.metrics.http_req_duration.p95 // 0')
+            ERROR_RATE=$(cat "$LATEST_REPORT" | jq -r '.metrics.http_req_failed.rate // 0')
+            REQUEST_RATE=$(cat "$LATEST_REPORT" | jq -r '.metrics.http_reqs.rate // 0')
+            
+            # Format for PR comment
+            echo "avg_response_time=${AVG_RESPONSE_TIME}" >> $GITHUB_OUTPUT
+            echo "p95_response_time=${P95_RESPONSE_TIME}" >> $GITHUB_OUTPUT  
+            echo "error_rate=${ERROR_RATE}" >> $GITHUB_OUTPUT
+            echo "request_rate=${REQUEST_RATE}" >> $GITHUB_OUTPUT
+          fi
+
+  # Job 3: Lighthouse Core Web Vitals Testing
+  lighthouse-performance:
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should-run-lighthouse == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: Install dependencies
+        run: |
+          # Install Lighthouse and dependencies
+          npm install -g lighthouse lighthouse-ci puppeteer
+          
+          # Install performance testing dependencies
+          cd performance/lighthouse
+          npm install || npm install lighthouse chrome-launcher puppeteer
+      
+      - name: Run Core Web Vitals analysis
+        run: |
+          echo "🔍 Running Core Web Vitals Analysis"
+          cd performance/lighthouse
+          node core-web-vitals.js
+        continue-on-error: true
+      
+      - name: Upload Lighthouse reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: performance/reports/
+          retention-days: 30
+      
+      - name: Parse Lighthouse results
+        if: github.event_name == 'pull_request'
+        id: parse-lighthouse
+        run: |
+          if [[ -f "performance/reports/performance-results-*.json" ]]; then
+            LATEST_REPORT=$(ls -t performance/reports/performance-results-*.json | head -n1)
+            
+            # Extract summary metrics
+            PASSED=$(cat "$LATEST_REPORT" | jq -r '.summary.passed // 0')
+            TOTAL=$(cat "$LATEST_REPORT" | jq -r '.summary.total // 0')
+            AVG_PERF_SCORE=$(cat "$LATEST_REPORT" | jq -r '.summary.avgPerformanceScore // 0')
+            
+            echo "passed_scenarios=${PASSED}" >> $GITHUB_OUTPUT
+            echo "total_scenarios=${TOTAL}" >> $GITHUB_OUTPUT
+            echo "avg_performance_score=${AVG_PERF_SCORE}" >> $GITHUB_OUTPUT
+          fi
+
+  # Job 4: Performance Regression Detection
+  performance-regression:
+    runs-on: ubuntu-latest
+    needs: [setup, k6-performance-tests, lighthouse-performance]
+    if: always() && (needs.k6-performance-tests.result == 'success' || needs.lighthouse-performance.result == 'success')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50 # Need history for baseline comparison
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Download test reports
+        uses: actions/download-artifact@v4
+        with:
+          path: ./test-reports
+          merge-multiple: true
+      
+      - name: Install analysis dependencies
+        run: |
+          npm install -g jq
+      
+      - name: Analyze performance trends
+        run: |
+          echo "📊 Analyzing Performance Trends"
+          
+          # Create performance baseline if it doesn't exist
+          if [[ ! -f "performance-baseline.json" ]]; then
+            echo "📋 Creating performance baseline"
+            echo '{
+              "api_response_time_p95": 1000,
+              "lighthouse_performance_score": 90,
+              "error_rate_threshold": 0.01,
+              "last_updated": "'$(date -Iseconds)'"
+            }' > performance-baseline.json
+          fi
+          
+          # Compare current results with baseline
+          BASELINE_P95=$(cat performance-baseline.json | jq -r '.api_response_time_p95')
+          BASELINE_PERF_SCORE=$(cat performance-baseline.json | jq -r '.lighthouse_performance_score')
+          
+          # Extract current metrics from reports
+          if [[ -d "test-reports" ]]; then
+            # Find latest K6 results
+            K6_REPORT=$(find test-reports -name "k6-summary-*.json" | head -n1)
+            if [[ -f "$K6_REPORT" ]]; then
+              CURRENT_P95=$(cat "$K6_REPORT" | jq -r '.metrics.http_req_duration.p95 // 0')
+              CURRENT_ERROR_RATE=$(cat "$K6_REPORT" | jq -r '.metrics.http_req_failed.rate // 0')
+              
+              # Calculate regression percentage
+              P95_REGRESSION=$(echo "scale=2; ($CURRENT_P95 - $BASELINE_P95) / $BASELINE_P95 * 100" | bc -l)
+              
+              echo "📈 Performance Metrics:"
+              echo "  Current P95 Response Time: ${CURRENT_P95}ms"
+              echo "  Baseline P95 Response Time: ${BASELINE_P95}ms" 
+              echo "  Regression: ${P95_REGRESSION}%"
+              
+              # Check for significant regression (>20% increase)
+              if (( $(echo "$P95_REGRESSION > 20" | bc -l) )); then
+                echo "⚠️ PERFORMANCE REGRESSION DETECTED: Response time increased by ${P95_REGRESSION}%"
+                echo "regression_detected=true" >> $GITHUB_ENV
+                echo "regression_type=response_time" >> $GITHUB_ENV
+                echo "regression_value=${P95_REGRESSION}%" >> $GITHUB_ENV
+              fi
+            fi
+            
+            # Find latest Lighthouse results
+            LIGHTHOUSE_REPORT=$(find test-reports -name "performance-results-*.json" | head -n1)
+            if [[ -f "$LIGHTHOUSE_REPORT" ]]; then
+              CURRENT_PERF_SCORE=$(cat "$LIGHTHOUSE_REPORT" | jq -r '.summary.avgPerformanceScore // 0')
+              
+              PERF_SCORE_DIFF=$(echo "scale=2; $CURRENT_PERF_SCORE - $BASELINE_PERF_SCORE" | bc -l)
+              
+              echo "  Current Performance Score: ${CURRENT_PERF_SCORE}"
+              echo "  Baseline Performance Score: ${BASELINE_PERF_SCORE}"
+              echo "  Difference: ${PERF_SCORE_DIFF}"
+              
+              # Check for significant performance score drop (>10 points)
+              if (( $(echo "$PERF_SCORE_DIFF < -10" | bc -l) )); then
+                echo "⚠️ PERFORMANCE REGRESSION DETECTED: Performance score dropped by ${PERF_SCORE_DIFF} points"
+                echo "regression_detected=true" >> $GITHUB_ENV
+                echo "regression_type=performance_score" >> $GITHUB_ENV
+                echo "regression_value=${PERF_SCORE_DIFF}" >> $GITHUB_ENV
+              fi
+            fi
+          fi
+      
+      - name: Update performance baseline
+        if: github.ref == 'refs/heads/main' && env.regression_detected != 'true'
+        run: |
+          echo "📝 Updating performance baseline"
+          
+          # Update baseline with current results if no regression detected
+          if [[ -d "test-reports" ]]; then
+            K6_REPORT=$(find test-reports -name "k6-summary-*.json" | head -n1)
+            LIGHTHOUSE_REPORT=$(find test-reports -name "performance-results-*.json" | head -n1)
+            
+            NEW_BASELINE='{}'
+            
+            if [[ -f "$K6_REPORT" ]]; then
+              CURRENT_P95=$(cat "$K6_REPORT" | jq -r '.metrics.http_req_duration.p95')
+              NEW_BASELINE=$(echo "$NEW_BASELINE" | jq ".api_response_time_p95 = $CURRENT_P95")
+            fi
+            
+            if [[ -f "$LIGHTHOUSE_REPORT" ]]; then
+              CURRENT_PERF_SCORE=$(cat "$LIGHTHOUSE_REPORT" | jq -r '.summary.avgPerformanceScore')
+              NEW_BASELINE=$(echo "$NEW_BASELINE" | jq ".lighthouse_performance_score = $CURRENT_PERF_SCORE")
+            fi
+            
+            NEW_BASELINE=$(echo "$NEW_BASELINE" | jq ".last_updated = \"$(date -Iseconds)\"")
+            
+            echo "$NEW_BASELINE" > performance-baseline.json
+            
+            # Commit updated baseline
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add performance-baseline.json
+            git commit -m "Update performance baseline [skip ci]" || echo "No changes to commit"
+            git push || echo "No changes to push"
+          fi
+
+  # Job 5: Report and notify
+  report-results:
+    runs-on: ubuntu-latest
+    needs: [setup, k6-performance-tests, lighthouse-performance, performance-regression]
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-reports
+          merge-multiple: true
+      
+      - name: Generate comprehensive report
+        run: |
+          echo "📋 Generating Performance Test Report"
+          
+          # Create markdown report
+          cat << 'EOF' > performance-summary.md
+          # Performance Test Results
+          
+          **Test Run:** ${{ github.run_number }}
+          **Triggered by:** ${{ github.event_name }}
+          **Branch:** ${{ github.ref_name }}
+          **Commit:** ${{ github.sha }}
+          **Timestamp:** $(date -Iseconds)
+          
+          ## Summary
+          EOF
+          
+          # Add test results based on what ran
+          if [[ -d "all-reports" ]]; then
+            echo "" >> performance-summary.md
+            echo "### Test Results" >> performance-summary.md
+            
+            # K6 results
+            if find all-reports -name "k6-summary-*.json" | head -n1; then
+              echo "- ✅ K6 Load Tests: Completed" >> performance-summary.md
+            fi
+            
+            # Lighthouse results
+            if find all-reports -name "performance-results-*.json" | head -n1; then
+              echo "- ✅ Lighthouse Core Web Vitals: Completed" >> performance-summary.md
+            fi
+            
+            # Regression analysis
+            if [[ "${{ env.regression_detected }}" == "true" ]]; then
+              echo "- ⚠️ Performance Regression: **DETECTED** (${{ env.regression_type }}: ${{ env.regression_value }})" >> performance-summary.md
+            else
+              echo "- ✅ Performance Regression: None detected" >> performance-summary.md
+            fi
+          fi
+          
+          echo "" >> performance-summary.md
+          echo "### Detailed Reports" >> performance-summary.md
+          echo "📊 Detailed performance reports are available in the workflow artifacts." >> performance-summary.md
+      
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read the performance summary
+            let comment = '## 🚀 Performance Test Results\n\n';
+            
+            try {
+              const summary = fs.readFileSync('performance-summary.md', 'utf8');
+              comment += summary;
+            } catch (error) {
+              comment += 'Performance test report generation failed. Please check the workflow logs.\n';
+            }
+            
+            // Add workflow link
+            comment += `\n\n**View full results:** [Workflow Run](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+            
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: Fail workflow if regression detected
+        if: env.regression_detected == 'true'
+        run: |
+          echo "❌ Performance regression detected - failing workflow"
+          echo "Regression type: ${{ env.regression_type }}"
+          echo "Regression value: ${{ env.regression_value }}"
+          exit 1
+      
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-summary
+          path: performance-summary.md
+          retention-days: 90
+
+  # Job 6: Slack/Discord notification (optional)
+  notify:
+    runs-on: ubuntu-latest
+    needs: [report-results]
+    if: always() && (github.event_name == 'schedule' || env.regression_detected == 'true')
+    
+    steps:
+      - name: Notify on performance regression
+        if: env.regression_detected == 'true'
+        run: |
+          echo "🚨 Sending performance regression alert"
+          # Add your notification logic here (Slack, Discord, email, etc.)
+          # Example for Slack:
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"Performance regression detected in ${{ github.repository }}"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: Daily performance report
+        if: github.event_name == 'schedule'
+        run: |
+          echo "📊 Sending daily performance report"
+          # Add your daily report notification logic here

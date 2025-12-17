@@ -1,5 +1,9 @@
-import postgres from "npm:postgres@^3.4.0";
-import { neon } from "npm:@neondatabase/serverless@0.9.5";
+/**
+ * Database Migration Runner using Raw SQL
+ * Executes SQL migration files in order
+ */
+
+import { RawSQLDatabase } from './raw-sql-connection.ts';
 import { dirname, join } from "https://deno.land/std@0.208.0/path/mod.ts";
 
 async function runMigrations() {
@@ -8,9 +12,6 @@ async function runMigrations() {
   // Get connection string with fallback
   const connectionString = Deno.env.get("DATABASE_URL") || 
     "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
-
-  // Check if we're using local postgres or Neon
-  const isLocalDb = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
 
   // Find project root by looking for deno.json, starting from script location
   let currentDir = dirname(new URL(import.meta.url).pathname);
@@ -56,151 +57,112 @@ async function runMigrations() {
 
   if (migrationFiles.length === 0) {
     console.log("✅ No migration files found, skipping migration");
-    return; // Exit gracefully instead of Deno.exit(0)
+    return; // Exit gracefully
   }
 
   console.log(`📂 Found ${migrationFiles.length} migration files`);
 
-  // Create appropriate database client
-  let client: any;
-  try {
-    if (isLocalDb) {
-      console.log("🔗 Connecting to local PostgreSQL...");
-      client = postgres(connectionString, { max: 1 });
-    } else {
-      console.log("🔗 Connecting to Neon database...");
-      const neonClient = neon(connectionString);
-      client = {
-        unsafe: async (sql: string) => {
-          const result = await neonClient(sql);
-          return result;
-        },
-        end: async () => {
-          // Neon doesn't need explicit cleanup
-          return Promise.resolve();
-        }
-      };
-    }
+  // Create database connection
+  const db = new RawSQLDatabase({
+    connectionString,
+    maxRetries: 3,
+    retryDelayMs: 100,
+    queryTimeoutMs: 30000 // 30 seconds for migrations
+  });
 
+  try {
     // Create migrations tracking table if it doesn't exist
-    await client.unsafe(`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS __drizzle_migrations (
         id SERIAL PRIMARY KEY,
-        hash TEXT NOT NULL,
+        hash TEXT NOT NULL UNIQUE,
         created_at BIGINT NOT NULL
-      );
+      )
     `);
 
     console.log("🚀 Starting migrations...");
+
+    let appliedCount = 0;
+    let skippedCount = 0;
 
     for (const fileName of migrationFiles) {
       const filePath = join(migrationsFolder, fileName);
       const sqlContent = await Deno.readTextFile(filePath);
       
-      // Simple hash of filename for tracking (this is basic but functional)
+      // Use filename as hash for tracking
       const hash = fileName;
       
       // Check if migration has already been applied
-      const existingResult = await client.unsafe(`
-        SELECT 1 FROM __drizzle_migrations WHERE hash = '${hash}' LIMIT 1;
-      `);
+      const existing = await db.queryOne<{ id: number }>(`
+        SELECT id FROM __drizzle_migrations WHERE hash = $1
+      `, [hash]);
       
-      const hasExisting = isLocalDb 
-        ? (existingResult && existingResult.length > 0)
-        : (existingResult && existingResult.rows && existingResult.rows.length > 0);
-      
-      if (hasExisting) {
-        console.log(`⏭️  Skipping ${fileName} (already applied)`);
+      if (existing) {
+        console.log(`⏭️  Skipping migration: ${fileName} (already applied)`);
+        skippedCount++;
         continue;
       }
       
+      console.log(`🔄 Applying migration: ${fileName}`);
+      
       try {
-        console.log(`🔄 Applying ${fileName}...`);
-        
-        // Split SQL content by appropriate delimiters and execute each statement separately
-        let statements: string[];
-        
-        if (sqlContent.includes('--> statement-breakpoint')) {
-          // Drizzle-generated migration with breakpoints
-          statements = sqlContent
-            .split('--> statement-breakpoint')
-            .map(stmt => stmt.trim())
-            .filter(stmt => stmt.length > 0);
-        } else {
-          // Manual migration file - split by semicolons but be careful of dollar quotes
-          statements = sqlContent
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0 && !line.startsWith('--'))
-            .join('\n')
-            .split(';')
-            .map(stmt => stmt.trim())
-            .filter(stmt => stmt.length > 0);
-        }
-        
-        for (const statement of statements) {
-          if (statement.trim()) {
-            try {
-              await client.unsafe(statement);
-            } catch (statementError: any) {
-              // Log non-critical errors but continue
-              const errorMessage = statementError.message.toLowerCase();
-              if (errorMessage.includes('already exists') || 
-                  errorMessage.includes('relation already exists') ||
-                  errorMessage.includes('column already exists') ||
-                  errorMessage.includes('does not exist') ||
-                  errorMessage.includes('constraint already exists') ||
-                  errorMessage.includes('duplicate key value')) {
-                console.log(`⚠️  Skipping statement (schema mismatch): ${statementError.message.slice(0, 80)}...`);
-              } else {
-                // Re-throw critical errors
-                throw statementError;
-              }
+        // Run migration in a transaction
+        await db.transaction(async (sql) => {
+          // Split SQL content by semicolons but be careful with strings
+          const statements = sqlContent
+            .split(/;(?=(?:[^']*'[^']*')*[^']*$)/)
+            .filter(s => s.trim().length > 0);
+          
+          for (const statement of statements) {
+            if (statement.trim()) {
+              await sql`${statement}`;
             }
           }
-        }
+          
+          // Record migration as applied
+          await sql`
+            INSERT INTO __drizzle_migrations (hash, created_at)
+            VALUES (${hash}, ${Date.now()})
+          `;
+        });
         
-        // Record migration as applied
-        await client.unsafe(`
-          INSERT INTO __drizzle_migrations (hash, created_at) 
-          VALUES ('${hash}', ${Date.now()})
-        `);
-        
-        console.log(`✅ Applied ${fileName}`);
-      } catch (error) {
+        console.log(`✅ Applied migration: ${fileName}`);
+        appliedCount++;
+      } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`❌ Error applying ${fileName}:`, errorMessage);
+        console.error(`❌ Failed to apply migration ${fileName}: ${errorMessage}`);
         throw error;
       }
     }
 
-    console.log("✅ All migrations completed successfully!");
+    // Summary
+    console.log("\n📊 Migration Summary:");
+    console.log(`   Applied: ${appliedCount}`);
+    console.log(`   Skipped: ${skippedCount}`);
+    console.log(`   Total: ${migrationFiles.length}`);
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("❌ Migration failed:", errorMessage);
-    throw error; // Let the error propagate instead of Deno.exit(1)
-  } finally {
-    // Clean up connection
-    if (client && typeof client.end === 'function') {
-      try {
-        await client.end();
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn("⚠️  Warning: Error closing database connection:", errorMessage);
-      }
+    if (appliedCount > 0) {
+      console.log("\n✅ Migrations completed successfully!");
+    } else {
+      console.log("\n✅ All migrations were already applied.");
     }
+
+    // Check database health
+    const isHealthy = await db.healthCheck();
+    if (isHealthy) {
+      console.log("🏥 Database health check: OK");
+    } else {
+      console.warn("⚠️ Database health check failed");
+    }
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Migration failed: ${errorMessage}`);
+    Deno.exit(1);
   }
 }
 
-// Run the migration function
+// Run migrations if this is the main module
 if (import.meta.main) {
-  try {
-    await runMigrations();
-    console.log("✅ Migration script completed successfully!");
-  } catch (error) {
-    console.error("❌ Migration script failed:", error);
-    // In serverless environments, throw the error instead of Deno.exit(1)
-    throw error;
-  }
+  await runMigrations();
 }

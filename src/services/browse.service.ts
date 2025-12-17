@@ -4,10 +4,6 @@
  */
 
 import { db } from "../db/client.ts";
-import { pitches, users, pitchViews, analyticsEvents, pitchLikes } from "../db/schema.ts";
-import { 
-  eq, sql, desc, asc, and, or, gte, lte, inArray, count, avg, sum
-} from "npm:drizzle-orm@0.35.3";
 import { redisService } from "./redis.service.ts";
 
 export interface BrowseFilters {

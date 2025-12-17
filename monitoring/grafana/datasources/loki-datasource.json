@@ -1,0 +1,32 @@
+{
+  "name": "Pitchey Logs (Loki)",
+  "type": "loki",
+  "access": "proxy",
+  "url": "${GRAFANA_LOKI_URL}",
+  "basicAuth": false,
+  "withCredentials": false,
+  "isDefault": false,
+  "jsonData": {
+    "httpHeaderName1": "Authorization",
+    "derivedFields": [
+      {
+        "datasourceUid": "prometheus-pitchey",
+        "matcherRegex": "ray_id=([a-f0-9]+)",
+        "name": "Ray ID",
+        "url": "https://dash.cloudflare.com/?to=/:raysId",
+        "urlDisplayLabel": "View in Cloudflare"
+      },
+      {
+        "datasourceUid": "prometheus-pitchey",
+        "matcherRegex": "client_ip=([0-9.]+)",
+        "name": "Client IP",
+        "url": "https://www.whois.com/whois/${__value.raw}",
+        "urlDisplayLabel": "IP Info"
+      }
+    ],
+    "maxLines": 1000
+  },
+  "secureJsonData": {
+    "httpHeaderValue1": "Bearer ${GRAFANA_API_KEY}"
+  }
+}

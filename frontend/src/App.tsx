@@ -48,8 +48,7 @@ const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'));
 const CreatorProfile = lazy(() => import('./pages/CreatorProfile'));
 
 // Public Pages
-const Marketplace = lazy(() => import('./pages/Marketplace'));
-const MarketplaceEnhanced = lazy(() => import('./pages/MarketplaceEnhanced'));
+const Marketplace = lazy(() => import('./pages/MarketplaceEnhanced'));
 const TestMarketplace = lazy(() => import('./pages/TestMarketplace'));
 const PublicPitchView = lazy(() => import('./pages/PublicPitchView'));
 
@@ -282,11 +281,11 @@ function App() {
           <Route path="/" element={<Homepage />} />
           
           {/* Marketplace */}
-          <Route path="/marketplace" element={<MarketplaceEnhanced />} />
+          <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/marketplace-old" element={<Marketplace />} />
           
           {/* Browse Route */}
-          <Route path="/browse" element={<MarketplaceEnhanced />} />
+          <Route path="/browse" element={<Marketplace />} />
           <Route path="/test-marketplace" element={<TestMarketplace />} />
           
           {/* Info Pages */}

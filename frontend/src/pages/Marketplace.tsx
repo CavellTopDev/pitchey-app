@@ -52,6 +52,7 @@ export default function Marketplace() {
   const [browsePitches, setBrowsePitches] = useState<Pitch[]>([]);
   const [browseMetadata, setBrowseMetadata] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [browseLoading, setBrowseLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<{
     related: Pitch[];
     trending: Pitch[];
@@ -149,13 +150,20 @@ export default function Marketplace() {
     loadPitches();
     loadTrendingPitches();
     loadNewPitches();
+    loadBrowsePitches(); // Also load browse pitches initially for "all" view
   }, []);
 
   // Load browse pitches when browse view is active or filters change (skip for search - use client-side)
   useEffect(() => {
     // Only load from API if we're in browse view or have genre/format filters (not for search)
     if (currentView === 'browse' || (selectedGenre || selectedFormat)) {
-      loadBrowsePitches();
+      // Add a small delay to prevent rapid-fire requests and potential infinite loops
+      const timeoutId = setTimeout(() => {
+        loadBrowsePitches();
+      }, 100);
+      
+      // Cleanup timeout on dependency change
+      return () => clearTimeout(timeoutId);
     }
   }, [currentView, sortBy, sortOrder, selectedGenre, selectedFormat, currentPage]);
 
@@ -250,8 +258,8 @@ export default function Marketplace() {
       case 'formats':
       case 'all':
       default:
-        // General view uses all pitches with client-side filtering
-        filtered = [...pitches];
+        // General view uses browse pitches (or fallback to pitches array)
+        filtered = browsePitches.length > 0 ? [...browsePitches] : [...pitches];
         
         // Apply search filter
         if (searchQuery) {
@@ -360,9 +368,18 @@ export default function Marketplace() {
   };
 
   const loadBrowsePitches = async () => {
+    // Prevent multiple simultaneous requests
+    if (browseLoading) {
+      console.log('Browse pitches already loading, skipping request');
+      return;
+    }
+    
     try {
+      setBrowseLoading(true);
       setLoading(true);
       const offset = (currentPage - 1) * itemsPerPage;
+      
+      console.log('Loading browse pitches:', { sortBy, sortOrder, selectedGenre, selectedFormat, currentPage, offset });
       
       const result = await pitchService.getGeneralBrowse({
         sort: sortBy,
@@ -374,6 +391,8 @@ export default function Marketplace() {
         offset
       });
       
+      console.log('Browse pitches loaded successfully:', result.pitches?.length || 0, 'pitches');
+      
       // Store browse results directly (no search filtering here - done in applyFilters)
       setBrowsePitches(result.pitches);
       setBrowseMetadata(result);
@@ -382,6 +401,7 @@ export default function Marketplace() {
       setBrowsePitches([]);
       setBrowseMetadata(null);
     } finally {
+      setBrowseLoading(false);
       setLoading(false);
     }
   };

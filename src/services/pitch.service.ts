@@ -1,6 +1,4 @@
 import { db } from "../db/client.ts";
-import { pitches, ndas, pitchViews, follows, users } from "../db/schema.ts";
-import { eq, and, desc, sql, or } from "npm:drizzle-orm@0.35.3";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { CacheService } from "./cache.service.ts";
 
@@ -76,32 +74,32 @@ export class PitchService {
     
     try {
       // Use the proper db client that handles local vs production databases
-      const result = await db.insert(pitches).values({
-        userId: userId,
+      const result = await db.insert('pitches', {
+        user_id: userId,
         title: validated.title || "New Pitch",
         logline: validated.logline || "A compelling story",
         genre: validated.genre || "drama",
         format: validated.format || "feature",
-        formatCategory: validated.formatCategory || null,
-        formatSubtype: validated.formatSubtype || null,
-        customFormat: validated.customFormat || null,
-        shortSynopsis: validated.shortSynopsis || null,
-        longSynopsis: validated.longSynopsis || null,
+        format_category: validated.formatCategory || null,
+        format_subtype: validated.formatSubtype || null,
+        custom_format: validated.customFormat || null,
+        short_synopsis: validated.shortSynopsis || null,
+        long_synopsis: validated.longSynopsis || null,
         characters: validated.characters ? JSON.stringify(validated.characters) : null,
         themes: validated.themes || null,
-        worldDescription: validated.worldDescription || null,
-        budgetBracket: validated.budgetBracket || null,
-        estimatedBudget: validated.estimatedBudget?.toString() || null,
-        productionTimeline: validated.productionTimeline || null,
-        aiUsed: validated.aiUsed || false,
-        requireNda: validated.requireNDA || false,
+        world_description: validated.worldDescription || null,
+        budget_bracket: validated.budgetBracket || null,
+        estimated_budget: validated.estimatedBudget?.toString() || null,
+        production_timeline: validated.productionTimeline || null,
+        ai_used: validated.aiUsed || false,
+        require_nda: validated.requireNDA || false,
         status: 'draft',
-        viewCount: 0,
-        likeCount: 0,
-        ndaCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }).returning();
+        view_count: 0,
+        like_count: 0,
+        nda_count: 0,
+        created_at: new Date(),
+        updated_at: new Date()
+      });
       
       const pitch = result[0];
       
@@ -125,14 +123,10 @@ export class PitchService {
   
   static async update(pitchId: number, userId: number, data: Partial<z.infer<typeof CreatePitchSchema>>) {
     // Check ownership
-    const pitchResult = await db
-      .select()
-      .from(pitches)
-      .where(and(
-        eq(pitches.id, pitchId),
-        eq(pitches.userId, userId)
-      ))
-      .limit(1);
+    const pitchResult = await db.query(
+      'SELECT * FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
+      [pitchId, userId]
+    );
     
     const pitch = pitchResult[0];
     
@@ -141,56 +135,73 @@ export class PitchService {
     }
     
     // Convert number to string for decimal fields and serialize JSON fields
-    const updateData = {
+    const updateData: any = {
       ...data,
-      estimatedBudget: data.estimatedBudget ? data.estimatedBudget.toString() : undefined,
+      estimated_budget: data.estimatedBudget ? data.estimatedBudget.toString() : undefined,
       characters: data.characters ? JSON.stringify(data.characters) : undefined,
       themes: data.themes,
-      worldDescription: data.worldDescription,
-      updatedAt: new Date(),
+      world_description: data.worldDescription,
+      updated_at: new Date(),
     };
     
     // Remove undefined values
     Object.keys(updateData).forEach((key: string) => {
-      if ((updateData as any)[key] === undefined) {
-        delete (updateData as any)[key];
+      if (updateData[key] === undefined) {
+        delete updateData[key];
       }
     });
     
-    const [updated] = await db.update(pitches)
-      .set(updateData)
-      .where(eq(pitches.id, pitchId))
-      .returning();
+    // Convert camelCase to snake_case for database columns
+    const dbData: any = {};
+    Object.keys(updateData).forEach(key => {
+      const dbKey = key === 'formatCategory' ? 'format_category' :
+                    key === 'formatSubtype' ? 'format_subtype' :
+                    key === 'customFormat' ? 'custom_format' :
+                    key === 'shortSynopsis' ? 'short_synopsis' :
+                    key === 'longSynopsis' ? 'long_synopsis' :
+                    key === 'budgetBracket' ? 'budget_bracket' :
+                    key === 'productionTimeline' ? 'production_timeline' :
+                    key === 'aiUsed' ? 'ai_used' :
+                    key === 'requireNDA' ? 'require_nda' :
+                    key === 'titleImage' ? 'title_image' :
+                    key === 'lookbookUrl' ? 'lookbook_url' :
+                    key === 'pitchDeckUrl' ? 'pitch_deck_url' :
+                    key === 'scriptUrl' ? 'script_url' :
+                    key === 'trailerUrl' ? 'trailer_url' :
+                    key === 'additionalMedia' ? 'additional_media' : key;
+      dbData[dbKey] = updateData[key];
+    });
+    
+    const updated = await db.update('pitches', dbData, 'id = $1', [pitchId]);
     
     // Parse JSON fields back to objects
-    parsePitchJsonFields(updated);
+    parsePitchJsonFields(updated[0]);
     
     // Invalidate pitch cache and marketplace cache after update
     try {
       await CacheService.invalidatePitch(pitchId);
       // Only invalidate marketplace if the pitch is published
-      if (updated.status === 'published') {
+      if (updated[0] && updated[0].status === 'published') {
         await CacheService.invalidateMarketplace();
       }
     } catch (error) {
       console.warn("Failed to invalidate cache:", error);
     }
     
-    return updated;
+    return updated[0];
   }
   
   static async publish(pitchId: number, userId: number) {
-    const [published] = await db.update(pitches)
-      .set({
+    const published = await db.update(
+      'pitches',
+      {
         status: "published",
-        publishedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(and(
-        eq(pitches.id, pitchId),
-        eq(pitches.userId, userId)
-      ))
-      .returning();
+        published_at: new Date(),
+        updated_at: new Date(),
+      },
+      'id = $1 AND user_id = $2',
+      [pitchId, userId]
+    );
     
     // Invalidate pitch cache and marketplace cache when pitch is published
     try {
@@ -200,7 +211,7 @@ export class PitchService {
       console.warn("Failed to invalidate cache:", error);
     }
     
-    return published;
+    return published[0];
   }
 
   static async getPitchById(pitchId: number, userId: number) {
@@ -215,22 +226,18 @@ export class PitchService {
       }
       
       // Get pitch if user owns it
-      const result = await db
-        .select()
-        .from(pitches)
-        .where(and(
-          eq(pitches.id, pitchId),
-          eq(pitches.userId, userId)
-        ))
-        .limit(1);
+      const result = await db.query(
+        'SELECT * FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
+        [pitchId, userId]
+      );
       
       const pitch = result[0] || null;
       
       // Additional validation of returned data
-      if (pitch && (!pitch.id || !pitch.userId || !pitch.title)) {
+      if (pitch && (!pitch.id || !pitch.user_id || !pitch.title)) {
         console.error(`Pitch ${pitchId} has corrupted data:`, {
           id: pitch.id,
-          userId: pitch.userId,
+          userId: pitch.user_id,
           title: pitch.title
         });
         return null;
@@ -248,40 +255,74 @@ export class PitchService {
       // First try to get pitch with relations
       let pitch;
       try {
-        const pitchResults = await db
-          .select({
-            pitch: pitches,
-            creator: {
-              id: users.id,
-              username: users.username,
-              firstName: users.firstName,
-              lastName: users.lastName,
-              companyName: users.companyName,
-              userType: users.userType,
-              profileImageUrl: users.profileImageUrl,
-            },
-          })
-          .from(pitches)
-          .leftJoin(users, eq(pitches.userId, users.id))
-          .where(eq(pitches.id, pitchId))
-          .limit(1);
+        const pitchResults = await db.query(`
+          SELECT 
+            p.*,
+            u.id as creator_id,
+            u.username as creator_username,
+            u.first_name as creator_first_name,
+            u.last_name as creator_last_name,
+            u.company_name as creator_company_name,
+            u.user_type as creator_user_type,
+            u.profile_image_url as creator_profile_image_url
+          FROM pitches p
+          LEFT JOIN users u ON p.user_id = u.id
+          WHERE p.id = $1
+          LIMIT 1
+        `, [pitchId]);
         
         if (pitchResults.length > 0) {
           const result = pitchResults[0];
           pitch = {
-            ...result.pitch,
-            creator: result.creator,
+            id: result.id,
+            title: result.title,
+            logline: result.logline,
+            genre: result.genre,
+            format: result.format,
+            formatCategory: result.format_category,
+            formatSubtype: result.format_subtype,
+            customFormat: result.custom_format,
+            shortSynopsis: result.short_synopsis,
+            longSynopsis: result.long_synopsis,
+            characters: result.characters,
+            themes: result.themes,
+            worldDescription: result.world_description,
+            budgetBracket: result.budget_bracket,
+            estimatedBudget: result.estimated_budget,
+            productionTimeline: result.production_timeline,
+            titleImage: result.title_image,
+            lookbookUrl: result.lookbook_url,
+            pitchDeckUrl: result.pitch_deck_url,
+            scriptUrl: result.script_url,
+            trailerUrl: result.trailer_url,
+            additionalMedia: result.additional_media,
+            aiUsed: result.ai_used,
+            requireNDA: result.require_nda,
+            status: result.status,
+            viewCount: result.view_count,
+            likeCount: result.like_count,
+            ndaCount: result.nda_count,
+            userId: result.user_id,
+            createdAt: result.created_at,
+            updatedAt: result.updated_at,
+            publishedAt: result.published_at,
+            creator: {
+              id: result.creator_id,
+              username: result.creator_username,
+              firstName: result.creator_first_name,
+              lastName: result.creator_last_name,
+              companyName: result.creator_company_name,
+              userType: result.creator_user_type,
+              profileImageUrl: result.creator_profile_image_url,
+            },
           };
           
           // Get NDAs separately if viewerId provided
           if (viewerId) {
-            const ndaResults = await db
-              .select()
-              .from(ndas)
-              .where(and(
-                eq(ndas.pitchId, pitchId),
-                eq(ndas.signerId, viewerId)
-              ));
+            const ndaResults = await db.query(
+              'SELECT * FROM ndas WHERE pitch_id = $1 AND signer_id = $2',
+              [pitchId, viewerId]
+            );
             
             pitch.ndas = ndaResults;
           } else {
@@ -291,22 +332,53 @@ export class PitchService {
       } catch (relationError) {
         console.log("Relations not available, fetching pitch without relations");
         // Fallback: get pitch without relations
-        const fallbackResults = await db
-          .select()
-          .from(pitches)
-          .where(eq(pitches.id, pitchId))
-          .limit(1);
+        const fallbackResults = await db.query(
+          'SELECT * FROM pitches WHERE id = $1 LIMIT 1',
+          [pitchId]
+        );
         
-        pitch = fallbackResults[0];
-        
-        if (pitch) {
-          // Add minimal creator info from the pitch itself
-          pitch.creator = {
-            id: pitch.userId,
-            username: "Creator",
-            userType: "creator"
+        const result = fallbackResults[0];
+        if (result) {
+          pitch = {
+            id: result.id,
+            title: result.title,
+            logline: result.logline,
+            genre: result.genre,
+            format: result.format,
+            formatCategory: result.format_category,
+            formatSubtype: result.format_subtype,
+            customFormat: result.custom_format,
+            shortSynopsis: result.short_synopsis,
+            longSynopsis: result.long_synopsis,
+            characters: result.characters,
+            themes: result.themes,
+            worldDescription: result.world_description,
+            budgetBracket: result.budget_bracket,
+            estimatedBudget: result.estimated_budget,
+            productionTimeline: result.production_timeline,
+            titleImage: result.title_image,
+            lookbookUrl: result.lookbook_url,
+            pitchDeckUrl: result.pitch_deck_url,
+            scriptUrl: result.script_url,
+            trailerUrl: result.trailer_url,
+            additionalMedia: result.additional_media,
+            aiUsed: result.ai_used,
+            requireNDA: result.require_nda,
+            status: result.status,
+            viewCount: result.view_count,
+            likeCount: result.like_count,
+            ndaCount: result.nda_count,
+            userId: result.user_id,
+            createdAt: result.created_at,
+            updatedAt: result.updated_at,
+            publishedAt: result.published_at,
+            creator: {
+              id: result.user_id,
+              username: "Creator",
+              userType: "creator"
+            },
+            ndas: []
           };
-          pitch.ndas = [];
         }
       }
       
@@ -352,31 +424,26 @@ export class PitchService {
   
   static async recordView(pitchId: number, viewerId: number) {
     // Increment view count
-    await db.update(pitches)
-      .set({
-        viewCount: sql`${pitches.viewCount} + 1`,
-      })
-      .where(eq(pitches.id, pitchId));
+    await db.query(
+      'UPDATE pitches SET view_count = view_count + 1 WHERE id = $1',
+      [pitchId]
+    );
     
     // Record detailed view
-    await db.insert(pitchViews)
-      .values({
-        pitchId,
-        viewerId,
-        viewType: "full",
-      });
+    await db.insert('pitch_views', {
+      pitch_id: pitchId,
+      viewer_id: viewerId,
+      view_type: "full",
+      created_at: new Date()
+    });
   }
   
   static async signNda(pitchId: number, signerId: number, ndaType: "basic" | "enhanced" = "basic") {
     // Check if already signed
-    const existingResult = await db
-      .select()
-      .from(ndas)
-      .where(and(
-        eq(ndas.pitchId, pitchId),
-        eq(ndas.signerId, signerId)
-      ))
-      .limit(1);
+    const existingResult = await db.query(
+      'SELECT * FROM ndas WHERE pitch_id = $1 AND signer_id = $2 LIMIT 1',
+      [pitchId, signerId]
+    );
     
     const existing = existingResult[0];
     
@@ -385,46 +452,75 @@ export class PitchService {
     }
     
     // Create NDA record
-    const [nda] = await db.insert(ndas)
-      .values({
-        pitchId,
-        signerId,
-        ndaType,
-      })
-      .returning();
+    const nda = await db.insert('ndas', {
+      pitch_id: pitchId,
+      signer_id: signerId,
+      nda_type: ndaType,
+      created_at: new Date(),
+      updated_at: new Date()
+    });
     
     // Increment NDA count
-    await db.update(pitches)
-      .set({
-        ndaCount: sql`${pitches.ndaCount} + 1`,
-      })
-      .where(eq(pitches.id, pitchId));
+    await db.query(
+      'UPDATE pitches SET nda_count = nda_count + 1 WHERE id = $1',
+      [pitchId]
+    );
     
-    return nda;
+    return nda[0];
   }
   
   static async getTopPitches(limit = 10) {
-    const results = await db
-      .select({
-        pitch: pitches,
-        creator: {
-          username: users.username,
-          companyName: users.companyName,
-          userType: users.userType,
-        },
-      })
-      .from(pitches)
-      .leftJoin(users, eq(pitches.userId, users.id))
-      .where(eq(pitches.status, "published"))
-      .orderBy(desc(pitches.likeCount), desc(pitches.viewCount))
-      .limit(limit);
+    const results = await db.query(`
+      SELECT 
+        p.*,
+        u.username as creator_username,
+        u.company_name as creator_company_name,
+        u.user_type as creator_user_type
+      FROM pitches p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.status = 'published'
+      ORDER BY p.like_count DESC, p.view_count DESC
+      LIMIT $1
+    `, [limit]);
     
     return results.map((row: any) => ({
-      ...row.pitch,
-      formatCategory: row.pitch.formatCategory,
-      formatSubtype: row.pitch.formatSubtype,
-      customFormat: row.pitch.customFormat,
-      creator: row.creator,
+      id: row.id,
+      title: row.title,
+      logline: row.logline,
+      genre: row.genre,
+      format: row.format,
+      formatCategory: row.format_category,
+      formatSubtype: row.format_subtype,
+      customFormat: row.custom_format,
+      shortSynopsis: row.short_synopsis,
+      longSynopsis: row.long_synopsis,
+      characters: row.characters,
+      themes: row.themes,
+      worldDescription: row.world_description,
+      budgetBracket: row.budget_bracket,
+      estimatedBudget: row.estimated_budget,
+      productionTimeline: row.production_timeline,
+      titleImage: row.title_image,
+      lookbookUrl: row.lookbook_url,
+      pitchDeckUrl: row.pitch_deck_url,
+      scriptUrl: row.script_url,
+      trailerUrl: row.trailer_url,
+      additionalMedia: row.additional_media,
+      aiUsed: row.ai_used,
+      requireNDA: row.require_nda,
+      status: row.status,
+      viewCount: row.view_count,
+      likeCount: row.like_count,
+      ndaCount: row.nda_count,
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      publishedAt: row.published_at,
+      creator: {
+        username: row.creator_username,
+        companyName: row.creator_company_name,
+        userType: row.creator_user_type,
+      },
     }));
   }
   
@@ -644,39 +740,38 @@ export class PitchService {
       console.log("getNewPitches v2.1: Starting query with userType fix...");
       
       // Query with joins to include proper creator info
-      const results = await db
-        .select({
-          id: pitches.id,
-          title: pitches.title,
-          logline: pitches.logline,
-          genre: pitches.genre,
-          format: pitches.format,
-          formatCategory: pitches.formatCategory,
-          formatSubtype: pitches.formatSubtype,
-          customFormat: pitches.customFormat,
-          budgetBracket: pitches.budgetBracket,
-          estimatedBudget: pitches.estimatedBudget,
-          status: pitches.status,
-          titleImage: pitches.titleImage,
-          shortSynopsis: pitches.shortSynopsis,
-          viewCount: pitches.viewCount,
-          likeCount: pitches.likeCount,
-          ndaCount: pitches.ndaCount,
-          userId: pitches.userId,
-          createdAt: pitches.createdAt,
-          updatedAt: pitches.updatedAt,
-          publishedAt: pitches.publishedAt,
-          // Add user info
-          creatorId: users.id,
-          creatorUsername: users.username,
-          creatorCompanyName: users.companyName,
-          creatorUserType: users.userType
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(eq(pitches.status, "published"))
-        .orderBy(desc(pitches.publishedAt))
-        .limit(limit);
+      const results = await db.query(`
+        SELECT 
+          p.id,
+          p.title,
+          p.logline,
+          p.genre,
+          p.format,
+          p.format_category,
+          p.format_subtype,
+          p.custom_format,
+          p.budget_bracket,
+          p.estimated_budget,
+          p.status,
+          p.title_image,
+          p.short_synopsis,
+          p.view_count,
+          p.like_count,
+          p.nda_count,
+          p.user_id,
+          p.created_at,
+          p.updated_at,
+          p.published_at,
+          u.id as creator_id,
+          u.username as creator_username,
+          u.company_name as creator_company_name,
+          u.user_type as creator_user_type
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.status = 'published'
+        ORDER BY p.published_at DESC
+        LIMIT $1
+      `, [limit]);
       
       console.log(`getNewPitches: Found ${results.length} pitches`);
       
@@ -687,28 +782,28 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
-        formatCategory: p.formatCategory,
-        formatSubtype: p.formatSubtype,
-        customFormat: p.customFormat,
-        budgetBracket: p.budgetBracket,
-        estimatedBudget: p.estimatedBudget ? parseFloat(p.estimatedBudget) : null,
+        formatCategory: p.format_category,
+        formatSubtype: p.format_subtype,
+        customFormat: p.custom_format,
+        budgetBracket: p.budget_bracket,
+        estimatedBudget: p.estimated_budget ? parseFloat(p.estimated_budget) : null,
         status: p.status,
-        titleImage: p.titleImage,
-        shortSynopsis: p.shortSynopsis,
-        viewCount: p.viewCount || 0,
-        likeCount: p.likeCount || 0,
-        ndaCount: p.ndaCount || 0,
-        userId: p.userId,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        publishedAt: p.publishedAt,
-        creator: p.creatorId ? {
-          id: p.creatorId,
-          username: p.creatorUsername,
-          companyName: p.creatorCompanyName,
-          userType: p.creatorUserType
+        titleImage: p.title_image,
+        shortSynopsis: p.short_synopsis,
+        viewCount: p.view_count || 0,
+        likeCount: p.like_count || 0,
+        ndaCount: p.nda_count || 0,
+        userId: p.user_id,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        publishedAt: p.published_at,
+        creator: p.creator_id ? {
+          id: p.creator_id,
+          username: p.creator_username,
+          companyName: p.creator_company_name,
+          userType: p.creator_user_type
         } : {
-          id: p.userId,
+          id: p.user_id,
           username: "Unknown Creator",
           companyName: null,
           userType: "creator"
@@ -731,83 +826,128 @@ export class PitchService {
     limit?: number;
     offset?: number;
   }) {
-    const conditions = [eq(pitches.status, "published")];
+    let baseCondition = "p.status = 'published'";
+    const queryParams: any[] = [];
+    let paramIndex = 1;
     
     if (params.genre) {
-      conditions.push(eq(pitches.genre, params.genre as any));
+      baseCondition += ` AND p.genre = $${paramIndex}`;
+      queryParams.push(params.genre);
+      paramIndex++;
     }
     
     if (params.format) {
-      conditions.push(eq(pitches.format, params.format as any));
+      baseCondition += ` AND p.format = $${paramIndex}`;
+      queryParams.push(params.format);
+      paramIndex++;
     }
     
     // Add text search for query parameter
     if (params.query && params.query.trim() !== '') {
       const searchTerm = `%${params.query.toLowerCase()}%`;
-      const searchCondition = or(
-        sql`LOWER(${pitches.title}) LIKE ${searchTerm}`,
-        sql`LOWER(${pitches.logline}) LIKE ${searchTerm}`,
-        sql`LOWER(${pitches.shortSynopsis}) LIKE ${searchTerm}`
-      );
-      if (searchCondition) {
-        conditions.push(searchCondition);
-      }
+      baseCondition += ` AND (LOWER(p.title) LIKE $${paramIndex} OR LOWER(p.logline) LIKE $${paramIndex} OR LOWER(p.short_synopsis) LIKE $${paramIndex})`;
+      queryParams.push(searchTerm);
+      paramIndex++;
     }
     
-    const [searchResults, totalCount] = await Promise.all([
-      db
-        .select({
-          pitch: pitches,
-          creator: {
-            id: users.id,
-            username: users.username,
-            companyName: users.companyName,
-            userType: users.userType,
-          },
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(and(...conditions))
-        .limit(params.limit || 20)
-        .offset(params.offset || 0)
-        .orderBy(desc(pitches.publishedAt))
-        .then((results: any) => results.map((row: any) => ({
-          ...row.pitch,
-          formatCategory: row.pitch.formatCategory,
-          formatSubtype: row.pitch.formatSubtype,
-          customFormat: row.pitch.customFormat,
-          creator: row.creator,
-        }))),
-      db.select({ count: sql<number>`count(*)` })
-        .from(pitches)
-        .where(and(...conditions))
-        .then((result: any) => result[0]?.count || 0)
+    const limit = params.limit || 20;
+    const offset = params.offset || 0;
+    
+    const [searchResults, totalCountResults] = await Promise.all([
+      db.query(`
+        SELECT 
+          p.*,
+          u.id as creator_id,
+          u.username as creator_username,
+          u.company_name as creator_company_name,
+          u.user_type as creator_user_type
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE ${baseCondition}
+        ORDER BY p.published_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, [...queryParams, limit, offset]),
+      
+      db.query(`
+        SELECT COUNT(*) as count
+        FROM pitches p
+        WHERE ${baseCondition}
+      `, queryParams)
     ]);
     
+    const formattedResults = searchResults.map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      logline: row.logline,
+      genre: row.genre,
+      format: row.format,
+      formatCategory: row.format_category,
+      formatSubtype: row.format_subtype,
+      customFormat: row.custom_format,
+      shortSynopsis: row.short_synopsis,
+      longSynopsis: row.long_synopsis,
+      characters: row.characters,
+      themes: row.themes,
+      worldDescription: row.world_description,
+      budgetBracket: row.budget_bracket,
+      estimatedBudget: row.estimated_budget,
+      productionTimeline: row.production_timeline,
+      titleImage: row.title_image,
+      lookbookUrl: row.lookbook_url,
+      pitchDeckUrl: row.pitch_deck_url,
+      scriptUrl: row.script_url,
+      trailerUrl: row.trailer_url,
+      additionalMedia: row.additional_media,
+      aiUsed: row.ai_used,
+      requireNDA: row.require_nda,
+      status: row.status,
+      viewCount: row.view_count,
+      likeCount: row.like_count,
+      ndaCount: row.nda_count,
+      userId: row.user_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      publishedAt: row.published_at,
+      creator: {
+        id: row.creator_id,
+        username: row.creator_username,
+        companyName: row.creator_company_name,
+        userType: row.creator_user_type,
+      },
+    }));
+    
+    const totalCount = totalCountResults[0]?.count || 0;
+    
     return {
-      pitches: searchResults,
-      totalCount
+      pitches: formattedResults,
+      totalCount: parseInt(totalCount)
     };
   }
   
   static async followPitch(pitchId: number, userId: number) {
-    const [follow] = await db.insert(follows)
-      .values({
-        followerId: userId,
-        pitchId,
-      })
-      .onConflictDoNothing()
-      .returning();
-    
-    return follow;
+    try {
+      const follow = await db.insert('follows', {
+        follower_id: userId,
+        pitch_id: pitchId,
+        created_at: new Date()
+      });
+      return follow[0];
+    } catch (error) {
+      // Handle unique constraint violation (already following)
+      if (error.message?.includes('unique') || error.code === '23505') {
+        // Return existing follow record
+        const existing = await db.query(
+          'SELECT * FROM follows WHERE pitch_id = $1 AND follower_id = $2',
+          [pitchId, userId]
+        );
+        return existing[0];
+      }
+      throw error;
+    }
   }
   
   static async unfollowPitch(pitchId: number, userId: number) {
-    await db.delete(follows)
-      .where(and(
-        eq(follows.pitchId, pitchId),
-        eq(follows.followerId, userId)
-      ));
+    await db.delete('follows', 'pitch_id = $1 AND follower_id = $2', [pitchId, userId]);
   }
   
   static async getUserPitches(userId: number, includeStats = false) {
@@ -945,14 +1085,10 @@ export class PitchService {
     console.log(`🗑️ Attempting to delete pitch ${pitchId} by user ${userId}`);
     
     // Check ownership
-    const pitchResult = await db
-      .select()
-      .from(pitches)
-      .where(and(
-        eq(pitches.id, pitchId),
-        eq(pitches.userId, userId)
-      ))
-      .limit(1);
+    const pitchResult = await db.query(
+      'SELECT * FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
+      [pitchId, userId]
+    );
     
     const pitch = pitchResult[0];
     
@@ -973,11 +1109,9 @@ export class PitchService {
       // - watchlist entries
       
       // Delete the pitch (cascade will handle all related records)
-      const deleteResult = await db.delete(pitches)
-        .where(eq(pitches.id, pitchId))
-        .returning();
+      const deleteResult = await db.delete('pitches', 'id = $1', [pitchId]);
       
-      if (!deleteResult.length) {
+      if (!deleteResult || deleteResult.length === 0) {
         throw new Error('Failed to delete pitch from database');
       }
       
@@ -996,8 +1130,8 @@ export class PitchService {
           await DashboardCacheService.invalidateTrendingCache();
           
           // Get user type to invalidate dashboard cache properly
-          const userResult = await db.select({ userType: users.userType }).from(users).where(eq(users.id, userId));
-          const userType = userResult[0]?.userType || 'creator';
+          const userResult = await db.query('SELECT user_type FROM users WHERE id = $1', [userId]);
+          const userType = userResult[0]?.user_type || 'creator';
           
           // Invalidate user dashboard cache
           await DashboardCacheService.invalidateDashboardCache(userId, userType);
@@ -1100,50 +1234,54 @@ export class PitchService {
       const limit = filters.limit || 20;
       const offset = filters.offset || 0;
       
-      let conditions = [eq(pitches.status, "published")];
+      let baseCondition = "p.status = 'published'";
+      const queryParams: any[] = [];
+      let paramIndex = 1;
       
       if (filters.genre) {
-        conditions.push(eq(pitches.genre, filters.genre));
+        baseCondition += ` AND p.genre = $${paramIndex}`;
+        queryParams.push(filters.genre);
+        paramIndex++;
       }
       
       if (filters.format) {
-        conditions.push(eq(pitches.format, filters.format));
+        baseCondition += ` AND p.format = $${paramIndex}`;
+        queryParams.push(filters.format);
+        paramIndex++;
       }
 
       // Simplified query without relations to avoid issues
-      const allPitches = await db
-        .select({
-          id: pitches.id,
-          title: pitches.title,
-          logline: pitches.logline,
-          genre: pitches.genre,
-          format: pitches.format,
-          formatCategory: pitches.formatCategory,
-          formatSubtype: pitches.formatSubtype,
-          customFormat: pitches.customFormat,
-          budgetBracket: pitches.budgetBracket,
-          estimatedBudget: pitches.estimatedBudget,
-          status: pitches.status,
-          titleImage: pitches.titleImage,
-          shortSynopsis: pitches.shortSynopsis,
-          viewCount: pitches.viewCount,
-          likeCount: pitches.likeCount,
-          ndaCount: pitches.ndaCount,
-          userId: pitches.userId,
-          createdAt: pitches.createdAt,
-          updatedAt: pitches.updatedAt,
-          // Add user info
-          creatorId: users.id,
-          creatorUsername: users.username,
-          creatorCompanyName: users.companyName,
-          creatorUserType: users.userType
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(and(...conditions))
-        .orderBy(desc(pitches.createdAt))
-        .limit(limit)
-        .offset(offset);
+      const allPitches = await db.query(`
+        SELECT 
+          p.id,
+          p.title,
+          p.logline,
+          p.genre,
+          p.format,
+          p.format_category,
+          p.format_subtype,
+          p.custom_format,
+          p.budget_bracket,
+          p.estimated_budget,
+          p.status,
+          p.title_image,
+          p.short_synopsis,
+          p.view_count,
+          p.like_count,
+          p.nda_count,
+          p.user_id,
+          p.created_at,
+          p.updated_at,
+          u.id as creator_id,
+          u.username as creator_username,
+          u.company_name as creator_company_name,
+          u.user_type as creator_user_type
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE ${baseCondition}
+        ORDER BY p.created_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, [...queryParams, limit, offset]);
 
       // Transform to expected format
       const formattedPitches = allPitches.map((p: any) => ({
@@ -1152,25 +1290,25 @@ export class PitchService {
         logline: p.logline,
         genre: p.genre,
         format: p.format,
-        formatCategory: p.formatCategory,
-        formatSubtype: p.formatSubtype,
-        customFormat: p.customFormat,
-        budgetBracket: p.budgetBracket,
-        estimatedBudget: p.estimatedBudget ? parseFloat(p.estimatedBudget) : null,
+        formatCategory: p.format_category,
+        formatSubtype: p.format_subtype,
+        customFormat: p.custom_format,
+        budgetBracket: p.budget_bracket,
+        estimatedBudget: p.estimated_budget ? parseFloat(p.estimated_budget) : null,
         status: p.status,
-        titleImage: p.titleImage,
-        shortSynopsis: p.shortSynopsis,
-        viewCount: p.viewCount || 0,
-        likeCount: p.likeCount || 0,
-        ndaCount: p.ndaCount || 0,
-        userId: p.userId,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        creator: p.creatorId ? {
-          id: p.creatorId,
-          username: p.creatorUsername,
-          companyName: p.creatorCompanyName,
-          userType: p.creatorUserType
+        titleImage: p.title_image,
+        shortSynopsis: p.short_synopsis,
+        viewCount: p.view_count || 0,
+        likeCount: p.like_count || 0,
+        ndaCount: p.nda_count || 0,
+        userId: p.user_id,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        creator: p.creator_id ? {
+          id: p.creator_id,
+          username: p.creator_username,
+          companyName: p.creator_company_name,
+          userType: p.creator_user_type
         } : null
       }));
 
@@ -1194,34 +1332,59 @@ export class PitchService {
     try {
       // Get all published pitches that production companies can view
       // This could include pitches that are looking for production
-      const productionPitches = await db
-        .select({
-          pitch: pitches,
-          creator: {
-            id: users.id,
-            username: users.username,
-            companyName: users.companyName,
-            userType: users.userType,
-          },
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(
-          and(
-            eq(pitches.status, "published"),
-            // Only show pitches that are looking for production or investment
-            // You could add more specific filtering here based on your business logic
-          )
-        )
-        .orderBy(desc(pitches.publishedAt))
-        .limit(50);
+      const productionPitches = await db.query(`
+        SELECT 
+          p.*,
+          u.id as creator_id,
+          u.username as creator_username,
+          u.company_name as creator_company_name,
+          u.user_type as creator_user_type
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.status = 'published'
+        ORDER BY p.published_at DESC
+        LIMIT 50
+      `);
 
       return productionPitches.map((row: any) => ({
-        ...row.pitch,
-        formatCategory: row.pitch.formatCategory,
-        formatSubtype: row.pitch.formatSubtype,
-        customFormat: row.pitch.customFormat,
-        creator: row.creator,
+        id: row.id,
+        title: row.title,
+        logline: row.logline,
+        genre: row.genre,
+        format: row.format,
+        formatCategory: row.format_category,
+        formatSubtype: row.format_subtype,
+        customFormat: row.custom_format,
+        shortSynopsis: row.short_synopsis,
+        longSynopsis: row.long_synopsis,
+        characters: row.characters,
+        themes: row.themes,
+        worldDescription: row.world_description,
+        budgetBracket: row.budget_bracket,
+        estimatedBudget: row.estimated_budget,
+        productionTimeline: row.production_timeline,
+        titleImage: row.title_image,
+        lookbookUrl: row.lookbook_url,
+        pitchDeckUrl: row.pitch_deck_url,
+        scriptUrl: row.script_url,
+        trailerUrl: row.trailer_url,
+        additionalMedia: row.additional_media,
+        aiUsed: row.ai_used,
+        requireNDA: row.require_nda,
+        status: row.status,
+        viewCount: row.view_count,
+        likeCount: row.like_count,
+        ndaCount: row.nda_count,
+        userId: row.user_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        publishedAt: row.published_at,
+        creator: {
+          id: row.creator_id,
+          username: row.creator_username,
+          companyName: row.creator_company_name,
+          userType: row.creator_user_type,
+        },
       }));
     } catch (error) {
       console.error("Error fetching production pitches:", error);

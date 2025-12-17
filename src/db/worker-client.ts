@@ -1,158 +1,50 @@
 /**
- * Cloudflare Workers Database Client with Hyperdrive
- * 
- * This module provides a database client optimized for Cloudflare Workers
- * using Hyperdrive for connection pooling and performance optimization.
- * 
- * Features:
- * - Automatic connection pooling via Hyperdrive
- * - Retry logic for transient failures
- * - Connection timeout handling
- * - Prepared statement caching
- * - Edge-optimized query execution
+ * Cloudflare Workers Database Client
+ * Uses raw SQL with Neon's serverless driver
  */
 
-import { drizzle } from "npm:drizzle-orm/postgres-js";
-import { Pool } from '@neondatabase/serverless';
-import * as schema from './schema';
+import { RawSQLDatabase } from './raw-sql-connection.ts';
 
 // Environment interface for Workers
 export interface WorkerEnv {
-  HYPERDRIVE: Hyperdrive;
-  DATABASE_URL?: string; // Fallback direct connection
-  CACHE?: KVNamespace;
+  DATABASE_URL: string;
+  READ_REPLICA_URLS?: string;
+  UPSTASH_REDIS_REST_URL?: string;
+  UPSTASH_REDIS_REST_TOKEN?: string;
   JWT_SECRET: string;
+  HYPERDRIVE?: any; // Optional Hyperdrive binding
+  CACHE?: KVNamespace; // Optional KV cache
 }
 
-// Connection pool configuration
-const POOL_CONFIG = {
-  // Hyperdrive automatically manages these, but we can set preferences
-  max: 10, // Max connections per worker instance
-  idleTimeoutMillis: 10000, // 10 seconds idle timeout
-  connectionTimeoutMillis: 60000, // 60 seconds connection timeout
-};
-
-// Retry configuration for transient failures
-const RETRY_CONFIG = {
-  maxRetries: 3,
-  baseDelay: 100, // ms
-  maxDelay: 2000, // ms
-  shouldRetry: (error: any) => {
-    // Retry on connection errors and timeouts
-    const retriableErrors = [
-      'ECONNREFUSED',
-      'ETIMEDOUT',
-      'ECONNRESET',
-      'connection timeout',
-      'Connection terminated',
-    ];
-    return retriableErrors.some(msg => 
-      error.message?.toLowerCase().includes(msg.toLowerCase())
-    );
-  }
-};
-
 /**
- * Creates a database client with Hyperdrive connection pooling
+ * Creates a database client for Cloudflare Workers
  * 
- * @param env - Worker environment with Hyperdrive binding
- * @returns Configured database client with Drizzle ORM
+ * @param env - Worker environment with database configuration
+ * @returns Configured database client with raw SQL
  */
-export function createWorkerDbClient(env: WorkerEnv) {
-  try {
-    // Primary: Use Hyperdrive for optimal connection pooling
-    if (env.HYPERDRIVE) {
-      const connectionString = env.HYPERDRIVE.connectionString;
-      
-      // Create a connection pool using Hyperdrive's optimized connection string
-      const pool = new Pool({ 
-        connectionString,
-        ...POOL_CONFIG
-      });
-
-      // Initialize Drizzle with the pool and schema
-      const db = drizzle(pool, { 
-        schema,
-        logger: false // Set to true for debugging
-      });
-
-      // Add retry wrapper for queries
-      return wrapWithRetry(db, RETRY_CONFIG);
-    }
-
-    // Fallback: Direct connection (not recommended for production)
-    if (env.DATABASE_URL) {
-      console.warn('Using direct DATABASE_URL connection. Consider using Hyperdrive for better performance.');
-      
-      const pool = new Pool({ 
-        connectionString: env.DATABASE_URL,
-        ...POOL_CONFIG
-      });
-
-      const db = drizzle(pool, { 
-        schema,
-        logger: false
-      });
-
-      return wrapWithRetry(db, RETRY_CONFIG);
-    }
-
-    throw new Error('No database configuration found. Please configure Hyperdrive or DATABASE_URL.');
-  } catch (error) {
-    console.error('Failed to initialize database client:', error);
-    throw error;
+export function createWorkerDbClient(env: WorkerEnv): RawSQLDatabase {
+  // Use Hyperdrive connection string if available, otherwise use direct connection
+  const connectionString = env.HYPERDRIVE?.connectionString || env.DATABASE_URL;
+  
+  if (!connectionString) {
+    throw new Error('No database configuration found. Please configure DATABASE_URL or Hyperdrive.');
   }
-}
 
-/**
- * Wraps database client with retry logic for transient failures
- */
-function wrapWithRetry(db: any, config: typeof RETRY_CONFIG) {
-  // Create a proxy to intercept database operations
-  return new Proxy(db, {
-    get(target, prop, receiver) {
-      const value = Reflect.get(target, prop, receiver);
-      
-      // If it's a function, wrap it with retry logic
-      if (typeof value === 'function') {
-        return async (...args: any[]) => {
-          let lastError;
-          
-          for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
-            try {
-              return await value.apply(target, args);
-            } catch (error: any) {
-              lastError = error;
-              
-              // Check if we should retry
-              if (!config.shouldRetry(error) || attempt === config.maxRetries) {
-                throw error;
-              }
-              
-              // Calculate delay with exponential backoff
-              const delay = Math.min(
-                config.baseDelay * Math.pow(2, attempt),
-                config.maxDelay
-              );
-              
-              console.warn(`Database operation failed (attempt ${attempt + 1}/${config.maxRetries + 1}), retrying in ${delay}ms:`, error.message);
-              
-              // Wait before retry
-              await new Promise(resolve => setTimeout(resolve, delay));
-            }
-          }
-          
-          throw lastError;
-        };
-      }
-      
-      return value;
-    }
+  return new RawSQLDatabase({
+    connectionString,
+    readReplicaUrls: env.READ_REPLICA_URLS ? env.READ_REPLICA_URLS.split(',') : [],
+    maxRetries: 3,
+    retryDelayMs: 100,
+    queryTimeoutMs: 10000,
+    redis: env.UPSTASH_REDIS_REST_URL ? {
+      url: env.UPSTASH_REDIS_REST_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN!
+    } : undefined
   });
 }
 
 /**
- * Query caching utilities for read-heavy operations
+ * Query caching utilities for read-heavy operations using KV
  */
 export class QueryCache {
   private cache: KVNamespace | null;
@@ -231,7 +123,6 @@ export class QueryCache {
     
     try {
       // KV doesn't support pattern deletion, so we track keys separately
-      // This is a simplified version - in production, maintain a key index
       const keys = await this.cache.list({ prefix: pattern });
       await Promise.all(
         keys.keys.map(key => this.cache!.delete(key.name))
@@ -246,12 +137,10 @@ export class QueryCache {
  * Database migration utilities for Workers
  */
 export class WorkerMigrations {
-  private db: any;
-  private env: WorkerEnv;
+  private db: RawSQLDatabase;
 
-  constructor(db: any, env: WorkerEnv) {
+  constructor(db: RawSQLDatabase) {
     this.db = db;
-    this.env = env;
   }
 
   /**
@@ -259,15 +148,14 @@ export class WorkerMigrations {
    */
   async needsMigration(): Promise<boolean> {
     try {
-      // Check if a migrations table exists
-      const result = await this.db.execute(`
+      const result = await this.db.queryOne<{ exists: boolean }>(`
         SELECT EXISTS (
           SELECT FROM information_schema.tables 
-          WHERE table_name = 'drizzle_migrations'
-        );
+          WHERE table_name = 'migrations'
+        ) as exists
       `);
       
-      return !result.rows[0]?.exists;
+      return !result?.exists;
     } catch (error) {
       console.error('Migration check error:', error);
       return true;
@@ -275,23 +163,19 @@ export class WorkerMigrations {
   }
 
   /**
-   * Run pending migrations (simplified version)
-   * In production, use a proper migration tool
+   * Run pending migrations
    */
   async runMigrations(): Promise<void> {
     console.log('Running database migrations...');
     
     try {
-      // This is a placeholder - implement actual migration logic
-      // Consider using drizzle-kit or a similar tool
-      
-      // Example: Create migrations table
-      await this.db.execute(`
-        CREATE TABLE IF NOT EXISTS drizzle_migrations (
+      // Create migrations table if it doesn't exist
+      await this.db.query(`
+        CREATE TABLE IF NOT EXISTS migrations (
           id SERIAL PRIMARY KEY,
-          hash VARCHAR(255) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+          name VARCHAR(255) NOT NULL UNIQUE,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
       `);
       
       console.log('Migrations completed successfully');
@@ -306,9 +190,9 @@ export class WorkerMigrations {
  * Connection health monitoring
  */
 export class HealthCheck {
-  private db: any;
+  private db: RawSQLDatabase;
 
-  constructor(db: any) {
+  constructor(db: RawSQLDatabase) {
     this.db = db;
   }
 
@@ -316,25 +200,17 @@ export class HealthCheck {
    * Check database connectivity
    */
   async isHealthy(): Promise<boolean> {
-    try {
-      const result = await this.db.execute('SELECT 1 as health');
-      return result.rows[0]?.health === 1;
-    } catch (error) {
-      console.error('Health check failed:', error);
-      return false;
-    }
+    return await this.db.healthCheck();
   }
 
   /**
-   * Get connection pool statistics (when available)
+   * Get connection statistics
    */
-  async getPoolStats(): Promise<any> {
-    // Hyperdrive doesn't expose pool stats directly
-    // Return basic health status instead
+  async getStats(): Promise<any> {
+    const stats = this.db.getStats();
     return {
-      healthy: await this.isHealthy(),
-      timestamp: new Date().toISOString(),
-      hyperdrive: true
+      ...stats,
+      timestamp: new Date().toISOString()
     };
   }
 }
@@ -342,23 +218,16 @@ export class HealthCheck {
 /**
  * Export database type for use in services
  */
-export type WorkerDatabase = ReturnType<typeof createWorkerDbClient>;
+export type WorkerDatabase = RawSQLDatabase;
 
 /**
  * Transaction wrapper for Workers
  */
 export async function withTransaction<T>(
   db: WorkerDatabase,
-  callback: (tx: any) => Promise<T>
+  callback: (db: RawSQLDatabase) => Promise<T>
 ): Promise<T> {
-  return await db.transaction(async (tx: any) => {
-    try {
-      return await callback(tx);
-    } catch (error) {
-      console.error('Transaction error:', error);
-      throw error;
-    }
-  });
+  return await db.transaction(callback);
 }
 
 /**
@@ -373,5 +242,4 @@ export function prepareBatch<T>(
 }
 
 // Export utilities
-export { schema };
 export default createWorkerDbClient;

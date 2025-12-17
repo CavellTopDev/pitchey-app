@@ -1,0 +1,262 @@
+/**
+ * EMERGENCY FIX for Cloudflare Worker Error 1101
+ * 
+ * Root Cause: A/B testing and performance middleware initialization
+ * causing runtime exceptions due to early binding access
+ * 
+ * Deploy: wrangler deploy --compatibility-date=2024-11-01
+ */
+
+// Key fixes for src/worker-production-db.ts:
+
+// 1. LAZY INITIALIZATION: Move A/B testing initialization inside try-catch
+// Replace lines 825-846:
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    try {
+      // Move all initialization inside try-catch block
+      const url = new URL(request.url);
+      const path = url.pathname;
+      const method = request.method;
+
+      // Lazy initialize A/B testing (only if KV is available)
+      let abTestManager: ABTestManager | null = null;
+      let variant: ABTestVariant | null = null;
+      
+      // Lazy initialize performance middleware
+      let perf: PerformanceMiddleware;
+
+      try {
+        abTestManager = env.KV ? new ABTestManager(env.KV) : null;
+        
+        // Get user ID for A/B test assignment (from JWT or session) 
+        let userId = 'anonymous';
+        const authHeader = request.headers.get('Authorization');
+        if (authHeader?.startsWith('Bearer ')) {
+          try {
+            const token = authHeader.substring(7);
+            const decoded = jwt.decode(token);
+            if (decoded?.payload?.sub) {
+              userId = decoded.payload.sub;
+            }
+          } catch {
+            // Use anonymous if JWT decode fails
+          }
+        }
+        
+        // Assign A/B test variant (with fallback)
+        variant = abTestManager ? await abTestManager.assignVariant(userId) : null;
+      } catch (error) {
+        console.warn('A/B testing initialization failed, continuing without A/B tests:', error);
+        abTestManager = null;
+        variant = null;
+      }
+
+      // Initialize performance middleware with safe defaults
+      try {
+        perf = new PerformanceMiddleware(env.KV, {
+          enableCache: !!env.KV,
+          cacheTtl: variant?.config.ttl || 300,
+          enableTiming: true,
+          enableCompression: false // Disable compression to avoid issues
+        });
+      } catch (error) {
+        console.warn('Performance middleware initialization failed, using minimal version:', error);
+        perf = new PerformanceMiddleware(undefined, {
+          enableCache: false,
+          cacheTtl: 300,
+          enableTiming: true,
+          enableCompression: false
+        });
+      }
+
+      // SAFE DATABASE INITIALIZATION
+      let sql: any;
+      let db: any;
+      
+      try {
+        // Validate DATABASE_URL exists
+        if (!env.DATABASE_URL) {
+          throw new Error('DATABASE_URL environment variable not set');
+        }
+        
+        // Initialize database with error handling
+        sql = DatabaseManager.getConnection(env.DATABASE_URL);
+        db = DatabaseManager.getDrizzle(env.DATABASE_URL);
+      } catch (error) {
+        console.error('Database initialization failed:', error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: 'Database connection failed',
+            error: 'Service temporarily unavailable'
+          }),
+          { 
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      // IMMEDIATE HEALTH CHECK BYPASS (no A/B testing or complex logic)
+      if (path === '/api/health') {
+        try {
+          // Simple health check without complex dependencies
+          let dbHealthy = false;
+          try {
+            await sql`SELECT 1`;
+            dbHealthy = true;
+          } catch (dbError) {
+            console.error('Database health check failed:', dbError);
+          }
+
+          return new Response(
+            JSON.stringify({
+              status: 'ok',
+              timestamp: new Date().toISOString(),
+              services: {
+                database: dbHealthy,
+                cache: !!env.KV,
+                worker: true
+              }
+            }),
+            { 
+              status: dbHealthy ? 200 : 503,
+              headers: { 
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              }
+            }
+          );
+        } catch (healthError) {
+          console.error('Health check failed:', healthError);
+          return new Response(
+            JSON.stringify({
+              status: 'error',
+              timestamp: new Date().toISOString(),
+              error: 'Health check failed'
+            }),
+            { 
+              status: 500,
+              headers: { 
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              }
+            }
+          );
+        }
+      }
+
+      // Continue with existing logic...
+
+// 2. SAFE EDGE CACHE INITIALIZATION
+// Update src/utils/edge-cache.ts constructor:
+
+constructor(kv: KVNamespace | undefined, prefix: string = 'cache') {
+  if (!kv) {
+    console.warn('EdgeCache: KV namespace not available, cache disabled');
+    // Create a no-op cache
+    this.kv = null as any;
+    this.prefix = prefix;
+    return;
+  }
+  
+  this.kv = kv;
+  this.prefix = prefix;
+  console.log(`EdgeCache initialized with prefix: ${prefix}`);
+}
+
+// Update all cache methods to check for kv availability:
+async get<T>(key: string, params?: Record<string, any>): Promise<T | null> {
+  if (!this.kv) {
+    console.warn('Cache get attempted but KV not available');
+    return null;
+  }
+  // ... rest of existing method
+}
+
+// 3. PERFORMANCE MIDDLEWARE SAFE CONSTRUCTOR
+// Update src/middleware/performance.ts constructor:
+
+constructor(kv?: KVNamespace, options?: Partial<PerformanceOptions>) {
+  try {
+    this.cache = kv ? new EdgeCache(kv) : null;
+  } catch (error) {
+    console.warn('EdgeCache initialization failed in PerformanceMiddleware:', error);
+    this.cache = null;
+  }
+  
+  this.options = {
+    enableCache: !!this.cache && !!kv,
+    cacheTtl: 300,
+    enableTiming: true,
+    enableCompression: false, // Disable by default to avoid issues
+    ...options
+  };
+  this.startTime = Date.now();
+}
+
+// 4. A/B TEST MANAGER SAFE INITIALIZATION  
+// Update src/utils/ab-test-integration.ts constructor:
+
+constructor(kv: KVNamespace | undefined) {
+  if (!kv) {
+    console.warn('ABTestManager: KV namespace not available, A/B testing disabled');
+    this.kv = null as any;
+    return;
+  }
+  this.kv = kv;
+}
+
+// Update all methods to check kv availability:
+async assignVariant(userId: string): Promise<ABTestVariant> {
+  if (!this.kv) {
+    // Return control variant if KV not available
+    return {
+      id: 'control',
+      name: 'Default Implementation',
+      config: {
+        cacheWarming: false,
+        edgeOptimization: false,
+        compressionLevel: 'standard',
+        ttl: 300
+      }
+    };
+  }
+  // ... rest of existing method
+}
+
+// 5. DATABASE MANAGER ERROR HANDLING
+// Update DatabaseManager class with better error handling:
+
+static getConnection(databaseUrl: string) {
+  if (!databaseUrl) {
+    throw new Error('Database URL is required');
+  }
+  
+  try {
+    if (!this.connections.has(databaseUrl)) {
+      const sql = neon(databaseUrl);
+      this.connections.set(databaseUrl, sql);
+    }
+    return this.connections.get(databaseUrl)!;
+  } catch (error) {
+    console.error('Failed to create database connection:', error);
+    throw new Error(`Database connection failed: ${error.message}`);
+  }
+}
+
+static getDrizzle(databaseUrl: string) {
+  try {
+    if (!this.drizzleInstances.has(databaseUrl)) {
+      const sql = this.getConnection(databaseUrl);
+      const db = drizzle(sql);
+      this.drizzleInstances.set(databaseUrl, db);
+    }
+    return this.drizzleInstances.get(databaseUrl)!;
+  } catch (error) {
+    console.error('Failed to create Drizzle instance:', error);
+    throw new Error(`Drizzle initialization failed: ${error.message}`);
+  }
+}

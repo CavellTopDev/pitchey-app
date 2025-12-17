@@ -1,331 +1,533 @@
 #!/bin/bash
 
-echo "🎯 Comprehensive API Endpoint Testing"
-echo "======================================"
+# Pitchey Platform - Comprehensive Endpoint Testing Script
+# Tests all critical API endpoints with proper authentication
 
-# Colors
-GREEN='\033[0;32m'
+set -e  # Exit on any error
+
+# Color codes for output
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-API_URL="http://localhost:8001"
-PASS_COUNT=0
-FAIL_COUNT=0
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RESULTS_FILE="$SCRIPT_DIR/test-results-$(date +%Y%m%d_%H%M%S).json"
+FAILED_TESTS_FILE="$SCRIPT_DIR/failed-tests-$(date +%Y%m%d_%H%M%S).log"
 
-# Test function
-test_endpoint() {
-    local METHOD=$1
-    local ENDPOINT=$2
-    local DESCRIPTION=$3
-    local DATA=$4
-    local TOKEN=$5
+# Default values
+ENVIRONMENT="production"
+BASE_URL=""
+TEST_TYPE="full"
+TIMEOUT=30
+VERBOSE=false
+AUTH_TOKEN=""
+
+# Test counters
+TOTAL_TESTS=0
+PASSED_TESTS=0
+FAILED_TESTS=0
+
+# Test demo credentials
+DEMO_CREATOR_EMAIL="alex.creator@demo.com"
+DEMO_INVESTOR_EMAIL="sarah.investor@demo.com"
+DEMO_PRODUCTION_EMAIL="stellar.production@demo.com"
+DEMO_PASSWORD="Demo123"
+
+function show_help() {
+    cat << EOF
+Pitchey Platform Endpoint Testing Script
+
+Usage: $0 [OPTIONS]
+
+OPTIONS:
+    --environment=ENV    Set environment (production, staging, local) [default: production]
+    --url=URL           Override base URL
+    --test-type=TYPE    Test type (full, health, auth, core) [default: full]
+    --timeout=SEC       Request timeout in seconds [default: 30]
+    --verbose           Enable verbose output
+    --help              Show this help message
+
+ENVIRONMENTS:
+    production          https://pitchey-production.cavelltheleaddev.workers.dev
+    staging             https://pitchey-staging.cavelltheleaddev.workers.dev
+    local               http://localhost:8001
+
+EXAMPLES:
+    $0                                          # Full production test
+    $0 --environment=local --test-type=auth     # Local auth tests only
+    $0 --url=https://custom-url.com --verbose   # Custom URL with verbose output
+EOF
+}
+
+function log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+function log_success() {
+    echo -e "${GREEN}[PASS]${NC} $1"
+}
+
+function log_warning() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+function log_error() {
+    echo -e "${RED}[FAIL]${NC} $1"
+    echo "$(date): [FAIL] $1" >> "$FAILED_TESTS_FILE"
+}
+
+function increment_test() {
+    ((TOTAL_TESTS++))
+}
+
+function increment_passed() {
+    ((PASSED_TESTS++))
+}
+
+function increment_failed() {
+    ((FAILED_TESTS++))
+}
+
+function setup_environment() {
+    case "$ENVIRONMENT" in
+        "production")
+            BASE_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+            ;;
+        "staging")
+            BASE_URL="https://pitchey-staging.cavelltheleaddev.workers.dev"
+            ;;
+        "local")
+            BASE_URL="http://localhost:8001"
+            ;;
+        *)
+            if [[ -z "$BASE_URL" ]]; then
+                log_error "Unknown environment: $ENVIRONMENT. Use --url to specify base URL."
+                exit 1
+            fi
+            ;;
+    esac
+
+    log_info "Testing environment: $ENVIRONMENT"
+    log_info "Base URL: $BASE_URL"
+    log_info "Test type: $TEST_TYPE"
+    log_info "Timeout: ${TIMEOUT}s"
+    echo
+}
+
+function make_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local auth_header="$4"
+    local expected_status="$5"
     
-    if [ -z "$DATA" ]; then
-        if [ -z "$TOKEN" ]; then
-            RESPONSE=$(curl -s -X $METHOD $API_URL$ENDPOINT -H "Content-Type: application/json" -w "\n%{http_code}")
-        else
-            RESPONSE=$(curl -s -X $METHOD $API_URL$ENDPOINT -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -w "\n%{http_code}")
-        fi
-    else
-        if [ -z "$TOKEN" ]; then
-            RESPONSE=$(curl -s -X $METHOD $API_URL$ENDPOINT -H "Content-Type: application/json" -d "$DATA" -w "\n%{http_code}")
-        else
-            RESPONSE=$(curl -s -X $METHOD $API_URL$ENDPOINT -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d "$DATA" -w "\n%{http_code}")
-        fi
+    local url="${BASE_URL}${endpoint}"
+    local curl_opts="-s -w '%{http_code}|%{time_total}' --max-time $TIMEOUT"
+    
+    if [[ -n "$auth_header" ]]; then
+        curl_opts="$curl_opts -H 'Authorization: Bearer $auth_header'"
     fi
     
-    HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
-    BODY=$(echo "$RESPONSE" | head -n -1)
+    if [[ -n "$data" ]]; then
+        curl_opts="$curl_opts -H 'Content-Type: application/json' -d '$data'"
+    fi
     
-    if [[ "$HTTP_CODE" == "200" ]] || [[ "$HTTP_CODE" == "201" ]]; then
-        echo -e "  ${GREEN}✅${NC} $DESCRIPTION"
-        ((PASS_COUNT++))
+    local response
+    response=$(eval "curl $curl_opts -X $method '$url'" 2>/dev/null || echo "ERROR|0")
+    
+    local http_code="${response##*|}"
+    local response_time="${response%|*}"
+    response_time="${response_time%|*}"
+    local body="${response%|*|*}"
+    
+    if [[ "$response" == "ERROR|0" ]]; then
+        echo "NETWORK_ERROR|0|Request failed - connection error or timeout"
+        return 1
+    fi
+    
+    echo "$http_code|$response_time|$body"
+}
+
+function test_endpoint() {
+    local test_name="$1"
+    local method="$2"
+    local endpoint="$3"
+    local data="$4"
+    local auth_token="$5"
+    local expected_status="$6"
+    
+    increment_test
+    
+    if [[ "$VERBOSE" == "true" ]]; then
+        log_info "Testing: $test_name ($method $endpoint)"
+    fi
+    
+    local result
+    result=$(make_request "$method" "$endpoint" "$data" "$auth_token" "$expected_status")
+    
+    local status_code="${result%%|*}"
+    local response_time="${result#*|}"
+    response_time="${response_time%%|*}"
+    local response_body="${result#*|*|}"
+    
+    # Check if request failed
+    if [[ "$status_code" == "NETWORK_ERROR" ]]; then
+        log_error "$test_name - Network error or timeout"
+        increment_failed
+        return 1
+    fi
+    
+    # Check status code
+    if [[ "$status_code" == "$expected_status" ]]; then
+        log_success "$test_name (${status_code}, ${response_time}s)"
+        increment_passed
+        
+        # Store detailed results
+        cat >> "$RESULTS_FILE" << EOF
+{
+  "test": "$test_name",
+  "method": "$method",
+  "endpoint": "$endpoint",
+  "status": "PASS",
+  "status_code": $status_code,
+  "response_time": $response_time,
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+},
+EOF
         return 0
     else
-        echo -e "  ${RED}❌${NC} $DESCRIPTION (HTTP $HTTP_CODE)"
-        if echo "$BODY" | jq -e '.error' > /dev/null 2>&1; then
-            ERROR=$(echo "$BODY" | jq -r '.error')
-            echo -e "      ${RED}Error: $ERROR${NC}"
+        log_error "$test_name - Expected $expected_status, got $status_code"
+        if [[ "$VERBOSE" == "true" && -n "$response_body" ]]; then
+            echo "Response: $response_body"
         fi
-        ((FAIL_COUNT++))
+        increment_failed
+        
+        # Store detailed results
+        cat >> "$RESULTS_FILE" << EOF
+{
+  "test": "$test_name",
+  "method": "$method", 
+  "endpoint": "$endpoint",
+  "status": "FAIL",
+  "status_code": $status_code,
+  "expected_status": $expected_status,
+  "response_time": $response_time,
+  "response_body": "$response_body",
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+},
+EOF
         return 1
     fi
 }
 
-# ============================================
-# 1. PUBLIC ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}1. PUBLIC ENDPOINTS${NC}"
-echo "--------------------"
-
-test_endpoint "GET" "/api/health" "Health check"
-test_endpoint "GET" "/api/version" "Version info"
-test_endpoint "GET" "/api/pitches/public" "Public pitches list"
-test_endpoint "GET" "/api/pitches/new" "New pitches list"
-test_endpoint "GET" "/api/pitches" "All pitches"
-test_endpoint "GET" "/api/pitches/7" "Single pitch by ID"
-
-# ============================================
-# 2. AUTHENTICATION ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}2. AUTHENTICATION${NC}"
-echo "------------------"
-
-# Creator Login
-CREATOR_LOGIN=$(curl -s -X POST $API_URL/api/auth/creator/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "alex.creator@demo.com", "password": "Demo123"}')
-
-if echo "$CREATOR_LOGIN" | jq -e '.token' > /dev/null 2>&1; then
-    CREATOR_TOKEN=$(echo "$CREATOR_LOGIN" | jq -r '.token')
-    CREATOR_ID=$(echo "$CREATOR_LOGIN" | jq -r '.user.id')
-    echo -e "  ${GREEN}✅${NC} Creator login successful (ID: $CREATOR_ID)"
-    ((PASS_COUNT++))
-else
-    echo -e "  ${RED}❌${NC} Creator login failed"
-    ((FAIL_COUNT++))
-fi
-
-# Investor Login
-INVESTOR_LOGIN=$(curl -s -X POST $API_URL/api/auth/investor/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "sarah.investor@demo.com", "password": "Demo123"}')
-
-if echo "$INVESTOR_LOGIN" | jq -e '.token' > /dev/null 2>&1; then
-    INVESTOR_TOKEN=$(echo "$INVESTOR_LOGIN" | jq -r '.token')
-    INVESTOR_ID=$(echo "$INVESTOR_LOGIN" | jq -r '.user.id')
-    echo -e "  ${GREEN}✅${NC} Investor login successful (ID: $INVESTOR_ID)"
-    ((PASS_COUNT++))
-else
-    echo -e "  ${RED}❌${NC} Investor login failed"
-    ((FAIL_COUNT++))
-fi
-
-# Production Login
-PRODUCTION_LOGIN=$(curl -s -X POST $API_URL/api/auth/production/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "stellar.production@demo.com", "password": "Demo123"}')
-
-if echo "$PRODUCTION_LOGIN" | jq -e '.token' > /dev/null 2>&1; then
-    PRODUCTION_TOKEN=$(echo "$PRODUCTION_LOGIN" | jq -r '.token')
-    PRODUCTION_ID=$(echo "$PRODUCTION_LOGIN" | jq -r '.user.id')
-    echo -e "  ${GREEN}✅${NC} Production login successful (ID: $PRODUCTION_ID)"
-    ((PASS_COUNT++))
-else
-    echo -e "  ${RED}❌${NC} Production login failed"
-    ((FAIL_COUNT++))
-fi
-
-# ============================================
-# 3. CREATOR ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}3. CREATOR ENDPOINTS${NC}"
-echo "---------------------"
-
-test_endpoint "GET" "/api/creator/dashboard" "Creator dashboard" "" "$CREATOR_TOKEN"
-test_endpoint "GET" "/api/creator/pitches" "Creator pitches list" "" "$CREATOR_TOKEN"
-
-# Create a new pitch
-NEW_PITCH_DATA='{
-  "title": "Test Pitch '$(date +%s)'",
-  "logline": "A test pitch created for endpoint testing",
-  "genre": "action",
-  "format": "feature",
-  "shortSynopsis": "This is a test pitch",
-  "targetAudience": "General audience",
-  "estimatedBudget": 1000000
-}'
-
-CREATE_PITCH=$(curl -s -X POST $API_URL/api/creator/pitches \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $CREATOR_TOKEN" \
-  -d "$NEW_PITCH_DATA")
-
-if echo "$CREATE_PITCH" | jq -e '.data.pitch.id' > /dev/null 2>&1; then
-    NEW_PITCH_ID=$(echo "$CREATE_PITCH" | jq -r '.data.pitch.id')
-    echo -e "  ${GREEN}✅${NC} Create pitch (ID: $NEW_PITCH_ID)"
-    ((PASS_COUNT++))
+function authenticate_user() {
+    local user_type="$1"
+    local email="$2"
+    local password="$3"
     
-    # Test update
-    UPDATE_DATA='{"title": "Updated Test Pitch"}'
-    test_endpoint "PUT" "/api/creator/pitches/$NEW_PITCH_ID" "Update pitch" "$UPDATE_DATA" "$CREATOR_TOKEN"
+    log_info "Authenticating as $user_type user..."
     
-    # Test publish
-    test_endpoint "POST" "/api/creator/pitches/$NEW_PITCH_ID/publish" "Publish pitch" "{}" "$CREATOR_TOKEN"
+    local auth_data="{\"email\":\"$email\",\"password\":\"$password\"}"
+    local result
+    result=$(make_request "POST" "/api/auth/$user_type/login" "$auth_data" "" "200")
     
-    # Test delete
-    test_endpoint "DELETE" "/api/creator/pitches/$NEW_PITCH_ID" "Delete pitch" "" "$CREATOR_TOKEN"
-else
-    echo -e "  ${RED}❌${NC} Create pitch failed"
-    ((FAIL_COUNT++))
-fi
-
-# ============================================
-# 4. INVESTOR ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}4. INVESTOR ENDPOINTS${NC}"
-echo "----------------------"
-
-test_endpoint "GET" "/api/investor/dashboard" "Investor dashboard" "" "$INVESTOR_TOKEN"
-test_endpoint "GET" "/api/investor/portfolio" "Investor portfolio" "" "$INVESTOR_TOKEN"
-test_endpoint "GET" "/api/investor/watchlist" "Investor watchlist" "" "$INVESTOR_TOKEN"
-
-# Add to watchlist
-test_endpoint "POST" "/api/investor/watchlist" "Add to watchlist" '{"pitchId": 7}' "$INVESTOR_TOKEN"
-
-# Remove from watchlist
-test_endpoint "DELETE" "/api/investor/watchlist/7" "Remove from watchlist" "" "$INVESTOR_TOKEN"
-
-# ============================================
-# 5. PRODUCTION ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}5. PRODUCTION ENDPOINTS${NC}"
-echo "------------------------"
-
-test_endpoint "GET" "/api/production/dashboard" "Production dashboard" "" "$PRODUCTION_TOKEN"
-test_endpoint "GET" "/api/production/projects" "Production projects" "" "$PRODUCTION_TOKEN"
-test_endpoint "GET" "/api/production/submissions" "Production submissions" "" "$PRODUCTION_TOKEN"
-
-# Create a project
-PROJECT_DATA='{
-  "title": "Production Project '$(date +%s)'",
-  "logline": "A production company project",
-  "genre": "drama",
-  "format": "tv",
-  "shortSynopsis": "Production project test"
-}'
-
-CREATE_PROJECT=$(curl -s -X POST $API_URL/api/production/projects \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $PRODUCTION_TOKEN" \
-  -d "$PROJECT_DATA")
-
-if echo "$CREATE_PROJECT" | jq -e '.data.project.id' > /dev/null 2>&1; then
-    PROJECT_ID=$(echo "$CREATE_PROJECT" | jq -r '.data.project.id')
-    echo -e "  ${GREEN}✅${NC} Create project (ID: $PROJECT_ID)"
-    ((PASS_COUNT++))
+    local status_code="${result%%|*}"
+    local response_body="${result#*|*|}"
     
-    # Update and delete
-    test_endpoint "PUT" "/api/production/projects/$PROJECT_ID" "Update project" '{"title": "Updated Project"}' "$PRODUCTION_TOKEN"
-    test_endpoint "DELETE" "/api/production/projects/$PROJECT_ID" "Delete project" "" "$PRODUCTION_TOKEN"
-else
-    echo -e "  ${RED}❌${NC} Create project failed"
-    ((FAIL_COUNT++))
-fi
+    if [[ "$status_code" == "200" ]]; then
+        # Extract token from response (assuming JSON response with token field)
+        local token
+        token=$(echo "$response_body" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+        
+        if [[ -n "$token" ]]; then
+            echo "$token"
+            return 0
+        else
+            log_warning "Authentication succeeded but no token found in response"
+            return 1
+        fi
+    else
+        log_warning "Authentication failed for $user_type (Status: $status_code)"
+        return 1
+    fi
+}
 
-# ============================================
-# 6. PAYMENT ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}6. PAYMENT ENDPOINTS${NC}"
-echo "---------------------"
-
-test_endpoint "GET" "/api/payments/credits/balance" "Credits balance" "" "$CREATOR_TOKEN"
-test_endpoint "GET" "/api/payments/subscription-status" "Subscription status" "" "$CREATOR_TOKEN"
-
-# ============================================
-# 7. NDA ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}7. NDA ENDPOINTS${NC}"
-echo "-----------------"
-
-# Create NDA request
-NDA_REQUEST_DATA='{
-  "pitchId": 8,
-  "ndaType": "basic",
-  "requestMessage": "I would like to view the full pitch details",
-  "companyInfo": {
-    "companyName": "Test Investment Corp",
-    "position": "Investment Manager",
-    "intendedUse": "Investment evaluation"
-  }
-}'
-
-CREATE_NDA=$(curl -s -X POST $API_URL/api/nda/request \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $INVESTOR_TOKEN" \
-  -d "$NDA_REQUEST_DATA")
-
-if echo "$CREATE_NDA" | jq -e '.success' > /dev/null 2>&1; then
-    echo -e "  ${GREEN}✅${NC} Create NDA request"
-    ((PASS_COUNT++))
-else
-    echo -e "  ${RED}❌${NC} Create NDA request"
-    echo "$CREATE_NDA" | jq '.'
-    ((FAIL_COUNT++))
-fi
-
-test_endpoint "GET" "/api/nda/pending" "Get pending NDAs" "" "$CREATOR_TOKEN"
-test_endpoint "GET" "/api/nda/active" "Get active NDAs" "" "$CREATOR_TOKEN"
-
-# ============================================
-# 8. MESSAGING ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}8. MESSAGING ENDPOINTS${NC}"
-echo "-----------------------"
-
-test_endpoint "GET" "/api/messages/conversations" "Get conversations" "" "$CREATOR_TOKEN"
-
-# Create conversation
-CONV_DATA='{
-  "participantIds": ['"$INVESTOR_ID"'],
-  "title": "Test Conversation",
-  "type": "direct"
-}'
-
-CREATE_CONV=$(curl -s -X POST $API_URL/api/messages/conversations \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $CREATOR_TOKEN" \
-  -d "$CONV_DATA")
-
-if echo "$CREATE_CONV" | jq -e '.conversationId' > /dev/null 2>&1; then
-    CONV_ID=$(echo "$CREATE_CONV" | jq -r '.conversationId')
-    echo -e "  ${GREEN}✅${NC} Create conversation (ID: $CONV_ID)"
-    ((PASS_COUNT++))
+function test_health_endpoints() {
+    log_info "Testing health endpoints..."
     
-    # Send message
-    MSG_DATA='{"content": "Test message", "type": "text"}'
-    test_endpoint "POST" "/api/messages/conversations/$CONV_ID/messages" "Send message" "$MSG_DATA" "$CREATOR_TOKEN"
+    test_endpoint "Health Check" "GET" "/api/health" "" "" "200"
+}
+
+function test_auth_endpoints() {
+    log_info "Testing authentication endpoints..."
     
-    # Get messages
-    test_endpoint "GET" "/api/messages/conversations/$CONV_ID/messages" "Get messages" "" "$CREATOR_TOKEN"
-else
-    echo -e "  ${RED}❌${NC} Create conversation"
-    ((FAIL_COUNT++))
-fi
+    # Test login endpoints
+    local creator_data="{\"email\":\"$DEMO_CREATOR_EMAIL\",\"password\":\"$DEMO_PASSWORD\"}"
+    local investor_data="{\"email\":\"$DEMO_INVESTOR_EMAIL\",\"password\":\"$DEMO_PASSWORD\"}"
+    local production_data="{\"email\":\"$DEMO_PRODUCTION_EMAIL\",\"password\":\"$DEMO_PASSWORD\"}"
+    
+    test_endpoint "Creator Login" "POST" "/api/auth/creator/login" "$creator_data" "" "200"
+    test_endpoint "Investor Login" "POST" "/api/auth/investor/login" "$investor_data" "" "200" 
+    test_endpoint "Production Login" "POST" "/api/auth/production/login" "$production_data" "" "200"
+    
+    # Test invalid credentials
+    local invalid_data="{\"email\":\"invalid@test.com\",\"password\":\"wrong\"}"
+    test_endpoint "Invalid Login" "POST" "/api/auth/creator/login" "$invalid_data" "" "401"
+    
+    # Get auth token for further testing
+    AUTH_TOKEN=$(authenticate_user "creator" "$DEMO_CREATOR_EMAIL" "$DEMO_PASSWORD" 2>/dev/null || echo "")
+}
 
-# ============================================
-# 9. SEARCH ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}9. SEARCH ENDPOINTS${NC}"
-echo "--------------------"
+function test_pitch_endpoints() {
+    log_info "Testing pitch endpoints..."
+    
+    # Public endpoints (no auth required)
+    test_endpoint "Browse Pitches Enhanced" "GET" "/api/pitches/browse/enhanced" "" "" "200"
+    test_endpoint "Public Pitches" "GET" "/api/pitches/public" "" "" "200"
+    
+    # Test with query parameters
+    test_endpoint "Browse with Filters" "GET" "/api/pitches/browse/enhanced?limit=5&genre=action" "" "" "200"
+    test_endpoint "Browse Trending" "GET" "/api/pitches/browse/enhanced?sort=trending" "" "" "200"
+    
+    if [[ -n "$AUTH_TOKEN" ]]; then
+        # Authenticated endpoints
+        test_endpoint "Create Pitch" "POST" "/api/pitches/create" \
+            '{"title":"Test Pitch","genre":"Action","logline":"A test pitch for endpoint verification"}' \
+            "$AUTH_TOKEN" "201"
+        
+        test_endpoint "User Pitches" "GET" "/api/pitches/user" "" "$AUTH_TOKEN" "200"
+    fi
+}
 
-test_endpoint "GET" "/api/search?q=test" "Search pitches" "" "$CREATOR_TOKEN"
-test_endpoint "GET" "/api/search/users?q=alex" "Search users" "" "$CREATOR_TOKEN"
+function test_user_endpoints() {
+    log_info "Testing user endpoints..."
+    
+    if [[ -n "$AUTH_TOKEN" ]]; then
+        test_endpoint "User Profile" "GET" "/api/user/profile" "" "$AUTH_TOKEN" "200"
+        test_endpoint "User Stats" "GET" "/api/user/stats" "" "$AUTH_TOKEN" "200"
+        
+        # Test profile update
+        test_endpoint "Update Profile" "PUT" "/api/user/profile" \
+            '{"bio":"Updated bio for testing"}' \
+            "$AUTH_TOKEN" "200"
+    fi
+}
 
-# ============================================
-# 10. ANALYTICS ENDPOINTS
-# ============================================
-echo -e "\n${BLUE}10. ANALYTICS ENDPOINTS${NC}"
-echo "------------------------"
+function test_follow_endpoints() {
+    log_info "Testing follow endpoints..."
+    
+    if [[ -n "$AUTH_TOKEN" ]]; then
+        # Test follow/unfollow (using demo user IDs)
+        test_endpoint "Follow User" "POST" "/api/follows/follow" \
+            '{"targetType":"user","targetId":2}' \
+            "$AUTH_TOKEN" "200"
+        
+        test_endpoint "Follow Stats" "GET" "/api/follows/stats?userId=1" "" "$AUTH_TOKEN" "200"
+        
+        test_endpoint "Unfollow User" "POST" "/api/follows/unfollow" \
+            '{"targetType":"user","targetId":2}' \
+            "$AUTH_TOKEN" "200"
+        
+        # Test legacy format for backward compatibility
+        test_endpoint "Follow Legacy Format" "POST" "/api/follows/follow" \
+            '{"creatorId":2}' \
+            "$AUTH_TOKEN" "200"
+    fi
+}
 
-test_endpoint "POST" "/api/analytics/track" "Track event" '{"event": "page_view", "data": {"page": "/test"}}' "$CREATOR_TOKEN"
-test_endpoint "GET" "/api/analytics/events" "Get analytics events" "" "$CREATOR_TOKEN"
+function test_nda_endpoints() {
+    log_info "Testing NDA endpoints..."
+    
+    if [[ -n "$AUTH_TOKEN" ]]; then
+        test_endpoint "Request NDA" "POST" "/api/nda/request" \
+            '{"pitchId":1,"requestMessage":"Test NDA request"}' \
+            "$AUTH_TOKEN" "200"
+        
+        test_endpoint "Signed NDAs" "GET" "/api/nda/signed" "" "$AUTH_TOKEN" "200"
+    fi
+}
 
-# ============================================
-# SUMMARY
-# ============================================
-echo -e "\n${BLUE}=====================================${NC}"
-echo -e "${BLUE}TEST SUMMARY${NC}"
-echo -e "${BLUE}=====================================${NC}"
-echo -e "${GREEN}✅ Passed: $PASS_COUNT${NC}"
-echo -e "${RED}❌ Failed: $FAIL_COUNT${NC}"
+function test_dashboard_endpoints() {
+    log_info "Testing dashboard endpoints..."
+    
+    # Get different user type tokens for dashboard testing
+    local creator_token investor_token production_token
+    
+    creator_token=$(authenticate_user "creator" "$DEMO_CREATOR_EMAIL" "$DEMO_PASSWORD" 2>/dev/null || echo "")
+    investor_token=$(authenticate_user "investor" "$DEMO_INVESTOR_EMAIL" "$DEMO_PASSWORD" 2>/dev/null || echo "")
+    production_token=$(authenticate_user "production" "$DEMO_PRODUCTION_EMAIL" "$DEMO_PASSWORD" 2>/dev/null || echo "")
+    
+    if [[ -n "$creator_token" ]]; then
+        test_endpoint "Creator Dashboard" "GET" "/api/creator/dashboard" "" "$creator_token" "200"
+    fi
+    
+    if [[ -n "$investor_token" ]]; then
+        test_endpoint "Investor Dashboard" "GET" "/api/investor/dashboard" "" "$investor_token" "200"
+    fi
+    
+    if [[ -n "$production_token" ]]; then
+        test_endpoint "Production Dashboard" "GET" "/api/production/dashboard" "" "$production_token" "200"
+    fi
+}
 
-TOTAL=$((PASS_COUNT + FAIL_COUNT))
-if [ $FAIL_COUNT -eq 0 ]; then
-    echo -e "\n${GREEN}🎉 All $TOTAL tests passed!${NC}"
-else
-    PERCENTAGE=$((PASS_COUNT * 100 / TOTAL))
-    echo -e "\n${YELLOW}⚠️  $PERCENTAGE% tests passed ($PASS_COUNT/$TOTAL)${NC}"
+function test_error_endpoints() {
+    log_info "Testing error handling..."
+    
+    # Test 404 endpoints
+    test_endpoint "Non-existent Endpoint" "GET" "/api/nonexistent" "" "" "404"
+    
+    # Test method not allowed
+    test_endpoint "Invalid Method" "PUT" "/api/health" "" "" "405"
+    
+    # Test malformed JSON
+    test_endpoint "Malformed JSON" "POST" "/api/auth/creator/login" "invalid-json" "" "400"
+}
+
+function run_all_tests() {
+    echo "# Pitchey Platform Test Results" > "$RESULTS_FILE"
+    echo "# Started at: $(date)" >> "$RESULTS_FILE"
+    echo "[" >> "$RESULTS_FILE"
+    
+    case "$TEST_TYPE" in
+        "health")
+            test_health_endpoints
+            ;;
+        "auth")
+            test_health_endpoints
+            test_auth_endpoints
+            ;;
+        "core")
+            test_health_endpoints
+            test_auth_endpoints
+            test_pitch_endpoints
+            test_user_endpoints
+            ;;
+        "full"|*)
+            test_health_endpoints
+            test_auth_endpoints
+            test_pitch_endpoints
+            test_user_endpoints
+            test_follow_endpoints
+            test_nda_endpoints
+            test_dashboard_endpoints
+            test_error_endpoints
+            ;;
+    esac
+    
+    # Close JSON array (remove last comma)
+    sed -i '$ s/,$//' "$RESULTS_FILE" 2>/dev/null || true
+    echo "]" >> "$RESULTS_FILE"
+}
+
+function generate_report() {
+    echo
+    echo "========================================="
+    echo "         TEST EXECUTION SUMMARY"
+    echo "========================================="
+    echo
+    echo -e "Environment:      ${BLUE}$ENVIRONMENT${NC}"
+    echo -e "Base URL:         ${BLUE}$BASE_URL${NC}"
+    echo -e "Test Type:        ${BLUE}$TEST_TYPE${NC}"
+    echo
+    echo -e "Total Tests:      ${BLUE}$TOTAL_TESTS${NC}"
+    echo -e "Passed:           ${GREEN}$PASSED_TESTS${NC}"
+    echo -e "Failed:           ${RED}$FAILED_TESTS${NC}"
+    
+    local success_rate=0
+    if [[ $TOTAL_TESTS -gt 0 ]]; then
+        success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
+    fi
+    
+    echo -e "Success Rate:     ${BLUE}${success_rate}%${NC}"
+    echo
+    
+    if [[ $FAILED_TESTS -gt 0 ]]; then
+        echo -e "${RED}⚠️  Some tests failed. Check $FAILED_TESTS_FILE for details.${NC}"
+        echo
+    fi
+    
+    echo "Detailed results: $RESULTS_FILE"
+    
+    if [[ -f "$FAILED_TESTS_FILE" && -s "$FAILED_TESTS_FILE" ]]; then
+        echo "Failed tests log: $FAILED_TESTS_FILE"
+    fi
+    
+    echo
+    echo "========================================="
+    
+    # Return appropriate exit code
+    if [[ $FAILED_TESTS -gt 0 ]]; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+function cleanup() {
+    # Clean up any temporary files or connections if needed
+    true
+}
+
+function main() {
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --environment=*)
+                ENVIRONMENT="${1#*=}"
+                shift
+                ;;
+            --url=*)
+                BASE_URL="${1#*=}"
+                shift
+                ;;
+            --test-type=*)
+                TEST_TYPE="${1#*=}"
+                shift
+                ;;
+            --timeout=*)
+                TIMEOUT="${1#*=}"
+                shift
+                ;;
+            --verbose)
+                VERBOSE=true
+                shift
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                log_error "Unknown parameter: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Setup trap for cleanup
+    trap cleanup EXIT
+    
+    # Banner
+    echo
+    echo "==========================================="
+    echo "    Pitchey Platform Endpoint Testing"
+    echo "==========================================="
+    echo
+    
+    # Initialize environment
+    setup_environment
+    
+    # Run tests
+    run_all_tests
+    
+    # Generate final report
+    generate_report
+}
+
+# Only run main if script is executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
 fi

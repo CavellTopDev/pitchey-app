@@ -1,0 +1,142 @@
+apiVersion: gitops/v1
+kind: Application
+metadata:
+  name: pitchey-production
+  environment: production
+  labels:
+    app: pitchey
+    tier: production
+    component: full-stack
+  annotations:
+    gitops.io/last-applied: ""
+    gitops.io/sync-policy: "automated"
+    gitops.io/health-check: "enabled"
+spec:
+  source:
+    repoURL: https://github.com/your-org/pitchey
+    path: "."
+    targetRevision: main
+  destination:
+    platform: cloudflare
+    account: e16d3bf549153de23459a6c6a06a431b
+  
+  # Worker configuration
+  worker:
+    name: pitchey-production
+    script: src/worker-production-db.ts
+    compatibility_date: "2024-11-01"
+    compatibility_flags: ["nodejs_compat"]
+    
+    # Environment variables (non-sensitive)
+    env_vars:
+      ENVIRONMENT: production
+      FRONTEND_URL: https://pitchey.pages.dev
+    
+    # Resource limits
+    resources:
+      memory: 256MB
+      cpu_time: 100ms
+      
+    # Bindings
+    bindings:
+      kv_namespaces:
+        - binding: KV
+          id: 98c88a185eb448e4868fcc87e458b3ac
+      
+      r2_buckets:
+        - binding: R2_BUCKET
+          bucket_name: pitchey-uploads
+      
+      durable_objects:
+        - name: WEBSOCKET_ROOM
+          class_name: WebSocketRoom
+        - name: NOTIFICATION_ROOM
+          class_name: NotificationRoom
+    
+    # Routes
+    routes:
+      - pattern: "pitchey-production.cavelltheleaddev.workers.dev/*"
+        zone_id: ""  # Optional if using worker subdomain
+    
+    # Cron triggers (if needed)
+    cron_triggers: []
+  
+  # Pages configuration
+  pages:
+    project: pitchey
+    production_branch: main
+    build_config:
+      build_command: "cd frontend && npm ci && npm run build"
+      destination_dir: "frontend/dist"
+      root_dir: "."
+      
+    # Custom domains
+    custom_domains:
+      - domain: pitchey.pages.dev
+        ssl: flexible
+  
+  # Domain configuration
+  domain: pitchey.pages.dev
+  
+  # Monitoring and health checks
+  monitoring:
+    health_checks:
+      - name: api-health
+        url: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+        interval: 30s
+        timeout: 10s
+        retries: 3
+      
+      - name: frontend-health
+        url: https://pitchey.pages.dev
+        interval: 60s
+        timeout: 15s
+        retries: 2
+    
+    alerts:
+      - name: worker-down
+        condition: health_check_failed
+        target: api-health
+        notifications: []  # Configure in secrets
+      
+      - name: high-error-rate
+        condition: error_rate > 5%
+        window: 5m
+        notifications: []
+  
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Rollback configuration
+  rollback:
+    strategy: blue_green
+    health_check_grace_period: 60s
+    auto_rollback_on_failure: true
+    preserve_previous_version: true
+    max_rollback_revisions: 5
+  
+  # Security settings
+  security:
+    content_security_policy: true
+    rate_limiting: true
+    ddos_protection: true
+    
+  # Performance settings
+  performance:
+    cache_ttl: 3600  # 1 hour
+    compression: true
+    minification: true
+    image_optimization: true

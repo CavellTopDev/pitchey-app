@@ -1,6 +1,4 @@
 import { db } from "../db/client.ts";
-import { pitches, users } from "../db/schema.ts";
-import { eq, and, desc, sql, gte, lte } from "npm:drizzle-orm@0.35.3";
 import { NotificationService } from "./notification.service.ts";
 
 // Since investments table isn't in schema yet, we'll define the interface
@@ -46,18 +44,16 @@ export class InvestmentService {
       };
 
       // Get pitch creator for notification
-      const pitch = await db.query.pitches.findFirst({
-        where: eq(pitches.id, data.pitchId),
-        columns: {
-          userId: true,
-          title: true,
-        },
-      });
+      const pitchResult = await db.query(`
+        SELECT user_id, title FROM pitches WHERE id = $1
+      `, [data.pitchId]);
+      
+      const pitch = pitchResult[0];
 
       if (pitch) {
         // Notify the pitch creator
         await NotificationService.notifyNewInvestment(
-          pitch.userId,
+          pitch.user_id,
           data.investorId,
           data.pitchId,
           data.amount
@@ -188,29 +184,19 @@ export class InvestmentService {
   static async getInvestmentOpportunities(investorId: number, preferences?: any) {
     try {
       // Get pitches that match investor preferences
-      const opportunitiesResult = await db
-        .select({
-          pitch: pitches,
-          creator: {
-            id: users.id,
-            username: users.username,
-            firstName: users.firstName,
-            lastName: users.lastName,
-          },
-        })
-        .from(pitches)
-        .leftJoin(users, eq(pitches.userId, users.id))
-        .where(eq(pitches.status, "published"))
-        .orderBy(
-          desc(pitches.ratingAverage),
-          desc(pitches.viewCount)
-        )
-        .limit(10);
-
-      const opportunities = opportunitiesResult.map(row => ({
-        ...row.pitch,
-        creator: row.creator,
-      }));
+      const opportunities = await db.query(`
+        SELECT 
+          p.*,
+          u.id as creator_id,
+          u.username as creator_username,
+          u.first_name as creator_first_name,
+          u.last_name as creator_last_name
+        FROM pitches p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.status = 'published'
+        ORDER BY p.rating_average DESC NULLS LAST, p.view_count DESC
+        LIMIT 10
+      `);
 
       return {
         success: true,
@@ -316,14 +302,11 @@ export class InvestmentService {
         };
       } else if (userType === "creator") {
         // Get creator's received investments
-        const userPitches = await db.query.pitches.findMany({
-          where: eq(pitches.userId, userId),
-          columns: {
-            id: true,
-          },
-        });
+        const userPitchesResult = await db.query(`
+          SELECT id FROM pitches WHERE user_id = $1
+        `, [userId]);
 
-        const pitchIds = userPitches.map(p => p.id);
+        const pitchIds = userPitchesResult.map(p => p.id);
         
         // For now, return zeros
         // In production, would query investments table

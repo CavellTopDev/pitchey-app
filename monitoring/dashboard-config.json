@@ -1,0 +1,282 @@
+{
+  "name": "Pitchey Production Monitoring",
+  "version": "1.0.0",
+  "datasources": {
+    "cloudflare": {
+      "type": "cloudflare-analytics",
+      "url": "https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/analytics_engine/sql",
+      "auth": "Bearer ${CLOUDFLARE_API_TOKEN}"
+    },
+    "prometheus": {
+      "type": "prometheus",
+      "url": "https://pitchey-production.cavelltheleaddev.workers.dev/metrics",
+      "interval": "30s"
+    },
+    "sentry": {
+      "type": "sentry",
+      "organization": "pitchey",
+      "project": "pitchey-production",
+      "auth": "${SENTRY_AUTH_TOKEN}"
+    }
+  },
+  "dashboards": [
+    {
+      "id": "overview",
+      "title": "System Overview",
+      "refresh": "30s",
+      "panels": [
+        {
+          "title": "Request Rate",
+          "type": "graph",
+          "query": "rate(http_requests_total[5m])",
+          "unit": "req/s"
+        },
+        {
+          "title": "Response Time (P95)",
+          "type": "graph",
+          "query": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+          "unit": "ms"
+        },
+        {
+          "title": "Error Rate",
+          "type": "graph",
+          "query": "rate(http_requests_total{status=~\"5..\"}[5m])",
+          "unit": "errors/s",
+          "alert": {
+            "threshold": 0.01,
+            "message": "Error rate exceeds 1%"
+          }
+        },
+        {
+          "title": "Active Users",
+          "type": "stat",
+          "query": "sum(websocket_connections_active)",
+          "unit": "users"
+        },
+        {
+          "title": "Cache Hit Rate",
+          "type": "gauge",
+          "query": "rate(cache_hits_total[5m]) / rate(cache_requests_total[5m]) * 100",
+          "unit": "%",
+          "thresholds": [
+            { "value": 80, "color": "green" },
+            { "value": 60, "color": "yellow" },
+            { "value": 0, "color": "red" }
+          ]
+        },
+        {
+          "title": "Database Connection Pool",
+          "type": "stat",
+          "query": "database_pool_connections_active / database_pool_connections_max * 100",
+          "unit": "%"
+        }
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance Metrics",
+      "refresh": "1m",
+      "panels": [
+        {
+          "title": "Response Time Distribution",
+          "type": "heatmap",
+          "query": "http_request_duration_seconds_bucket"
+        },
+        {
+          "title": "Endpoint Performance",
+          "type": "table",
+          "query": "topk(10, avg by (endpoint) (http_request_duration_seconds))",
+          "columns": ["Endpoint", "Avg Response Time", "Request Count"]
+        },
+        {
+          "title": "Worker CPU Usage",
+          "type": "graph",
+          "query": "worker_cpu_milliseconds",
+          "unit": "ms",
+          "alert": {
+            "threshold": 45,
+            "message": "Worker approaching CPU limit (50ms)"
+          }
+        },
+        {
+          "title": "Memory Usage",
+          "type": "graph",
+          "query": "worker_memory_bytes / 1024 / 1024",
+          "unit": "MB"
+        }
+      ]
+    },
+    {
+      "id": "database",
+      "title": "Database Health",
+      "refresh": "1m",
+      "panels": [
+        {
+          "title": "Query Performance",
+          "type": "graph",
+          "query": "histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m]))",
+          "unit": "ms"
+        },
+        {
+          "title": "Connection Pool Status",
+          "type": "table",
+          "query": "database_pool_connections",
+          "columns": ["Status", "Count"],
+          "data": [
+            { "status": "active", "query": "database_pool_connections_active" },
+            { "status": "idle", "query": "database_pool_connections_idle" },
+            { "status": "waiting", "query": "database_pool_connections_waiting" }
+          ]
+        },
+        {
+          "title": "Slow Queries",
+          "type": "logs",
+          "query": "database_slow_queries{duration_ms>1000}",
+          "limit": 10
+        },
+        {
+          "title": "Database Size",
+          "type": "stat",
+          "query": "database_size_bytes / 1024 / 1024 / 1024",
+          "unit": "GB"
+        }
+      ]
+    },
+    {
+      "id": "cache",
+      "title": "Cache Performance",
+      "refresh": "30s",
+      "panels": [
+        {
+          "title": "Cache Operations",
+          "type": "graph",
+          "queries": {
+            "hits": "rate(cache_hits_total[1m])",
+            "misses": "rate(cache_misses_total[1m])",
+            "sets": "rate(cache_sets_total[1m])"
+          }
+        },
+        {
+          "title": "Cache Size",
+          "type": "stat",
+          "queries": {
+            "memory": "cache_memory_bytes / 1024 / 1024",
+            "kv": "cache_kv_keys_total",
+            "redis": "cache_redis_keys_total"
+          }
+        },
+        {
+          "title": "TTL Distribution",
+          "type": "histogram",
+          "query": "cache_ttl_seconds_bucket"
+        }
+      ]
+    },
+    {
+      "id": "errors",
+      "title": "Error Tracking",
+      "refresh": "30s",
+      "panels": [
+        {
+          "title": "Error Timeline",
+          "type": "graph",
+          "query": "sum by (status) (rate(http_requests_total{status=~\"4..|5..\"}[5m]))"
+        },
+        {
+          "title": "Top Errors",
+          "type": "table",
+          "datasource": "sentry",
+          "query": "issues",
+          "columns": ["Error", "Count", "Users Affected", "Last Seen"]
+        },
+        {
+          "title": "Error Distribution",
+          "type": "pie",
+          "query": "sum by (endpoint) (http_requests_total{status=~\"5..\"})"
+        }
+      ]
+    },
+    {
+      "id": "business",
+      "title": "Business Metrics",
+      "refresh": "5m",
+      "panels": [
+        {
+          "title": "Active Pitches",
+          "type": "stat",
+          "query": "business_pitches_total{status=\"active\"}"
+        },
+        {
+          "title": "User Registrations",
+          "type": "graph",
+          "query": "rate(business_user_registrations_total[1h])"
+        },
+        {
+          "title": "NDA Requests",
+          "type": "graph",
+          "query": "rate(business_nda_requests_total[1h])"
+        },
+        {
+          "title": "User Activity by Portal",
+          "type": "pie",
+          "query": "sum by (portal) (business_active_users)"
+        }
+      ]
+    }
+  ],
+  "alerts": [
+    {
+      "name": "High Error Rate",
+      "condition": "rate(http_requests_total{status=~\"5..\"}[5m]) > 0.01",
+      "severity": "critical",
+      "channels": ["slack", "pagerduty"]
+    },
+    {
+      "name": "Slow Response Time",
+      "condition": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2",
+      "severity": "warning",
+      "channels": ["slack"]
+    },
+    {
+      "name": "Database Connection Pool Exhausted",
+      "condition": "database_pool_connections_waiting > 10",
+      "severity": "critical",
+      "channels": ["slack", "pagerduty"]
+    },
+    {
+      "name": "Cache Hit Rate Low",
+      "condition": "rate(cache_hits_total[5m]) / rate(cache_requests_total[5m]) < 0.6",
+      "severity": "warning",
+      "channels": ["slack"]
+    },
+    {
+      "name": "Worker CPU Limit",
+      "condition": "worker_cpu_milliseconds > 45",
+      "severity": "warning",
+      "channels": ["slack"]
+    }
+  ],
+  "notification_channels": {
+    "slack": {
+      "webhook_url": "${SLACK_WEBHOOK}",
+      "channel": "#production-alerts"
+    },
+    "pagerduty": {
+      "integration_key": "${PAGERDUTY_KEY}",
+      "severity_mapping": {
+        "critical": "error",
+        "warning": "warning",
+        "info": "info"
+      }
+    },
+    "email": {
+      "recipients": ["devops@pitchey.com"],
+      "smtp": {
+        "host": "smtp.sendgrid.net",
+        "port": 587,
+        "username": "apikey",
+        "password": "${SENDGRID_API_KEY}"
+      }
+    }
+  }
+}

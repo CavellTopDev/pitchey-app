@@ -1,0 +1,276 @@
+name: Scheduled Tasks
+
+on:
+  schedule:
+    # Run cache warming every 5 minutes
+    - cron: '*/5 * * * *'
+    # Run health checks every 10 minutes
+    - cron: '*/10 * * * *'
+    # Run cleanup daily at 2 AM UTC
+    - cron: '0 2 * * *'
+    # Run performance tests weekly on Sunday at 3 AM UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task to run'
+        required: true
+        type: choice
+        options:
+          - cache-warm
+          - health-check
+          - cleanup
+          - performance-test
+          - backup
+          - all
+
+jobs:
+  # Cache warming
+  cache-warm:
+    name: Cache Warming
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && 
+      contains(github.event.schedule, '*/5 * * * *') ||
+      github.event.inputs.task == 'cache-warm' ||
+      github.event.inputs.task == 'all'
+    
+    steps:
+      - name: Warm Production Cache
+        run: |
+          response=$(curl -X POST "${{ secrets.PRODUCTION_URL }}/api/admin/cache/warm?priority=3" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"keys": ["homepage:trending", "homepage:featured", "browse:genres"]}' \
+            -w "\n%{http_code}" \
+            -s)
+          
+          status_code=$(echo "$response" | tail -n1)
+          if [ "$status_code" != "200" ]; then
+            echo "Cache warming failed with status $status_code"
+            exit 1
+          fi
+      
+      - name: Verify Cache Status
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/admin/cache/stats" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}"
+
+  # Health monitoring
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && 
+      contains(github.event.schedule, '*/10 * * * *') ||
+      github.event.inputs.task == 'health-check' ||
+      github.event.inputs.task == 'all'
+    
+    steps:
+      - name: Check API Health
+        id: api-health
+        run: |
+          response=$(curl -s "${{ secrets.PRODUCTION_URL }}/health?detailed=true")
+          echo "$response" | jq .
+          
+          status=$(echo "$response" | jq -r .status)
+          if [ "$status" != "healthy" ]; then
+            echo "health_status=unhealthy" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "health_status=healthy" >> $GITHUB_OUTPUT
+      
+      - name: Check Database Connectivity
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/admin/db/status" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}"
+      
+      - name: Check Redis Connectivity
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/admin/redis/status" \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}"
+      
+      - name: Send Alert on Failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: 'failure'
+          text: |
+            Production Health Check Failed!
+            Status: ${{ steps.api-health.outputs.health_status }}
+            Environment: Production
+            Time: ${{ github.event.repository.updated_at }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Cleanup old data
+  cleanup:
+    name: Data Cleanup
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && 
+      contains(github.event.schedule, '0 2 * * *') ||
+      github.event.inputs.task == 'cleanup' ||
+      github.event.inputs.task == 'all'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.38.0
+      
+      - name: Clean Old Sessions
+        run: |
+          deno run --allow-net --allow-env \
+            scripts/cleanup/clean-sessions.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      
+      - name: Clean Old Logs
+        run: |
+          deno run --allow-net --allow-env \
+            scripts/cleanup/clean-logs.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      
+      - name: Optimize Database
+        run: |
+          deno run --allow-net --allow-env \
+            scripts/cleanup/optimize-db.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # Performance testing
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && 
+      contains(github.event.schedule, '0 3 * * 0') ||
+      github.event.inputs.task == 'performance-test' ||
+      github.event.inputs.task == 'all'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.38.0
+      
+      - name: Run Load Test (Smoke)
+        run: |
+          deno run --allow-net --allow-env \
+            tests/load/scenarios/browse-load.test.ts smoke
+        env:
+          LOAD_TEST_URL: ${{ secrets.PRODUCTION_URL }}
+      
+      - name: Analyze Results
+        run: |
+          deno run --allow-read --allow-write \
+            scripts/analyze-performance.ts
+      
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-report-${{ github.run_number }}
+          path: performance-report.html
+      
+      - name: Send Performance Report
+        if: always()
+        run: |
+          curl -X POST "${{ secrets.WEBHOOK_URL }}/performance" \
+            -H "Content-Type: application/json" \
+            -d @performance-report.json
+
+  # Database backup
+  backup:
+    name: Database Backup
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && 
+      contains(github.event.schedule, '0 2 * * *') ||
+      github.event.inputs.task == 'backup' ||
+      github.event.inputs.task == 'all'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create Database Backup
+        run: |
+          DATE=$(date +%Y%m%d_%H%M%S)
+          pg_dump "${{ secrets.DATABASE_URL }}" | gzip > backup_${DATE}.sql.gz
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+      
+      - name: Upload to R2
+        run: |
+          npm install -g wrangler
+          wrangler r2 object put pitchey-backups/db/backup_${DATE}.sql.gz \
+            --file backup_${DATE}.sql.gz
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
+      - name: Clean Old Backups
+        run: |
+          # Keep only last 30 days of backups
+          wrangler r2 object list pitchey-backups/db/ | \
+            jq -r '.[] | select(.uploaded < (now - 2592000)) | .key' | \
+            xargs -I {} wrangler r2 object delete pitchey-backups/{}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Monitoring dashboard update
+  update-metrics:
+    name: Update Metrics Dashboard
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && 
+      contains(github.event.schedule, '*/10 * * * *')
+    
+    steps:
+      - name: Collect Metrics
+        run: |
+          metrics=$(curl -s "${{ secrets.PRODUCTION_URL }}/metrics")
+          echo "$metrics" > metrics.txt
+      
+      - name: Push to Monitoring Service
+        run: |
+          curl -X POST "https://api.datadoghq.com/api/v1/series" \
+            -H "DD-API-KEY: ${{ secrets.DATADOG_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d @metrics.json
+
+  # SSL certificate check
+  ssl-check:
+    name: SSL Certificate Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' && contains(github.event.schedule, '0 2 * * *')
+    
+    steps:
+      - name: Check SSL Expiration
+        run: |
+          expiry=$(echo | openssl s_client -connect pitchey.pages.dev:443 2>/dev/null | \
+            openssl x509 -noout -enddate | cut -d= -f2)
+          
+          expiry_epoch=$(date -d "$expiry" +%s)
+          current_epoch=$(date +%s)
+          days_left=$(( ($expiry_epoch - $current_epoch) / 86400 ))
+          
+          echo "SSL certificate expires in $days_left days"
+          
+          if [ $days_left -lt 7 ]; then
+            echo "SSL certificate expiring soon!"
+            exit 1
+          fi
+      
+      - name: Send SSL Alert
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: 'warning'
+          text: 'SSL Certificate expiring in less than 7 days!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

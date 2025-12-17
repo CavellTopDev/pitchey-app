@@ -359,8 +359,9 @@ export class PitchService {
         return { pitches: [], total: 0 };
       }
 
-      // Worker API returns { success: true, items: [...], message: "...", total: number, page: number }
-      const pitches = response.data?.items || [];
+      // ApiClient returns { success: true, data: <full-api-response> }
+      // API returns { success: true, data: [...], total: number, ... }
+      const pitches = response.data?.data || [];
       const total = response.data?.total || pitches.length;
       
       // Ensure we always return arrays and numbers
@@ -390,9 +391,9 @@ export class PitchService {
         return [];
       }
 
-      // The apiClient returns the whole response as data, so we need to check response.data.items
+      // The apiClient returns the whole response as data, so we need to check response.data.data
       const responseData = response.data as any;
-      const pitches = responseData?.items || responseData?.data || responseData || [];
+      const pitches = responseData?.data || responseData?.items || responseData || [];
       console.log('Trending pitches received:', pitches);
       
       // Ensure we always return an array
@@ -419,9 +420,9 @@ export class PitchService {
         return [];
       }
 
-      // The apiClient returns the whole response as data, so we need to check response.data.items
+      // The apiClient returns the whole response as data, so we need to check response.data.data
       const responseData = response.data as any;
-      const pitches = responseData?.items || responseData?.data || responseData || [];
+      const pitches = responseData?.data || responseData?.items || responseData || [];
       console.log('New releases received:', pitches);
       
       // Ensure we always return an array
@@ -432,7 +433,7 @@ export class PitchService {
     }
   }
 
-  // Get pitches with general browse and sorting
+  // Get pitches with enhanced browse and sorting - using enhanced endpoint
   static async getGeneralBrowse(filters?: {
     sort?: 'alphabetical' | 'date' | 'budget' | 'views' | 'likes' | 'investment_status';
     order?: 'asc' | 'desc';
@@ -483,7 +484,7 @@ export class PitchService {
           genre: string | null;
           format: string | null;
         };
-      }>(`/api/pitches/browse/general?${params}`);
+      }>(`/api/pitches/browse/enhanced?${params}`);
 
       if (!response.success) {
         console.error('Failed to fetch browse pitches:', response.error?.message);

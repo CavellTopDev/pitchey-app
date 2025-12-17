@@ -1,0 +1,134 @@
+name: Database Migration Management
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Migration action'
+        required: true
+        default: 'status'
+        type: choice
+        options:
+          - status
+          - migrate
+          - rollback
+          - create
+      target:
+        description: 'Target environment'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - staging
+          - production
+      migration_name:
+        description: 'Migration name (for create action)'
+        required: false
+        type: string
+
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Set database URL based on target
+        id: set-db
+        run: |
+          if [ "${{ github.event.inputs.target }}" = "production" ]; then
+            echo "DATABASE_URL=${{ secrets.NEON_DATABASE_URL }}" >> $GITHUB_ENV
+            echo "branch=main" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.target }}" = "staging" ]; then
+            echo "DATABASE_URL=${{ secrets.NEON_STAGING_URL }}" >> $GITHUB_ENV
+            echo "branch=staging" >> $GITHUB_OUTPUT
+          else
+            # For preview, use the current PR branch
+            echo "DATABASE_URL=${{ secrets.NEON_PREVIEW_URL }}" >> $GITHUB_ENV
+            echo "branch=preview-${GITHUB_HEAD_REF}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Check migration status
+        if: github.event.inputs.action == 'status'
+        run: |
+          echo "📊 Checking migration status for ${{ github.event.inputs.target }}..."
+          npm run db:migrate:status
+          
+      - name: Run migrations
+        if: github.event.inputs.action == 'migrate'
+        run: |
+          echo "🚀 Running migrations on ${{ github.event.inputs.target }}..."
+          npm run db:migrate
+          npm run db:migrate:status
+          
+      - name: Rollback last migration
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          echo "⏪ Rolling back last migration on ${{ github.event.inputs.target }}..."
+          npm run db:migrate:rollback
+          npm run db:migrate:status
+          
+      - name: Create new migration
+        if: github.event.inputs.action == 'create'
+        run: |
+          echo "📝 Creating new migration: ${{ github.event.inputs.migration_name }}..."
+          npm run db:migrate:create -- "${{ github.event.inputs.migration_name }}"
+          
+          # Commit the new migration file
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add .
+          git commit -m "feat: Add migration ${{ github.event.inputs.migration_name }}"
+          git push
+          
+      - name: Generate migration report
+        if: github.event.inputs.action != 'create'
+        run: |
+          cat > migration-report.md << EOF
+          # Migration Report
+          
+          **Environment:** ${{ github.event.inputs.target }}
+          **Action:** ${{ github.event.inputs.action }}
+          **Branch:** ${{ steps.set-db.outputs.branch }}
+          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Executed by:** @${{ github.actor }}
+          
+          ## Status
+          \`\`\`
+          $(npm run db:migrate:status 2>&1)
+          \`\`\`
+          
+          ## Recent Migrations
+          \`\`\`sql
+          $(psql "$DATABASE_URL" -c "SELECT * FROM migrations ORDER BY executed_at DESC LIMIT 5;" 2>&1 || echo "No migrations table found")
+          \`\`\`
+          EOF
+          
+      - name: Comment on PR (if exists)
+        if: github.event.inputs.action != 'create' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('migration-report.md', 'utf8');
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report
+            });

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "pitch-1",
+    "title": "The Last Stand",
+    "genre": "Action",
+    "logline": "A group of survivors must defend their sanctuary against overwhelming odds."
+  },
+  {
+    "id": "pitch-2", 
+    "title": "Digital Dreams",
+    "genre": "Sci-Fi",
+    "logline": "In a world where thoughts become reality through technology, one programmer discovers the dark truth."
+  },
+  {
+    "id": "pitch-3",
+    "title": "Family Bonds",
+    "genre": "Drama", 
+    "logline": "Three estranged siblings reunite to save their family farm from foreclosure."
+  },
+  {
+    "id": "pitch-4",
+    "title": "Midnight in Moscow",
+    "genre": "Thriller",
+    "logline": "A journalist uncovers a conspiracy that goes to the highest levels of government."
+  },
+  {
+    "id": "pitch-5",
+    "title": "The Comedy Club",
+    "genre": "Comedy",
+    "logline": "A washed-up comedian gets one last chance to make it big in the underground comedy scene."
+  }
+]

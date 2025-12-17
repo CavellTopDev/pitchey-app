@@ -2,7 +2,6 @@
 
 # Fix React imports in all files that need it
 FILES_TO_FIX=(
-  "pages/MarketplaceEnhanced.tsx"
   "pages/BrowseGenres.tsx"
   "pages/BrowseTopRated.tsx"
   "pages/SearchPage.tsx"

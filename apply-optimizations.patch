@@ -1,0 +1,107 @@
+/**
+ * Optimization Patch for worker-production-db.ts
+ * Add these changes to your existing worker for performance improvements
+ */
+
+// ============================================
+// 1. ADD IMPORTS AT THE TOP OF THE FILE
+// ============================================
+
+import { EdgeCache } from './utils/edge-cache';
+import { PerformanceMiddleware } from './middleware/performance';
+
+// ============================================
+// 2. ADD TO THE Env INTERFACE
+// ============================================
+
+interface Env {
+  // ... existing properties ...
+  
+  // Add KV namespace binding
+  KV: KVNamespace;
+}
+
+// ============================================
+// 3. MODIFY THE MAIN FETCH HANDLER
+// ============================================
+
+export default {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
+    // Initialize performance middleware
+    const perf = new PerformanceMiddleware(env.KV, {
+      enableCache: true,
+      cacheTtl: 300, // 5 minutes
+      enableTiming: true
+    });
+
+    // Try to get cached response for GET requests
+    const cachedResponse = await perf.getCachedResponse(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    try {
+      // YOUR EXISTING ROUTING LOGIC HERE
+      // ... all your current routes ...
+      
+      // When you create a response, wrap it with performance headers:
+      const response = /* your existing response */;
+      const wrappedResponse = perf.wrapResponse(response, 'MISS');
+      
+      // Cache the response for future requests
+      ctx.waitUntil(perf.cacheResponse(request, wrappedResponse));
+      
+      return wrappedResponse;
+      
+    } catch (error) {
+      // Use retry logic for database operations:
+      return await perf.withRetry(async () => {
+        // Your database operation
+      });
+    }
+  }
+};
+
+// ============================================
+// 4. OPTIMIZE DATABASE QUERIES (EXAMPLE)
+// ============================================
+
+// Wrap your existing database queries with retry logic:
+const result = await perf.withRetry(async () => {
+  return await db.select().from(schema.pitches).limit(10);
+}, 3, 100);
+
+// ============================================
+// 5. INVALIDATE CACHE ON MUTATIONS
+// ============================================
+
+// In your POST/PUT/DELETE handlers, invalidate related cache:
+if (request.method === 'POST' && pathname === '/api/pitches') {
+  // ... create pitch logic ...
+  
+  // Invalidate pitches cache
+  await perf.invalidateCache('api/pitches');
+}
+
+// ============================================
+// EXAMPLE: COMPLETE CACHED ENDPOINT
+// ============================================
+
+if (request.method === 'GET' && pathname === '/api/pitches') {
+  const url = new URL(request.url);
+  const limit = parseInt(url.searchParams.get('limit') || '10');
+  
+  // This will be automatically cached by the middleware
+  const pitches = await perf.withRetry(async () => {
+    const db = DatabaseManager.getDrizzle(env.DATABASE_URL);
+    return await db.select().from(schema.pitches).limit(limit);
+  });
+  
+  return new Response(JSON.stringify(pitches), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+}

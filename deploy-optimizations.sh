@@ -1,76 +1,41 @@
 #!/bin/bash
 
-# Deployment script for Pitchey optimizations
-# Deploys caching, WebSocket hibernation, and database fixes
+# Deployment Script for Optimized Cloudflare Worker
+# This script deploys all performance optimizations
 
-echo "🚀 Deploying Pitchey Optimizations to Production"
-echo "================================================"
+set -e  # Exit on error
 
-# Check prerequisites
-echo "🔍 Checking prerequisites..."
+echo "🚀 Starting Optimized Deployment Process..."
+echo "==========================================="
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Step 1: Check prerequisites
+echo -e "\n${YELLOW}Step 1: Checking prerequisites...${NC}"
 
 if ! command -v wrangler &> /dev/null; then
-    echo "❌ Wrangler CLI not found. Install with: npm install -g wrangler"
+    echo -e "${RED}❌ Wrangler CLI not found. Please install it first.${NC}"
     exit 1
 fi
 
-echo "✅ Prerequisites checked"
-echo ""
+echo -e "${GREEN}✅ Wrangler CLI found${NC}"
 
-# Show current deployment status
-echo "📊 Current Deployment Status:"
-echo "-----------------------------"
-CURRENT_STATUS=$(curl -s -w "HTTP %{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "FAILED")
-echo "Production health endpoint: $CURRENT_STATUS"
-echo ""
+# Step 2: Deploy the optimized worker
+echo -e "\n${YELLOW}Step 2: Deploying optimized worker...${NC}"
 
-# Deploy optimizations
-echo "🚀 Deploying Optimizations:"
-echo "============================"
+echo "Building and deploying worker..."
+wrangler deploy --compatibility-date 2024-11-01
 
-echo "Step 1: Deploying updated Worker with optimizations..."
-echo "-------------------------------------------------------"
-
-# Deploy with default environment
-echo "Executing: wrangler deploy"
-wrangler deploy
-
-DEPLOY_EXIT=$?
-if [ $DEPLOY_EXIT -eq 0 ]; then
-    echo "✅ Worker deployment: SUCCESS"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ Worker deployed successfully${NC}"
 else
-    echo "❌ Worker deployment: FAILED"
+    echo -e "${RED}❌ Worker deployment failed${NC}"
     exit 1
 fi
 
-echo ""
-
-# Post-deployment testing
-echo "🧪 Post-Deployment Testing:"
-echo "============================"
-
-echo "Waiting 30 seconds for deployment to propagate..."
-sleep 30
-
-echo "Testing optimized endpoints..."
-echo ""
-
-# Test health endpoint
-echo -n "1. Health endpoint: "
-HEALTH_RESPONSE=$(curl -s -w "HTTP %{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "FAILED")
-echo "$HEALTH_RESPONSE"
-
-if echo "$HEALTH_RESPONSE" | grep -q "HTTP 200"; then
-    echo "   ✅ Health endpoint working"
-else
-    echo "   ❌ Health endpoint failed"
-fi
-
-echo ""
-echo "🎉 Deployment completed!"
-echo ""
-echo "📋 Next Steps:"
-echo "=============="
-echo "1. Run ./test-optimization-implementation.sh to validate optimizations"
-echo "2. Execute set-neon-limits.sql to set database cost controls" 
-echo "3. Monitor performance with ./monitor-performance.sh"
+echo -e "\n${GREEN}🎉 Deployment Complete!${NC}"
+echo "Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev"

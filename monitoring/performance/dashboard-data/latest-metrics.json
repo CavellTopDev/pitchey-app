@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-12-14T11:54:55.745Z",
+  "metrics": {
+    "timestamp": "2025-12-14T11:54:55.737Z",
+    "responseTime": {
+      "current": 0,
+      "avg24h": 121.63,
+      "p95": 385.72,
+      "trend": "stable"
+    },
+    "cachePerformance": {
+      "hitRate": 0,
+      "missRate": 100,
+      "trend": "stable"
+    },
+    "errorRate": {
+      "current": 0,
+      "avg24h": 40,
+      "trend": "stable"
+    },
+    "endpointHealth": {
+      "healthy": 0,
+      "degraded": 3,
+      "unhealthy": 2,
+      "total": 5
+    },
+    "systemStatus": "degraded"
+  },
+  "endpointMetrics": [
+    {
+      "endpoint": "/api/health",
+      "responseTime": 117.12,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "requestCount": 1,
+      "status": "healthy",
+      "lastChecked": "2025-12-14T11:54:49.489Z"
+    },
+    {
+      "endpoint": "/api/health/detailed",
+      "responseTime": 385.72,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "requestCount": 1,
+      "status": "healthy",
+      "lastChecked": "2025-12-14T11:54:49.710Z"
+    },
+    {
+      "endpoint": "/api/pitches/browse/enhanced?limit=5",
+      "responseTime": 63.18,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "requestCount": 1,
+      "status": "healthy",
+      "lastChecked": "2025-12-14T11:54:50.197Z"
+    },
+    {
+      "endpoint": "/api/pitches?limit=10",
+      "responseTime": 21.74,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "requestCount": 1,
+      "status": "unhealthy",
+      "lastChecked": "2025-12-14T11:54:50.362Z"
+    },
+    {
+      "endpoint": "/api/auth/check",
+      "responseTime": 20.4,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "requestCount": 1,
+      "status": "unhealthy",
+      "lastChecked": "2025-12-14T11:54:50.485Z"
+    }
+  ]
+}

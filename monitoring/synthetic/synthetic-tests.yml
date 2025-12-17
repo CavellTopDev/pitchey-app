@@ -1,0 +1,515 @@
+# Synthetic Monitoring Configuration for Pitchey Platform
+# Tests critical user journeys to ensure optimal user experience
+
+version: "2.0"
+
+global:
+  # Default configuration for all tests
+  defaults:
+    timeout: 30s
+    interval: 5m
+    retries: 3
+    retry_delay: 30s
+    locations: 
+      - us-west-2
+      - us-east-1
+      - eu-west-1
+      - ap-southeast-1
+    browsers:
+      - chrome
+      - firefox
+      - safari
+    devices:
+      - desktop
+      - mobile
+      - tablet
+
+  # Alert configuration
+  alert_channels:
+    - type: slack
+      webhook: "${SLACK_WEBHOOK_URL}"
+      channel: "#alerts-synthetic"
+    - type: pagerduty
+      service_key: "${PAGERDUTY_SYNTHETIC_KEY}"
+    - type: email
+      recipients: ["devops@pitchey.com", "sre@pitchey.com"]
+
+  # Environment configuration
+  environments:
+    production:
+      base_url: "https://pitchey.pages.dev"
+      api_url: "https://pitchey-production.cavelltheleaddev.workers.dev"
+    staging:
+      base_url: "https://staging.pitchey.pages.dev"
+      api_url: "https://staging.pitchey.workers.dev"
+
+# Test suites for different user journeys
+test_suites:
+  # Critical Path: User Registration and Login
+  - name: "User Authentication Flow"
+    priority: critical
+    interval: 2m
+    sla:
+      availability: 99.9%
+      response_time: 3s
+    
+    tests:
+      - name: "Creator Registration"
+        type: browser
+        script: |
+          // Navigate to registration page
+          await page.goto('${BASE_URL}/register/creator');
+          await page.waitForLoadState('networkidle');
+          
+          // Fill registration form
+          await page.fill('[data-testid="email-input"]', 'synthetic.creator@test.com');
+          await page.fill('[data-testid="password-input"]', 'TestPassword123!');
+          await page.fill('[data-testid="confirm-password-input"]', 'TestPassword123!');
+          await page.fill('[data-testid="first-name-input"]', 'Synthetic');
+          await page.fill('[data-testid="last-name-input"]', 'Test');
+          
+          // Submit form
+          await page.click('[data-testid="register-button"]');
+          
+          // Verify success
+          await page.waitForSelector('[data-testid="registration-success"]', { timeout: 10000 });
+          
+          // Check response time
+          const navigationTiming = await page.evaluate(() => performance.getEntriesByType('navigation')[0]);
+          expect(navigationTiming.loadEventEnd - navigationTiming.fetchStart).toBeLessThan(3000);
+          
+        assertions:
+          - type: "element_present"
+            selector: '[data-testid="registration-success"]'
+            timeout: 10s
+          - type: "response_time"
+            threshold: 3000ms
+          - type: "no_console_errors"
+          - type: "no_network_errors"
+
+      - name: "Creator Login"
+        type: browser
+        script: |
+          // Navigate to login page
+          await page.goto('${BASE_URL}/login/creator');
+          await page.waitForLoadState('networkidle');
+          
+          // Fill login form
+          await page.fill('[data-testid="email-input"]', '${DEMO_CREATOR_EMAIL}');
+          await page.fill('[data-testid="password-input"]', '${DEMO_CREATOR_PASSWORD}');
+          
+          // Submit form
+          await page.click('[data-testid="login-button"]');
+          
+          // Verify redirect to dashboard
+          await page.waitForURL('**/creator/dashboard');
+          
+          // Verify dashboard elements load
+          await page.waitForSelector('[data-testid="creator-dashboard"]', { timeout: 10000 });
+          await page.waitForSelector('[data-testid="pitch-list"]', { timeout: 5000 });
+          
+        assertions:
+          - type: "url_contains"
+            value: "/creator/dashboard"
+          - type: "element_present"
+            selector: '[data-testid="creator-dashboard"]'
+          - type: "response_time"
+            threshold: 3000ms
+
+      - name: "Investor Login"
+        type: browser
+        script: |
+          await page.goto('${BASE_URL}/login/investor');
+          await page.fill('[data-testid="email-input"]', '${DEMO_INVESTOR_EMAIL}');
+          await page.fill('[data-testid="password-input"]', '${DEMO_INVESTOR_PASSWORD}');
+          await page.click('[data-testid="login-button"]');
+          await page.waitForURL('**/investor/dashboard');
+          await page.waitForSelector('[data-testid="investor-dashboard"]');
+
+  # Critical Path: Pitch Creation and Submission
+  - name: "Pitch Creation Flow"
+    priority: critical
+    interval: 5m
+    sla:
+      availability: 99.5%
+      response_time: 5s
+    
+    tests:
+      - name: "Create New Pitch"
+        type: browser
+        dependencies: ["Creator Login"]
+        script: |
+          // Start authenticated session
+          await loginAsCreator();
+          
+          // Navigate to pitch creation
+          await page.goto('${BASE_URL}/creator/pitches/new');
+          await page.waitForLoadState('networkidle');
+          
+          // Fill pitch form
+          await page.fill('[data-testid="title-input"]', 'Synthetic Test Pitch');
+          await page.selectOption('[data-testid="genre-select"]', 'Action');
+          await page.fill('[data-testid="logline-input"]', 'A synthetic test pitch created for monitoring purposes.');
+          await page.fill('[data-testid="synopsis-input"]', 'This is a detailed synopsis for the synthetic test pitch.');
+          await page.selectOption('[data-testid="budget-range-select"]', '1M-5M');
+          
+          // Add character
+          await page.click('[data-testid="add-character-button"]');
+          await page.fill('[data-testid="character-name-0"]', 'Test Character');
+          await page.fill('[data-testid="character-description-0"]', 'Main protagonist');
+          
+          // Save as draft
+          await page.click('[data-testid="save-draft-button"]');
+          await page.waitForSelector('[data-testid="draft-saved-indicator"]', { timeout: 10000 });
+          
+          // Verify auto-save functionality
+          await page.fill('[data-testid="title-input"]', 'Updated Synthetic Test Pitch');
+          await page.waitForTimeout(6000); // Wait for auto-save
+          await page.waitForSelector('[data-testid="auto-saved-indicator"]', { timeout: 15000 });
+
+        assertions:
+          - type: "element_present"
+            selector: '[data-testid="draft-saved-indicator"]'
+          - type: "element_present"
+            selector: '[data-testid="auto-saved-indicator"]'
+          - type: "response_time"
+            threshold: 5000ms
+
+      - name: "Pitch Submission Flow"
+        type: browser
+        dependencies: ["Create New Pitch"]
+        script: |
+          // Continue from draft
+          await page.click('[data-testid="submit-pitch-button"]');
+          
+          // Verify submission confirmation
+          await page.waitForSelector('[data-testid="submission-confirmation"]', { timeout: 10000 });
+          
+          // Check pitch appears in submitted list
+          await page.goto('${BASE_URL}/creator/pitches');
+          await page.waitForSelector('[data-testid="submitted-pitches-list"]');
+          
+          // Verify the test pitch is listed
+          const pitchExists = await page.isVisible('text=Synthetic Test Pitch');
+          expect(pitchExists).toBeTruthy();
+
+  # Critical Path: Investment Interest Flow
+  - name: "Investment Interest Flow"
+    priority: high
+    interval: 10m
+    
+    tests:
+      - name: "Browse Pitches as Investor"
+        type: browser
+        script: |
+          await loginAsInvestor();
+          
+          // Navigate to browse page
+          await page.goto('${BASE_URL}/investor/browse');
+          await page.waitForLoadState('networkidle');
+          
+          // Verify pitch listings load
+          await page.waitForSelector('[data-testid="pitch-grid"]', { timeout: 10000 });
+          
+          // Test filtering
+          await page.selectOption('[data-testid="genre-filter"]', 'Action');
+          await page.waitForSelector('[data-testid="filtered-results"]', { timeout: 5000 });
+          
+          // Test search functionality
+          await page.fill('[data-testid="search-input"]', 'test');
+          await page.press('[data-testid="search-input"]', 'Enter');
+          await page.waitForSelector('[data-testid="search-results"]', { timeout: 5000 });
+
+      - name: "Express Investment Interest"
+        type: browser
+        dependencies: ["Browse Pitches as Investor"]
+        script: |
+          // Click on a pitch
+          await page.click('[data-testid="pitch-card"]:first-child');
+          await page.waitForSelector('[data-testid="pitch-detail-view"]');
+          
+          // Express interest
+          await page.click('[data-testid="express-interest-button"]');
+          await page.waitForSelector('[data-testid="interest-form"]');
+          
+          // Fill interest form
+          await page.selectOption('[data-testid="investment-amount"]', '100K-500K');
+          await page.fill('[data-testid="interest-message"]', 'Interested in this synthetic test pitch.');
+          
+          // Submit interest
+          await page.click('[data-testid="submit-interest-button"]');
+          await page.waitForSelector('[data-testid="interest-submitted"]', { timeout: 10000 });
+
+  # Critical Path: NDA Workflow
+  - name: "NDA Management Flow"
+    priority: high
+    interval: 15m
+    
+    tests:
+      - name: "NDA Generation and Signing"
+        type: browser
+        script: |
+          await loginAsCreator();
+          
+          // Navigate to NDA management
+          await page.goto('${BASE_URL}/creator/ndas');
+          await page.waitForSelector('[data-testid="nda-management"]');
+          
+          // Generate new NDA
+          await page.click('[data-testid="generate-nda-button"]');
+          await page.waitForSelector('[data-testid="nda-form"]');
+          
+          // Fill NDA details
+          await page.fill('[data-testid="recipient-email"]', 'synthetic.investor@test.com');
+          await page.selectOption('[data-testid="nda-type"]', 'standard');
+          await page.fill('[data-testid="project-name"]', 'Synthetic Test Project');
+          
+          // Send NDA
+          await page.click('[data-testid="send-nda-button"]');
+          await page.waitForSelector('[data-testid="nda-sent-confirmation"]', { timeout: 10000 });
+
+  # API Health and Performance Tests
+  - name: "API Health Checks"
+    priority: critical
+    interval: 1m
+    
+    tests:
+      - name: "API Health Endpoint"
+        type: http
+        request:
+          method: GET
+          url: "${API_URL}/health"
+        assertions:
+          - type: "status_code"
+            value: 200
+          - type: "response_time"
+            threshold: 1000ms
+          - type: "json_body"
+            path: "status"
+            value: "healthy"
+
+      - name: "Authentication Endpoint"
+        type: http
+        request:
+          method: POST
+          url: "${API_URL}/api/auth/creator/login"
+          headers:
+            Content-Type: "application/json"
+          body: |
+            {
+              "email": "${DEMO_CREATOR_EMAIL}",
+              "password": "${DEMO_CREATOR_PASSWORD}"
+            }
+        assertions:
+          - type: "status_code"
+            value: 200
+          - type: "response_time"
+            threshold: 2000ms
+          - type: "json_body"
+            path: "token"
+            exists: true
+
+      - name: "Protected API Endpoint"
+        type: http
+        dependencies: ["Authentication Endpoint"]
+        request:
+          method: GET
+          url: "${API_URL}/api/creator/pitches"
+          headers:
+            Authorization: "Bearer ${AUTH_TOKEN}"
+        assertions:
+          - type: "status_code"
+            value: 200
+          - type: "response_time"
+            threshold: 3000ms
+
+  # WebSocket Real-time Features
+  - name: "Real-time Features"
+    priority: medium
+    interval: 10m
+    
+    tests:
+      - name: "WebSocket Connection"
+        type: websocket
+        url: "${API_URL}/ws"
+        script: |
+          // Connect to WebSocket
+          const ws = new WebSocket('${API_URL}/ws');
+          
+          await new Promise((resolve, reject) => {
+            ws.onopen = () => {
+              console.log('WebSocket connected');
+              
+              // Send authentication
+              ws.send(JSON.stringify({
+                type: 'auth',
+                token: '${AUTH_TOKEN}'
+              }));
+            };
+            
+            ws.onmessage = (event) => {
+              const data = JSON.parse(event.data);
+              if (data.type === 'auth_success') {
+                resolve();
+              }
+            };
+            
+            ws.onerror = (error) => {
+              reject(error);
+            };
+            
+            setTimeout(() => reject(new Error('WebSocket timeout')), 10000);
+          });
+          
+          ws.close();
+
+      - name: "Notification Delivery"
+        type: websocket
+        dependencies: ["WebSocket Connection"]
+        script: |
+          // Test notification system
+          const ws = new WebSocket('${API_URL}/ws');
+          
+          await new Promise((resolve, reject) => {
+            let notificationReceived = false;
+            
+            ws.onopen = () => {
+              ws.send(JSON.stringify({
+                type: 'auth',
+                token: '${AUTH_TOKEN}'
+              }));
+            };
+            
+            ws.onmessage = (event) => {
+              const data = JSON.parse(event.data);
+              if (data.type === 'notification' && data.message === 'synthetic_test') {
+                notificationReceived = true;
+                resolve();
+              }
+            };
+            
+            // Trigger notification via API
+            fetch('${API_URL}/api/test/notification', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ${AUTH_TOKEN}',
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                type: 'test',
+                message: 'synthetic_test'
+              })
+            });
+            
+            setTimeout(() => {
+              if (!notificationReceived) {
+                reject(new Error('Notification not received'));
+              }
+            }, 15000);
+          });
+
+  # Mobile Responsiveness Tests
+  - name: "Mobile Experience"
+    priority: medium
+    interval: 30m
+    devices: [mobile]
+    
+    tests:
+      - name: "Mobile Navigation"
+        type: browser
+        viewport: { width: 375, height: 667 } # iPhone SE
+        script: |
+          await page.goto('${BASE_URL}');
+          
+          // Test mobile menu
+          await page.click('[data-testid="mobile-menu-toggle"]');
+          await page.waitForSelector('[data-testid="mobile-menu"]', { state: 'visible' });
+          
+          // Test navigation
+          await page.click('[data-testid="mobile-menu-login"]');
+          await page.waitForURL('**/login');
+
+      - name: "Mobile Pitch Creation"
+        type: browser
+        viewport: { width: 375, height: 667 }
+        script: |
+          await loginAsCreator();
+          await page.goto('${BASE_URL}/creator/pitches/new');
+          
+          // Test form usability on mobile
+          await page.fill('[data-testid="title-input"]', 'Mobile Test Pitch');
+          await page.selectOption('[data-testid="genre-select"]', 'Drama');
+          
+          // Test mobile-specific interactions
+          await page.tap('[data-testid="save-draft-button"]');
+          await page.waitForSelector('[data-testid="draft-saved-indicator"]');
+
+  # Performance and Load Tests
+  - name: "Performance Benchmarks"
+    priority: medium
+    interval: 1h
+    
+    tests:
+      - name: "Page Load Performance"
+        type: lighthouse
+        url: "${BASE_URL}"
+        thresholds:
+          performance: 85
+          accessibility: 90
+          best-practices: 80
+          seo: 80
+          first-contentful-paint: 2000ms
+          largest-contentful-paint: 4000ms
+          cumulative-layout-shift: 0.1
+
+      - name: "API Load Test"
+        type: load
+        duration: 60s
+        virtual_users: 10
+        requests:
+          - method: GET
+            url: "${API_URL}/api/creator/pitches"
+            headers:
+              Authorization: "Bearer ${AUTH_TOKEN}"
+        thresholds:
+          avg_response_time: 1000ms
+          p95_response_time: 3000ms
+          error_rate: 1%
+
+# Alert conditions
+alerts:
+  - name: "Critical Path Failure"
+    condition: "test_suite.priority == 'critical' AND test.status == 'failed'"
+    severity: critical
+    escalation_delay: 0s
+    
+  - name: "High Priority Test Failure"
+    condition: "test_suite.priority == 'high' AND test.status == 'failed'"
+    severity: warning
+    escalation_delay: 5m
+    
+  - name: "SLA Breach"
+    condition: "test_suite.sla.availability < threshold OR test_suite.sla.response_time > threshold"
+    severity: critical
+    escalation_delay: 2m
+    
+  - name: "Performance Degradation"
+    condition: "test.response_time > (test.baseline_response_time * 1.5)"
+    severity: warning
+    escalation_delay: 10m
+
+# Reporting and analytics
+reporting:
+  dashboards:
+    - name: "Synthetic Monitoring Overview"
+      url: "https://grafana.pitchey.com/d/synthetic-overview"
+    - name: "User Journey Analytics"
+      url: "https://grafana.pitchey.com/d/user-journeys"
+    
+  sla_reports:
+    frequency: daily
+    recipients: ["management@pitchey.com", "product@pitchey.com"]
+    
+  weekly_summary:
+    enabled: true
+    recipients: ["team@pitchey.com"]

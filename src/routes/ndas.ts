@@ -6,8 +6,6 @@ import { RouteHandler } from "../router/types.ts";
 import { getCorsHeaders, getSecurityHeaders, successResponse, errorResponse } from "../utils/response.ts";
 import { telemetry } from "../utils/telemetry.ts";
 import { db } from "../db/client.ts";
-import { ndas, pitches, users, companies } from "../db/schema.ts";
-import { eq, and, sql, desc, or } from "npm:drizzle-orm@0.35.3";
 import { verify } from "https://deno.land/x/djwt@v2.8/mod.ts";
 import { validateEnvironment } from "../utils/env-validation.ts";
 import { sendNDARequestEmail, sendNDAResponseEmail } from "../services/email/index.ts";
@@ -50,16 +48,15 @@ export const requestNda: RouteHandler = async (request, url) => {
     }
 
     // Check if pitch exists
-    const pitchResults = await db
-      .select({ id: pitches.id, user_id: pitches.user_id })
-      .from(pitches)
-      .where(eq(pitches.id, pitch_id));
+    const pitchResults = await db.execute(`
+      SELECT id, user_id FROM pitches WHERE id = $1
+    `, [pitch_id]);
 
-    if (pitchResults.length === 0) {
+    if (pitchResults.rows.length === 0) {
       return errorResponse("Pitch not found", 404);
     }
 
-    const pitch = pitchResults[0];
+    const pitch = pitchResults.rows[0];
 
     // Check if user is trying to request NDA for their own pitch
     if (pitch.user_id === user.userId) {
@@ -67,64 +64,52 @@ export const requestNda: RouteHandler = async (request, url) => {
     }
 
     // Check if NDA request already exists
-    const existingNda = await db
-      .select({ id: ndas.id })
-      .from(ndas)
-      .where(
-        and(
-          eq(ndas.pitch_id, pitch_id),
-          eq(ndas.requester_id, user.userId)
-        )
-      );
+    const existingNda = await db.execute(`
+      SELECT id FROM ndas 
+      WHERE pitch_id = $1 AND requester_id = $2
+    `, [pitch_id, user.userId]);
 
-    if (existingNda.length > 0) {
+    if (existingNda.rows.length > 0) {
       return errorResponse("NDA request already exists for this pitch", 409);
     }
 
     // Create NDA request
-    const newNda = await db
-      .insert(ndas)
-      .values({
-        pitch_id,
-        requester_id: user.userId,
-        pitch_owner_id: pitch.user_id,
-        status: "pending",
-        requested_at: new Date(),
-        created_at: new Date(),
-        updated_at: new Date(),
-      })
-      .returning();
+    const newNda = await db.execute(`
+      INSERT INTO ndas (pitch_id, requester_id, pitch_owner_id, status, requested_at, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING *
+    `, [pitch_id, user.userId, pitch.user_id, "pending"]);
 
     // Get pitch and user details for email
     const [pitchDetails, requesterDetails, ownerDetails] = await Promise.all([
-      db.select({ title: pitches.title }).from(pitches).where(eq(pitches.id, pitch_id)),
-      db.select({ firstName: users.firstName, email: users.email }).from(users).where(eq(users.id, user.userId)),
-      db.select({ firstName: users.firstName, email: users.email }).from(users).where(eq(users.id, pitch.user_id))
+      db.execute(`SELECT title FROM pitches WHERE id = $1`, [pitch_id]),
+      db.execute(`SELECT first_name, email FROM users WHERE id = $1`, [user.userId]),
+      db.execute(`SELECT first_name, email FROM users WHERE id = $1`, [pitch.user_id])
     ]);
 
     // Send NDA request email notification
     try {
       const shouldSend = await shouldSendEmail(pitch.user_id.toString(), 'nda_requests');
-      if (shouldSend && pitchDetails[0] && requesterDetails[0] && ownerDetails[0]) {
+      if (shouldSend && pitchDetails.rows[0] && requesterDetails.rows[0] && ownerDetails.rows[0]) {
         const unsubscribeUrl = await getUnsubscribeUrl(
           pitch.user_id.toString(), 
-          ownerDetails[0].email, 
+          ownerDetails.rows[0].email, 
           'nda_requests'
         );
 
         const emailQueue = getEmailQueueService();
         await emailQueue.queueEmail({
-          to: ownerDetails[0].email,
-          subject: `New NDA Request for "${pitchDetails[0].title}"`,
+          to: ownerDetails.rows[0].email,
+          subject: `New NDA Request for "${pitchDetails.rows[0].title}"`,
           html: '', // Will be populated by template engine
           text: '',
-          trackingId: `nda-request-${newNda[0].id}-${Date.now()}`,
+          trackingId: `nda-request-${newNda.rows[0].id}-${Date.now()}`,
           unsubscribeUrl,
         }, { priority: 'normal' });
 
         telemetry.logger.info("NDA request email queued", { 
-          ndaId: newNda[0].id, 
-          recipientEmail: ownerDetails[0].email 
+          ndaId: newNda.rows[0].id, 
+          recipientEmail: ownerDetails.rows[0].email 
         });
       }
     } catch (emailError) {
@@ -133,14 +118,14 @@ export const requestNda: RouteHandler = async (request, url) => {
     }
 
     telemetry.logger.info("NDA requested", { 
-      ndaId: newNda[0].id,
+      ndaId: newNda.rows[0].id,
       pitchId: pitch_id,
       requesterId: user.userId,
       ownerId: pitch.user_id 
     });
 
     return successResponse({
-      nda: newNda[0],
+      nda: newNda.rows[0],
       message: "NDA request submitted successfully"
     });
 
@@ -166,16 +151,15 @@ export const respondToNdaRequest: RouteHandler = async (request, url, params) =>
     }
 
     // Get NDA request
-    const ndaResults = await db
-      .select()
-      .from(ndas)
-      .where(eq(ndas.id, parseInt(ndaId)));
+    const ndaResults = await db.execute(`
+      SELECT * FROM ndas WHERE id = $1
+    `, [parseInt(ndaId)]);
 
-    if (ndaResults.length === 0) {
+    if (ndaResults.rows.length === 0) {
       return errorResponse("NDA request not found", 404);
     }
 
-    const nda = ndaResults[0];
+    const nda = ndaResults.rows[0];
 
     // Check if user owns the pitch
     if (nda.pitch_owner_id !== user.userId) {
@@ -188,44 +172,44 @@ export const respondToNdaRequest: RouteHandler = async (request, url, params) =>
     }
 
     // Update NDA status
-    const updateData: any = {
-      status: action === "approve" ? "approved" : "rejected",
-      responded_at: new Date(),
-      updated_at: new Date(),
-    };
+    const status = action === "approve" ? "approved" : "rejected";
+    let updateQuery = `
+      UPDATE ndas 
+      SET status = $1, responded_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+    `;
+    let updateParams = [status];
 
     if (action === "approve") {
-      updateData.signed_at = new Date();
+      updateQuery += `, signed_at = CURRENT_TIMESTAMP`;
     } else if (rejection_reason) {
-      updateData.rejection_reason = rejection_reason;
+      updateQuery += `, rejection_reason = $${updateParams.length + 1}`;
+      updateParams.push(rejection_reason);
     }
 
-    const updatedNda = await db
-      .update(ndas)
-      .set(updateData)
-      .where(eq(ndas.id, parseInt(ndaId)))
-      .returning();
+    updateQuery += ` WHERE id = $${updateParams.length + 1} RETURNING *`;
+    updateParams.push(parseInt(ndaId));
+
+    const updatedNda = await db.execute(updateQuery, updateParams);
 
     // Send NDA response email to requester
     try {
       const [pitchDetails, requesterDetails] = await Promise.all([
-        db.select({ title: pitches.title }).from(pitches).where(eq(pitches.id, nda.pitch_id)),
-        db.select({ firstName: users.firstName, email: users.email }).from(users).where(eq(users.id, nda.requester_id))
+        db.execute(`SELECT title FROM pitches WHERE id = $1`, [nda.pitch_id]),
+        db.execute(`SELECT first_name, email FROM users WHERE id = $1`, [nda.requester_id])
       ]);
 
       const shouldSend = await shouldSendEmail(nda.requester_id.toString(), 'nda_responses');
-      if (shouldSend && pitchDetails[0] && requesterDetails[0]) {
+      if (shouldSend && pitchDetails.rows[0] && requesterDetails.rows[0]) {
         const unsubscribeUrl = await getUnsubscribeUrl(
           nda.requester_id.toString(), 
-          requesterDetails[0].email, 
+          requesterDetails.rows[0].email, 
           'nda_responses'
         );
 
         const emailQueue = getEmailQueueService();
-        const status = action === "approve" ? "approved" : "rejected";
         await emailQueue.queueEmail({
-          to: requesterDetails[0].email,
-          subject: `NDA Request ${status === "approved" ? "Approved" : "Declined"} - "${pitchDetails[0].title}"`,
+          to: requesterDetails.rows[0].email,
+          subject: `NDA Request ${status === "approved" ? "Approved" : "Declined"} - "${pitchDetails.rows[0].title}"`,
           html: '', // Will be populated by template engine
           text: '',
           trackingId: `nda-response-${nda.id}-${Date.now()}`,
@@ -235,7 +219,7 @@ export const respondToNdaRequest: RouteHandler = async (request, url, params) =>
         telemetry.logger.info("NDA response email queued", { 
           ndaId: parseInt(ndaId), 
           action,
-          recipientEmail: requesterDetails[0].email 
+          recipientEmail: requesterDetails.rows[0].email 
         });
       }
     } catch (emailError) {
@@ -250,7 +234,7 @@ export const respondToNdaRequest: RouteHandler = async (request, url, params) =>
     });
 
     return successResponse({
-      nda: updatedNda[0],
+      nda: updatedNda.rows[0],
       message: `NDA request ${action}d successfully`
     });
 
@@ -269,70 +253,65 @@ export const getUserNdaRequests: RouteHandler = async (request, url) => {
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
     const offset = parseInt(url.searchParams.get("offset") || "0");
 
-    let whereConditions = [];
+    let whereClause = "";
+    let params = [user.userId];
 
     // Filter by type (sent/received)
     if (type === "sent") {
-      whereConditions.push(eq(ndas.requester_id, user.userId));
+      whereClause = "n.requester_id = $1";
     } else if (type === "received") {
-      whereConditions.push(eq(ndas.pitch_owner_id, user.userId));
+      whereClause = "n.pitch_owner_id = $1";
     } else {
       // All NDAs for this user
-      whereConditions.push(
-        or(
-          eq(ndas.requester_id, user.userId),
-          eq(ndas.pitch_owner_id, user.userId)
-        )
-      );
+      whereClause = "(n.requester_id = $1 OR n.pitch_owner_id = $1)";
     }
 
     // Filter by status
     if (status) {
-      whereConditions.push(eq(ndas.status, status));
+      whereClause += ` AND n.status = $${params.length + 1}`;
+      params.push(status);
     }
 
     // Get NDAs with related information
-    const ndaResults = await db
-      .select({
-        id: ndas.id,
-        pitch_id: ndas.pitch_id,
-        requester_id: ndas.requester_id,
-        pitch_owner_id: ndas.pitch_owner_id,
-        status: ndas.status,
-        requested_at: ndas.requested_at,
-        responded_at: ndas.responded_at,
-        signed_at: ndas.signed_at,
-        rejection_reason: ndas.rejection_reason,
-        created_at: ndas.created_at,
-        pitch_title: pitches.title,
-        requester_name: sql<string>`requester.name`,
-        owner_name: sql<string>`owner.name`,
-      })
-      .from(ndas)
-      .leftJoin(pitches, eq(ndas.pitch_id, pitches.id))
-      .leftJoin(users.as("requester"), eq(ndas.requester_id, sql`requester.id`))
-      .leftJoin(users.as("owner"), eq(ndas.pitch_owner_id, sql`owner.id`))
-      .where(and(...whereConditions))
-      .orderBy(desc(ndas.created_at))
-      .limit(limit)
-      .offset(offset);
+    const ndaResults = await db.execute(`
+      SELECT 
+        n.id,
+        n.pitch_id,
+        n.requester_id,
+        n.pitch_owner_id,
+        n.status,
+        n.requested_at,
+        n.responded_at,
+        n.signed_at,
+        n.rejection_reason,
+        n.created_at,
+        p.title as pitch_title,
+        requester.first_name as requester_name,
+        owner.first_name as owner_name
+      FROM ndas n
+      LEFT JOIN pitches p ON n.pitch_id = p.id
+      LEFT JOIN users requester ON n.requester_id = requester.id
+      LEFT JOIN users owner ON n.pitch_owner_id = owner.id
+      WHERE ${whereClause}
+      ORDER BY n.created_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `, [...params, limit, offset]);
 
     // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(ndas)
-      .where(and(...whereConditions));
+    const totalResult = await db.execute(`
+      SELECT COUNT(*) as count FROM ndas n WHERE ${whereClause}
+    `, params);
 
-    const total = totalResult[0]?.count || 0;
+    const total = totalResult.rows[0]?.count || 0;
 
     return successResponse({
-      ndas: ndaResults,
+      ndas: ndaResults.rows,
       filters: { type, status },
       pagination: {
-        total,
+        total: parseInt(total),
         limit,
         offset,
-        hasMore: offset + limit < total
+        hasMore: offset + limit < parseInt(total)
       }
     });
 
@@ -353,36 +332,36 @@ export const getNdaById: RouteHandler = async (request, url, params) => {
     }
 
     // Get NDA with full details
-    const ndaResults = await db
-      .select({
-        id: ndas.id,
-        pitch_id: ndas.pitch_id,
-        requester_id: ndas.requester_id,
-        pitch_owner_id: ndas.pitch_owner_id,
-        status: ndas.status,
-        requested_at: ndas.requested_at,
-        responded_at: ndas.responded_at,
-        signed_at: ndas.signed_at,
-        rejection_reason: ndas.rejection_reason,
-        created_at: ndas.created_at,
-        pitch_title: pitches.title,
-        pitch_logline: pitches.logline,
-        requester_name: sql<string>`requester.name`,
-        requester_email: sql<string>`requester.email`,
-        owner_name: sql<string>`owner.name`,
-        owner_email: sql<string>`owner.email`,
-      })
-      .from(ndas)
-      .leftJoin(pitches, eq(ndas.pitch_id, pitches.id))
-      .leftJoin(users.as("requester"), eq(ndas.requester_id, sql`requester.id`))
-      .leftJoin(users.as("owner"), eq(ndas.pitch_owner_id, sql`owner.id`))
-      .where(eq(ndas.id, parseInt(ndaId)));
+    const ndaResults = await db.execute(`
+      SELECT 
+        n.id,
+        n.pitch_id,
+        n.requester_id,
+        n.pitch_owner_id,
+        n.status,
+        n.requested_at,
+        n.responded_at,
+        n.signed_at,
+        n.rejection_reason,
+        n.created_at,
+        p.title as pitch_title,
+        p.logline as pitch_logline,
+        requester.first_name as requester_name,
+        requester.email as requester_email,
+        owner.first_name as owner_name,
+        owner.email as owner_email
+      FROM ndas n
+      LEFT JOIN pitches p ON n.pitch_id = p.id
+      LEFT JOIN users requester ON n.requester_id = requester.id
+      LEFT JOIN users owner ON n.pitch_owner_id = owner.id
+      WHERE n.id = $1
+    `, [parseInt(ndaId)]);
 
-    if (ndaResults.length === 0) {
+    if (ndaResults.rows.length === 0) {
       return errorResponse("NDA not found", 404);
     }
 
-    const nda = ndaResults[0];
+    const nda = ndaResults.rows[0];
 
     // Check if user has access to this NDA
     if (nda.requester_id !== user.userId && nda.pitch_owner_id !== user.userId) {
@@ -403,29 +382,27 @@ export const getNdaStats: RouteHandler = async (request, url) => {
     const user = await getUserFromToken(request);
 
     // Get statistics for this user
-    const sentStats = await db
-      .select({
-        total: sql<number>`count(*)`,
-        pending: sql<number>`sum(case when ${ndas.status} = 'pending' then 1 else 0 end)`,
-        approved: sql<number>`sum(case when ${ndas.status} = 'approved' then 1 else 0 end)`,
-        rejected: sql<number>`sum(case when ${ndas.status} = 'rejected' then 1 else 0 end)`,
-      })
-      .from(ndas)
-      .where(eq(ndas.requester_id, user.userId));
+    const sentStats = await db.execute(`
+      SELECT 
+        count(*) as total,
+        sum(case when status = 'pending' then 1 else 0 end) as pending,
+        sum(case when status = 'approved' then 1 else 0 end) as approved,
+        sum(case when status = 'rejected' then 1 else 0 end) as rejected
+      FROM ndas WHERE requester_id = $1
+    `, [user.userId]);
 
-    const receivedStats = await db
-      .select({
-        total: sql<number>`count(*)`,
-        pending: sql<number>`sum(case when ${ndas.status} = 'pending' then 1 else 0 end)`,
-        approved: sql<number>`sum(case when ${ndas.status} = 'approved' then 1 else 0 end)`,
-        rejected: sql<number>`sum(case when ${ndas.status} = 'rejected' then 1 else 0 end)`,
-      })
-      .from(ndas)
-      .where(eq(ndas.pitch_owner_id, user.userId));
+    const receivedStats = await db.execute(`
+      SELECT 
+        count(*) as total,
+        sum(case when status = 'pending' then 1 else 0 end) as pending,
+        sum(case when status = 'approved' then 1 else 0 end) as approved,
+        sum(case when status = 'rejected' then 1 else 0 end) as rejected
+      FROM ndas WHERE pitch_owner_id = $1
+    `, [user.userId]);
 
     const stats = {
-      sent: sentStats[0] || { total: 0, pending: 0, approved: 0, rejected: 0 },
-      received: receivedStats[0] || { total: 0, pending: 0, approved: 0, rejected: 0 },
+      sent: sentStats.rows[0] || { total: 0, pending: 0, approved: 0, rejected: 0 },
+      received: receivedStats.rows[0] || { total: 0, pending: 0, approved: 0, rejected: 0 },
     };
 
     return successResponse({ stats });
@@ -447,24 +424,19 @@ export const checkNdaStatus: RouteHandler = async (request, url, params) => {
     }
 
     // Check if NDA exists for this user and pitch
-    const ndaResults = await db
-      .select({
-        id: ndas.id,
-        status: ndas.status,
-        requested_at: ndas.requested_at,
-        responded_at: ndas.responded_at,
-        signed_at: ndas.signed_at,
-        rejection_reason: ndas.rejection_reason,
-      })
-      .from(ndas)
-      .where(
-        and(
-          eq(ndas.pitch_id, parseInt(pitchId)),
-          eq(ndas.requester_id, user.userId)
-        )
-      );
+    const ndaResults = await db.execute(`
+      SELECT 
+        id,
+        status,
+        requested_at,
+        responded_at,
+        signed_at,
+        rejection_reason
+      FROM ndas
+      WHERE pitch_id = $1 AND requester_id = $2
+    `, [parseInt(pitchId), user.userId]);
 
-    if (ndaResults.length === 0) {
+    if (ndaResults.rows.length === 0) {
       return successResponse({
         has_nda: false,
         can_request: true,
@@ -472,7 +444,7 @@ export const checkNdaStatus: RouteHandler = async (request, url, params) => {
       });
     }
 
-    const nda = ndaResults[0];
+    const nda = ndaResults.rows[0];
 
     return successResponse({
       has_nda: true,

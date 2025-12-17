@@ -1,0 +1,430 @@
+{
+  "alerts": [
+    {
+      "uid": "pitchey-cache-hit-rate-low",
+      "title": "Pitchey Cache Hit Rate Too Low",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 600,
+            "to": 0
+          },
+          "model": {
+            "expr": "avg_over_time(pitchey_cache_hit_rate[10m])",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "5m",
+      "annotations": {
+        "description": "Cache hit rate has been below 70% for more than 5 minutes. Current rate: {{ $value }}%",
+        "runbook_url": "https://docs.pitchey.com/runbooks/cache-performance",
+        "summary": "Pitchey cache performance is degraded"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "warning",
+        "team": "platform"
+      },
+      "condition": "A < 70"
+    },
+    {
+      "uid": "pitchey-error-rate-high",
+      "title": "Pitchey Error Rate Too High",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 300,
+            "to": 0
+          },
+          "model": {
+            "expr": "rate(cloudflare_worker_errors_total[5m]) / rate(cloudflare_worker_requests_total[5m]) * 100",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "3m",
+      "annotations": {
+        "description": "Worker error rate has exceeded 5% for more than 3 minutes. Current rate: {{ $value }}%",
+        "runbook_url": "https://docs.pitchey.com/runbooks/error-response",
+        "summary": "Pitchey worker error rate is critically high"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "critical",
+        "team": "platform"
+      },
+      "condition": "A > 5"
+    },
+    {
+      "uid": "pitchey-response-time-high",
+      "title": "Pitchey Response Time Too High",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 600,
+            "to": 0
+          },
+          "model": {
+            "expr": "histogram_quantile(0.95, cloudflare_worker_duration_seconds) * 1000",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "5m",
+      "annotations": {
+        "description": "P95 response time has exceeded 1000ms for more than 5 minutes. Current P95: {{ $value }}ms",
+        "runbook_url": "https://docs.pitchey.com/runbooks/performance-degradation",
+        "summary": "Pitchey response times are degraded"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "warning",
+        "team": "platform"
+      },
+      "condition": "A > 1000"
+    },
+    {
+      "uid": "pitchey-database-connections-high",
+      "title": "Database Connection Pool Near Limit",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 300,
+            "to": 0
+          },
+          "model": {
+            "expr": "(hyperdrive_pool_active_connections / hyperdrive_pool_max_connections) * 100",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "5m",
+      "annotations": {
+        "description": "Database connection pool usage is above 90%. Current usage: {{ $value }}%",
+        "runbook_url": "https://docs.pitchey.com/runbooks/database-connections",
+        "summary": "Database connection pool near capacity"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "warning",
+        "team": "platform"
+      },
+      "condition": "A > 90"
+    },
+    {
+      "uid": "pitchey-database-query-time-high",
+      "title": "Database Query Time Too High",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 600,
+            "to": 0
+          },
+          "model": {
+            "expr": "histogram_quantile(0.95, pitchey_db_query_time_ms)",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "5m",
+      "annotations": {
+        "description": "Database P95 query time has exceeded 500ms for more than 5 minutes. Current P95: {{ $value }}ms",
+        "runbook_url": "https://docs.pitchey.com/runbooks/database-performance",
+        "summary": "Database query performance is degraded"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "warning",
+        "team": "platform"
+      },
+      "condition": "A > 500"
+    },
+    {
+      "uid": "pitchey-worker-no-requests",
+      "title": "Pitchey Worker No Requests",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 600,
+            "to": 0
+          },
+          "model": {
+            "expr": "rate(cloudflare_worker_requests_total[5m])",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "Alerting",
+      "execErrState": "Alerting",
+      "for": "10m",
+      "annotations": {
+        "description": "Worker has not received any requests for more than 10 minutes. This might indicate a service outage.",
+        "runbook_url": "https://docs.pitchey.com/runbooks/service-outage",
+        "summary": "Pitchey worker appears to be down"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "critical",
+        "team": "platform"
+      },
+      "condition": "A == 0"
+    },
+    {
+      "uid": "pitchey-redis-hit-rate-low",
+      "title": "Redis Cache Hit Rate Too Low",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 900,
+            "to": 0
+          },
+          "model": {
+            "expr": "avg_over_time(upstash_redis_hit_rate[15m])",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "10m",
+      "annotations": {
+        "description": "Redis cache hit rate has been below 85% for more than 10 minutes. Current rate: {{ $value }}%",
+        "runbook_url": "https://docs.pitchey.com/runbooks/redis-performance",
+        "summary": "Redis cache performance is degraded"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "warning",
+        "team": "platform"
+      },
+      "condition": "A < 85"
+    },
+    {
+      "uid": "pitchey-cache-warming-failed",
+      "title": "Cache Warming Process Failed",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 1800,
+            "to": 0
+          },
+          "model": {
+            "expr": "avg_over_time(pitchey_cache_warmer_success_rate[30m])",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "15m",
+      "annotations": {
+        "description": "Cache warming success rate has been below 90% for more than 15 minutes. Current rate: {{ $value }}%",
+        "runbook_url": "https://docs.pitchey.com/runbooks/cache-warming",
+        "summary": "Cache warming process is failing"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "warning",
+        "team": "platform"
+      },
+      "condition": "A < 90"
+    },
+    {
+      "uid": "pitchey-memory-usage-high",
+      "title": "Worker Memory Usage High",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 300,
+            "to": 0
+          },
+          "model": {
+            "expr": "(pitchey_cache_memory_usage_bytes / pitchey_cache_memory_limit_bytes) * 100",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "Alerting",
+      "for": "5m",
+      "annotations": {
+        "description": "Worker memory usage has exceeded 80% for more than 5 minutes. Current usage: {{ $value }}%",
+        "runbook_url": "https://docs.pitchey.com/runbooks/memory-usage",
+        "summary": "Worker memory usage is high"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "warning",
+        "team": "platform"
+      },
+      "condition": "A > 80"
+    },
+    {
+      "uid": "pitchey-api-cost-spike",
+      "title": "API Cost Spike Detected",
+      "condition": "A",
+      "data": [
+        {
+          "refId": "A",
+          "queryType": "",
+          "relativeTimeRange": {
+            "from": 3600,
+            "to": 0
+          },
+          "model": {
+            "expr": "increase(pitchey_api_cost_usd[1h])",
+            "interval": "",
+            "legendFormat": "",
+            "refId": "A"
+          }
+        }
+      ],
+      "noDataState": "NoData",
+      "execErrState": "NoData",
+      "for": "0s",
+      "annotations": {
+        "description": "API cost has exceeded $10 in the last hour. Current hourly cost: ${{ $value }}",
+        "runbook_url": "https://docs.pitchey.com/runbooks/cost-monitoring",
+        "summary": "Unusual spike in API costs detected"
+      },
+      "labels": {
+        "service": "pitchey",
+        "severity": "info",
+        "team": "platform"
+      },
+      "condition": "A > 10"
+    }
+  ],
+  "contactPoints": [
+    {
+      "uid": "pitchey-slack-alerts",
+      "name": "Pitchey Slack Alerts",
+      "type": "slack",
+      "settings": {
+        "url": "${SLACK_WEBHOOK_URL}",
+        "channel": "#pitchey-alerts",
+        "username": "Grafana",
+        "title": "🚨 Pitchey Alert: {{ .GroupLabels.alertname }}",
+        "text": "{{ range .Alerts }}**{{ .Annotations.summary }}**\n{{ .Annotations.description }}\n[Runbook]({{ .Annotations.runbook_url }}){{ end }}"
+      }
+    },
+    {
+      "uid": "pitchey-email-alerts",
+      "name": "Pitchey Email Alerts",
+      "type": "email",
+      "settings": {
+        "addresses": "${ALERT_EMAIL_ADDRESSES}",
+        "subject": "Pitchey Alert: {{ .GroupLabels.alertname }}",
+        "message": "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n\nRunbook: {{ .Annotations.runbook_url }}{{ end }}"
+      }
+    },
+    {
+      "uid": "pitchey-pagerduty",
+      "name": "Pitchey PagerDuty",
+      "type": "pagerduty",
+      "settings": {
+        "integrationKey": "${PAGERDUTY_INTEGRATION_KEY}",
+        "severity": "{{ .GroupLabels.severity }}",
+        "summary": "{{ .GroupLabels.alertname }}: {{ .Annotations.summary }}",
+        "source": "Pitchey Monitoring"
+      }
+    }
+  ],
+  "notificationPolicies": [
+    {
+      "receiver": "pitchey-slack-alerts",
+      "group_by": ["alertname", "severity"],
+      "group_wait": "30s",
+      "group_interval": "5m",
+      "repeat_interval": "2h",
+      "matchers": [
+        {
+          "name": "service",
+          "value": "pitchey"
+        }
+      ],
+      "routes": [
+        {
+          "receiver": "pitchey-pagerduty",
+          "group_wait": "0s",
+          "group_interval": "0s",
+          "repeat_interval": "5m",
+          "matchers": [
+            {
+              "name": "severity",
+              "value": "critical"
+            }
+          ]
+        },
+        {
+          "receiver": "pitchey-email-alerts",
+          "group_wait": "1m",
+          "group_interval": "10m",
+          "repeat_interval": "6h",
+          "matchers": [
+            {
+              "name": "severity",
+              "value": "warning"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

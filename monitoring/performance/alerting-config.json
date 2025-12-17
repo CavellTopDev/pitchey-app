@@ -1,0 +1,252 @@
+{
+  "alerting": {
+    "enabled": true,
+    "channels": {
+      "webhook": {
+        "enabled": true,
+        "url": "${WEBHOOK_URL}",
+        "timeout": 5000,
+        "retry_attempts": 3
+      },
+      "email": {
+        "enabled": false,
+        "smtp_host": "${SMTP_HOST}",
+        "smtp_port": 587,
+        "username": "${SMTP_USER}",
+        "password": "${SMTP_PASS}",
+        "from": "alerts@pitchey.com",
+        "to": ["admin@pitchey.com"]
+      },
+      "slack": {
+        "enabled": false,
+        "webhook_url": "${SLACK_WEBHOOK_URL}",
+        "channel": "#alerts"
+      }
+    },
+    "global_settings": {
+      "cooldown_period_minutes": 15,
+      "escalation_after_minutes": 30,
+      "auto_resolve_after_minutes": 60
+    }
+  },
+  "thresholds": {
+    "response_time": {
+      "warning": {
+        "value": 1000,
+        "unit": "ms",
+        "description": "Response time above 1 second"
+      },
+      "critical": {
+        "value": 2000,
+        "unit": "ms", 
+        "description": "Response time above 2 seconds"
+      },
+      "p95_warning": {
+        "value": 1500,
+        "unit": "ms",
+        "description": "95th percentile response time above 1.5 seconds"
+      },
+      "p95_critical": {
+        "value": 3000,
+        "unit": "ms",
+        "description": "95th percentile response time above 3 seconds"
+      }
+    },
+    "error_rate": {
+      "warning": {
+        "value": 5,
+        "unit": "%",
+        "description": "Error rate above 5%"
+      },
+      "critical": {
+        "value": 15,
+        "unit": "%",
+        "description": "Error rate above 15%"
+      }
+    },
+    "cache_performance": {
+      "hit_rate_warning": {
+        "value": 50,
+        "unit": "%",
+        "description": "Cache hit rate below 50%"
+      },
+      "hit_rate_critical": {
+        "value": 20,
+        "unit": "%",
+        "description": "Cache hit rate below 20%"
+      }
+    },
+    "endpoint_health": {
+      "degraded_threshold": {
+        "value": 20,
+        "unit": "%",
+        "description": "More than 20% of endpoints degraded"
+      },
+      "critical_threshold": {
+        "value": 50,
+        "unit": "%",
+        "description": "More than 50% of endpoints unhealthy"
+      }
+    },
+    "system_availability": {
+      "warning": {
+        "value": 95,
+        "unit": "%",
+        "description": "System availability below 95%"
+      },
+      "critical": {
+        "value": 90,
+        "unit": "%",
+        "description": "System availability below 90%"
+      }
+    }
+  },
+  "endpoint_specific_thresholds": {
+    "/api/health": {
+      "response_time_warning": 100,
+      "response_time_critical": 500,
+      "error_rate_warning": 1,
+      "error_rate_critical": 5
+    },
+    "/api/health/detailed": {
+      "response_time_warning": 200,
+      "response_time_critical": 1000,
+      "error_rate_warning": 2,
+      "error_rate_critical": 10
+    },
+    "/api/pitches/browse/enhanced": {
+      "response_time_warning": 300,
+      "response_time_critical": 1500,
+      "error_rate_warning": 2,
+      "error_rate_critical": 8,
+      "cache_hit_rate_warning": 60
+    },
+    "/api/pitches": {
+      "response_time_warning": 300,
+      "response_time_critical": 1500,
+      "error_rate_warning": 2,
+      "error_rate_critical": 8,
+      "cache_hit_rate_warning": 60
+    },
+    "/api/auth/check": {
+      "response_time_warning": 50,
+      "response_time_critical": 200,
+      "error_rate_warning": 0,
+      "error_rate_critical": 0
+    }
+  },
+  "alert_rules": {
+    "high_response_time": {
+      "condition": "avg_response_time > thresholds.response_time.warning.value",
+      "severity": "warning",
+      "message": "Average response time is {{avg_response_time}}ms (threshold: {{threshold}}ms)",
+      "runbook": "Check database connection, verify cache performance, review recent deployments"
+    },
+    "critical_response_time": {
+      "condition": "avg_response_time > thresholds.response_time.critical.value",
+      "severity": "critical",
+      "message": "Critical response time detected: {{avg_response_time}}ms (threshold: {{threshold}}ms)",
+      "runbook": "Immediate investigation required. Check Worker logs, database status, and consider rolling back recent changes"
+    },
+    "high_error_rate": {
+      "condition": "error_rate > thresholds.error_rate.warning.value",
+      "severity": "warning",
+      "message": "Error rate is {{error_rate}}% (threshold: {{threshold}}%)",
+      "runbook": "Review error logs, check for recent code changes, verify external dependencies"
+    },
+    "critical_error_rate": {
+      "condition": "error_rate > thresholds.error_rate.critical.value",
+      "severity": "critical",
+      "message": "Critical error rate: {{error_rate}}% (threshold: {{threshold}}%)",
+      "runbook": "Urgent: Review Worker logs, consider emergency rollback, notify incident response team"
+    },
+    "low_cache_hit_rate": {
+      "condition": "cache_hit_rate < thresholds.cache_performance.hit_rate_warning.value",
+      "severity": "warning",
+      "message": "Cache hit rate is {{cache_hit_rate}}% (threshold: {{threshold}}%)",
+      "runbook": "Verify KV namespace configuration, check cache TTL settings, review cache invalidation patterns"
+    },
+    "critical_cache_failure": {
+      "condition": "cache_hit_rate < thresholds.cache_performance.hit_rate_critical.value",
+      "severity": "critical",
+      "message": "Cache system failure: hit rate {{cache_hit_rate}}% (threshold: {{threshold}}%)",
+      "runbook": "Check KV namespace bindings, verify Worker cache code, consider cache warming"
+    },
+    "endpoint_degradation": {
+      "condition": "degraded_endpoints_percent > thresholds.endpoint_health.degraded_threshold.value",
+      "severity": "warning",
+      "message": "{{degraded_endpoints_percent}}% of endpoints are degraded",
+      "runbook": "Review individual endpoint performance, check for database slowdowns"
+    },
+    "system_outage": {
+      "condition": "unhealthy_endpoints_percent > thresholds.endpoint_health.critical_threshold.value",
+      "severity": "critical",
+      "message": "Major outage: {{unhealthy_endpoints_percent}}% of endpoints are unhealthy",
+      "runbook": "Emergency response: Check Worker status, database connectivity, DNS resolution. Consider maintenance page"
+    },
+    "database_connection_issues": {
+      "condition": "database_errors > 3 in last 5 minutes",
+      "severity": "warning",
+      "message": "Database connection issues detected: {{database_errors}} errors in 5 minutes",
+      "runbook": "Check Neon database status, verify Hyperdrive configuration, review connection pool settings"
+    },
+    "ssl_certificate_expiry": {
+      "condition": "ssl_days_until_expiry < 30",
+      "severity": "warning",
+      "message": "SSL certificate expires in {{ssl_days_until_expiry}} days",
+      "runbook": "Renew SSL certificate through Cloudflare dashboard or certificate provider"
+    }
+  },
+  "monitoring_windows": {
+    "business_hours": {
+      "timezone": "UTC",
+      "start": "08:00",
+      "end": "18:00",
+      "days": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    },
+    "maintenance_windows": [
+      {
+        "name": "Weekly Maintenance",
+        "day": "sunday",
+        "start": "02:00",
+        "end": "04:00",
+        "timezone": "UTC",
+        "suppress_alerts": true
+      }
+    ]
+  },
+  "escalation_policies": {
+    "response_time_escalation": {
+      "steps": [
+        {
+          "wait_minutes": 0,
+          "notify": ["webhook"],
+          "severity": ["warning"]
+        },
+        {
+          "wait_minutes": 15,
+          "notify": ["webhook", "email"],
+          "severity": ["critical"]
+        },
+        {
+          "wait_minutes": 30,
+          "notify": ["webhook", "email", "slack"],
+          "severity": ["critical"],
+          "message": "Escalated: Issue persists after 30 minutes"
+        }
+      ]
+    }
+  },
+  "suppression_rules": {
+    "deployment_window": {
+      "condition": "deployment_in_progress = true",
+      "suppress_for_minutes": 10,
+      "alerts": ["high_response_time", "cache_performance"]
+    },
+    "known_maintenance": {
+      "condition": "maintenance_mode = true", 
+      "suppress_for_minutes": 120,
+      "alerts": ["all"]
+    }
+  }
+}

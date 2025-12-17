@@ -1,283 +1,128 @@
-# Neon PostgreSQL Database Configuration Guide
+# Neon Database Setup Guide for Pitchey Platform
 
-## Overview
-This guide walks you through setting up Neon PostgreSQL as the production database for Pitchey, including Hyperdrive edge connection pooling.
+## Current Database Information
+- **Host**: `ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech`
+- **Database**: `neondb`
+- **User**: `neondb_owner`
+- **Region**: EU-West-2 (London)
+- **Connection Type**: Pooled connection with SSL
 
-## Prerequisites
-- Neon account (https://neon.tech)
-- Cloudflare account with Workers access
-- Database schema files ready
+## Step 1: Create a Neon Account (If Not Already Done)
 
-## Step 1: Create Neon Database
+1. Go to [Neon Console](https://console.neon.tech)
+2. Sign up with GitHub, Google, or email
+3. You get a free tier with:
+   - 0.5 GB storage
+   - 1 compute with autosuspend
+   - Unlimited projects
 
-### 1.1 Sign up for Neon
-```bash
-1. Go to https://neon.tech
-2. Sign up with GitHub or email
-3. Create a new project named "pitchey-production"
-4. Select region closest to your users (e.g., US East)
-```
+## Step 2: Access Your Existing Database
 
-### 1.2 Database Configuration
-```sql
--- Project settings
-Project Name: pitchey-production
-Database Name: pitchey
-Region: aws-us-east-2 (or closest to users)
-Compute Size: Autoscaling (0.25 - 1 CU)
-```
+Since you already have a database at `ep-old-snow-abpr94lc-pooler`, here's how to manage it:
 
-### 1.3 Get Connection String
-```bash
-# Pooled connection string (for serverless)
-postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require
+1. **Login to Neon Console**: https://console.neon.tech
+2. **Navigate to your project** (should show as the endpoint above)
+3. **Go to the Settings tab**
 
-# Direct connection string (for migrations)
-postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require
-```
+## Step 3: Update Database Password (CRITICAL SECURITY STEP)
 
-## Step 2: Configure Hyperdrive
+Since your credentials were exposed in the repository, you MUST rotate them:
 
-### 2.1 Create Hyperdrive Configuration
-```bash
-# Create Hyperdrive for edge connection pooling
-wrangler hyperdrive create pitchey-db \
-  --connection-string="postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require"
+### Option A: Reset Password in Neon Console (Recommended)
 
-# Output will include Hyperdrive ID
-# Example: a1b2c3d4e5f6g7h8i9j0
-```
+1. In Neon Console, go to **Settings** → **Roles**
+2. Find the `neondb_owner` role
+3. Click the **Reset password** button
+4. Copy the new password immediately (it won't be shown again)
+5. Update your connection string:
+   ```
+   postgresql://neondb_owner:NEW_PASSWORD_HERE@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require
+   ```
 
-### 2.2 Update Worker Configuration
+### Option B: Create a New Role
+
+1. Go to **Settings** → **Roles**
+2. Click **New Role**
+3. Name it something like `pitchey_prod`
+4. Grant all necessary permissions
+5. Use this new role in your connection string
+
+## Step 4: Configure Connection Pooling
+
+For Cloudflare Workers, you need pooled connections:
+
+1. In Neon Console, go to **Settings** → **Connection Details**
+2. Enable **Pooled connection** (should already be enabled based on your URL)
+3. Connection limits:
+   - Free tier: 100 simultaneous connections
+   - Pro tier: 200+ connections
+4. Your pooler endpoint format:
+   ```
+   ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech
+   ```
+
+## Step 5: Set Up Hyperdrive (Optional but Recommended)
+
+Cloudflare Hyperdrive reduces database latency for edge workers:
+
+### In Cloudflare Dashboard:
+1. Go to your Cloudflare account
+2. Navigate to **Workers & Pages** → **Hyperdrive**
+3. Click **Create configuration**
+4. Enter details:
+   ```
+   Name: pitchey-neon-db
+   Connection string: postgresql://neondb_owner:PASSWORD@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech:5432/neondb?sslmode=require
+   ```
+5. Save and get the Hyperdrive ID
+
+### In wrangler.toml:
 ```toml
-# In wrangler-custom-domain.toml
 [[hyperdrive]]
 binding = "HYPERDRIVE"
-id = "a1b2c3d4e5f6g7h8i9j0"  # Your Hyperdrive ID
+id = "your-hyperdrive-id-here"
 ```
 
-## Step 3: Database Schema Setup
+## Step 6: Update Cloudflare Secrets
 
-### 3.1 Run Migrations with Drizzle
+After changing your database password:
+
 ```bash
-# Set environment variable
-export DATABASE_URL="postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require"
-
-# Run migrations
-cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2
-deno run --allow-all src/db/migrate.ts
-
-# Or using npm/drizzle-kit
-npx drizzle-kit migrate:run
+# Update the DATABASE_URL secret in Cloudflare
+echo "postgresql://neondb_owner:NEW_PASSWORD@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require" | wrangler secret put DATABASE_URL --name pitchey-production
 ```
 
-### 3.2 Manual Schema Setup (Alternative)
+## Step 7: Configure Database Schema
+
+Your database should already have these tables (check in SQL Editor):
+
 ```sql
--- Connect to Neon database
-psql "postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require"
+-- Check existing tables
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public';
 
--- Create tables
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  first_name VARCHAR(100),
-  last_name VARCHAR(100),
-  company_name VARCHAR(200),
-  user_type VARCHAR(20) NOT NULL CHECK (user_type IN ('creator', 'investor', 'production', 'admin')),
-  bio TEXT,
-  profile_picture VARCHAR(500),
-  verified BOOLEAN DEFAULT false,
-  is_admin BOOLEAN DEFAULT false,
-  subscription_tier VARCHAR(20) DEFAULT 'basic',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE pitches (
-  id SERIAL PRIMARY KEY,
-  creator_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  title VARCHAR(200) NOT NULL,
-  logline TEXT,
-  synopsis TEXT,
-  genre VARCHAR(50),
-  format VARCHAR(50),
-  status VARCHAR(20) DEFAULT 'draft',
-  visibility VARCHAR(20) DEFAULT 'private',
-  poster_url VARCHAR(500),
-  video_url VARCHAR(500),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Add indexes for performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_type ON users(user_type);
-CREATE INDEX idx_pitches_creator ON pitches(creator_id);
-CREATE INDEX idx_pitches_status ON pitches(status);
-CREATE INDEX idx_pitches_visibility ON pitches(visibility);
-
--- Create additional tables as needed
--- See src/db/schema.ts for complete schema
+-- You should see:
+-- users, pitches, investments, ndas, messages, notifications, etc.
 ```
 
-## Step 4: Seed Demo Data
+## Step 8: Set Up Monitoring
 
-### 4.1 Create Demo Users Script
-```typescript
-// scripts/seed-neon.ts
-import { neon } from '@neondatabase/serverless';
+### In Neon Console:
+1. Go to **Monitoring** tab
+2. Set up alerts for:
+   - High connection count (>80)
+   - Storage usage (>400MB for free tier)
+   - Compute usage
+   - Slow queries
 
-const sql = neon(process.env.DATABASE_URL!);
-
-async function seedDatabase() {
-  // Create demo users
-  await sql`
-    INSERT INTO users (email, password_hash, first_name, last_name, user_type, verified)
-    VALUES 
-      ('alex.creator@demo.com', '$2a$10$...', 'Alex', 'Creator', 'creator', true),
-      ('sarah.investor@demo.com', '$2a$10$...', 'Sarah', 'Investor', 'investor', true),
-      ('stellar.production@demo.com', '$2a$10$...', 'Stellar', 'Production', 'production', true)
-    ON CONFLICT (email) DO NOTHING
-  `;
-
-  // Create demo pitches
-  const creator = await sql`
-    SELECT id FROM users WHERE email = 'alex.creator@demo.com'
-  `;
-
-  if (creator[0]) {
-    await sql`
-      INSERT INTO pitches (creator_id, title, logline, genre, format, status, visibility)
-      VALUES 
-        (${creator[0].id}, 'The Last Signal', 'A scientist receives a mysterious signal...', 'Sci-Fi', 'Feature Film', 'published', 'public'),
-        (${creator[0].id}, 'Midnight Express', 'A thriller about a stolen train...', 'Thriller', 'Feature Film', 'published', 'public')
-    `;
-  }
-
-  console.log('Database seeded successfully');
-}
-
-seedDatabase();
-```
-
-### 4.2 Run Seed Script
-```bash
-# Run the seed script
-deno run --allow-all scripts/seed-neon.ts
-
-# Or verify manually
-psql $DATABASE_URL -c "SELECT * FROM users;"
-```
-
-## Step 5: Worker Database Integration
-
-### 5.1 Update Worker to Use Hyperdrive
-```typescript
-// In worker-custom-domain.ts or worker handler
-import { connect } from '@planetscale/database';
-
-export interface Env {
-  HYPERDRIVE: Hyperdrive;
-  // ... other bindings
-}
-
-class DatabaseHandler {
-  private env: Env;
-
-  constructor(env: Env) {
-    this.env = env;
-  }
-
-  async query(sql: string, params?: any[]) {
-    // Hyperdrive automatically pools connections
-    const conn = this.env.HYPERDRIVE.connectionString;
-    
-    // Execute query with automatic retries
-    const result = await fetch(conn, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql, params })
-    });
-
-    return result.json();
-  }
-
-  async getUser(email: string) {
-    const sql = 'SELECT * FROM users WHERE email = $1';
-    const result = await this.query(sql, [email]);
-    return result.rows[0];
-  }
-
-  async getPitches(limit = 10, offset = 0) {
-    const sql = `
-      SELECT p.*, u.first_name, u.last_name 
-      FROM pitches p 
-      JOIN users u ON p.creator_id = u.id 
-      WHERE p.visibility = 'public' 
-      ORDER BY p.created_at DESC 
-      LIMIT $1 OFFSET $2
-    `;
-    const result = await this.query(sql, [limit, offset]);
-    return result.rows;
-  }
-}
-```
-
-### 5.2 Connection Pooling Configuration
-```javascript
-// Hyperdrive configuration benefits
-{
-  // Automatic connection pooling
-  maxConnections: 100,
-  minConnections: 2,
-  
-  // Smart retry logic
-  retryAttempts: 3,
-  retryDelay: 100,
-  
-  // Edge caching of prepared statements
-  statementCacheTtl: 3600,
-  
-  // Geographic routing to nearest replica
-  readReplicas: true
-}
-```
-
-## Step 6: Environment Variables
-
-### 6.1 Set Worker Secrets
-```bash
-# Set database URL as secret
-wrangler secret put DATABASE_URL
-# Enter: postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require
-
-# Set other required secrets
-wrangler secret put JWT_SECRET
-# Enter: your-jwt-secret-key
-```
-
-### 6.2 Local Development Configuration
-```bash
-# .env.local
-DATABASE_URL=postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require
-JWT_SECRET=your-jwt-secret-key
-```
-
-## Step 7: Database Monitoring
-
-### 7.1 Neon Dashboard Metrics
-Monitor in Neon dashboard:
-- Active connections
-- Query performance
-- Storage usage
-- Compute usage
-- Slow queries
-
-### 7.2 Create Monitoring Queries
+### Useful Monitoring Queries:
 ```sql
--- Check active connections
+-- Check current connections
 SELECT count(*) FROM pg_stat_activity;
+
+-- Check database size
+SELECT pg_database_size('neondb') / 1024 / 1024 as size_mb;
 
 -- Find slow queries
 SELECT query, mean_exec_time, calls 
@@ -285,179 +130,155 @@ FROM pg_stat_statements
 ORDER BY mean_exec_time DESC 
 LIMIT 10;
 
--- Database size
-SELECT pg_database_size('pitchey');
-
--- Table sizes
-SELECT 
-  schemaname,
-  tablename,
-  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
-FROM pg_tables
+-- Check table sizes
+SELECT schemaname, tablename, 
+       pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
+FROM pg_tables 
+WHERE schemaname = 'public' 
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 ```
 
-## Step 8: Backup Strategy
+## Step 9: Backup Configuration
 
-### 8.1 Neon Automatic Backups
-Neon provides:
-- Point-in-time recovery (7 days free tier, 30 days pro)
-- Automatic daily backups
-- Branch creation from any point in time
+### Enable Automatic Backups:
+1. In Neon Console → **Settings** → **History**
+2. Free tier: 24-hour history
+3. Pro tier: 30-day history with point-in-time recovery
 
-### 8.2 Manual Backup Script
+### Manual Backup Script:
 ```bash
 #!/bin/bash
-# backup-neon.sh
+# Save as backup-neon.sh
 
-DATE=$(date +%Y%m%d_%H%M%S)
-DATABASE_URL="postgresql://[user]:[password]@[endpoint].neon.tech/pitchey?sslmode=require"
+DATABASE_URL="postgresql://neondb_owner:PASSWORD@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
+BACKUP_FILE="backup-$(date +%Y%m%d-%H%M%S).sql"
 
-# Create backup
-pg_dump "$DATABASE_URL" > backups/pitchey_$DATE.sql
-
-# Compress backup
-gzip backups/pitchey_$DATE.sql
-
-# Upload to R2 (optional)
-wrangler r2 object put pitchey-backups/pitchey_$DATE.sql.gz \
-  --file=backups/pitchey_$DATE.sql.gz
-
-# Keep only last 30 days of local backups
-find backups -name "*.sql.gz" -mtime +30 -delete
+pg_dump "$DATABASE_URL" > "$BACKUP_FILE"
+gzip "$BACKUP_FILE"
+echo "Backup saved to ${BACKUP_FILE}.gz"
 ```
 
-### 8.3 Schedule Backups
-```bash
-# Add to crontab
-0 2 * * * /path/to/backup-neon.sh  # Daily at 2 AM
+## Step 10: Performance Optimization
+
+### Connection String Parameters:
+```
+postgresql://user:pass@host/db?sslmode=require&connect_timeout=10&application_name=pitchey
 ```
 
-## Step 9: Performance Optimization
-
-### 9.1 Query Optimization
+### Recommended Indexes (Run in SQL Editor):
 ```sql
--- Add missing indexes based on query patterns
-CREATE INDEX CONCURRENTLY idx_pitches_created_at ON pitches(created_at DESC);
-CREATE INDEX CONCURRENTLY idx_users_company ON users(company_name) WHERE company_name IS NOT NULL;
-
--- Partial indexes for common queries
-CREATE INDEX CONCURRENTLY idx_active_pitches 
-ON pitches(created_at DESC) 
-WHERE status = 'published' AND visibility = 'public';
+-- Performance indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_pitches_created_at ON pitches(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pitches_user_id ON pitches(user_id);
+CREATE INDEX IF NOT EXISTS idx_pitches_status ON pitches(status);
+CREATE INDEX IF NOT EXISTS idx_investments_pitch_id ON investments(pitch_id);
+CREATE INDEX IF NOT EXISTS idx_investments_investor_id ON investments(investor_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver ON messages(sender_id, receiver_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
 
 -- Analyze tables for query planner
-ANALYZE users;
-ANALYZE pitches;
+ANALYZE;
 ```
 
-### 9.2 Connection Pool Tuning
+## Connection Strings for Different Environments
+
+### Production (Cloudflare Worker):
 ```javascript
-// Hyperdrive tuning for Neon
-{
-  // Neon-specific settings
-  connectionString: process.env.DATABASE_URL,
-  
-  // Pool settings
-  max: 25,  // Neon free tier allows 100 connections
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  
-  // Statement caching
-  statementTimeout: 30000,
-  query_timeout: 10000,
-  
-  // Retry configuration
-  retries: 3,
-  retryDelayMs: 100
-}
+// With Hyperdrive (recommended)
+const db = env.HYPERDRIVE.connect();
+
+// Direct connection (fallback)
+const db = neon(env.DATABASE_URL);
 ```
 
-## Step 10: Testing & Validation
-
-### 10.1 Test Database Connection
+### Local Development:
 ```bash
-# Test from Worker
-curl https://api.pitchey.com/api/health
-
-# Response should include database status
-{
-  "success": true,
-  "database": "connected",
-  "version": "PostgreSQL 15.x"
-}
+# .env.local
+DATABASE_URL=postgresql://neondb_owner:PASSWORD@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require
 ```
 
-### 10.2 Load Testing
-```bash
-# Test database under load
-k6 run scripts/database-load-test.js
-
-# Monitor in Neon dashboard during test
-# Watch for connection spikes, slow queries
-```
-
-## Migration Checklist
-
-- [ ] Neon account created
-- [ ] Database provisioned in correct region
-- [ ] Connection string obtained
-- [ ] Hyperdrive configured with connection string
-- [ ] Worker configuration updated with Hyperdrive binding
-- [ ] Database schema migrated
-- [ ] Demo data seeded
-- [ ] Worker secrets configured
-- [ ] Database queries tested
-- [ ] Monitoring set up
-- [ ] Backup strategy implemented
-- [ ] Performance indexes created
-- [ ] Load testing completed
-- [ ] Production deployment verified
-
-## Troubleshooting
-
-### Connection Issues
+### Testing:
 ```bash
 # Test connection
-psql "$DATABASE_URL" -c "SELECT 1"
-
-# Check SSL requirement
-# Neon requires SSL, ensure sslmode=require
+psql "postgresql://neondb_owner:PASSWORD@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require" -c "SELECT version();"
 ```
 
-### Slow Queries
-```sql
--- Enable query logging
-ALTER DATABASE pitchey SET log_statement = 'all';
-ALTER DATABASE pitchey SET log_duration = on;
+## Troubleshooting Common Issues
 
--- Find slow queries
-SELECT * FROM pg_stat_statements 
-WHERE mean_exec_time > 100 
-ORDER BY mean_exec_time DESC;
-```
+### 1. "Too many connections" Error
+- Switch to pooled connection endpoint (with `-pooler` in hostname)
+- Reduce connection pool size in your app
+- Enable Hyperdrive for connection pooling
 
-### Connection Pool Exhaustion
-```javascript
-// Monitor pool usage
-const poolStats = await hyperdrive.getStats();
-console.log('Active connections:', poolStats.activeConnections);
-console.log('Idle connections:', poolStats.idleConnections);
-```
+### 2. SSL Connection Required
+- Always include `?sslmode=require` in connection string
+- For local development, you might need to add SSL certificates
 
-## Support Resources
+### 3. Slow Queries
+- Check the Monitoring tab in Neon Console
+- Run `EXPLAIN ANALYZE` on slow queries
+- Add appropriate indexes
 
-- Neon Docs: https://neon.tech/docs
-- Hyperdrive Docs: https://developers.cloudflare.com/hyperdrive/
-- Drizzle Docs: https://orm.drizzle.team/
-- PostgreSQL Docs: https://www.postgresql.org/docs/
+### 4. Database Suspended (Free Tier)
+- Database auto-suspends after 5 minutes of inactivity
+- First connection after suspend takes 1-2 seconds
+- Consider upgrading to Pro for always-on database
+
+## Security Checklist
+
+- [ ] Changed database password after exposure
+- [ ] Updated DATABASE_URL secret in Cloudflare
+- [ ] Removed hardcoded credentials from all files
+- [ ] Enabled SSL requirement (`sslmode=require`)
+- [ ] Set up IP allowlisting (Pro feature)
+- [ ] Configured role-based access control
+- [ ] Enabled query logging for audit trail
+- [ ] Set up monitoring alerts
 
 ## Next Steps
 
-After database is configured:
-1. Run production tests with real queries
-2. Set up monitoring dashboards
-3. Configure alerting for database issues
-4. Document query patterns for optimization
-5. Implement read replicas if needed
+1. **Immediately**: Change your database password in Neon Console
+2. **Update**: Cloudflare Worker secrets with new password
+3. **Deploy**: Your worker with `wrangler deploy`
+4. **Test**: Connection with the test script above
+5. **Monitor**: Check Neon Console monitoring tab regularly
+
+## Support Resources
+
+- **Neon Documentation**: https://neon.tech/docs
+- **Neon Discord**: https://discord.gg/92vNTzKDGp
+- **Status Page**: https://neonstatus.com
+- **Support Email**: support@neon.tech (Pro tier)
+
+## Cost Optimization Tips
+
+### Free Tier Limits:
+- 0.5 GB storage
+- 1 branch
+- 100 compute hours/month
+- Auto-suspend after 5 minutes
+
+### When to Upgrade to Pro ($19/month):
+- Need >0.5 GB storage
+- Want always-on database (no suspend)
+- Need branching for dev/staging
+- Require longer backup history
+- Need IP allowlisting
+
+### Storage Management:
+```sql
+-- Find large tables
+SELECT 
+    schemaname || '.' || tablename AS table,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+-- Clean up old data
+DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '30 days';
+DELETE FROM sessions WHERE expires_at < NOW();
+VACUUM FULL;
+```
+
+Remember: Your most urgent task is to **change the database password** since it was exposed in the repository!

@@ -1,0 +1,566 @@
+name: Synthetic Monitoring Runner
+
+on:
+  schedule:
+    # Run critical tests every 2 minutes
+    - cron: '*/2 * * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - critical
+          - authentication
+          - pitch-creation
+          - investment-flow
+          - api-health
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  NODE_VERSION: '18'
+  PLAYWRIGHT_VERSION: '1.40.0'
+
+jobs:
+  # Determine which tests to run
+  determine-tests:
+    name: Determine Test Suite
+    runs-on: ubuntu-latest
+    outputs:
+      test_matrix: ${{ steps.matrix.outputs.tests }}
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if tests should run
+        id: check
+        run: |
+          # Skip on weekends for non-critical tests unless manually triggered
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date +%u)" -ge 6 ]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Skipping non-critical tests on weekend"
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate test matrix
+        id: matrix
+        run: |
+          # Determine test suite based on time and input
+          HOUR=$(date +%H)
+          MINUTE=$(date +%M)
+          
+          if [ "${{ github.event.inputs.test_suite }}" = "all" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            # Run different test suites at different times to spread load
+            if [ $((MINUTE % 10)) -eq 0 ]; then
+              # Every 10 minutes: API health checks
+              TESTS='["api-health"]'
+            elif [ $((MINUTE % 5)) -eq 0 ]; then
+              # Every 5 minutes: Critical authentication and basic flows
+              TESTS='["authentication", "api-health"]'
+            elif [ $((MINUTE % 15)) -eq 0 ]; then
+              # Every 15 minutes: Full critical path
+              TESTS='["authentication", "pitch-creation", "api-health"]'
+            elif [ $((HOUR % 2)) -eq 0 ] && [ $MINUTE -eq 0 ]; then
+              # Every 2 hours: Complete test suite
+              TESTS='["authentication", "pitch-creation", "investment-flow", "nda-management", "api-health", "real-time", "mobile", "performance"]'
+            else
+              # Default: minimal critical tests
+              TESTS='["api-health"]'
+            fi
+          else
+            # Manual trigger - run specified test suite
+            case "${{ github.event.inputs.test_suite }}" in
+              critical)
+                TESTS='["authentication", "api-health"]'
+                ;;
+              authentication)
+                TESTS='["authentication"]'
+                ;;
+              pitch-creation)
+                TESTS='["pitch-creation"]'
+                ;;
+              investment-flow)
+                TESTS='["investment-flow"]'
+                ;;
+              api-health)
+                TESTS='["api-health"]'
+                ;;
+              *)
+                TESTS='["api-health"]'
+                ;;
+            esac
+          fi
+          
+          echo "tests=$TESTS" >> $GITHUB_OUTPUT
+          echo "Running test suites: $TESTS"
+
+  # API Health Checks (fastest, run most frequently)
+  api-health-tests:
+    name: API Health Tests
+    runs-on: ubuntu-latest
+    needs: determine-tests
+    if: needs.determine-tests.outputs.should_run == 'true' && contains(needs.determine-tests.outputs.test_matrix, 'api-health')
+    strategy:
+      matrix:
+        location: [us-west-2, us-east-1, eu-west-1]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run API Health Tests
+        run: |
+          # Set environment URLs
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            export API_URL="https://staging.pitchey.workers.dev"
+            export BASE_URL="https://staging.pitchey.pages.dev"
+          else
+            export API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+            export BASE_URL="https://pitchey.pages.dev"
+          fi
+          
+          echo "Testing from region: ${{ matrix.location }}"
+          echo "API URL: $API_URL"
+          
+          # Basic health check
+          START_TIME=$(date +%s%3N)
+          RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null "$API_URL/health")
+          END_TIME=$(date +%s%3N)
+          DURATION=$((END_TIME - START_TIME))
+          
+          echo "Health check response: $RESPONSE"
+          echo "Response time: ${DURATION}ms"
+          
+          if [ "$RESPONSE" != "200" ]; then
+            echo "❌ Health check failed with status $RESPONSE"
+            exit 1
+          fi
+          
+          if [ "$DURATION" -gt 1000 ]; then
+            echo "⚠️  Slow response time: ${DURATION}ms (threshold: 1000ms)"
+          fi
+          
+          # Test authentication endpoint
+          AUTH_RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"email":"'${{ secrets.DEMO_CREATOR_EMAIL }}'","password":"'${{ secrets.DEMO_CREATOR_PASSWORD }}'"}' \
+            -w "%{http_code}" \
+            "$API_URL/api/auth/creator/login")
+          
+          echo "Auth test response: $AUTH_RESPONSE"
+          
+          # Log metrics to file for aggregation
+          echo "api_health_check{region=\"${{ matrix.location }}\",endpoint=\"health\"} $DURATION" >> metrics.txt
+          echo "api_health_status{region=\"${{ matrix.location }}\",endpoint=\"health\"} $([[ $RESPONSE == 200 ]] && echo 1 || echo 0)" >> metrics.txt
+
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: api-health-metrics-${{ matrix.location }}
+          path: metrics.txt
+
+  # Authentication Flow Tests
+  authentication-tests:
+    name: Authentication Tests
+    runs-on: ubuntu-latest
+    needs: determine-tests
+    if: needs.determine-tests.outputs.should_run == 'true' && contains(needs.determine-tests.outputs.test_matrix, 'authentication')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Playwright
+        run: |
+          npm install -g playwright@${{ env.PLAYWRIGHT_VERSION }}
+          playwright install chromium
+
+      - name: Run Authentication Tests
+        run: |
+          # Set environment
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            export BASE_URL="https://staging.pitchey.pages.dev"
+          else
+            export BASE_URL="https://pitchey.pages.dev"
+          fi
+          
+          # Create test script
+          cat > auth_test.js << 'EOF'
+          const { chromium } = require('playwright');
+
+          (async () => {
+            const browser = await chromium.launch();
+            const context = await browser.newContext({
+              viewport: { width: 1280, height: 720 },
+              userAgent: 'Mozilla/5.0 (compatible; SyntheticMonitoring/1.0; +https://pitchey.com/monitoring)'
+            });
+            
+            const page = await context.newPage();
+            
+            try {
+              console.log('Testing Creator Login...');
+              const startTime = Date.now();
+              
+              // Navigate to login
+              await page.goto(process.env.BASE_URL + '/login/creator');
+              await page.waitForLoadState('networkidle');
+              
+              // Check for login form
+              await page.waitForSelector('[data-testid="email-input"]', { timeout: 10000 });
+              
+              // Fill credentials
+              await page.fill('[data-testid="email-input"]', process.env.DEMO_CREATOR_EMAIL);
+              await page.fill('[data-testid="password-input"]', process.env.DEMO_CREATOR_PASSWORD);
+              
+              // Submit form
+              await page.click('[data-testid="login-button"]');
+              
+              // Wait for dashboard
+              await page.waitForURL('**/creator/dashboard', { timeout: 15000 });
+              
+              const endTime = Date.now();
+              const duration = endTime - startTime;
+              
+              console.log(`✅ Creator login successful in ${duration}ms`);
+              
+              // Test logout
+              await page.click('[data-testid="user-menu"]');
+              await page.click('[data-testid="logout-button"]');
+              
+              // Verify redirect to home
+              await page.waitForURL('**/', { timeout: 10000 });
+              
+              console.log('✅ Logout successful');
+              
+              // Log metrics
+              console.log(`auth_flow_duration_ms ${duration}`);
+              console.log(`auth_flow_success 1`);
+              
+            } catch (error) {
+              console.error('❌ Authentication test failed:', error.message);
+              
+              // Take screenshot for debugging
+              await page.screenshot({ path: 'auth_failure.png', fullPage: true });
+              
+              console.log(`auth_flow_success 0`);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+          
+          # Run test
+          DEMO_CREATOR_EMAIL="${{ secrets.DEMO_CREATOR_EMAIL }}" \
+          DEMO_CREATOR_PASSWORD="${{ secrets.DEMO_CREATOR_PASSWORD }}" \
+          BASE_URL="$BASE_URL" \
+          node auth_test.js
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: auth-test-failures
+          path: "*.png"
+
+  # Pitch Creation Flow Tests
+  pitch-creation-tests:
+    name: Pitch Creation Tests
+    runs-on: ubuntu-latest
+    needs: determine-tests
+    if: needs.determine-tests.outputs.should_run == 'true' && contains(needs.determine-tests.outputs.test_matrix, 'pitch-creation')
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Playwright
+        run: |
+          npm install playwright@${{ env.PLAYWRIGHT_VERSION }}
+          npx playwright install chromium
+
+      - name: Run Pitch Creation Tests
+        run: |
+          # Set environment
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            export BASE_URL="https://staging.pitchey.pages.dev"
+          else
+            export BASE_URL="https://pitchey.pages.dev"
+          fi
+          
+          # Create comprehensive pitch creation test
+          cat > pitch_test.js << 'EOF'
+          const { chromium } = require('playwright');
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage();
+            
+            try {
+              // Login first
+              await page.goto(process.env.BASE_URL + '/login/creator');
+              await page.fill('[data-testid="email-input"]', process.env.DEMO_CREATOR_EMAIL);
+              await page.fill('[data-testid="password-input"]', process.env.DEMO_CREATOR_PASSWORD);
+              await page.click('[data-testid="login-button"]');
+              await page.waitForURL('**/creator/dashboard');
+              
+              console.log('✅ Login successful');
+              
+              // Navigate to pitch creation
+              const startTime = Date.now();
+              await page.goto(process.env.BASE_URL + '/creator/pitches/new');
+              await page.waitForLoadState('networkidle');
+              
+              // Fill pitch form
+              const testTitle = `Synthetic Test ${Date.now()}`;
+              await page.fill('[data-testid="title-input"]', testTitle);
+              await page.selectOption('[data-testid="genre-select"]', 'Action');
+              await page.fill('[data-testid="logline-input"]', 'A synthetic monitoring test pitch for system validation.');
+              await page.fill('[data-testid="synopsis-input"]', 'This pitch is created automatically to test the pitch creation workflow.');
+              
+              console.log('✅ Basic form filled');
+              
+              // Test auto-save functionality
+              await page.waitForSelector('[data-testid="auto-saved-indicator"]', { timeout: 10000 });
+              console.log('✅ Auto-save working');
+              
+              // Save as draft
+              await page.click('[data-testid="save-draft-button"]');
+              await page.waitForSelector('[data-testid="draft-saved-indicator"]', { timeout: 10000 });
+              
+              const endTime = Date.now();
+              const duration = endTime - startTime;
+              
+              console.log(`✅ Pitch creation flow completed in ${duration}ms`);
+              
+              // Verify pitch appears in drafts
+              await page.goto(process.env.BASE_URL + '/creator/pitches');
+              await page.waitForSelector('[data-testid="draft-pitches-list"]');
+              
+              const pitchExists = await page.isVisible(`text=${testTitle}`);
+              if (pitchExists) {
+                console.log('✅ Pitch found in drafts list');
+              } else {
+                throw new Error('Pitch not found in drafts list');
+              }
+              
+              // Clean up - delete test pitch
+              await page.click(`[data-testid="pitch-card"]:has-text("${testTitle}") [data-testid="delete-button"]`);
+              await page.click('[data-testid="confirm-delete"]');
+              
+              console.log('✅ Test pitch cleaned up');
+              console.log(`pitch_creation_duration_ms ${duration}`);
+              console.log(`pitch_creation_success 1`);
+              
+            } catch (error) {
+              console.error('❌ Pitch creation test failed:', error.message);
+              await page.screenshot({ path: 'pitch_creation_failure.png', fullPage: true });
+              console.log(`pitch_creation_success 0`);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+          
+          DEMO_CREATOR_EMAIL="${{ secrets.DEMO_CREATOR_EMAIL }}" \
+          DEMO_CREATOR_PASSWORD="${{ secrets.DEMO_CREATOR_PASSWORD }}" \
+          BASE_URL="$BASE_URL" \
+          node pitch_test.js
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pitch-creation-artifacts
+          path: "*.png"
+
+  # Performance Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: determine-tests
+    if: needs.determine-tests.outputs.should_run == 'true' && contains(needs.determine-tests.outputs.test_matrix, 'performance')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Lighthouse CI
+        run: |
+          npm install -g @lhci/cli
+
+      - name: Run Lighthouse Performance Tests
+        run: |
+          # Set environment
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            export BASE_URL="https://staging.pitchey.pages.dev"
+          else
+            export BASE_URL="https://pitchey.pages.dev"
+          fi
+          
+          # Run Lighthouse tests
+          lhci autorun \
+            --collect.url="$BASE_URL" \
+            --collect.url="$BASE_URL/login/creator" \
+            --collect.url="$BASE_URL/investor/browse" \
+            --assert.preset=lighthouse:recommended \
+            --assert.assertions.categories:performance=0.80 \
+            --assert.assertions.categories:accessibility=0.85 \
+            --assert.assertions.first-contentful-paint=3000 \
+            --assert.assertions.largest-contentful-paint=5000 \
+            --upload.target=filesystem \
+            --upload.outputDir=lighthouse-reports
+
+      - name: Upload Lighthouse Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-reports
+          path: lighthouse-reports/
+
+  # Aggregate and Report Results
+  aggregate-results:
+    name: Aggregate Test Results
+    runs-on: ubuntu-latest
+    needs: [api-health-tests, authentication-tests, pitch-creation-tests, performance-tests]
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Process Results
+        run: |
+          echo "# Synthetic Monitoring Report" > report.md
+          echo "**Date:** $(date)" >> report.md
+          echo "**Environment:** ${{ github.event.inputs.environment || 'production' }}" >> report.md
+          echo "" >> report.md
+          
+          # Process API health results
+          if [ -d "api-health-metrics-us-west-2" ]; then
+            echo "## API Health Check Results" >> report.md
+            for region in us-west-2 us-east-1 eu-west-1; do
+              if [ -f "api-health-metrics-$region/metrics.txt" ]; then
+                echo "### Region: $region" >> report.md
+                cat "api-health-metrics-$region/metrics.txt" >> report.md
+                echo "" >> report.md
+              fi
+            done
+          fi
+          
+          # Check for failures
+          FAILED_TESTS=""
+          
+          if [ "${{ needs.api-health-tests.result }}" = "failure" ]; then
+            FAILED_TESTS="$FAILED_TESTS API-Health"
+          fi
+          
+          if [ "${{ needs.authentication-tests.result }}" = "failure" ]; then
+            FAILED_TESTS="$FAILED_TESTS Authentication"
+          fi
+          
+          if [ "${{ needs.pitch-creation-tests.result }}" = "failure" ]; then
+            FAILED_TESTS="$FAILED_TESTS Pitch-Creation"
+          fi
+          
+          if [ "${{ needs.performance-tests.result }}" = "failure" ]; then
+            FAILED_TESTS="$FAILED_TESTS Performance"
+          fi
+          
+          if [ -n "$FAILED_TESTS" ]; then
+            echo "## ❌ Failed Tests" >> report.md
+            echo "$FAILED_TESTS" >> report.md
+            echo "" >> report.md
+          else
+            echo "## ✅ All Tests Passed" >> report.md
+            echo "" >> report.md
+          fi
+
+      - name: Send Results to Monitoring
+        if: env.PROMETHEUS_GATEWAY
+        run: |
+          # Send metrics to Prometheus Gateway
+          if [ -n "${{ secrets.PROMETHEUS_GATEWAY }}" ]; then
+            curl -X POST \
+              -H 'Content-Type: application/octet-stream' \
+              --data-binary @report.md \
+              "${{ secrets.PROMETHEUS_GATEWAY }}/metrics/job/synthetic-monitoring/instance/${{ github.run_id }}"
+          fi
+
+      - name: Create GitHub Issue on Critical Failure
+        if: failure() && contains(needs.*.result, 'failure')
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `🚨 Synthetic Monitoring Critical Failure - ${new Date().toISOString()}`;
+            const body = `
+            ## Critical Synthetic Monitoring Failure
+            
+            **Environment:** ${{ github.event.inputs.environment || 'production' }}
+            **Run ID:** ${{ github.run_id }}
+            **Timestamp:** ${new Date().toISOString()}
+            
+            ### Failed Test Results:
+            - API Health: ${{ needs.api-health-tests.result }}
+            - Authentication: ${{ needs.authentication-tests.result }}
+            - Pitch Creation: ${{ needs.pitch-creation-tests.result }}
+            - Performance: ${{ needs.performance-tests.result }}
+            
+            ### Action Required:
+            1. Check production systems immediately
+            2. Review failed test artifacts
+            3. Investigate root cause
+            4. Update incident response if needed
+            
+            **Workflow:** ${{ github.workflow }}
+            **Run URL:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['critical', 'synthetic-monitoring', 'incident']
+            });
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v3
+        with:
+          name: synthetic-monitoring-report
+          path: report.md

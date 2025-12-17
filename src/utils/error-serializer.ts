@@ -187,8 +187,8 @@ export function errorToResponse(error: unknown, fallbackMessage: string = 'An er
     message: serialized.message || fallbackMessage,
     code: serialized.code,
     type: serialized.type,
-    // Only include technical details in non-production environments
-    ...(process.env.NODE_ENV !== 'production' && {
+    // Only include technical details in development (never in production Workers)
+    ...(false && {  // Always false for production Workers
       detail: serialized.detail,
       sqlState: serialized.sqlState,
       originalType: serialized.originalType

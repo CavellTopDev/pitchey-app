@@ -1,6 +1,21 @@
 
 ---
 
+## 🔐 CRITICAL UPDATE: Better Auth Implementation Complete!
+
+> **⚠️ IMPORTANT NOTICE: The Pitchey platform has migrated from JWT to Better Auth**
+> 
+> **What this means:**
+> - ✅ **Session-based authentication** with secure HTTP-only cookies
+> - ✅ **No more JWT tokens** - sessions managed server-side
+> - ✅ **All demo accounts working** with Better Auth
+> - ✅ **Portal endpoints compatible** - legacy endpoints route through Better Auth
+> - ✅ **Enhanced security** - CSRF protection and XSS prevention built-in
+> 
+> **See [BETTER_AUTH_IMPLEMENTATION.md](./BETTER_AUTH_IMPLEMENTATION.md) for complete details**
+
+---
+
 ## Production Deployment Architecture
 
 Pitchey uses a modern serverless architecture with edge computing for optimal performance and scalability.
@@ -44,13 +59,15 @@ deno deploy --project=pitchey-backend             # Deploy Backend
 - **[Deployment Architecture](./DEPLOYMENT_ARCHITECTURE.md)**: Technical architecture details
 - **[API Documentation](./docs/API_DOCUMENTATION.md)**: API endpoints and usage
 
-## Recent Improvements (November 2025)
+## Recent Improvements (December 2024)
 
+- ✅ **Better Auth Migration COMPLETE**: Replaced JWT with secure session-based authentication
+- ✅ **Cookie-Based Sessions**: HTTP-only cookies for enhanced security
 - ✅ **Cloudflare Integration**: Full edge deployment with Workers and Pages
 - ✅ **Performance Optimization**: Hyperdrive connection pooling, KV caching
 - ✅ **Fixed homepage display issues**: Text overlapping, Chrome compatibility
 - ✅ **Added critical API endpoints**: Creator funding, user analytics, NDA stats
-- ✅ **Enhanced authentication**: Standardized error handling and JWT validation
+- ✅ **Enhanced authentication**: Better Auth with CSRF protection and auto-refresh
 - ✅ **Frontend-backend consistency**: Resolved 87+ API inconsistencies
 
 ## Remaining Known Issues
@@ -78,7 +95,7 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 - **NDA Workflow**: Digital NDA management with request/approval system
 - **Pitch Management**: Create, edit, browse, and manage movie pitches
 - **Redis Caching**: Performance optimization with 5-minute cache TTL for dashboards
-- **JWT Authentication**: Secure, portal-specific authentication system
+- **Better Auth Authentication**: ⭐ **NEW!** Session-based authentication with cookies (replaced JWT)
 - **Role-Based Access Control**: Proper permission management across portals
 
 ## Platform Status
@@ -87,7 +104,7 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 
 | Component | Status | Details |
 |-----------|--------|----------|
-| **Authentication** | ✅ Fully Working | JWT-based, all 3 portals functional |
+| **Authentication** | ✅ Fully Working | **Better Auth** session-based (migrated from JWT), all 3 portals functional |
 | **Creator Portal** | ✅ Fully Working | Dashboard, pitch creation/editing, analytics |
 | **Production Portal** | ✅ Fully Working | Dashboard, pitch management, NDA workflow |
 | **Investor Portal** | ✅ Fully Working | Dashboard, portfolio, watchlist functional |
@@ -262,24 +279,49 @@ pitchey_v0.2/
 - **Real-time**: WebSockets with native Deno implementation
 - **Caching**: Upstash Redis (serverless) with in-memory fallback
 - **Styling**: Tailwind CSS
-- **Authentication**: JWT tokens
+- **Authentication**: ⭐ **Better Auth** (session-based, cookie authentication) - **MIGRATION FROM JWT COMPLETE!**
 
 ## API Documentation
 
-### Portal-Specific Authentication
+### 🔐 Authentication - BETTER AUTH IS LIVE!
 
-Each portal has its own login endpoint:
+**⚠️ IMPORTANT: The platform now uses Better Auth for ALL authentication**
+
+#### Primary Better Auth Endpoints (RECOMMENDED)
+```bash
+# Universal Sign-in (works for all portal types)
+POST /api/auth/sign-in
+Content-Type: application/json
+{
+  "email": "user@example.com",
+  "password": "password"
+}
+
+# Sign-up
+POST /api/auth/sign-up
+
+# Sign-out (clears session cookies)
+POST /api/auth/sign-out
+
+# Check session
+GET /api/auth/session
+```
+
+#### Legacy Portal Endpoints (Still Working - Routes Through Better Auth)
+Each portal's original endpoint is maintained for backward compatibility:
 
 ```bash
-# Creator Portal
+# Creator Portal (uses Better Auth internally)
 POST /api/auth/creator/login
 
-# Investor Portal  
+# Investor Portal (uses Better Auth internally)
 POST /api/auth/investor/login
 
-# Production Portal
+# Production Portal (uses Better Auth internally)
 POST /api/auth/production/login
 ```
+
+**Note:** No Authorization headers needed - Better Auth uses secure HTTP-only cookies!
 
 ### Key API Endpoints
 

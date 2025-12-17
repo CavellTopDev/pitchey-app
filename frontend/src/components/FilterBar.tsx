@@ -155,7 +155,17 @@ export default function FilterBar({
     if (sortField !== 'date') params.set('sort', sortField);
     if (sortOrder !== 'desc') params.set('order', sortOrder);
 
-    setSearchParams(params);
+    // Wrap in try-catch to handle security errors
+    try {
+      // Check if we're in a secure context before trying to update URL
+      if (typeof window !== 'undefined' && window.isSecureContext !== false) {
+        setSearchParams(params, { replace: true });
+      }
+    } catch (error) {
+      // Fallback: If updating URL fails (e.g., in sandboxed iframe or insecure context),
+      // just log the error and continue - the filters will still work via state
+      console.warn('Unable to update URL parameters:', error);
+    }
 
     // Notify parent component
     onFiltersChange({

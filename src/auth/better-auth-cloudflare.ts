@@ -5,12 +5,8 @@
 
 import { betterAuth } from "better-auth";
 import { withCloudflare } from "better-auth-cloudflare";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { drizzle as drizzleD1 } from "drizzle-orm/d1";
 import postgres from "postgres";
 import { twoFactor, organization, admin, rateLimit, magicLink, passkey, openAPI } from "better-auth/plugins";
-import * as schema from "../db/schema";
 
 // Type definitions for Cloudflare environment
 interface Env {
@@ -39,28 +35,26 @@ interface Env {
 }
 
 /**
- * Get database connection based on environment
+ * Get database URL based on environment
  * Prioritizes Hyperdrive (PostgreSQL) over D1 (SQLite)
  */
-async function getDatabase(env: Env) {
+function getDatabaseConfig(env: Env) {
   // Use Hyperdrive PostgreSQL if available
   if (env.HYPERDRIVE_URL) {
-    const sql = postgres(env.HYPERDRIVE_URL, {
-      prepare: false,
-      ssl: 'require',
-      connection: {
-        application_name: 'pitchey-worker'
-      },
-      max: 1, // Serverless environments should use 1 connection
-      idle_timeout: 20,
-      connect_timeout: 10
-    });
-    return drizzle(sql, { schema });
+    return {
+      provider: "postgresql",
+      url: env.HYPERDRIVE_URL,
+      generateTables: true
+    };
   }
   
   // Fallback to D1 if available
   if (env.DATABASE) {
-    return drizzleD1(env.DATABASE, { schema });
+    return {
+      provider: "sqlite",
+      database: env.DATABASE,
+      generateTables: true
+    };
   }
   
   throw new Error("No database configuration found");
@@ -70,7 +64,7 @@ async function getDatabase(env: Env) {
  * Initialize Better Auth with Cloudflare optimizations
  */
 export async function initBetterAuth(env: Env, request?: Request) {
-  const db = await getDatabase(env);
+  const dbConfig = getDatabaseConfig(env);
   
   // Get client IP for rate limiting
   const clientIP = request?.headers.get("cf-connecting-ip") || 
@@ -87,15 +81,11 @@ export async function initBetterAuth(env: Env, request?: Request) {
         
         // Database configuration
         postgres: env.HYPERDRIVE_URL ? {
-          db: db as any,
+          connectionString: env.HYPERDRIVE_URL,
         } : undefined,
         
         d1: env.DATABASE ? {
-          db: db as any,
-          options: {
-            usePlural: true,
-            debugLogs: env.NODE_ENV === 'development'
-          }
+          db: env.DATABASE,
         } : undefined,
         
         // KV for caching and rate limiting
@@ -110,11 +100,8 @@ export async function initBetterAuth(env: Env, request?: Request) {
         baseURL: env.FRONTEND_URL || "https://pitchey.pages.dev",
         secret: env.JWT_SECRET,
         
-        // Database adapter
-        database: drizzleAdapter(db, {
-          provider: env.HYPERDRIVE_URL ? "pg" : "sqlite",
-          schema
-        }),
+        // Database configuration
+        database: dbConfig,
         
         // Email & password configuration
         emailAndPassword: {

@@ -1,0 +1,30 @@
+/**
+ * Hyperdrive Integration for worker-production-db.ts
+ * Add this to use Hyperdrive connection pooling
+ */
+
+// Add to the Env interface:
+interface Env {
+  // ... existing properties ...
+  HYPERDRIVE?: {
+    connectionString: string;
+  };
+}
+
+// Update the database initialization in the fetch handler:
+// Replace this:
+const sql = DatabaseManager.getConnection(env.DATABASE_URL);
+const db = DatabaseManager.getDrizzle(env.DATABASE_URL);
+
+// With this:
+const databaseUrl = env.HYPERDRIVE?.connectionString || env.DATABASE_URL;
+console.log(`Using ${env.HYPERDRIVE ? 'Hyperdrive pooled' : 'direct'} database connection`);
+const sql = DatabaseManager.getConnection(databaseUrl);
+const db = DatabaseManager.getDrizzle(databaseUrl);
+
+// The Hyperdrive benefits:
+// 1. Connection pooling - reuses connections instead of creating new ones
+// 2. Lower latency - connections maintained at the edge
+// 3. Automatic retries - handles transient failures
+// 4. Query result caching - caches frequently accessed data
+// 5. Connection limits - prevents overwhelming the database

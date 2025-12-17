@@ -1,0 +1,151 @@
+{
+  "timestamp": "2025-12-14T12:53:59.840Z",
+  "overall": {
+    "totalRequests": 39,
+    "avgResponseTime": 35.31,
+    "overallCacheHitRate": 0,
+    "overallErrorRate": 53.85,
+    "responseTimes": {
+      "min": 15.74,
+      "max": 221.36,
+      "p95": 199.72
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint": "/api/health",
+      "avgResponseTime": 30.64,
+      "minResponseTime": 28.64,
+      "maxResponseTime": 34.11,
+      "p95ResponseTime": 34.11,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/health/detailed",
+      "avgResponseTime": 33.58,
+      "minResponseTime": 31.93,
+      "maxResponseTime": 34.47,
+      "p95ResponseTime": 34.47,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches/browse/enhanced",
+      "avgResponseTime": 21.22,
+      "minResponseTime": 17.17,
+      "maxResponseTime": 24.67,
+      "p95ResponseTime": 24.67,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches/browse/enhanced?limit=5",
+      "avgResponseTime": 23.22,
+      "minResponseTime": 21.39,
+      "maxResponseTime": 24.54,
+      "p95ResponseTime": 24.54,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches/browse/enhanced?limit=10&sort=newest",
+      "avgResponseTime": 20.16,
+      "minResponseTime": 15.74,
+      "maxResponseTime": 22.53,
+      "p95ResponseTime": 22.53,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches/browse/enhanced?limit=5&genre=Action",
+      "avgResponseTime": 22.03,
+      "minResponseTime": 21.07,
+      "maxResponseTime": 22.75,
+      "p95ResponseTime": 22.75,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches/browse/enhanced?limit=5&genre=Drama",
+      "avgResponseTime": 19.94,
+      "minResponseTime": 16.52,
+      "maxResponseTime": 21.76,
+      "p95ResponseTime": 21.76,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches?limit=10",
+      "avgResponseTime": 22.14,
+      "minResponseTime": 18.08,
+      "maxResponseTime": 25.26,
+      "p95ResponseTime": 25.26,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches?limit=10&offset=10",
+      "avgResponseTime": 23.11,
+      "minResponseTime": 19.63,
+      "maxResponseTime": 26.6,
+      "p95ResponseTime": 26.6,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches?limit=5&sort=newest",
+      "avgResponseTime": 23.43,
+      "minResponseTime": 21.88,
+      "maxResponseTime": 25.98,
+      "p95ResponseTime": 25.98,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/auth/check",
+      "avgResponseTime": 20.32,
+      "minResponseTime": 17.62,
+      "maxResponseTime": 22.19,
+      "p95ResponseTime": 22.19,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/pitches/stats",
+      "avgResponseTime": 20.79,
+      "minResponseTime": 16.54,
+      "maxResponseTime": 27.87,
+      "p95ResponseTime": 27.87,
+      "cacheHitRate": 0,
+      "errorRate": 100,
+      "totalRequests": 3
+    },
+    {
+      "endpoint": "/api/admin/cache-status",
+      "avgResponseTime": 178.51,
+      "minResponseTime": 114.44,
+      "maxResponseTime": 221.36,
+      "p95ResponseTime": 221.36,
+      "cacheHitRate": 0,
+      "errorRate": 0,
+      "totalRequests": 3
+    }
+  ],
+  "alertThresholds": {
+    "maxResponseTime": 1000,
+    "maxErrorRate": 5,
+    "minCacheHitRate": 50
+  }
+}

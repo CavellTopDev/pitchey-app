@@ -104,17 +104,41 @@ The platform includes comprehensive WebSocket integration:
 - Local PostgreSQL for development
 - Schema files in `src/db/schema.ts`
 
-## Authentication
-- JWT-based authentication
-- Portal-specific login endpoints:
-  - Creator: POST /api/auth/creator/login
-  - Investor: POST /api/auth/investor/login  
-  - Production: POST /api/auth/production/login
+## 🔐 AUTHENTICATION - BETTER AUTH IMPLEMENTED ⚠️
 
-## Demo Accounts (password: Demo123)
+### ⭐ CRITICAL UPDATE: Better Auth is NOW the Primary Authentication System
+**The platform has been migrated from JWT to Better Auth's session-based authentication**
+
+### Better Auth Integration Details
+- **Primary Auth System**: Better Auth with cookie-based sessions (NOT JWT anymore!)
+- **Session Management**: Server-side sessions stored in cookies
+- **No More JWT Headers**: Authorization headers are NOT used - sessions are in cookies
+- **Portal Compatibility**: All portal endpoints work but route through Better Auth internally
+
+### Better Auth Primary Endpoints
+- **Sign In**: `POST /api/auth/sign-in` (unified for all portals)
+- **Sign Up**: `POST /api/auth/sign-up` 
+- **Sign Out**: `POST /api/auth/sign-out`
+- **Session Check**: `GET /api/auth/session`
+- **Session Refresh**: `POST /api/auth/session/refresh`
+
+### Portal-Specific Endpoints (Legacy - Still Work via Better Auth)
+These endpoints are maintained for backward compatibility but use Better Auth internally:
+- Creator: `POST /api/auth/creator/login` → Routes to Better Auth
+- Investor: `POST /api/auth/investor/login` → Routes to Better Auth  
+- Production: `POST /api/auth/production/login` → Routes to Better Auth
+
+### Demo Accounts (All Work with Better Auth!)
+**Password for all accounts: Demo123**
 - Creator: alex.creator@demo.com
 - Investor: sarah.investor@demo.com
 - Production: stellar.production@demo.com
+
+### Migration Notes
+- ✅ **JWT to Better Auth migration COMPLETE**
+- ✅ **All demo accounts work with Better Auth**
+- ✅ **Cookie-based sessions replace JWT tokens**
+- ✅ **No Authorization headers needed anymore**
 
 ## Architecture Notes
 

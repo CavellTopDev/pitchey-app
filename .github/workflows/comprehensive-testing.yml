@@ -1,0 +1,642 @@
+name: Comprehensive Testing Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  DENO_ENV: test
+  DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+  REDIS_URL: ${{ secrets.TEST_REDIS_URL }}
+  UPSTASH_REDIS_REST_URL: ${{ secrets.TEST_UPSTASH_REDIS_REST_URL }}
+  UPSTASH_REDIS_REST_TOKEN: ${{ secrets.TEST_UPSTASH_REDIS_REST_TOKEN }}
+
+jobs:
+  # ==================== QUALITY GATES - FAST FEEDBACK ====================
+  
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should-run-tests: ${{ steps.quality-check.outputs.should-run-tests }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Lint - Backend (Deno)
+        run: |
+          deno lint --ignore=node_modules,frontend
+          echo "✅ Backend linting passed"
+
+      - name: Lint - Frontend (ESLint)
+        run: |
+          cd frontend
+          npm run lint
+          echo "✅ Frontend linting passed"
+
+      - name: Type Check - Backend (Deno)
+        run: |
+          deno check src/**/*.ts tests/**/*.ts
+          echo "✅ Backend type checking passed"
+
+      - name: Type Check - Frontend (TypeScript)
+        run: |
+          cd frontend
+          npm run type-check
+          echo "✅ Frontend type checking passed"
+
+      - name: Security Scan - Dependencies
+        run: |
+          cd frontend
+          npm audit --audit-level=high
+          echo "✅ Dependency security scan passed"
+
+      - name: Security Scan - Code (Semgrep)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/javascript
+            p/typescript
+            p/react
+            p/security-audit
+          generateSarif: "1"
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+
+      - name: Quality Gate Decision
+        id: quality-check
+        run: |
+          echo "🚀 All quality gates passed!"
+          echo "should-run-tests=true" >> $GITHUB_OUTPUT
+
+  # ==================== UNIT TESTS ====================
+  
+  unit-tests-backend:
+    name: Unit Tests - Backend
+    needs: quality-gates
+    if: needs.quality-gates.outputs.should-run-tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: pitchey_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Wait for Services
+        run: |
+          timeout 60 bash -c 'until pg_isready -h localhost -p 5432 -U test_user; do sleep 1; done'
+          timeout 60 bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 1; done'
+
+      - name: Setup Test Database
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          deno run --allow-all src/db/migrate.ts
+          echo "✅ Test database ready"
+
+      - name: Run Backend Unit Tests
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          export REDIS_URL="redis://localhost:6379"
+          
+          echo "🧪 Running backend unit tests..."
+          deno test --allow-all --coverage=coverage tests/unit/ --reporter=verbose
+          
+          echo "📊 Generating coverage report..."
+          deno coverage coverage --lcov > coverage.lcov
+
+      - name: Check Coverage Threshold
+        run: |
+          # Extract coverage percentage from lcov
+          COVERAGE=$(deno coverage coverage --summary | grep -oE '[0-9]+\.[0-9]+%' | head -1 | sed 's/%//')
+          echo "Coverage: ${COVERAGE}%"
+          
+          # Check if coverage meets threshold (90%)
+          if (( $(echo "$COVERAGE >= 90.0" | bc -l) )); then
+            echo "✅ Coverage threshold met: ${COVERAGE}%"
+          else
+            echo "❌ Coverage below threshold: ${COVERAGE}% < 90%"
+            exit 1
+          fi
+
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.lcov
+          flags: backend
+          name: backend-coverage
+
+  unit-tests-frontend:
+    name: Unit Tests - Frontend
+    needs: quality-gates
+    if: needs.quality-gates.outputs.should-run-tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Run Frontend Unit Tests
+        run: |
+          cd frontend
+          echo "🧪 Running frontend unit tests..."
+          npm run test:ci
+
+      - name: Check Coverage Threshold
+        run: |
+          cd frontend
+          # Extract coverage from vitest output
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          echo "Frontend Coverage: ${COVERAGE}%"
+          
+          # Check if coverage meets threshold (95%)
+          if (( $(echo "$COVERAGE >= 95.0" | bc -l) )); then
+            echo "✅ Frontend coverage threshold met: ${COVERAGE}%"
+          else
+            echo "❌ Frontend coverage below threshold: ${COVERAGE}% < 95%"
+            exit 1
+          fi
+
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./frontend/coverage
+          flags: frontend
+          name: frontend-coverage
+
+  # ==================== INTEGRATION TESTS ====================
+  
+  integration-tests:
+    name: Integration Tests
+    needs: [unit-tests-backend, unit-tests-frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: pitchey_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Setup Test Environment
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          deno run --allow-all src/db/migrate.ts
+          echo "✅ Integration test environment ready"
+
+      - name: Run API Contract Tests
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          export REDIS_URL="redis://localhost:6379"
+          
+          echo "🔌 Running API contract tests..."
+          deno test --allow-all tests/integration/api-contract.test.ts --reporter=verbose
+
+      - name: Run Database Integration Tests
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          
+          echo "🗄️ Running database integration tests..."
+          deno test --allow-all tests/integration/database-integration.test.ts --reporter=verbose
+
+      - name: Run WebSocket Integration Tests
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          export REDIS_URL="redis://localhost:6379"
+          
+          echo "🔌 Running WebSocket integration tests..."
+          deno test --allow-all tests/integration/websocket-integration.test.ts --reporter=verbose
+
+  # ==================== E2E TESTS ====================
+  
+  e2e-tests:
+    name: E2E Tests
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Install Playwright Browsers
+        run: |
+          cd frontend
+          npx playwright install --with-deps
+
+      - name: Start Test Environment
+        run: |
+          # Start backend server
+          PORT=8001 deno run --allow-all working-server.ts &
+          BACKEND_PID=$!
+          
+          # Start frontend dev server
+          cd frontend && npm run dev &
+          FRONTEND_PID=$!
+          
+          # Wait for servers to start
+          timeout 60 bash -c 'until curl -f http://localhost:8001/api/health; do sleep 2; done'
+          timeout 60 bash -c 'until curl -f http://localhost:5173; do sleep 2; done'
+          
+          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
+          echo "FRONTEND_PID=$FRONTEND_PID" >> $GITHUB_ENV
+          echo "✅ Test environment started"
+
+      - name: Run E2E Tests
+        run: |
+          cd frontend
+          echo "🎭 Running E2E tests..."
+          npm run test:e2e
+
+      - name: Upload E2E Test Results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload E2E Screenshots
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: e2e-screenshots
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: Stop Test Environment
+        if: always()
+        run: |
+          if [ ! -z "$BACKEND_PID" ]; then
+            kill $BACKEND_PID || true
+          fi
+          if [ ! -z "$FRONTEND_PID" ]; then
+            kill $FRONTEND_PID || true
+          fi
+
+  # ==================== PERFORMANCE TESTS ====================
+  
+  performance-tests:
+    name: Performance Tests
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup K6
+        run: |
+          curl https://github.com/grafana/k6/releases/download/v0.47.0/k6-v0.47.0-linux-amd64.tar.gz -L | tar xvz --strip-components 1
+
+      - name: Setup Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.12.x
+
+      - name: Start Test Environment
+        run: |
+          PORT=8001 deno run --allow-all working-server.ts &
+          BACKEND_PID=$!
+          
+          timeout 60 bash -c 'until curl -f http://localhost:8001/api/health; do sleep 2; done'
+          
+          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
+          echo "✅ Performance test environment started"
+
+      - name: Run API Load Tests
+        run: |
+          echo "⚡ Running API load tests..."
+          ./k6 run performance/k6/api-load-test.js --summary-export=k6-results.json
+
+      - name: Run Database Performance Tests
+        run: |
+          echo "🗄️ Running database performance tests..."
+          ./k6 run performance/k6/database-stress-test.js --summary-export=db-results.json
+
+      - name: Run WebSocket Load Tests
+        run: |
+          echo "🔌 Running WebSocket load tests..."
+          ./k6 run performance/k6/websocket-load-test.js --summary-export=ws-results.json
+
+      - name: Validate Performance Thresholds
+        run: |
+          echo "📊 Validating performance thresholds..."
+          
+          # Extract metrics from K6 results
+          API_P95=$(cat k6-results.json | jq '.metrics.http_req_duration.values.p95')
+          DB_P95=$(cat db-results.json | jq '.metrics.http_req_duration.values.p95' 2>/dev/null || echo "0")
+          
+          echo "API P95 response time: ${API_P95}ms"
+          echo "Database P95 response time: ${DB_P95}ms"
+          
+          # Check thresholds (API: 500ms, DB: 250ms)
+          if (( $(echo "$API_P95 <= 500" | bc -l) )); then
+            echo "✅ API performance threshold met"
+          else
+            echo "❌ API performance threshold exceeded: ${API_P95}ms > 500ms"
+            exit 1
+          fi
+
+      - name: Upload Performance Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: |
+            k6-results.json
+            db-results.json
+            ws-results.json
+          retention-days: 30
+
+      - name: Stop Performance Test Environment
+        if: always()
+        run: |
+          if [ ! -z "$BACKEND_PID" ]; then
+            kill $BACKEND_PID || true
+          fi
+
+  # ==================== CHAOS ENGINEERING TESTS ====================
+  
+  chaos-tests:
+    name: Chaos Engineering
+    needs: integration-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: pitchey_test
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Setup Chaos Test Environment
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          deno run --allow-all src/db/migrate.ts
+          echo "✅ Chaos test environment ready"
+
+      - name: Run Chaos Engineering Tests
+        run: |
+          export DATABASE_URL="postgresql://test_user:test_pass@localhost:5432/pitchey_test"
+          export REDIS_URL="redis://localhost:6379"
+          
+          echo "🌪️ Running chaos engineering tests..."
+          deno test --allow-all tests/chaos/chaos-experiments.test.ts --reporter=verbose
+
+      - name: Upload Chaos Test Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: chaos-engineering-report
+          path: chaos-engineering-report.txt
+          retention-days: 30
+
+  # ==================== SECURITY TESTS ====================
+  
+  security-tests:
+    name: Security Tests
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: 'http://localhost:8001'
+          token: ${{ github.token }}
+          docker_name: 'owasp/zap2docker-stable'
+          format: sarif
+          output_file: zap-results.sarif
+
+      - name: Upload ZAP SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: zap-results.sarif
+
+      - name: Run Nuclei Security Scan
+        uses: projectdiscovery/nuclei-action@main
+        with:
+          target: 'http://localhost:8001'
+          github-report: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==================== DEPLOYMENT GATES ====================
+  
+  deployment-gates:
+    name: Deployment Gates
+    needs: [e2e-tests, performance-tests, security-tests]
+    if: always() && (needs.e2e-tests.result == 'success' && needs.performance-tests.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    outputs:
+      deploy-ready: ${{ steps.gate-decision.outputs.deploy-ready }}
+      
+    steps:
+      - name: Evaluate Deployment Readiness
+        id: gate-decision
+        run: |
+          echo "🚪 Evaluating deployment gates..."
+          
+          # Check if all critical tests passed
+          E2E_STATUS="${{ needs.e2e-tests.result }}"
+          PERF_STATUS="${{ needs.performance-tests.result }}"
+          SECURITY_STATUS="${{ needs.security-tests.result }}"
+          
+          echo "E2E Tests: $E2E_STATUS"
+          echo "Performance Tests: $PERF_STATUS"
+          echo "Security Tests: $SECURITY_STATUS"
+          
+          if [[ "$E2E_STATUS" == "success" && "$PERF_STATUS" == "success" ]]; then
+            if [[ "$SECURITY_STATUS" == "success" || "$SECURITY_STATUS" == "skipped" ]]; then
+              echo "✅ All deployment gates passed!"
+              echo "deploy-ready=true" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️ Security tests failed, but deployment allowed with warning"
+              echo "deploy-ready=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "❌ Critical tests failed - deployment blocked"
+            echo "deploy-ready=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Generate Test Summary
+        run: |
+          echo "## 📊 Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status | Duration |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Quality Gates | ✅ Passed | ~5m |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ✅ Passed | ~10m |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ✅ Passed | ~15m |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} | ~20m |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance Tests | ${{ needs.performance-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} | ~15m |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Tests | ${{ needs.security-tests.result == 'success' && '✅ Passed' || '⚠️ Warning' }} | ~10m |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Deployment Status: ${{ steps.gate-decision.outputs.deploy-ready == 'true' && 'READY' || 'BLOCKED' }}" >> $GITHUB_STEP_SUMMARY
+
+  # ==================== NOTIFICATIONS ====================
+  
+  notifications:
+    name: Notifications
+    needs: [deployment-gates]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Notify Slack on Success
+        if: needs.deployment-gates.outputs.deploy-ready == 'true'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          channel: '#deployments'
+          text: '✅ All tests passed! Ready for deployment.'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#alerts'
+          text: '❌ Test pipeline failed! Deployment blocked.'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

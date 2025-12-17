@@ -1,0 +1,286 @@
+{
+  "dashboard": {
+    "title": "Pitchey Cost Optimization Dashboard",
+    "uid": "cost-optimization",
+    "timezone": "browser",
+    "refresh": "5m",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Monthly Cost Trend",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(cost_total_monthly) by (service)",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "yaxis": {
+          "label": "Cost ($)",
+          "format": "currency"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Current Month Spend",
+        "type": "stat",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(cost_total_monthly)",
+            "format": "currency"
+          }
+        ],
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "value": 0, "color": "green" },
+            { "value": 1000, "color": "yellow" },
+            { "value": 1500, "color": "red" }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "title": "Potential Savings",
+        "type": "stat",
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "targets": [
+          {
+            "expr": "sum(cost_savings_potential)",
+            "format": "currency"
+          }
+        ],
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "value": 0, "color": "gray" },
+            { "value": 100, "color": "green" },
+            { "value": 500, "color": "blue" }
+          ]
+        }
+      },
+      {
+        "id": 4,
+        "title": "Service Cost Breakdown",
+        "type": "piechart",
+        "gridPos": {
+          "x": 12,
+          "y": 4,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "cost_service_monthly",
+            "legendFormat": "{{service}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Cloudflare Metrics",
+        "type": "table",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "cloudflare_requests_total",
+            "format": "table"
+          }
+        ],
+        "columns": [
+          { "text": "Metric", "value": "metric" },
+          { "text": "Value", "value": "value" },
+          { "text": "Cost Impact", "value": "cost" }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Neon Database Costs",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "neon_compute_hours * 0.09",
+            "legendFormat": "Compute Cost"
+          },
+          {
+            "expr": "neon_storage_gb * 0.15",
+            "legendFormat": "Storage Cost"
+          },
+          {
+            "expr": "neon_branch_count * 20",
+            "legendFormat": "Branch Cost"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Auto-Scaling Status",
+        "type": "table",
+        "gridPos": {
+          "x": 12,
+          "y": 12,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "autoscaling_instances",
+            "format": "table"
+          }
+        ],
+        "columns": [
+          { "text": "Service", "value": "service" },
+          { "text": "Current", "value": "current" },
+          { "text": "Target", "value": "target" },
+          { "text": "Status", "value": "status" }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Cost Alerts",
+        "type": "alert-list",
+        "gridPos": {
+          "x": 0,
+          "y": 20,
+          "w": 24,
+          "h": 4
+        },
+        "options": {
+          "showOptions": "current",
+          "maxItems": 10,
+          "sortOrder": 1,
+          "dashboardFilter": "",
+          "alertName": "",
+          "dashboardTitle": "",
+          "tags": ["cost-optimization"]
+        }
+      },
+      {
+        "id": 9,
+        "title": "Cost Forecast",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "cost_forecast_next_month",
+            "legendFormat": "Projected Cost"
+          },
+          {
+            "expr": "cost_budget_limit",
+            "legendFormat": "Budget Limit"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Optimization Recommendations",
+        "type": "table",
+        "gridPos": {
+          "x": 12,
+          "y": 24,
+          "w": 12,
+          "h": 6
+        },
+        "targets": [
+          {
+            "expr": "cost_recommendations",
+            "format": "table"
+          }
+        ],
+        "columns": [
+          { "text": "Service", "value": "service" },
+          { "text": "Action", "value": "action" },
+          { "text": "Savings", "value": "savings" },
+          { "text": "Priority", "value": "priority" }
+        ]
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "cost_optimization_deployed",
+          "name": "Optimization Deployments",
+          "tagKeys": "service,action",
+          "textFormat": "{{action}} deployed for {{service}}"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "custom",
+          "current": {
+            "text": "production",
+            "value": "production"
+          },
+          "options": [
+            { "text": "production", "value": "production" },
+            { "text": "staging", "value": "staging" },
+            { "text": "development", "value": "development" }
+          ]
+        },
+        {
+          "name": "time_range",
+          "type": "interval",
+          "current": {
+            "text": "30d",
+            "value": "30d"
+          },
+          "options": [
+            { "text": "7d", "value": "7d" },
+            { "text": "30d", "value": "30d" },
+            { "text": "90d", "value": "90d" }
+          ]
+        }
+      ]
+    },
+    "links": [
+      {
+        "title": "Cost Analysis Report",
+        "url": "/reports/cost-analysis",
+        "tooltip": "View detailed cost analysis"
+      },
+      {
+        "title": "Optimization Settings",
+        "url": "/settings/cost-optimization",
+        "tooltip": "Configure optimization policies"
+      }
+    ]
+  }
+}

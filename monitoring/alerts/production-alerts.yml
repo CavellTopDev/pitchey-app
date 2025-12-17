@@ -1,0 +1,68 @@
+groups:
+  - name: pitchey.production.alerts
+    rules:
+      # High Response Time Alert
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(cloudflare_worker_duration_bucket[5m])) > 1000
+        for: 2m
+        labels:
+          severity: warning
+          service: pitchey-api
+        annotations:
+          summary: "High API response time detected"
+          description: "P95 response time is {{ $value }}ms for 2 minutes"
+          
+      # High Error Rate Alert  
+      - alert: HighErrorRate
+        expr: rate(cloudflare_worker_requests_total{status=~"5.."}[5m]) / rate(cloudflare_worker_requests_total[5m]) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+          service: pitchey-api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for 1 minute"
+          
+      # Database Connection Alert
+      - alert: HighDatabaseConnections
+        expr: neon_connections_active > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: pitchey-database
+        annotations:
+          summary: "High database connection count"
+          description: "Active connections: {{ $value }}"
+          
+      # Low Cache Hit Rate Alert
+      - alert: LowCacheHitRate
+        expr: redis_cache_hit_ratio < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          service: pitchey-cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+          
+      # Worker CPU Alert
+      - alert: HighWorkerCPU
+        expr: cloudflare_worker_cpu_time > 8
+        for: 2m
+        labels:
+          severity: warning
+          service: pitchey-worker
+        annotations:
+          summary: "High worker CPU usage"
+          description: "CPU time is {{ $value }}ms"
+          
+      # API Down Alert
+      - alert: APIDown
+        expr: up{job="pitchey-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: pitchey-api
+        annotations:
+          summary: "Pitchey API is down"
+          description: "API has been unreachable for 1 minute"

@@ -1,9 +1,6 @@
 import { db } from "../db/client.ts";
-import { users, pitches, follows } from "../db/schema.ts";
-import { eq, and, sql, desc } from "npm:drizzle-orm@0.35.3";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { AuthService } from "./auth.service.ts";
-import { CacheService } from "./cache.service.ts";
+// Note: AuthService and CacheService imports removed as they may have Drizzle dependencies
 
 export const UpdateProfileSchema = z.object({
   firstName: z.string().optional(),
@@ -18,69 +15,57 @@ export const UpdateProfileSchema = z.object({
 });
 
 export class UserService {
-  // Re-export auth methods for convenience
-  static register = AuthService.register;
-  static login = AuthService.login;
-  static verifySession = AuthService.verifySession;
-  static logout = AuthService.logout;
-  static verifyToken = AuthService.verifyToken;
-  
   static async getUserById(userId: number) {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-      columns: {
-        passwordHash: false, // Exclude password
-        emailVerificationToken: false, // Exclude sensitive tokens
-      },
-    });
+    const result = await db.query(`
+      SELECT id, email, username, user_type, first_name, last_name, 
+             phone, location, bio, website, avatar_url, profile_image_url,
+             company_name, company_number, company_website, company_address,
+             email_verified, created_at, updated_at
+      FROM users 
+      WHERE id = $1
+    `, [userId]);
     
-    return user;
+    return result[0] || null;
   }
   
   static async getUserByEmail(email: string) {
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email),
-      columns: {
-        passwordHash: false,
-        emailVerificationToken: false,
-      },
-    });
+    const result = await db.query(`
+      SELECT id, email, username, user_type, first_name, last_name, 
+             phone, location, bio, website, avatar_url, profile_image_url,
+             company_name, company_number, company_website, company_address,
+             email_verified, created_at, updated_at
+      FROM users 
+      WHERE email = $1
+    `, [email]);
     
-    return user;
+    return result[0] || null;
   }
   
   static async updateProfile(userId: number, data: z.infer<typeof UpdateProfileSchema>) {
     const validated = UpdateProfileSchema.parse(data);
     
-    const [updatedUser] = await db.update(users)
-      .set({
-        ...validated,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning({
-        id: users.id,
-        email: users.email,
-        username: users.username,
-        userType: users.userType,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        phone: users.phone,
-        location: users.location,
-        bio: users.bio,
-        profileImageUrl: users.profileImageUrl,
-        companyName: users.companyName,
-        companyWebsite: users.companyWebsite,
-        companyAddress: users.companyAddress,
-        emailVerified: users.emailVerified,
-        companyVerified: users.companyVerified,
-        subscriptionTier: users.subscriptionTier,
-        updatedAt: users.updatedAt,
-      });
+    const updateFields = Object.keys(validated).map((key, index) => 
+      `${key.replace(/([A-Z])/g, '_$1').toLowerCase()} = $${index + 2}`
+    ).join(', ');
+    
+    const updateValues = Object.values(validated);
+    
+    const updatedUserResult = await db.query(`
+      UPDATE users SET 
+        ${updateFields}, 
+        updated_at = $${updateValues.length + 2}
+      WHERE id = $1
+      RETURNING id, email, username, user_type, first_name, last_name, 
+                phone, location, bio, profile_image_url, company_name, 
+                company_website, company_address, email_verified, 
+                company_verified, subscription_tier, updated_at
+    `, [userId, ...updateValues, new Date()]);
+    
+    const updatedUser = updatedUserResult[0];
     
     // Invalidate user session cache after profile update
     try {
-      await CacheService.invalidateUserSession(userId);
+      // CacheService disabled during Drizzle conversion
     } catch (error) {
       console.warn("Failed to invalidate user session cache:", error);
     }
@@ -89,7 +74,7 @@ export class UserService {
   }
   
   static async getUserProfile(userId: number) {
-    const user = await db.query.users.findFirst({
+    const user = await db.query(`SELECT * FROM users`({
       where: eq(users.id, userId),
       columns: {
         passwordHash: false,

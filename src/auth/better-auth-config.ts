@@ -1,348 +1,338 @@
 /**
  * Better Auth Configuration for Pitchey Platform
- * Implements modern authentication with role-based access control
+ * Integrates with Cloudflare Workers and Neon PostgreSQL
  */
 
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "../db";
-import * as schema from "../db/schema";
+import { betterAuth } from "better-auth"
+import { neon } from "@neondatabase/serverless"
 
-// Custom session configuration for different user types
-const sessionConfig = {
-  expiresIn: 60 * 60 * 24 * 7, // 7 days
-  updateAge: 60 * 60 * 24, // Update session if older than 1 day
-  cookieCache: {
-    enabled: true,
-    maxAge: 5 * 60 // Cache for 5 minutes
+// Pitchey user types
+export type PortalType = 'creator' | 'investor' | 'production'
+
+export interface PitcheyUser {
+  id: string
+  name: string
+  email: string
+  emailVerified: boolean
+  image?: string
+  portalType: PortalType
+  companyName?: string
+  phone?: string
+  bio?: string
+  website?: string
+  linkedinUrl?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Creates Better Auth instance configured for Pitchey platform
+ */
+export function createAuth(env: any) {
+  // Validate required environment variables
+  if (!env.DATABASE_URL) {
+    throw new Error("DATABASE_URL environment variable is required")
   }
-};
-
-// Initialize Better Auth with Drizzle adapter
-export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema: {
-      users: schema.users,
-      sessions: schema.sessions,
-      accounts: schema.accounts,
-      verificationTokens: schema.verificationTokens
-    }
-  }),
   
-  // Email & password authentication
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false, // Set to true in production
-    sendResetPasswordToken: async (user, token) => {
-      // Implement email sending logic here
-      console.log(`Password reset token for ${user.email}: ${token}`);
-    }
-  },
+  if (!env.BETTER_AUTH_SECRET) {
+    throw new Error("BETTER_AUTH_SECRET environment variable is required")
+  }
 
-  // Session configuration
-  session: sessionConfig,
+  // Initialize Neon PostgreSQL connection
+  const sql = neon(env.DATABASE_URL, {
+    // Enable connection pooling for better performance
+    fullResults: true,
+    arrayMode: false
+  })
 
-  // User configuration with custom fields
-  user: {
-    additionalFields: {
-      userType: {
-        type: "string",
-        required: true,
-        input: true, // Allow during registration
-      },
-      firstName: {
-        type: "string",
-        required: true,
-        input: true,
-      },
-      lastName: {
-        type: "string", 
-        required: true,
-        input: true,
-      },
-      companyName: {
-        type: "string",
-        required: false,
-        input: true,
-      },
-      verified: {
-        type: "boolean",
-        defaultValue: false,
-        input: false, // Don't allow user to set this
-      },
-      subscriptionTier: {
-        type: "string",
-        defaultValue: "free",
-        input: false,
-      }
-    }
-  },
-
-  // Advanced features
-  plugins: [
-    // Two-factor authentication
-    twoFactor({
-      issuer: "Pitchey"
-    }),
+  // Determine base URL
+  const baseURL = env.BETTER_AUTH_URL || env.CF_PAGES_URL || "http://localhost:8001"
+  
+  return betterAuth({
+    // Secret for signing sessions
+    secret: env.BETTER_AUTH_SECRET,
     
-    // Organization/team support
-    organization({
-      allowUserToCreateOrganization: true,
-      schema: {
-        organization: {
-          companyType: {
-            type: "string",
-            required: false
-          },
-          industry: {
-            type: "string",
-            required: false
+    // Base URL for redirects
+    baseURL: baseURL,
+    
+    // Database configuration - use direct SQL connection
+    database: {
+      provider: "postgresql", 
+      url: env.DATABASE_URL,
+      // Better Auth will handle table creation and management
+      generateTables: true
+    },
+    // Authentication methods
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: env.ENVIRONMENT === 'production',
+      minPasswordLength: 8,
+      maxPasswordLength: 128,
+      // Custom password validation
+      passwordValidation: (password: string) => {
+        const hasUpper = /[A-Z]/.test(password)
+        const hasLower = /[a-z]/.test(password)
+        const hasNumber = /\d/.test(password)
+        
+        if (!hasUpper || !hasLower || !hasNumber) {
+          return {
+            valid: false,
+            message: "Password must contain uppercase, lowercase, and number"
           }
         }
+        
+        return { valid: true }
       }
-    }),
-    
-    // Admin panel
-    admin({
-      impersonationSessionDuration: 60 * 60 // 1 hour
-    }),
+    },
 
-    // Rate limiting
-    rateLimit({
-      window: 15 * 60, // 15 minutes
-      max: 5, // Max 5 attempts
-      storage: "memory" // Use Redis in production
-    }),
-
-    // Session impersonation for support
-    impersonation(),
-    
-    // Magic link authentication
-    magicLink({
-      sendMagicLink: async (email, token, request) => {
-        // Send magic link email
-        console.log(`Magic link for ${email}: ${token}`);
+    // Session configuration optimized for edge
+    session: {
+      expiresIn: 60 * 60 * 24 * 30, // 30 days
+      updateAge: 60 * 60 * 24, // Update every 24 hours
+      cookieCache: {
+        enabled: true,
+        maxAge: 60 * 5 // 5 minutes cache
+      },
+      // Store additional portal context in session
+      fields: {
+        portalContext: "string"
       }
-    }),
+    },
+
+    // Cookie configuration for multi-domain support
+    cookies: {
+      name: env.SESSION_COOKIE_NAME || "pitchey-auth",
+      secure: env.ENVIRONMENT === 'production',
+      sameSite: "lax",
+      httpOnly: true,
+      // Support subdomains
+      domain: env.ENVIRONMENT === 'production' 
+        ? ".cavelltheleaddev.workers.dev" 
+        : undefined,
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30 // 30 days
+    },
+
+    // CORS and trusted origins
+    trustedOrigins: [
+      "https://pitchey.pages.dev",
+      "https://pitchey-production.cavelltheleaddev.workers.dev",
+      "http://localhost:5173", // Vite dev server
+      "http://localhost:8001", // Local proxy
+      "http://localhost:3000", // Alternative dev server
+      baseURL
+    ],
+
+    // Rate limiting configuration
+    rateLimit: {
+      enabled: true,
+      window: 60, // 1 minute window
+      max: 100, // 100 requests per minute per IP
+      // Custom key generator using Cloudflare's CF-Connecting-IP
+      keyGenerator: (request: Request) => {
+        return request.headers.get("CF-Connecting-IP") || 
+               request.headers.get("X-Forwarded-For") || 
+               "unknown"
+      },
+      // Custom storage using Cloudflare KV
+      storage: env.RATE_LIMIT_KV ? {
+        get: async (key: string) => {
+          try {
+            const value = await env.RATE_LIMIT_KV.get(key)
+            return value ? JSON.parse(value) : null
+          } catch {
+            return null
+          }
+        },
+        set: async (key: string, value: any, ttl: number) => {
+          try {
+            await env.RATE_LIMIT_KV.put(key, JSON.stringify(value), {
+              expirationTtl: ttl
+            })
+          } catch (error) {
+            console.error("Rate limit storage error:", error)
+          }
+        }
+      } : undefined
+    },
 
     // OAuth providers
-    oauth2({
-      google: {
-        clientId: process.env.GOOGLE_CLIENT_ID!,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      }
-    }),
+    socialProviders: {
+      google: env.GOOGLE_CLIENT_ID ? {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+        scope: ["openid", "email", "profile"],
+        // Map Google profile to Pitchey user
+        profile: (profile: any) => ({
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          emailVerified: profile.email_verified,
+          image: profile.picture
+        })
+      } : undefined,
 
-    // Passkeys/WebAuthn
-    passkey({
-      rpName: "Pitchey",
-      rpID: "pitchey.pages.dev",
-      origin: "https://pitchey.pages.dev"
-    })
-  ],
+      github: env.GITHUB_CLIENT_ID ? {
+        clientId: env.GITHUB_CLIENT_ID,
+        clientSecret: env.GITHUB_CLIENT_SECRET,
+        scope: ["user:email", "read:user"],
+        profile: (profile: any) => ({
+          id: profile.id.toString(),
+          name: profile.name || profile.login,
+          email: profile.email,
+          emailVerified: true,
+          image: profile.avatar_url
+        })
+      } : undefined
+    },
 
-  // Custom authorization rules
-  access: {
-    user: {
-      // Users can only update their own profile
-      update: ({ user, data }) => {
-        return user.id === data.id;
-      },
-      // Admins can delete users
-      delete: ({ user }) => {
-        return user.role === "admin";
+    // Plugins will be added after fixing imports
+    plugins: [],
+
+    // Advanced configuration
+    advanced: {
+      // Use crypto.randomUUID for better entropy
+      generateId: () => crypto.randomUUID(),
+      
+      // Cross-subdomain cookie support
+      crossSubDomainCookies: {
+        enabled: env.ENVIRONMENT === 'production',
+        domain: ".cavelltheleaddev.workers.dev"
       }
     },
-    pitch: {
-      // Creators can manage their own pitches
-      create: ({ user }) => {
-        return user.userType === "creator";
-      },
-      update: ({ user, data }) => {
-        return user.id === data.userId;
-      },
-      delete: ({ user, data }) => {
-        return user.id === data.userId || user.role === "admin";
-      },
-      // Anyone can view public pitches
-      read: ({ data }) => {
-        return data.visibility === "public";
+
+    // Email configuration (for verification, magic links, etc.)
+    emailVerification: {
+      enabled: env.ENVIRONMENT === 'production',
+      expiresIn: 60 * 60 * 24, // 24 hours
+      // Custom email sending
+      sendVerificationEmail: async ({ email, url, token }) => {
+        // TODO: Integrate with email service
+        console.log(`Verification email for ${email}: ${url}`)
+        return { success: true }
       }
     },
-    nda: {
-      // Investors and production companies can request NDAs
-      request: ({ user }) => {
-        return user.userType === "investor" || user.userType === "production";
-      },
-      // Creators can approve/reject their pitch NDAs
-      approve: ({ user, data }) => {
-        return user.id === data.ownerId;
-      },
-      reject: ({ user, data }) => {
-        return user.id === data.ownerId;
-      }
-    },
-    investment: {
-      // Only investors can create investments
-      create: ({ user }) => {
-        return user.userType === "investor";
-      }
+
+    // Error handling
+    logger: {
+      level: env.ENVIRONMENT === 'production' ? "warn" : "debug",
+      disabled: false
     }
-  },
+  })
+}
 
-  // Email verification templates
-  emailVerification: {
-    sendOnSignUp: true,
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async (user, token) => {
-      // Implement email sending
-      console.log(`Verification token for ${user.email}: ${token}`);
-    }
-  },
-
-  // Security headers
-  security: {
-    headers: {
-      crossOriginEmbedderPolicy: "require-corp",
-      crossOriginOpenerPolicy: "same-origin",
-      crossOriginResourcePolicy: "same-origin",
-      originAgentCluster: "?1",
-      referrerPolicy: "no-referrer",
-      strictTransportSecurity: "max-age=31536000; includeSubDomains",
-      xContentTypeOptions: "nosniff",
-      xDnsPreFetchControl: "off",
-      xDownloadOptions: "noopen",
-      xFrameOptions: "SAMEORIGIN",
-      xPermittedCrossDomainPolicies: "none",
-      xXssProtection: "0"
-    }
-  },
-
-  // Trusted origins for CORS
-  trustedOrigins: [
-    "https://pitchey.pages.dev",
-    "https://pitchey-production.cavelltheleaddev.workers.dev",
-    "http://localhost:5173", // Local development
-    "http://localhost:8001"
-  ],
-
-  // Advanced security options
-  advanced: {
-    generateCustomUserId: async () => {
-      // Generate unique user IDs
-      return crypto.randomUUID();
-    },
-    cookiePrefix: "pitchey",
-    defaultRole: "user",
-    disableDefaultEndpoints: false,
-    useSecureCookies: true, // Always use secure cookies in production
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: ".pitchey.pages.dev"
+/**
+ * Utility functions for Pitchey-specific auth operations
+ */
+export class PitcheyAuthUtils {
+  
+  /**
+   * Validates if user has access to specific portal using raw SQL
+   */
+  static async validatePortalAccess(
+    userId: string, 
+    requestedPortal: PortalType,
+    sql: any
+  ): Promise<boolean> {
+    try {
+      // Query user's portal permissions using raw SQL
+      const result = await sql`
+        SELECT portal_type 
+        FROM users 
+        WHERE id = ${userId}
+        LIMIT 1
+      `
+      
+      if (!result || result.length === 0) return false
+      
+      // Allow access if user has the requested portal type
+      return result[0].portal_type === requestedPortal
+      
+    } catch (error) {
+      console.error("Portal access validation error:", error)
+      return false
     }
   }
-});
 
-// Export typed auth client
-export type Auth = typeof auth;
-
-// Export auth handlers for different portals
-export const authHandlers = {
-  // Creator portal authentication
-  creatorSignIn: async (email: string, password: string) => {
-    const result = await auth.signIn.email({
-      email,
-      password,
-      additionalChecks: async (user) => {
-        if (user.userType !== 'creator') {
-          throw new Error('Invalid portal access');
-        }
-        return true;
+  /**
+   * Creates demo accounts for testing
+   */
+  static async createDemoAccounts(auth: any) {
+    const demoAccounts = [
+      {
+        email: "alex.creator@demo.com",
+        password: "Demo123",
+        name: "Alex Creator",
+        portalType: "creator" as PortalType,
+        bio: "Indie filmmaker with passion for storytelling"
+      },
+      {
+        email: "sarah.investor@demo.com", 
+        password: "Demo123",
+        name: "Sarah Investor",
+        portalType: "investor" as PortalType,
+        companyName: "Angel Ventures LLC",
+        bio: "Angel investor focused on entertainment industry"
+      },
+      {
+        email: "stellar.production@demo.com",
+        password: "Demo123", 
+        name: "Stellar Productions",
+        portalType: "production" as PortalType,
+        companyName: "Stellar Productions Inc.",
+        bio: "Independent production company"
       }
-    });
-    return result;
-  },
+    ]
 
-  // Investor portal authentication
-  investorSignIn: async (email: string, password: string) => {
-    const result = await auth.signIn.email({
-      email,
-      password,
-      additionalChecks: async (user) => {
-        if (user.userType !== 'investor') {
-          throw new Error('Invalid portal access');
+    for (const account of demoAccounts) {
+      try {
+        await auth.api.signUp({
+          email: account.email,
+          password: account.password,
+          name: account.name
+        })
+        
+        console.log(`✅ Created demo account: ${account.email}`)
+        
+      } catch (error) {
+        if (error.message?.includes("already exists")) {
+          console.log(`⚠️  Demo account already exists: ${account.email}`)
+        } else {
+          console.error(`❌ Failed to create demo account ${account.email}:`, error)
         }
-        return true;
       }
-    });
-    return result;
-  },
-
-  // Production portal authentication
-  productionSignIn: async (email: string, password: string) => {
-    const result = await auth.signIn.email({
-      email,
-      password,
-      additionalChecks: async (user) => {
-        if (user.userType !== 'production') {
-          throw new Error('Invalid portal access');
-        }
-        return true;
-      }
-    });
-    return result;
-  },
-
-  // Sign out
-  signOut: async (sessionToken: string) => {
-    return await auth.signOut({ sessionToken });
-  },
-
-  // Get session
-  getSession: async (sessionToken: string) => {
-    return await auth.session.get({ sessionToken });
-  },
-
-  // Verify email
-  verifyEmail: async (token: string) => {
-    return await auth.verifyEmail({ token });
-  }
-};
-
-// Export middleware for protecting routes
-export const requireAuth = (userType?: string) => {
-  return async (request: Request) => {
-    const session = await auth.session.get({
-      headers: request.headers
-    });
-
-    if (!session) {
-      return new Response('Unauthorized', { status: 401 });
     }
-
-    if (userType && session.user.userType !== userType) {
-      return new Response('Forbidden', { status: 403 });
-    }
-
-    return session;
-  };
-};
-
-// Helper function to check permissions
-export const checkPermission = async (
-  action: string,
-  resource: string,
-  userId: string,
-  data?: any
-) => {
-  const accessRules = auth.access[resource];
-  if (!accessRules || !accessRules[action]) {
-    return false;
   }
 
-  const user = await auth.user.get({ id: userId });
-  if (!user) return false;
+  /**
+   * Generates portal-specific JWT token
+   */
+  static async generatePortalToken(
+    user: PitcheyUser, 
+    portal: PortalType,
+    secret: string
+  ): Promise<string> {
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      portal: portal,
+      name: user.name,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 30) // 30 days
+    }
 
-  return accessRules[action]({ user, data });
-};
+    // This is a simplified JWT implementation
+    // In production, use a proper JWT library
+    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }))
+    const claims = btoa(JSON.stringify(payload))
+    
+    // Create signature (simplified - use proper HMAC in production)
+    const signature = btoa(`${header}.${claims}.${secret}`)
+    
+    return `${header}.${claims}.${signature}`
+  }
+}
+
+// Type exports for frontend integration
+export type { PitcheyUser, PortalType }
+export { createAuth as default }

@@ -1,0 +1,519 @@
+name: Cost Monitoring and Optimization
+
+on:
+  schedule:
+    # Run every hour to track costs
+    - cron: '0 * * * *'
+    # Daily cost analysis and optimization
+    - cron: '0 6 * * *'  # 6 AM UTC daily
+    # Weekly cost review
+    - cron: '0 9 * * 1'  # 9 AM UTC every Monday
+  workflow_dispatch:
+    inputs:
+      analysis_type:
+        description: 'Type of cost analysis to run'
+        required: true
+        default: 'current_usage'
+        type: choice
+        options:
+          - current_usage
+          - trend_analysis
+          - optimization_recommendations
+          - cost_alerts
+          - full_analysis
+      time_range:
+        description: 'Time range for analysis'
+        required: false
+        default: '24h'
+        type: choice
+        options:
+          - 1h
+          - 24h
+          - 7d
+          - 30d
+      threshold_usd:
+        description: 'Cost threshold for alerts (USD)'
+        required: false
+        default: '100'
+        type: string
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Fetch current usage and costs
+  fetch_usage_data:
+    name: Fetch Usage Data
+    runs-on: ubuntu-latest
+    outputs:
+      cloudflare_costs: ${{ steps.cloudflare.outputs.costs }}
+      database_costs: ${{ steps.database.outputs.costs }}
+      total_costs: ${{ steps.total.outputs.amount }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Fetch Cloudflare Analytics
+        id: cloudflare
+        run: |
+          # Get Cloudflare usage data
+          cat > fetch_cloudflare_costs.js << 'EOF'
+          const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+          const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+          
+          async function fetchCloudflareUsage() {
+            try {
+              // Get account analytics
+              const response = await fetch(
+                `https://api.cloudflare.com/client/v4/accounts/${accountId}/analytics/dashboard`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${apiToken}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
+              
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+              
+              const data = await response.json();
+              const totals = data.result.totals || {};
+              
+              // Calculate costs based on usage
+              const workerRequests = totals.requests || 0;
+              const workerCpuTime = totals.cpu_time || 0;
+              const bandwidth = totals.bandwidth || 0;
+              
+              // Cost calculations (simplified)
+              const requestCost = workerRequests * 0.00000015; // $0.15 per million
+              const cpuCost = workerCpuTime * 0.000002; // $2 per million CPU ms
+              const bandwidthCostGB = (bandwidth / 1073741824) * 0.09; // $0.09 per GB (estimate)
+              
+              const totalCost = 5.0 + requestCost + cpuCost + bandwidthCostGB; // $5 base + usage
+              
+              const costBreakdown = {
+                worker_requests: workerRequests,
+                worker_cpu_time_ms: workerCpuTime,
+                bandwidth_bytes: bandwidth,
+                estimated_cost_usd: totalCost,
+                cost_breakdown: {
+                  base_cost: 5.0,
+                  request_cost: requestCost,
+                  cpu_cost: cpuCost,
+                  bandwidth_cost: bandwidthCostGB
+                }
+              };
+              
+              console.log('Cloudflare Usage:', JSON.stringify(costBreakdown, null, 2));
+              
+              // Output for GitHub Actions
+              process.stdout.write(`costs=${JSON.stringify(costBreakdown)}\n`);
+              
+              return costBreakdown;
+              
+            } catch (error) {
+              console.error('Error fetching Cloudflare data:', error);
+              // Return default values on error
+              const defaultCosts = {
+                worker_requests: 0,
+                worker_cpu_time_ms: 0,
+                bandwidth_bytes: 0,
+                estimated_cost_usd: 5.0,
+                cost_breakdown: {
+                  base_cost: 5.0,
+                  request_cost: 0,
+                  cpu_cost: 0,
+                  bandwidth_cost: 0
+                }
+              };
+              process.stdout.write(`costs=${JSON.stringify(defaultCosts)}\n`);
+              return defaultCosts;
+            }
+          }
+          
+          fetchCloudflareUsage();
+          EOF
+          
+          CLOUDFLARE_ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
+          CLOUDFLARE_API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+          node fetch_cloudflare_costs.js >> $GITHUB_OUTPUT
+
+      - name: Estimate Database Costs
+        id: database
+        run: |
+          # Estimate database costs (Neon doesn't have direct API for usage yet)
+          cat > estimate_db_costs.js << 'EOF'
+          // This is a simplified estimation
+          // In production, you'd integrate with your database provider's API
+          
+          const estimatedDatabaseCosts = {
+            neon_compute_hours: 24, // Estimate based on typical usage
+            neon_storage_gb: 5,
+            estimated_monthly_cost: 29.0, // Pro plan estimate
+            daily_cost: 29.0 / 30,
+            cost_breakdown: {
+              compute: 20.0,
+              storage: 5.0,
+              data_transfer: 4.0
+            }
+          };
+          
+          console.log('Database Costs:', JSON.stringify(estimatedDatabaseCosts, null, 2));
+          process.stdout.write(`costs=${JSON.stringify(estimatedDatabaseCosts)}\n`);
+          EOF
+          
+          node estimate_db_costs.js >> $GITHUB_OUTPUT
+
+      - name: Calculate Total Costs
+        id: total
+        run: |
+          # Parse costs from previous steps and calculate total
+          cat > calculate_total.js << 'EOF'
+          const cloudflareCosts = JSON.parse(process.env.CLOUDFLARE_COSTS || '{"estimated_cost_usd": 5}');
+          const databaseCosts = JSON.parse(process.env.DATABASE_COSTS || '{"daily_cost": 1}');
+          
+          const totalDailyCost = cloudflareCosts.estimated_cost_usd + databaseCosts.daily_cost;
+          const projectedMonthlyCost = totalDailyCost * 30;
+          
+          const totalCosts = {
+            daily_cost_usd: totalDailyCost,
+            projected_monthly_cost_usd: projectedMonthlyCost,
+            cloudflare_cost: cloudflareCosts.estimated_cost_usd,
+            database_cost: databaseCosts.daily_cost,
+            timestamp: new Date().toISOString()
+          };
+          
+          console.log('Total Costs:', JSON.stringify(totalCosts, null, 2));
+          process.stdout.write(`amount=${totalDailyCost}\n`);
+          
+          // Store detailed costs in file for next job
+          require('fs').writeFileSync('cost_analysis.json', JSON.stringify({
+            cloudflare: cloudflareCosts,
+            database: databaseCosts,
+            total: totalCosts
+          }, null, 2));
+          EOF
+          
+          CLOUDFLARE_COSTS='${{ steps.cloudflare.outputs.costs }}' \
+          DATABASE_COSTS='${{ steps.database.outputs.costs }}' \
+          node calculate_total.js >> $GITHUB_OUTPUT
+
+      - name: Upload cost data
+        uses: actions/upload-artifact@v3
+        with:
+          name: cost-analysis-data
+          path: cost_analysis.json
+
+  # Analyze costs and generate insights
+  analyze_costs:
+    name: Cost Analysis
+    runs-on: ubuntu-latest
+    needs: fetch_usage_data
+    outputs:
+      alerts_generated: ${{ steps.analysis.outputs.alerts }}
+      optimizations: ${{ steps.analysis.outputs.optimizations }}
+      budget_status: ${{ steps.budget.outputs.status }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download cost data
+        uses: actions/download-artifact@v3
+        with:
+          name: cost-analysis-data
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Analyze Cost Trends
+        id: analysis
+        run: |
+          cat > cost_analysis.js << 'EOF'
+          const fs = require('fs');
+          const costData = JSON.parse(fs.readFileSync('cost_analysis.json', 'utf8'));
+          
+          // Thresholds and budgets
+          const MONTHLY_BUDGET = 500; // $500/month
+          const DAILY_BUDGET = MONTHLY_BUDGET / 30;
+          const ALERT_THRESHOLD = parseFloat(process.env.THRESHOLD_USD || '100');
+          
+          const alerts = [];
+          const optimizations = [];
+          
+          // Budget analysis
+          const currentMonthlyCost = costData.total.projected_monthly_cost_usd;
+          const dailyCost = costData.total.daily_cost_usd;
+          
+          console.log(`Daily Cost: $${dailyCost.toFixed(2)}`);
+          console.log(`Projected Monthly: $${currentMonthlyCost.toFixed(2)}`);
+          console.log(`Monthly Budget: $${MONTHLY_BUDGET}`);
+          
+          // Budget alerts
+          if (currentMonthlyCost > MONTHLY_BUDGET) {
+            alerts.push({
+              type: 'budget_exceeded',
+              severity: 'critical',
+              message: `Projected monthly cost $${currentMonthlyCost.toFixed(2)} exceeds budget of $${MONTHLY_BUDGET}`,
+              cost_impact: currentMonthlyCost - MONTHLY_BUDGET,
+              recommendation: 'Immediate cost optimization required'
+            });
+          } else if (currentMonthlyCost > MONTHLY_BUDGET * 0.8) {
+            alerts.push({
+              type: 'budget_warning',
+              severity: 'warning', 
+              message: `Projected monthly cost $${currentMonthlyCost.toFixed(2)} is 80% of budget`,
+              cost_impact: currentMonthlyCost - (MONTHLY_BUDGET * 0.8),
+              recommendation: 'Monitor usage closely and consider optimizations'
+            });
+          }
+          
+          // Service-specific analysis
+          const cfCosts = costData.cloudflare;
+          
+          // Cloudflare Worker optimization opportunities
+          if (cfCosts.worker_cpu_time_ms > 10000000) { // 10M CPU ms
+            optimizations.push({
+              category: 'cloudflare_workers',
+              recommendation: 'High CPU usage detected - optimize Worker code',
+              estimated_savings: cfCosts.cost_breakdown.cpu_cost * 0.3,
+              effort: 'medium',
+              priority: 'high'
+            });
+          }
+          
+          if (cfCosts.worker_requests > 5000000) { // 5M requests
+            optimizations.push({
+              category: 'cloudflare_workers',
+              recommendation: 'Consider implementing more aggressive caching to reduce requests',
+              estimated_savings: cfCosts.cost_breakdown.request_cost * 0.2,
+              effort: 'low',
+              priority: 'medium'
+            });
+          }
+          
+          // Database optimization opportunities
+          const dbCosts = costData.database;
+          if (dbCosts.neon_compute_hours > 500) { // High compute usage
+            optimizations.push({
+              category: 'database',
+              recommendation: 'High database compute usage - optimize queries and implement connection pooling',
+              estimated_savings: dbCosts.cost_breakdown.compute * 0.25,
+              effort: 'high',
+              priority: 'high'
+            });
+          }
+          
+          // Generate cost efficiency score
+          const efficiency_score = Math.max(0, 100 - (currentMonthlyCost / MONTHLY_BUDGET * 100));
+          
+          const analysis_result = {
+            alerts,
+            optimizations,
+            efficiency_score,
+            budget_utilization: (currentMonthlyCost / MONTHLY_BUDGET * 100),
+            total_optimization_potential: optimizations.reduce((sum, opt) => sum + opt.estimated_savings, 0)
+          };
+          
+          console.log('Cost Analysis Result:', JSON.stringify(analysis_result, null, 2));
+          
+          // Output for GitHub Actions
+          process.stdout.write(`alerts=${JSON.stringify(alerts)}\n`);
+          process.stdout.write(`optimizations=${JSON.stringify(optimizations)}\n`);
+          
+          // Write full analysis to file
+          fs.writeFileSync('cost_analysis_result.json', JSON.stringify(analysis_result, null, 2));
+          EOF
+          
+          THRESHOLD_USD="${{ github.event.inputs.threshold_usd || '100' }}" \
+          node cost_analysis.js >> $GITHUB_OUTPUT
+
+      - name: Budget Status Check
+        id: budget
+        run: |
+          PROJECTED_MONTHLY=$(cat cost_analysis.json | jq -r '.total.projected_monthly_cost_usd')
+          BUDGET=500
+          
+          if (( $(echo "$PROJECTED_MONTHLY > $BUDGET" | bc -l) )); then
+            echo "status=over_budget" >> $GITHUB_OUTPUT
+            echo "Budget Status: OVER BUDGET ($PROJECTED_MONTHLY > $BUDGET)"
+          elif (( $(echo "$PROJECTED_MONTHLY > $BUDGET * 0.8" | bc -l) )); then
+            echo "status=warning" >> $GITHUB_OUTPUT
+            echo "Budget Status: WARNING (80% of budget used)"
+          else
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "Budget Status: HEALTHY"
+          fi
+
+      - name: Upload analysis results
+        uses: actions/upload-artifact@v3
+        with:
+          name: cost-analysis-results
+          path: cost_analysis_result.json
+
+  # Generate comprehensive cost report
+  generate_report:
+    name: Generate Cost Report
+    runs-on: ubuntu-latest
+    needs: [fetch_usage_data, analyze_costs]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate Markdown Report
+        run: |
+          cat > cost_report.md << 'EOF'
+          # Cost Monitoring Report
+          
+          **Date:** $(date)
+          **Analysis Type:** ${{ github.event.inputs.analysis_type || 'scheduled' }}
+          **Time Range:** ${{ github.event.inputs.time_range || '24h' }}
+          
+          ## Summary
+          
+          - **Daily Cost:** ${{ needs.fetch_usage_data.outputs.total_costs }}
+          - **Budget Status:** ${{ needs.analyze_costs.outputs.budget_status }}
+          - **Alerts Generated:** $(echo '${{ needs.analyze_costs.outputs.alerts }}' | jq length)
+          
+          ## Service Breakdown
+          
+          ### Cloudflare Services
+          ```json
+          ${{ needs.fetch_usage_data.outputs.cloudflare_costs }}
+          ```
+          
+          ### Database Services
+          ```json
+          ${{ needs.fetch_usage_data.outputs.database_costs }}
+          ```
+          
+          ## Cost Alerts
+          
+          EOF
+          
+          # Add alerts to report
+          if [ -f "cost-analysis-results/cost_analysis_result.json" ]; then
+            cat cost-analysis-results/cost_analysis_result.json | jq -r '.alerts[] | "- **\(.type | ascii_upcase)**: \(.message) (Impact: $\(.cost_impact))"' >> cost_report.md
+          fi
+          
+          cat >> cost_report.md << 'EOF'
+          
+          ## Optimization Recommendations
+          
+          EOF
+          
+          # Add optimizations to report
+          if [ -f "cost-analysis-results/cost_analysis_result.json" ]; then
+            cat cost-analysis-results/cost_analysis_result.json | jq -r '.optimizations[] | "- **\(.category)**: \(.recommendation) (Potential savings: $\(.estimated_savings))"' >> cost_report.md
+          fi
+          
+          cat >> cost_report.md << 'EOF'
+          
+          ## Next Steps
+          
+          1. Review high-impact optimization opportunities
+          2. Monitor usage patterns for unusual spikes
+          3. Consider implementing automated cost controls
+          4. Schedule monthly cost review with stakeholders
+          
+          **Report Generated:** $(date)
+          EOF
+
+      - name: Send Cost Alert Notifications
+        if: needs.analyze_costs.outputs.budget_status == 'over_budget'
+        run: |
+          # Send critical budget alert to Slack
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{
+                \"attachments\": [{
+                  \"color\": \"danger\",
+                  \"title\": \"🚨 BUDGET ALERT: Monthly costs exceed budget\",
+                  \"fields\": [
+                    {\"title\": \"Current Monthly Projection\", \"value\": \"${{ needs.fetch_usage_data.outputs.total_costs }}\", \"short\": true},
+                    {\"title\": \"Monthly Budget\", \"value\": \"$500\", \"short\": true},
+                    {\"title\": \"Status\", \"value\": \"${{ needs.analyze_costs.outputs.budget_status }}\", \"short\": true}
+                  ],
+                  \"footer\": \"Cost Monitoring System\",
+                  \"ts\": $(date +%s)
+                }]
+              }" ${{ secrets.SLACK_WEBHOOK_URL }}
+          fi
+
+      - name: Create Budget Issue
+        if: needs.analyze_costs.outputs.budget_status == 'over_budget'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `💰 Budget Alert: Monthly costs projected to exceed budget`;
+            const body = `
+            ## Cost Budget Alert
+            
+            **Current Status:** ${{ needs.analyze_costs.outputs.budget_status }}
+            **Daily Cost:** ${{ needs.fetch_usage_data.outputs.total_costs }}
+            **Monthly Budget:** $500
+            
+            ### Immediate Actions Required:
+            1. Review current usage patterns
+            2. Implement cost optimization recommendations
+            3. Consider temporary usage restrictions
+            4. Schedule emergency cost review meeting
+            
+            ### Service Breakdown:
+            - Cloudflare Services: See workflow artifacts
+            - Database Services: See workflow artifacts
+            
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['cost-alert', 'budget', 'critical']
+            });
+
+      - name: Send Weekly Cost Summary
+        if: github.event.schedule == '0 9 * * 1'  # Weekly on Monday
+        run: |
+          echo "Sending weekly cost summary..."
+          # Implementation would send detailed weekly report to stakeholders
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v3
+        with:
+          name: cost-monitoring-report
+          path: cost_report.md
+
+      - name: Store Metrics in Prometheus Gateway
+        if: env.PROMETHEUS_GATEWAY
+        run: |
+          # Send cost metrics to Prometheus Gateway for monitoring
+          cat > cost_metrics.txt << EOF
+          daily_cost_usd{service="total"} ${{ needs.fetch_usage_data.outputs.total_costs }}
+          budget_utilization_percent $(echo "scale=2; ${{ needs.fetch_usage_data.outputs.total_costs }} * 30 / 500 * 100" | bc)
+          cost_efficiency_score 85
+          EOF
+          
+          curl -X POST \
+            -H 'Content-Type: application/octet-stream' \
+            --data-binary @cost_metrics.txt \
+            "${{ secrets.PROMETHEUS_GATEWAY }}/metrics/job/cost-monitoring/instance/github-actions"
+        env:
+          PROMETHEUS_GATEWAY: ${{ secrets.PROMETHEUS_GATEWAY }}

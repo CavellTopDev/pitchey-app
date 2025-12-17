@@ -1,0 +1,381 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # Secret scanning
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: NPM Audit
+        run: |
+          npm audit --audit-level=moderate --json > npm-audit.json || true
+          if [ $(cat npm-audit.json | jq '.metadata.vulnerabilities.moderate + .metadata.vulnerabilities.high + .metadata.vulnerabilities.critical' 2>/dev/null || echo "0") -gt 0 ]; then
+            echo "❌ Found vulnerabilities in npm packages"
+            cat npm-audit.json | jq '.vulnerabilities'
+            exit 1
+          else
+            echo "✅ No moderate or higher vulnerabilities found"
+          fi
+
+      - name: Snyk Security Scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=medium
+
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'pitchey'
+          path: '.'
+          format: 'HTML'
+          args: >
+            --enableRetired
+            --enableExperimental
+
+      - name: Upload dependency check results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: dependency-check-report
+          path: reports/
+
+  # Container scanning (if using Docker)
+  container-scan:
+    name: Container Security
+    runs-on: ubuntu-latest
+    if: false  # Enable when using containers
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t pitchey:scan .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'pitchey:scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Static Application Security Testing (SAST)
+  sast-scan:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript, typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+      - name: Semgrep Security Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+            p/javascript
+            p/typescript
+            p/react
+
+      - name: ESLint Security Plugin
+        run: |
+          npm install --save-dev eslint-plugin-security
+          npx eslint . --ext .js,.jsx,.ts,.tsx --config .eslintrc.security.json --format json > eslint-security.json || true
+
+  # Infrastructure as Code scanning
+  iac-scan:
+    name: Infrastructure Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Checkov IaC Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          quiet: false
+          soft_fail: false
+          framework: cloudformation,terraform,kubernetes,helm
+          output_format: sarif
+          output_file_path: checkov.sarif
+
+      - name: Upload Checkov results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+
+      - name: tfsec Security Scan
+        uses: aquasecurity/tfsec-action@v1.0.0
+        if: false  # Enable if using Terraform
+        with:
+          soft_fail: false
+
+  # API Security Testing
+  api-security:
+    name: API Security Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: OWASP ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.7.0
+        with:
+          target: 'https://pitchey-production.cavelltheleaddev.workers.dev'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+      - name: Newman API Tests with Security Checks
+        run: |
+          npm install -g newman newman-reporter-htmlextra
+          newman run tests/security/api-security-tests.json \
+            -e tests/security/environment.json \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export security-report.html
+
+      - name: Upload API security results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: api-security-report
+          path: security-report.html
+
+  # License compliance check
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: License Finder
+        run: |
+          npm install -g license-checker
+          license-checker --production --summary --out licenses.json
+          
+          # Check for problematic licenses
+          if grep -E "(GPL|AGPL|LGPL|SSPL|Commons Clause)" licenses.json; then
+            echo "⚠️  Found potentially problematic licenses"
+            exit 1
+          else
+            echo "✅ All licenses appear compliant"
+          fi
+
+  # Security scorecard
+  scorecard:
+    name: Security Scorecard
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      security-events: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard analysis
+        uses: ossf/scorecard-action@v2.3.1
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: scorecard-results.sarif
+
+  # Security report aggregation
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [secret-scan, dependency-scan, sast-scan, iac-scan]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate consolidated report
+        run: |
+          cat > security-report.md << EOF
+          # Security Scan Report
+          
+          **Date:** $(date)
+          **Branch:** ${{ github.ref }}
+          **Commit:** ${{ github.sha }}
+          
+          ## Scan Results Summary
+          
+          | Check | Status |
+          |-------|--------|
+          | Secret Detection | ${{ needs.secret-scan.result }} |
+          | Dependency Scan | ${{ needs.dependency-scan.result }} |
+          | SAST | ${{ needs.sast-scan.result }} |
+          | IaC Security | ${{ needs.iac-scan.result }} |
+          
+          ## Recommendations
+          
+          1. Review any failed checks immediately
+          2. Update dependencies with known vulnerabilities
+          3. Rotate any exposed secrets
+          4. Apply security patches as recommended
+          
+          ## Next Steps
+          
+          - [ ] Address critical vulnerabilities
+          - [ ] Update security baselines
+          - [ ] Schedule remediation tasks
+          - [ ] Update security documentation
+          EOF
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-summary
+          path: security-report.md
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('security-report.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+
+      - name: Create issue for failures
+        if: failure() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = `Security Scan Failure - ${new Date().toISOString().split('T')[0]}`;
+            const body = `
+            ## Security scan detected issues
+            
+            **Workflow Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+            
+            Please review the security scan results and address any critical issues immediately.
+            
+            /cc @security-team
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['security', 'high-priority']
+            });
+
+  # Notification
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [security-report]
+    if: always() && (github.event_name == 'schedule' || failure())
+    steps:
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          STATUS="${{ needs.security-report.result }}"
+          COLOR="good"
+          if [ "$STATUS" != "success" ]; then
+            COLOR="danger"
+          fi
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \"Security Scan Results\",
+                \"text\": \"Security scan $STATUS for ${{ github.repository }}\",
+                \"fields\": [
+                  {\"title\": \"Branch\", \"value\": \"${{ github.ref }}\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"${{ github.sha }}\", \"short\": true},
+                  {\"title\": \"Workflow\", \"value\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}
+                ]
+              }]
+            }" $SLACK_WEBHOOK
