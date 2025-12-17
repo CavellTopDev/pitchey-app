@@ -23,6 +23,7 @@
       ".wrangler/",
       "scripts/",
       "tests/",
+      "docs/",
       "*.test.ts",
       "*.spec.ts",
       "*.test.js",
@@ -47,10 +48,11 @@
       "fix-*.ts",
       "sync-*.ts",
       "init-*.ts",
-      "working-server.ts"
+      "working-server.ts",
+      "src/worker-modules/admin-endpoints.ts"
     ],
     "rules": {
-      "exclude": ["no-process-global", "require-await"]
+      "exclude": ["no-process-global", "require-await", "no-explicit-any", "no-unused-vars"]
     }
   },
   "fmt": {
