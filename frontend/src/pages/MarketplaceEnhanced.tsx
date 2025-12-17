@@ -160,26 +160,51 @@ export default function MarketplaceEnhanced() {
     try {
       setLoading(true);
       // Use the getAll method directly on pitchAPI (no browse object)
-      const allPitches = await pitchAPI.getAll();
+      const response = await pitchAPI.getAll();
       
-      // Handle the response - getAll returns data directly
-      if (Array.isArray(allPitches)) {
-        setPitches(allPitches);
-        calculateStats(allPitches);
-      } else if (allPitches?.data) {
-        // Handle wrapped response format
-        setPitches(allPitches.data);
-        calculateStats(allPitches.data);
+      // Handle the response - API returns {success: boolean, data: Pitch[]}
+      let pitchesData: Pitch[] = [];
+      
+      if (Array.isArray(response)) {
+        // Direct array response
+        pitchesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        // Wrapped response format {success: true, data: [...]}
+        pitchesData = response.data;
+      } else if (response?.pitches && Array.isArray(response.pitches)) {
+        // Alternative format with pitches key
+        pitchesData = response.pitches;
+      } else {
+        console.warn('Unexpected response format:', response);
+        pitchesData = [];
       }
+      
+      setPitches(pitchesData);
+      calculateStats(pitchesData);
     } catch (error) {
       console.error('Error fetching pitches:', error);
       toast.error('Failed to load pitches');
+      // Set empty array on error to prevent iteration issues
+      setPitches([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
   };
 
   const calculateStats = (pitchData: Pitch[]) => {
+    // Ensure pitchData is an array
+    if (!Array.isArray(pitchData)) {
+      console.warn('calculateStats received non-array data:', pitchData);
+      setStats({
+        totalPitches: 0,
+        totalInvestment: 0,
+        avgBudget: 0,
+        activeCreators: 0
+      });
+      return;
+    }
+    
     const totalInvestment = pitchData.reduce((sum, p) => sum + (p.total_investment || 0), 0);
     const avgBudget = pitchData.reduce((sum, p) => sum + (p.budget || 0), 0) / (pitchData.length || 1);
     const activeCreators = new Set(pitchData.map(p => p.creator_id)).size;
@@ -193,6 +218,13 @@ export default function MarketplaceEnhanced() {
   };
 
   const applyFiltersAndSort = useCallback(() => {
+    // Ensure pitches is an array before spreading
+    if (!Array.isArray(pitches)) {
+      console.warn('pitches is not an array:', pitches);
+      setFilteredPitches([]);
+      return;
+    }
+    
     let filtered = [...pitches];
 
     // Search filter
