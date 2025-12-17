@@ -617,11 +617,14 @@ export default function MarketplaceEnhanced() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
+                id="marketplace-search"
+                name="search"
                 type="text"
                 placeholder="Search pitches, creators, genres..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Search pitches"
               />
             </div>
 
@@ -629,9 +632,12 @@ export default function MarketplaceEnhanced() {
             <div className="flex gap-2">
               {/* Sort dropdown */}
               <select
+                id="marketplace-sort"
+                name="sortBy"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                aria-label="Sort pitches by"
               >
                 {SORT_OPTIONS.map(option => (
                   <option key={option.value} value={option.value}>
@@ -732,6 +738,8 @@ export default function MarketplaceEnhanced() {
                       {(config?.genres || ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Thriller']).map((genre: string) => (
                         <label key={genre} className="flex items-center">
                           <input
+                            id={`genre-filter-${genre.toLowerCase().replace(/\s+/g, '-')}`}
+                            name={`genre-${genre.toLowerCase().replace(/\s+/g, '-')}`}
                             type="checkbox"
                             checked={filters.genres.includes(genre)}
                             onChange={(e) => {
@@ -742,6 +750,7 @@ export default function MarketplaceEnhanced() {
                               }
                             }}
                             className="mr-2"
+                            aria-label={`Filter by ${genre}`}
                           />
                           <span className="text-sm">{genre}</span>
                         </label>
@@ -756,6 +765,9 @@ export default function MarketplaceEnhanced() {
                       {(config?.formats || ['Feature Film', 'Short Film', 'TV Series', 'Web Series']).map((format: string) => (
                         <label key={format} className="flex items-center">
                           <input
+                            id={`format-filter-${format.toLowerCase().replace(/\s+/g, '-')}`}
+                            name={`format-filter-${format.toLowerCase().replace(/\s+/g, '-')}`}
+                            aria-label={`Filter by ${format} format`}
                             type="checkbox"
                             checked={filters.formats.includes(format)}
                             onChange={(e) => {
@@ -778,6 +790,9 @@ export default function MarketplaceEnhanced() {
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Budget Range</h4>
                     <div className="space-y-2">
                       <input
+                        id="budget-range-slider"
+                        name="budget-range-slider"
+                        aria-label="Budget range slider"
                         type="range"
                         min="0"
                         max="10000000"
@@ -797,6 +812,9 @@ export default function MarketplaceEnhanced() {
                   <div className="space-y-2">
                     <label className="flex items-center">
                       <input
+                        id="filter-has-nda"
+                        name="filter-has-nda"
+                        aria-label="Filter pitches with NDA"
                         type="checkbox"
                         checked={filters.hasNDA === true}
                         onChange={(e) => setFilters(f => ({ ...f, hasNDA: e.target.checked ? true : null }))}
@@ -806,6 +824,9 @@ export default function MarketplaceEnhanced() {
                     </label>
                     <label className="flex items-center">
                       <input
+                        id="filter-has-investment"
+                        name="filter-has-investment"
+                        aria-label="Filter pitches with investment"
                         type="checkbox"
                         checked={filters.hasInvestment === true}
                         onChange={(e) => setFilters(f => ({ ...f, hasInvestment: e.target.checked ? true : null }))}
