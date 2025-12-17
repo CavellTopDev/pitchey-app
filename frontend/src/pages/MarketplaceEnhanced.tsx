@@ -159,14 +159,17 @@ export default function MarketplaceEnhanced() {
   const fetchPitches = async () => {
     try {
       setLoading(true);
-      const [allPitches, featuredData] = await Promise.all([
-        pitchAPI.browse.getAllPitches(),
-        pitchAPI.browse.getFeaturedPitches()
-      ]);
-
-      if (allPitches?.data?.pitches) {
-        setPitches(allPitches.data.pitches);
-        calculateStats(allPitches.data.pitches);
+      // Use the getAll method directly on pitchAPI (no browse object)
+      const allPitches = await pitchAPI.getAll();
+      
+      // Handle the response - getAll returns data directly
+      if (Array.isArray(allPitches)) {
+        setPitches(allPitches);
+        calculateStats(allPitches);
+      } else if (allPitches?.data) {
+        // Handle wrapped response format
+        setPitches(allPitches.data);
+        calculateStats(allPitches.data);
       }
     } catch (error) {
       console.error('Error fetching pitches:', error);

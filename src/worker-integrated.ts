@@ -8,7 +8,7 @@ import { createDatabase } from './db/raw-sql-connection';
 import { UserProfileRoutes } from './routes/user-profile';
 import { ApiResponseBuilder, ErrorCode, errorHandler } from './utils/api-response';
 import { getEnvConfig } from './utils/env-config';
-import { corsHeaders } from './utils/response';
+import { getCorsHeaders } from './utils/response';
 
 // Import existing routes
 import { creatorRoutes } from './routes/creator';
@@ -191,7 +191,7 @@ class RouteRegistry {
     if (method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
-        headers: corsHeaders(request.headers.get('Origin'), this.env)
+        headers: getCorsHeaders(request.headers.get('Origin'))
       });
     }
 
@@ -1121,17 +1121,24 @@ export default {
       
     } catch (error) {
       console.error('Worker initialization error:', error);
+      // Get CORS headers using the request origin
+      const origin = request.headers.get('Origin');
+      const headers = getCorsHeaders(origin);
+      
       return new Response(
         JSON.stringify({
           success: false,
           error: {
             message: 'Service initialization failed',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            details: env.ENVIRONMENT === 'development' ? error.message : undefined
           }
         }),
         {
           status: 500,
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+          }
         }
       );
     }

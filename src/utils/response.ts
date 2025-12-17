@@ -45,7 +45,8 @@ function isOriginAllowed(origin: string | null): boolean {
   }
   
   // Allow all Cloudflare Pages preview deployments (*.pitchey.pages.dev)
-  if (origin.match(/^https:\/\/[a-z0-9]+\.pitchey\.pages\.dev$/)) {
+  // Pattern allows alphanumeric characters and hyphens (typical for CF deployments)
+  if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/)) {
     return true;
   }
   
@@ -66,15 +67,21 @@ export function setRequestOrigin(origin: string | null) {
 /**
  * Get CORS headers for a specific origin
  */
-export function getCorsHeaders(origin?: string): Record<string, string> {
+export function getCorsHeaders(origin?: string | null): Record<string, string> {
   // Use provided origin, or fall back to current request origin, or default
   const requestOrigin = origin || currentRequestOrigin;
   const isAllowedOrigin = isOriginAllowed(requestOrigin);
   
+  // If origin is allowed, use it; otherwise use the wildcard for public endpoints
+  // For security, we still set specific origins when possible
+  const allowOrigin = isAllowedOrigin && requestOrigin 
+    ? requestOrigin 
+    : ALLOWED_ORIGINS[0]; // defaults to pitchey.pages.dev
+  
   return {
-    "Access-Control-Allow-Origin": isAllowedOrigin ? requestOrigin : ALLOWED_ORIGINS[0], // defaults to pitchey.pages.dev
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Id, X-Client-Id",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
