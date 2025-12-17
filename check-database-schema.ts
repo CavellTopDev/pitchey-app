@@ -1,6 +1,6 @@
 // Check the actual database schema vs Drizzle schema
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 async function checkDatabaseSchema() {
   console.log("🔍 Checking actual database schema...");

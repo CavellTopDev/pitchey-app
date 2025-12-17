@@ -2,7 +2,7 @@
 
 import { db } from "./src/db/client.ts";
 import { pitches, users } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 
 console.log("Removing investor pitches from public marketplace...");
 

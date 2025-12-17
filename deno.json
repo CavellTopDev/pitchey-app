@@ -1,0 +1,50 @@
+{
+  "imports": {
+    "@neondatabase/serverless": "npm:@neondatabase/serverless@0.10.3",
+    "drizzle-orm": "npm:drizzle-orm@0.35.3",
+    "@hono/hono": "npm:hono@4.6.15",
+    "hono": "npm:hono@4.6.15",
+    "bcrypt": "npm:bcrypt@5.1.1",
+    "@sentry/deno": "npm:@sentry/deno@8.55.0",
+    "zod": "npm:zod@3.22.4",
+    "stripe": "npm:stripe@17.5.0",
+    "sinon": "npm:sinon@19.0.2"
+  },
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "lint": {
+    "exclude": [
+      "node_modules/",
+      "frontend/",
+      "dist/",
+      "build/",
+      ".wrangler/",
+      "scripts/",
+      "tests/",
+      "*.test.ts",
+      "*.spec.ts",
+      "test-*.ts",
+      "test-*.sh",
+      "verify-*.ts",
+      "force-*.ts",
+      "final-*.ts",
+      "debug-*.ts",
+      "check-*.ts",
+      "setup-*.ts"
+    ],
+    "rules": {
+      "exclude": ["no-process-global", "require-await"]
+    }
+  },
+  "fmt": {
+    "exclude": [
+      "node_modules/",
+      "frontend/",
+      "dist/",
+      "build/",
+      ".wrangler/"
+    ]
+  }
+}

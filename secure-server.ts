@@ -4,7 +4,7 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { db } from "./src/db/client.ts";
 import { users, pitches } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.29.0";
+import { eq } from "drizzle-orm";
 import { hash, compare } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // Security imports

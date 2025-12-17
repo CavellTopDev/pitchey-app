@@ -1,4 +1,4 @@
-import Stripe from "npm:stripe";
+import Stripe from "stripe";
 import { db } from "../db/client.ts";
 import { getTierFromPriceId, getCreditsFromPriceId, SUBSCRIPTION_TIERS } from "../../utils/stripe.ts";
 import { getMockStripeService, shouldUseMockStripe } from "./stripe-mock.service.ts";

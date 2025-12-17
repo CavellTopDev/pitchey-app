@@ -2,7 +2,7 @@
 
 import { db } from "./src/db/client.ts";
 import { pitches, users } from "./src/db/schema.ts";
-import { eq, desc } from "npm:drizzle-orm@0.35.3";
+import { eq, desc } from "drizzle-orm";
 
 console.log("Checking what's in the public pitches query...");
 

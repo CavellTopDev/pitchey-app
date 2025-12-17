@@ -1,6 +1,6 @@
 import { db } from './src/db/client.ts';
 import { users } from './src/db/schema.ts';
-import { eq, and } from "npm:drizzle-orm@0.35.3";
+import { eq, and } from "drizzle-orm";
 
 async function cleanupDuplicateUsers() {
   console.log('🧹 Cleaning up duplicate demo users...');

@@ -5,7 +5,7 @@
 
 import { assertEquals, assertExists, assert, assertRejects } from "jsr:@std/assert";
 import { db } from "../../src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 import { TestFactory } from "../framework/test-factory.ts";
 import { testDb, withDatabase, withTransaction } from "../framework/test-database.ts";
 import { users, pitches, ndas, messages, investments } from "../../src/db/schema.ts";

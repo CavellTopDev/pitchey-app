@@ -1,5 +1,5 @@
-import { Context } from "npm:@hono/hono@4.6.12";
-import { Hono } from "npm:@hono/hono@4.6.12";
+import { Context } from "hono";
+import { Hono } from "hono";
 import { getCors } from "../middleware/cors.ts";
 import { validateAuth } from "../middleware/auth.middleware.ts";
 import { UploadService } from "../services/upload.service.ts";

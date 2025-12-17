@@ -1,6 +1,6 @@
 // Fix null JSONB fields that are causing Drizzle ORM mapping errors
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 async function fixNullJsonbFields() {
   console.log("🔧 Fixing null JSONB fields in database...");

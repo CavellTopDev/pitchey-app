@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-net --allow-read --allow-env
 
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 async function runMigration() {
   console.log("🚀 Running missing tables migration...");

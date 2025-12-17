@@ -4,7 +4,7 @@
 
 import { db } from "./src/db/client.ts";
 import { users, pitches } from "./src/db/schema.ts";
-import { eq, and } from "npm:drizzle-orm@0.35.3";
+import { eq, and } from "drizzle-orm";
 import { hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 async function addProductionPitches() {

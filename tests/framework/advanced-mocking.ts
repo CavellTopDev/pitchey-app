@@ -3,8 +3,8 @@
  * Provides sophisticated mocking capabilities for all external dependencies
  */
 
-import { sinon } from "npm:sinon@19.0.2";
-import type { SinonStub, SinonSpy } from "npm:sinon@19.0.2";
+import { sinon } from "sinon";
+import type { SinonStub, SinonSpy } from "sinon";
 
 // ==================== MOCK INTERFACES ====================
 

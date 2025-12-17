@@ -6,7 +6,7 @@
  */
 
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 console.log("🔍 Verifying specific column structures...");
 
@@ -66,7 +66,7 @@ console.log("\n🧪 Testing critical queries...");
 
 try {
   console.log("\n📝 Testing notifications.read_at query...");
-  const notificationTest = await db.execute(sql`
+  const _notificationTest = await db.execute(sql`
     SELECT id, read_at FROM notifications LIMIT 1
   `);
   console.log("✅ notifications.read_at query works");
@@ -76,7 +76,7 @@ try {
 
 try {
   console.log("\n📝 Testing follows.creator_id query...");
-  const followsTest = await db.execute(sql`
+  const _followsTest = await db.execute(sql`
     SELECT id, creator_id, follower_id FROM follows LIMIT 1
   `);
   console.log("✅ follows.creator_id query works");
@@ -86,7 +86,7 @@ try {
 
 try {
   console.log("\n📝 Testing conversations existence...");
-  const conversationsTest = await db.execute(sql`
+  const _conversationsTest = await db.execute(sql`
     SELECT id, created_by_id FROM conversations LIMIT 1
   `);
   console.log("✅ conversations query works");

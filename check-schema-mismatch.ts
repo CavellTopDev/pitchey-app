@@ -71,7 +71,7 @@ async function checkSchemaMismatch() {
 }
 
 // Import sql from drizzle-orm
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 if (import.meta.main) {
   await checkSchemaMismatch();

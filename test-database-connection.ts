@@ -19,7 +19,7 @@ for (const [key, value] of Object.entries(env)) {
 import { drizzle } from "npm:drizzle-orm/neon-http";
 import { neon } from "npm:@neondatabase/serverless";
 import { users, pitches, ndaRequests } from "./src/db/schema.ts";
-import { eq, desc, count } from "npm:drizzle-orm@0.35.3";
+import { eq, desc, count } from "drizzle-orm";
 
 async function testDatabaseConnection() {
   console.log("🔍 Testing Neon PostgreSQL Database Connection...");

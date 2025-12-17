@@ -20,7 +20,7 @@ import {
   conversations,
   conversationParticipants
 } from "../src/db/schema.ts";
-import { eq, sql } from "npm:drizzle-orm@0.35.3";
+import { eq, sql } from "drizzle-orm";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 // Configuration

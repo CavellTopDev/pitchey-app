@@ -38,7 +38,7 @@ import {
   typingIndicators, follows, users, pitches, analyticsEvents, notifications, 
   watchlist, portfolio, analytics, ndaRequests, securityEvents, ndas 
 } from "./src/db/schema.ts";
-import { eq, and, desc, sql, inArray, isNotNull, or, gte, ilike } from "npm:drizzle-orm@0.35.3";
+import { eq, and, desc, sql, inArray, isNotNull, or, gte, ilike } from "drizzle-orm";
 
 const port = Deno.env.get("PORT") || "8001";
 const JWT_SECRET = Deno.env.get("JWT_SECRET") || "your-secret-key-change-this-in-production";

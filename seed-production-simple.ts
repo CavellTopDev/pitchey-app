@@ -1,5 +1,5 @@
 // Simple Production Database Seed Script
-import { drizzle } from "npm:drizzle-orm@0.35.3/neon-http";
+import { drizzle } from "drizzle-orm";
 import { neon } from "npm:@neondatabase/serverless@0.9.5";
 import { sql } from 'npm:drizzle-orm@0.35.3';
 

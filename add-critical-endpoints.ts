@@ -636,7 +636,7 @@ INSTRUCTIONS TO ADD ENDPOINTS:
    - Copy the helperFunctions code block
 
 6. Ensure these imports are at the top:
-   import { eq, and, desc, sql, ne, inArray, gte, lte, asc } from "npm:drizzle-orm@0.35.3";
+   import { eq, and, desc, sql, ne, inArray, gte, lte, asc } from "drizzle-orm";
    import { savedPitches, reviews, calendarEvents, investments, investmentDocuments, investmentTimeline } from "./src/db/schema.ts";
 
 7. Test with: ./test-critical-endpoints.sh

@@ -1,6 +1,6 @@
 import { db } from "./src/db/client.ts";
 import { users, pitches } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 import bcrypt from "npm:bcryptjs@2.4.3";
 
 console.log("🌱 Seeding demo users in production database...");

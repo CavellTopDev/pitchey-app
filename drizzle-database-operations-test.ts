@@ -20,7 +20,7 @@ import {
   users, pitches, pitchViews, ndas, follows, watchlist,
   analyticsEvents, notifications, portfolio 
 } from "./src/db/schema.ts";
-import { eq, and, desc, sql, count, gte, like, isNotNull } from "npm:drizzle-orm@0.35.3";
+import { eq, and, desc, sql, count, gte, like, isNotNull } from "drizzle-orm";
 
 interface DatabaseTestResult {
   name: string;

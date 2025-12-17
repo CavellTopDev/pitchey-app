@@ -2,7 +2,7 @@
 // Adds indexes and optimizes database performance
 
 import { db } from "../src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 console.log("🔧 Database Optimization Script");
 console.log("================================");

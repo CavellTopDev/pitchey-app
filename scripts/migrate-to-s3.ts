@@ -10,7 +10,7 @@ import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3";
 import { CloudFrontClient, CreateInvalidationCommand } from "npm:@aws-sdk/client-cloudfront@3";
 import { db } from "../src/db/client.ts";
 import { pitches, users, ndas } from "../src/db/schema.ts";
-import { eq, like } from "npm:drizzle-orm@0.35.3";
+import { eq, like } from "drizzle-orm";
 
 // Configuration
 const DRY_RUN = Deno.args.includes("--dry-run");

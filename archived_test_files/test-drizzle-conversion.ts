@@ -5,7 +5,7 @@
 import { ViewTrackingService } from "./src/services/view-tracking.service.ts";
 import { db } from "./src/db/client.ts";
 import { pitches, watchlist, ndas } from "./src/db/schema.ts";
-import { eq, count, or } from "npm:drizzle-orm@0.35.3";
+import { eq, count, or } from "drizzle-orm";
 
 console.log("🧪 Testing Drizzle ORM conversions...\n");
 

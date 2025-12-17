@@ -1,7 +1,7 @@
 // Simple test script to create demo users for testing
 import { db } from "./src/db/client.ts";
 import { users } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 async function createTestUsers() {

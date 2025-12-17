@@ -3,7 +3,7 @@
  * Integrates Sentry error tracking with Deno Deploy OpenTelemetry
  */
 
-import * as Sentry from "npm:@sentry/deno@8.55.0";
+import * as Sentry from "@sentry/deno";
 
 interface TelemetryConfig {
   sentryDsn?: string;

@@ -8,7 +8,7 @@
 import { AnalyticsService } from "./src/services/analytics.service.ts";
 import { db } from "./src/db/client.ts";
 import { analyticsEvents } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 
 async function testWebSocketEventsViaAPI() {
   console.log("🧪 Testing WebSocket event tracking via Analytics Service...");

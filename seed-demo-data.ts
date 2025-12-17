@@ -253,7 +253,7 @@ async function seedDemoData() {
 }
 
 // Import eq for queries
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 
 // Run the seeding
 await seedDemoData();

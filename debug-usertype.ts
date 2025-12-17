@@ -4,7 +4,7 @@
 
 import { db } from "./src/db/client.ts";
 import { users, pitches } from "./src/db/schema.ts";
-import { eq, desc } from "npm:drizzle-orm@0.35.3";
+import { eq, desc } from "drizzle-orm";
 
 async function debugUserTypes() {
   console.log("🔍 Checking user types in database...\n");

@@ -1,7 +1,7 @@
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 import { users, pitches } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 import * as bcrypt from "bcrypt";
 
 async function fixFinalSchemaAndData() {

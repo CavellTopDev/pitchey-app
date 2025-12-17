@@ -1,6 +1,6 @@
 // Fix null array columns that are breaking Drizzle ORM
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 async function fixArrayColumns() {
   console.log("🔧 Fixing null array columns...");

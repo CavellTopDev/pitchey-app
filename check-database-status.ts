@@ -2,7 +2,7 @@
 
 import { db } from "./src/db/client.ts";
 import { users, pitches, investments, ndas, follows, notifications } from "./src/db/schema.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL") || 
   "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";

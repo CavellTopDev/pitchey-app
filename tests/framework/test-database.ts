@@ -4,7 +4,7 @@
  */
 
 import { db } from "../../src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 import type { TestScenario } from "./test-factory.ts";
 import { TestFactory } from "./test-factory.ts";
 

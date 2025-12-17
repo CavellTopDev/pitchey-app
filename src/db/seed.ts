@@ -1,6 +1,6 @@
 import { db } from "./client.ts";
 import { users, pitches } from "./schema.ts";
-import * as bcrypt from "npm:bcrypt";
+import * as bcrypt from "bcrypt";
 
 async function seed() {
   console.log("Seeding database...");

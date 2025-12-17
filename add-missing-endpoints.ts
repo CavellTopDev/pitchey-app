@@ -13,7 +13,7 @@ import {
   ndaRequests,
   pitchViews 
 } from "./src/db/schema.ts";
-import { eq, and, or, desc, sql, ilike, gte, lte, isNull } from "npm:drizzle-orm@0.35.3";
+import { eq, and, or, desc, sql, ilike, gte, lte, isNull } from "drizzle-orm";
 
 // Add these endpoints after the existing authentication endpoints (around line 1000)
 

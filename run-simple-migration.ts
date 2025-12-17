@@ -1,7 +1,7 @@
 #!/usr/bin/env deno run --allow-all
 
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 
 console.log("🔄 Running pitch_documents table migration...");
 

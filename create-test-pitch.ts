@@ -1,7 +1,7 @@
 // Simple test script to create a pitch for NDA testing
 import { db } from "./src/db/client.ts";
 import { pitches, users } from "./src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 
 async function createTestPitch() {
   try {

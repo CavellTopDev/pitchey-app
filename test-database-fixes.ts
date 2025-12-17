@@ -6,7 +6,7 @@
  */
 
 import { db } from "./src/db/client.ts";
-import { sql } from "npm:drizzle-orm@0.35.3";
+import { sql } from "drizzle-orm";
 import { conversations, analyticsEvents, notifications, follows, messages, securityEvents } from "./src/db/schema.ts";
 
 console.log("🧪 Testing all database fixes...");

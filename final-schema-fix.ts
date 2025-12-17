@@ -1,4 +1,4 @@
-import { neon } from "npm:@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
 
 const sql = neon("postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require");
 

@@ -1,7 +1,7 @@
-import { drizzle } from "npm:drizzle-orm@0.35.3/postgres-js";
+import { drizzle } from "drizzle-orm";
 import postgres from "npm:postgres@^3.4.0";
 import { users, pitches } from './src/db/schema.ts';
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 
 const DATABASE_URL = Deno.env.get('DATABASE_URL');
 if (!DATABASE_URL) {

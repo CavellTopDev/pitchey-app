@@ -1,7 +1,7 @@
 // Drizzle-based implementations for all 15 critical missing endpoints
 // Add these to working-server.ts with proper imports
 
-import { eq, and, desc, sql, ne, inArray, gte, lte, asc, or } from "npm:drizzle-orm@0.35.3";
+import { eq, and, desc, sql, ne, inArray, gte, lte, asc, or } from "drizzle-orm";
 import { db } from "./src/db/client.ts";
 import { 
   users, 

@@ -4,7 +4,7 @@
 import { getNotificationEmailService } from "../src/services/notification-email.service.ts";
 import { db } from "../src/db/client.ts";
 import { users } from "../src/db/schema.ts";
-import { eq } from "npm:drizzle-orm@0.35.3";
+import { eq } from "drizzle-orm";
 
 interface MessageNotificationData {
   recipientEmail: string;
