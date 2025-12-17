@@ -25,14 +25,23 @@
       "tests/",
       "*.test.ts",
       "*.spec.ts",
+      "*.test.js",
+      "*.spec.js",
       "test-*.ts",
       "test-*.sh",
+      "test-*.js",
       "verify-*.ts",
+      "verify-*.js",
       "force-*.ts",
       "final-*.ts",
       "debug-*.ts",
+      "debug-*.js",
       "check-*.ts",
-      "setup-*.ts"
+      "setup-*.ts",
+      "seed-*.ts",
+      "deploy-*.ts",
+      "validate-*.js",
+      "validate-*.ts"
     ],
     "rules": {
       "exclude": ["no-process-global", "require-await"]
