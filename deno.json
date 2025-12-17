@@ -24,6 +24,7 @@
       "scripts/",
       "tests/",
       "docs/",
+      "deprecated/",
       "*.test.ts",
       "*.spec.ts",
       "*.test.js",
