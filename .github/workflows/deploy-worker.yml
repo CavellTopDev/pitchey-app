@@ -143,15 +143,15 @@ jobs:
         run: |
           echo "🚀 Deploying to Cloudflare Workers..."
           
-          # Set secrets using wrangler secret put
+          # Deploy first using the generated config
+          wrangler deploy --config wrangler.deploy.toml --env production
+          
+          # Then set secrets after deployment (they will trigger a new deployment)
           echo "${{ secrets.NEON_DATABASE_URL }}" | wrangler secret put DATABASE_URL --env production
           echo "${{ secrets.JWT_SECRET }}" | wrangler secret put JWT_SECRET --env production
           echo "${{ secrets.SENTRY_DSN }}" | wrangler secret put SENTRY_DSN --env production
           echo "${{ secrets.UPSTASH_REDIS_REST_URL }}" | wrangler secret put UPSTASH_REDIS_REST_URL --env production
           echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN --env production
-          
-          # Deploy using the generated config
-          wrangler deploy --config wrangler.deploy.toml --env production
           
           # Capture deployment URL
           echo "DEPLOYMENT_URL=https://pitchey-production.cavelltheleaddev.workers.dev" >> $GITHUB_ENV
