@@ -963,6 +963,101 @@ const workerHandler = {
       }
     }
 
+    // Handle basic pitches endpoint (for general listing)
+    if (url.pathname === '/api/pitches' && request.method === 'GET') {
+      try {
+        // Ensure we have database connection
+        if (!sql) {
+          if (!env.DATABASE_URL) {
+            throw new Error('DATABASE_URL not configured');
+          }
+          sql = neon(env.DATABASE_URL);
+        }
+        
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '24'), 100);
+        const offset = (page - 1) * limit;
+        const search = url.searchParams.get('search');
+        const genre = url.searchParams.get('genre');
+        
+        // Get total count
+        let countResult;
+        if (search) {
+          countResult = await sql`
+            SELECT COUNT(*) as count 
+            FROM pitches 
+            WHERE status = 'published' 
+              AND (title ILIKE ${'%' + search + '%'} OR logline ILIKE ${'%' + search + '%'})
+          `;
+        } else if (genre && genre !== 'all') {
+          countResult = await sql`
+            SELECT COUNT(*) as count 
+            FROM pitches 
+            WHERE status = 'published' AND genre = ${genre}
+          `;
+        } else {
+          countResult = await sql`
+            SELECT COUNT(*) as count 
+            FROM pitches 
+            WHERE status = 'published'
+          `;
+        }
+        const total = parseInt(countResult[0]?.count || '0');
+        
+        // Get paginated results
+        let pitches;
+        if (search) {
+          pitches = await sql`
+            SELECT p.*, u.username as creator_name
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE p.status = 'published' 
+              AND (p.title ILIKE ${'%' + search + '%'} OR p.logline ILIKE ${'%' + search + '%'})
+            ORDER BY p.created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        } else if (genre && genre !== 'all') {
+          pitches = await sql`
+            SELECT p.*, u.username as creator_name
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE p.status = 'published' AND p.genre = ${genre}
+            ORDER BY p.created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        } else {
+          pitches = await sql`
+            SELECT p.*, u.username as creator_name
+            FROM pitches p
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE p.status = 'published'
+            ORDER BY p.created_at DESC
+            LIMIT ${limit} OFFSET ${offset}
+          `;
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          pitches: pitches || [],
+          total,
+          page,
+          totalPages: Math.ceil(total / limit),
+          hasMore: offset + limit < total
+        }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      } catch (error) {
+        console.error('Error in /api/pitches:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Database query failed',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+    }
 
     // Handle browse endpoint - both /api/browse and /api/pitches/browse
     if ((url.pathname === '/api/browse' || url.pathname === '/api/pitches/browse') && request.method === 'GET') {
