@@ -135,14 +135,14 @@ const workerHandler = {
     if (url.pathname === '/api/test') {
       return new Response(JSON.stringify({
         success: true,
-        message: 'Worker is running - Database Pipeline v1.0',
+        message: 'Worker is running - Database Pipeline v1.1 (Updated Credentials)',
         path: url.pathname,
         hasDatabase: !!env.DATABASE_URL,
         hasJwtSecret: !!env.JWT_SECRET,
         hasSentry: !!env.SENTRY_DSN,
         dbUrlLength: env.DATABASE_URL ? env.DATABASE_URL.length : 0,
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '1.1.0'
       }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });

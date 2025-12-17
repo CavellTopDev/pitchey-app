@@ -1232,6 +1232,16 @@
     "https://esm.sh/@neondatabase/serverless@1.0.2/denonext/serverless.mjs": "c2e55674f6b0af3ca3d32c6b447ec2906e72f3bd48c28f6a38000938f659190d"
   },
   "workspace": {
+    "dependencies": [
+      "npm:@neondatabase/serverless@0.10.3",
+      "npm:@sentry/deno@8.55.0",
+      "npm:bcrypt@5.1.1",
+      "npm:drizzle-orm@0.35.3",
+      "npm:hono@4.6.15",
+      "npm:sinon@19.0.2",
+      "npm:stripe@17.5.0",
+      "npm:zod@3.22.4"
+    ],
     "packageJson": {
       "dependencies": [
         "npm:@cloudflare/workers-types@4",
@@ -1240,6 +1250,7 @@
         "npm:@sentry/browser@7",
         "npm:@types/node@20",
         "npm:@upstash/redis@^1.35.7",
+        "npm:better-auth@^1.4.7",
         "npm:esbuild@0.19",
         "npm:playwright@^1.57.0",
         "npm:toucan-js@^4.1.1",

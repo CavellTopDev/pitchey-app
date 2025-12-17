@@ -48,6 +48,7 @@ jobs:
               - 'frontend/**'
               - '!frontend/**.md'
             worker:
+              - 'frontend/worker/**'
               - 'src/worker*.ts'
               - 'wrangler.toml'
               - 'src/db/worker-*.ts'

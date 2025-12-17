@@ -1,0 +1,295 @@
+name: Deploy Cloudflare Worker with Database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/worker/**'
+      - '.github/workflows/deploy-worker.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/worker/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      debug_enabled:
+        description: 'Enable debug logging'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+jobs:
+  test-database-connection:
+    name: Test Database Connection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Neon Database Connection
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          echo "🔍 Testing database connection..."
+          
+          # Extract connection parameters
+          DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:/]*\).*/\1/p')
+          DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+          
+          echo "📊 Database Host: $DB_HOST"
+          echo "📊 Database Name: $DB_NAME"
+          
+          # Test connection (without exposing password)
+          if pg_isready -h $DB_HOST -d $DB_NAME > /dev/null 2>&1; then
+            echo "✅ Database is reachable"
+          else
+            echo "❌ Database connection failed"
+            exit 1
+          fi
+
+  deploy-worker:
+    name: Deploy Worker to Cloudflare
+    runs-on: ubuntu-latest
+    needs: test-database-connection
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/worker/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/worker
+        run: |
+          echo "📦 Installing dependencies..."
+          npm ci
+
+      - name: Configure Wrangler
+        run: |
+          echo "🔧 Configuring Wrangler..."
+          npm install -g wrangler@latest
+          
+          # Verify Wrangler installation
+          wrangler --version
+
+      - name: Create wrangler.toml with secrets
+        working-directory: frontend/worker
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          UPSTASH_REDIS_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: |
+          echo "📝 Generating secure wrangler configuration..."
+          
+          # Create temporary wrangler.toml with environment variables
+          cat > wrangler.deploy.toml << 'EOF'
+          name = "pitchey-worker"
+          main = "index.ts"
+          compatibility_date = "2024-11-01"
+          compatibility_flags = ["nodejs_compat"]
+          
+          [env.production]
+          name = "pitchey-production"
+          
+          [env.production.vars]
+          FRONTEND_URL = "https://pitchey.pages.dev"
+          SENTRY_ENVIRONMENT = "production"
+          SENTRY_RELEASE = "worker-${{ github.sha }}"
+          
+          # Hyperdrive configuration for connection pooling
+          [[env.production.hyperdrive]]
+          binding = "DB"
+          id = "${{ secrets.HYPERDRIVE_CONFIG_ID }}"
+          
+          # Analytics Engine for logging
+          [[env.production.analytics_engine_datasets]]
+          binding = "ANALYTICS"
+          dataset = "pitchey_analytics"
+          
+          # Rate limiting configuration
+          [[env.production.ratelimit]]
+          binding = "RATE_LIMITER"
+          namespace_id = "${{ secrets.RATE_LIMITER_NAMESPACE_ID }}"
+          simple_cache_size = 1000
+          EOF
+
+      - name: Deploy to Cloudflare
+        working-directory: frontend/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "🚀 Deploying to Cloudflare Workers..."
+          
+          # Set secrets using wrangler secret put
+          echo "${{ secrets.NEON_DATABASE_URL }}" | wrangler secret put DATABASE_URL --env production
+          echo "${{ secrets.JWT_SECRET }}" | wrangler secret put JWT_SECRET --env production
+          echo "${{ secrets.SENTRY_DSN }}" | wrangler secret put SENTRY_DSN --env production
+          echo "${{ secrets.UPSTASH_REDIS_REST_URL }}" | wrangler secret put UPSTASH_REDIS_REST_URL --env production
+          echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN --env production
+          
+          # Deploy using the generated config
+          wrangler deploy --config wrangler.deploy.toml --env production
+          
+          # Capture deployment URL
+          echo "DEPLOYMENT_URL=https://pitchey-production.cavelltheleaddev.workers.dev" >> $GITHUB_ENV
+
+      - name: Run deployment tests
+        env:
+          DEPLOYMENT_URL: ${{ env.DEPLOYMENT_URL }}
+        run: |
+          echo "🧪 Testing deployment..."
+          
+          # Test health endpoint
+          if curl -f -s "$DEPLOYMENT_URL/api/test" > /dev/null; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed"
+            exit 1
+          fi
+          
+          # Test database connection
+          DB_TEST=$(curl -s "$DEPLOYMENT_URL/api/test-db" | jq -r '.success')
+          if [ "$DB_TEST" = "true" ]; then
+            echo "✅ Database connection successful"
+          else
+            echo "⚠️ Database connection test returned: $DB_TEST"
+          fi
+
+      - name: Setup real-time logging
+        if: ${{ github.event.inputs.debug_enabled == 'true' }}
+        working-directory: frontend/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "📊 Starting real-time log streaming..."
+          
+          # Stream logs for 30 seconds
+          timeout 30s wrangler tail pitchey-production --env production --format pretty || true
+          
+          # Fetch recent logs
+          echo "📜 Recent logs:"
+          wrangler tail pitchey-production --env production --format json --once | jq '.'
+
+      - name: Create deployment summary
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = {
+              environment: 'production',
+              url: process.env.DEPLOYMENT_URL,
+              description: 'Cloudflare Worker deployment',
+              log_url: `https://dash.cloudflare.com/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/services/view/pitchey-production`,
+              created_at: new Date().toISOString(),
+              sha: context.sha
+            };
+            
+            // Create GitHub deployment
+            const { data } = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.ref,
+              environment: deployment.environment,
+              description: deployment.description,
+              auto_merge: false,
+              required_contexts: [],
+              production_environment: true
+            });
+            
+            // Mark deployment as successful
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: data.id,
+              state: 'success',
+              environment_url: deployment.url,
+              log_url: deployment.log_url,
+              description: 'Deployment successful'
+            });
+
+  configure-hyperdrive:
+    name: Configure Hyperdrive Connection Pooling
+    runs-on: ubuntu-latest
+    needs: deploy-worker
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Setup Hyperdrive
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          echo "🔄 Configuring Hyperdrive for connection pooling..."
+          
+          # Create Hyperdrive configuration if it doesn't exist
+          npx wrangler hyperdrive create pitchey-db \
+            --connection-string "$DATABASE_URL" \
+            --max-idle-connections 10 \
+            --max-connections 20 \
+            || echo "Hyperdrive config already exists"
+          
+          # Get Hyperdrive config ID
+          HYPERDRIVE_ID=$(npx wrangler hyperdrive list | grep pitchey-db | awk '{print $1}')
+          echo "HYPERDRIVE_CONFIG_ID=$HYPERDRIVE_ID" >> $GITHUB_OUTPUT
+
+  monitor-deployment:
+    name: Monitor Deployment Health
+    runs-on: ubuntu-latest
+    needs: deploy-worker
+    if: always()
+    steps:
+      - name: Check deployment metrics
+        env:
+          DEPLOYMENT_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+        run: |
+          echo "📈 Monitoring deployment health..."
+          
+          # Run health checks
+          for i in {1..5}; do
+            echo "Health check $i/5..."
+            
+            RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' "$DEPLOYMENT_URL/api/test")
+            echo "Response time: ${RESPONSE_TIME}s"
+            
+            if (( $(echo "$RESPONSE_TIME < 1" | bc -l) )); then
+              echo "✅ Response time acceptable"
+            else
+              echo "⚠️ Slow response detected"
+            fi
+            
+            sleep 2
+          done
+
+      - name: Send notification
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '❌ Worker deployment failed. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            });
