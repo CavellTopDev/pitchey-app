@@ -3,7 +3,7 @@
  * Ensures consistent response format across all endpoints
  */
 
-import { corsHeaders } from './response';
+import { getCorsHeaders } from './response';
 
 /**
  * Standard API Response Format
@@ -116,7 +116,7 @@ export class ApiResponseBuilder {
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
-        ...corsHeaders(this.origin),
+        ...getCorsHeaders(this.origin),
         'Content-Type': 'application/json',
         'X-Request-Id': this.requestId || ''
       }
@@ -150,7 +150,7 @@ export class ApiResponseBuilder {
     return new Response(JSON.stringify(response), {
       status,
       headers: {
-        ...corsHeaders(this.origin),
+        ...getCorsHeaders(this.origin),
         'Content-Type': 'application/json',
         'X-Request-Id': this.requestId || ''
       }
@@ -186,7 +186,7 @@ export class ApiResponseBuilder {
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: {
-        ...corsHeaders(this.origin),
+        ...getCorsHeaders(this.origin),
         'Content-Type': 'application/json',
         'X-Request-Id': this.requestId || '',
         'X-Total-Count': total.toString(),
@@ -203,7 +203,7 @@ export class ApiResponseBuilder {
     return new Response(null, {
       status: 204,
       headers: {
-        ...corsHeaders(this.origin),
+        ...getCorsHeaders(this.origin),
         'X-Request-Id': this.requestId || ''
       }
     });
@@ -216,7 +216,7 @@ export class ApiResponseBuilder {
     return new Response(null, {
       status: permanent ? 301 : 302,
       headers: {
-        ...corsHeaders(this.origin),
+        ...getCorsHeaders(this.origin),
         'Location': url,
         'X-Request-Id': this.requestId || ''
       }

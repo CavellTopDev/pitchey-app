@@ -7,7 +7,7 @@
 
 import { neon, neonConfig, NeonQueryFunction } from '@neondatabase/serverless';
 import { Redis } from '@upstash/redis/cloudflare';
-import { logError, getErrorMessage } from '../utils/error-serializer.ts';
+import { logError, getErrorMessage } from '../utils/error-serializer';
 
 // Configure Neon for optimal edge performance
 neonConfig.useSecureWebSocket = true;

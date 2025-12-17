@@ -1125,12 +1125,16 @@ export default {
       const origin = request.headers.get('Origin');
       const headers = getCorsHeaders(origin);
       
+      // Provide more detailed error information
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error && env.ENVIRONMENT !== 'production' ? error.stack : undefined;
+      
       return new Response(
         JSON.stringify({
           success: false,
           error: {
-            message: 'Service initialization failed',
-            details: env.ENVIRONMENT === 'development' ? error.message : undefined
+            message: 'Service initialization failed: ' + errorMessage,
+            details: env.ENVIRONMENT === 'development' ? errorStack : errorMessage
           }
         }),
         {

@@ -5,7 +5,7 @@
 
 import { createAuthAdapter } from '../auth/auth-adapter';
 import { neon } from '@neondatabase/serverless';
-import { corsHeaders } from '../utils/response';
+import { getCorsHeaders } from '../utils/response';
 
 export interface UserProfileUpdate {
   name?: string;
@@ -82,7 +82,7 @@ export class UserProfileRoutes {
           error: { message: 'User not found' }
         }), { 
           status: 404,
-          headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+          headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
         });
       }
 
@@ -97,7 +97,7 @@ export class UserProfileRoutes {
         }
       }), {
         status: 200,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
@@ -107,7 +107,7 @@ export class UserProfileRoutes {
         error: { message: 'Failed to fetch profile' }
       }), { 
         status: 500,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
     }
   }
@@ -171,7 +171,7 @@ export class UserProfileRoutes {
           error: { message: 'No fields to update' }
         }), { 
           status: 400,
-          headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+          headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
         });
       }
 
@@ -198,7 +198,7 @@ export class UserProfileRoutes {
         data: { user: updatedUser }
       }), {
         status: 200,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
@@ -208,7 +208,7 @@ export class UserProfileRoutes {
         error: { message: 'Failed to update profile' }
       }), { 
         status: 500,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
     }
   }
@@ -257,7 +257,7 @@ export class UserProfileRoutes {
         data: { settings: userSettings }
       }), {
         status: 200,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
@@ -267,7 +267,7 @@ export class UserProfileRoutes {
         error: { message: 'Failed to fetch settings' }
       }), { 
         status: 500,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
     }
   }
@@ -313,7 +313,7 @@ export class UserProfileRoutes {
         data: { settings }
       }), {
         status: 200,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
@@ -323,7 +323,7 @@ export class UserProfileRoutes {
         error: { message: 'Failed to update settings' }
       }), { 
         status: 500,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
     }
   }
@@ -357,7 +357,7 @@ export class UserProfileRoutes {
         message: 'Account deleted successfully'
       }), {
         status: 200,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
@@ -367,7 +367,7 @@ export class UserProfileRoutes {
         error: { message: 'Failed to delete account' }
       }), { 
         status: 500,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
     }
   }
@@ -395,7 +395,7 @@ export class UserProfileRoutes {
           error: { message: 'User not found' }
         }), { 
           status: 404,
-          headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+          headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
         });
       }
 
@@ -410,7 +410,7 @@ export class UserProfileRoutes {
         }
       }), {
         status: 200,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
@@ -420,7 +420,7 @@ export class UserProfileRoutes {
         error: { message: 'Failed to fetch profile' }
       }), { 
         status: 500,
-        headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' }
       });
     }
   }
