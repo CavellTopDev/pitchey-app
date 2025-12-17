@@ -6,6 +6,7 @@
 
 import { createAuth } from './better-auth-config';
 import type { PortalType } from './better-auth-config';
+import { getCorsHeaders } from '../utils/response';
 
 export interface AuthAdapterConfig {
   env: any;
@@ -46,18 +47,23 @@ export class AuthAdapter {
         const user = await this.getUserFromDatabase(email, userType);
         
         if (!user) {
+          const origin = request.headers.get('Origin');
           return new Response(JSON.stringify({
             success: false,
             error: { message: 'Invalid credentials or unauthorized for this portal' }
           }), { 
             status: 401,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+              ...getCorsHeaders(origin),
+              'Content-Type': 'application/json'
+            }
           });
         }
 
         // Generate response with JWT token
         const token = await this.generateJWTToken(user);
         
+        const origin = request.headers.get('Origin');
         return new Response(JSON.stringify({
           success: true,
           data: {
@@ -71,17 +77,24 @@ export class AuthAdapter {
           }
         }), {
           status: 200,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            ...getCorsHeaders(origin),
+            'Content-Type': 'application/json'
+          }
         });
       }
 
       // For non-demo users, try Better Auth login (currently disabled)
+      const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: false,
         error: { message: 'Authentication system is being upgraded. Please use demo accounts.' }
       }), { 
         status: 503,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          ...getCorsHeaders(origin),
+          'Content-Type': 'application/json'
+        }
       });
 
       // Original Better Auth code (kept for future use):
@@ -98,7 +111,10 @@ export class AuthAdapter {
           error: { message: error.message || 'Invalid credentials' }
         }), { 
           status: 401,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            ...getCorsHeaders(request.headers.get('Origin')),
+            'Content-Type': 'application/json'
+          }
         });
       }
 
@@ -109,12 +125,16 @@ export class AuthAdapter {
       */
       
       if (!user || user.userType !== userType) {
+        const origin = request.headers.get('Origin');
         return new Response(JSON.stringify({
           success: false,
           error: { message: 'Unauthorized for this portal' }
         }), { 
           status: 403,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            ...getCorsHeaders(origin),
+            'Content-Type': 'application/json'
+          }
         });
       }
 
@@ -155,12 +175,16 @@ export class AuthAdapter {
 
     } catch (error) {
       console.error('Login error:', error);
+      const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: false,
         error: { message: 'Authentication failed' }
       }), { 
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          ...getCorsHeaders(origin),
+          'Content-Type': 'application/json'
+        }
       });
     }
   }
@@ -193,12 +217,16 @@ export class AuthAdapter {
 
       if (authResponse.status !== 200) {
         const error = await authResponse.json();
+        const origin = request.headers.get('Origin');
         return new Response(JSON.stringify({
           success: false,
           error: { message: error.message || 'Registration failed' }
         }), { 
           status: 400,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            ...getCorsHeaders(origin),
+            'Content-Type': 'application/json'
+          }
         });
       }
 
@@ -232,6 +260,7 @@ export class AuthAdapter {
       }), {
         status: 200,
         headers: {
+          ...getCorsHeaders(request.headers.get('Origin')),
           'Content-Type': 'application/json',
           'Set-Cookie': authResponse.headers.get('Set-Cookie') || ''
         }
@@ -239,12 +268,16 @@ export class AuthAdapter {
 
     } catch (error) {
       console.error('Registration error:', error);
+      const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: false,
         error: { message: 'Registration failed' }
       }), { 
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          ...getCorsHeaders(origin),
+          'Content-Type': 'application/json'
+        }
       });
     }
   }
@@ -303,6 +336,7 @@ export class AuthAdapter {
       }), {
         status: 200,
         headers: {
+          ...getCorsHeaders(request.headers.get('Origin')),
           'Content-Type': 'application/json',
           'Set-Cookie': response.headers.get('Set-Cookie') || ''
         }
@@ -310,12 +344,16 @@ export class AuthAdapter {
 
     } catch (error) {
       console.error('Logout error:', error);
+      const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: false,
         error: { message: 'Logout failed' }
       }), { 
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          ...getCorsHeaders(origin),
+          'Content-Type': 'application/json'
+        }
       });
     }
   }
@@ -454,6 +492,7 @@ export class AuthAdapter {
     const { valid, user } = await this.validateAuth(request);
     
     if (!valid) {
+      const origin = request.headers.get('Origin');
       return {
         authorized: false,
         response: new Response(JSON.stringify({
@@ -461,7 +500,10 @@ export class AuthAdapter {
           error: { message: 'Authentication required' }
         }), {
           status: 401,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            ...getCorsHeaders(origin),
+            'Content-Type': 'application/json'
+          }
         })
       };
     }
@@ -483,6 +525,7 @@ export class AuthAdapter {
     }
 
     if (authResult.user?.userType !== requiredPortal) {
+      const origin = request.headers.get('Origin');
       return {
         authorized: false,
         response: new Response(JSON.stringify({
@@ -490,7 +533,10 @@ export class AuthAdapter {
           error: { message: `Access denied. ${requiredPortal} portal access required.` }
         }), {
           status: 403,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            ...getCorsHeaders(origin),
+            'Content-Type': 'application/json'
+          }
         })
       };
     }
