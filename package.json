@@ -48,6 +48,7 @@
     "@sendgrid/mail": "^8.1.6",
     "@sentry/browser": "^7.0.0",
     "@upstash/redis": "^1.35.7",
+    "better-auth": "^1.4.7",
     "playwright": "^1.57.0",
     "toucan-js": "^4.1.1",
     "zod": "^4.2.1"
