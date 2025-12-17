@@ -118,21 +118,21 @@ jobs:
           SENTRY_ENVIRONMENT = "production"
           SENTRY_RELEASE = "worker-${{ github.sha }}"
           
-          # Hyperdrive configuration for connection pooling
-          [[env.production.hyperdrive]]
-          binding = "DB"
-          id = "${{ secrets.HYPERDRIVE_CONFIG_ID }}"
+          # Hyperdrive configuration for connection pooling (disabled until configured)
+          # [[env.production.hyperdrive]]
+          # binding = "DB"
+          # id = "${{ secrets.HYPERDRIVE_CONFIG_ID }}"
           
-          # Analytics Engine for logging
-          [[env.production.analytics_engine_datasets]]
-          binding = "ANALYTICS"
-          dataset = "pitchey_analytics"
+          # Analytics Engine for logging (disabled until configured)
+          # [[env.production.analytics_engine_datasets]]
+          # binding = "ANALYTICS"
+          # dataset = "pitchey_analytics"
           
-          # Rate limiting configuration
-          [[env.production.ratelimit]]
-          binding = "RATE_LIMITER"
-          namespace_id = "${{ secrets.RATE_LIMITER_NAMESPACE_ID }}"
-          simple_cache_size = 1000
+          # Rate limiting configuration (disabled until configured)
+          # [[env.production.ratelimit]]
+          # binding = "RATE_LIMITER"
+          # namespace_id = "${{ secrets.RATE_LIMITER_NAMESPACE_ID }}"
+          # simple_cache_size = 1000
           EOF
 
       - name: Deploy to Cloudflare
