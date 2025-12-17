@@ -204,8 +204,20 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
-          workingDirectory: "."
+          command: deploy --env production
+          workingDirectory: "frontend/worker"
+          secrets: |
+            DATABASE_URL
+            JWT_SECRET
+            SENTRY_DSN
+            UPSTASH_REDIS_REST_URL
+            UPSTASH_REDIS_REST_TOKEN
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
 
   # Build and test frontend
   test-frontend:
