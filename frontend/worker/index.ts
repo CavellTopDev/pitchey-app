@@ -11,6 +11,7 @@ export interface Env {
   SENTRY_DSN: string;
   UPSTASH_REDIS_REST_URL: string;
   UPSTASH_REDIS_REST_TOKEN: string;
+  WEBSOCKET_ROOMS?: DurableObjectNamespace;
 }
 
 interface ExecutionContext {
@@ -108,7 +109,7 @@ async function verifyJWT(token: string, secret: string): Promise<any> {
 // Import critical endpoints - temporarily commented out to debug
 // import { setupCriticalEndpoints } from './critical-endpoints';
 // import { setupPhase2Endpoints } from './phase2-endpoints';
-// import { setupWebSocketAlternatives } from './websocket-alternatives';
+import { setupWebSocketAlternatives } from './websocket-alternatives';
 // import { setupPhase3Endpoints } from './phase3-endpoints';
 // import { setupPhase4AEndpoints } from './phase4a-essential';
 // import { setupPhase4BEndpoints } from './phase4b-advanced';
@@ -134,12 +135,14 @@ const workerHandler = {
     if (url.pathname === '/api/test') {
       return new Response(JSON.stringify({
         success: true,
-        message: 'Worker is running',
+        message: 'Worker is running - Database Pipeline v1.0',
         path: url.pathname,
         hasDatabase: !!env.DATABASE_URL,
         hasJwtSecret: !!env.JWT_SECRET,
         hasSentry: !!env.SENTRY_DSN,
-        dbUrlLength: env.DATABASE_URL ? env.DATABASE_URL.length : 0
+        dbUrlLength: env.DATABASE_URL ? env.DATABASE_URL.length : 0,
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
       }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
@@ -762,7 +765,67 @@ const workerHandler = {
       return phase2Response;
     }
     
-    // Check WebSocket alternatives
+    // Handle WebSocket upgrade request
+    if (url.pathname === '/ws' && request.headers.get('Upgrade') === 'websocket') {
+      try {
+        // Extract JWT token from query parameter or Authorization header
+        const token = url.searchParams.get('token') || 
+                     request.headers.get('Authorization')?.replace('Bearer ', '');
+        
+        if (!token) {
+          return new Response('Unauthorized: No token provided', { 
+            status: 401,
+            headers: corsHeaders
+          });
+        }
+        
+        // Verify JWT token
+        try {
+          const payload = await verifyJWT(token, env.JWT_SECRET);
+          
+          // Create or get Durable Object instance
+          const roomName = 'global'; // Could be customized per user/room
+          const id = env.WEBSOCKET_ROOMS?.idFromName(roomName);
+          
+          if (!id || !env.WEBSOCKET_ROOMS) {
+            console.error('WebSocket Durable Object not configured');
+            return new Response('WebSocket service unavailable', { 
+              status: 503,
+              headers: corsHeaders 
+            });
+          }
+          
+          const room = env.WEBSOCKET_ROOMS.get(id);
+          
+          // Add auth info to the request
+          const authenticatedRequest = new Request(request.url, {
+            ...request,
+            headers: new Headers({
+              ...Object.fromEntries(request.headers),
+              'X-User-Id': String(payload.userId || payload.id || payload.sub),
+              'X-User-Type': payload.userType || 'creator'
+            })
+          });
+          
+          // Forward to Durable Object
+          return room.fetch(authenticatedRequest);
+        } catch (jwtError) {
+          console.error('JWT verification failed:', jwtError);
+          return new Response('HTTP Authentication failed; no valid credentials available', { 
+            status: 401,
+            headers: corsHeaders
+          });
+        }
+      } catch (error) {
+        console.error('WebSocket upgrade error:', error);
+        return new Response('WebSocket connection failed', { 
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+    }
+    
+    // Check WebSocket alternatives (SSE, polling, etc.)
     const wsResponse = setupWebSocketAlternatives(request, env, redis, url, corsHeaders);
     if (wsResponse) {
       return wsResponse;
@@ -1599,6 +1662,110 @@ const workerHandler = {
       }
     }
 
+    // Handle NDAs list endpoint
+    if (url.pathname === '/api/ndas' && request.method === 'GET') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        let userId = null;
+        
+        if (authHeader?.startsWith('Bearer ')) {
+          try {
+            const token = authHeader.slice(7);
+            const payload = await verifyJWT(token, env.JWT_SECRET);
+            const id = payload.id || payload.sub || payload.userId;
+            userId = typeof id === 'string' ? parseInt(id, 10) : id;
+          } catch (jwtError) {
+            console.error('JWT verification failed:', jwtError);
+          }
+        }
+        
+        // Get query parameters
+        const status = url.searchParams.get('status') || 'all';
+        const creatorId = url.searchParams.get('creatorId');
+        const limit = parseInt(url.searchParams.get('limit') || '10', 10);
+        
+        if (!sql) {
+          return new Response(JSON.stringify({
+            success: true,
+            ndas: [],
+            total: 0,
+            message: 'Database temporarily unavailable'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+        
+        // Build query based on parameters
+        let query;
+        if (status === 'all') {
+          query = sql`
+            SELECT 
+              nr.*,
+              p.title as pitch_title,
+              u.username as requester_name,
+              u2.username as creator_name
+            FROM nda_requests nr
+            INNER JOIN pitches p ON nr.pitch_id = p.id
+            INNER JOIN users u ON nr.requester_id = u.id
+            INNER JOIN users u2 ON p.user_id = u2.id
+            WHERE 1=1
+            ${creatorId ? sql`AND p.user_id = ${parseInt(creatorId, 10)}` : sql``}
+            ${userId ? sql`AND (nr.requester_id = ${userId} OR p.user_id = ${userId})` : sql``}
+            ORDER BY nr.created_at DESC
+            LIMIT ${limit}
+          `;
+        } else {
+          query = sql`
+            SELECT 
+              nr.*,
+              p.title as pitch_title,
+              u.username as requester_name,
+              u2.username as creator_name
+            FROM nda_requests nr
+            INNER JOIN pitches p ON nr.pitch_id = p.id
+            INNER JOIN users u ON nr.requester_id = u.id
+            INNER JOIN users u2 ON p.user_id = u2.id
+            WHERE nr.status = ${status}
+            ${creatorId ? sql`AND p.user_id = ${parseInt(creatorId, 10)}` : sql``}
+            ${userId ? sql`AND (nr.requester_id = ${userId} OR p.user_id = ${userId})` : sql``}
+            ORDER BY nr.created_at DESC
+            LIMIT ${limit}
+          `;
+        }
+        
+        const ndas = await query;
+        
+        return new Response(JSON.stringify({
+          success: true,
+          ndas: ndas.map(nda => ({
+            id: nda.id,
+            pitchId: nda.pitch_id,
+            pitchTitle: nda.pitch_title,
+            requesterId: nda.requester_id,
+            requesterName: nda.requester_name,
+            creatorName: nda.creator_name,
+            status: nda.status,
+            requestDate: nda.created_at,
+            approvedDate: nda.approved_at,
+            expiryDate: nda.expiry_date
+          })),
+          total: ndas.length
+        }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      } catch (error) {
+        console.error('NDAs list error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch NDAs',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+    }
+    
     // Handle NDA stats
     if (url.pathname === '/api/ndas/stats') {
       try {
@@ -1706,6 +1873,22 @@ const workerHandler = {
           const payload = await verifyJWT(token, env.JWT_SECRET);
           const id = payload.id || payload.sub || payload.userId;
           userId = typeof id === 'string' ? parseInt(id, 10) : id;
+        }
+
+        if (!sql) {
+          // Return mock data when database is unavailable
+          return new Response(JSON.stringify({
+            success: true,
+            stats: {
+              totalPitches: 0,
+              totalViews: 0,
+              averageViews: 0
+            },
+            recentPitches: [],
+            message: 'Database temporarily unavailable'
+          }), {
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
         }
 
         const pitchStats = userId ? await sql`
@@ -2605,6 +2788,189 @@ const workerHandler = {
       }
     }
 
+    // Analytics User endpoint
+    if (url.pathname === '/api/analytics/user' && request.method === 'GET') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Unauthorized'
+          }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+
+        const token = authHeader.slice(7);
+        const payload = await verifyJWT(token, env.JWT_SECRET);
+        const userId = parseInt(payload.id || payload.sub || payload.userId, 10);
+
+        if (!sql) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Database connection unavailable'
+          }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+
+        // Get user-specific analytics
+        const analytics = await sql`
+          SELECT 
+            COUNT(DISTINCT p.id) as total_pitches,
+            COUNT(DISTINCT CASE WHEN p.status = 'active' THEN p.id END) as active_pitches,
+            COUNT(DISTINCT pv.id) as total_views,
+            COUNT(DISTINCT f.id) as total_follows,
+            COUNT(DISTINCT nr.id) as total_ndas,
+            COUNT(DISTINCT CASE WHEN nr.status = 'approved' THEN nr.id END) as approved_ndas,
+            AVG(CASE WHEN pv.duration IS NOT NULL THEN pv.duration END) as avg_view_duration
+          FROM users u
+          LEFT JOIN pitches p ON u.id = p.user_id
+          LEFT JOIN pitch_views pv ON p.id = pv.pitch_id
+          LEFT JOIN follows f ON p.id = f.pitch_id
+          LEFT JOIN nda_requests nr ON p.id = nr.pitch_id
+          WHERE u.id = ${userId}
+        `;
+
+        const recentActivity = await sql`
+          SELECT 
+            'view' as type,
+            pv.created_at,
+            p.title as pitch_title,
+            u.username as viewer_name
+          FROM pitch_views pv
+          INNER JOIN pitches p ON pv.pitch_id = p.id
+          INNER JOIN users u ON pv.viewer_id = u.id
+          WHERE p.user_id = ${userId}
+          ORDER BY pv.created_at DESC
+          LIMIT 10
+        `;
+
+        return new Response(JSON.stringify({
+          success: true,
+          analytics: {
+            totalPitches: analytics[0]?.total_pitches || 0,
+            activePitches: analytics[0]?.active_pitches || 0,
+            totalViews: analytics[0]?.total_views || 0,
+            totalFollows: analytics[0]?.total_follows || 0,
+            totalNdas: analytics[0]?.total_ndas || 0,
+            approvedNdas: analytics[0]?.approved_ndas || 0,
+            avgViewDuration: analytics[0]?.avg_view_duration || 0
+          },
+          recentActivity: recentActivity.map(activity => ({
+            type: activity.type,
+            createdAt: activity.created_at,
+            pitchTitle: activity.pitch_title,
+            viewerName: activity.viewer_name
+          }))
+        }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      } catch (error) {
+        console.error('Analytics user error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch user analytics'
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+    }
+
+    // Creator Funding Overview endpoint
+    if (url.pathname === '/api/creator/funding/overview' && request.method === 'GET') {
+      try {
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader?.startsWith('Bearer ')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Unauthorized'
+          }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+
+        const token = authHeader.slice(7);
+        const payload = await verifyJWT(token, env.JWT_SECRET);
+        const userId = parseInt(payload.id || payload.sub || payload.userId, 10);
+
+        if (!sql) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Database connection unavailable'
+          }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
+
+        // Get funding overview for creator's pitches
+        const fundingOverview = await sql`
+          SELECT 
+            COUNT(DISTINCT i.id) as total_investments,
+            SUM(i.amount) as total_raised,
+            COUNT(DISTINCT i.investor_id) as unique_investors,
+            COUNT(DISTINCT p.id) as funded_pitches,
+            AVG(i.amount) as avg_investment_size
+          FROM pitches p
+          LEFT JOIN investments i ON p.id = i.pitch_id
+          WHERE p.user_id = ${userId} AND i.status = 'completed'
+        `;
+
+        const recentInvestments = await sql`
+          SELECT 
+            i.id,
+            i.amount,
+            i.created_at,
+            i.status,
+            p.title as pitch_title,
+            u.username as investor_name,
+            u.company_name as investor_company
+          FROM investments i
+          INNER JOIN pitches p ON i.pitch_id = p.id
+          INNER JOIN users u ON i.investor_id = u.id
+          WHERE p.user_id = ${userId}
+          ORDER BY i.created_at DESC
+          LIMIT 10
+        `;
+
+        return new Response(JSON.stringify({
+          success: true,
+          overview: {
+            totalInvestments: fundingOverview[0]?.total_investments || 0,
+            totalRaised: fundingOverview[0]?.total_raised || 0,
+            uniqueInvestors: fundingOverview[0]?.unique_investors || 0,
+            fundedPitches: fundingOverview[0]?.funded_pitches || 0,
+            avgInvestmentSize: fundingOverview[0]?.avg_investment_size || 0
+          },
+          recentInvestments: recentInvestments.map(inv => ({
+            id: inv.id,
+            amount: inv.amount,
+            createdAt: inv.created_at,
+            status: inv.status,
+            pitchTitle: inv.pitch_title,
+            investorName: inv.investor_name,
+            investorCompany: inv.investor_company
+          }))
+        }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      } catch (error) {
+        console.error('Funding overview error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to fetch funding overview'
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+    }
+
     // For all other API endpoints, proxy to the Deno backend
     if (url.pathname.startsWith('/api/')) {
       try {
@@ -2754,6 +3120,53 @@ const workerHandler = {
 
 // Export without Sentry (was causing issues)
 export default workerHandler;
+// Export NotificationRoom for Durable Objects (legacy compatibility)
+export class NotificationRoom {
+  state: DurableObjectState;
+  sessions: Map<WebSocket, any>;
+
+  constructor(state: DurableObjectState) {
+    this.state = state;
+    this.sessions = new Map();
+  }
+
+  async fetch(request: Request) {
+    const url = new URL(request.url);
+    const upgradeHeader = request.headers.get('Upgrade');
+    
+    if (!upgradeHeader || upgradeHeader !== 'websocket') {
+      return new Response('Expected WebSocket', { status: 426 });
+    }
+
+    const [client, server] = Object.values(new WebSocketPair());
+    server.accept();
+    
+    this.sessions.set(server, {
+      connected: true,
+      userId: null,
+    });
+
+    server.addEventListener('message', async (event) => {
+      try {
+        const data = JSON.parse(event.data as string);
+        for (const [ws, session] of this.sessions) {
+          if (ws !== server && session.connected) {
+            ws.send(JSON.stringify(data));
+          }
+        }
+      } catch (err) {
+        console.error('WebSocket message error:', err);
+      }
+    });
+
+    server.addEventListener('close', () => {
+      this.sessions.delete(server);
+    });
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+}
+
 // Export WebSocketRoom for Durable Objects
 export class WebSocketRoom {
   state: DurableObjectState;
