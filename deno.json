@@ -41,7 +41,13 @@
       "seed-*.ts",
       "deploy-*.ts",
       "validate-*.js",
-      "validate-*.ts"
+      "validate-*.ts",
+      "migrate-*.ts",
+      "create-*.ts",
+      "fix-*.ts",
+      "sync-*.ts",
+      "init-*.ts",
+      "working-server.ts"
     ],
     "rules": {
       "exclude": ["no-process-global", "require-await"]
