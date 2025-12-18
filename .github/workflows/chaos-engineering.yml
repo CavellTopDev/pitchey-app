@@ -247,7 +247,7 @@ jobs:
           fi
 
       - name: Upload experiment artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: database-experiment-results
@@ -426,7 +426,7 @@ jobs:
     
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Generate experiment report
         run: |
@@ -576,7 +576,7 @@ jobs:
             });
 
       - name: Upload final report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: chaos-engineering-report
           path: chaos_report.md

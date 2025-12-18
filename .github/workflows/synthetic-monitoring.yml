@@ -172,7 +172,7 @@ jobs:
 
       - name: Upload metrics
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: api-health-metrics-${{ matrix.location }}
           path: metrics.txt
@@ -281,7 +281,7 @@ jobs:
 
       - name: Upload failure screenshots
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: auth-test-failures
           path: "*.png"
@@ -399,7 +399,7 @@ jobs:
 
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pitch-creation-artifacts
           path: "*.png"
@@ -448,7 +448,7 @@ jobs:
 
       - name: Upload Lighthouse Reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
           path: lighthouse-reports/
@@ -462,7 +462,7 @@ jobs:
     
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Process Results
         run: |
@@ -560,7 +560,7 @@ jobs:
             });
 
       - name: Upload final report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: synthetic-monitoring-report
           path: report.md

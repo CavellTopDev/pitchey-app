@@ -172,7 +172,7 @@ jobs:
             scripts/analyze-performance.ts
       
       - name: Upload Performance Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-report-${{ github.run_number }}
           path: performance-report.html

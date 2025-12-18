@@ -78,7 +78,7 @@ jobs:
           jq -r '.services[] | "- **\(.name)**: $\(.cost) (\(.percentage)%)"' cost-report.json >> $GITHUB_STEP_SUMMARY
       
       - name: Upload cost report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cost-report
           path: cost-report.json
@@ -269,7 +269,7 @@ jobs:
           jq -r '.recommendations[:5][] | "1. **\(.action)**: Save $\(.estimatedSavings)/month"' recommendations.json >> $GITHUB_STEP_SUMMARY
       
       - name: Upload forecast
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cost-forecast
           path: |

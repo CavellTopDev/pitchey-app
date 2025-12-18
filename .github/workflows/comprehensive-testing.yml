@@ -364,7 +364,7 @@ jobs:
           npm run test:e2e
 
       - name: Upload E2E Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
@@ -372,7 +372,7 @@ jobs:
           retention-days: 7
 
       - name: Upload E2E Screenshots
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: e2e-screenshots
@@ -454,7 +454,7 @@ jobs:
           fi
 
       - name: Upload Performance Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-results
           path: |
@@ -518,7 +518,7 @@ jobs:
           deno test --allow-all tests/chaos/chaos-experiments.test.ts --reporter=verbose
 
       - name: Upload Chaos Test Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: chaos-engineering-report
           path: chaos-engineering-report.txt
