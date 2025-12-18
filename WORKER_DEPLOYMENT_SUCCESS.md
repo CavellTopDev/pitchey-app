@@ -112,9 +112,25 @@ curl https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/test-db
 - All API endpoints accessible
 - Frontend can fetch data without errors
 
+## Latest Update: December 18, 2024
+
+### Frontend Deployment Completed
+- **Built frontend with new API URL**: `pitchey-api-prod.cavelltheleaddev.workers.dev`
+- **Deployed to Cloudflare Pages**: Successfully deployed to production
+- **Deployment URLs**:
+  - Preview: https://34c3a579.pitchey.pages.dev
+  - Main: https://83b17b05.pitchey.pages.dev
+  - Production: https://pitchey.pages.dev (auto-updates from main branch)
+
+### Fixed Console Errors
+The frontend was showing errors because it was still trying to connect to the old Worker URL (`pitchey-production.cavelltheleaddev.workers.dev`) which was rate-limited. This has been fixed by:
+1. Updating `frontend/.env.production` to use the new Worker URL
+2. Rebuilding the frontend with the correct API URL
+3. Deploying to Cloudflare Pages
+
 ## Next Steps
 
-1. Update frontend environment variables to use new Worker URL
+1. ✅ ~~Update frontend environment variables to use new Worker URL~~ (COMPLETED)
 2. Consider setting up Hyperdrive for connection pooling
 3. Monitor for any rate limiting issues
 4. Set up proper error tracking with Sentry
