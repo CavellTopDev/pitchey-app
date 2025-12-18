@@ -264,7 +264,7 @@ export class SecurityMonitor {
   private static triggerAlert(event: SecurityEvent): void {
     // Send to WebSocket for real-time dashboard updates
     if (window.WebSocket) {
-      const ws = new WebSocket('wss://pitchey-production.cavelltheleaddev.workers.dev/ws');
+      const ws = new WebSocket('wss://pitchey-api-prod.cavelltheleaddev.workers.dev/ws');
       ws.onopen = () => {
         ws.send(JSON.stringify({
           type: 'security_alert',

@@ -20,11 +20,25 @@ interface ExecutionContext {
 }
 
 // CORS headers for the frontend
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // Allow all origins during development
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
+const getCorsHeaders = (origin: string | null) => {
+  // Allow specific origins for credentials mode
+  const allowedOrigins = [
+    'https://pitchey.pages.dev',
+    'https://pitchey-production.pages.dev',
+    'http://localhost:5173',
+    'http://localhost:5174',
+  ];
+  
+  const corsOrigin = origin && allowedOrigins.includes(origin) 
+    ? origin 
+    : 'https://pitchey.pages.dev'; // Default to production frontend
+  
+  return {
+    'Access-Control-Allow-Origin': corsOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
+  };
 };
 
 // Simple JWT implementation
@@ -120,8 +134,12 @@ const workerHandler = {
     try {
       const url = new URL(request.url);
       
+      // Get origin for CORS
+      const origin = request.headers.get('Origin');
+      const corsHeaders = getCorsHeaders(origin);
+      
       // Log the request for debugging
-      console.log(`[Worker] ${request.method} ${url.pathname}`);
+      console.log(`[Worker] ${request.method} ${url.pathname} from ${origin}`);
     
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
