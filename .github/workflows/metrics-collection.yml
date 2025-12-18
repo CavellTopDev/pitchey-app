@@ -28,9 +28,7 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: |
-          npm install -g prom-client
-          npm install axios
+        run: npm install
 
       - name: Collect GitHub Actions metrics
         id: metrics
@@ -215,6 +213,17 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule'
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
       - name: Collect Cloudflare usage metrics
         run: |
           cat > cloudflare_cost_metrics.js << 'EOF'
