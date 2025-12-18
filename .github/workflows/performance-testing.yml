@@ -57,7 +57,7 @@ on:
 env:
   # Performance test configuration
   K6_VERSION: '0.47.0'
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   PERFORMANCE_BUDGET_FAIL_THRESHOLD: '70' # Fail if performance score < 70
   LIGHTHOUSE_CI_BUILD_PATH: './frontend/dist'
   
