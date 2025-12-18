@@ -168,48 +168,51 @@ export const authAPI = {
   },
 
   async loginCreator(email: string, password: string) {
-    const response = await api.post<{ success: boolean; data: { user: User; token: string } }>(
+    const response = await api.post<{ success: boolean; token: string; user: User }>(
       '/api/auth/creator/login',
       { email, password }
     );
-    if (response.data.data?.token) {
-      localStorage.setItem('authToken', response.data.data.token);
+    // API returns data directly, not nested in data.data
+    if (response.data.token) {
+      localStorage.setItem('authToken', response.data.token);
     }
-    if (response.data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      localStorage.setItem('userType', response.data.data.user.userType);
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userType', response.data.user.userType);
     }
-    return { data: { user: response.data.data?.user } };
+    return { data: { user: response.data.user } };
   },
 
   async loginInvestor(email: string, password: string) {
-    const response = await api.post<{ success: boolean; data: { user: User; token: string } }>(
+    const response = await api.post<{ success: boolean; token: string; user: User }>(
       '/api/auth/investor/login',
       { email, password }
     );
-    if (response.data.data?.token) {
-      localStorage.setItem('authToken', response.data.data.token);
+    // API returns data directly, not nested in data.data
+    if (response.data.token) {
+      localStorage.setItem('authToken', response.data.token);
     }
-    if (response.data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      localStorage.setItem('userType', response.data.data.user.userType);
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userType', response.data.user.userType);
     }
-    return { data: { user: response.data.data?.user } };
+    return { data: { user: response.data.user } };
   },
 
   async loginProduction(email: string, password: string) {
-    const response = await api.post<{ success: boolean; data: { user: User; token: string } }>(
+    const response = await api.post<{ success: boolean; token: string; user: User }>(
       '/api/auth/production/login',
       { email, password }
     );
-    if (response.data.data?.token) {
-      localStorage.setItem('authToken', response.data.data.token);
+    // API returns data directly, not nested in data.data
+    if (response.data.token) {
+      localStorage.setItem('authToken', response.data.token);
     }
-    if (response.data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      localStorage.setItem('userType', response.data.data.user.userType);
+    if (response.data.user) {
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('userType', response.data.user.userType);
     }
-    return { data: { user: response.data.data?.user } };
+    return { data: { user: response.data.user } };
   },
 
   async logout() {
