@@ -15,7 +15,7 @@ on:
 env:
   SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
   SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-  BACKEND_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+  BACKEND_URL: https://pitchey-api.ndlovucavelle.workers.dev
   FRONTEND_URL: https://pitchey.pages.dev
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
