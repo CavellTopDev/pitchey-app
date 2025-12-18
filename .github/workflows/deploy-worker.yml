@@ -111,7 +111,7 @@ jobs:
           compatibility_flags = ["nodejs_compat"]
           
           [env.production]
-          name = "pitchey-production"
+          name = "pitchey-api-prod"
           
           [env.production.vars]
           FRONTEND_URL = "https://pitchey.pages.dev"
@@ -154,7 +154,7 @@ jobs:
           echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN --env production
           
           # Capture deployment URL
-          echo "DEPLOYMENT_URL=https://pitchey-production.cavelltheleaddev.workers.dev" >> $GITHUB_ENV
+          echo "DEPLOYMENT_URL=https://pitchey-api-prod.cavelltheleaddev.workers.dev" >> $GITHUB_ENV
 
       - name: Run deployment tests
         env:
@@ -262,7 +262,7 @@ jobs:
     steps:
       - name: Check deployment metrics
         env:
-          DEPLOYMENT_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          DEPLOYMENT_URL: https://pitchey-api-prod.cavelltheleaddev.workers.dev
         run: |
           echo "📈 Monitoring deployment health..."
           
