@@ -1,0 +1,36 @@
+# Clean configuration for new Cloudflare account
+name = "pitchey-api"
+main = "src/worker-clean.ts"
+compatibility_date = "2024-11-01"
+account_id = "002bd5c0e90ae753a387c60546cf6869"
+
+[vars]
+FRONTEND_URL = "https://pitchey.pages.dev"
+ENVIRONMENT = "production"
+CORS_ORIGINS = "https://pitchey.pages.dev,https://localhost:5173"
+
+# KV Namespaces
+[[kv_namespaces]]
+binding = "KV"
+id = "39cd08d6efe74c7fb99b5fa0471fd148"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "5e9e940dc8af4f159f1bd027f3687dd3"
+
+# R2 Bucket - commented out until R2 is enabled on the account
+# [[r2_buckets]]
+# binding = "R2_BUCKET"
+# bucket_name = "pitchey-uploads"
+
+[observability]
+enabled = true
+
+[dev]
+port = 8787
+local_protocol = "http"
+upstream_protocol = "https"
+host = "localhost"
+
+[build]
+command = "npm run build:worker"
