@@ -18,7 +18,7 @@ name = "pitchey-browse-api-dev"
 vars = { FRONTEND_URL = "http://localhost:5173", DATABASE_URL = "postgresql://test:test@localhost:5432/test", JWT_SECRET = "dev-secret-key" }
 
 [env.production]
-name = "pitchey-production"
+name = "pitchey-api-prod"
 
 [env.production.vars]
 FRONTEND_URL = "https://pitchey.pages.dev"

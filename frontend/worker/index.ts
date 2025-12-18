@@ -482,6 +482,14 @@ const workerHandler = {
     // Database test endpoint (after DB connection)
     if (url.pathname === '/api/test-db') {
       try {
+        // Ensure database connection is available
+        if (!sql) {
+          if (!env.DATABASE_URL) {
+            throw new Error('DATABASE_URL not configured');
+          }
+          sql = neon(env.DATABASE_URL);
+        }
+        
         // Test simple query similar to browse
         const testPitches = await sql`
           SELECT 
