@@ -617,26 +617,26 @@ jobs:
   notifications:
     name: Notifications
     needs: [deployment-gates]
-    if: always()
+        #     if: always()
     runs-on: ubuntu-latest
     
     steps:
-      - name: Notify Slack on Success
-        if: needs.deployment-gates.outputs.deploy-ready == 'true'
-        uses: 8398a7/action-slack@v3
-        with:
-          status: success
+      #       - name: Notify Slack on Success
+        #         if: needs.deployment-gates.outputs.deploy-ready == 'true'
+        #         uses: 8398a7/action-slack@v3
+        #         with:
+          #           status: success
           channel: '#deployments'
-          text: '✅ All tests passed! Ready for deployment.'
+          #           text: '✅ All tests passed! Ready for deployment.'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
-      - name: Notify Slack on Failure
-        if: failure()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: failure
+      #       - name: Notify Slack on Failure
+        #         if: failure()
+        #         uses: 8398a7/action-slack@v3
+        #         with:
+          #           status: failure
           channel: '#alerts'
-          text: '❌ Test pipeline failed! Deployment blocked.'
+          #           text: '❌ Test pipeline failed! Deployment blocked.'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

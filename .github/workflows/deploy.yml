@@ -265,13 +265,13 @@ jobs:
             exit 1
           fi
       
-      - name: Send Notification
-        if: failure()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: 'Production deployment health check failed!'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      #       - name: Send Notification
+        #         if: failure()
+        #         uses: 8398a7/action-slack@v3
+        #         with:
+          #           status: ${{ job.status }}
+          #           text: 'Production deployment health check failed!'
+          #           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
 
   # Rollback on failure
   rollback:
@@ -304,9 +304,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       
-      - name: Send Rollback Notification
-        uses: 8398a7/action-slack@v3
-        with:
-          status: 'warning'
-          text: 'Production deployment rolled back to ${{ steps.prev-commit.outputs.sha }}'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      #       - name: Send Rollback Notification
+        #         uses: 8398a7/action-slack@v3
+        #         with:
+          #           status: 'warning'
+          #           text: 'Production deployment rolled back to ${{ steps.prev-commit.outputs.sha }}'
+          #           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
