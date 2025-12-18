@@ -33,7 +33,7 @@ jobs:
       - name: Collect GitHub Actions metrics
         id: metrics
         run: |
-          cat > collect_metrics.js << 'EOF'
+          cat > collect_metrics.js <<'EOF'
           const { register, Counter, Histogram, Gauge } = require('prom-client');
           const axios = require('axios');
 
@@ -135,7 +135,7 @@ jobs:
           collectMetrics().then(metrics => {
             console.log(metrics);
           }).catch(console.error);
-          EOF
+EOF
 
           node collect_metrics.js > metrics.txt
 
@@ -176,7 +176,7 @@ jobs:
                 'Content-Type': 'application/json'
               }
             }).catch(console.error);
-            EOF
+EOF
 
             node send_to_grafana.js
           fi
