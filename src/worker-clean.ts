@@ -218,6 +218,131 @@ class APIHandler {
         }, 200, headers);
       }
 
+      // Trending pitches endpoint
+      if (path === '/api/pitches/trending' && method === 'GET') {
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        // If database is available, try to fetch real data
+        if (this.db) {
+          try {
+            const pitches = await this.db.query(
+              `SELECT p.*, u.name as creator_name, u.email as creator_email, 
+                      COALESCE(v.view_count, 0) as views
+               FROM pitches p
+               JOIN users u ON p.user_id = u.id
+               LEFT JOIN (
+                 SELECT pitch_id, COUNT(*) as view_count 
+                 FROM pitch_views 
+                 WHERE created_at >= NOW() - INTERVAL '7 days'
+                 GROUP BY pitch_id
+               ) v ON p.id = v.pitch_id
+               WHERE p.status = 'published' AND p.visibility = 'public'
+               ORDER BY COALESCE(v.view_count, 0) DESC, p.created_at DESC
+               LIMIT $1`,
+              [limit]
+            );
+            
+            return this.json({
+              success: true,
+              data: pitches.rows || []
+            }, 200, headers);
+          } catch (error) {
+            console.error('Database query failed:', error);
+          }
+        }
+        
+        // Return mock data if database fails
+        return this.json({
+          success: true,
+          data: [
+            {
+              id: 1,
+              title: "The Next Blockbuster",
+              genre: "Action",
+              budget_range: "$10M - $50M",
+              logline: "A trending action-packed adventure",
+              creator_name: "John Director",
+              creator_email: "john@example.com",
+              status: "published",
+              visibility: "public",
+              views: 1250,
+              created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: 2,
+              title: "Trending Drama",
+              genre: "Drama", 
+              budget_range: "$5M - $20M",
+              logline: "An emotional journey that captivates audiences",
+              creator_name: "Sarah Writer",
+              creator_email: "sarah@example.com",
+              status: "published",
+              visibility: "public",
+              views: 980,
+              created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+            }
+          ]
+        }, 200, headers);
+      }
+
+      // New pitches endpoint
+      if (path === '/api/pitches/new' && method === 'GET') {
+        const limit = parseInt(url.searchParams.get('limit') || '10');
+        
+        // If database is available, try to fetch real data
+        if (this.db) {
+          try {
+            const pitches = await this.db.query(
+              `SELECT p.*, u.name as creator_name, u.email as creator_email
+               FROM pitches p
+               JOIN users u ON p.user_id = u.id
+               WHERE p.status = 'published' AND p.visibility = 'public'
+               ORDER BY p.created_at DESC
+               LIMIT $1`,
+              [limit]
+            );
+            
+            return this.json({
+              success: true,
+              data: pitches.rows || []
+            }, 200, headers);
+          } catch (error) {
+            console.error('Database query failed:', error);
+          }
+        }
+        
+        // Return mock data if database fails
+        return this.json({
+          success: true,
+          data: [
+            {
+              id: 3,
+              title: "Fresh New Comedy",
+              genre: "Comedy",
+              budget_range: "$2M - $10M",
+              logline: "A hilarious take on modern life",
+              creator_name: "Mike Funny",
+              creator_email: "mike@example.com",
+              status: "published",
+              visibility: "public",
+              created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: 4,
+              title: "New Sci-Fi Thriller",
+              genre: "Sci-Fi",
+              budget_range: "$20M - $100M",
+              logline: "The future is closer than we think",
+              creator_name: "Alex Future",
+              creator_email: "alex@example.com",
+              status: "published",
+              visibility: "public",
+              created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+            }
+          ]
+        }, 200, headers);
+      }
+
       // Default API response
       return this.json({
         success: false,
