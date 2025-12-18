@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-net --allow-env
 
 // Clear the Neon database completely
-import { neon } from "npm:@neondatabase/serverless@0.9.5";
+import { neon } from "./deps.ts";
 
 const connectionString = Deno.env.get("DATABASE_URL");
 const sql = neon(connectionString);

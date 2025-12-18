@@ -7,12 +7,13 @@
 
 import { neon, neonConfig, NeonQueryFunction } from '@neondatabase/serverless';
 import { Redis } from '@upstash/redis/cloudflare';
-import { logError, getErrorMessage } from '../utils/error-serializer';
+// import { logError, getErrorMessage } from '../utils/error-serializer';
 
 // Configure Neon for optimal edge performance
-neonConfig.useSecureWebSocket = true;
-neonConfig.pipelineConnect = 'password';
-neonConfig.coalesceWrites = true;
+// Temporarily disable some configs that might cause issues in Workers
+// neonConfig.useSecureWebSocket = true;
+// neonConfig.pipelineConnect = 'password';
+// neonConfig.coalesceWrites = true;
 neonConfig.poolQueryViaFetch = true;
 neonConfig.fetchConnectionCache = true;
 
@@ -149,7 +150,7 @@ export class RawSQLDatabase {
           continue;
         }
         
-        logError('Database query failed', error);
+        console.error('Database query failed', error);
         throw error;
       }
     }
@@ -280,7 +281,7 @@ export class RawSQLDatabase {
       return true;
     } catch (error) {
       this.isHealthy = false;
-      logError('Health check failed', error as Error);
+      console.error('Health check failed', error);
       return false;
     }
   }
@@ -336,15 +337,22 @@ export class RawSQLDatabase {
 /**
  * Factory function to create database instance
  */
-export function createDatabase(env: any): RawSQLDatabase {
-  return new RawSQLDatabase({
-    connectionString: env.DATABASE_URL,
-    readReplicaUrls: env.READ_REPLICA_URLS ? env.READ_REPLICA_URLS.split(',') : [],
-    redis: env.UPSTASH_REDIS_REST_URL ? {
-      url: env.UPSTASH_REDIS_REST_URL,
-      token: env.UPSTASH_REDIS_REST_TOKEN
+export function createDatabase(config: any): RawSQLDatabase {
+  // Handle both config object and env object
+  const dbConfig = config.DATABASE_URL ? {
+    connectionString: config.DATABASE_URL,
+    readReplicaUrls: config.READ_REPLICA_URLS ? config.READ_REPLICA_URLS.split(',') : [],
+    redis: config.UPSTASH_REDIS_REST_URL ? {
+      url: config.UPSTASH_REDIS_REST_URL,
+      token: config.UPSTASH_REDIS_REST_TOKEN
     } : undefined
-  });
+  } : {
+    connectionString: config.connectionString || config,
+    readReplicaUrls: config.readReplicaUrls || [],
+    redis: config.redis
+  };
+
+  return new RawSQLDatabase(dbConfig);
 }
 
 /**

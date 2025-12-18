@@ -246,7 +246,7 @@ export class LogAggregationService {
       const startTime = now - timeWindow;
 
       const statsKey = `log-stats:${Math.floor(startTime / 300000) * 300000}`; // 5-minute buckets
-      let stats = await this.kv.get(statsKey);
+      const stats = await this.kv.get(statsKey);
 
       if (!stats) {
         // Calculate stats from logs
@@ -409,7 +409,7 @@ export class LogAggregationService {
     try {
       // Update real-time stats
       const statsKey = 'logs:stats:current';
-      let stats = await this.kv.get(statsKey);
+      const stats = await this.kv.get(statsKey);
       
       const currentStats = stats ? JSON.parse(stats) : {
         totalLogs: 0,

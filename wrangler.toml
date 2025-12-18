@@ -1,8 +1,8 @@
 # Production configuration with enhanced features
-name = "pitchey-production"
-main = "src/worker-integrated.ts"
+name = "pitchey-api-prod"
+main = "src/worker-minimal.ts"
 compatibility_date = "2024-11-01"
-compatibility_flags = ["nodejs_compat"]
+# compatibility_flags = ["nodejs_compat"]
 account_id = "e16d3bf549153de23459a6c6a06a431b"
 
 [vars]
@@ -47,17 +47,17 @@ bucket_name = "pitchey-uploads"
 # [[durable_objects.bindings]]
 # name = "DURABLE_OBJECTS"
 # class_name = "WebSocketDurableObject"
-# script_name = "pitchey-production"
+# script_name = "pitchey-api-prod"
 
 # Cache namespace for efficient data storage
 [[kv_namespaces]]
 binding = "CACHE"
 id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# Neon PostgreSQL via Hyperdrive - Using direct connection
-[[hyperdrive]]
-binding = "HYPERDRIVE"
-id = "0cc3dc7f6d6e4216808a9ee3d736b328"
+# Neon PostgreSQL via Hyperdrive - Temporarily disabled due to error
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "0cc3dc7f6d6e4216808a9ee3d736b328"
 
 # Analytics Engine for metrics (disabled for free plan)
 # [[analytics_engine_datasets]]
@@ -74,11 +74,11 @@ id = "0cc3dc7f6d6e4216808a9ee3d736b328"
 # max_batch_size = 10
 # max_batch_timeout = 30
 
-# Scheduled tasks for cache warming and monitoring
-[triggers]
-crons = [
-  "*/30 * * * *"   # Combined cache warming and metrics every 30 minutes
-]
+# Scheduled tasks for cache warming and monitoring (disabled for free plan)
+# [triggers]
+# crons = [
+#   "*/30 * * * *"   # Combined cache warming and metrics every 30 minutes
+# ]
 
 # Observability
 [observability]
@@ -101,4 +101,4 @@ command = "npm run build:worker"
 
 # Production environment configuration
 [env.production]
-name = "pitchey-production"
+name = "pitchey-api-prod"

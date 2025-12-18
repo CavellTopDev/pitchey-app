@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-env --allow-net --allow-read
 
-import { neon } from "npm:@neondatabase/serverless";
+import { neon } from "./deps.ts";
 
 const sql = neon("postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require");
 

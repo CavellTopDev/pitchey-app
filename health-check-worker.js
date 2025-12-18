@@ -5,7 +5,7 @@ const https = require('https');
 const config = JSON.parse(fs.readFileSync('monitoring-config.json', 'utf8'));
 
 // State tracking
-let healthState = {
+const healthState = {
   checks: [],
   failures: {},
   lastAlert: {},

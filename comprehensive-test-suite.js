@@ -20,7 +20,7 @@ const colors = {
   reset: '\x1b[0m'
 };
 
-let testResults = {
+const testResults = {
   total: 0,
   passed: 0,
   failed: 0,

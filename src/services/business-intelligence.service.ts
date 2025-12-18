@@ -950,10 +950,11 @@ export class BusinessIntelligenceService {
         const nextMonth = new Date(now);
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         return nextMonth.getTime();
-      case "quarterly":
+      case "quarterly": {
         const nextQuarter = new Date(now);
         nextQuarter.setMonth(nextQuarter.getMonth() + 3);
         return nextQuarter.getTime();
+      }
       default:
         return now.getTime();
     }

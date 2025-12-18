@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install -g @prometheus-community/prom-client
+          npm install -g prom-client
           npm install axios
 
       - name: Collect GitHub Actions metrics

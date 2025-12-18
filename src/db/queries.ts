@@ -316,8 +316,8 @@ export class DatabaseQueries {
       orderDirection = 'DESC'
     } = options;
 
-    let whereConditions = ["p.status = $1"];
-    let params: any[] = [status];
+    const whereConditions = ["p.status = $1"];
+    const params: any[] = [status];
     let paramCount = 1;
 
     // Add search term condition

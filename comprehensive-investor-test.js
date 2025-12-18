@@ -10,7 +10,7 @@ const DEMO_CREDENTIALS = {
 };
 
 let currentToken = null;
-let testResults = [];
+const testResults = [];
 
 class InvestorPortalTester {
     constructor() {

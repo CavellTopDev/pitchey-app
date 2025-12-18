@@ -33,7 +33,10 @@ export class WebSocketRoom implements DurableObject {
       try {
         const data = typeof evt.data === 'string' ? evt.data : ''
         if (data) this.broadcast(data)
-      } catch {}
+      } catch (e) {
+        // Ignore malformed WebSocket messages
+        console.debug('Invalid WebSocket message received:', e)
+      }
     })
 
     const close = () => {
@@ -47,7 +50,12 @@ export class WebSocketRoom implements DurableObject {
 
   broadcast(message: string) {
     for (const ws of this.sessions.values()) {
-      try { ws.send(message) } catch {}
+      try { 
+        ws.send(message) 
+      } catch (e) {
+        // Connection likely closed, remove from sessions
+        console.debug('Failed to send WebSocket message:', e)
+      }
     }
   }
 }

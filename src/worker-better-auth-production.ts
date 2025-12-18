@@ -307,7 +307,7 @@ class RouteHandler {
   private async getPublicPitches(): Promise<Response> {
     try {
       const cacheKey = 'public-pitches';
-      let cached = await this.cache.get(cacheKey);
+      const cached = await this.cache.get(cacheKey);
       
       if (cached) {
         return this.createJsonResponse(cached);
@@ -477,7 +477,7 @@ class RouteHandler {
   private async getDashboardStats(authContext: any): Promise<Response> {
     try {
       const cacheKey = `dashboard-stats-${authContext.user.id}`;
-      let cached = await this.cache.get(cacheKey);
+      const cached = await this.cache.get(cacheKey);
       
       if (cached) {
         return this.createJsonResponse(cached);

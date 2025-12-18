@@ -432,7 +432,7 @@ export class UserProfileRoutes {
     const stats: any = {};
 
     switch (userType) {
-      case 'creator':
+      case 'creator': {
         const [creatorStats] = await this.sql`
           SELECT 
             COUNT(DISTINCT p.id) as "totalPitches",
@@ -450,6 +450,7 @@ export class UserProfileRoutes {
         `;
         stats.creator = creatorStats;
         break;
+      }
 
       case 'investor':
         if (!publicOnly) {
@@ -470,7 +471,7 @@ export class UserProfileRoutes {
         }
         break;
 
-      case 'production':
+      case 'production': {
         const [productionStats] = await this.sql`
           SELECT 
             COUNT(DISTINCT p.id) as "totalProductions",
@@ -484,6 +485,7 @@ export class UserProfileRoutes {
         `;
         stats.production = productionStats;
         break;
+      }
     }
 
     return stats;
