@@ -86,7 +86,7 @@ jobs:
             --enableExperimental
 
       - name: Upload dependency check results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: dependency-check-report
@@ -207,7 +207,7 @@ jobs:
             --reporter-htmlextra-export security-report.html
 
       - name: Upload API security results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: api-security-report
@@ -304,7 +304,7 @@ jobs:
           EOF
 
       - name: Upload security report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-summary
           path: security-report.md

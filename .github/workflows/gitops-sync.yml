@@ -129,7 +129,7 @@ jobs:
               
               # Compare desired vs actual worker configuration
               DESIRED_WORKER=$(yq eval '.worker.name' deployments/$env/desired-state.yml)
-              DESIRED_ENV_VARS=$(yq eval '.worker.env_vars | keys | join(",")' deployments/$env/desired-state.yml)
+              DESIRED_ENV_VARS=$(yq eval '.worker.env_vars // {} | keys | join(",")' deployments/$env/desired-state.yml)
               
               # Check if worker exists in current state
               ACTUAL_WORKER=$(jq -r '.[] | select(.id == "'$DESIRED_WORKER'") | .id' .gitops-state/current-workers.json)
