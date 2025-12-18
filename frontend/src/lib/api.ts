@@ -270,8 +270,12 @@ export const pitchAPI = {
     format?: string;
     search?: string;
   }) {
-    const response = await api.get<Pitch[]>('/api/pitches', { params });
-    return response.data;
+    // Use the public endpoint which is what the marketplace needs
+    const response = await api.get('/api/pitches/public', { params });
+    // Handle the response format from the backend
+    // Backend returns { success: true, data: [...pitches], total: number }
+    const pitches = response.data.data || response.data.items || [];
+    return Array.isArray(pitches) ? pitches : [];
   },
 
   async getById(id: number) {
