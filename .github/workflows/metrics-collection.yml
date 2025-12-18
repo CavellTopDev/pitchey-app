@@ -28,156 +28,157 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install prom-client axios
 
       - name: Collect GitHub Actions metrics
         id: metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat > collect_metrics.js <<'EOF'
-const { register, Counter, Histogram, Gauge } = require('prom-client');
-const axios = require('axios');
+          cat > collect_metrics.js << 'JSEOF'
+          const { register, Counter, Histogram, Gauge } = require('prom-client');
+          const axios = require('axios');
 
-// GitHub Actions Metrics
-const workflow_duration = new Histogram({
-  name: 'github_actions_workflow_duration_seconds',
-  help: 'Duration of GitHub Actions workflows',
-  labelNames: ['workflow_name', 'status', 'branch', 'repository']
-});
+          // GitHub Actions Metrics
+          const workflow_duration = new Histogram({
+            name: 'github_actions_workflow_duration_seconds',
+            help: 'Duration of GitHub Actions workflows',
+            labelNames: ['workflow_name', 'status', 'branch', 'repository']
+          });
 
-const workflow_runs_total = new Counter({
-  name: 'github_actions_workflow_runs_total',
-  help: 'Total number of workflow runs',
-  labelNames: ['workflow_name', 'status', 'branch', 'repository', 'trigger']
-});
+          const workflow_runs_total = new Counter({
+            name: 'github_actions_workflow_runs_total',
+            help: 'Total number of workflow runs',
+            labelNames: ['workflow_name', 'status', 'branch', 'repository', 'trigger']
+          });
 
-const deployment_frequency = new Counter({
-  name: 'deployment_frequency_total',
-  help: 'Deployment frequency by environment',
-  labelNames: ['environment', 'status', 'deployer']
-});
+          const deployment_frequency = new Counter({
+            name: 'deployment_frequency_total',
+            help: 'Deployment frequency by environment',
+            labelNames: ['environment', 'status', 'deployer']
+          });
 
-const lead_time_seconds = new Histogram({
-  name: 'deployment_lead_time_seconds',
-  help: 'Time from commit to production deployment',
-  labelNames: ['repository', 'environment']
-});
+          const lead_time_seconds = new Histogram({
+            name: 'deployment_lead_time_seconds',
+            help: 'Time from commit to production deployment',
+            labelNames: ['repository', 'environment']
+          });
 
-const change_failure_rate = new Gauge({
-  name: 'deployment_change_failure_rate',
-  help: 'Percentage of deployments causing failures',
-  labelNames: ['environment', 'time_window']
-});
+          const change_failure_rate = new Gauge({
+            name: 'deployment_change_failure_rate',
+            help: 'Percentage of deployments causing failures',
+            labelNames: ['environment', 'time_window']
+          });
 
-const mttr_seconds = new Gauge({
-  name: 'deployment_mttr_seconds',
-  help: 'Mean time to recovery from deployment failures',
-  labelNames: ['environment', 'incident_type']
-});
+          const mttr_seconds = new Gauge({
+            name: 'deployment_mttr_seconds',
+            help: 'Mean time to recovery from deployment failures',
+            labelNames: ['environment', 'incident_type']
+          });
 
-// CI/CD Pipeline Metrics
-const build_size_bytes = new Gauge({
-  name: 'build_artifact_size_bytes',
-  help: 'Size of build artifacts',
-  labelNames: ['artifact_type', 'environment']
-});
+          // CI/CD Pipeline Metrics
+          const build_size_bytes = new Gauge({
+            name: 'build_artifact_size_bytes',
+            help: 'Size of build artifacts',
+            labelNames: ['artifact_type', 'environment']
+          });
 
-const test_coverage_percentage = new Gauge({
-  name: 'test_coverage_percentage',
-  help: 'Test coverage percentage',
-  labelNames: ['test_type', 'component']
-});
+          const test_coverage_percentage = new Gauge({
+            name: 'test_coverage_percentage',
+            help: 'Test coverage percentage',
+            labelNames: ['test_type', 'component']
+          });
 
-const security_vulnerabilities = new Gauge({
-  name: 'security_vulnerabilities_total',
-  help: 'Number of security vulnerabilities found',
-  labelNames: ['severity', 'component', 'scan_type']
-});
+          const security_vulnerabilities = new Gauge({
+            name: 'security_vulnerabilities_total',
+            help: 'Number of security vulnerabilities found',
+            labelNames: ['severity', 'component', 'scan_type']
+          });
 
-// Collect current metrics
-async function collectMetrics() {
-  const context = {
-    workflow: process.env.GITHUB_WORKFLOW || 'unknown',
-    repository: process.env.GITHUB_REPOSITORY || 'unknown',
-    branch: process.env.GITHUB_REF_NAME || 'unknown',
-    sha: process.env.GITHUB_SHA || 'unknown',
-    actor: process.env.GITHUB_ACTOR || 'unknown',
-    run_id: process.env.GITHUB_RUN_ID || 'unknown'
-  };
+          // Collect current metrics
+          async function collectMetrics() {
+            const context = {
+              workflow: process.env.GITHUB_WORKFLOW || 'unknown',
+              repository: process.env.GITHUB_REPOSITORY || 'unknown',
+              branch: process.env.GITHUB_REF_NAME || 'unknown',
+              sha: process.env.GITHUB_SHA || 'unknown',
+              actor: process.env.GITHUB_ACTOR || 'unknown',
+              run_id: process.env.GITHUB_RUN_ID || 'unknown'
+            };
 
-  // Record workflow execution
-  const startTime = Date.now() - (Math.random() * 300000); // Simulate start time
-  const duration = (Date.now() - startTime) / 1000;
-  
-  workflow_duration
-    .labels(context.workflow, 'success', context.branch, context.repository)
-    .observe(duration);
+            // Record workflow execution
+            const startTime = Date.now() - (Math.random() * 300000); // Simulate start time
+            const duration = (Date.now() - startTime) / 1000;
+            
+            workflow_duration
+              .labels(context.workflow, 'success', context.branch, context.repository)
+              .observe(duration);
 
-  workflow_runs_total
-    .labels(context.workflow, 'success', context.branch, context.repository, 'push')
-    .inc();
+            workflow_runs_total
+              .labels(context.workflow, 'success', context.branch, context.repository, 'push')
+              .inc();
 
-  // Record deployment metrics if this is a deployment
-  if (context.workflow.includes('deployment') || context.workflow.includes('deploy')) {
-    deployment_frequency
-      .labels('production', 'success', context.actor)
-      .inc();
+            // Record deployment metrics if this is a deployment
+            if (context.workflow.includes('deployment') || context.workflow.includes('deploy')) {
+              deployment_frequency
+                .labels('production', 'success', context.actor)
+                .inc();
 
-    // Calculate lead time (time since last commit)
-    lead_time_seconds
-      .labels(context.repository, 'production')
-      .observe(duration);
-  }
+              // Calculate lead time (time since last commit)
+              lead_time_seconds
+                .labels(context.repository, 'production')
+                .observe(duration);
+            }
 
-  // Export metrics
-  return register.metrics();
-}
+            // Export metrics
+            return register.metrics();
+          }
 
-collectMetrics().then(metrics => {
-  console.log(metrics);
-}).catch(console.error);
-EOF
+          collectMetrics().then(metrics => {
+            console.log(metrics);
+          }).catch(console.error);
+          JSEOF
           node collect_metrics.js > metrics.txt
 
       - name: Push metrics to Prometheus Gateway
+        if: env.PROMETHEUS_GATEWAY != ''
         run: |
-          if [ -n "$PROMETHEUS_GATEWAY" ]; then
-            curl -X POST \
-              -H 'Content-Type: application/octet-stream' \
-              --data-binary @metrics.txt \
-              "$PROMETHEUS_GATEWAY/metrics/job/github-actions/instance/${{ github.run_id }}"
-          fi
+          curl -X POST \
+            -H 'Content-Type: application/octet-stream' \
+            --data-binary @metrics.txt \
+            "$PROMETHEUS_GATEWAY/metrics/job/github-actions/instance/${{ github.run_id }}"
 
       - name: Send metrics to Grafana Cloud
+        if: env.GRAFANA_CLOUD_TOKEN != ''
+        env:
+          GRAFANA_CLOUD_URL: ${{ secrets.GRAFANA_CLOUD_URL }}
         run: |
-          if [ -n "$GRAFANA_CLOUD_TOKEN" ]; then
-            # Convert Prometheus metrics to Grafana format
-            cat > send_to_grafana.js << 'EOF'
-const axios = require('axios');
-const fs = require('fs');
+          cat > send_to_grafana.js << 'JSEOF'
+          const axios = require('axios');
+          const fs = require('fs');
 
-const metrics = fs.readFileSync('metrics.txt', 'utf8');
-const timestamp = Date.now();
+          const metrics = fs.readFileSync('metrics.txt', 'utf8');
+          const timestamp = Date.now();
 
-const grafanaMetrics = {
-  streams: [{
-    stream: {
-      job: 'github-actions',
-      instance: process.env.GITHUB_RUN_ID,
-      repository: process.env.GITHUB_REPOSITORY
-    },
-    values: [[timestamp * 1000000, metrics]]
-  }]
-};
+          const grafanaMetrics = {
+            streams: [{
+              stream: {
+                job: 'github-actions',
+                instance: process.env.GITHUB_RUN_ID,
+                repository: process.env.GITHUB_REPOSITORY
+              },
+              values: [[timestamp * 1000000, metrics]]
+            }]
+          };
 
-axios.post(process.env.GRAFANA_CLOUD_URL, grafanaMetrics, {
-  headers: {
-    'Authorization': `Bearer ${process.env.GRAFANA_CLOUD_TOKEN}`,
-    'Content-Type': 'application/json'
-  }
-}).catch(console.error);
-EOF
-            node send_to_grafana.js
-          fi
+          axios.post(process.env.GRAFANA_CLOUD_URL, grafanaMetrics, {
+            headers: {
+              'Authorization': 'Bearer ' + process.env.GRAFANA_CLOUD_TOKEN,
+              'Content-Type': 'application/json'
+            }
+          }).catch(console.error);
+          JSEOF
+          node send_to_grafana.js
 
   collect-application-metrics:
     name: Collect Application Metrics
@@ -185,21 +186,19 @@ EOF
     steps:
       - name: Fetch health metrics
         run: |
-          # Collect metrics from production health endpoints
           curl -s https://pitchey-production.cavelltheleaddev.workers.dev/health/metrics | \
-            tee health_metrics.txt
+            tee health_metrics.txt || echo "Health endpoint unavailable"
 
       - name: Fetch performance metrics
         run: |
-          # Collect performance metrics
           curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/metrics/performance" | \
-            tee performance_metrics.txt
+            tee performance_metrics.txt || echo "Performance endpoint unavailable"
 
       - name: Process and forward metrics
+        if: env.PROMETHEUS_GATEWAY != ''
         run: |
-          # Process and send to monitoring systems
-          if [ -n "$PROMETHEUS_GATEWAY" ]; then
-            cat health_metrics.txt performance_metrics.txt | \
+          if [ -s health_metrics.txt ] || [ -s performance_metrics.txt ]; then
+            cat health_metrics.txt performance_metrics.txt 2>/dev/null | \
             curl -X POST \
               -H 'Content-Type: application/octet-stream' \
               --data-binary @- \
@@ -220,52 +219,58 @@ EOF
           node-version: '18'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install axios
 
       - name: Collect Cloudflare usage metrics
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          cat > cloudflare_cost_metrics.js << 'EOF'
+          cat > cloudflare_cost_metrics.js << 'JSEOF'
           const axios = require('axios');
-          
+
           async function getCloudflareMetrics() {
             const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
             const apiToken = process.env.CLOUDFLARE_API_TOKEN;
             
+            if (!accountId || !apiToken) {
+              console.log('# Cloudflare credentials not configured');
+              return;
+            }
+            
             try {
               // Get Analytics data for cost calculation
               const response = await axios.get(
-                `https://api.cloudflare.com/client/v4/accounts/${accountId}/analytics/dashboard`,
+                'https://api.cloudflare.com/client/v4/accounts/' + accountId + '/analytics/dashboard',
                 {
-                  headers: { 'Authorization': `Bearer ${apiToken}` },
+                  headers: { 'Authorization': 'Bearer ' + apiToken },
                   params: {
                     since: new Date(Date.now() - 24*60*60*1000).toISOString(),
                     until: new Date().toISOString()
                   }
                 }
               );
-
               const metrics = response.data.result;
               
-              console.log(`cloudflare_requests_total{account="${accountId}",service="workers"} ${metrics.totals.requests || 0}`);
-              console.log(`cloudflare_bandwidth_bytes{account="${accountId}",service="workers"} ${metrics.totals.bandwidth || 0}`);
-              console.log(`cloudflare_cpu_time_ms{account="${accountId}",service="workers"} ${metrics.totals.cpu_time || 0}`);
+              const requests = metrics.totals?.requests || 0;
+              const bandwidth = metrics.totals?.bandwidth || 0;
+              const cpuTime = metrics.totals?.cpu_time || 0;
+              
+              console.log('cloudflare_requests_total{account="' + accountId + '",service="workers"} ' + requests);
+              console.log('cloudflare_bandwidth_bytes{account="' + accountId + '",service="workers"} ' + bandwidth);
+              console.log('cloudflare_cpu_time_ms{account="' + accountId + '",service="workers"} ' + cpuTime);
               
               // Estimate costs based on usage
-              const requestCost = (metrics.totals.requests || 0) * 0.00000015; // $0.15 per million
-              const cpuCost = (metrics.totals.cpu_time || 0) * 0.000002; // $2 per million CPU ms
+              const requestCost = requests * 0.00000015; // $0.15 per million
+              const cpuCost = cpuTime * 0.000002; // $2 per million CPU ms
               
-              console.log(`cloudflare_estimated_cost_usd{account="${accountId}",type="requests"} ${requestCost}`);
-              console.log(`cloudflare_estimated_cost_usd{account="${accountId}",type="cpu"} ${cpuCost}`);
+              console.log('cloudflare_estimated_cost_usd{account="' + accountId + '",type="requests"} ' + requestCost);
+              console.log('cloudflare_estimated_cost_usd{account="' + accountId + '",type="cpu"} ' + cpuCost);
               
             } catch (error) {
               console.error('Failed to fetch Cloudflare metrics:', error.message);
             }
           }
-
           getCloudflareMetrics();
-          EOF
-
+          JSEOF
           node cloudflare_cost_metrics.js
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
