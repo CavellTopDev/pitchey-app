@@ -19,7 +19,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  DENO_VERSION: 'v1.38.0'
+  DENO_VERSION: 'v2.1.2'
 
 jobs:
   # Test job - runs all test suites
