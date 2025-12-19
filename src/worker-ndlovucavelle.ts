@@ -90,18 +90,82 @@ class PitcheyAPIHandler {
     // API routes
     if (path.startsWith('/api/')) {
       
-      // Auth endpoints
-      if (path === '/api/auth/login' && method === 'POST') {
+      // Auth endpoints - Support all portal-specific login endpoints
+      if ((path === '/api/auth/login' || 
+           path === '/api/auth/creator/login' || 
+           path === '/api/auth/investor/login' || 
+           path === '/api/auth/production/login') && method === 'POST') {
         const body = await request.json();
+        
+        // Determine user type from path
+        let userType = 'creator';
+        if (path.includes('/investor/')) {
+          userType = 'investor';
+        } else if (path.includes('/production/')) {
+          userType = 'production';
+        }
+        
+        // Demo accounts for testing
+        const demoAccounts: Record<string, any> = {
+          'alex.creator@demo.com': { id: '1', name: 'Alex Chen', userType: 'creator' },
+          'sarah.investor@demo.com': { id: '2', name: 'Sarah Johnson', userType: 'investor' },
+          'stellar.production@demo.com': { id: '3', name: 'Stellar Studios', userType: 'production' }
+        };
+        
+        const user = demoAccounts[body.email] || {
+          id: Date.now().toString(),
+          email: body.email,
+          name: body.email?.split('@')[0] || 'User',
+          userType
+        };
+        
         return jsonResponse({
           success: true,
           data: {
             token: 'mock-jwt-' + Date.now(),
             user: {
-              id: '1',
+              ...user,
+              email: body.email
+            }
+          }
+        }, 200, corsHeaders);
+      }
+      
+      // Logout endpoint
+      if ((path === '/api/auth/logout' || 
+           path === '/api/auth/creator/logout' ||
+           path === '/api/auth/investor/logout' ||
+           path === '/api/auth/production/logout') && method === 'POST') {
+        return jsonResponse({
+          success: true,
+          message: 'Logged out successfully'
+        }, 200, corsHeaders);
+      }
+      
+      // Register endpoints
+      if ((path === '/api/auth/register' ||
+           path === '/api/auth/creator/register' ||
+           path === '/api/auth/investor/register' ||
+           path === '/api/auth/production/register') && method === 'POST') {
+        const body = await request.json();
+        
+        // Determine user type from path
+        let userType = 'creator';
+        if (path.includes('/investor/')) {
+          userType = 'investor';
+        } else if (path.includes('/production/')) {
+          userType = 'production';
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            token: 'mock-jwt-' + Date.now(),
+            user: {
+              id: Date.now().toString(),
               email: body.email,
-              name: body.email?.split('@')[0] || 'User',
-              userType: 'creator'
+              name: body.name || body.email?.split('@')[0] || 'User',
+              userType
             }
           }
         }, 200, corsHeaders);
@@ -144,6 +208,97 @@ class PitcheyAPIHandler {
               createdAt: new Date().toISOString()
             }
           }
+        }, 200, corsHeaders);
+      }
+      
+      // Dashboard endpoints for different user types
+      if (path === '/api/dashboard/creator' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            stats: {
+              totalPitches: 5,
+              activePitches: 3,
+              draftPitches: 2,
+              totalViews: 1250,
+              totalNDAs: 8,
+              totalInvestments: 2
+            },
+            recentActivity: [
+              { type: 'view', pitch: 'The Next Blockbuster', timestamp: new Date().toISOString() },
+              { type: 'nda_request', pitch: 'Epic Adventure', timestamp: new Date(Date.now() - 3600000).toISOString() }
+            ],
+            trendingPitches: []
+          }
+        }, 200, corsHeaders);
+      }
+      
+      if (path === '/api/dashboard/investor' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            stats: {
+              savedPitches: 12,
+              activeNDAs: 5,
+              totalInvestments: 3,
+              portfolioValue: 250000
+            },
+            recentActivity: [
+              { type: 'saved', pitch: 'Trending Drama', timestamp: new Date().toISOString() },
+              { type: 'nda_approved', pitch: 'The Next Blockbuster', timestamp: new Date(Date.now() - 7200000).toISOString() }
+            ],
+            savedPitches: []
+          }
+        }, 200, corsHeaders);
+      }
+      
+      if (path === '/api/dashboard/production' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            stats: {
+              activeProjects: 4,
+              inProduction: 2,
+              inDevelopment: 2,
+              totalBudget: 45000000
+            },
+            recentActivity: [
+              { type: 'project_update', project: 'Summer Blockbuster', timestamp: new Date().toISOString() },
+              { type: 'script_review', project: 'Holiday Special', timestamp: new Date(Date.now() - 10800000).toISOString() }
+            ],
+            projects: []
+          }
+        }, 200, corsHeaders);
+      }
+      
+      // Creator's pitches endpoint
+      if (path === '/api/pitches/my' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: [
+            {
+              id: '1',
+              title: 'My Amazing Script',
+              logline: 'A creators masterpiece in the making',
+              genre: 'Drama',
+              status: 'draft',
+              visibility: 'private',
+              created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date().toISOString(),
+              views: 0
+            },
+            {
+              id: '2',
+              title: 'The Next Big Thing',
+              logline: 'Revolutionary story that will change cinema',
+              genre: 'Sci-Fi',
+              status: 'published',
+              visibility: 'public',
+              created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+              views: 342
+            }
+          ]
         }, 200, corsHeaders);
       }
 
