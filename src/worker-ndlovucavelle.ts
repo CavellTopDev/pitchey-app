@@ -25,14 +25,17 @@ export interface Env {
 // CORS configuration
 const ALLOWED_ORIGINS = [
   'https://pitchey.pages.dev',
+  'https://pitchey-5o8.pages.dev',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
 
 function getCorsHeaders(origin?: string | null): Record<string, string> {
   const requestOrigin = origin;
-  const isAllowed = requestOrigin && ALLOWED_ORIGINS.some(allowed => 
-    requestOrigin === allowed || requestOrigin.endsWith('.pitchey.pages.dev')
+  const isAllowed = requestOrigin && (
+    ALLOWED_ORIGINS.some(allowed => requestOrigin === allowed) ||
+    requestOrigin.endsWith('.pitchey.pages.dev') ||
+    requestOrigin.endsWith('.pitchey-5o8.pages.dev')
   );
   
   return {
