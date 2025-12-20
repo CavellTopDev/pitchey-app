@@ -218,7 +218,7 @@ export default function InvestorDashboard() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Average ROI</p>
                 <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {portfolio.averageROI.toFixed(1)}%
+                  {portfolio.averageROI ? portfolio.averageROI.toFixed(1) : '0.0'}%
                 </p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
