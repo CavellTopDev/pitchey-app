@@ -135,6 +135,14 @@ const SettingsProfile = lazy(() => import('./pages/settings/SettingsProfile'));
 const NotificationSettings = lazy(() => import('./pages/settings/NotificationSettings'));
 const PrivacySettings = lazy(() => import('./pages/settings/PrivacySettings'));
 const InvestorPortfolio = lazy(() => import('./pages/investor/InvestorPortfolio'));
+const InvestorActivity = lazy(() => import('./pages/investor/InvestorActivity'));
+const InvestorAnalytics = lazy(() => import('./pages/investor/InvestorAnalytics'));
+const InvestorStats = lazy(() => import('./pages/investor/InvestorStats'));
+const InvestorSaved = lazy(() => import('./pages/investor/InvestorSaved'));
+const InvestorWatchlist = lazy(() => import('./pages/investor/InvestorWatchlist'));
+const InvestorDeals = lazy(() => import('./pages/investor/InvestorDeals'));
+const InvestorPerformance = lazy(() => import('./pages/investor/InvestorPerformance'));
+const InvestorDiscover = lazy(() => import('./pages/investor/InvestorDiscover'));
 const Transactions = lazy(() => import('./pages/Admin/Transactions'));
 const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 
@@ -559,15 +567,18 @@ function App() {
           
           {/* Investor Routes */}
           <Route path="/investor/notifications" element={isAuthenticated && userType === 'investor' ? <NotificationCenter /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/activity" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/stats" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/activity" element={isAuthenticated && userType === 'investor' ? <InvestorActivity /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/stats" element={isAuthenticated && userType === 'investor' ? <InvestorStats /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/portfolio" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/saved" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/watchlist" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/deals" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/portfolio/active" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/discover" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/discover/genres" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/saved" element={isAuthenticated && userType === 'investor' ? <InvestorSaved /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/watchlist" element={isAuthenticated && userType === 'investor' ? <InvestorWatchlist /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/deals" element={isAuthenticated && userType === 'investor' ? <InvestorDeals /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <InvestorPerformance /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/ndas" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
           
           {/* Browse Routes - Public access */}
           <Route path="/browse/genres" element={<BrowseGenres />} />

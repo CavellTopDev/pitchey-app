@@ -218,95 +218,37 @@ export default function InvestorAnalytics() {
     }
   };
 
-  // Chart configurations
-  const marketTrendData = {
-    labels: marketTrends.map(trend => trend.sector),
-    datasets: [
-      {
-        label: 'Growth Rate (%)',
-        data: marketTrends.map(trend => trend.growth),
-        backgroundColor: marketTrends.map(trend => {
-          if (trend.growth > 30) return 'rgba(34, 197, 94, 0.8)';
-          if (trend.growth > 20) return 'rgba(59, 130, 246, 0.8)';
-          if (trend.growth > 15) return 'rgba(251, 146, 60, 0.8)';
-          return 'rgba(239, 68, 68, 0.8)';
-        }),
-        borderColor: marketTrends.map(trend => {
-          if (trend.growth > 30) return 'rgb(34, 197, 94)';
-          if (trend.growth > 20) return 'rgb(59, 130, 246)';
-          if (trend.growth > 15) return 'rgb(251, 146, 60)';
-          return 'rgb(239, 68, 68)';
-        }),
-        borderWidth: 2
-      }
-    ]
-  };
+  // Chart data for Recharts
+  const marketTrendChartData = marketTrends.map(trend => ({
+    sector: trend.sector,
+    growth: trend.growth,
+    fill: trend.growth > 30 ? '#22c55e' :
+          trend.growth > 20 ? '#3b82f6' :
+          trend.growth > 15 ? '#fb923c' :
+          '#ef4444'
+  }));
 
-  const investmentFlowData = {
-    labels: investmentFlows.map(flow => flow.month),
-    datasets: [
-      {
-        label: 'Invested',
-        data: investmentFlows.map(flow => flow.invested),
-        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-        borderColor: 'rgb(239, 68, 68)',
-        borderWidth: 2
-      },
-      {
-        label: 'Returned',
-        data: investmentFlows.map(flow => flow.returned),
-        backgroundColor: 'rgba(34, 197, 94, 0.8)',
-        borderColor: 'rgb(34, 197, 94)',
-        borderWidth: 2
-      }
-    ]
-  };
+  const investmentFlowChartData = investmentFlows.map(flow => ({
+    month: flow.month.replace(' 2024', ''),
+    invested: flow.invested,
+    returned: flow.returned,
+    netFlow: flow.netFlow
+  }));
 
-  const riskDistributionData = {
-    labels: ['Low Risk', 'Medium Risk', 'High Risk'],
-    datasets: [
-      {
-        data: [45, 35, 20],
-        backgroundColor: [
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(251, 146, 60, 0.8)',
-          'rgba(239, 68, 68, 0.8)'
-        ],
-        borderColor: [
-          'rgb(34, 197, 94)',
-          'rgb(251, 146, 60)',
-          'rgb(239, 68, 68)'
-        ],
-        borderWidth: 2
-      }
-    ]
-  };
+  const riskDistributionData = [
+    { name: 'Low Risk', value: 45, color: '#22c55e' },
+    { name: 'Medium Risk', value: 35, color: '#fb923c' },
+    { name: 'High Risk', value: 20, color: '#ef4444' }
+  ];
 
-  const performanceRadarData = {
-    labels: ['ROI', 'Risk Management', 'Diversification', 'Market Timing', 'Creator Selection', 'Genre Strategy'],
-    datasets: [
-      {
-        label: 'Your Performance',
-        data: [85, 78, 92, 71, 88, 83],
-        backgroundColor: 'rgba(147, 51, 234, 0.2)',
-        borderColor: 'rgb(147, 51, 234)',
-        pointBackgroundColor: 'rgb(147, 51, 234)',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: 'rgb(147, 51, 234)'
-      },
-      {
-        label: 'Industry Average',
-        data: [65, 70, 75, 68, 72, 70],
-        backgroundColor: 'rgba(156, 163, 175, 0.2)',
-        borderColor: 'rgb(156, 163, 175)',
-        pointBackgroundColor: 'rgb(156, 163, 175)',
-        pointBorderColor: '#fff',
-        pointHoverBackgroundColor: '#fff',
-        pointHoverBorderColor: 'rgb(156, 163, 175)'
-      }
-    ]
-  };
+  const performanceRadarData = [
+    { label: 'ROI', value: 85, industry: 65 },
+    { label: 'Risk Management', value: 78, industry: 70 },
+    { label: 'Diversification', value: 92, industry: 75 },
+    { label: 'Market Timing', value: 71, industry: 68 },
+    { label: 'Creator Selection', value: 88, industry: 72 },
+    { label: 'Genre Strategy', value: 83, industry: 70 }
+  ];
 
   const formatValue = (value: number, format: string) => {
     switch (format) {
@@ -464,28 +406,29 @@ export default function InvestorAnalytics() {
               <BarChart3 className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              <Bar 
-                data={marketTrendData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      display: false
-                    }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: {
-                        callback: function(value: any) {
-                          return `${value}%`;
-                        }
-                      }
-                    }
-                  }
-                }}
-              />
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={marketTrendChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="sector" />
+                  <YAxis 
+                    tickFormatter={(value) => `${value}%`}
+                  />
+                  <ChartTooltip 
+                    formatter={(value: any) => `${value}%`}
+                    contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px' }}
+                  />
+                  <Bar 
+                    dataKey="growth" 
+                    name="Growth Rate"
+                    radius={[8, 8, 0, 0]}
+                    fill="#9333ea"
+                  >
+                    {marketTrendChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -496,33 +439,37 @@ export default function InvestorAnalytics() {
               <Activity className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              <Bar 
-                data={investmentFlowData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'top' as const
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={investmentFlowChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis 
+                    tickFormatter={(value) => 
+                      new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                        notation: 'compact'
+                      }).format(value)
                     }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      ticks: {
-                        callback: function(value: any) {
-                          return new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: 'USD',
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0
-                          }).format(value);
-                        }
-                      }
+                  />
+                  <ChartTooltip 
+                    formatter={(value: any) => 
+                      new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                      }).format(value)
                     }
-                  }
-                }}
-              />
+                    contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px' }}
+                  />
+                  <ChartLegend />
+                  <Bar dataKey="invested" name="Invested" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="returned" name="Returned" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
@@ -536,27 +483,29 @@ export default function InvestorAnalytics() {
               <Target className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              <Radar 
-                data={performanceRadarData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'bottom' as const
-                    }
-                  },
-                  scales: {
-                    r: {
-                      beginAtZero: true,
-                      max: 100,
-                      ticks: {
-                        stepSize: 20
-                      }
-                    }
-                  }
-                }}
-              />
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={performanceRadarData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="label" />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                  <RechartsRadar 
+                    name="Your Performance"
+                    dataKey="value"
+                    stroke="#9333ea"
+                    fill="#9333ea"
+                    fillOpacity={0.3}
+                  />
+                  <RechartsRadar 
+                    name="Industry Average"
+                    dataKey="industry"
+                    stroke="#9ca3af"
+                    fill="#9ca3af"
+                    fillOpacity={0.2}
+                  />
+                  <ChartTooltip />
+                  <ChartLegend />
+                </RadarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -567,18 +516,26 @@ export default function InvestorAnalytics() {
               <PieChart className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              <Doughnut 
-                data={riskDistributionData}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'bottom' as const
-                    }
-                  }
-                }}
-              />
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPieChart>
+                  <Pie
+                    data={riskDistributionData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {riskDistributionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip />
+                  <ChartLegend />
+                </RechartsPieChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>

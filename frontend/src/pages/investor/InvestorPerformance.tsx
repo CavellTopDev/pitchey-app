@@ -14,11 +14,6 @@ import {
 } from 'recharts';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useAuthStore } from '../../store/authStore';
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
 
 interface PerformanceMetrics {
   totalReturn: number;
