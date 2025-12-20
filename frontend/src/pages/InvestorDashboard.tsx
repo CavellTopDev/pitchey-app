@@ -563,7 +563,7 @@ export default function InvestorDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
           <button 
             onClick={() => navigate('/marketplace')}
             className="p-4 bg-white rounded-lg border hover:shadow-md transition-shadow text-left"
