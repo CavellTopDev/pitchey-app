@@ -558,6 +558,7 @@ function App() {
           <Route path="/creator/collaborations" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
           
           {/* Investor Routes */}
+          <Route path="/investor/notifications" element={isAuthenticated && userType === 'investor' ? <NotificationCenter /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/activity" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/stats" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/portfolio" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />

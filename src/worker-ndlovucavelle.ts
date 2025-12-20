@@ -90,6 +90,17 @@ class PitcheyAPIHandler {
       }, 200, corsHeaders);
     }
 
+    // WebSocket endpoint stub (return proper error for now)
+    if (path === '/ws') {
+      return new Response('WebSocket support temporarily disabled', {
+        status: 503,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/plain'
+        }
+      });
+    }
+
     // API routes
     if (path.startsWith('/api/')) {
       
@@ -192,6 +203,64 @@ class PitcheyAPIHandler {
               name: 'Test User',
               userType: 'creator'
             }
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Validate token endpoint
+      if (path === '/api/validate-token' && method === 'GET') {
+        const authHeader = request.headers.get('Authorization');
+        
+        // If no auth header, check for token in localStorage pattern
+        if (!authHeader) {
+          // Return a valid but expired response to trigger re-login
+          return jsonResponse({
+            success: false,
+            valid: false,
+            error: { code: 'NO_TOKEN', message: 'No authentication token provided' }
+          }, 200, corsHeaders); // Return 200 with valid:false instead of 401
+        }
+        
+        if (!authHeader.startsWith('Bearer ')) {
+          return jsonResponse({
+            success: false,
+            valid: false,
+            error: { code: 'INVALID_TOKEN', message: 'Invalid token format' }
+          }, 200, corsHeaders);
+        }
+        
+        // Parse the mock token to determine user type
+        const token = authHeader.replace('Bearer ', '');
+        let user = {
+          id: '2',
+          email: 'sarah.investor@demo.com',
+          name: 'Sarah Johnson',
+          userType: 'investor' as const
+        };
+        
+        // Check referrer to determine user context
+        const referrer = request.headers.get('Referer') || '';
+        if (referrer.includes('/creator/')) {
+          user = {
+            id: '1',
+            email: 'alex.creator@demo.com',
+            name: 'Alex Chen',
+            userType: 'creator'
+          };
+        } else if (referrer.includes('/production/')) {
+          user = {
+            id: '3',
+            email: 'stellar.production@demo.com',
+            name: 'Stellar Studios',
+            userType: 'production'
+          };
+        }
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            user,
+            exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // Token expires in 24 hours
           }
         }, 200, corsHeaders);
       }
@@ -459,6 +528,340 @@ class PitcheyAPIHandler {
             rejected: 1,
             total: 8
           }
+        }, 200, corsHeaders);
+      }
+
+      // Creator dashboard endpoint
+      if (path === '/api/creator/dashboard' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            pitches: {
+              total: 5,
+              published: 3,
+              draft: 2
+            },
+            engagement: {
+              totalViews: 1250,
+              totalLikes: 48,
+              totalShares: 12
+            },
+            ndas: {
+              pending: 2,
+              approved: 5,
+              total: 7
+            },
+            revenue: {
+              total: 25000,
+              pending: 5000,
+              paid: 20000
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Payments/Credits endpoints
+      if (path === '/api/payments/credits/balance' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            balance: 100,
+            currency: 'USD'
+          }
+        }, 200, corsHeaders);
+      }
+
+      if (path === '/api/payments/subscription-status' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            plan: 'free',
+            status: 'active',
+            expiresAt: null
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Follows endpoints
+      if (path.startsWith('/api/follows/followers') && method === 'GET') {
+        const creatorId = url.searchParams.get('creatorId');
+        return jsonResponse({
+          success: true,
+          data: {
+            followers: [
+              { id: '1', name: 'Sarah Investor', userType: 'investor', followedAt: new Date().toISOString() },
+              { id: '2', name: 'Mike Producer', userType: 'production', followedAt: new Date().toISOString() }
+            ],
+            total: 2
+          }
+        }, 200, corsHeaders);
+      }
+
+      if (path === '/api/follows/following' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            following: [
+              { id: '3', name: 'Top Creator', userType: 'creator', followedAt: new Date().toISOString() }
+            ],
+            total: 1
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Creator funding overview
+      if (path === '/api/creator/funding/overview' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            totalRaised: 50000,
+            activeInvestors: 3,
+            pendingRequests: 2,
+            recentActivity: [
+              { type: 'investment', amount: 10000, investor: 'Sarah Investor', date: new Date().toISOString() }
+            ]
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Analytics endpoint
+      if (path.startsWith('/api/analytics/user') && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            views: {
+              total: 1250,
+              trend: '+12%',
+              data: [100, 120, 150, 200, 180, 220, 280]
+            },
+            engagement: {
+              likes: 48,
+              shares: 12,
+              comments: 23
+            },
+            topPerformers: [
+              { title: 'The Next Blockbuster', views: 450 },
+              { title: 'Epic Adventure', views: 320 }
+            ]
+          }
+        }, 200, corsHeaders);
+      }
+
+      // NDA endpoints
+      if (path.startsWith('/api/ndas') && method === 'GET') {
+        const status = url.searchParams.get('status');
+        const creatorId = url.searchParams.get('creatorId');
+        
+        return jsonResponse({
+          success: true,
+          data: [
+            {
+              id: '1',
+              pitchId: '1',
+              pitchTitle: 'The Next Blockbuster',
+              requesterId: '2',
+              requesterName: 'Sarah Investor',
+              status: status || 'pending',
+              requestedAt: new Date().toISOString()
+            },
+            {
+              id: '2',
+              pitchId: '2',
+              pitchTitle: 'Epic Adventure',
+              requesterId: '3',
+              requesterName: 'Mike Producer',
+              status: status || 'pending',
+              requestedAt: new Date(Date.now() - 24*60*60*1000).toISOString()
+            }
+          ]
+        }, 200, corsHeaders);
+      }
+
+      // Profile endpoint - Support both /api/profile and /api/users/profile
+      if ((path === '/api/profile' || path === '/api/users/profile') && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            id: '2',
+            email: 'sarah.investor@demo.com',
+            name: 'Sarah Johnson',
+            userType: 'investor',
+            profile: {
+              bio: 'Experienced investor specializing in film and media projects',
+              avatar: null,
+              createdAt: new Date().toISOString()
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Investor portfolio summary
+      if (path === '/api/investor/portfolio/summary' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            totalInvestments: 5,
+            totalAmount: 250000,
+            activeProjects: 3,
+            completedProjects: 2,
+            roi: 15.5,
+            portfolioBreakdown: {
+              drama: 40,
+              action: 30,
+              comedy: 20,
+              other: 10
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Investor investments
+      if (path === '/api/investor/investments' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: [
+            {
+              id: '1',
+              pitchId: '1',
+              pitchTitle: 'The Next Blockbuster',
+              amount: 50000,
+              investedAt: new Date(Date.now() - 30*24*60*60*1000).toISOString(),
+              status: 'active',
+              roi: 0
+            },
+            {
+              id: '2',
+              pitchId: '3',
+              pitchTitle: 'Epic Adventure',
+              amount: 75000,
+              investedAt: new Date(Date.now() - 60*24*60*60*1000).toISOString(),
+              status: 'active',
+              roi: 8.5
+            }
+          ]
+        }, 200, corsHeaders);
+      }
+
+      // Investment recommendations
+      if (path === '/api/investment/recommendations' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: [
+            {
+              id: '1',
+              title: 'Sci-Fi Thriller',
+              genre: 'Sci-Fi',
+              budgetRange: '$5M - $20M',
+              expectedROI: '25%',
+              riskLevel: 'medium',
+              matchScore: 85,
+              reason: 'Matches your investment profile and genre preferences'
+            },
+            {
+              id: '2',
+              title: 'Drama Series',
+              genre: 'Drama',
+              budgetRange: '$2M - $10M',
+              expectedROI: '18%',
+              riskLevel: 'low',
+              matchScore: 78,
+              reason: 'Strong team with proven track record'
+            }
+          ]
+        }, 200, corsHeaders);
+      }
+
+      // Active NDAs
+      if (path === '/api/nda/active' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: [
+            {
+              id: '1',
+              pitchId: '1',
+              pitchTitle: 'The Next Blockbuster',
+              signedAt: new Date(Date.now() - 7*24*60*60*1000).toISOString(),
+              expiresAt: new Date(Date.now() + 83*24*60*60*1000).toISOString(),
+              status: 'active'
+            },
+            {
+              id: '2',
+              pitchId: '3',
+              pitchTitle: 'Epic Adventure',
+              signedAt: new Date(Date.now() - 14*24*60*60*1000).toISOString(),
+              expiresAt: new Date(Date.now() + 76*24*60*60*1000).toISOString(),
+              status: 'active'
+            }
+          ]
+        }, 200, corsHeaders);
+      }
+
+      // Saved pitches
+      if (path === '/api/saved-pitches' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: [
+            {
+              id: '1',
+              pitchId: '2',
+              title: 'Trending Drama',
+              genre: 'Drama',
+              logline: 'An emotional journey that captivates audiences',
+              savedAt: new Date(Date.now() - 2*24*60*60*1000).toISOString(),
+              hasNDA: false
+            },
+            {
+              id: '2',
+              pitchId: '4',
+              title: 'Fresh New Comedy',
+              genre: 'Comedy',
+              logline: 'A hilarious take on modern life',
+              savedAt: new Date(Date.now() - 5*24*60*60*1000).toISOString(),
+              hasNDA: false
+            },
+            {
+              id: '3',
+              pitchId: '1',
+              title: 'The Next Blockbuster',
+              genre: 'Action',
+              logline: 'An action-packed adventure',
+              savedAt: new Date(Date.now() - 7*24*60*60*1000).toISOString(),
+              hasNDA: true
+            }
+          ]
+        }, 200, corsHeaders);
+      }
+
+      // Notifications
+      if (path === '/api/notifications' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: [
+            {
+              id: '1',
+              type: 'nda_approved',
+              title: 'NDA Approved',
+              message: 'Your NDA request for "The Next Blockbuster" has been approved',
+              read: false,
+              createdAt: new Date(Date.now() - 2*60*60*1000).toISOString()
+            },
+            {
+              id: '2',
+              type: 'new_pitch',
+              title: 'New Pitch Match',
+              message: 'A new pitch matching your interests has been published',
+              read: false,
+              createdAt: new Date(Date.now() - 5*60*60*1000).toISOString()
+            },
+            {
+              id: '3',
+              type: 'investment_update',
+              title: 'Investment Update',
+              message: 'Your investment in "Epic Adventure" has reached a new milestone',
+              read: true,
+              createdAt: new Date(Date.now() - 24*60*60*1000).toISOString()
+            }
+          ]
         }, 200, corsHeaders);
       }
 
