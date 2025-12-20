@@ -13,7 +13,8 @@ import {
   BarChart, Bar, 
   PieChart as RechartsPieChart, Pie, Cell,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar as RechartsRadar,
-  XAxis, YAxis, CartesianGrid, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, ResponsiveContainer,
+  Tooltip, Legend
 } from 'recharts';
 import DashboardHeader from '../../components/DashboardHeader';
 import { useAuthStore } from '../../store/authStore';
@@ -235,6 +236,10 @@ export default function InvestorAnalytics() {
     netFlow: flow.netFlow
   }));
 
+  // Debug logging
+  console.log('Market Trends Data:', marketTrendChartData);
+  console.log('Investment Flow Data:', investmentFlowChartData);
+
   const riskDistributionData = [
     { name: 'Low Risk', value: 45, color: '#22c55e' },
     { name: 'Medium Risk', value: 35, color: '#fb923c' },
@@ -406,29 +411,37 @@ export default function InvestorAnalytics() {
               <BarChart3 className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={marketTrendChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="sector" />
-                  <YAxis 
-                    tickFormatter={(value) => `${value}%`}
-                  />
-                  <ChartTooltip 
-                    formatter={(value: any) => `${value}%`}
-                    contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px' }}
-                  />
-                  <Bar 
-                    dataKey="growth" 
-                    name="Growth Rate"
-                    radius={[8, 8, 0, 0]}
-                    fill="#9333ea"
+              {marketTrendChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={marketTrendChartData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
-                    {marketTrendChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="sector" />
+                    <YAxis 
+                      tickFormatter={(value) => `${value}%`}
+                    />
+                    <Tooltip 
+                      formatter={(value: any) => [`${value}%`, 'Growth Rate']}
+                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px' }}
+                    />
+                    <Bar 
+                      dataKey="growth" 
+                      radius={[8, 8, 0, 0]}
+                      fill="#9333ea"
+                    >
+                      {marketTrendChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Loading chart data...
+                </div>
+              )}
             </div>
           </div>
 
@@ -439,37 +452,47 @@ export default function InvestorAnalytics() {
               <Activity className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={investmentFlowChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis 
-                    tickFormatter={(value) => 
-                      new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                        notation: 'compact'
-                      }).format(value)
-                    }
-                  />
-                  <ChartTooltip 
-                    formatter={(value: any) => 
-                      new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0
-                      }).format(value)
-                    }
-                    contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px' }}
-                  />
-                  <ChartLegend />
-                  <Bar dataKey="invested" name="Invested" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="returned" name="Returned" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {investmentFlowChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={investmentFlowChartData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis 
+                      tickFormatter={(value) => 
+                        new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: 'USD',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0,
+                          notation: 'compact'
+                        }).format(value)
+                      }
+                    />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => [
+                        new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: 'USD',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        }).format(value),
+                        name
+                      ]}
+                      contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '8px' }}
+                    />
+                    <Legend />
+                    <Bar dataKey="invested" name="Invested" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="returned" name="Returned" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Loading chart data...
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -502,8 +525,8 @@ export default function InvestorAnalytics() {
                     fill="#9ca3af"
                     fillOpacity={0.2}
                   />
-                  <ChartTooltip />
-                  <ChartLegend />
+                  <Tooltip />
+                  <Legend />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -532,8 +555,8 @@ export default function InvestorAnalytics() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <ChartTooltip />
-                  <ChartLegend />
+                  <Tooltip />
+                  <Legend />
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
