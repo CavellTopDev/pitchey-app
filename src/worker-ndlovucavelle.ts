@@ -3,6 +3,12 @@
  * Simple, working API with proper CORS support
  */
 
+// WebSocket types for Cloudflare Workers
+declare class WebSocketPair {
+  0: WebSocket;
+  1: WebSocket;
+}
+
 export interface Env {
   // Database
   DATABASE_URL?: string;
@@ -90,10 +96,39 @@ class PitcheyAPIHandler {
       }, 200, corsHeaders);
     }
 
-    // WebSocket endpoint stub (return proper error for now)
+    // WebSocket endpoint - minimal implementation
     if (path === '/ws') {
-      return new Response('WebSocket support temporarily disabled', {
-        status: 503,
+      const upgradeHeader = request.headers.get('Upgrade');
+      if (upgradeHeader === 'websocket') {
+        // Create a WebSocket pair for the connection
+        const webSocketPair = new WebSocketPair();
+        const [client, server] = Object.values(webSocketPair);
+        
+        // Handle WebSocket messages
+        server.accept();
+        server.addEventListener('message', event => {
+          // Echo back any message received (for testing)
+          const data = JSON.parse(event.data as string);
+          server.send(JSON.stringify({
+            type: 'pong',
+            data: data,
+            timestamp: new Date().toISOString()
+          }));
+        });
+        
+        server.addEventListener('close', () => {
+          console.log('WebSocket connection closed');
+        });
+        
+        // Return the WebSocket response
+        return new Response(null, {
+          status: 101,
+          webSocket: client
+        });
+      }
+      
+      return new Response('WebSocket endpoint requires upgrade header', {
+        status: 400,
         headers: {
           ...corsHeaders,
           'Content-Type': 'text/plain'
@@ -862,6 +897,16 @@ class PitcheyAPIHandler {
               createdAt: new Date(Date.now() - 24*60*60*1000).toISOString()
             }
           ]
+        }, 200, corsHeaders);
+      }
+
+      // Unread notifications count
+      if (path === '/api/notifications/unread' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            count: 2 // Count of unread notifications
+          }
         }, 200, corsHeaders);
       }
 

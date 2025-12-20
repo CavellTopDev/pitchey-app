@@ -411,7 +411,11 @@ export default function InvestorAnalytics() {
               <BarChart3 className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              {marketTrendChartData.length > 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Loading chart data...
+                </div>
+              ) : marketTrendChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
                     data={marketTrendChartData}
@@ -439,7 +443,7 @@ export default function InvestorAnalytics() {
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
-                  Loading chart data...
+                  No data available
                 </div>
               )}
             </div>
@@ -452,7 +456,11 @@ export default function InvestorAnalytics() {
               <Activity className="w-5 h-5 text-gray-400" />
             </div>
             <div className="h-80">
-              {investmentFlowChartData.length > 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Loading chart data...
+                </div>
+              ) : investmentFlowChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
                     data={investmentFlowChartData}
@@ -490,7 +498,7 @@ export default function InvestorAnalytics() {
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500">
-                  Loading chart data...
+                  No data available
                 </div>
               )}
             </div>

@@ -143,6 +143,7 @@ const InvestorWatchlist = lazy(() => import('./pages/investor/InvestorWatchlist'
 const InvestorDeals = lazy(() => import('./pages/investor/InvestorDeals'));
 const InvestorPerformance = lazy(() => import('./pages/investor/InvestorPerformance'));
 const InvestorDiscover = lazy(() => import('./pages/investor/InvestorDiscover'));
+const InvestorReports = lazy(() => import('./pages/investor/InvestorReports'));
 const Transactions = lazy(() => import('./pages/Admin/Transactions'));
 const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 
@@ -579,6 +580,7 @@ function App() {
           <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <InvestorPerformance /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/ndas" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
           
           {/* Browse Routes - Public access */}
           <Route path="/browse/genres" element={<BrowseGenres />} />
