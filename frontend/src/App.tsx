@@ -572,6 +572,7 @@ function App() {
           <Route path="/investor/stats" element={isAuthenticated && userType === 'investor' ? <InvestorStats /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/portfolio" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/portfolio/active" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/investments" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/portfolio" /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/discover" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/discover/genres" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/saved" element={isAuthenticated && userType === 'investor' ? <InvestorSaved /> : <Navigate to="/login/investor" />} />
@@ -581,6 +582,12 @@ function App() {
           <Route path="/investor/ndas" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
+          
+          {/* Investor Network Routes - Redirect to appropriate pages */}
+          <Route path="/investor/network" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/activity" /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/co-investors" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/activity" /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/production-companies" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/discover" /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/creators" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/activity" /> : <Navigate to="/login/investor" />} />
           
           {/* Browse Routes - Public access */}
           <Route path="/browse/genres" element={<BrowseGenres />} />

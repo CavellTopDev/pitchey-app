@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { TrendingUp, Star, Film, Search, Filter, Grid, List } from 'lucide-react';
+import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { TrendingUp, Star, Film, Search, Filter, Grid, List, ArrowLeft, Home } from 'lucide-react';
+import DashboardHeader from '@/components/DashboardHeader';
+import { useAuthStore } from '@/store/authStore';
+import { Button } from '@/components/ui/button';
 
 const InvestorDiscover = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuthStore();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login/investor');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
   
   // Get current tab from URL params or default to 'featured'
   const currentTab = searchParams.get('tab') || 'featured';
@@ -120,12 +133,41 @@ const InvestorDiscover = () => {
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Discover Investment Opportunities</h1>
-        <p className="text-gray-600">Find your next successful film investment</p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <DashboardHeader 
+        user={user}
+        userType="investor"
+        title="Discover Opportunities"
+        onLogout={handleLogout}
+      />
+      
+      <div className="container mx-auto px-4 py-6">
+        {/* Navigation Breadcrumb */}
+        <div className="mb-4 flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/investor/dashboard')}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Button>
+          
+          <Link 
+            to="/marketplace" 
+            className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+          >
+            <Home className="w-4 h-4" />
+            All Pitches
+          </Link>
+        </div>
+        
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">Discover Investment Opportunities</h1>
+          <p className="text-gray-600">Find your next successful film investment</p>
+        </div>
 
       {/* Search and Filter Bar */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -188,8 +230,9 @@ const InvestorDiscover = () => {
         </div>
       )}
 
-      {/* Content */}
-      {renderContent()}
+        {/* Content */}
+        {renderContent()}
+      </div>
     </div>
   );
 };

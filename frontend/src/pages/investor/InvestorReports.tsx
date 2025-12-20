@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Calendar, TrendingUp, DollarSign, BarChart3, PieChart, FileSpreadsheet } from 'lucide-react';
 import DashboardHeader from '@/components/DashboardHeader';
-import { EnhancedNavigationShadcn } from '@/components/EnhancedNavigationShadcn';
+import { useAuthStore } from '@/store/authStore';
 
 interface Report {
   id: string;
@@ -18,8 +19,19 @@ interface Report {
 }
 
 const InvestorReports = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login/investor');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const reports: Report[] = [
     {
@@ -126,10 +138,13 @@ const InvestorReports = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader />
-      <div className="flex">
-        <EnhancedNavigationShadcn />
-        <main className="flex-1 p-6">
+      <DashboardHeader 
+        user={user}
+        userType="investor"
+        title="Investment Reports"
+        onLogout={handleLogout}
+      />
+      <main className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Investment Reports</h1>
@@ -347,7 +362,6 @@ const InvestorReports = () => {
           </CardContent>
         </Card>
       </main>
-      </div>
     </div>
   );
 };
