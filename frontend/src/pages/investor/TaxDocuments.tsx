@@ -78,8 +78,6 @@ const TaxDocuments = () => {
   const filteredDocuments = documents.filter(doc =>
     searchQuery === '' || doc.name.toLowerCase().includes(searchQuery.toLowerCase()) || doc.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
-    { id: '5', name: '2023 Annual Tax Report', type: 'Annual Report', year: '2023', date: '2024-01-15', status: 'archived', size: '3.2 MB' },
-  ];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
