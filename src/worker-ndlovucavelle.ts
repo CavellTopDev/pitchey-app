@@ -1035,6 +1035,115 @@ class PitcheyAPIHandler {
         }, 200, corsHeaders);
       }
 
+      // Missing endpoints - ROI by category (different path than existing)
+      if (path === '/api/investor/analytics/roi/by-category' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            categories: [
+              { name: 'Action', roi: 2.8, count: 15, totalInvested: 850000, returns: 2380000 },
+              { name: 'Drama', roi: 3.2, count: 12, totalInvested: 950000, returns: 3040000 },
+              { name: 'Comedy', roi: 2.1, count: 18, totalInvested: 650000, returns: 1365000 },
+              { name: 'Thriller', roi: 3.8, count: 8, totalInvested: 1200000, returns: 4560000 },
+              { name: 'Horror', roi: 4.1, count: 6, totalInvested: 480000, returns: 1968000 }
+            ],
+            bestPerforming: 'Horror',
+            averageROI: 3.2,
+            totalCategories: 5
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Risk portfolio analytics
+      if (path === '/api/investor/analytics/risk/portfolio' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            overallRisk: 'Medium',
+            riskScore: 6.2,
+            distribution: {
+              low: 25,
+              medium: 55,
+              high: 20
+            },
+            recommendations: [
+              'Diversify across more genres',
+              'Consider reducing high-risk investments',
+              'Maintain current low-risk allocation'
+            ]
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Financial summary
+      if (path === '/api/investor/financial/summary' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            totalInvested: 2850000,
+            totalReturns: 4920000,
+            netProfit: 2070000,
+            roi: 2.73,
+            activeInvestments: 18,
+            completedDeals: 12,
+            portfolioValue: 3200000
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Recent transactions
+      if (path === '/api/investor/financial/recent-transactions' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            transactions: [
+              {
+                id: 1,
+                type: 'investment',
+                amount: 50000,
+                project: 'Midnight Chronicles',
+                date: '2024-12-15T10:30:00Z',
+                status: 'completed'
+              },
+              {
+                id: 2,
+                type: 'return',
+                amount: 125000,
+                project: 'Urban Legends',
+                date: '2024-12-10T15:45:00Z',
+                status: 'completed'
+              },
+              {
+                id: 3,
+                type: 'investment',
+                amount: 75000,
+                project: 'Tech Noir',
+                date: '2024-12-08T09:15:00Z',
+                status: 'pending'
+              },
+              {
+                id: 4,
+                type: 'return',
+                amount: 89000,
+                project: 'Silent Hill Revival',
+                date: '2024-12-05T14:20:00Z',
+                status: 'completed'
+              },
+              {
+                id: 5,
+                type: 'investment',
+                amount: 100000,
+                project: 'Ocean Deep',
+                date: '2024-12-01T11:00:00Z',
+                status: 'completed'
+              }
+            ],
+            totalCount: 45,
+            lastUpdate: '2024-12-15T16:30:00Z'
+          }
+        }, 200, corsHeaders);
+      }
+
       // Default API response
       return jsonResponse({
         success: false,
