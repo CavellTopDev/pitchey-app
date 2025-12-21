@@ -125,7 +125,7 @@ const FinancialOverview = () => {
                     </div>
                     <Wallet className="h-8 w-8 text-purple-600" />
                   </div>
-                </div>
+                </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-6">
