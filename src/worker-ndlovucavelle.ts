@@ -910,6 +910,131 @@ class PitcheyAPIHandler {
         }, 200, corsHeaders);
       }
 
+      // Investor Analytics endpoints - Return mock data for now
+      if (path === '/api/investor/analytics/market/trends' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            trends: [
+              {
+                date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                genre: 'Action',
+                avgBudget: 5000000,
+                avgROI: 2.5,
+                totalProjects: 45,
+                successRate: 0.65
+              },
+              {
+                date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+                genre: 'Drama',
+                avgBudget: 2000000,
+                avgROI: 3.2,
+                totalProjects: 62,
+                successRate: 0.72
+              },
+              {
+                date: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
+                genre: 'Comedy',
+                avgBudget: 3500000,
+                avgROI: 2.8,
+                totalProjects: 38,
+                successRate: 0.68
+              }
+            ],
+            genres: ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Thriller'],
+            summary: {
+              totalInvestmentOpportunities: 135,
+              avgSuccessRate: 0.68,
+              topPerformingGenre: 'Drama',
+              marketGrowth: 0.15
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      if (path === '/api/investor/analytics/roi/summary' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            totalInvested: 15000000,
+            totalReturns: 42000000,
+            overallROI: 2.8,
+            avgDealROI: 3.2,
+            bestPerformer: {
+              title: "The Midnight Protocol",
+              roi: 8.5,
+              investment: 500000,
+              returns: 4250000
+            },
+            performance: {
+              last30Days: 0.12,
+              last90Days: 0.35,
+              lastYear: 1.85
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      if (path === '/api/investor/analytics/portfolio/risk' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            riskProfile: 'Moderate',
+            score: 6.5,
+            distribution: {
+              lowRisk: 0.3,
+              mediumRisk: 0.5,
+              highRisk: 0.2
+            },
+            recommendations: [
+              'Consider diversifying into more low-risk projects',
+              'Current high-risk allocation is within acceptable limits',
+              'Strong performance in medium-risk category'
+            ],
+            metrics: {
+              volatility: 0.23,
+              sharpeRatio: 1.45,
+              maxDrawdown: -0.18
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      if (path === '/api/investor/analytics/genre/performance' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            genres: [
+              { name: 'Drama', investments: 8, avgROI: 3.2, totalReturns: 12000000 },
+              { name: 'Action', investments: 5, avgROI: 2.8, totalReturns: 8500000 },
+              { name: 'Comedy', investments: 6, avgROI: 2.5, totalReturns: 6200000 },
+              { name: 'Horror', investments: 3, avgROI: 4.1, totalReturns: 5100000 }
+            ],
+            topGenre: 'Drama',
+            recommendations: [
+              'Drama continues to show strong returns',
+              'Consider increasing Horror allocation based on high ROI'
+            ]
+          }
+        }, 200, corsHeaders);
+      }
+
+      if (path === '/api/investor/analytics/roi/category' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            categories: [
+              { name: 'Short Films', roi: 2.3, count: 12 },
+              { name: 'Feature Films', roi: 3.8, count: 8 },
+              { name: 'Series', roi: 4.2, count: 5 },
+              { name: 'Documentaries', roi: 1.9, count: 7 }
+            ],
+            bestCategory: 'Series',
+            totalProjects: 32
+          }
+        }, 200, corsHeaders);
+      }
+
       // Default API response
       return jsonResponse({
         success: false,
