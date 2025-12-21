@@ -24,6 +24,95 @@ export type {
 // Keep local types for backward compatibility
 export type InvestorStats = InvestorDashboardStats;
 
+// Export a singleton instance for new API methods
+export const investorApi = {
+  // Financial Overview
+  getFinancialSummary: () => 
+    apiClient.get('/api/investor/financial/summary'),
+  
+  getRecentTransactions: (limit: number = 5) => 
+    apiClient.get(`/api/investor/financial/recent-transactions?limit=${limit}`),
+  
+  // Transaction History
+  getTransactions: (params: {
+    page?: number;
+    limit?: number;
+    type?: string;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, String(value));
+      }
+    });
+    return apiClient.get(`/api/investor/transactions?${queryParams}`);
+  },
+  
+  exportTransactions: () => 
+    apiClient.get('/api/investor/transactions/export', { responseType: 'blob' } as any),
+  
+  getTransactionStats: () => 
+    apiClient.get('/api/investor/transactions/stats'),
+  
+  // Budget Allocation
+  getBudgetAllocations: () => 
+    apiClient.get('/api/investor/budget/allocations'),
+  
+  createBudgetAllocation: (data: {
+    category: string;
+    allocated_amount: number;
+    period_start?: string;
+    period_end?: string;
+  }) => apiClient.post('/api/investor/budget/allocations', data),
+  
+  updateBudgetAllocation: (id: number, amount: number) => 
+    apiClient.put(`/api/investor/budget/allocations/${id}`, { allocated_amount: amount }),
+  
+  // Pending Deals
+  getPendingDeals: () => 
+    apiClient.get('/api/investor/deals/pending'),
+  
+  // Completed Projects
+  getCompletedProjects: () => 
+    apiClient.get('/api/investor/projects/completed'),
+  
+  // ROI Analysis
+  getROISummary: () => 
+    apiClient.get('/api/investor/analytics/roi/summary'),
+  
+  getROIByCategory: () => 
+    apiClient.get('/api/investor/analytics/roi/by-category'),
+  
+  // Market Trends
+  getMarketTrends: () => 
+    apiClient.get('/api/investor/analytics/market/trends'),
+  
+  // Risk Assessment
+  getPortfolioRisk: () => 
+    apiClient.get('/api/investor/analytics/risk/portfolio'),
+  
+  // All Investments
+  getAllInvestments: (params?: {
+    status?: string;
+    genre?: string;
+    sort?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+      });
+    }
+    return apiClient.get(`/api/investor/investments/all?${queryParams}`);
+  },
+  
+  getInvestmentsSummary: () => 
+    apiClient.get('/api/investor/investments/summary'),
+};
+
 export class InvestorService {
   // Get investor dashboard
   static async getDashboard(): Promise<{

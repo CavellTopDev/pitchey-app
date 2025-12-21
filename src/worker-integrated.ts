@@ -314,6 +314,55 @@ class RouteRegistry {
     this.register('POST', '/api/ndas/:id/approve', this.approveNDA.bind(this));
     this.register('POST', '/api/ndas/:id/reject', this.rejectNDA.bind(this));
 
+    // === NEW INVESTOR PORTAL ROUTES ===
+    // Financial Overview
+    this.register('GET', '/api/investor/financial/summary', this.getFinancialSummary.bind(this));
+    this.register('GET', '/api/investor/financial/recent-transactions', this.getRecentTransactions.bind(this));
+    
+    // Transaction History  
+    this.register('GET', '/api/investor/transactions', this.getTransactionHistory.bind(this));
+    this.register('GET', '/api/investor/transactions/export', this.exportTransactions.bind(this));
+    this.register('GET', '/api/investor/transactions/stats', this.getTransactionStats.bind(this));
+    
+    // Budget Allocation
+    this.register('GET', '/api/investor/budget/allocations', this.getBudgetAllocations.bind(this));
+    this.register('POST', '/api/investor/budget/allocations', this.createBudgetAllocation.bind(this));
+    this.register('PUT', '/api/investor/budget/allocations/:id', this.updateBudgetAllocation.bind(this));
+    
+    // Tax Documents
+    this.register('GET', '/api/investor/tax/documents', this.getTaxDocuments.bind(this));
+    this.register('GET', '/api/investor/tax/documents/:id/download', this.downloadTaxDocument.bind(this));
+    this.register('POST', '/api/investor/tax/generate', this.generateTaxDocument.bind(this));
+    
+    // Pending Deals
+    this.register('GET', '/api/investor/deals/pending', this.getPendingDeals.bind(this));
+    this.register('PUT', '/api/investor/deals/:id/status', this.updateDealStatus.bind(this));
+    this.register('GET', '/api/investor/deals/:id/timeline', this.getDealTimeline.bind(this));
+    
+    // Completed Projects
+    this.register('GET', '/api/investor/projects/completed', this.getCompletedProjects.bind(this));
+    this.register('GET', '/api/investor/projects/:id/performance', this.getProjectPerformance.bind(this));
+    this.register('GET', '/api/investor/projects/:id/documents', this.getProjectDocuments.bind(this));
+    
+    // ROI Analysis
+    this.register('GET', '/api/investor/analytics/roi/summary', this.getROISummary.bind(this));
+    this.register('GET', '/api/investor/analytics/roi/by-category', this.getROIByCategory.bind(this));
+    this.register('GET', '/api/investor/analytics/roi/timeline', this.getROITimeline.bind(this));
+    
+    // Market Trends
+    this.register('GET', '/api/investor/analytics/market/trends', this.getMarketTrends.bind(this));
+    this.register('GET', '/api/investor/analytics/market/genres', this.getGenrePerformance.bind(this));
+    this.register('GET', '/api/investor/analytics/market/forecast', this.getMarketForecast.bind(this));
+    
+    // Risk Assessment
+    this.register('GET', '/api/investor/analytics/risk/portfolio', this.getPortfolioRisk.bind(this));
+    this.register('GET', '/api/investor/analytics/risk/projects', this.getProjectRisk.bind(this));
+    this.register('GET', '/api/investor/analytics/risk/recommendations', this.getRiskRecommendations.bind(this));
+    
+    // All Investments
+    this.register('GET', '/api/investor/investments/all', this.getAllInvestments.bind(this));
+    this.register('GET', '/api/investor/investments/summary', this.getInvestmentsSummary.bind(this));
+
     // Search routes
     this.register('GET', '/api/search', this.searchPitches.bind(this));
     this.register('GET', '/api/browse', this.browsePitches.bind(this));
@@ -1398,6 +1447,595 @@ class RouteRegistry {
       status: 503,
       headers: getCorsHeaders(request.headers.get('Origin'))
     });
+  }
+
+  // ========== INVESTOR PORTAL ENDPOINTS ==========
+  
+  // Financial Overview Endpoints
+  private async getFinancialSummary(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const [summary] = await this.db.query(`
+        SELECT 
+          COALESCE(SUM(CASE WHEN type = 'deposit' THEN amount 
+                           WHEN type IN ('withdrawal', 'investment', 'fee') THEN -amount 
+                           ELSE 0 END), 0) as available_funds,
+          COALESCE(SUM(CASE WHEN type = 'investment' THEN amount ELSE 0 END), 0) as allocated_funds,
+          COALESCE(SUM(CASE WHEN type = 'return' THEN amount ELSE 0 END), 0) as total_returns,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN ABS(amount) ELSE 0 END), 0) as pending_amount
+        FROM financial_transactions
+        WHERE user_id = $1 AND status IN ('completed', 'pending')
+      `, [authResult.user.id]);
+
+      // Calculate YTD growth
+      const [ytdData] = await this.db.query(`
+        SELECT 
+          COALESCE(SUM(CASE WHEN type = 'return' THEN amount ELSE 0 END), 0) as ytd_returns,
+          COALESCE(SUM(CASE WHEN type = 'investment' THEN amount ELSE 0 END), 0) as ytd_investments
+        FROM financial_transactions
+        WHERE user_id = $1 
+          AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+          AND status = 'completed'
+      `, [authResult.user.id]);
+
+      const ytdGrowth = ytdData.ytd_investments > 0 
+        ? ((ytdData.ytd_returns / ytdData.ytd_investments) * 100).toFixed(2)
+        : '0';
+
+      return builder.success({
+        ...summary,
+        ytd_growth: parseFloat(ytdGrowth)
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getRecentTransactions(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get('limit') || '5');
+
+    try {
+      const transactions = await this.db.query(`
+        SELECT 
+          t.*,
+          p.title as pitch_title
+        FROM financial_transactions t
+        LEFT JOIN pitches p ON t.reference_type = 'pitch' AND t.reference_id = p.id
+        WHERE t.user_id = $1
+        ORDER BY t.created_at DESC
+        LIMIT $2
+      `, [authResult.user.id, limit]);
+
+      return builder.success({ transactions });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  // Transaction History Endpoints
+  private async getTransactionHistory(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const type = url.searchParams.get('type');
+    const search = url.searchParams.get('search');
+    const startDate = url.searchParams.get('startDate');
+    const endDate = url.searchParams.get('endDate');
+    const offset = (page - 1) * limit;
+
+    try {
+      let params = [authResult.user.id];
+      let sql = `
+        SELECT 
+          t.*,
+          p.title as pitch_title
+        FROM financial_transactions t
+        LEFT JOIN pitches p ON t.reference_type = 'pitch' AND t.reference_id = p.id
+        WHERE t.user_id = $1
+      `;
+
+      if (type && type !== 'all') {
+        params.push(type);
+        sql += ` AND t.type = $${params.length}`;
+      }
+
+      if (search) {
+        params.push(`%${search}%`);
+        sql += ` AND t.description ILIKE $${params.length}`;
+      }
+
+      if (startDate) {
+        params.push(startDate);
+        sql += ` AND t.created_at >= $${params.length}`;
+      }
+
+      if (endDate) {
+        params.push(endDate);
+        sql += ` AND t.created_at <= $${params.length}`;
+      }
+
+      sql += ` ORDER BY t.created_at DESC`;
+      params.push(limit, offset);
+      sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+      const transactions = await this.db.query(sql, params);
+
+      // Get total count
+      const [{ total }] = await this.db.query(
+        `SELECT COUNT(*) as total FROM financial_transactions WHERE user_id = $1`,
+        [authResult.user.id]
+      );
+
+      return builder.paginated(transactions, page, limit, total);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async exportTransactions(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const transactions = await this.db.query(`
+        SELECT * FROM financial_transactions
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+      `, [authResult.user.id]);
+
+      // Generate CSV
+      const csv = this.generateCSV(transactions);
+      
+      return new Response(csv, {
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="transactions_${Date.now()}.csv"`,
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getTransactionStats(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const [stats] = await this.db.query(`
+        SELECT 
+          COUNT(*) as total_transactions,
+          SUM(CASE WHEN type IN ('deposit', 'return') THEN amount ELSE 0 END) as total_in,
+          SUM(CASE WHEN type IN ('investment', 'withdrawal', 'fee') THEN amount ELSE 0 END) as total_out,
+          COUNT(DISTINCT category) as categories_used
+        FROM financial_transactions
+        WHERE user_id = $1 AND status = 'completed'
+      `, [authResult.user.id]);
+
+      return builder.success({ stats });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  // Budget Allocation Endpoints
+  private async getBudgetAllocations(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const allocations = await this.db.query(`
+        SELECT 
+          ba.*,
+          COALESCE(SUM(ft.amount), 0) as spent,
+          ba.allocated_amount - COALESCE(SUM(ft.amount), 0) as remaining
+        FROM budget_allocations ba
+        LEFT JOIN financial_transactions ft ON ft.category = ba.category 
+          AND ft.user_id = ba.user_id
+          AND ft.type = 'investment'
+          AND ft.created_at >= ba.period_start
+          AND ft.created_at <= ba.period_end
+        WHERE ba.user_id = $1
+          AND ba.period_end >= CURRENT_DATE
+        GROUP BY ba.id
+        ORDER BY ba.category
+      `, [authResult.user.id]);
+
+      return builder.success({ allocations });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async createBudgetAllocation(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+    const data = await request.json();
+
+    try {
+      const [allocation] = await this.db.query(`
+        INSERT INTO budget_allocations (
+          user_id, category, allocated_amount, period_start, period_end
+        ) VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (user_id, category, period_start) 
+        DO UPDATE SET 
+          allocated_amount = EXCLUDED.allocated_amount,
+          updated_at = NOW()
+        RETURNING *
+      `, [
+        authResult.user.id,
+        data.category,
+        data.allocated_amount,
+        data.period_start || new Date().toISOString().split('T')[0],
+        data.period_end || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]
+      ]);
+
+      return builder.success({ allocation });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async updateBudgetAllocation(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+    const params = (request as any).params;
+    const data = await request.json();
+
+    try {
+      const [updated] = await this.db.query(`
+        UPDATE budget_allocations 
+        SET allocated_amount = $3, updated_at = NOW()
+        WHERE id = $1 AND user_id = $2
+        RETURNING *
+      `, [params.id, authResult.user.id, data.allocated_amount]);
+
+      if (!updated) {
+        return builder.error(ErrorCode.NOT_FOUND, 'Budget allocation not found');
+      }
+
+      return builder.success({ allocation: updated });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  // Helper method for CSV generation
+  private generateCSV(data: any[]): string {
+    if (data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]);
+    const csv = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header];
+          return typeof value === 'string' && value.includes(',') 
+            ? `"${value}"` 
+            : value;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    return csv;
+  }
+
+  // Additional investor portal endpoints (stubs for now)
+  private async getTaxDocuments(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).success({ documents: [] });
+  }
+
+  private async downloadTaxDocument(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).error(ErrorCode.NOT_IMPLEMENTED, 'Tax documents not yet available');
+  }
+
+  private async generateTaxDocument(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).error(ErrorCode.NOT_IMPLEMENTED, 'Tax document generation not yet available');
+  }
+
+  private async getPendingDeals(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const deals = await this.db.query(`
+        SELECT 
+          id.*,
+          p.title,
+          p.genre,
+          p.budget_range,
+          u.name as creator_name
+        FROM investment_deals id
+        JOIN pitches p ON id.pitch_id = p.id
+        JOIN users u ON p.creator_id = u.id
+        WHERE id.investor_id = $1
+          AND id.status IN ('negotiating', 'pending', 'due_diligence')
+        ORDER BY id.updated_at DESC
+      `, [authResult.user.id]);
+      
+      return builder.success({ deals });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async updateDealStatus(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).error(ErrorCode.NOT_IMPLEMENTED, 'Deal status updates not yet available');
+  }
+
+  private async getDealTimeline(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).success({ timeline: [] });
+  }
+
+  private async getCompletedProjects(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const projects = await this.db.query(`
+        SELECT 
+          cp.*,
+          p.title,
+          p.genre,
+          i.amount as investment_amount,
+          cp.final_return,
+          ((cp.final_return - i.amount) / NULLIF(i.amount, 0) * 100) as roi
+        FROM completed_projects cp
+        JOIN investments i ON cp.investment_id = i.id
+        JOIN pitches p ON i.pitch_id = p.id
+        WHERE i.user_id = $1
+        ORDER BY cp.completion_date DESC
+      `, [authResult.user.id]);
+      
+      return builder.success({ projects });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getProjectPerformance(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).success({ performance: {} });
+  }
+
+  private async getProjectDocuments(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).success({ documents: [] });
+  }
+
+  private async getROISummary(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const [summary] = await this.db.query(`
+        SELECT 
+          COUNT(*) as total_investments,
+          AVG(roi) as average_roi,
+          MAX(roi) as best_roi,
+          MIN(roi) as worst_roi,
+          SUM(CASE WHEN roi > 0 THEN 1 ELSE 0 END) as profitable_count
+        FROM investment_performance
+        WHERE user_id = $1
+      `, [authResult.user.id]);
+      
+      return builder.success({ summary });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getROIByCategory(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const categories = await this.db.query(`
+        SELECT 
+          category,
+          AVG(roi) as avg_roi,
+          COUNT(*) as count,
+          SUM(current_value - initial_investment) as total_profit
+        FROM investment_performance
+        WHERE user_id = $1
+        GROUP BY category
+        ORDER BY avg_roi DESC
+      `, [authResult.user.id]);
+      
+      return builder.success({ categories });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getROITimeline(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).success({ timeline: [] });
+  }
+
+  private async getMarketTrends(request: Request): Promise<Response> {
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const trends = await this.db.query(`
+        SELECT * FROM market_data
+        WHERE data_date >= CURRENT_DATE - INTERVAL '30 days'
+        ORDER BY data_date DESC
+      `);
+      
+      return builder.success({ trends });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getGenrePerformance(request: Request): Promise<Response> {
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const genres = await this.db.query(`
+        SELECT 
+          genre,
+          AVG(avg_roi) as avg_roi,
+          SUM(total_projects) as total_projects,
+          AVG(avg_budget) as avg_budget,
+          AVG(success_rate) as success_rate
+        FROM market_data
+        WHERE data_date >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY genre
+        ORDER BY avg_roi DESC
+      `);
+      
+      return builder.success({ genres });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getMarketForecast(request: Request): Promise<Response> {
+    return new ApiResponseBuilder(request).success({ forecast: [] });
+  }
+
+  private async getPortfolioRisk(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const [risk] = await this.db.query(`
+        SELECT 
+          AVG(risk_score) as portfolio_risk,
+          COUNT(CASE WHEN risk_level = 'high' OR risk_level = 'very-high' THEN 1 END) as high_risk_count,
+          COUNT(CASE WHEN risk_level = 'medium' THEN 1 END) as medium_risk_count,
+          COUNT(CASE WHEN risk_level = 'low' THEN 1 END) as low_risk_count,
+          SUM(amount_at_risk) as total_at_risk
+        FROM investment_risk_analysis
+        WHERE user_id = $1
+      `, [authResult.user.id]);
+      
+      return builder.success({ risk });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getProjectRisk(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).success({ risks: [] });
+  }
+
+  private async getRiskRecommendations(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    return new ApiResponseBuilder(request).success({ recommendations: [] });
+  }
+
+  private async getAllInvestments(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    
+    const builder = new ApiResponseBuilder(request);
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    const genre = url.searchParams.get('genre');
+    const sort = url.searchParams.get('sort') || 'date';
+    
+    try {
+      let sql = `
+        SELECT 
+          i.*,
+          p.title,
+          p.genre,
+          p.status as project_status,
+          COALESCE(ip.roi, 0) as current_roi
+        FROM investments i
+        JOIN pitches p ON i.pitch_id = p.id
+        LEFT JOIN investment_performance ip ON i.id = ip.investment_id
+        WHERE i.user_id = $1
+      `;
+      
+      const params = [authResult.user.id];
+      
+      if (status && status !== 'all') {
+        params.push(status);
+        sql += ` AND i.status = $${params.length}`;
+      }
+      
+      if (genre && genre !== 'all') {
+        params.push(genre);
+        sql += ` AND p.genre = $${params.length}`;
+      }
+      
+      sql += sort === 'roi' ? ' ORDER BY current_roi DESC' : ' ORDER BY i.created_at DESC';
+      
+      const investments = await this.db.query(sql, params);
+      
+      return builder.success({ investments });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async getInvestmentsSummary(request: Request): Promise<Response> {
+    const authResult = await this.requirePortalAuth(request, 'investor');
+    if (!authResult.authorized) return authResult.response!;
+    
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const [summary] = await this.db.query(`
+        SELECT 
+          COUNT(*) as total_count,
+          SUM(amount) as total_invested,
+          AVG(amount) as average_investment,
+          COUNT(DISTINCT pitch_id) as unique_projects
+        FROM investments
+        WHERE user_id = $1
+      `, [authResult.user.id]);
+      
+      return builder.success({ summary });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
   }
 }
 

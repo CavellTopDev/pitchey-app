@@ -8,12 +8,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
+import { investorApi } from '@/services/investor.service';
 
 const MarketTrends = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('3m');
+  const [trendsData, setTrendsData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadMarketTrends();
+  }, []);
+
+  const loadMarketTrends = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await investorApi.getMarketTrends();
+      
+      if (response.success && response.data) {
+        setTrendsData(response.data);
+      } else {
+        setError('Failed to load market trends');
+        // Use fallback data
+        setTrendsData({
+          marketGrowth: 15.8,
+          totalInvestment: 245000000,
+          activePitches: 1247
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load market trends:', error);
+      setError('Failed to load market trends');
+      setTrendsData({
+        marketGrowth: 15.8,
+        totalInvestment: 245000000,
+        activePitches: 1247
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -23,6 +60,29 @@ const MarketTrends = () => {
       console.error('Logout failed:', error);
     }
   };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <InvestorNavigation 
+          user={user}
+          onLogout={handleLogout}
+        />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -36,13 +96,19 @@ const MarketTrends = () => {
           <p className="text-gray-600 mt-2">Industry trends and market analysis</p>
         </div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md">
+            {error}. Showing sample data.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Market Growth</p>
-                  <p className="text-2xl font-bold text-green-600">+15.8%</p>
+                  <p className="text-2xl font-bold text-green-600">+{trendsData?.marketGrowth || 15.8}%</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
@@ -52,8 +118,8 @@ const MarketTrends = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Hot Genres</p>
-                  <p className="text-2xl font-bold text-purple-600">Sci-Fi</p>
+                  <p className="text-sm font-medium text-gray-600">Total Investment</p>
+                  <p className="text-2xl font-bold text-purple-600">{formatCurrency(trendsData?.totalInvestment || 245000000)}</p>
                 </div>
                 <Activity className="h-8 w-8 text-purple-600" />
               </div>
@@ -63,8 +129,8 @@ const MarketTrends = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Global Markets</p>
-                  <p className="text-2xl font-bold text-blue-600">42</p>
+                  <p className="text-sm font-medium text-gray-600">Active Pitches</p>
+                  <p className="text-2xl font-bold text-blue-600">{trendsData?.activePitches || 1247}</p>
                 </div>
                 <Globe className="h-8 w-8 text-blue-600" />
               </div>

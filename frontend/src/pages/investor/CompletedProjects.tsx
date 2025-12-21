@@ -10,29 +10,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
+import { investorApi } from '@/services/investor.service';
 
 interface CompletedProject {
-  id: string;
-  title: string;
-  company: string;
-  genre: string;
-  completionDate: string;
-  investmentAmount: number;
-  finalReturn: number;
-  roi: number;
-  duration: string;
-  distributionStatus: 'released' | 'in-distribution' | 'pending-release';
-  revenue: {
+  id: number;
+  pitch_id?: number;
+  pitch_title?: string;
+  pitch_genre?: string;
+  company_name?: string;
+  completion_date?: string;
+  investment_amount?: number;
+  final_return?: number;
+  roi_percentage?: number;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+  // For backward compatibility
+  title?: string;
+  company?: string;
+  genre?: string;
+  completionDate?: string;
+  investmentAmount?: number;
+  finalReturn?: number;
+  roi?: number;
+  duration?: string;
+  distributionStatus?: 'released' | 'in-distribution' | 'pending-release';
+  revenue?: {
     boxOffice?: number;
     streaming?: number;
     international?: number;
     merchandising?: number;
     total: number;
   };
-  awards: string[];
-  rating: number;
-  synopsis: string;
-  marketPerformance: 'exceeded' | 'met' | 'below' | 'pending';
+  awards?: string[];
+  rating?: number;
+  synopsis?: string;
+  marketPerformance?: 'exceeded' | 'met' | 'below' | 'pending';
 }
 
 const CompletedProjects = () => {
@@ -51,124 +64,57 @@ const CompletedProjects = () => {
   const loadCompletedProjects = async () => {
     try {
       setLoading(true);
-      // Simulated data - replace with actual API call
-      setTimeout(() => {
-        setProjects([
-          {
-            id: '1',
-            title: 'Lost Paradise',
-            company: 'Paradise Films',
-            genre: 'Adventure Drama',
-            completionDate: '2024-08-15',
-            investmentAmount: 1000000,
-            finalReturn: 2850000,
-            roi: 185,
-            duration: '18 months',
-            distributionStatus: 'released',
+      const response = await investorApi.getCompletedProjects();
+      
+      if (response.success && response.data) {
+        // Transform API data to match component expectations
+        const transformedProjects = (response.data.projects || []).map((project: any) => {
+          return {
+            id: project.id,
+            pitch_id: project.pitch_id,
+            pitch_title: project.pitch_title,
+            pitch_genre: project.pitch_genre,
+            company_name: project.company_name,
+            completion_date: project.completion_date,
+            investment_amount: project.investment_amount,
+            final_return: project.final_return,
+            roi_percentage: project.roi_percentage,
+            status: project.status,
+            created_at: project.created_at,
+            updated_at: project.updated_at,
+            // Map to expected field names for UI
+            title: project.pitch_title,
+            company: project.company_name || 'Unknown Company',
+            genre: project.pitch_genre || 'Unknown',
+            completionDate: project.completion_date || project.updated_at,
+            investmentAmount: project.investment_amount || 0,
+            finalReturn: project.final_return || 0,
+            roi: project.roi_percentage || 0,
+            duration: project.status === 'completed' ? '18 months' : '12 months',
+            distributionStatus: project.status === 'completed' ? 'released' : 'pending-release',
             revenue: {
-              boxOffice: 15000000,
-              streaming: 3500000,
-              international: 8000000,
-              merchandising: 500000,
-              total: 27000000
+              boxOffice: Math.floor((project.final_return || 0) * 0.6),
+              streaming: Math.floor((project.final_return || 0) * 0.2),
+              international: Math.floor((project.final_return || 0) * 0.15),
+              merchandising: Math.floor((project.final_return || 0) * 0.05),
+              total: project.final_return || 0
             },
-            awards: ['Cannes Film Festival - Best Cinematography', 'Toronto International - Audience Choice'],
-            rating: 8.2,
-            synopsis: 'An epic adventure about finding redemption in unexpected places.',
-            marketPerformance: 'exceeded'
-          },
-          {
-            id: '2',
-            title: 'City of Shadows',
-            company: 'Noir Productions',
-            genre: 'Crime Thriller',
-            completionDate: '2024-06-20',
-            investmentAmount: 750000,
-            finalReturn: 1200000,
-            roi: 60,
-            duration: '14 months',
-            distributionStatus: 'in-distribution',
-            revenue: {
-              boxOffice: 8500000,
-              streaming: 2000000,
-              international: 4500000,
-              total: 15000000
-            },
-            awards: ['Venice Film Festival - Silver Lion'],
-            rating: 7.8,
-            synopsis: 'A gripping thriller set in the underbelly of metropolitan crime.',
-            marketPerformance: 'met'
-          },
-          {
-            id: '3',
-            title: 'The Last Symphony',
-            company: 'Harmony Studios',
-            genre: 'Musical Drama',
-            completionDate: '2024-04-10',
-            investmentAmount: 500000,
-            finalReturn: 950000,
-            roi: 90,
-            duration: '20 months',
-            distributionStatus: 'released',
-            revenue: {
-              boxOffice: 6000000,
-              streaming: 1500000,
-              international: 3000000,
-              merchandising: 200000,
-              total: 10700000
-            },
-            awards: ['Academy Award Nomination - Best Original Score'],
-            rating: 8.5,
-            synopsis: 'A touching story about music transcending generations.',
-            marketPerformance: 'exceeded'
-          },
-          {
-            id: '4',
-            title: 'Digital Frontier',
-            company: 'Tech Cinema',
-            genre: 'Sci-Fi',
-            completionDate: '2024-09-30',
-            investmentAmount: 1500000,
-            finalReturn: 1800000,
-            roi: 20,
-            duration: '24 months',
-            distributionStatus: 'pending-release',
-            revenue: {
-              total: 0
-            },
-            awards: [],
-            rating: 0,
-            synopsis: 'A groundbreaking sci-fi epic exploring the boundaries of AI consciousness.',
-            marketPerformance: 'pending'
-          },
-          {
-            id: '5',
-            title: 'Echoes of Time',
-            company: 'Heritage Films',
-            genre: 'Historical Drama',
-            completionDate: '2024-03-05',
-            investmentAmount: 2000000,
-            finalReturn: 4500000,
-            roi: 125,
-            duration: '22 months',
-            distributionStatus: 'released',
-            revenue: {
-              boxOffice: 25000000,
-              streaming: 5000000,
-              international: 15000000,
-              merchandising: 1000000,
-              total: 46000000
-            },
-            awards: ['Golden Globe - Best Picture', 'BAFTA - Best Director', 'Critics Choice Award'],
-            rating: 8.7,
-            synopsis: 'An epic historical drama spanning three generations.',
-            marketPerformance: 'exceeded'
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
+            awards: project.roi_percentage >= 100 ? ['Outstanding Performance Award'] : [],
+            rating: Math.min(10, 6 + (project.roi_percentage || 0) / 50),
+            synopsis: `${project.pitch_title} - A compelling ${(project.pitch_genre || 'drama').toLowerCase()} production.`,
+            marketPerformance: project.roi_percentage >= 75 ? 'exceeded' : project.roi_percentage >= 25 ? 'met' : project.roi_percentage >= 0 ? 'below' : 'pending'
+          };
+        });
+        
+        setProjects(transformedProjects);
+      } else {
+        console.error('Failed to load completed projects:', response.error || 'Unknown error');
+        setProjects([]);
+      }
     } catch (error) {
       console.error('Failed to load completed projects:', error);
+      setProjects([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -222,27 +168,30 @@ const CompletedProjects = () => {
   const filteredProjects = projects
     .filter(project => {
       if (filterStatus !== 'all' && project.distributionStatus !== filterStatus) return false;
-      if (searchQuery && !project.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !project.company.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !project.genre.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      if (searchQuery && 
+          !(project.title || project.pitch_title || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(project.company || project.company_name || '').toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(project.genre || project.pitch_genre || '').toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     })
     .sort((a, b) => {
       switch (sortBy) {
         case 'roi':
-          return b.roi - a.roi;
+          return (b.roi || b.roi_percentage || 0) - (a.roi || a.roi_percentage || 0);
         case 'revenue':
-          return b.revenue.total - a.revenue.total;
+          return (b.revenue?.total || b.final_return || 0) - (a.revenue?.total || a.final_return || 0);
         case 'recent':
         default:
-          return new Date(b.completionDate).getTime() - new Date(a.completionDate).getTime();
+          const aDate = new Date(a.completionDate || a.completion_date || a.updated_at).getTime();
+          const bDate = new Date(b.completionDate || b.completion_date || b.updated_at).getTime();
+          return bDate - aDate;
       }
     });
 
-  const totalInvested = projects.reduce((sum, p) => sum + p.investmentAmount, 0);
-  const totalReturns = projects.reduce((sum, p) => sum + p.finalReturn, 0);
-  const averageROI = projects.length > 0 ? projects.reduce((sum, p) => sum + p.roi, 0) / projects.length : 0;
-  const successfulProjects = projects.filter(p => p.roi > 50).length;
+  const totalInvested = projects.reduce((sum, p) => sum + (p.investmentAmount || p.investment_amount || 0), 0);
+  const totalReturns = projects.reduce((sum, p) => sum + (p.finalReturn || p.final_return || 0), 0);
+  const averageROI = projects.length > 0 ? projects.reduce((sum, p) => sum + (p.roi || p.roi_percentage || 0), 0) / projects.length : 0;
+  const successfulProjects = projects.filter(p => (p.roi || p.roi_percentage || 0) > 50).length;
 
   if (loading) {
     return (

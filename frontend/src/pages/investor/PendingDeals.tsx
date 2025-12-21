@@ -10,35 +10,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
+import { investorApi } from '@/services/investor.service';
 
 interface PendingDeal {
-  id: string;
-  pitchTitle: string;
-  company: string;
-  creator: string;
-  dealType: 'equity' | 'debt' | 'revenue-share' | 'hybrid';
-  requestedAmount: number;
-  minimumInvestment: number;
-  proposedTerms: {
+  id: number;
+  pitch_id: number;
+  pitch_title: string;
+  pitch_genre?: string;
+  creator_name?: string;
+  company_name?: string;
+  deal_type?: string;
+  requested_amount?: number;
+  minimum_investment?: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  deadline?: string;
+  priority?: string;
+  notes?: string;
+  projected_roi?: number;
+  risk_level?: string;
+  // For backward compatibility with UI
+  pitchTitle?: string;
+  company?: string;
+  creator?: string;
+  dealType?: 'equity' | 'debt' | 'revenue-share' | 'hybrid';
+  requestedAmount?: number;
+  minimumInvestment?: number;
+  proposedTerms?: {
     equity?: number;
     interestRate?: number;
     duration?: string;
     revenueShare?: number;
   };
-  status: 'under-review' | 'negotiating' | 'due-diligence' | 'awaiting-approval' | 'expiring-soon';
-  submittedDate: string;
-  deadline: string;
-  documents: {
+  submittedDate?: string;
+  documents?: {
     name: string;
     type: string;
     uploadDate: string;
   }[];
-  lastUpdate: string;
-  priority: 'high' | 'medium' | 'low';
-  notes: string;
-  genre: string;
-  projectedROI: number;
-  riskLevel: 'low' | 'medium' | 'high';
+  lastUpdate?: string;
+  genre?: string;
+  projectedROI?: number;
+  riskLevel?: 'low' | 'medium' | 'high';
 }
 
 const PendingDeals = () => {
@@ -62,148 +76,63 @@ const PendingDeals = () => {
   const loadPendingDeals = async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setDeals([
-          {
-            id: '1',
-            pitchTitle: 'The Quantum Paradox',
-            company: 'Quantum Films Ltd',
-            creator: 'Alex Chen',
-            dealType: 'equity',
-            requestedAmount: 2500000,
-            minimumInvestment: 100000,
+      const response = await investorApi.getPendingDeals();
+      
+      if (response.success && response.data) {
+        // Transform API data to match component expectations
+        const transformedDeals = (response.data.deals || []).map((deal: any) => {
+          return {
+            id: deal.id,
+            pitch_id: deal.pitch_id,
+            pitch_title: deal.pitch_title,
+            pitch_genre: deal.pitch_genre,
+            creator_name: deal.creator_name,
+            company_name: deal.company_name,
+            deal_type: deal.deal_type,
+            requested_amount: deal.requested_amount,
+            minimum_investment: deal.minimum_investment,
+            status: deal.status,
+            created_at: deal.created_at,
+            updated_at: deal.updated_at,
+            deadline: deal.deadline,
+            priority: deal.priority,
+            notes: deal.notes,
+            projected_roi: deal.projected_roi,
+            risk_level: deal.risk_level,
+            // Map to expected field names for UI
+            pitchTitle: deal.pitch_title,
+            company: deal.company_name || 'Unknown Company',
+            creator: deal.creator_name || 'Unknown Creator',
+            genre: deal.pitch_genre || 'Unknown',
+            dealType: deal.deal_type || 'equity',
+            requestedAmount: deal.requested_amount || 0,
+            minimumInvestment: deal.minimum_investment || 0,
             proposedTerms: {
-              equity: 15,
-              duration: '3 years'
+              equity: deal.deal_type === 'equity' ? 15 : undefined,
+              interestRate: deal.deal_type === 'debt' ? 8 : undefined,
+              duration: '3 years',
+              revenueShare: deal.deal_type === 'revenue-share' ? 25 : undefined
             },
-            status: 'due-diligence',
-            submittedDate: '2024-12-10',
-            deadline: '2024-12-25',
+            submittedDate: deal.created_at,
             documents: [
-              { name: 'Business Plan.pdf', type: 'pdf', uploadDate: '2024-12-10' },
-              { name: 'Financial Projections.xlsx', type: 'excel', uploadDate: '2024-12-11' },
-              { name: 'Script.pdf', type: 'pdf', uploadDate: '2024-12-10' }
+              { name: 'Pitch Deck.pdf', type: 'pdf', uploadDate: deal.created_at },
+              { name: 'Business Plan.pdf', type: 'pdf', uploadDate: deal.created_at }
             ],
-            lastUpdate: '2024-12-18',
-            priority: 'high',
-            notes: 'Strong team, previous successful projects. Awaiting final financial audit.',
-            genre: 'Sci-Fi',
-            projectedROI: 35,
-            riskLevel: 'medium'
-          },
-          {
-            id: '2',
-            pitchTitle: 'Urban Legends',
-            company: 'Dark Horse Productions',
-            creator: 'Maria Rodriguez',
-            dealType: 'revenue-share',
-            requestedAmount: 1500000,
-            minimumInvestment: 50000,
-            proposedTerms: {
-              revenueShare: 25,
-              duration: '5 years'
-            },
-            status: 'negotiating',
-            submittedDate: '2024-12-05',
-            deadline: '2024-12-30',
-            documents: [
-              { name: 'Pitch Deck.pdf', type: 'pdf', uploadDate: '2024-12-05' },
-              { name: 'Distribution Strategy.pdf', type: 'pdf', uploadDate: '2024-12-06' }
-            ],
-            lastUpdate: '2024-12-17',
-            priority: 'medium',
-            notes: 'Negotiating revenue share percentage. Good distribution network.',
-            genre: 'Horror',
-            projectedROI: 28,
-            riskLevel: 'medium'
-          },
-          {
-            id: '3',
-            pitchTitle: 'Digital Dreams',
-            company: 'Tech Cinema Co',
-            creator: 'James Wilson',
-            dealType: 'hybrid',
-            requestedAmount: 3000000,
-            minimumInvestment: 150000,
-            proposedTerms: {
-              equity: 10,
-              revenueShare: 15,
-              duration: '4 years'
-            },
-            status: 'expiring-soon',
-            submittedDate: '2024-11-28',
-            deadline: '2024-12-22',
-            documents: [
-              { name: 'Investment Proposal.pdf', type: 'pdf', uploadDate: '2024-11-28' },
-              { name: 'Market Analysis.pdf', type: 'pdf', uploadDate: '2024-11-29' },
-              { name: 'Team Bios.pdf', type: 'pdf', uploadDate: '2024-11-28' }
-            ],
-            lastUpdate: '2024-12-19',
-            priority: 'high',
-            notes: 'URGENT: Decision needed by Dec 22. Strong market potential.',
-            genre: 'Thriller',
-            projectedROI: 42,
-            riskLevel: 'high'
-          },
-          {
-            id: '4',
-            pitchTitle: 'Mountain Echoes',
-            company: 'Independent Films Co',
-            creator: 'Sarah Kim',
-            dealType: 'debt',
-            requestedAmount: 800000,
-            minimumInvestment: 25000,
-            proposedTerms: {
-              interestRate: 8,
-              duration: '2 years'
-            },
-            status: 'under-review',
-            submittedDate: '2024-12-15',
-            deadline: '2025-01-10',
-            documents: [
-              { name: 'Loan Agreement Draft.pdf', type: 'pdf', uploadDate: '2024-12-15' }
-            ],
-            lastUpdate: '2024-12-16',
-            priority: 'low',
-            notes: 'Initial review phase. Low budget production with experienced team.',
-            genre: 'Drama',
-            projectedROI: 18,
-            riskLevel: 'low'
-          },
-          {
-            id: '5',
-            pitchTitle: 'Cyber Protocol',
-            company: 'Future Vision Studios',
-            creator: 'Michael Chen',
-            dealType: 'equity',
-            requestedAmount: 5000000,
-            minimumInvestment: 250000,
-            proposedTerms: {
-              equity: 20,
-              duration: '5 years'
-            },
-            status: 'awaiting-approval',
-            submittedDate: '2024-12-01',
-            deadline: '2024-12-28',
-            documents: [
-              { name: 'Full Package.pdf', type: 'pdf', uploadDate: '2024-12-01' },
-              { name: 'Letters of Intent.pdf', type: 'pdf', uploadDate: '2024-12-08' },
-              { name: 'Budget Breakdown.xlsx', type: 'excel', uploadDate: '2024-12-02' }
-            ],
-            lastUpdate: '2024-12-20',
-            priority: 'high',
-            notes: 'All due diligence complete. Awaiting final investment committee approval.',
-            genre: 'Action',
-            projectedROI: 55,
-            riskLevel: 'medium'
-          }
-        ]);
+            lastUpdate: deal.updated_at,
+            projectedROI: deal.projected_roi || 0,
+            riskLevel: deal.risk_level || 'medium'
+          };
+        });
         
-        setLoading(false);
-      }, 1000);
+        setDeals(transformedDeals);
+      } else {
+        console.error('Failed to load pending deals:', response.error || 'Unknown error');
+        setDeals([]);
+      }
     } catch (error) {
       console.error('Failed to load pending deals:', error);
+      setDeals([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -225,15 +154,19 @@ const PendingDeals = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(deal =>
-        deal.pitchTitle.toLowerCase().includes(query) ||
-        deal.company.toLowerCase().includes(query) ||
-        deal.creator.toLowerCase().includes(query) ||
-        deal.genre.toLowerCase().includes(query)
+        (deal.pitchTitle || deal.pitch_title || '').toLowerCase().includes(query) ||
+        (deal.company || deal.company_name || '').toLowerCase().includes(query) ||
+        (deal.creator || deal.creator_name || '').toLowerCase().includes(query) ||
+        (deal.genre || deal.pitch_genre || '').toLowerCase().includes(query)
       );
     }
 
     // Sort by deadline (urgent first)
-    filtered.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+    filtered.sort((a, b) => {
+      const aDeadline = new Date(a.deadline || a.created_at).getTime();
+      const bDeadline = new Date(b.deadline || b.created_at).getTime();
+      return aDeadline - bDeadline;
+    });
 
     setFilteredDeals(filtered);
   };
@@ -323,9 +256,9 @@ const PendingDeals = () => {
 
   const stats = {
     total: deals.length,
-    expiringSoon: deals.filter(d => getDaysUntilDeadline(d.deadline) <= 7).length,
-    highPriority: deals.filter(d => d.priority === 'high').length,
-    totalRequested: deals.reduce((sum, d) => sum + d.requestedAmount, 0)
+    expiringSoon: deals.filter(d => getDaysUntilDeadline(d.deadline || d.created_at) <= 7).length,
+    highPriority: deals.filter(d => (d.priority || 'medium') === 'high').length,
+    totalRequested: deals.reduce((sum, d) => sum + (d.requestedAmount || d.requested_amount || 0), 0)
   };
 
   return (
@@ -439,7 +372,7 @@ const PendingDeals = () => {
         {/* Deals List */}
         <div className="space-y-4">
           {filteredDeals.map((deal) => {
-            const daysLeft = getDaysUntilDeadline(deal.deadline);
+            const daysLeft = getDaysUntilDeadline(deal.deadline || deal.created_at);
             const isUrgent = daysLeft <= 7;
             
             return (
@@ -449,23 +382,23 @@ const PendingDeals = () => {
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h3 className="text-xl font-semibold text-gray-900">{deal.pitchTitle}</h3>
-                          <p className="text-sm text-gray-600">{deal.company} • {deal.creator}</p>
+                          <h3 className="text-xl font-semibold text-gray-900">{deal.pitchTitle || deal.pitch_title}</h3>
+                          <p className="text-sm text-gray-600">{deal.company || deal.company_name} • {deal.creator || deal.creator_name}</p>
                           <div className="flex gap-2 mt-2">
                             <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                              {deal.genre}
+                              {deal.genre || deal.pitch_genre}
                             </span>
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(deal.status)}`}>
                               {deal.status.replace('-', ' ')}
                             </span>
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getRiskColor(deal.riskLevel)}`}>
-                              {deal.riskLevel} risk
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getRiskColor(deal.riskLevel || deal.risk_level || 'medium')}`}>
+                              {deal.riskLevel || deal.risk_level || 'medium'} risk
                             </span>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`text-sm font-medium ${getPriorityColor(deal.priority)}`}>
-                            {deal.priority} priority
+                          <div className={`text-sm font-medium ${getPriorityColor(deal.priority || 'medium')}`}>
+                            {deal.priority || 'medium'} priority
                           </div>
                           <div className={`text-sm ${isUrgent ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
                             {daysLeft > 0 ? `${daysLeft} days left` : 'Expired'}
@@ -476,19 +409,19 @@ const PendingDeals = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                         <div>
                           <p className="text-xs text-gray-500">Deal Type</p>
-                          <p className="text-sm font-medium text-gray-900">{deal.dealType}</p>
+                          <p className="text-sm font-medium text-gray-900">{deal.dealType || deal.deal_type || 'equity'}</p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-500">Requested Amount</p>
-                          <p className="text-sm font-medium text-gray-900">{formatCurrency(deal.requestedAmount)}</p>
+                          <p className="text-sm font-medium text-gray-900">{formatCurrency(deal.requestedAmount || deal.requested_amount || 0)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-500">Min. Investment</p>
-                          <p className="text-sm font-medium text-gray-900">{formatCurrency(deal.minimumInvestment)}</p>
+                          <p className="text-sm font-medium text-gray-900">{formatCurrency(deal.minimumInvestment || deal.minimum_investment || 0)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-gray-500">Projected ROI</p>
-                          <p className="text-sm font-medium text-green-600">{deal.projectedROI}%</p>
+                          <p className="text-sm font-medium text-green-600">{deal.projectedROI || deal.projected_roi || 0}%</p>
                         </div>
                       </div>
 
@@ -511,9 +444,9 @@ const PendingDeals = () => {
                       </div>
 
                       <div className="mb-4">
-                        <p className="text-xs text-gray-500 mb-1">Documents ({deal.documents.length})</p>
+                        <p className="text-xs text-gray-500 mb-1">Documents ({(deal.documents || []).length})</p>
                         <div className="flex gap-2">
-                          {deal.documents.map((doc, idx) => (
+                          {(deal.documents || []).map((doc, idx) => (
                             <Button key={idx} variant="outline" size="sm">
                               <FileText className="h-3 w-3 mr-1" />
                               {doc.name}
@@ -524,8 +457,8 @@ const PendingDeals = () => {
 
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-500 mb-1">Latest Notes</p>
-                        <p className="text-sm text-gray-700">{deal.notes}</p>
-                        <p className="text-xs text-gray-500 mt-1">Last updated: {new Date(deal.lastUpdate).toLocaleDateString()}</p>
+                        <p className="text-sm text-gray-700">{deal.notes || 'No additional notes available.'}</p>
+                        <p className="text-xs text-gray-500 mt-1">Last updated: {new Date(deal.lastUpdate || deal.updated_at).toLocaleDateString()}</p>
                       </div>
                     </div>
 

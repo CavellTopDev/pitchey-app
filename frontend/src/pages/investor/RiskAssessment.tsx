@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, AlertTriangle, CheckCircle, Info,
@@ -8,10 +8,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
+import { investorApi } from '@/services/investor.service';
 
 const RiskAssessment = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [riskData, setRiskData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadRiskAssessment();
+  }, []);
+
+  const loadRiskAssessment = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await investorApi.getPortfolioRisk();
+      
+      if (response.success && response.data) {
+        setRiskData(response.data);
+      } else {
+        setError('Failed to load risk assessment');
+        // Use fallback data
+        setRiskData({
+          overallRisk: 'Medium',
+          riskScore: 6.2,
+          lowRisk: 45,
+          mediumRisk: 35,
+          highRisk: 20
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load risk assessment:', error);
+      setError('Failed to load risk assessment');
+      setRiskData({
+        overallRisk: 'Medium',
+        riskScore: 6.2,
+        lowRisk: 45,
+        mediumRisk: 35,
+        highRisk: 20
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -21,6 +63,20 @@ const RiskAssessment = () => {
       console.error('Logout failed:', error);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <InvestorNavigation 
+          user={user}
+          onLogout={handleLogout}
+        />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

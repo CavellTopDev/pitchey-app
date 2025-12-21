@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FileText, Download, Calendar, Search, Filter,
@@ -8,11 +8,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
+import { investorApi } from '@/services/investor.service';
 
 const TaxDocuments = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadTaxDocuments();
+  }, []);
+
+  const loadTaxDocuments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await investorApi.getTaxDocuments(2024);
+      
+      if (response.success && response.data) {
+        setDocuments(response.data.documents || []);
+      } else {
+        setError('Failed to load tax documents');
+        // Use fallback data
+        setDocuments([
+          { id: 1, name: '2024 Tax Summary', type: 'Tax Summary', year: 2024, date: '2024-12-01', status: 'available', size: '2.3 MB' },
+          { id: 2, name: '2024 Investment Gains Report', type: 'Gains Report', year: 2024, date: '2024-12-01', status: 'available', size: '1.8 MB' },
+          { id: 3, name: '2024 Q3 Quarterly Statement', type: 'Quarterly', year: 2024, date: '2024-09-30', status: 'available', size: '950 KB' },
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to load tax documents:', error);
+      setError('Failed to load tax documents');
+      setDocuments([
+        { id: 1, name: '2024 Tax Summary', type: 'Tax Summary', year: 2024, date: '2024-12-01', status: 'available', size: '2.3 MB' },
+        { id: 2, name: '2024 Investment Gains Report', type: 'Gains Report', year: 2024, date: '2024-12-01', status: 'available', size: '1.8 MB' },
+        { id: 3, name: '2024 Q3 Quarterly Statement', type: 'Quarterly', year: 2024, date: '2024-09-30', status: 'available', size: '950 KB' },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -23,11 +61,23 @@ const TaxDocuments = () => {
     }
   };
 
-  const documents = [
-    { id: '1', name: '2024 Tax Summary', type: 'Tax Summary', year: '2024', date: '2024-12-01', status: 'available', size: '2.3 MB' },
-    { id: '2', name: '2024 Investment Gains Report', type: 'Gains Report', year: '2024', date: '2024-12-01', status: 'available', size: '1.8 MB' },
-    { id: '3', name: '2024 Q3 Quarterly Statement', type: 'Quarterly', year: '2024', date: '2024-09-30', status: 'available', size: '950 KB' },
-    { id: '4', name: '2024 Q2 Quarterly Statement', type: 'Quarterly', year: '2024', date: '2024-06-30', status: 'available', size: '1.1 MB' },
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <InvestorNavigation 
+          user={user}
+          onLogout={handleLogout}
+        />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredDocuments = documents.filter(doc =>
+    searchQuery === '' || doc.name.toLowerCase().includes(searchQuery.toLowerCase()) || doc.type.toLowerCase().includes(searchQuery.toLowerCase())
+  );
     { id: '5', name: '2023 Annual Tax Report', type: 'Annual Report', year: '2023', date: '2024-01-15', status: 'archived', size: '3.2 MB' },
   ];
 

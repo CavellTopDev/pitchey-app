@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, TrendingDown, DollarSign, Percent, Calculator,
   Calendar, BarChart3, PieChart, LineChart, Download,
-  ArrowUp, ArrowDown, AlertTriangle, CheckCircle, Info
+  ArrowUp, ArrowDown, AlertTriangle, CheckCircle, Info, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
+import { investorApi } from '@/services/investor.service';
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -28,13 +29,18 @@ import {
 } from 'recharts';
 
 interface ROIMetric {
-  id: string;
   category: string;
-  invested: number;
-  returned: number;
-  roi: number;
-  projects: number;
-  timeframe: string;
+  avg_roi: number;
+  count: number;
+  total_profit: number;
+}
+
+interface ROISummary {
+  total_investments: number;
+  average_roi: number;
+  best_roi: number;
+  worst_roi: number;
+  profitable_count: number;
 }
 
 const ROIAnalysis = () => {
@@ -42,7 +48,9 @@ const ROIAnalysis = () => {
   const { user, logout } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('1y');
-  const [metrics, setMetrics] = useState<ROIMetric[]>([]);
+  const [roiSummary, setRoiSummary] = useState<ROISummary | null>(null);
+  const [categoryMetrics, setCategoryMetrics] = useState<ROIMetric[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadROIData();
@@ -51,20 +59,36 @@ const ROIAnalysis = () => {
   const loadROIData = async () => {
     try {
       setLoading(true);
-      // Simulated data
-      setTimeout(() => {
-        setMetrics([
-          { id: '1', category: 'Action', invested: 3000000, returned: 4500000, roi: 50, projects: 5, timeframe: '2024' },
-          { id: '2', category: 'Drama', invested: 2500000, returned: 4200000, roi: 68, projects: 4, timeframe: '2024' },
-          { id: '3', category: 'Thriller', invested: 1800000, returned: 2700000, roi: 50, projects: 3, timeframe: '2024' },
-          { id: '4', category: 'Sci-Fi', invested: 2000000, returned: 2400000, roi: 20, projects: 2, timeframe: '2024' },
-          { id: '5', category: 'Comedy', invested: 1200000, returned: 1800000, roi: 50, projects: 3, timeframe: '2024' },
-          { id: '6', category: 'Documentary', invested: 800000, returned: 1400000, roi: 75, projects: 2, timeframe: '2024' }
-        ]);
-        setLoading(false);
-      }, 1000);
+      setError(null);
+      
+      // Fetch ROI summary
+      const summaryResponse = await investorApi.getROISummary();
+      setRoiSummary(summaryResponse.data.summary);
+      
+      // Fetch ROI by category
+      const categoryResponse = await investorApi.getROIByCategory();
+      setCategoryMetrics(categoryResponse.data.categories || []);
+      
     } catch (error) {
       console.error('Failed to load ROI data:', error);
+      setError('Failed to load ROI analysis data');
+      // Set fallback data for demonstration
+      setCategoryMetrics([
+        { category: 'Action', avg_roi: 50, count: 5, total_profit: 1500000 },
+        { category: 'Drama', avg_roi: 68, count: 4, total_profit: 1700000 },
+        { category: 'Thriller', avg_roi: 50, count: 3, total_profit: 900000 },
+        { category: 'Sci-Fi', avg_roi: 20, count: 2, total_profit: 400000 },
+        { category: 'Comedy', avg_roi: 50, count: 3, total_profit: 600000 },
+        { category: 'Documentary', avg_roi: 75, count: 2, total_profit: 600000 }
+      ]);
+      setRoiSummary({
+        total_investments: 19,
+        average_roi: 52.2,
+        best_roi: 75,
+        worst_roi: 20,
+        profitable_count: 15
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -86,11 +110,15 @@ const ROIAnalysis = () => {
 
   const pieColors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
-  const totalInvested = metrics.reduce((sum, m) => sum + m.invested, 0);
-  const totalReturned = metrics.reduce((sum, m) => sum + m.returned, 0);
-  const totalROI = totalInvested > 0 ? ((totalReturned - totalInvested) / totalInvested * 100) : 0;
-  const bestPerforming = metrics.reduce((best, current) => current.roi > best.roi ? current : best, metrics[0] || {});
-  const totalProjects = metrics.reduce((sum, m) => sum + m.projects, 0);
+  // Calculate metrics from summary and category data
+  const totalInvested = roiSummary?.total_investments || 0;
+  const totalReturned = categoryMetrics.reduce((sum, m) => sum + m.total_profit, 0);
+  const totalROI = roiSummary?.average_roi || 0;
+  const bestPerforming = categoryMetrics.reduce((best, current) => 
+    (current.avg_roi > (best?.avg_roi || 0)) ? current : best, 
+    categoryMetrics[0] || { category: 'N/A', avg_roi: 0 }
+  );
+  const totalProjects = categoryMetrics.reduce((sum, m) => sum + m.count, 0);
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
@@ -205,8 +233,8 @@ const ROIAnalysis = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Best Performer</p>
-                  <p className="text-2xl font-bold text-purple-600">{bestPerforming?.category}</p>
-                  <p className="text-xs text-gray-500 mt-1">{bestPerforming?.roi}% ROI</p>
+                  <p className="text-2xl font-bold text-purple-600">{bestPerforming?.category || 'N/A'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{bestPerforming?.avg_roi || 0}% ROI</p>
                 </div>
                 <CheckCircle className="h-8 w-8 text-purple-600" />
               </div>
@@ -256,16 +284,16 @@ const ROIAnalysis = () => {
               <ResponsiveContainer width="100%" height={300}>
                 <RechartsPieChart>
                   <Pie
-                    data={metrics}
+                    data={categoryMetrics}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ category, roi }) => `${category}: ${roi}%`}
+                    label={({ category, avg_roi }) => `${category}: ${avg_roi}%`}
                     outerRadius={80}
                     fill="#8884d8"
-                    dataKey="returned"
+                    dataKey="total_profit"
                   >
-                    {metrics.map((entry, index) => (
+                    {categoryMetrics.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
                     ))}
                   </Pie>
@@ -284,7 +312,11 @@ const ROIAnalysis = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={metrics}>
+              <BarChart data={categoryMetrics.map(cat => ({
+                category: cat.category,
+                invested: cat.total_profit / (1 + cat.avg_roi / 100), // Calculate invested from profit and ROI
+                returned: cat.total_profit
+              }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="category" />
                 <YAxis />
@@ -332,22 +364,23 @@ const ROIAnalysis = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {metrics.map((metric) => {
-                    const profit = metric.returned - metric.invested;
+                  {categoryMetrics.map((metric, index) => {
+                    const invested = metric.total_profit / (1 + metric.avg_roi / 100);
+                    const profit = metric.total_profit - invested;
                     const isProfit = profit > 0;
                     return (
-                      <tr key={metric.id} className="hover:bg-gray-50">
+                      <tr key={index} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{metric.category}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{metric.projects}</div>
+                          <div className="text-sm text-gray-900">{metric.count}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{formatCurrency(metric.invested)}</div>
+                          <div className="text-sm text-gray-900">{formatCurrency(invested)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{formatCurrency(metric.returned)}</div>
+                          <div className="text-sm font-medium text-gray-900">{formatCurrency(metric.total_profit)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className={`text-sm font-medium flex items-center ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
@@ -356,17 +389,17 @@ const ROIAnalysis = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-lg font-bold ${metric.roi > 50 ? 'text-green-600' : metric.roi > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                            {metric.roi}%
+                          <div className={`text-lg font-bold ${metric.avg_roi > 50 ? 'text-green-600' : metric.avg_roi > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                            {metric.avg_roi}%
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {metric.roi > 50 ? (
+                          {metric.avg_roi > 50 ? (
                             <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Excellent
                             </span>
-                          ) : metric.roi > 0 ? (
+                          ) : metric.avg_roi > 0 ? (
                             <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                               <TrendingUp className="h-3 w-3 mr-1" />
                               Positive

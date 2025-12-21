@@ -4,33 +4,31 @@ import {
   DollarSign, TrendingUp, TrendingDown, Calendar, Filter,
   Search, Download, Eye, MoreVertical, ArrowUpDown,
   Building, Film, Users, Award, Clock, AlertCircle,
-  CheckCircle, XCircle, PauseCircle, PlayCircle
+  CheckCircle, XCircle, PauseCircle, PlayCircle, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
+import { investorApi } from '@/services/investor.service';
 
 interface Investment {
-  id: string;
-  pitchTitle: string;
-  company: string;
-  creator: string;
-  genre: string;
-  investmentDate: string;
-  initialAmount: number;
-  currentValue: number;
-  roi: number;
-  status: 'active' | 'completed' | 'on-hold' | 'exited' | 'written-off';
-  stage: 'pre-production' | 'production' | 'post-production' | 'distribution' | 'released';
-  ownership: number;
-  lastValuation: string;
-  distributions: number;
-  totalReturn: number;
-  exitDate?: string;
-  performance: 'outperforming' | 'meeting-expectations' | 'underperforming';
-  nextMilestone?: string;
-  riskLevel: 'low' | 'medium' | 'high';
+  id: number;
+  pitch_id: number;
+  pitch_title: string;
+  pitch_genre?: string;
+  creator_name?: string;
+  company_name?: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  current_value?: number;
+  roi_percentage?: number;
+  stage?: string;
+  ownership_percentage?: number;
+  distribution_received?: number;
+  exit_date?: string;
 }
 
 const AllInvestments = () => {
@@ -57,175 +55,57 @@ const AllInvestments = () => {
   const loadInvestments = async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setInvestments([
-          {
-            id: '1',
-            pitchTitle: 'The Quantum Paradox',
-            company: 'Quantum Films Ltd',
-            creator: 'Alex Chen',
-            genre: 'Sci-Fi',
-            investmentDate: '2024-01-15',
-            initialAmount: 500000,
-            currentValue: 725000,
-            roi: 45,
-            status: 'active',
-            stage: 'post-production',
-            ownership: 5.5,
-            lastValuation: '2024-12-15',
-            distributions: 50000,
-            totalReturn: 275000,
-            performance: 'outperforming',
-            nextMilestone: 'Festival premiere',
-            riskLevel: 'low'
-          },
-          {
-            id: '2',
-            pitchTitle: 'Urban Legends',
-            company: 'Dark Horse Productions',
-            creator: 'Maria Rodriguez',
-            genre: 'Horror',
-            investmentDate: '2023-11-20',
-            initialAmount: 750000,
-            currentValue: 820000,
-            roi: 9.3,
-            status: 'active',
-            stage: 'production',
-            ownership: 7.2,
-            lastValuation: '2024-12-01',
-            distributions: 0,
-            totalReturn: 70000,
-            performance: 'meeting-expectations',
-            nextMilestone: 'Wrap principal photography',
-            riskLevel: 'medium'
-          },
-          {
-            id: '3',
-            pitchTitle: 'Digital Dreams',
-            company: 'Tech Cinema Co',
-            creator: 'James Wilson',
-            genre: 'Thriller',
-            investmentDate: '2023-08-10',
-            initialAmount: 300000,
-            currentValue: 280000,
-            roi: -6.7,
-            status: 'on-hold',
-            stage: 'pre-production',
-            ownership: 3.8,
-            lastValuation: '2024-11-20',
-            distributions: 0,
-            totalReturn: -20000,
-            performance: 'underperforming',
-            nextMilestone: 'Secure additional funding',
-            riskLevel: 'high'
-          },
-          {
-            id: '4',
-            pitchTitle: 'Lost Paradise',
-            company: 'Paradise Films',
-            creator: 'Emily Chang',
-            genre: 'Drama',
-            investmentDate: '2022-06-05',
-            initialAmount: 1000000,
-            currentValue: 1850000,
-            roi: 85,
-            status: 'completed',
-            stage: 'released',
-            ownership: 12.5,
-            lastValuation: '2024-10-15',
-            distributions: 350000,
-            totalReturn: 1200000,
-            exitDate: '2024-10-01',
-            performance: 'outperforming',
-            riskLevel: 'low'
-          },
-          {
-            id: '5',
-            pitchTitle: 'Midnight Chronicles',
-            company: 'Moonlight Studios',
-            creator: 'David Lee',
-            genre: 'Mystery',
-            investmentDate: '2024-02-20',
-            initialAmount: 450000,
-            currentValue: 495000,
-            roi: 10,
-            status: 'active',
-            stage: 'production',
-            ownership: 4.5,
-            lastValuation: '2024-12-10',
-            distributions: 0,
-            totalReturn: 45000,
-            performance: 'meeting-expectations',
-            nextMilestone: 'Complete post-production',
-            riskLevel: 'medium'
-          },
-          {
-            id: '6',
-            pitchTitle: 'Arctic Expedition',
-            company: 'Northern Lights Pictures',
-            creator: 'Sophie Anderson',
-            genre: 'Documentary',
-            investmentDate: '2023-03-15',
-            initialAmount: 200000,
-            currentValue: 380000,
-            roi: 90,
-            status: 'completed',
-            stage: 'distribution',
-            ownership: 8.0,
-            lastValuation: '2024-11-25',
-            distributions: 80000,
-            totalReturn: 260000,
-            exitDate: '2024-11-01',
-            performance: 'outperforming',
-            riskLevel: 'low'
-          },
-          {
-            id: '7',
-            pitchTitle: 'Comedy Central',
-            company: 'Laugh Track Productions',
-            creator: 'Mike Johnson',
-            genre: 'Comedy',
-            investmentDate: '2023-09-01',
-            initialAmount: 150000,
-            currentValue: 0,
-            roi: -100,
-            status: 'written-off',
-            stage: 'production',
-            ownership: 2.5,
-            lastValuation: '2024-08-15',
-            distributions: 0,
-            totalReturn: -150000,
-            exitDate: '2024-08-15',
-            performance: 'underperforming',
-            riskLevel: 'high'
-          },
-          {
-            id: '8',
-            pitchTitle: 'Space Odyssey 2099',
-            company: 'Stellar Entertainment',
-            creator: 'Robert Zhang',
-            genre: 'Sci-Fi',
-            investmentDate: '2024-03-10',
-            initialAmount: 800000,
-            currentValue: 920000,
-            roi: 15,
-            status: 'active',
-            stage: 'pre-production',
-            ownership: 6.0,
-            lastValuation: '2024-12-18',
-            distributions: 0,
-            totalReturn: 120000,
-            performance: 'meeting-expectations',
-            nextMilestone: 'Begin principal photography',
-            riskLevel: 'medium'
-          }
-        ]);
+      const response = await investorApi.getAllInvestments();
+      
+      if (response.success && response.data) {
+        // Transform API data to match component expectations
+        const transformedInvestments = (response.data.investments || []).map((investment: any) => {
+          return {
+            id: investment.id,
+            pitch_id: investment.pitch_id,
+            pitch_title: investment.pitch_title,
+            pitch_genre: investment.pitch_genre,
+            creator_name: investment.creator_name,
+            company_name: investment.company_name,
+            amount: investment.amount,
+            status: investment.status,
+            created_at: investment.created_at,
+            updated_at: investment.updated_at,
+            current_value: investment.current_value,
+            roi_percentage: investment.roi_percentage,
+            stage: investment.stage,
+            ownership_percentage: investment.ownership_percentage,
+            distribution_received: investment.distribution_received,
+            exit_date: investment.exit_date,
+            // Map to expected field names for UI
+            pitchTitle: investment.pitch_title,
+            company: investment.company_name || 'Unknown Company',
+            creator: investment.creator_name || 'Unknown Creator',
+            genre: investment.pitch_genre || 'Unknown',
+            investmentDate: investment.created_at,
+            initialAmount: investment.amount,
+            currentValue: investment.current_value || investment.amount,
+            roi: investment.roi_percentage || 0,
+            ownership: investment.ownership_percentage || 0,
+            lastValuation: investment.updated_at,
+            distributions: investment.distribution_received || 0,
+            totalReturn: (investment.current_value || investment.amount) - investment.amount,
+            performance: investment.roi_percentage >= 20 ? 'outperforming' : investment.roi_percentage >= 0 ? 'meeting-expectations' : 'underperforming',
+            nextMilestone: investment.stage === 'pre-production' ? 'Begin production' : investment.stage === 'production' ? 'Complete filming' : investment.stage === 'post-production' ? 'Complete editing' : 'Market release',
+            riskLevel: investment.roi_percentage < 0 ? 'high' : investment.roi_percentage < 20 ? 'medium' : 'low',
+            exitDate: investment.exit_date
+          };
+        });
         
-        setLoading(false);
-      }, 1000);
+        setInvestments(transformedInvestments);
+      } else {
+        console.error('Failed to load investments:', response.error || 'Unknown error');
+        setInvestments([]);
+      }
     } catch (error) {
       console.error('Failed to load investments:', error);
+      setInvestments([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -363,7 +243,7 @@ const AllInvestments = () => {
     totalReturns: investments.reduce((sum, inv) => sum + inv.totalReturn, 0),
     activeCount: investments.filter(inv => inv.status === 'active').length,
     avgROI: investments.length > 0 
-      ? investments.reduce((sum, inv) => sum + inv.roi, 0) / investments.length 
+      ? investments.reduce((sum, inv) => sum + (inv.roi || inv.roi_percentage || 0), 0) / investments.length 
       : 0
   };
 
