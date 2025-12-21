@@ -617,7 +617,7 @@ function App() {
           <Route path="/investor/completed-projects" element={isAuthenticated && userType === 'investor' ? <CompletedProjects /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/completed" element={isAuthenticated && userType === 'investor' ? <CompletedProjects /> : <Navigate to="/login/investor" />} />
           
-          {/* Analytics Routes - with simplified aliases */}
+          {/* Analytics Routes - with simplified aliases and preview support */}
           <Route path="/investor/roi-analysis" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/roi" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
           
