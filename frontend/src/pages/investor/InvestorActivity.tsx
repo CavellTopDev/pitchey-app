@@ -7,7 +7,7 @@ import {
   ArrowRight, Star, Award, Building, Clock,
   ThumbsUp, ThumbsDown, Share2, Bookmark
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
+import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '../../store/authStore';
 import { config } from '../../config';
 
@@ -379,12 +379,9 @@ export default function InvestorActivity() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
+        <InvestorNavigation
           user={user}
-          userType="investor"
-          title="Activity Feed"
           onLogout={logout}
-          useEnhancedNav={true}
         />
         <div className="flex items-center justify-center h-64">
           <div className="flex items-center space-x-2">
@@ -400,12 +397,9 @@ export default function InvestorActivity() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
+      <InvestorNavigation
         user={user}
-        userType="investor"
-        title="Activity Feed"
         onLogout={logout}
-        useEnhancedNav={true}
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

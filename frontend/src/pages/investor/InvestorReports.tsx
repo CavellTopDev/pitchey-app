@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Calendar, TrendingUp, DollarSign, BarChart3, PieChart, FileSpreadsheet } from 'lucide-react';
-import DashboardHeader from '@/components/DashboardHeader';
+import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '@/store/authStore';
 
 interface Report {
@@ -138,10 +138,8 @@ const InvestorReports = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader 
+      <InvestorNavigation 
         user={user}
-        userType="investor"
-        title="Investment Reports"
         onLogout={handleLogout}
       />
       <main className="container mx-auto px-4 py-6">

@@ -7,7 +7,8 @@ import {
   Target, LogOut, User, CreditCard, HelpCircle, BarChart3,
   PieChart, Shield, Bookmark, HandshakeIcon, TrendingDown,
   Wallet, Building2, Filter, ArrowUpRight, History, LineChart,
-  Menu, X, ChevronRight
+  Menu, X, ChevronRight, Clock, CheckCircle, AlertTriangle, Film,
+  FileCheck, FileX, FileSearch, FileClock, FileSignature
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -396,7 +397,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
 
       {/* Main Navigation - Hidden on mobile and tablet */}
       <nav className="hidden xl:flex items-center gap-1">
-        {/* Dashboard Dropdown */}
+        {/* Dashboard Dropdown - Matches mobile menu */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
             <Home className="w-4 h-4" aria-hidden="true" />
@@ -408,131 +409,92 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
               <Home className="w-4 h-4 mr-2" />
               Overview
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio')}>
-              <Briefcase className="w-4 h-4 mr-2" />
-              Portfolio Overview
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics')}>
               <BarChart3 className="w-4 h-4 mr-2" />
               Investment Analytics
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/reports')}>
-              <FileText className="w-4 h-4 mr-2" />
-              Performance Reports
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/performance')}>
+              <LineChart className="w-4 h-4 mr-2" />
+              Performance Tracking
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => handleNavigation('/investor/activity')}>
-              <Activity className="w-4 h-4 mr-2" />
+              <Calendar className="w-4 h-4 mr-2" />
               Recent Activity
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Browse Dropdown */}
+        {/* Discover Dropdown - Matches mobile menu */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
             <Globe className="w-4 h-4" aria-hidden="true" />
-            <span>Browse</span>
+            <span>Discover</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56 bg-white">
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/browse')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/discover')}>
               <Globe className="w-4 h-4 mr-2" />
-              All Opportunities
+              All Pitches
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/browse?tab=trending')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/discover?tab=trending')}>
               <TrendingUp className="w-4 h-4 mr-2" />
-              Trending Projects
+              Trending Now
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/browse?tab=new')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/discover?tab=new')}>
               <Star className="w-4 h-4 mr-2" />
-              New Submissions
+              New Opportunities
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/browse?tab=featured')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/discover?tab=featured')}>
               <Award className="w-4 h-4 mr-2" />
-              Featured Deals
+              Featured Projects
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/discover?tab=high-potential')}>
+              <ArrowUpRight className="w-4 h-4 mr-2" />
+              High Potential
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/discover/genres')}>
+              <Filter className="w-4 h-4 mr-2" />
+              Browse by Genre
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Portfolio Dropdown - Matches mobile menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
+            <Briefcase className="w-4 h-4" aria-hidden="true" />
+            <span>Portfolio</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 bg-white">
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio')}>
+              <Briefcase className="w-4 h-4 mr-2" />
+              All Investments
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio/active')}>
+              <Activity className="w-4 h-4 mr-2" />
+              Active Projects
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio/pending')}>
+              <History className="w-4 h-4 mr-2" />
+              Pending Deals
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio/completed')}>
+              <FileText className="w-4 h-4 mr-2" />
+              Completed Projects
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleNavigation('/investor/saved')}>
               <Bookmark className="w-4 h-4 mr-2" />
               Saved Pitches
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/watchlist')}>
-              <Eye className="w-4 h-4 mr-2" />
-              Watchlist
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Investments Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
-            <DollarSign className="w-4 h-4" aria-hidden="true" />
-            <span>Investments</span>
-            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56 bg-white">
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/investments')}>
-              <Briefcase className="w-4 h-4 mr-2" />
-              Active Investments
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio/performance')}>
-              <LineChart className="w-4 h-4 mr-2" />
-              Portfolio Performance
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/returns')}>
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Returns & ROI
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/opportunities')}>
-              <ArrowUpRight className="w-4 h-4 mr-2" />
-              New Opportunities
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/transactions')}>
-              <History className="w-4 h-4 mr-2" />
-              Transaction History
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/documents')}>
-              <FileText className="w-4 h-4 mr-2" />
-              Investment Documents
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Due Diligence Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
-            <Shield className="w-4 h-4" aria-hidden="true" />
-            <span>Due Diligence</span>
-            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56 bg-white">
             <DropdownMenuItem onClick={() => handleNavigation('/investor/ndas')}>
               <Shield className="w-4 h-4 mr-2" />
               NDA Management
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/ndas/pending')}>
-              <Clock className="w-4 h-4 mr-2" />
-              Pending NDAs
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/ndas/signed')}>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Signed Agreements
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/evaluations')}>
-              <FileText className="w-4 h-4 mr-2" />
-              Project Evaluations
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/risk-assessment')}>
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              Risk Assessments
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Network Dropdown */}
+        {/* Network Dropdown - Matches mobile menu */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
             <Users className="w-4 h-4" aria-hidden="true" />
@@ -540,102 +502,75 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56 bg-white">
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/creators')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/network')}>
               <Users className="w-4 h-4 mr-2" />
-              Connected Creators
+              My Network
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/following')}>
-              <Star className="w-4 h-4 mr-2" />
-              Following
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/creators')}>
+              <User className="w-4 h-4 mr-2" />
+              Connected Creators
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleNavigation('/investor/co-investors')}>
               <HandshakeIcon className="w-4 h-4 mr-2" />
               Co-Investors
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/companies')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/production-companies')}>
               <Building2 className="w-4 h-4 mr-2" />
               Production Companies
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/messages')}>
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Messages
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Analytics Dropdown - Matches mobile menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
+            <PieChart className="w-4 h-4" aria-hidden="true" />
+            <span>Analytics</span>
+            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56 bg-white">
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics')}>
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Investment Overview
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/meetings')}>
-              <Calendar className="w-4 h-4 mr-2" />
-              Scheduled Meetings
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics/roi')}>
+              <TrendingUp className="w-4 h-4 mr-2" />
+              ROI Analysis
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics/market')}>
+              <LineChart className="w-4 h-4 mr-2" />
+              Market Trends
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics/risk')}>
+              <TrendingDown className="w-4 h-4 mr-2" />
+              Risk Assessment
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Search Dropdown */}
+        {/* Financials Dropdown - Matches mobile menu */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
-            <Search className="w-4 h-4" aria-hidden="true" />
-            <span>Search</span>
+            <Wallet className="w-4 h-4" aria-hidden="true" />
+            <span>Financials</span>
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56 bg-white">
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/search')}>
-              <Search className="w-4 h-4 mr-2" />
-              Search Projects
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/search/creators')}>
-              <Users className="w-4 h-4 mr-2" />
-              Find Creators
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/search/genres')}>
-              <Film className="w-4 h-4 mr-2" />
-              Browse by Genre
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/search/advanced')}>
-              <Filter className="w-4 h-4 mr-2" />
-              Advanced Filters
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/search/saved')}>
-              <Bookmark className="w-4 h-4 mr-2" />
-              Saved Searches
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Settings Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer">
-            <Settings className="w-4 h-4" aria-hidden="true" />
-            <span>Settings</span>
-            <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56 bg-white">
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/settings')}>
-              <Settings className="w-4 h-4 mr-2" />
-              General Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/profile')}>
-              <User className="w-4 h-4 mr-2" />
-              Investment Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/preferences')}>
-              <Target className="w-4 h-4 mr-2" />
-              Investment Preferences
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/wallet')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/financials')}>
               <Wallet className="w-4 h-4 mr-2" />
-              Wallet & Banking
+              Financial Overview
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/notifications')}>
-              <Bell className="w-4 h-4 mr-2" />
-              Alert Preferences
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/transactions')}>
+              <DollarSign className="w-4 h-4 mr-2" />
+              Transaction History
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/compliance')}>
-              <Shield className="w-4 h-4 mr-2" />
-              Compliance & Legal
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/budget')}>
+              <PieChart className="w-4 h-4 mr-2" />
+              Budget Allocation
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/help')}>
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Help & Support
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/tax')}>
+              <FileText className="w-4 h-4 mr-2" />
+              Tax Documents
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -723,6 +658,3 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
     </div>
   );
 }
-
-// Add missing imports
-import { AlertTriangle, CheckCircle, Clock, Film } from 'lucide-react';

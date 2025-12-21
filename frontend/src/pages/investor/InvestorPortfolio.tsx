@@ -7,7 +7,7 @@ import {
   BarChart3, Target, RefreshCw, Search, Grid3X3, List,
   Heart, MessageSquare, Settings, Plus, Minus
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
+import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '../../store/authStore';
 
 interface Investment {
@@ -177,12 +177,9 @@ export default function InvestorPortfolio() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
+      <InvestorNavigation
         user={user}
-        userType="investor"
-        title="Investment Portfolio"
         onLogout={logout}
-        useEnhancedNav={true}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -100,6 +100,7 @@ const ContentModeration = lazy(() => import('./pages/Admin/ContentModeration'));
 
 // Coming Soon Page for unimplemented routes
 const ComingSoon = lazy(() => import('./pages/ComingSoon'));
+const NDARequests = lazy(() => import('./pages/investor/NDARequests'));
 
 // New Pages
 const ProductionProjects = lazy(() => import('./pages/production/ProductionProjects'));
@@ -583,7 +584,9 @@ function App() {
           <Route path="/investor/watchlist" element={isAuthenticated && userType === 'investor' ? <InvestorWatchlist /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/deals" element={isAuthenticated && userType === 'investor' ? <InvestorDeals /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <InvestorPerformance /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/ndas" element={isAuthenticated && userType === 'investor' ? <ComingSoon /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/ndas" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/nda-requests" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/nda-requests/:status" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
           
