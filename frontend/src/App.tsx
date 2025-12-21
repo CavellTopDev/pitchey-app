@@ -332,6 +332,11 @@ function App() {
           <Route path="/login/creator" element={<CreatorLogin />} />
           <Route path="/login/investor" element={<InvestorLogin />} />
           <Route path="/login/production" element={<ProductionLogin />} />
+          
+          {/* Portal-specific login redirects */}
+          <Route path="/investor/login" element={<Navigate to="/login/investor" replace />} />
+          <Route path="/creator/login" element={<Navigate to="/login/creator" replace />} />
+          <Route path="/production/login" element={<Navigate to="/login/production" replace />} />
           <Route path="/login/admin" element={
             !isAuthenticated ? <Login /> : 
             userType === 'admin' ? <Navigate to="/admin/dashboard" /> :
@@ -590,6 +595,7 @@ function App() {
           <Route path="/investor/stats" element={isAuthenticated && userType === 'investor' ? <InvestorStats /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/portfolio" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/portfolio/active" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/portfolio/pending" element={isAuthenticated && userType === 'investor' ? <PendingDeals /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/investments" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/portfolio" /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/discover" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/discover/genres" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
