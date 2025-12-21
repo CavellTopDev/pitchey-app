@@ -7,7 +7,7 @@ import {
   Calendar, MapPin, Link2, Mail, Phone,
   ChevronRight, Plus, Check, X
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
+import { InvestorNavigation } from '../../components/InvestorNavigation';
 import { useAuthStore } from '../../store/authStore';
 
 interface NetworkMember {
@@ -223,12 +223,9 @@ export default function InvestorNetwork() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
+        <InvestorNavigation
           user={user}
-          userType="investor"
-          title="Network"
           onLogout={logout}
-          useEnhancedNav={true}
         />
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-600">Loading network...</div>
@@ -242,7 +239,7 @@ export default function InvestorNetwork() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
+      <InvestorNavigation
         user={user}
         userType="investor"
         title="Network"
