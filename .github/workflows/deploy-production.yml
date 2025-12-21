@@ -45,8 +45,8 @@ jobs:
           cd frontend
           npm run build
         env:
-          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-api.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api.ndlovucavelle.workers.dev
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
   # Deploy database migrations
@@ -139,8 +139,8 @@ jobs:
           cd frontend
           npm run build
         env:
-          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-api.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api.ndlovucavelle.workers.dev
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           NODE_ENV: production
           

@@ -261,8 +261,8 @@ jobs:
       - name: Build for testing
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-api.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api.ndlovucavelle.workers.dev
           VITE_SENTRY_DSN: https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536
           NODE_ENV: production
         run: npm run build
@@ -314,8 +314,8 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         env:
-          VITE_API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
-          VITE_WS_URL: wss://pitchey-production.cavelltheleaddev.workers.dev
+          VITE_API_URL: https://pitchey-api.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api.ndlovucavelle.workers.dev
           VITE_SENTRY_DSN: https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536
           NODE_ENV: production
         run: npm run build
