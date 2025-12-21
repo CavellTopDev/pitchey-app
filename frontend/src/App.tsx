@@ -601,6 +601,8 @@ function App() {
           <Route path="/investor/nda-requests" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/nda-requests/:status" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/analytics/market" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/analytics/risk" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
           
           {/* New Investor Routes - with both legacy and consistent paths */}

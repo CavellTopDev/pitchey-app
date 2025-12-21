@@ -1,0 +1,11 @@
+<svg width="300" height="200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="200" fill="#E5E7EB"/>
+  <g>
+    <rect x="120" y="70" width="60" height="40" fill="#9CA3AF" rx="2"/>
+    <polygon points="135,95 135,85 145,90" fill="#E5E7EB"/>
+    <circle cx="150" cy="120" r="3" fill="#9CA3AF"/>
+    <circle cx="160" cy="120" r="3" fill="#9CA3AF"/>
+    <circle cx="140" cy="120" r="3" fill="#9CA3AF"/>
+  </g>
+  <text x="50%" y="140" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#6B7280">Pitch Preview</text>
+</svg>
