@@ -603,22 +603,40 @@ function App() {
           <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
           
-          {/* New Investor Routes */}
+          {/* New Investor Routes - with both legacy and consistent paths */}
           <Route path="/investor/performance-tracking" element={isAuthenticated && userType === 'investor' ? <PerformanceTracking /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <PerformanceTracking /> : <Navigate to="/login/investor" />} />
+          
           <Route path="/investor/pending-deals" element={isAuthenticated && userType === 'investor' ? <PendingDeals /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/pending" element={isAuthenticated && userType === 'investor' ? <PendingDeals /> : <Navigate to="/login/investor" />} />
+          
           <Route path="/investor/all-investments" element={isAuthenticated && userType === 'investor' ? <AllInvestments /> : <Navigate to="/login/investor" />} />
+          
           <Route path="/investor/completed-projects" element={isAuthenticated && userType === 'investor' ? <CompletedProjects /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/completed" element={isAuthenticated && userType === 'investor' ? <CompletedProjects /> : <Navigate to="/login/investor" />} />
           
-          {/* Analytics Routes */}
+          {/* Analytics Routes - with simplified aliases */}
           <Route path="/investor/roi-analysis" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/market-trends" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/risk-assessment" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/roi" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
           
-          {/* Financial Routes */}
+          <Route path="/investor/market-trends" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/trends" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
+          
+          <Route path="/investor/risk-assessment" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/risk" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
+          
+          {/* Financial Routes - with simplified aliases */}
           <Route path="/investor/financial-overview" element={isAuthenticated && userType === 'investor' ? <FinancialOverview /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/financials" element={isAuthenticated && userType === 'investor' ? <FinancialOverview /> : <Navigate to="/login/investor" />} />
+          
           <Route path="/investor/transaction-history" element={isAuthenticated && userType === 'investor' ? <TransactionHistory /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/transactions" element={isAuthenticated && userType === 'investor' ? <TransactionHistory /> : <Navigate to="/login/investor" />} />
+          
           <Route path="/investor/budget-allocation" element={isAuthenticated && userType === 'investor' ? <BudgetAllocation /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/budget" element={isAuthenticated && userType === 'investor' ? <BudgetAllocation /> : <Navigate to="/login/investor" />} />
+          
           <Route path="/investor/tax-documents" element={isAuthenticated && userType === 'investor' ? <TaxDocuments /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/tax" element={isAuthenticated && userType === 'investor' ? <TaxDocuments /> : <Navigate to="/login/investor" />} />
           
           {/* Investor Network Routes */}
           <Route path="/investor/network" element={isAuthenticated && userType === 'investor' ? <InvestorNetwork /> : <Navigate to="/login/investor" />} />
