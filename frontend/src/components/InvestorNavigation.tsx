@@ -94,7 +94,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                         Investment Analytics
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/performance')}
+                        onClick={() => handleNavigation('/investor/performance-tracking')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <LineChart className="w-4 h-4" />
@@ -178,7 +178,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                   <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
-                        onClick={() => handleNavigation('/investor/portfolio')}
+                        onClick={() => handleNavigation('/investor/all-investments')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <Briefcase className="w-4 h-4" />
@@ -192,14 +192,14 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                         Active Projects
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/portfolio/pending')}
+                        onClick={() => handleNavigation('/investor/pending-deals')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <History className="w-4 h-4" />
                         Pending Deals
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/portfolio/completed')}
+                        onClick={() => handleNavigation('/investor/completed-projects')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <FileText className="w-4 h-4" />
@@ -283,21 +283,21 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                         Investment Overview
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/analytics/roi')}
+                        onClick={() => handleNavigation('/investor/roi-analysis')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <TrendingUp className="w-4 h-4" />
                         ROI Analysis
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/analytics/market')}
+                        onClick={() => handleNavigation('/investor/market-trends')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <LineChart className="w-4 h-4" />
                         Market Trends
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/analytics/risk')}
+                        onClick={() => handleNavigation('/investor/risk-assessment')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <TrendingDown className="w-4 h-4" />
@@ -318,28 +318,28 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                   <AccordionContent className="bg-white">
                     <div className="flex flex-col gap-1 pl-6">
                       <button
-                        onClick={() => handleNavigation('/investor/financials')}
+                        onClick={() => handleNavigation('/investor/financial-overview')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <Wallet className="w-4 h-4" />
                         Financial Overview
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/transactions')}
+                        onClick={() => handleNavigation('/investor/transaction-history')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <DollarSign className="w-4 h-4" />
                         Transaction History
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/budget')}
+                        onClick={() => handleNavigation('/investor/budget-allocation')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <PieChart className="w-4 h-4" />
                         Budget Allocation
                       </button>
                       <button
-                        onClick={() => handleNavigation('/investor/tax')}
+                        onClick={() => handleNavigation('/investor/tax-documents')}
                         className="flex items-center gap-2 py-2 text-sm text-gray-600 hover:text-green-600 transition-colors"
                       >
                         <FileText className="w-4 h-4" />
@@ -413,7 +413,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
               <BarChart3 className="w-4 h-4 mr-2" />
               Investment Analytics
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/performance')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/performance-tracking')}>
               <LineChart className="w-4 h-4 mr-2" />
               Performance Tracking
             </DropdownMenuItem>
@@ -467,7 +467,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56 bg-white">
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/all-investments')}>
               <Briefcase className="w-4 h-4 mr-2" />
               All Investments
             </DropdownMenuItem>
@@ -475,11 +475,11 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
               <Activity className="w-4 h-4 mr-2" />
               Active Projects
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio/pending')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/pending-deals')}>
               <History className="w-4 h-4 mr-2" />
               Pending Deals
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio/completed')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/completed-projects')}>
               <FileText className="w-4 h-4 mr-2" />
               Completed Projects
             </DropdownMenuItem>
@@ -533,15 +533,15 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
               <BarChart3 className="w-4 h-4 mr-2" />
               Investment Overview
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics/roi')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/roi-analysis')}>
               <TrendingUp className="w-4 h-4 mr-2" />
               ROI Analysis
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics/market')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/market-trends')}>
               <LineChart className="w-4 h-4 mr-2" />
               Market Trends
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/analytics/risk')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/risk-assessment')}>
               <TrendingDown className="w-4 h-4 mr-2" />
               Risk Assessment
             </DropdownMenuItem>
@@ -556,19 +556,19 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
             <ChevronDown className="w-4 h-4 ml-1" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56 bg-white">
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/financials')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/financial-overview')}>
               <Wallet className="w-4 h-4 mr-2" />
               Financial Overview
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/transactions')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/transaction-history')}>
               <DollarSign className="w-4 h-4 mr-2" />
               Transaction History
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/budget')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/budget-allocation')}>
               <PieChart className="w-4 h-4 mr-2" />
               Budget Allocation
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/tax')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/tax-documents')}>
               <FileText className="w-4 h-4 mr-2" />
               Tax Documents
             </DropdownMenuItem>
@@ -621,7 +621,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
                 <Home className="w-4 h-4 mr-2" />
                 Dashboard
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleNavigation('/investor/portfolio')}>
+              <DropdownMenuItem onClick={() => handleNavigation('/investor/all-investments')}>
                 <Briefcase className="w-4 h-4 mr-2" />
                 Portfolio
               </DropdownMenuItem>
@@ -631,7 +631,7 @@ export function InvestorNavigation({ user, onLogout }: InvestorNavigationProps) 
               <Wallet className="w-4 h-4 mr-2" />
               Wallet & Funds
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation('/investor/transactions')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/investor/transaction-history')}>
               <History className="w-4 h-4 mr-2" />
               Transactions
             </DropdownMenuItem>
