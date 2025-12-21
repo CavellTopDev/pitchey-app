@@ -106,6 +106,14 @@ const NDARequests = lazy(() => import('./pages/investor/NDARequests'));
 const PerformanceTracking = lazy(() => import('./pages/investor/PerformanceTracking'));
 const PendingDeals = lazy(() => import('./pages/investor/PendingDeals'));
 const AllInvestments = lazy(() => import('./pages/investor/AllInvestments'));
+const CompletedProjects = lazy(() => import('./pages/investor/CompletedProjects'));
+const ROIAnalysis = lazy(() => import('./pages/investor/ROIAnalysis'));
+const MarketTrends = lazy(() => import('./pages/investor/MarketTrends'));
+const RiskAssessment = lazy(() => import('./pages/investor/RiskAssessment'));
+const FinancialOverview = lazy(() => import('./pages/investor/FinancialOverview'));
+const TransactionHistory = lazy(() => import('./pages/investor/TransactionHistory'));
+const BudgetAllocation = lazy(() => import('./pages/investor/BudgetAllocation'));
+const TaxDocuments = lazy(() => import('./pages/investor/TaxDocuments'));
 
 // New Pages
 const ProductionProjects = lazy(() => import('./pages/production/ProductionProjects'));
@@ -599,6 +607,18 @@ function App() {
           <Route path="/investor/performance-tracking" element={isAuthenticated && userType === 'investor' ? <PerformanceTracking /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/pending-deals" element={isAuthenticated && userType === 'investor' ? <PendingDeals /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/all-investments" element={isAuthenticated && userType === 'investor' ? <AllInvestments /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/completed-projects" element={isAuthenticated && userType === 'investor' ? <CompletedProjects /> : <Navigate to="/login/investor" />} />
+          
+          {/* Analytics Routes */}
+          <Route path="/investor/roi-analysis" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/market-trends" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/risk-assessment" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
+          
+          {/* Financial Routes */}
+          <Route path="/investor/financial-overview" element={isAuthenticated && userType === 'investor' ? <FinancialOverview /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/transaction-history" element={isAuthenticated && userType === 'investor' ? <TransactionHistory /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/budget-allocation" element={isAuthenticated && userType === 'investor' ? <BudgetAllocation /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/tax-documents" element={isAuthenticated && userType === 'investor' ? <TaxDocuments /> : <Navigate to="/login/investor" />} />
           
           {/* Investor Network Routes */}
           <Route path="/investor/network" element={isAuthenticated && userType === 'investor' ? <InvestorNetwork /> : <Navigate to="/login/investor" />} />
