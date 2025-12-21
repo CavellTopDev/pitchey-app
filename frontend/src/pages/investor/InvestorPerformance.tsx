@@ -241,22 +241,20 @@ export default function InvestorPerformance() {
               <h2 className="text-xl font-semibold text-gray-900">Portfolio vs Market</h2>
               <BarChart3 className="w-5 h-5 text-gray-400" />
             </div>
-            <Line 
-              data={performanceChartData} 
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    position: 'top'
-                  }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: false
-                  }
-                }
-              }}
-            />
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={performanceChartData.datasets[0].data.map((value: any, index: number) => ({
+                month: performanceChartData.labels[index],
+                portfolio: value,
+                market: performanceChartData.datasets[1]?.data[index] || 0
+              }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <ChartTooltip />
+                <Line type="monotone" dataKey="portfolio" stroke="#10b981" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="market" stroke="#6366f1" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -264,17 +262,27 @@ export default function InvestorPerformance() {
               <h2 className="text-xl font-semibold text-gray-900">Genre Allocation</h2>
               <PieChart className="w-5 h-5 text-gray-400" />
             </div>
-            <Doughnut 
-              data={allocationChartData}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    position: 'bottom'
-                  }
-                }
-              }}
-            />
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={allocations.map(a => ({
+                    name: a.genre,
+                    value: a.allocation
+                  }))}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {allocations.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][index % 6]} />
+                  ))}
+                </Pie>
+                <ChartTooltip />
+              </RechartsPieChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
@@ -285,27 +293,18 @@ export default function InvestorPerformance() {
               <h2 className="text-xl font-semibold text-gray-900">Performance by Genre</h2>
               <BarChart3 className="w-5 h-5 text-gray-400" />
             </div>
-            <Bar 
-              data={performanceByGenreData}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    display: false
-                  }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: function(value) {
-                        return value + '%';
-                      }
-                    }
-                  }
-                }
-              }}
-            />
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={allocations.map(a => ({
+                genre: a.genre,
+                performance: a.performance
+              }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="genre" />
+                <YAxis tickFormatter={(value) => `${value}%`} />
+                <ChartTooltip formatter={(value: any) => `${value}%`} />
+                <Bar dataKey="performance" fill="#10b981" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
