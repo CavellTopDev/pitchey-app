@@ -6,7 +6,7 @@ import {
   Calendar, MessageSquare, Star, Globe, PlayCircle, Upload,
   FolderOpen, UserPlus, Layers, Target, Activity, Award,
   DollarSign, PieChart, Clock, CheckCircle, AlertCircle,
-  ChevronRight
+  ChevronRight, Building
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
@@ -146,9 +146,10 @@ export function EnhancedNavigationShadcn({
       { label: 'Collaborations', href: `${portalPrefix}/collaborations`, icon: MessageSquare },
     ],
     investor: [
-      { label: 'Team Overview', href: `${portalPrefix}/team`, icon: Users },
-      { label: 'Members', href: `${portalPrefix}/team/members`, icon: UserPlus },
-      { label: 'Advisors', href: `${portalPrefix}/team/advisors`, icon: Shield },
+      { label: 'My Network', href: `${portalPrefix}/network`, icon: Users },
+      { label: 'Co-Investors', href: `${portalPrefix}/co-investors`, icon: UserPlus },
+      { label: 'Production Companies', href: `${portalPrefix}/production-companies`, icon: Building },
+      { label: 'Connected Creators', href: `${portalPrefix}/creators`, icon: Shield },
     ],
     production: [
       { label: 'Team Members', href: `${portalPrefix}/team/members`, icon: Users },
@@ -294,11 +295,11 @@ export function EnhancedNavigationShadcn({
               <DropdownMenu>
                 <DropdownMenuTrigger className={navigationItemStyle}>
                   <Users className="w-4 h-4" />
-                  <span>Team</span>
+                  <span>{userType === 'investor' ? 'Network' : 'Team'}</span>
                   <ChevronDown className="w-4 h-4 ml-1" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-white border shadow-lg">
-                  <DropdownMenuLabel>Team Management</DropdownMenuLabel>
+                  <DropdownMenuLabel>{userType === 'investor' ? 'Network' : 'Team Management'}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
                     {teamMenuItems[userType].map((item) => (
@@ -538,7 +539,7 @@ export function EnhancedNavigationShadcn({
                       <AccordionTrigger className="hover:no-underline bg-white">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4" />
-                          <span>Team</span>
+                          <span>{userType === 'investor' ? 'Network' : 'Team'}</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="bg-white">

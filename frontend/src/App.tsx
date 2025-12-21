@@ -144,6 +144,10 @@ const InvestorDeals = lazy(() => import('./pages/investor/InvestorDeals'));
 const InvestorPerformance = lazy(() => import('./pages/investor/InvestorPerformance'));
 const InvestorDiscover = lazy(() => import('./pages/investor/InvestorDiscover'));
 const InvestorReports = lazy(() => import('./pages/investor/InvestorReports'));
+const InvestorNetwork = lazy(() => import('./pages/investor/InvestorNetwork'));
+const InvestorCoInvestors = lazy(() => import('./pages/investor/InvestorCoInvestors'));
+const InvestorProductionCompanies = lazy(() => import('./pages/investor/InvestorProductionCompanies'));
+const InvestorCreators = lazy(() => import('./pages/investor/InvestorCreators'));
 const Transactions = lazy(() => import('./pages/Admin/Transactions'));
 const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 
@@ -583,11 +587,11 @@ function App() {
           <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
           
-          {/* Investor Network Routes - Redirect to appropriate pages */}
-          <Route path="/investor/network" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/activity" /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/co-investors" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/activity" /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/production-companies" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/discover" /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/creators" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/activity" /> : <Navigate to="/login/investor" />} />
+          {/* Investor Network Routes */}
+          <Route path="/investor/network" element={isAuthenticated && userType === 'investor' ? <InvestorNetwork /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/co-investors" element={isAuthenticated && userType === 'investor' ? <InvestorCoInvestors /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/production-companies" element={isAuthenticated && userType === 'investor' ? <InvestorProductionCompanies /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/creators" element={isAuthenticated && userType === 'investor' ? <InvestorCreators /> : <Navigate to="/login/investor" />} />
           
           {/* Browse Routes - Public access */}
           <Route path="/browse/genres" element={<BrowseGenres />} />
