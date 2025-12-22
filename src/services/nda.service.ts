@@ -1,7 +1,8 @@
-// NDA Service with raw SQL queries and Email Notifications
+// NDA Service with comprehensive notification workflows
 import { db } from '../db/client.ts';
 import { z } from 'npm:zod@3.22.4';
 import { sendNDARequestEmail, sendNDAResponseEmail } from './email/index.ts';
+import type { NotificationService } from './notification.service.ts';
 
 // Validation schemas
 const createNDARequestSchema = z.object({
@@ -27,7 +28,14 @@ const signNDASchema = z.object({
 });
 
 export class NDAService {
-  // Create NDA request
+  private static notificationService: NotificationService | null = null;
+
+  // Initialize notification service
+  static setNotificationService(notificationService: NotificationService): void {
+    this.notificationService = notificationService;
+  }
+
+  // Create NDA request with comprehensive notifications
   static async createRequest(data: z.infer<typeof createNDARequestSchema>) {
     try {
       console.log("NDA Request data received:", data);
@@ -75,21 +83,54 @@ export class NDAService {
       
       const newRequest = newRequestResult.rows[0];
       
-      // Create notification for pitch owner
-      await db.query(
-        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          pitch.user_id,
-          'nda_request',
-          'New NDA Request',
-          `You have a new NDA request for "${pitch.title}"`,
-          validatedData.pitchId,
-          validatedData.requesterId,
-          newRequest.id,
-          `/creator/nda-requests/${newRequest.id}`
-        ]
-      );
+      // Send comprehensive notifications
+      if (this.notificationService) {
+        // Send immediate notification to pitch owner
+        await this.notificationService.sendNotification({
+          userId: pitch.user_id,
+          type: 'nda_request',
+          title: 'New NDA Request',
+          message: `You have received a new NDA request for "${pitch.title}". Click to review the details and approve or reject the request.`,
+          priority: 'high',
+          relatedPitchId: validatedData.pitchId,
+          relatedUserId: validatedData.requesterId,
+          relatedNdaRequestId: newRequest.id,
+          actionUrl: `/creator/nda-requests/${newRequest.id}`,
+          channels: {
+            email: true,
+            inApp: true,
+            push: true
+          },
+          emailOptions: {
+            templateType: 'ndaRequest',
+            variables: {
+              pitchTitle: pitch.title,
+              requesterName: 'Investor', // Will be populated from user data
+              requestMessage: validatedData.requestMessage,
+              actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/creator/nda-requests/${newRequest.id}`
+            }
+          }
+        });
+
+        // Schedule reminder notification if not responded to within 7 days
+        await this.scheduleNDAReminder(newRequest.id, pitch.user_id, pitch.title, 7);
+      } else {
+        // Fallback to legacy notification creation
+        await db.query(
+          `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            pitch.user_id,
+            'nda_request',
+            'New NDA Request',
+            `You have a new NDA request for "${pitch.title}"`,
+            validatedData.pitchId,
+            validatedData.requesterId,
+            newRequest.id,
+            `/creator/nda-requests/${newRequest.id}`
+          ]
+        );
+      }
       
       // Send email notification to pitch owner
       try {
@@ -304,21 +345,60 @@ export class NDAService {
         [`/api/nda/documents/${nda.id}/download`, nda.id]
       );
       
-      // Create notification for requester
-      await db.query(
-        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          request.requester_id,
-          'nda_approved',
-          'NDA Request Approved',
-          'Your NDA request has been approved',
-          request.pitch_id,
-          ownerId,
-          requestId,
-          `/pitch/${request.pitch_id}`
-        ]
-      );
+      // Send comprehensive approval notifications
+      if (this.notificationService) {
+        // Get pitch and user details for notification
+        const pitchInfo = await db.query(
+          'SELECT title FROM pitches WHERE id = $1',
+          [request.pitch_id]
+        );
+        const pitchTitle = pitchInfo.rows[0]?.title || 'Unknown Pitch';
+
+        // Send immediate notification to requester
+        await this.notificationService.sendNotification({
+          userId: request.requester_id,
+          type: 'nda_approval',
+          title: 'NDA Request Approved! 🎉',
+          message: `Great news! Your NDA request for "${pitchTitle}" has been approved. You now have full access to the pitch materials and can proceed with your investment evaluation.`,
+          priority: 'high',
+          relatedPitchId: request.pitch_id,
+          relatedUserId: ownerId,
+          relatedNdaRequestId: requestId,
+          actionUrl: `/pitch/${request.pitch_id}`,
+          channels: {
+            email: true,
+            inApp: true,
+            push: true
+          },
+          emailOptions: {
+            templateType: 'ndaApproval',
+            variables: {
+              pitchTitle,
+              pitchUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/pitch/${request.pitch_id}`,
+              ndaDate: new Date().toLocaleDateString()
+            }
+          }
+        });
+
+        // Schedule NDA expiration reminder (if applicable)
+        await this.scheduleNDAExpiration(nda.id, request.requester_id, pitchTitle, 365); // 1 year
+      } else {
+        // Fallback to legacy notification
+        await db.query(
+          `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            request.requester_id,
+            'nda_approved',
+            'NDA Request Approved',
+            'Your NDA request has been approved',
+            request.pitch_id,
+            ownerId,
+            requestId,
+            `/pitch/${request.pitch_id}`
+          ]
+        );
+      }
       
       // Send email notification to requester
       try {
@@ -390,20 +470,58 @@ export class NDAService {
         ['rejected', rejectionReason, new Date(), requestId]
       );
       
-      // Create notification for requester
-      await db.query(
-        `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          request.requester_id,
-          'nda_rejected',
-          'NDA Request Rejected',
-          rejectionReason || 'Your NDA request has been rejected',
-          request.pitch_id,
-          ownerId,
-          requestId
-        ]
-      );
+      // Send comprehensive rejection notifications
+      if (this.notificationService) {
+        // Get pitch details for notification
+        const pitchInfo = await db.query(
+          'SELECT title FROM pitches WHERE id = $1',
+          [request.pitch_id]
+        );
+        const pitchTitle = pitchInfo.rows[0]?.title || 'Unknown Pitch';
+
+        // Send notification to requester
+        await this.notificationService.sendNotification({
+          userId: request.requester_id,
+          type: 'nda_rejection',
+          title: 'NDA Request Update',
+          message: rejectionReason 
+            ? `Your NDA request for "${pitchTitle}" was not approved. Reason: ${rejectionReason}. You can explore other opportunities on the platform.`
+            : `Your NDA request for "${pitchTitle}" was not approved at this time. You can explore other opportunities on the platform.`,
+          priority: 'normal',
+          relatedPitchId: request.pitch_id,
+          relatedUserId: ownerId,
+          relatedNdaRequestId: requestId,
+          actionUrl: `/marketplace`,
+          channels: {
+            email: true,
+            inApp: true,
+            push: false // Less intrusive for rejections
+          },
+          emailOptions: {
+            templateType: 'ndaRejection',
+            variables: {
+              pitchTitle,
+              reason: rejectionReason,
+              browseUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/marketplace`
+            }
+          }
+        });
+      } else {
+        // Fallback to legacy notification
+        await db.query(
+          `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            request.requester_id,
+            'nda_rejected',
+            'NDA Request Rejected',
+            rejectionReason || 'Your NDA request has been rejected',
+            request.pitch_id,
+            ownerId,
+            requestId
+          ]
+        );
+      }
       
       // Send email notification to requester
       try {
@@ -714,6 +832,298 @@ export class NDAService {
     } catch (error) {
       console.error('Error fetching NDA stats:', error);
       throw error;
+    }
+  }
+
+  // ============================================================================
+  // NOTIFICATION HELPER METHODS
+  // ============================================================================
+
+  /**
+   * Schedule NDA reminder notification
+   */
+  static async scheduleNDAReminder(
+    ndaRequestId: number,
+    userId: number,
+    pitchTitle: string,
+    daysFromNow: number
+  ): Promise<void> {
+    try {
+      if (!this.notificationService) return;
+
+      const scheduledDate = new Date();
+      scheduledDate.setDate(scheduledDate.getDate() + daysFromNow);
+
+      // Check if request is still pending before scheduling
+      const requestResult = await db.query(
+        'SELECT status FROM nda_requests WHERE id = $1',
+        [ndaRequestId]
+      );
+
+      if (requestResult.rows[0]?.status === 'pending') {
+        await this.notificationService.sendNotification({
+          userId,
+          type: 'nda_reminder',
+          title: 'Pending NDA Request Reminder',
+          message: `You have a pending NDA request for "${pitchTitle}" that requires your attention. Please review and respond to maintain good relationships with potential investors.`,
+          priority: 'normal',
+          relatedNdaRequestId: ndaRequestId,
+          actionUrl: `/creator/nda-requests/${ndaRequestId}`,
+          channels: {
+            email: true,
+            inApp: true,
+            push: true
+          },
+          emailOptions: {
+            templateType: 'ndaReminder',
+            variables: {
+              pitchTitle,
+              daysWaiting: daysFromNow,
+              actionUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/creator/nda-requests/${ndaRequestId}`
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error scheduling NDA reminder:', error);
+    }
+  }
+
+  /**
+   * Schedule NDA expiration notification
+   */
+  static async scheduleNDAExpiration(
+    ndaId: number,
+    userId: number,
+    pitchTitle: string,
+    daysFromNow: number
+  ): Promise<void> {
+    try {
+      if (!this.notificationService) return;
+
+      // Schedule expiration warning (30 days before expiration)
+      const warningDate = new Date();
+      warningDate.setDate(warningDate.getDate() + daysFromNow - 30);
+
+      await this.notificationService.sendNotification({
+        userId,
+        type: 'nda_expiration',
+        title: 'NDA Expiration Notice',
+        message: `Your NDA for "${pitchTitle}" will expire in 30 days. Please ensure you complete your review before the expiration date.`,
+        priority: 'normal',
+        actionUrl: `/investor/ndas/${ndaId}`,
+        channels: {
+          email: true,
+          inApp: true,
+          push: false
+        },
+        emailOptions: {
+          templateType: 'ndaExpiration',
+          variables: {
+            pitchTitle,
+            daysUntilExpiration: 30,
+            ndaUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/investor/ndas/${ndaId}`
+          }
+        }
+      });
+
+      // Schedule final expiration notification
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + daysFromNow);
+
+      await this.notificationService.sendNotification({
+        userId,
+        type: 'nda_expiration',
+        title: 'NDA Has Expired',
+        message: `Your NDA for "${pitchTitle}" has expired. Your access to confidential materials has been revoked.`,
+        priority: 'high',
+        channels: {
+          email: true,
+          inApp: true,
+          push: true
+        },
+        emailOptions: {
+          templateType: 'ndaExpired',
+          variables: {
+            pitchTitle,
+            contactUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/contact`
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error scheduling NDA expiration:', error);
+    }
+  }
+
+  /**
+   * Send bulk NDA expiration reminders (called by cron job)
+   */
+  static async sendExpirationReminders(): Promise<void> {
+    try {
+      if (!this.notificationService) return;
+
+      // Get NDAs expiring in 30 days
+      const expiringNDAs = await db.query(`
+        SELECT 
+          n.id, n.signer_id, n.expires_at,
+          p.title as pitch_title,
+          u.email, u.first_name
+        FROM ndas n
+        INNER JOIN pitches p ON n.pitch_id = p.id
+        INNER JOIN users u ON n.signer_id = u.id
+        WHERE n.expires_at BETWEEN NOW() + INTERVAL '29 days' AND NOW() + INTERVAL '31 days'
+        AND n.access_granted = true
+        AND n.expiration_reminder_sent = false
+      `);
+
+      for (const nda of expiringNDAs.rows) {
+        await this.notificationService.sendNotification({
+          userId: nda.signer_id,
+          type: 'nda_expiration',
+          title: 'NDA Expiring Soon',
+          message: `Your NDA for "${nda.pitch_title}" will expire in approximately 30 days. Please complete your review before the expiration date.`,
+          priority: 'normal',
+          channels: {
+            email: true,
+            inApp: true,
+            push: false
+          },
+          emailOptions: {
+            templateType: 'ndaExpiration',
+            variables: {
+              recipientName: nda.first_name,
+              pitchTitle: nda.pitch_title,
+              expirationDate: new Date(nda.expires_at).toLocaleDateString(),
+              daysUntilExpiration: 30
+            }
+          }
+        });
+
+        // Mark reminder as sent
+        await db.query(
+          'UPDATE ndas SET expiration_reminder_sent = true WHERE id = $1',
+          [nda.id]
+        );
+      }
+
+      console.log(`Sent ${expiringNDAs.rows.length} NDA expiration reminders`);
+    } catch (error) {
+      console.error('Error sending NDA expiration reminders:', error);
+    }
+  }
+
+  /**
+   * Process expired NDAs (called by cron job)
+   */
+  static async processExpiredNDAs(): Promise<void> {
+    try {
+      if (!this.notificationService) return;
+
+      // Get expired NDAs
+      const expiredNDAs = await db.query(`
+        SELECT 
+          n.id, n.signer_id,
+          p.title as pitch_title,
+          u.email, u.first_name
+        FROM ndas n
+        INNER JOIN pitches p ON n.pitch_id = p.id
+        INNER JOIN users u ON n.signer_id = u.id
+        WHERE n.expires_at < NOW()
+        AND n.access_granted = true
+      `);
+
+      for (const nda of expiredNDAs.rows) {
+        // Revoke access
+        await db.query(
+          'UPDATE ndas SET access_granted = false, access_revoked_at = NOW() WHERE id = $1',
+          [nda.id]
+        );
+
+        // Send notification
+        await this.notificationService.sendNotification({
+          userId: nda.signer_id,
+          type: 'nda_expiration',
+          title: 'NDA Access Revoked',
+          message: `Your NDA for "${nda.pitch_title}" has expired and access has been revoked. Contact the pitch owner if you need extended access.`,
+          priority: 'high',
+          channels: {
+            email: true,
+            inApp: true,
+            push: true
+          },
+          emailOptions: {
+            templateType: 'ndaExpired',
+            variables: {
+              recipientName: nda.first_name,
+              pitchTitle: nda.pitch_title
+            }
+          }
+        });
+      }
+
+      console.log(`Processed ${expiredNDAs.rows.length} expired NDAs`);
+    } catch (error) {
+      console.error('Error processing expired NDAs:', error);
+    }
+  }
+
+  /**
+   * Send weekly NDA digest to creators
+   */
+  static async sendWeeklyNDADigest(): Promise<void> {
+    try {
+      if (!this.notificationService) return;
+
+      // Get creators with NDA activity in the last week
+      const creatorsWithActivity = await db.query(`
+        SELECT 
+          p.user_id,
+          u.email, u.first_name,
+          COUNT(DISTINCT nr.id) as pending_requests,
+          COUNT(DISTINCT CASE WHEN nr.status = 'approved' THEN nr.id END) as approved_requests,
+          COUNT(DISTINCT CASE WHEN nr.status = 'rejected' THEN nr.id END) as rejected_requests,
+          COUNT(DISTINCT n.id) as signed_ndas
+        FROM pitches p
+        INNER JOIN users u ON p.user_id = u.id
+        LEFT JOIN nda_requests nr ON p.id = nr.pitch_id 
+          AND nr.requested_at >= NOW() - INTERVAL '7 days'
+        LEFT JOIN ndas n ON p.id = n.pitch_id 
+          AND n.signed_at >= NOW() - INTERVAL '7 days'
+        WHERE (nr.id IS NOT NULL OR n.id IS NOT NULL)
+        GROUP BY p.user_id, u.email, u.first_name
+        HAVING COUNT(DISTINCT nr.id) > 0 OR COUNT(DISTINCT n.id) > 0
+      `);
+
+      for (const creator of creatorsWithActivity.rows) {
+        await this.notificationService.sendNotification({
+          userId: creator.user_id,
+          type: 'system',
+          title: 'Weekly NDA Activity Summary',
+          message: `Here's your NDA activity for this week: ${creator.pending_requests} pending requests, ${creator.approved_requests} approved, ${creator.rejected_requests} rejected, ${creator.signed_ndas} new signatures.`,
+          priority: 'low',
+          actionUrl: '/creator/nda-requests',
+          channels: {
+            email: true,
+            inApp: false,
+            push: false
+          },
+          emailOptions: {
+            templateType: 'weeklyDigest',
+            variables: {
+              recipientName: creator.first_name,
+              pendingRequests: creator.pending_requests,
+              approvedRequests: creator.approved_requests,
+              rejectedRequests: creator.rejected_requests,
+              signedNDAs: creator.signed_ndas,
+              dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/creator/nda-requests`
+            }
+          }
+        });
+      }
+
+      console.log(`Sent weekly NDA digest to ${creatorsWithActivity.rows.length} creators`);
+    } catch (error) {
+      console.error('Error sending weekly NDA digest:', error);
     }
   }
 }

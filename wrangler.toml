@@ -17,8 +17,65 @@ account_id = "002bd5c0e90ae753a387c60546cf6869"
 # UPSTASH_REDIS_REST_TOKEN - Redis auth token
 # SENTRY_DSN - Error tracking
 # STRIPE_SECRET_KEY - Payment processing
-# SENDGRID_API_KEY - Email service
 # ADMIN_TOKEN - Admin API authentication
+# 
+# Email Service Secrets:
+# SENDGRID_API_KEY - Primary email provider
+# SENDGRID_FROM_EMAIL - SendGrid sender email
+# SENDGRID_FROM_NAME - SendGrid sender name
+# AWS_SES_ACCESS_KEY - Fallback email provider access key
+# AWS_SES_SECRET_KEY - Fallback email provider secret key
+# AWS_SES_REGION - AWS SES region
+# AWS_SES_FROM_EMAIL - AWS SES sender email
+# AWS_SES_FROM_NAME - AWS SES sender name
+#
+# Email Configuration Variables:
+# EMAIL_PRIMARY_PROVIDER - Primary email provider (sendgrid|awsSes)
+# EMAIL_RATE_LIMIT_MINUTE - Rate limit per minute
+# EMAIL_RATE_LIMIT_HOUR - Rate limit per hour
+# EMAIL_RATE_LIMIT_DAY - Rate limit per day
+# EMAIL_MAX_RETRIES - Maximum retry attempts
+# EMAIL_RETRY_DELAY - Initial retry delay (ms)
+# EMAIL_RETRY_MAX_DELAY - Maximum retry delay (ms)
+# EMAIL_QUEUE_CONCURRENT - Concurrent processing limit
+# EMAIL_QUEUE_INTERVAL - Queue processing interval (ms)
+# EMAIL_BATCH_SIZE - Batch size for bulk operations
+# ENABLE_EMAIL_TEMPLATE_CACHE - Enable template caching (true|false)
+#
+# Messaging Configuration:
+# WS_HEARTBEAT_INTERVAL - WebSocket heartbeat interval (ms)
+# WS_CONNECTION_TIMEOUT - WebSocket connection timeout (ms)  
+# WS_MAX_CONNECTIONS - Maximum concurrent WebSocket connections
+# MAX_FILE_SIZE - Maximum file upload size (bytes)
+# ALLOWED_FILE_TYPES - Comma-separated list of allowed file extensions
+# ENABLE_E2E_ENCRYPTION - Enable end-to-end encryption (true|false)
+#
+# Notification Configuration:
+# NOTIFICATION_PROCESSING_INTERVAL - Processing interval (ms)
+# NOTIFICATION_BATCH_SIZE - Batch size for notifications
+# NOTIFICATION_MAX_RETRIES - Maximum retry attempts
+# NOTIFICATION_QUEUE_TTL - Queue TTL in seconds
+# MESSAGE_BATCH_SIZE - Message batch size
+# MESSAGE_BATCH_TIMEOUT - Message batch timeout (ms)
+# ENABLE_MESSAGE_CACHE - Enable message caching (true|false)
+#
+# Push Notification Secrets (Future):
+# FCM_SERVER_KEY - Firebase Cloud Messaging server key
+# APNS_CERTIFICATE_PATH - Apple Push Notification certificate path
+# APNS_KEY_ID - Apple Push Notification key ID
+# APNS_TEAM_ID - Apple Push Notification team ID
+#
+# SMS Configuration (Future):
+# TWILIO_ACCOUNT_SID - Twilio account SID
+# TWILIO_AUTH_TOKEN - Twilio authentication token
+# TWILIO_FROM_NUMBER - Twilio sender phone number
+#
+# Feature Flags:
+# ENABLE_EMAIL_SERVICE - Enable email service (true|false)
+# ENABLE_MESSAGING_SERVICE - Enable messaging service (true|false)
+# ENABLE_NOTIFICATION_SERVICE - Enable notification service (true|false)
+# ENABLE_PUSH_NOTIFICATIONS - Enable push notifications (true|false)
+# ENABLE_SMS_NOTIFICATIONS - Enable SMS notifications (true|false)
 FRONTEND_URL = "https://pitchey.pages.dev"
 ENVIRONMENT = "production"
 CORS_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
@@ -38,16 +95,42 @@ id = "98c88a185eb448e4868fcc87e458b3ac"
 binding = "RATE_LIMIT_KV"
 id = "98c88a185eb448e4868fcc87e458b3ac"
 
+# KV for email template caching and email service state
+[[kv_namespaces]]
+binding = "EMAIL_CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
+# KV for notification caching and user preferences
+[[kv_namespaces]]
+binding = "NOTIFICATION_CACHE"
+id = "98c88a185eb448e4868fcc87e458b3ac"
+
 # R2 for file storage
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "pitchey-uploads"
 
-# Durable Objects for real-time features - Temporarily disabled for migration
-# [[durable_objects.bindings]]
-# name = "DURABLE_OBJECTS"
-# class_name = "WebSocketDurableObject"
-# script_name = "pitchey-api-prod"
+# R2 for message attachments and email attachments
+[[r2_buckets]]
+binding = "MESSAGE_ATTACHMENTS"
+bucket_name = "pitchey-message-attachments"
+
+# R2 for email attachments (if different from general uploads)
+[[r2_buckets]]
+binding = "EMAIL_ATTACHMENTS"
+bucket_name = "pitchey-email-attachments"
+
+# Durable Objects for real-time features - Re-enabled for messaging
+[[durable_objects.bindings]]
+name = "MESSAGE_ROOMS"
+class_name = "MessageRoom"
+script_name = "pitchey-api-prod"
+
+# Additional Durable Objects for WebSocket management
+[[durable_objects.bindings]]
+name = "WEBSOCKET_SESSIONS"
+class_name = "WebSocketSession"
+script_name = "pitchey-api-prod"
 
 # Cache namespace for efficient data storage
 [[kv_namespaces]]
@@ -64,15 +147,25 @@ id = "98c88a185eb448e4868fcc87e458b3ac"
 # binding = "ANALYTICS"
 # dataset = "pitchey_analytics"
 
-# Queue for background jobs (disabled for free plan)
-# [[queues.producers]]
-# binding = "QUEUE"
-# queue = "pitchey-jobs"
+# Queue for background jobs - Re-enabled for email and messaging
+[[queues.producers]]
+binding = "NOTIFICATION_QUEUE"
+queue = "notification-processing"
 
-# [[queues.consumers]]
-# queue = "pitchey-jobs"
-# max_batch_size = 10
-# max_batch_timeout = 30
+[[queues.consumers]]
+queue = "notification-processing"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# Queue for email processing
+[[queues.producers]]
+binding = "EMAIL_QUEUE"
+queue = "email-processing"
+
+[[queues.consumers]]
+queue = "email-processing"
+max_batch_size = 20
+max_batch_timeout = 15
 
 # Scheduled tasks for cache warming and monitoring (disabled for free plan)
 # [triggers]

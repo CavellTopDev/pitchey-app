@@ -1,6 +1,7 @@
 /**
  * Pitchey API Worker for ndlovucavelle account
  * Simple, working API with proper CORS support
+ * Version 1.1 - Updated CORS for pitchey-frontend-ndlovu.pages.dev
  */
 
 // WebSocket types for Cloudflare Workers
@@ -32,20 +33,33 @@ export interface Env {
 const ALLOWED_ORIGINS = [
   'https://pitchey.pages.dev',
   'https://pitchey-5o8.pages.dev',
+  'https://pitchey-frontend-ndlovu.pages.dev',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
 
 function getCorsHeaders(origin?: string | null): Record<string, string> {
-  const requestOrigin = origin;
-  const isAllowed = requestOrigin && (
-    ALLOWED_ORIGINS.some(allowed => requestOrigin === allowed) ||
-    requestOrigin.endsWith('.pitchey.pages.dev') ||
-    requestOrigin.endsWith('.pitchey-5o8.pages.dev')
-  );
+  // SIMPLIFIED CORS LOGIC - Direct check for the frontend domain
+  let allowOrigin = 'https://pitchey.pages.dev'; // Default fallback
   
+  if (origin && origin.endsWith('.pitchey-frontend-ndlovu.pages.dev')) {
+    // Allow any subdomain of pitchey-frontend-ndlovu.pages.dev (for dynamic Cloudflare deployments)
+    allowOrigin = origin;
+  } else if (origin === 'https://pitchey-frontend-ndlovu.pages.dev') {
+    allowOrigin = origin;
+  } else if (origin === 'https://pitchey-5o8.pages.dev') {
+    allowOrigin = 'https://pitchey-5o8.pages.dev';
+  } else if (origin === 'https://pitchey.pages.dev') {
+    allowOrigin = 'https://pitchey.pages.dev';
+  } else if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+    allowOrigin = origin; // Allow localhost for development
+  }
+  
+  console.log('CORS SIMPLE:', { origin, allowOrigin });
+    
   return {
-    "Access-Control-Allow-Origin": isAllowed ? requestOrigin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Origin": allowOrigin,
+    "X-Worker-Version": "2024-12-22-simplified-cors",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Id",
     "Access-Control-Allow-Credentials": "true",
@@ -1140,6 +1154,197 @@ class PitcheyAPIHandler {
             ],
             totalCount: 45,
             lastUpdate: '2024-12-15T16:30:00Z'
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Investor transactions endpoints
+      if (path === '/api/investor/transactions' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            items: [
+              {
+                id: 1,
+                type: 'investment',
+                amount: 50000,
+                project: 'Midnight Chronicles',
+                date: '2024-12-15T10:30:00Z',
+                status: 'completed',
+                category: 'Horror'
+              },
+              {
+                id: 2,
+                type: 'return',
+                amount: 125000,
+                project: 'Urban Legends',
+                date: '2024-12-10T15:45:00Z',
+                status: 'completed',
+                category: 'Drama'
+              },
+              {
+                id: 3,
+                type: 'investment',
+                amount: 75000,
+                project: 'Tech Noir',
+                date: '2024-12-08T09:15:00Z',
+                status: 'pending',
+                category: 'Sci-Fi'
+              },
+              {
+                id: 4,
+                type: 'return',
+                amount: 89000,
+                project: 'Silent Hill Revival',
+                date: '2024-12-05T14:20:00Z',
+                status: 'completed',
+                category: 'Horror'
+              }
+            ],
+            pagination: {
+              page: 1,
+              limit: 20,
+              total: 45,
+              pages: 3
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Transaction stats
+      if (path === '/api/investor/transactions/stats' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            stats: {
+              totalInvestments: 2850000,
+              totalReturns: 4920000,
+              netProfit: 2070000,
+              averageROI: 2.73,
+              totalTransactions: 45,
+              activeInvestments: 18,
+              completedDeals: 12
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      // Budget allocations
+      // Tax documents endpoint
+      if (path === '/api/investor/tax-documents' && method === 'GET') {
+        const currentYear = new Date().getFullYear();
+        const year = url.searchParams.get('year') || currentYear.toString();
+        
+        return jsonResponse({
+          success: true,
+          data: {
+            documents: [
+              {
+                id: 1,
+                name: `${year} Tax Summary`,
+                type: 'Tax Summary',
+                year: parseInt(year),
+                date: `${year}-12-01`,
+                status: 'available',
+                size: '2.3 MB',
+                downloadUrl: `/api/investor/tax-documents/1/download`
+              },
+              {
+                id: 2,
+                name: `${year} Investment Gains Report`,
+                type: 'Gains Report',
+                year: parseInt(year),
+                date: `${year}-12-01`,
+                status: 'available',
+                size: '1.8 MB',
+                downloadUrl: `/api/investor/tax-documents/2/download`
+              },
+              {
+                id: 3,
+                name: `${year} Q3 Quarterly Statement`,
+                type: 'Quarterly',
+                year: parseInt(year),
+                date: `${year}-09-30`,
+                status: 'available',
+                size: '950 KB',
+                downloadUrl: `/api/investor/tax-documents/3/download`
+              },
+              {
+                id: 4,
+                name: `${year} Q2 Quarterly Statement`,
+                type: 'Quarterly',
+                year: parseInt(year),
+                date: `${year}-06-30`,
+                status: 'available',
+                size: '875 KB',
+                downloadUrl: `/api/investor/tax-documents/4/download`
+              },
+              {
+                id: 5,
+                name: `${year} Q1 Quarterly Statement`,
+                type: 'Quarterly',
+                year: parseInt(year),
+                date: `${year}-03-31`,
+                status: 'available',
+                size: '920 KB',
+                downloadUrl: `/api/investor/tax-documents/5/download`
+              }
+            ],
+            summary: {
+              totalGains: 125000,
+              totalLosses: 15000,
+              netGains: 110000,
+              taxRate: 0.28,
+              estimatedTax: 30800
+            }
+          }
+        }, 200, corsHeaders);
+      }
+
+      if (path === '/api/investor/budget/allocations' && method === 'GET') {
+        return jsonResponse({
+          success: true,
+          data: {
+            allocations: [
+              {
+                category: 'Horror',
+                allocated: 500000,
+                spent: 480000,
+                remaining: 20000,
+                percentage: 25
+              },
+              {
+                category: 'Drama',
+                allocated: 800000,
+                spent: 650000,
+                remaining: 150000,
+                percentage: 35
+              },
+              {
+                category: 'Action',
+                allocated: 600000,
+                spent: 450000,
+                remaining: 150000,
+                percentage: 20
+              },
+              {
+                category: 'Comedy',
+                allocated: 400000,
+                spent: 380000,
+                remaining: 20000,
+                percentage: 15
+              },
+              {
+                category: 'Thriller',
+                allocated: 200000,
+                spent: 180000,
+                remaining: 20000,
+                percentage: 5
+              }
+            ],
+            totalBudget: 2500000,
+            totalSpent: 2140000,
+            totalRemaining: 360000
           }
         }, 200, corsHeaders);
       }

@@ -30,6 +30,7 @@ export interface ErrorDetails {
 // CORS configuration - centralized
 const ALLOWED_ORIGINS = [
   'https://pitchey.pages.dev',     // Primary production (Cloudflare Pages)
+  'https://pitchey-frontend-ndlovu.pages.dev', // ndlovucavelle's deployment
   'https://pitchey.com',           // Custom domain (future)
   'http://localhost:5173',         // Local development (Vite)
   'http://localhost:3000'          // Local development (alternative)
@@ -44,9 +45,10 @@ function isOriginAllowed(origin: string | null): boolean {
     return true;
   }
   
-  // Allow all Cloudflare Pages preview deployments (*.pitchey.pages.dev)
+  // Allow all Cloudflare Pages preview deployments (*.pitchey.pages.dev and pitchey-*.pages.dev)
   // Pattern allows alphanumeric characters and hyphens (typical for CF deployments)
-  if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/)) {
+  if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/) ||
+      origin.match(/^https:\/\/pitchey-[a-zA-Z0-9-]+\.pages\.dev$/)) {
     return true;
   }
   

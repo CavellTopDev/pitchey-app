@@ -75,16 +75,27 @@ export default function NotificationCenter() {
       case 'unread':
         return !notification.read;
       case 'nda':
-        return notification.type === 'warning' || notification.title.toLowerCase().includes('nda');
+        return notification.type === 'warning' || 
+               notification.title.toLowerCase().includes('nda') ||
+               notification.title.toLowerCase().includes('approval') ||
+               notification.title.toLowerCase().includes('rejection') ||
+               notification.title.toLowerCase().includes('expir') ||
+               notification.title.toLowerCase().includes('reminder');
       case 'investment':
         return notification.title.toLowerCase().includes('investment') || 
-               notification.title.toLowerCase().includes('funding');
+               notification.title.toLowerCase().includes('funding') ||
+               notification.title.toLowerCase().includes('investor');
       case 'message':
-        return notification.title.toLowerCase().includes('message');
+        return notification.title.toLowerCase().includes('message') ||
+               notification.title.toLowerCase().includes('chat');
       case 'follow':
-        return notification.title.toLowerCase().includes('follow');
+        return notification.title.toLowerCase().includes('follow') ||
+               notification.title.toLowerCase().includes('connection');
       case 'system':
-        return notification.type === 'info' && !notification.title.toLowerCase().includes('message');
+        return notification.type === 'info' || 
+               notification.title.toLowerCase().includes('digest') ||
+               notification.title.toLowerCase().includes('summary') ||
+               notification.title.toLowerCase().includes('weekly');
       default:
         return true;
     }
@@ -406,12 +417,65 @@ export default function NotificationCenter() {
                                   className={`px-3 py-1 text-xs rounded transition-colors ${
                                     action.type === 'primary'
                                       ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                      : action.type === 'success'
+                                      ? 'bg-green-600 text-white hover:bg-green-700'
+                                      : action.type === 'danger'
+                                      ? 'bg-red-600 text-white hover:bg-red-700'
                                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                   }`}
                                 >
                                   {action.label}
                                 </button>
                               ))}
+                            </div>
+                          )}
+                          
+                          {/* NDA-specific quick actions */}
+                          {(notification.title.toLowerCase().includes('nda request') && 
+                            notification.title.toLowerCase().includes('new')) && (
+                            <div className="flex space-x-2 mt-3">
+                              <button
+                                onClick={() => {
+                                  navigate('/creator/nda-requests');
+                                  handleMarkAsRead(notification.id);
+                                }}
+                                className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => {
+                                  navigate('/creator/nda-requests');
+                                  handleMarkAsRead(notification.id);
+                                }}
+                                className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                              >
+                                Reject
+                              </button>
+                              <button
+                                onClick={() => {
+                                  navigate('/creator/nda-requests');
+                                  handleMarkAsRead(notification.id);
+                                }}
+                                className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                              >
+                                Review
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Investment notification actions */}
+                          {notification.title.toLowerCase().includes('investment') && (
+                            <div className="flex space-x-2 mt-3">
+                              <button
+                                onClick={() => {
+                                  navigate('/investor/investments');
+                                  handleMarkAsRead(notification.id);
+                                }}
+                                className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                              >
+                                View Details
+                              </button>
                             </div>
                           )}
                         </div>

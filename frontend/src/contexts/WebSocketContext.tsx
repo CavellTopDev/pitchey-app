@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { useWebSocketAdvanced } from '../hooks/useWebSocketAdvanced';
 import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus } from '../types/websocket';
 import { useAuthStore } from '../store/authStore';
@@ -527,8 +527,43 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     };
   }, []);
   
-  // Handle authentication state changes
+  // Handle authentication state changes and portal switches
   useEffect(() => {
+    // Check for portal type change (cross-portal authentication issue fix)
+    const currentUserType = localStorage.getItem('userType');
+    const previousUserType = useRef(currentUserType);
+    
+    // If user type changed, we're switching portals - disconnect WebSocket to prevent conflicts
+    if (previousUserType.current && currentUserType && previousUserType.current !== currentUserType) {
+      console.log(`Portal switch detected: ${previousUserType.current} → ${currentUserType}`);
+      console.log('Disconnecting WebSocket to prevent cross-portal authentication conflicts...');
+      disconnect();
+      
+      // Clear all real-time data for portal switch
+      setNotifications([]);
+      setDashboardMetrics(null);
+      setOnlineUsers([]);
+      setTypingIndicators([]);
+      setUploadProgress([]);
+      setPitchViews(new Map());
+      
+      // Stop fallback service
+      if (usingFallback) {
+        presenceFallbackService.stop();
+        setUsingFallback(false);
+      }
+      
+      // Allow time for cleanup before reconnecting
+      setTimeout(() => {
+        if (isAuthenticated && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
+          console.log(`Reconnecting WebSocket for new portal: ${currentUserType}`);
+          connect();
+        }
+      }, 1000);
+    }
+    
+    previousUserType.current = currentUserType;
+    
     if (isAuthenticated && !isConnected && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
       console.log('User authenticated, connecting WebSocket...');
       connect();

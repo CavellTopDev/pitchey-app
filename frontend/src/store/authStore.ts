@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { authAPI } from '../lib/api';
 import { config } from '../config';
 import type { User } from '../types';
+import { clearAuthenticationState, checkAuthPortalConsistency, getSafeUserData } from '../utils/auth';
 
 interface AuthState {
   user: User | null;
@@ -42,13 +43,21 @@ const removeLS = (key: string) => {
   localStorage.removeItem(key);
 };
 
-// Helper function to safely get from localStorage
+// Helper function to safely get from localStorage with validation
 const getStoredUser = (): User | null => {
   try {
-    const stored = getLS('user');
-    return stored ? JSON.parse(stored) : null;
+    const { user, isValid } = getSafeUserData();
+    
+    if (!isValid && user) {
+      console.warn('⚠️ Authentication state inconsistency detected - clearing corrupted data');
+      clearAuthenticationState();
+      return null;
+    }
+    
+    return user;
   } catch (error) {
     console.warn('Failed to parse stored user:', error);
+    clearAuthenticationState();
     return null;
   }
 };
@@ -158,7 +167,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: (navigateToLogin = true) => {
-    console.log('Logout initiated in authStore');
+    console.log('🔴 Logout initiated in authStore');
     
     // Get current user type before clearing state
     const currentUserType = localStorage.getItem('userType');
@@ -167,20 +176,21 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Clear authentication state first
     set({ user: null, isAuthenticated: false, loading: false, error: null });
     
-    // Proactively clear storage both namespaced and legacy, then call backend logout
-    removeLS('authToken');
-    removeLS('user');
-    removeLS('userType');
-    authAPI.logout();
+    // Use comprehensive authentication cleanup utility
+    clearAuthenticationState();
+    
+    // Call backend logout (async but don't wait)
+    authAPI.logout().catch(error => {
+      console.warn('Backend logout failed:', error);
+    });
     
     // Navigate to appropriate login page if requested
     if (navigateToLogin) {
-      // Force a complete page reload to clear all state
       const loginPath = currentUserType === 'creator' ? '/login/creator' : 
                        currentUserType === 'investor' ? '/login/investor' :
                        currentUserType === 'production' ? '/login/production' : '/';
       
-      console.log('Redirecting to:', loginPath);
+      console.log('🔄 Redirecting to:', loginPath);
       
       // Add a small delay to ensure state cleanup completes
       setTimeout(() => {

@@ -114,6 +114,9 @@ const FinancialOverview = lazy(() => import('./pages/investor/FinancialOverview'
 const TransactionHistory = lazy(() => import('./pages/investor/TransactionHistory'));
 const BudgetAllocation = lazy(() => import('./pages/investor/BudgetAllocation'));
 const TaxDocuments = lazy(() => import('./pages/investor/TaxDocuments'));
+const InvestorSettings = lazy(() => import('./pages/investor/InvestorSettings'));
+const InvestorWallet = lazy(() => import('./pages/investor/InvestorWallet'));
+const PaymentMethods = lazy(() => import('./pages/investor/PaymentMethods'));
 
 // New Pages
 const ProductionProjects = lazy(() => import('./pages/production/ProductionProjects'));
@@ -611,6 +614,11 @@ function App() {
           <Route path="/investor/analytics/risk" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/analytics/roi" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
           <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/profile" element={isAuthenticated && userType === 'investor' ? <SettingsProfile /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/settings" element={isAuthenticated && userType === 'investor' ? <InvestorSettings /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/tax-documents" element={isAuthenticated && userType === 'investor' ? <TaxDocuments /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/wallet" element={isAuthenticated && userType === 'investor' ? <InvestorWallet /> : <Navigate to="/login/investor" />} />
+          <Route path="/investor/payment-methods" element={isAuthenticated && userType === 'investor' ? <PaymentMethods /> : <Navigate to="/login/investor" />} />
           
           {/* New Investor Routes - with both legacy and consistent paths */}
           <Route path="/investor/performance-tracking" element={isAuthenticated && userType === 'investor' ? <PerformanceTracking /> : <Navigate to="/login/investor" />} />

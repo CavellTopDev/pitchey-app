@@ -1,27 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { DollarSign, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
+import { useLoadingState } from '../hooks/useLoadingState';
+import { clearAuthenticationState } from '../utils/auth';
 
 export default function InvestorLogin() {
   const navigate = useNavigate();
-  const { loginInvestor, loading, error } = useAuthStore();
+  const { loginInvestor, error, loading: storeLoading } = useAuthStore();
+  const { loading, setLoading, clearLoading, loadingMessage } = useLoadingState({
+    timeout: 15000,
+    onTimeout: () => {
+      console.error('Login timeout - clearing state');
+      clearAuthenticationState();
+    }
+  });
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
+  // Clean up loading state on unmount
+  useEffect(() => {
+    return () => {
+      clearLoading();
+    };
+  }, [clearLoading]);
+
+  // Sync store loading with local loading state
+  useEffect(() => {
+    if (!storeLoading) {
+      clearLoading();
+    }
+  }, [storeLoading, clearLoading]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading('logging-in', 'Authenticating investor account...');
+    
     try {
       await loginInvestor(formData.email, formData.password);
-      // Add small delay to ensure authentication state is properly set
+      // Small delay for state propagation
       setTimeout(() => {
+        clearLoading();
         navigate('/investor/dashboard');
       }, 100);
     } catch (error) {
       console.error('Investor login failed:', error);
+      clearLoading();
     }
   };
 
@@ -117,11 +144,16 @@ export default function InvestorLogin() {
             <div>
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || storeLoading}
+                className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
-                {loading ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                {loading || storeLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    {loadingMessage && (
+                      <span className="text-sm">{loadingMessage}</span>
+                    )}
+                  </div>
                 ) : (
                   <>
                     <LogIn className="h-5 w-5 mr-2" />
@@ -160,13 +192,21 @@ export default function InvestorLogin() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <Link
                 to="/login/creator"
-                className="inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => {
+                  clearLoading();
+                  clearAuthenticationState();
+                }}
+                className="inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Creator Portal
               </Link>
               <Link
                 to="/login/production"
-                className="inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => {
+                  clearLoading();
+                  clearAuthenticationState();
+                }}
+                className="inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Production Portal
               </Link>

@@ -18,6 +18,9 @@ import { getCorsHeaders } from './utils/response';
 // import { usersRoutes } from './routes/users';
 // import { ndasRoutes } from './routes/ndas';
 
+// Email & Messaging Routes
+import { EmailMessagingRoutes } from './routes/email-messaging.routes';
+
 // File upload handler (commented out for debugging)
 // import { R2UploadHandler } from './services/upload-r2';
 
@@ -51,9 +54,27 @@ export interface Env {
   CACHE: KVNamespace;
   SESSIONS_KV: KVNamespace;
   RATE_LIMIT_KV: KVNamespace;
+  EMAIL_CACHE?: KVNamespace;
+  NOTIFICATION_CACHE?: KVNamespace;
   
   // Storage
   R2_BUCKET: R2Bucket;
+  MESSAGE_ATTACHMENTS?: R2Bucket;
+  EMAIL_ATTACHMENTS?: R2Bucket;
+  
+  // Queues
+  EMAIL_QUEUE?: Queue;
+  NOTIFICATION_QUEUE?: Queue;
+  
+  // Email Configuration
+  SENDGRID_API_KEY?: string;
+  SENDGRID_FROM_EMAIL?: string;
+  SENDGRID_FROM_NAME?: string;
+  AWS_SES_ACCESS_KEY?: string;
+  AWS_SES_SECRET_KEY?: string;
+  AWS_SES_REGION?: string;
+  AWS_SES_FROM_EMAIL?: string;
+  AWS_SES_FROM_NAME?: string;
   
   // Redis
   UPSTASH_REDIS_REST_URL?: string;
@@ -75,6 +96,7 @@ class RouteRegistry {
   private db: ReturnType<typeof createDatabase>;
   // private authAdapter: ReturnType<typeof createAuthAdapter>;
   // private uploadHandler: R2UploadHandler;
+  private emailMessagingRoutes?: EmailMessagingRoutes;
   private env: Env;
 
   constructor(env: Env) {
@@ -94,6 +116,11 @@ class RouteRegistry {
         UPSTASH_REDIS_REST_URL: env.UPSTASH_REDIS_REST_URL,
         UPSTASH_REDIS_REST_TOKEN: env.UPSTASH_REDIS_REST_TOKEN
       });
+      
+      // Initialize email and messaging routes if configuration is available
+      if (env.SENDGRID_API_KEY || env.AWS_SES_ACCESS_KEY) {
+        this.emailMessagingRoutes = new EmailMessagingRoutes(env);
+      }
     } catch (error) {
       console.error('Failed to initialize database:', error);
       // Create a dummy database object that returns errors
@@ -395,6 +422,32 @@ class RouteRegistry {
 
     // WebSocket upgrade
     this.register('GET', '/ws', this.handleWebSocketUpgrade.bind(this));
+    
+    // === EMAIL & MESSAGING ROUTES ===
+    if (this.emailMessagingRoutes) {
+      // Email routes
+      this.register('POST', '/api/email/send', this.emailMessagingRoutes.sendEmail.bind(this.emailMessagingRoutes));
+      this.register('POST', '/api/email/batch', this.emailMessagingRoutes.sendBatchEmails.bind(this.emailMessagingRoutes));
+      this.register('GET', '/api/email/:id/status', this.emailMessagingRoutes.getEmailStatus.bind(this.emailMessagingRoutes));
+      
+      // Messaging routes
+      this.register('POST', '/api/messages/send', this.emailMessagingRoutes.sendMessage.bind(this.emailMessagingRoutes));
+      this.register('GET', '/api/messages/:conversationId', this.emailMessagingRoutes.getMessages.bind(this.emailMessagingRoutes));
+      this.register('GET', '/api/messages/conversations', this.emailMessagingRoutes.getConversations.bind(this.emailMessagingRoutes));
+      this.register('POST', '/api/messages/conversations', this.emailMessagingRoutes.createConversation.bind(this.emailMessagingRoutes));
+      this.register('POST', '/api/messages/:messageId/read', this.emailMessagingRoutes.markAsRead.bind(this.emailMessagingRoutes));
+      
+      // Notification routes
+      this.register('GET', '/api/notifications', this.emailMessagingRoutes.getNotifications.bind(this.emailMessagingRoutes));
+      this.register('POST', '/api/notifications/send', this.emailMessagingRoutes.sendNotification.bind(this.emailMessagingRoutes));
+      this.register('POST', '/api/notifications/:id/read', this.emailMessagingRoutes.markNotificationAsRead.bind(this.emailMessagingRoutes));
+      this.register('GET', '/api/notifications/preferences', this.emailMessagingRoutes.getNotificationPreferences.bind(this.emailMessagingRoutes));
+      this.register('PUT', '/api/notifications/preferences', this.emailMessagingRoutes.updateNotificationPreferences.bind(this.emailMessagingRoutes));
+      
+      // Business workflow notification routes
+      this.register('POST', '/api/notifications/nda/request', this.emailMessagingRoutes.sendNDARequestNotification.bind(this.emailMessagingRoutes));
+      this.register('POST', '/api/notifications/investment', this.emailMessagingRoutes.sendInvestmentNotification.bind(this.emailMessagingRoutes));
+    }
   }
 
   /**

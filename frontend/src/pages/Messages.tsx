@@ -1,32 +1,46 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Search, Filter, MessageSquare, Paperclip, MoreVertical, RefreshCw, Users, Circle } from 'lucide-react';
+import { 
+  ArrowLeft, Send, Search, Filter, MessageSquare, Paperclip, MoreVertical, 
+  RefreshCw, Users, Circle, Smile, FileText, Image, Video, Music,
+  Lock, Unlock, Check, CheckCheck, Clock, AlertCircle, X, Plus
+} from 'lucide-react';
 import { useMessaging } from '../hooks/useWebSocket';
 import { getUserId } from '../lib/apiServices';
-import { messagingService, type Message as ServiceMessage, type Conversation as ServiceConversation } from '../services/messaging.service';
 import { getCreditCost } from '../config/subscription-plans';
 import { useAuthStore } from '../store/authStore';
+import type {
+  MessageWithDetails,
+  ConversationWithDetails,
+  SendMessageRequest,
+  ConversationFilters,
+  MessageFilters,
+  PresenceStatus,
+  AttachmentUploadResponse
+} from '../../../src/types/messaging.types';
 
-// Map service types to component's expected format
-interface Message extends Omit<ServiceMessage, 'content' | 'createdAt'> {
+// Enhanced message and conversation interfaces
+interface EnhancedMessage extends MessageWithDetails {
   senderName: string;
   senderType: 'investor' | 'production' | 'creator';
-  subject?: string;
-  message: string;
-  content?: string; // Add content field for compatibility
-  pitchTitle?: string;
-  timestamp: string;
-  isRead: boolean;
-  hasAttachment: boolean;
-  priority: 'normal' | 'high';
+  message: string; // Alias for content
+  timestamp: string; // Alias for sentAt
+  isRead: boolean; // Computed from readReceipts
+  hasAttachment: boolean; // Computed from attachments
   delivered?: boolean;
+  reactions?: Array<{ type: string; users: string[]; count: number }>;
+  isEncrypted?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-interface Conversation extends ServiceConversation {
+interface EnhancedConversation extends ConversationWithDetails {
   participantName: string;
   participantType: 'investor' | 'production' | 'creator';
   lastMessageText?: string;
   timestamp: string;
+  isOnline?: boolean;
+  hasUnreadMessages?: boolean;
 }
 
 export default function Messages() {
@@ -36,7 +50,9 @@ export default function Messages() {
   // Get messaging cost for creators
   const messageCost = getCreditCost('send_message');
   const isCreator = user?.userType === 'creator';
-  const isFreeForUser = !isCreator; // Free for investors and production
+  const isFreeForUser = !isCreator;
+  
+  // State management
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,258 +62,354 @@ export default function Messages() {
   const [notifications, setNotifications] = useState<{message: string, type: 'success' | 'error', id: number}[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [replyToMessage, setReplyToMessage] = useState<EnhancedMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<number | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isEncryptionEnabled, setIsEncryptionEnabled] = useState(false);
+  const [conversations, setConversations] = useState<EnhancedConversation[]>([]);
+  const [currentMessages, setCurrentMessages] = useState<EnhancedMessage[]>([]);
+  
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Use the new messaging hook
+  // Enhanced messaging hook
   const {
-    conversations,
-    setConversations,
-    currentMessages,
-    setCurrentMessages,
+    isConnected,
+    isConnecting,
+    connectionError,
+    conversations: hookConversations,
+    selectedConversation: hookSelectedConversation,
+    setSelectedConversation: setHookSelectedConversation,
+    createConversation,
+    messages,
+    sendMessage: hookSendMessage,
+    editMessage,
+    deleteMessage,
+    markAsRead,
     typingUsers,
     onlineUsers,
-    unreadCounts,
-    isConnected,
-    sendChatMessage,
-    markMessageAsRead,
-    startTyping,
-    stopTyping,
-    joinConversation,
-    markConversationAsRead,
-  } = useMessaging();
+    startTyping: hookStartTyping,
+    stopTyping: hookStopTyping,
+    addReaction,
+    removeReaction,
+    uploadAttachment,
+    downloadAttachment,
+    searchMessages,
+    blockUser,
+    unblockUser,
+    updateConversationSettings,
+    updatePresence,
+    getUserPresence
+  } = useMessaging({ 
+    userId: parseInt(getUserId() || '0'), 
+    autoConnect: true,
+    reconnectOnError: true
+  });
 
+  // Sync with hook conversations and messages
   useEffect(() => {
-    fetchConversations();
-  }, []);
-
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation);
-      // Only join conversation if WebSocket is connected
-      if (isConnected) {
-        joinConversation(selectedConversation);
-      }
-      markConversationAsRead(selectedConversation);
+    if (hookConversations) {
+      const enhancedConvs = hookConversations.map(conv => ({
+        ...conv,
+        participantName: conv.participants
+          .filter(p => p.userId !== parseInt(getUserId() || '0'))
+          .map(p => p.user.name || p.user.username)
+          .join(', ') || 'Unknown',
+        participantType: (conv.participants[0]?.user.userType || 'creator') as 'investor' | 'production' | 'creator',
+        lastMessageText: conv.lastMessage?.content || '',
+        timestamp: conv.lastMessage?.sentAt.toString() || conv.updatedAt.toString(),
+        isOnline: conv.participants.some(p => onlineUsers[p.userId]),
+        hasUnreadMessages: conv.unreadCount > 0
+      }));
+      setConversations(enhancedConvs);
+      setLoading(false);
     }
-  }, [selectedConversation, isConnected]);
+  }, [hookConversations, onlineUsers]);
+
+  // Sync selected conversation
+  useEffect(() => {
+    if (selectedConversation !== hookSelectedConversation) {
+      setSelectedConversation(hookSelectedConversation);
+    }
+  }, [hookSelectedConversation]);
+
+  // Sync messages for selected conversation
+  useEffect(() => {
+    if (selectedConversation && messages[selectedConversation]) {
+      const enhancedMessages = messages[selectedConversation].map(msg => ({
+        ...msg,
+        senderName: msg.sender.name || msg.sender.username,
+        senderType: msg.sender.userType as 'investor' | 'production' | 'creator',
+        message: msg.content,
+        timestamp: msg.sentAt.toString(),
+        isRead: msg.isReadByCurrentUser,
+        hasAttachment: msg.attachments.length > 0,
+        delivered: true,
+        reactions: Object.entries(msg.reactionCounts).map(([type, count]) => ({
+          type,
+          users: msg.reactions.filter(r => r.reactionType === type).map(r => r.user.name),
+          count
+        })),
+        isEncrypted: !!msg.encryptedContent,
+        canEdit: msg.senderId === parseInt(getUserId() || '0') && !msg.isDeleted,
+        canDelete: msg.senderId === parseInt(getUserId() || '0') && !msg.isDeleted
+      }));
+      setCurrentMessages(enhancedMessages);
+    } else if (selectedConversation) {
+      setCurrentMessages([]);
+    }
+  }, [selectedConversation, messages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [currentMessages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Handle typing indicators
+  useEffect(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    if (newMessage.trim() && selectedConversation) {
+      hookStartTyping(selectedConversation);
+      
+      typingTimeoutRef.current = setTimeout(() => {
+        hookStopTyping(selectedConversation);
+      }, 3000);
+    }
+    
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [newMessage, selectedConversation, hookStartTyping, hookStopTyping]);
 
-  const addNotification = (message: string, type: 'success' | 'error') => {
+  // Helper functions
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  const addNotification = useCallback((message: string, type: 'success' | 'error') => {
     const id = Date.now();
     setNotifications(prev => [...prev, { message, type, id }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 4000);
-  };
+  }, []);
 
-  const fetchConversations = async (silent = false) => {
-    if (!silent) {
-      setIsRefreshing(true);
+  // File handling
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      setSelectedFiles(prev => [...prev, ...files]);
     }
-    
-    try {
-      const { conversations } = await messagingService.getConversations();
-      
-      // Map service conversations to component format
-      const mappedConversations = conversations.map(conv => ({
-        ...conv,
-        participantName: conv.participantDetails?.[0]?.name || conv.participantDetails?.[0]?.companyName || conv.participantDetails?.[0]?.username || 'Unknown',
-        participantType: (conv.participantDetails?.[0]?.userType || 'creator') as 'investor' | 'production' | 'creator',
-        lastMessageText: conv.lastMessage?.content || '',
-        timestamp: conv.lastMessage?.createdAt || conv.updatedAt,
-        unreadCount: conv.unreadCount || 0
-      }));
-      
-      setConversations(mappedConversations);
-      setLastUpdated(new Date());
-      
-      if (silent) {
-        const unreadCount = mappedConversations.reduce((sum: number, conv: Conversation) => sum + (conv.unreadCount || 0), 0);
-        if (unreadCount > 0) {
-          addNotification(`${unreadCount} new message${unreadCount > 1 ? 's' : ''}`, 'success');
-        }
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch conversations:', error);
-      if (!silent) {
-        addNotification(error.message || 'Failed to refresh conversations', 'error');
-      }
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  };
+  }, []);
 
-  const handleManualRefresh = () => {
-    fetchConversations(false);
-  };
+  const removeSelectedFile = useCallback((index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
-  const fetchMessages = async (conversationId: number, silent = false) => {
-    try {
-      const { messages } = await messagingService.getMessages({ conversationId });
-      
-      // Map service messages to component format
-      const mappedMessages = messages.map(msg => ({
-        ...msg,
-        senderName: msg.sender?.name || msg.sender?.companyName || msg.sender?.username || 'Unknown',
-        senderType: (msg.sender?.userType || 'creator') as 'investor' | 'production' | 'creator',
-        message: msg.content,
-        timestamp: msg.createdAt,
-        isRead: !!msg.readAt,
-        hasAttachment: msg.attachments && msg.attachments.length > 0,
-        priority: 'normal' as 'normal' | 'high',
-        pitchTitle: undefined // Will be set from conversation if needed
-      }));
-      
-      // Check for new messages
-      if (silent && currentMessages.length > 0 && mappedMessages.length > currentMessages.length) {
-        const newCount = mappedMessages.length - currentMessages.length;
-        addNotification(`${newCount} new message${newCount > 1 ? 's' : ''} received`, 'success');
-      }
-        
-      setCurrentMessages(mappedMessages);
-        
-      // Mark unread messages as read via WebSocket
-      if (!silent) {
-        const currentUserId = getUserId();
-        mappedMessages
-          .filter(msg => !msg.isRead && msg.recipientId === currentUserId)
-          .forEach(msg => markMessageAsRead(msg.id));
-      }
-    } catch (error: any) {
-      console.error('Failed to fetch messages:', error);
-      addNotification(error.message || 'Failed to fetch messages', 'error');
-    }
-  };
+  const formatFileSize = useCallback((bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }, []);
 
-  // getCurrentUserId function removed - now using centralized getUserId from apiServices
-
-  const markAsRead = async (conversationId: number) => {
-    try {
-      await messagingService.markConversationAsRead(conversationId);
-      
-      // Update local state
-      setConversations(prev => prev.map(conv => 
-        conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
-      ));
-    } catch (error: any) {
-      console.error('Failed to mark as read:', error);
-      addNotification(error.message || 'Failed to mark as read', 'error');
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || sendingMessage) return;
+  // Enhanced message handling
+  const sendMessage = useCallback(async () => {
+    if (!newMessage.trim() && selectedFiles.length === 0) return;
+    if (!selectedConversation || sendingMessage) return;
 
     setSendingMessage(true);
 
     try {
-      if (isConnected) {
-        // Send via WebSocket if connected
-        const messageContent = newMessage.trim();
-        sendChatMessage(selectedConversation, messageContent);
-        
-        // Immediately add the message to the UI (optimistic update)
-        const currentUserId = getUserId();
-        const tempMessage: Message = {
-          id: Date.now(), // Temporary ID
-          conversationId: selectedConversation,
-          senderId: parseInt(currentUserId || '0'),
-          recipientId: 0, // Will be updated when confirmed
-          senderName: 'You',
-          senderType: 'creator' as 'investor' | 'production' | 'creator',
-          message: messageContent,
-          content: messageContent, // Add content field as well for compatibility
-          timestamp: new Date().toISOString(),
-          isRead: false,
-          hasAttachment: false,
-          priority: 'normal' as 'normal' | 'high',
-          delivered: false // Mark as pending until confirmed
-        };
-        
-        setCurrentMessages(prev => [...prev, tempMessage]);
-        setNewMessage('');
-        addNotification('Message sent successfully', 'success');
-        
-        // Stop typing indicator
-        stopTyping(selectedConversation);
-      } else {
-        // Fallback to messaging service
-        const message = await messagingService.sendMessage({
-          conversationId: selectedConversation,
-          content: newMessage.trim()
-        });
-        
-        // Map and add message to current view
-        const mappedMessage: Message = {
-          ...message,
-          senderName: message.sender?.name || message.sender?.companyName || message.sender?.username || 'You',
-          senderType: (message.sender?.userType || 'creator') as 'investor' | 'production' | 'creator',
-          message: message.content,
-          timestamp: message.createdAt,
-          isRead: !!message.readAt,
-          hasAttachment: message.attachments && message.attachments.length > 0,
-          priority: 'normal' as 'normal' | 'high'
-        };
-        
-        setCurrentMessages(prev => [...prev, mappedMessage]);
-        setNewMessage('');
-        addNotification('Message sent successfully', 'success');
-        
-        // Stop typing indicator
-        if (selectedConversation) {
-          stopTyping(selectedConversation);
-        }
-        
-        // Update conversation list
-        fetchConversations(true);
-      }
+      const messageRequest: SendMessageRequest = {
+        conversationId: selectedConversation,
+        content: newMessage.trim() || '[File attachment]',
+        messageType: 'text',
+        contentType: selectedFiles.length > 0 ? 'file' : 'text',
+        priority: 'normal',
+        parentMessageId: replyToMessage?.id,
+        attachments: selectedFiles,
+        isEncrypted: isEncryptionEnabled,
+        metadata: replyToMessage ? { replyTo: replyToMessage.id } : undefined
+      };
+
+      const sentMessage = await hookSendMessage(messageRequest);
+      
+      // Clear input and reset state
+      setNewMessage('');
+      setSelectedFiles([]);
+      setReplyToMessage(null);
+      setShowEmojiPicker(false);
+      
+      // Focus back to input
+      messageInputRef.current?.focus();
+      
+      addNotification('Message sent successfully', 'success');
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      
-      // Handle payment required error specifically
-      if (error.message && error.message.includes('Insufficient credits')) {
-        addNotification(
-          `Unable to send message. ${error.message} Purchase more credits to continue messaging.`,
-          'error'
-        );
-      } else {
-        addNotification(error.message || 'Failed to send message', 'error');
-      }
+      addNotification(error.message || 'Failed to send message', 'error');
     } finally {
       setSendingMessage(false);
     }
-  };
+  }, [newMessage, selectedFiles, selectedConversation, sendingMessage, replyToMessage, isEncryptionEnabled, hookSendMessage, addNotification]);
 
-  // Handle typing indicators
-  const handleTyping = () => {
-    if (selectedConversation && isConnected) {
-      startTyping(selectedConversation);
-      
-      // Clear previous timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      // Stop typing after 3 seconds of inactivity
-      typingTimeoutRef.current = setTimeout(() => {
-        if (selectedConversation) {
-          stopTyping(selectedConversation);
-        }
-      }, 3000);
+  const handleKeyPress = useCallback((event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
     }
-  };
+  }, [sendMessage]);
 
-  const getParticipantBadgeColor = (type: string) => {
+  const handleManualRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setLastUpdated(new Date());
+    // Hook will handle the actual refresh
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, []);
+
+  // Enhanced message interaction handlers
+  const handleSelectConversation = useCallback((conversationId: number) => {
+    setHookSelectedConversation(conversationId);
+    
+    // Mark messages as read when conversation is opened
+    if (messages[conversationId]) {
+      const unreadMessageIds = messages[conversationId]
+        .filter(msg => !msg.isReadByCurrentUser && msg.senderId !== parseInt(getUserId() || '0'))
+        .map(msg => msg.id);
+      
+      if (unreadMessageIds.length > 0) {
+        markAsRead(unreadMessageIds, conversationId);
+      }
+    }
+  }, [setHookSelectedConversation, messages, markAsRead]);
+
+  const handleReplyToMessage = useCallback((message: EnhancedMessage) => {
+    setReplyToMessage(message);
+    messageInputRef.current?.focus();
+  }, []);
+
+  const handleEditMessage = useCallback(async (messageId: number, newContent: string) => {
+    try {
+      await editMessage(messageId, newContent);
+      setEditingMessage(null);
+      addNotification('Message edited successfully', 'success');
+    } catch (error: any) {
+      addNotification(error.message || 'Failed to edit message', 'error');
+    }
+  }, [editMessage, addNotification]);
+
+  const handleDeleteMessage = useCallback(async (messageId: number) => {
+    if (!confirm('Are you sure you want to delete this message?')) return;
+    
+    try {
+      await deleteMessage(messageId);
+      addNotification('Message deleted successfully', 'success');
+    } catch (error: any) {
+      addNotification(error.message || 'Failed to delete message', 'error');
+    }
+  }, [deleteMessage, addNotification]);
+
+  const handleReaction = useCallback(async (messageId: number, reaction: string) => {
+    try {
+      const message = currentMessages.find(m => m.id === messageId);
+      const hasReacted = message?.reactions?.some(r => r.type === reaction && r.users.includes(user?.username || ''));
+      
+      if (hasReacted) {
+        await removeReaction(messageId, reaction);
+      } else {
+        await addReaction(messageId, reaction);
+      }
+    } catch (error: any) {
+      addNotification(error.message || 'Failed to add reaction', 'error');
+    }
+  }, [currentMessages, user, addReaction, removeReaction, addNotification]);
+
+  // UI helper functions
+  const getFileIcon = useCallback((mimeType: string) => {
+    if (mimeType.startsWith('image/')) return <Image className="w-4 h-4" />;
+    if (mimeType.startsWith('video/')) return <Video className="w-4 h-4" />;
+    if (mimeType.startsWith('audio/')) return <Music className="w-4 h-4" />;
+    return <FileText className="w-4 h-4" />;
+  }, []);
+
+  const getPresenceIndicator = useCallback((userId: number) => {
+    const presence = getUserPresence(userId);
+    if (!presence) return null;
+    
+    const colors = {
+      online: 'bg-green-500',
+      away: 'bg-yellow-500',
+      offline: 'bg-gray-400'
+    };
+    
+    return (
+      <div className={`w-2 h-2 rounded-full ${colors[presence.status]}`} 
+           title={`${presence.status} - Last seen ${presence.lastSeen.toLocaleString()}`} />
+    );
+  }, [getUserPresence]);
+
+  const formatMessageTime = useCallback((timestamp: string | Date) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  }, []);
+
+  // Filter conversations based on search and filters
+  const filteredConversations = useCallback(() => {
+    return conversations.filter(conv => {
+      const matchesSearch = !searchTerm || (
+        conv.participantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (conv.lastMessageText && conv.lastMessageText.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (conv.pitch?.title && conv.pitch.title.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      
+      if (filter === 'all') return matchesSearch;
+      if (filter === 'unread') return matchesSearch && conv.unreadCount > 0;
+      if (filter === 'investors') return matchesSearch && conv.participantType === 'investor';
+      if (filter === 'production') return matchesSearch && conv.participantType === 'production';
+      if (filter === 'online') return matchesSearch && conv.isOnline;
+      
+      return matchesSearch;
+    });
+  }, [conversations, searchTerm, filter]);
+
+  // Enhanced emoji and formatting
+  const commonEmojis = ['👍', '❤️', '😀', '😂', '😭', '😮', '😡', '🎉', '👏', '🔥'];
+  
+  const insertEmoji = useCallback((emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    messageInputRef.current?.focus();
+  }, []);
+
+  // Connection status indicator
+  const connectionStatus = useCallback(() => {
+    if (isConnecting) return { color: 'yellow', text: 'Connecting...' };
+    if (connectionError) return { color: 'red', text: 'Connection error' };
+    if (isConnected) return { color: 'green', text: 'Connected' };
+    return { color: 'gray', text: 'Disconnected' };
+  }, [isConnected, isConnecting, connectionError]);
+
+  const getParticipantBadgeColor = useCallback((type: string) => {
     switch (type) {
       case 'investor':
         return 'bg-blue-100 text-blue-700';
@@ -308,20 +420,22 @@ export default function Messages() {
       default:
         return 'bg-gray-100 text-gray-700';
     }
-  };
+  }, []);
 
-  const filteredConversations = conversations.filter(conv => {
-    const matchesSearch = conv.participantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (conv.pitchTitle && conv.pitchTitle.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    if (filter === 'all') return matchesSearch;
-    if (filter === 'unread') return matchesSearch && conv.unreadCount > 0;
-    if (filter === 'investors') return matchesSearch && conv.participantType === 'investor';
-    if (filter === 'production') return matchesSearch && conv.participantType === 'production';
-    
-    return matchesSearch;
-  });
+  // Get filtered conversations
+  const displayConversations = filteredConversations();
+  
+  // Handle cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (selectedConversation) {
+        hookStopTyping(selectedConversation);
+      }
+    };
+  }, [selectedConversation, hookStopTyping]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
@@ -371,16 +485,22 @@ export default function Messages() {
           ))}
         </div>
 
-        {/* Real-time status */}
-        <div className="flex items-center justify-between bg-white rounded-lg p-3 mb-6 shadow-sm">
+        {/* Enhanced Real-time status */}
+        <div className="flex items-center justify-between bg-white rounded-lg p-3 mb-6 shadow-sm border">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span>
-                {isConnected ? 'Real-time connected' : 'Real-time disconnected'} • 
-                Last updated: {lastUpdated.toLocaleTimeString()}
-              </span>
+              <div className={`w-2 h-2 rounded-full ${
+                connectionStatus().color === 'green' ? 'bg-green-500' :
+                connectionStatus().color === 'yellow' ? 'bg-yellow-500 animate-pulse' :
+                connectionStatus().color === 'red' ? 'bg-red-500' :
+                'bg-gray-400'
+              }`}></div>
+              <span>{connectionStatus().text}</span>
+              {connectionError && (
+                <AlertCircle className="w-3 h-3 text-red-500" title={connectionError} />
+              )}
             </div>
+            
             <div className="flex items-center gap-2">
               <button
                 onClick={handleManualRefresh}
@@ -390,7 +510,7 @@ export default function Messages() {
                     ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
-                title="Refresh messages"
+                title="Refresh conversations"
               >
                 <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
                 {isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -400,10 +520,35 @@ export default function Messages() {
                 <Users className="w-3 h-3" />
                 <span>{Object.values(onlineUsers).filter(Boolean).length} online</span>
               </div>
+              
+              {/* Encryption toggle */}
+              <button
+                onClick={() => setIsEncryptionEnabled(!isEncryptionEnabled)}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition ${
+                  isEncryptionEnabled 
+                    ? 'bg-green-100 text-green-700 border border-green-200'
+                    : 'bg-gray-100 text-gray-600 border border-gray-200'
+                }`}
+                title={`Encryption ${isEncryptionEnabled ? 'enabled' : 'disabled'}`}
+              >
+                {isEncryptionEnabled ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                E2E
+              </button>
             </div>
           </div>
-          <div className="text-xs text-gray-500">
-            {isConnected ? 'Real-time messaging active' : 'Reconnecting...'}
+          
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+            {selectedConversation && typingUsers[selectedConversation]?.length > 0 && (
+              <span className="flex items-center gap-1 text-purple-600">
+                <div className="flex space-x-1">
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce"></div>
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                Someone is typing...
+              </span>
+            )}
           </div>
         </div>
 
@@ -435,6 +580,7 @@ export default function Messages() {
                     <option value="unread">Unread</option>
                     <option value="investors">Investors</option>
                     <option value="production">Production</option>
+                    <option value="online">Online Users</option>
                   </select>
                 </div>
               </div>
@@ -445,68 +591,90 @@ export default function Messages() {
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
                   </div>
-                ) : filteredConversations.length === 0 ? (
+                ) : displayConversations.length === 0 ? (
                   <div className="p-4 text-center">
                     <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-500 text-sm">No conversations found</p>
+                    <p className="text-gray-500 text-sm">
+                      {searchTerm ? 'No conversations match your search' : 'No conversations found'}
+                    </p>
+                    {searchTerm && (
+                      <button 
+                        onClick={() => setSearchTerm('')}
+                        className="text-purple-600 text-sm mt-2 hover:underline"
+                      >
+                        Clear search
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  filteredConversations.map((conversation) => {
-                    const unreadCount = unreadCounts[conversation.id] || conversation.unreadCount || 0;
-                    const participant = conversation.participantDetails?.[0];
-                    const isParticipantOnline = participant && onlineUsers[participant.id];
+                  displayConversations.map((conversation) => {
+                    const participant = conversation.participants?.find(p => p.userId !== parseInt(getUserId() || '0'));
+                    const isParticipantOnline = participant && onlineUsers[participant.userId];
                     
                     return (
                       <div
                         key={conversation.id}
-                        onClick={() => setSelectedConversation(conversation.id)}
+                        onClick={() => handleSelectConversation(conversation.id)}
                         className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition ${
                           selectedConversation === conversation.id ? 'bg-purple-50 border-purple-200' : ''
                         }`}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div className="relative">
+                            <div className="relative flex items-center gap-2">
                               <h3 className="font-medium text-gray-900 text-sm">
-                                {conversation.participantName || participant?.name || participant?.companyName || 'Unknown User'}
+                                {conversation.participantName}
                               </h3>
                               {isParticipantOnline && (
-                                <Circle className="w-2 h-2 fill-green-500 text-green-500 absolute -top-1 -right-1" />
+                                <Circle className="w-2 h-2 fill-green-500 text-green-500" />
+                              )}
+                              {conversation.isEncrypted && (
+                                <Lock className="w-3 h-3 text-green-600" title="End-to-end encrypted" />
                               )}
                             </div>
-                            {conversation.participantType && (
-                              <span className={`px-2 py-1 text-xs rounded-full ${getParticipantBadgeColor(conversation.participantType)}`}>
-                                {conversation.participantType}
+                            <span className={`px-2 py-1 text-xs rounded-full ${getParticipantBadgeColor(conversation.participantType)}`}>
+                              {conversation.participantType}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            {conversation.muted && (
+                              <div className="w-3 h-3 text-gray-400" title="Muted">🔇</div>
+                            )}
+                            {conversation.unreadCount > 0 && (
+                              <span className="bg-purple-600 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                                {conversation.unreadCount}
                               </span>
                             )}
                           </div>
-                          {unreadCount > 0 && (
-                            <span className="bg-purple-600 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                              {unreadCount}
-                            </span>
-                          )}
                         </div>
                         
-                        {conversation.pitchTitle && (
-                          <p className="text-xs text-purple-600 mb-1">Re: {conversation.pitchTitle}</p>
+                        {conversation.pitch && (
+                          <p className="text-xs text-purple-600 mb-1">Re: {conversation.pitch.title}</p>
                         )}
                         
-                        <p className="text-sm text-gray-600 truncate mb-1">
-                          {conversation.lastMessage?.content || 'No messages yet'}
-                        </p>
+                        <div className="flex items-center gap-2 mb-1">
+                          {conversation.lastMessage?.contentType !== 'text' && (
+                            getFileIcon(conversation.lastMessage?.attachments?.[0]?.mimeType || '')
+                          )}
+                          <p className="text-sm text-gray-600 truncate flex-1">
+                            {conversation.lastMessage?.content || 'No messages yet'}
+                          </p>
+                        </div>
+                        
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-gray-400">
-                            {conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            }) : ''}
+                            {formatMessageTime(conversation.timestamp)}
                           </p>
                           {typingUsers[conversation.id]?.length > 0 && (
-                            <p className="text-xs text-purple-600 italic">
-                              {typingUsers[conversation.id].join(', ')} typing...
-                            </p>
+                            <div className="flex items-center gap-1 text-xs text-purple-600">
+                              <div className="flex space-x-1">
+                                <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce"></div>
+                                <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-1 h-1 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              </div>
+                              <span>typing...</span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -542,50 +710,229 @@ export default function Messages() {
                     </div>
                   </div>
 
+                  {/* Reply indicator */}
+                  {replyToMessage && (
+                    <div className="p-3 bg-blue-50 border-b border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm">
+                          <div className="w-1 h-8 bg-blue-500 rounded"></div>
+                          <div>
+                            <p className="font-medium text-blue-900">Replying to {replyToMessage.senderName}</p>
+                            <p className="text-blue-700 truncate max-w-md">{replyToMessage.content}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setReplyToMessage(null)}
+                          className="text-blue-500 hover:text-blue-700 p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-4">
                     <div className="space-y-4">
                       {currentMessages.map((message) => {
                         const currentUserId = getUserId();
                         const isCurrentUser = message.senderId === parseInt(currentUserId || '0');
+                        const showReactions = message.reactions && message.reactions.length > 0;
+                        
                         return (
-                          <div
-                            key={message.id}
-                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                              isCurrentUser
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-gray-100 text-gray-900'
-                            }`}>
-                              {message.subject && (
-                                <p className="font-medium text-sm mb-1">{message.subject}</p>
-                              )}
-                              <p className="text-sm">{message.content || message.message}</p>
-                              {message.attachments && message.attachments.length > 0 && (
-                                <div className="flex items-center gap-1 mt-2 text-xs opacity-75">
-                                  <Paperclip className="w-3 h-3" />
-                                  {message.attachments.length} attachment{message.attachments.length > 1 ? 's' : ''}
+                          <div key={message.id} className="group">
+                            {/* Reply context */}
+                            {message.parentMessage && (
+                              <div className={`mb-2 ml-4 ${isCurrentUser ? 'text-right mr-4' : ''}`}>
+                                <div className="text-xs text-gray-500 flex items-center gap-2">
+                                  <div className="w-6 h-px bg-gray-300"></div>
+                                  <span>Replying to {message.parentMessage.senderName}</span>
                                 </div>
-                              )}
-                              <div className="flex items-center justify-between mt-1">
-                                <p className={`text-xs ${
-                                  isCurrentUser ? 'text-purple-200' : 'text-gray-500'
+                                <div className="text-sm text-gray-600 italic truncate max-w-md">
+                                  {message.parentMessage.content}
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`relative max-w-xs lg:max-w-md group-hover:scale-[1.02] transition-transform`}>
+                                {/* Message options */}
+                                <div className={`absolute -top-2 ${isCurrentUser ? '-left-8' : '-right-8'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1`}>
+                                  <button
+                                    onClick={() => handleReplyToMessage(message)}
+                                    className="p-1 bg-white border rounded-full shadow hover:bg-gray-50 text-gray-600"
+                                    title="Reply"
+                                  >
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414L2.586 8l3.707-3.707a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => setShowEmojiPicker(true)}
+                                    className="p-1 bg-white border rounded-full shadow hover:bg-gray-50 text-gray-600"
+                                    title="Add reaction"
+                                  >
+                                    <Smile className="w-3 h-3" />
+                                  </button>
+                                  
+                                  {message.canEdit && (
+                                    <button
+                                      onClick={() => setEditingMessage(message.id)}
+                                      className="p-1 bg-white border rounded-full shadow hover:bg-gray-50 text-gray-600"
+                                      title="Edit"
+                                    >
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                  
+                                  {message.canDelete && (
+                                    <button
+                                      onClick={() => handleDeleteMessage(message.id)}
+                                      className="p-1 bg-white border rounded-full shadow hover:bg-red-50 text-red-600"
+                                      title="Delete"
+                                    >
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 102 0v-1a1 1 0 10-2 0v1zm2 3a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                                
+                                <div className={`px-4 py-2 rounded-lg ${
+                                  isCurrentUser
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-gray-100 text-gray-900'
+                                } ${
+                                  message.isEncrypted ? 'border-2 border-green-300' : ''
                                 }`}>
-                                  {new Date(message.sentAt || message.timestamp).toLocaleTimeString(undefined, {
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </p>
-                                {isCurrentUser && message.readReceipts && message.readReceipts.length > 0 && (
-                                  <p className="text-xs text-purple-200">
-                                    ✓✓ Read
-                                  </p>
-                                )}
-                                {isCurrentUser && message.delivered && (
-                                  <p className="text-xs text-purple-200">
-                                    ✓ Delivered
-                                  </p>
+                                  {/* Encryption indicator */}
+                                  {message.isEncrypted && (
+                                    <div className="flex items-center gap-1 mb-1 text-xs opacity-75">
+                                      <Lock className="w-3 h-3" />
+                                      <span>End-to-end encrypted</span>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Subject */}
+                                  {message.subject && (
+                                    <p className="font-medium text-sm mb-1">{message.subject}</p>
+                                  )}
+                                  
+                                  {/* Content */}
+                                  {editingMessage === message.id ? (
+                                    <div className="space-y-2">
+                                      <textarea
+                                        defaultValue={message.content}
+                                        className="w-full p-2 border rounded text-gray-900 text-sm"
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && e.ctrlKey) {
+                                            handleEditMessage(message.id, e.currentTarget.value);
+                                          }
+                                          if (e.key === 'Escape') {
+                                            setEditingMessage(null);
+                                          }
+                                        }}
+                                        autoFocus
+                                      />
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+                                            handleEditMessage(message.id, textarea.value);
+                                          }}
+                                          className="text-xs bg-purple-600 text-white px-2 py-1 rounded"
+                                        >
+                                          Save
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingMessage(null)}
+                                          className="text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm whitespace-pre-wrap">{message.content || message.message}</p>
+                                  )}
+                                  
+                                  {/* Attachments */}
+                                  {message.attachments && message.attachments.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      {message.attachments.map((attachment, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 text-xs opacity-90 bg-black bg-opacity-20 rounded p-2">
+                                          {getFileIcon(attachment.mimeType)}
+                                          <span className="flex-1 truncate">{attachment.originalName}</span>
+                                          <span>{formatFileSize(attachment.fileSize)}</span>
+                                          <button
+                                            onClick={() => downloadAttachment(attachment.id)}
+                                            className="hover:bg-black hover:bg-opacity-20 p-1 rounded"
+                                            title="Download"
+                                          >
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                              <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Message footer */}
+                                  <div className="flex items-center justify-between mt-2 text-xs">
+                                    <div className={`flex items-center gap-2 ${
+                                      isCurrentUser ? 'text-purple-200' : 'text-gray-500'
+                                    }`}>
+                                      <span>{formatMessageTime(message.timestamp)}</span>
+                                      {message.isEdited && (
+                                        <span className="opacity-75">(edited)</span>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Read receipts */}
+                                    {isCurrentUser && (
+                                      <div className={`flex items-center gap-1 ${
+                                        isCurrentUser ? 'text-purple-200' : 'text-gray-500'
+                                      }`}>
+                                        {message.readReceipts && message.readReceipts.length > 0 ? (
+                                          <>
+                                            <CheckCheck className="w-3 h-3" />
+                                            <span>Read by {message.readReceipts.length}</span>
+                                          </>
+                                        ) : message.delivered ? (
+                                          <>
+                                            <Check className="w-3 h-3" />
+                                            <span>Delivered</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Clock className="w-3 h-3" />
+                                            <span>Sending...</span>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Reactions */}
+                                {showReactions && (
+                                  <div className="flex gap-1 mt-1 flex-wrap">
+                                    {message.reactions?.map((reaction, idx) => (
+                                      <button
+                                        key={idx}
+                                        onClick={() => handleReaction(message.id, reaction.type)}
+                                        className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 rounded-full px-2 py-1 text-xs transition"
+                                        title={reaction.users.join(', ')}
+                                      >
+                                        <span>{reaction.type}</span>
+                                        <span>{reaction.count}</span>
+                                      </button>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -616,10 +963,37 @@ export default function Messages() {
                   </div>
 
                   {/* Message Input */}
-                  <div className="p-4 border-t border-gray-200">
+                  <div className="border-t border-gray-200">
+                    {/* File attachments preview */}
+                    {selectedFiles.length > 0 && (
+                      <div className="p-3 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                          <Paperclip className="w-4 h-4" />
+                          <span>{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected</span>
+                        </div>
+                        <div className="space-y-2">
+                          {selectedFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between bg-white p-2 rounded border">
+                              <div className="flex items-center gap-2">
+                                {getFileIcon(file.type)}
+                                <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                                <span className="text-xs text-gray-500">({formatFileSize(file.size)})</span>
+                              </div>
+                              <button
+                                onClick={() => removeSelectedFile(index)}
+                                className="text-red-500 hover:text-red-700 p-1"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Cost information for creators */}
                     {isCreator && (
-                      <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="p-3 bg-yellow-50 border-b border-yellow-200">
                         <p className="text-xs text-yellow-800">
                           💬 <strong>Messaging Cost:</strong> {messageCost} credits per message
                           {isFreeForUser && <span className="text-green-600 ml-1">(Free for you!)</span>}
@@ -629,55 +1003,92 @@ export default function Messages() {
                     
                     {/* Free messaging notice for investors/production */}
                     {isFreeForUser && (
-                      <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="p-3 bg-green-50 border-b border-green-200">
                         <p className="text-xs text-green-800">
                           ✨ <strong>Free Messaging:</strong> You can send messages at no cost!
                         </p>
                       </div>
                     )}
                     
-                    <div className="flex items-end gap-3">
-                      <button className="p-2 text-gray-400 hover:text-gray-600">
-                        <Paperclip className="w-5 h-5" />
-                      </button>
-                      <div className="flex-1">
-                        <textarea
-                          value={newMessage}
-                          onChange={(e) => {
-                            setNewMessage(e.target.value);
-                            handleTyping();
-                          }}
-                          placeholder="Type your message..."
-                          rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              sendMessage();
-                            }
-                          }}
-                          onBlur={() => {
-                            if (selectedConversation) {
-                              stopTyping(selectedConversation);
-                            }
-                          }}
+                    <div className="p-4">
+                      <div className="flex items-end gap-2">
+                        {/* File attachment button */}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
                         />
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
+                          title="Attach files"
+                        >
+                          <Paperclip className="w-5 h-5" />
+                        </button>
+                        
+                        {/* Emoji button */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
+                            title="Add emoji"
+                          >
+                            <Smile className="w-5 h-5" />
+                          </button>
+                          
+                          {/* Emoji picker */}
+                          {showEmojiPicker && (
+                            <div className="absolute bottom-full left-0 mb-2 p-3 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                              <div className="grid grid-cols-5 gap-2">
+                                {commonEmojis.map((emoji, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => insertEmoji(emoji)}
+                                    className="text-lg hover:bg-gray-100 p-2 rounded transition"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Message input */}
+                        <div className="flex-1">
+                          <textarea
+                            ref={messageInputRef}
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder={selectedFiles.length > 0 ? "Add a message (optional)..." : "Type your message..."}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"
+                            onKeyDown={handleKeyPress}
+                          />
+                        </div>
+                        
+                        {/* Send button */}
+                        <button
+                          onClick={sendMessage}
+                          disabled={((!newMessage.trim() && selectedFiles.length === 0) || sendingMessage)}
+                          className={`p-3 rounded-lg transition min-w-[60px] flex items-center justify-center ${
+                            sendingMessage
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : (newMessage.trim() || selectedFiles.length > 0)
+                                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {sendingMessage ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Send className="w-5 h-5" />
+                          )}
+                        </button>
                       </div>
-                      <button
-                        onClick={sendMessage}
-                        disabled={!newMessage.trim() || sendingMessage}
-                        className={`p-3 rounded-lg transition min-w-[60px] flex items-center justify-center ${
-                          sendingMessage
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : 'bg-purple-600 hover:bg-purple-700'
-                        } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-                      >
-                        {sendingMessage ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <Send className="w-5 h-5" />
-                        )}
-                      </button>
                     </div>
                   </div>
                 </>

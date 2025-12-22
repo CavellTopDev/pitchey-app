@@ -111,6 +111,14 @@ export const investorApi = {
   
   getInvestmentsSummary: () => 
     apiClient.get('/api/investor/investments/summary'),
+  
+  // Tax Documents
+  getTaxDocuments: (year?: number) => {
+    const endpoint = year 
+      ? `/api/investor/tax-documents?year=${year}`
+      : '/api/investor/tax-documents';
+    return apiClient.get(endpoint);
+  },
 };
 
 export class InvestorService {

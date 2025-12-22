@@ -2,7 +2,7 @@
 # This file is intentionally minimal to avoid conflicts with the root Worker config.
 
 # Name of the Cloudflare Pages project
-name = "pitchey"
+name = "pitchey-frontend-ndlovu"
 
 # Directory to deploy for Pages (relative to this file)
 pages_build_output_dir = "dist"

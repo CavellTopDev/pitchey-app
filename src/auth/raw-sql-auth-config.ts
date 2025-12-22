@@ -32,6 +32,7 @@ const DEFAULT_CONFIG = {
   environment: 'development' as const,
   trustedOrigins: [
     'https://pitchey.pages.dev',
+    'https://pitchey-frontend-ndlovu.pages.dev',
     'https://pitchey-production.cavelltheleaddev.workers.dev',
     'http://localhost:5173',
     'http://localhost:8001',

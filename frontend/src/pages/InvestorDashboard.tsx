@@ -33,6 +33,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
 // Using the new Investor-specific navigation with dropdown menus
 import { InvestorNavigation } from '../components/InvestorNavigation';
+import { formatCurrency, formatPercentage, safeNumber } from '../utils/formatters';
 
 interface PortfolioSummary {
   totalInvested: number;
@@ -113,14 +114,29 @@ export default function InvestorDashboard() {
         api.get('/api/investment/recommendations')
       ]);
 
-      // Handle portfolio summary
+      // Handle portfolio summary with safe data parsing
       if (portfolioRes.status === 'fulfilled' && portfolioRes.value.data.success) {
-        setPortfolio(portfolioRes.value.data.data);
+        const portfolioData = portfolioRes.value.data.data || {};
+        setPortfolio({
+          totalInvested: safeNumber(portfolioData.totalInvested, 0),
+          activeInvestments: safeNumber(portfolioData.activeInvestments, 0),
+          averageROI: safeNumber(portfolioData.averageROI, 0),
+          topPerformer: portfolioData.topPerformer || 'None yet'
+        });
       }
 
-      // Handle investments
+      // Handle investments with safe data parsing
       if (investmentsRes.status === 'fulfilled' && investmentsRes.value.data.success) {
-        setInvestments(investmentsRes.value.data.data || []);
+        const investmentData = (investmentsRes.value.data.data || []).map((investment: any) => ({
+          ...investment,
+          amount: safeNumber(investment.amount, 0),
+          roi: safeNumber(investment.roi, 0),
+          id: investment.id || Math.random(),
+          pitchTitle: investment.pitchTitle || 'Unknown Project',
+          status: investment.status || 'unknown',
+          dateInvested: investment.dateInvested || new Date().toISOString()
+        }));
+        setInvestments(investmentData);
       }
 
       // Handle saved pitches
@@ -155,14 +171,7 @@ export default function InvestorDashboard() {
     logout();
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // formatCurrency function moved to utils/formatters.ts for safe number handling
 
   if (loading) {
     return (
@@ -226,7 +235,7 @@ export default function InvestorDashboard() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Average ROI</p>
                 <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {portfolio.averageROI ? portfolio.averageROI.toFixed(1) : '0.0'}%
+                  {formatPercentage(portfolio.averageROI, 0)}
                 </p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
@@ -454,9 +463,9 @@ export default function InvestorDashboard() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className={`text-sm font-medium ${
-                                investment.roi > 0 ? 'text-green-600' : 'text-gray-900'
+                                safeNumber(investment.roi) > 0 ? 'text-green-600' : 'text-gray-900'
                               }`}>
-                                {investment.roi > 0 ? '+' : ''}{investment.roi}%
+                                {safeNumber(investment.roi) > 0 ? '+' : ''}{formatPercentage(investment.roi, 0)}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
