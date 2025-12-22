@@ -1,0 +1,28 @@
+name: Simple Health Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Frontend
+        run: |
+          if curl -f https://pitchey.pages.dev/ > /dev/null 2>&1; then
+            echo "✅ Frontend is healthy"
+          else
+            echo "❌ Frontend is down"
+            exit 1
+          fi
+          
+      - name: Check API
+        run: |
+          if curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health > /dev/null 2>&1; then
+            echo "✅ API is healthy"
+          else
+            echo "❌ API is down"
+            exit 1
+          fi
