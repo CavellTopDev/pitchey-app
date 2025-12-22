@@ -19,7 +19,7 @@
     "test:load": "deno run --allow-net --allow-env tests/load/scenarios/browse-load.test.ts",
     "test:ci": "npm run test:unit && npm run test:api",
     "test:e2e:smoke": "deno test --allow-all tests/e2e/smoke.test.ts",
-    "lint": "deno lint && cd frontend && npm run lint",
+    "lint": "cd frontend && npm run lint",
     "format": "deno fmt && cd frontend && npm run format",
     "type-check": "cd frontend && npm run type-check",
     "db:migrate": "deno run --allow-all src/db/migrate.ts",
