@@ -37,26 +37,25 @@ export default defineConfig(({ mode }) => {
           manualChunks: (id) => {
             // Vendor chunks
             if (id.includes('node_modules')) {
-              // CRITICAL: Bundle React ecosystem and charts together to prevent initialization order issues
-              // Charts depend on React, so they must be in the same chunk or load after React
-              if (id.includes('react') || id.includes('recharts') || id.includes('chart')) {
+              // CRITICAL: Bundle ALL React-dependent libraries together
+              // This prevents "useLayoutEffect" and other hook errors
+              if (
+                id.includes('react') || 
+                id.includes('recharts') || 
+                id.includes('chart') ||
+                id.includes('@radix-ui') ||  // Radix UI uses React hooks
+                id.includes('lucide-react') || // Lucide React icons
+                id.includes('react-hook-form') || // Form library uses React
+                id.includes('react-beautiful-dnd') || // DnD uses React
+                id.includes('@tanstack') || // TanStack libraries use React
+                id.includes('framer-motion') || // Animation library uses React
+                id.includes('@floating-ui') // Floating UI uses React
+              ) {
                 return 'vendor-react';
               }
-              // UI Libraries
-              if (id.includes('@radix-ui') || id.includes('lucide-react')) {
-                return 'vendor-ui';
-              }
-              // Form libraries
-              if (id.includes('react-hook-form') || id.includes('zod')) {
-                return 'vendor-forms';
-              }
-              // Utility libraries
-              if (id.includes('axios') || id.includes('date-fns') || id.includes('clsx')) {
+              // Pure utility libraries (no React dependencies)
+              if (id.includes('axios') || id.includes('date-fns') || id.includes('clsx') || id.includes('zod')) {
                 return 'vendor-utils';
-              }
-              // Drag and drop
-              if (id.includes('react-beautiful-dnd')) {
-                return 'vendor-dnd';
               }
               // State management
               if (id.includes('zustand')) {
