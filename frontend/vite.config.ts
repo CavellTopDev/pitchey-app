@@ -33,12 +33,13 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: isProduction ? 'assets/[name].[hash].js' : '[name].js',
           assetFileNames: isProduction ? 'assets/[name].[hash].[ext]' : '[name].[ext]',
           
-          // Enhanced manual chunking for better code splitting
+          // Enhanced manual chunking - fixed to prevent React initialization issues
           manualChunks: (id) => {
             // Vendor chunks
             if (id.includes('node_modules')) {
-              // React core
-              if (id.includes('react') && !id.includes('react-')) {
+              // CRITICAL: Bundle React ecosystem and charts together to prevent initialization order issues
+              // Charts depend on React, so they must be in the same chunk or load after React
+              if (id.includes('react') || id.includes('recharts') || id.includes('chart')) {
                 return 'vendor-react';
               }
               // UI Libraries
@@ -56,10 +57,6 @@ export default defineConfig(({ mode }) => {
               // Drag and drop
               if (id.includes('react-beautiful-dnd')) {
                 return 'vendor-dnd';
-              }
-              // Charts
-              if (id.includes('recharts') || id.includes('chart')) {
-                return 'vendor-charts';
               }
               // State management
               if (id.includes('zustand')) {
