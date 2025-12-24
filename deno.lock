@@ -490,6 +490,7 @@
         "npm:form-data@^4.0.5",
         "npm:playwright@^1.57.0",
         "npm:prom-client@^15.1.0",
+        "npm:resend@^6.6.0",
         "npm:toucan-js@^4.1.1",
         "npm:wrangler@^4.51.0",
         "npm:zod@^4.2.1"

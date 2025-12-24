@@ -19,20 +19,21 @@ interface AppConfig {
  */
 function createConfig(): AppConfig {
   // Get environment variables from Vite's import.meta.env
-  const apiUrl = import.meta.env.VITE_API_URL || '';
-  const wsUrl = import.meta.env.VITE_WS_URL || '';
+  // Force production API URL to fix caching issues
+  const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+  const wsUrl = import.meta.env.VITE_WS_URL || 'wss://pitchey-api-prod.ndlovucavelle.workers.dev';
   const nodeEnv = import.meta.env.VITE_NODE_ENV || import.meta.env.MODE || 'development';
   const mode = import.meta.env.MODE || 'development';
 
   // Validate required environment variables
   if (!apiUrl && typeof window !== 'undefined') {
     // Only throw in runtime, not during build
-    console.error('VITE_API_URL environment variable is required');
-    // Provide fallback for development
-    const fallbackUrl = 'http://localhost:8001';
+    console.error('VITE_API_URL environment variable is required, using production default');
+    // Use production API as fallback
+    const fallbackUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
     return {
       API_URL: fallbackUrl,
-      WS_URL: fallbackUrl.replace('http://', 'ws://'),
+      WS_URL: fallbackUrl.replace('https://', 'wss://'),
       NODE_ENV: nodeEnv,
       IS_PRODUCTION: false,
       IS_DEVELOPMENT: true,

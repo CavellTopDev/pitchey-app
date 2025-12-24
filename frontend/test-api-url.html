@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API URL</title>
+</head>
+<body>
+    <h1>API URL Test</h1>
+    <button onclick="testAPI()">Test Public Pitch API</button>
+    <pre id="result"></pre>
+    
+    <script>
+        async function testAPI() {
+            const resultEl = document.getElementById('result');
+            const apiUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+            
+            try {
+                resultEl.textContent = 'Testing ' + apiUrl + '/api/pitches/public/2...';
+                
+                const response = await fetch(apiUrl + '/api/pitches/public/2');
+                const data = await response.json();
+                
+                resultEl.textContent = 'Success!\n\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        // Auto-test on load
+        window.onload = testAPI;
+    </script>
+</body>
+</html>
