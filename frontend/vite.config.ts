@@ -33,36 +33,48 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: isProduction ? 'assets/[name].[hash].js' : '[name].js',
           assetFileNames: isProduction ? 'assets/[name].[hash].[ext]' : '[name].[ext]',
           
-          // Enhanced manual chunking - fixed to prevent React initialization issues
+          // CRITICAL FIX: Ensure React loads first and all dependencies in correct order
           manualChunks: (id) => {
             // Vendor chunks
             if (id.includes('node_modules')) {
-              // CRITICAL: Bundle ALL React-dependent libraries together
-              // This prevents "useLayoutEffect" and other hook errors
+              // React core MUST be in its own chunk and load FIRST
+              if (id.includes('react/') || 
+                  id.includes('react-dom/') ||
+                  id.includes('scheduler/')) {
+                return 'vendor-00-react-core'; // 00 prefix ensures this loads first
+              }
+              
+              // All React-dependent libraries in second chunk
+              // This includes EVERYTHING that might use React hooks
               if (
-                id.includes('react') || 
+                id.includes('react') || // Catch all React-related
                 id.includes('recharts') || 
                 id.includes('chart') ||
-                id.includes('@radix-ui') ||  // Radix UI uses React hooks
-                id.includes('lucide-react') || // Lucide React icons
-                id.includes('react-hook-form') || // Form library uses React
-                id.includes('react-beautiful-dnd') || // DnD uses React
-                id.includes('@tanstack') || // TanStack libraries use React
-                id.includes('framer-motion') || // Animation library uses React
-                id.includes('@floating-ui') // Floating UI uses React
+                id.includes('@radix-ui') ||
+                id.includes('lucide-react') ||
+                id.includes('react-hook-form') ||
+                id.includes('react-beautiful-dnd') ||
+                id.includes('@tanstack') ||
+                id.includes('framer-motion') ||
+                id.includes('@floating-ui') ||
+                id.includes('d3-') || // D3 dependencies for recharts
+                id.includes('victory-vendor') // Victory chart dependencies
               ) {
-                return 'vendor-react';
+                return 'vendor-01-react-deps'; // 01 prefix ensures this loads second
               }
+              
               // Pure utility libraries (no React dependencies)
               if (id.includes('axios') || id.includes('date-fns') || id.includes('clsx') || id.includes('zod')) {
-                return 'vendor-utils';
+                return 'vendor-02-utils';
               }
+              
               // State management
               if (id.includes('zustand')) {
-                return 'vendor-state';
+                return 'vendor-03-state';
               }
+              
               // All other vendor code
-              return 'vendor-misc';
+              return 'vendor-04-misc';
             }
             
             // Feature-based chunks for app code
@@ -136,18 +148,26 @@ export default defineConfig(({ mode }) => {
       keepNames: true, // Prevents variable name conflicts
     },
     
-    // Optimizations
+    // Optimizations - ensure React is fully pre-bundled
     optimizeDeps: {
       include: [
         'react',
         'react-dom',
+        'react-dom/client',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
         'react-router-dom',
+        'scheduler',
         'axios',
         'zustand',
         'lucide-react',
-        'date-fns'
+        'date-fns',
+        'recharts',
+        'd3-scale',
+        'd3-shape'
       ],
-      exclude: ['@vite/client', '@vite/env', 'chart.js', 'react-chartjs-2', 'xlsx', 'html-to-image', '@tanstack/react-query'],
+      exclude: ['@vite/client', '@vite/env'],
+      force: true, // Force re-optimization to ensure proper bundling
       esbuildOptions: {
         target: 'es2020'
       }
