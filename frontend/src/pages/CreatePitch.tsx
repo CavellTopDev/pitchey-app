@@ -16,6 +16,8 @@ import type { Character } from '../types/character';
 import { serializeCharacters } from '../utils/characterUtils';
 import { DocumentUpload } from '../components/DocumentUpload';
 import type { DocumentFile } from '../components/DocumentUpload';
+import NDAUploadSection from '../components/FileUpload/NDAUploadSection';
+import type { NDADocument } from '../components/FileUpload/NDAUploadSection';
 
 // PitchFormData type is now imported from pitch.schema.ts
 
@@ -52,6 +54,9 @@ export default function CreatePitch() {
     budgetRange: ''
   };
   
+  // NDA document state
+  const [ndaDocument, setNdaDocument] = useState<NDADocument | null>(null);
+  
   // Use Valibot validation hook
   const {
     data: formData,
@@ -75,7 +80,6 @@ export default function CreatePitch() {
   });
   
   const formRef = useRef<HTMLFormElement>(null);
-  const customNDARef = useRef<HTMLInputElement>(null);
   
   // Initialize accessibility announcer
   useEffect(() => {
@@ -222,30 +226,27 @@ export default function CreatePitch() {
   
   // Document removal is now handled by the DocumentUpload component
   
-  const handleNDAChange = (ndaType: 'none' | 'platform' | 'custom') => {
-    setValue('ndaConfig', {
-      requireNDA: ndaType !== 'none',
-      ndaType,
-      customNDA: ndaType !== 'custom' ? null : formData.ndaConfig.customNDA
-    } as any);
-  };
-  
-  const handleCustomNDAUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.type !== 'application/pdf') {
-        error('Invalid file type', 'Custom NDA must be a PDF file.');
-        return;
-      }
-      
-      if (file.size > 10 * 1024 * 1024) {
-        error('File too large', 'Custom NDA must be less than 10MB.');
-        return;
-      }
-      
+  const handleNDADocumentChange = (document: NDADocument | null) => {
+    setNdaDocument(document);
+    
+    // Update form data based on NDA document
+    if (!document || document.ndaType === 'none') {
       setValue('ndaConfig', {
-        ...formData.ndaConfig,
-        customNDA: file
+        requireNDA: false,
+        ndaType: 'none',
+        customNDA: null
+      } as any);
+    } else if (document.ndaType === 'standard') {
+      setValue('ndaConfig', {
+        requireNDA: true,
+        ndaType: 'platform',
+        customNDA: null
+      } as any);
+    } else if (document.ndaType === 'custom') {
+      setValue('ndaConfig', {
+        requireNDA: true,
+        ndaType: 'custom',
+        customNDA: document.file || null
       } as any);
     }
   };
@@ -255,6 +256,13 @@ export default function CreatePitch() {
     
     setIsSubmitting(true);
 
+    // Validate NDA configuration
+    if (ndaDocument?.ndaType === 'custom' && (!ndaDocument.file || ndaDocument.uploadStatus !== 'completed')) {
+      setIsSubmitting(false);
+      error('Invalid NDA Configuration', 'Please ensure your custom NDA is properly uploaded before submitting.');
+      return;
+    }
+
     // Use Valibot validation hook for form submission
     const isFormValid = await validateAndSubmit(async (validatedData) => {
       try {
@@ -263,7 +271,8 @@ export default function CreatePitch() {
           ? validatedData.customFormat 
           : validatedData.formatSubtype || validatedData.formatCategory;
           
-        const pitch = await pitchService.create({
+        // Prepare pitch data with NDA information
+        const pitchData: any = {
           title: validatedData.title,
           genre: validatedData.genre,
           format: finalFormat,
@@ -279,7 +288,14 @@ export default function CreatePitch() {
           worldDescription: validatedData.worldDescription,
           characters: serializeCharacters(validatedData.characters),
           aiUsed: false
-        });
+        };
+        
+        // Add custom NDA URL if available  
+        if (ndaDocument?.ndaType === 'custom' && ndaDocument.url) {
+          pitchData.customNdaText = ndaDocument.url;
+        }
+        
+        const pitch = await pitchService.create(pitchData);
 
         console.log('Pitch created successfully:', pitch);
         
@@ -809,132 +825,12 @@ export default function CreatePitch() {
           </div>
           
           {/* NDA Configuration */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">NDA Configuration</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-3">NDA Requirements</p>
-                <div className="space-y-3">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="ndaType"
-                      value="none"
-                      checked={formData.ndaConfig.ndaType === 'none'}
-                      onChange={() => handleNDAChange('none')}
-                      className="mt-1 w-4 h-4 text-purple-600"
-                    />
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">No NDA Required</span>
-                      <p className="text-xs text-gray-500">All content will be publicly accessible</p>
-                    </div>
-                  </label>
-                  
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="ndaType"
-                      value="platform"
-                      checked={formData.ndaConfig.ndaType === 'platform'}
-                      onChange={() => handleNDAChange('platform')}
-                      className="mt-1 w-4 h-4 text-purple-600"
-                    />
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Use Platform Standard NDA</span>
-                      <p className="text-xs text-gray-500">Viewers must sign our standard NDA to access detailed content</p>
-                    </div>
-                  </label>
-                  
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="ndaType"
-                      value="custom"
-                      checked={formData.ndaConfig.ndaType === 'custom'}
-                      onChange={() => handleNDAChange('custom')}
-                      className="mt-1 w-4 h-4 text-purple-600"
-                    />
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Use Custom NDA</span>
-                      <p className="text-xs text-gray-500">Upload your own NDA document for viewers to sign</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-              
-              {/* Custom NDA Upload */}
-              {formData.ndaConfig.ndaType === 'custom' && (
-                <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <label className="block text-sm font-medium text-purple-900 mb-2">
-                    Upload Custom NDA
-                  </label>
-                  <input
-                    ref={customNDARef}
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleCustomNDAUpload}
-                    className="hidden"
-                  />
-                  
-                  {formData.ndaConfig.customNDA ? (
-                    <div className="flex items-center justify-between bg-white rounded-lg p-3 border">
-                      <div className="flex items-center gap-3">
-                        <Shield className="w-5 h-5 text-purple-600" />
-                        <div>
-                          <span className="text-sm font-medium">{formData.ndaConfig.customNDA.name}</span>
-                          <p className="text-xs text-gray-500">
-                            {(formData.ndaConfig.customNDA.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({
-                          ...prev,
-                          ndaConfig: { ...prev.ndaConfig, customNDA: null }
-                        }))}
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => customNDARef.current?.click()}
-                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Upload NDA (PDF only)
-                    </button>
-                  )}
-                  
-                  <p className="text-xs text-purple-700 mt-2">
-                    Your custom NDA will be presented to viewers before they can access detailed pitch content.
-                  </p>
-                </div>
-              )}
-              
-              {/* NDA Info */}
-              {formData.ndaConfig.requireNDA && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-900">NDA Protection Active</h4>
-                      <p className="text-sm text-blue-800 mt-1">
-                        {formData.ndaConfig.ndaType === 'platform' 
-                          ? 'Viewers will need to sign our standard NDA to access detailed content, scripts, and media files.'
-                          : 'Viewers will need to sign your custom NDA to access detailed content, scripts, and media files.'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <NDAUploadSection
+            ndaDocument={ndaDocument}
+            onChange={handleNDADocumentChange}
+            disabled={isSubmitting}
+            className="mb-6"
+          />
 
           {/* Media Uploads */}
           <div className="bg-white rounded-xl shadow-sm p-6">

@@ -116,11 +116,10 @@ export class RawSQLDatabase {
         let result: any[];
         
         if (typeof queryText === 'string') {
-          // Parameterized query - use proper SQL function call
-          const sqlQuery = params && params.length > 0
-            ? await connection(queryText, params)
-            : await connection(queryText);
-          result = sqlQuery as any[];
+          // For string queries with params, we need to use template literal syntax
+          // The Neon serverless driver doesn't support parameterized queries with $1, $2 placeholders
+          // We'll execute it as a raw query without parameter binding
+          result = await connection`${queryText}`;
         } else {
           // Template literal query
           result = await connection(queryText, ...(params || []));

@@ -33,8 +33,70 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: isProduction ? 'assets/[name].[hash].js' : '[name].js',
           assetFileNames: isProduction ? 'assets/[name].[hash].[ext]' : '[name].[ext]',
           
-          // Disable manual chunking to prevent initialization order issues
-          manualChunks: undefined,
+          // Enhanced manual chunking for better code splitting
+          manualChunks: (id) => {
+            // Vendor chunks
+            if (id.includes('node_modules')) {
+              // React core
+              if (id.includes('react') && !id.includes('react-')) {
+                return 'vendor-react';
+              }
+              // UI Libraries
+              if (id.includes('@radix-ui') || id.includes('lucide-react')) {
+                return 'vendor-ui';
+              }
+              // Form libraries
+              if (id.includes('react-hook-form') || id.includes('zod')) {
+                return 'vendor-forms';
+              }
+              // Utility libraries
+              if (id.includes('axios') || id.includes('date-fns') || id.includes('clsx')) {
+                return 'vendor-utils';
+              }
+              // Drag and drop
+              if (id.includes('react-beautiful-dnd')) {
+                return 'vendor-dnd';
+              }
+              // Charts
+              if (id.includes('recharts') || id.includes('chart')) {
+                return 'vendor-charts';
+              }
+              // State management
+              if (id.includes('zustand')) {
+                return 'vendor-state';
+              }
+              // All other vendor code
+              return 'vendor-misc';
+            }
+            
+            // Feature-based chunks for app code
+            if (id.includes('/src/')) {
+              // Analytics feature
+              if (id.includes('Analytics') || id.includes('analytics')) {
+                return 'feature-analytics';
+              }
+              // Team feature
+              if (id.includes('Team') || id.includes('team')) {
+                return 'feature-team';
+              }
+              // Browse feature
+              if (id.includes('Browse') || id.includes('browse')) {
+                return 'feature-browse';
+              }
+              // Character management
+              if (id.includes('Character') || id.includes('character')) {
+                return 'feature-characters';
+              }
+              // Auth feature
+              if (id.includes('auth') || id.includes('Auth')) {
+                return 'feature-auth';
+              }
+              // Pitch feature
+              if (id.includes('pitch') || id.includes('Pitch')) {
+                return 'feature-pitch';
+              }
+            }
+          },
           // Don't include source code in sourcemaps for security
           sourcemapExcludeSources: true,
         },

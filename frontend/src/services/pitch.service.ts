@@ -375,7 +375,7 @@ export class PitchService {
     }
   }
 
-  // Get trending pitches
+  // Get trending pitches - use browse endpoint with tab parameter
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
     try {
       const response = await apiClient.get<{ 
@@ -384,7 +384,9 @@ export class PitchService {
         items?: Pitch[];
         pagination?: any;
         message?: string;
-      }>(`/api/pitches/trending?limit=${limit}`);
+        tab?: string;
+        total?: number;
+      }>(`/api/browse?tab=trending&limit=${limit}`);
 
       if (!response.success) {
         console.error('Failed to fetch trending pitches:', response.error?.message);
@@ -404,7 +406,34 @@ export class PitchService {
     }
   }
 
-  // Get new releases
+  // Get popular pitches - use browse endpoint with tab parameter
+  static async getPopularPitches(limit: number = 10): Promise<Pitch[]> {
+    try {
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        data?: Pitch[];
+        items?: Pitch[];
+        pagination?: any;
+        message?: string;
+        tab?: string;
+        total?: number;
+      }>(`/api/browse?tab=popular&limit=${limit}`);
+
+      if (!response.success) {
+        console.error('Failed to fetch popular pitches:', response.error?.message);
+        return [];
+      }
+
+      // The response should have items array with the pitches
+      const pitches = response.items || response.data || [];
+      return Array.isArray(pitches) ? pitches : [];
+    } catch (error) {
+      console.error('Error fetching popular pitches:', error);
+      return []; // Always return empty array on error
+    }
+  }
+
+  // Get new releases - use browse endpoint with tab parameter
   static async getNewReleases(limit: number = 10): Promise<Pitch[]> {
     try {
       const response = await apiClient.get<{ 
@@ -413,7 +442,9 @@ export class PitchService {
         items?: Pitch[];
         pagination?: any;
         message?: string;
-      }>(`/api/pitches/new?limit=${limit}`);
+        tab?: string;
+        total?: number;
+      }>(`/api/browse?tab=new&limit=${limit}`);
 
       if (!response.success) {
         console.error('Failed to fetch new releases:', response.error?.message);
@@ -468,23 +499,30 @@ export class PitchService {
       if (filters?.limit) params.append('limit', filters.limit.toString());
       if (filters?.offset) params.append('offset', filters.offset.toString());
 
+      // Use the /api/browse endpoint which is actually implemented
       const response = await apiClient.get<{ 
         success: boolean; 
-        pitches: Pitch[];
-        totalCount: number;
-        pagination: {
+        pitches?: Pitch[];
+        items?: Pitch[];
+        totalCount?: number;
+        total?: number;
+        tab?: string;
+        page?: number;
+        limit?: number;
+        hasMore?: boolean;
+        pagination?: {
           limit: number;
           offset: number;
           totalPages: number;
           currentPage: number;
         };
-        filters: {
+        filters?: {
           sortBy: string;
           order: string;
           genre: string | null;
           format: string | null;
         };
-      }>(`/api/pitches/browse/enhanced?${params}`);
+      }>(`/api/browse?${params}`);
 
       if (!response.success) {
         console.error('Failed to fetch browse pitches:', response.error?.message);
@@ -507,16 +545,20 @@ export class PitchService {
         };
       }
 
-      // Worker API returns { success, items, total, totalPages, ... }
-      const pitches = response.data?.items || [];
+      // Worker API returns { success, items, total, ... }
+      const pitches = response.items || response.pitches || [];
+      const totalCount = response.total || response.totalCount || 0;
+      const limit = filters?.limit || 20;
+      const currentPage = response.page || Math.floor((filters?.offset || 0) / limit) + 1;
+      
       return {
         pitches: Array.isArray(pitches) ? pitches : [],
-        totalCount: response.data?.total || 0,
+        totalCount: totalCount,
         pagination: {
-          limit: filters?.limit || 20,
+          limit: limit,
           offset: filters?.offset || 0,
-          totalPages: response.data?.totalPages || 0,
-          currentPage: response.data?.page || 1
+          totalPages: Math.ceil(totalCount / limit),
+          currentPage: currentPage
         },
         filters: {
           sortBy: filters?.sort || 'date',

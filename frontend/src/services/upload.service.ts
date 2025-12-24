@@ -64,6 +64,15 @@ class UploadService {
     if (requiresNda !== undefined) {
       formData.append('requiresNda', requiresNda.toString());
     }
+    
+    // For NDA uploads, use the specific NDA endpoint
+    if (documentType === 'nda' || folder === 'nda-documents') {
+      // Add metadata for NDA uploads
+      if (uploadOptions.metadata) {
+        formData.append('metadata', JSON.stringify(uploadOptions.metadata));
+      }
+      return this.uploadFile('/api/upload/nda', formData, uploadOptions);
+    }
 
     return this.uploadFile('/api/upload', formData, uploadOptions);
   }

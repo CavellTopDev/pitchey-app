@@ -80,62 +80,62 @@ FRONTEND_URL = "https://pitchey.pages.dev"
 ENVIRONMENT = "production"
 CORS_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
 
-# KV for static content caching and sessions
-[[kv_namespaces]]
-binding = "KV"
-id = "98c88a185eb448e4868fcc87e458b3ac"
+# KV for static content caching and sessions - Disabled for free plan
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# KV for Better Auth sessions
-[[kv_namespaces]]
-binding = "SESSIONS_KV"
-id = "98c88a185eb448e4868fcc87e458b3ac"
+# KV for Better Auth sessions - Disabled for free plan
+# [[kv_namespaces]]
+# binding = "SESSIONS_KV"
+# id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# KV for Better Auth rate limiting
-[[kv_namespaces]]
-binding = "RATE_LIMIT_KV"
-id = "98c88a185eb448e4868fcc87e458b3ac"
+# KV for Better Auth rate limiting - Disabled for free plan
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# KV for email template caching and email service state
-[[kv_namespaces]]
-binding = "EMAIL_CACHE"
-id = "98c88a185eb448e4868fcc87e458b3ac"
+# KV for email template caching and email service state - Disabled for free plan
+# [[kv_namespaces]]
+# binding = "EMAIL_CACHE"
+# id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# KV for notification caching and user preferences
-[[kv_namespaces]]
-binding = "NOTIFICATION_CACHE"
-id = "98c88a185eb448e4868fcc87e458b3ac"
+# KV for notification caching and user preferences - Disabled for free plan
+# [[kv_namespaces]]
+# binding = "NOTIFICATION_CACHE"
+# id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# R2 for file storage
-[[r2_buckets]]
-binding = "R2_BUCKET"
-bucket_name = "pitchey-uploads"
+# R2 for file storage - Disabled for free plan
+# [[r2_buckets]]
+# binding = "R2_BUCKET"
+# bucket_name = "pitchey-uploads"
 
-# R2 for message attachments and email attachments
-[[r2_buckets]]
-binding = "MESSAGE_ATTACHMENTS"
-bucket_name = "pitchey-message-attachments"
+# R2 for message attachments and email attachments - Disabled for free plan
+# [[r2_buckets]]
+# binding = "MESSAGE_ATTACHMENTS"
+# bucket_name = "pitchey-message-attachments"
 
-# R2 for email attachments (if different from general uploads)
-[[r2_buckets]]
-binding = "EMAIL_ATTACHMENTS"
-bucket_name = "pitchey-email-attachments"
+# R2 for email attachments (if different from general uploads) - Disabled for free plan
+# [[r2_buckets]]
+# binding = "EMAIL_ATTACHMENTS"
+# bucket_name = "pitchey-email-attachments"
 
-# Durable Objects for real-time features - Re-enabled for messaging
-[[durable_objects.bindings]]
-name = "MESSAGE_ROOMS"
-class_name = "MessageRoom"
-script_name = "pitchey-api-prod"
+# Durable Objects for real-time features - Disabled for free plan
+# [[durable_objects.bindings]]
+# name = "MESSAGE_ROOMS"
+# class_name = "MessageRoom"
+# script_name = "pitchey-api-prod"
 
-# Additional Durable Objects for WebSocket management
-[[durable_objects.bindings]]
-name = "WEBSOCKET_SESSIONS"
-class_name = "WebSocketSession"
-script_name = "pitchey-api-prod"
+# Additional Durable Objects for WebSocket management - Disabled for free plan
+# [[durable_objects.bindings]]
+# name = "WEBSOCKET_SESSIONS"
+# class_name = "WebSocketSession"
+# script_name = "pitchey-api-prod"
 
-# Cache namespace for efficient data storage
-[[kv_namespaces]]
-binding = "CACHE"
-id = "98c88a185eb448e4868fcc87e458b3ac"
+# Cache namespace for efficient data storage - Disabled for free plan
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "98c88a185eb448e4868fcc87e458b3ac"
 
 # Neon PostgreSQL via Hyperdrive - Temporarily disabled due to error
 # [[hyperdrive]]
@@ -147,25 +147,25 @@ id = "98c88a185eb448e4868fcc87e458b3ac"
 # binding = "ANALYTICS"
 # dataset = "pitchey_analytics"
 
-# Queue for background jobs - Re-enabled for email and messaging
-[[queues.producers]]
-binding = "NOTIFICATION_QUEUE"
-queue = "notification-processing"
+# Queue for background jobs - Disabled for free plan
+# [[queues.producers]]
+# binding = "NOTIFICATION_QUEUE"
+# queue = "notification-processing"
 
-[[queues.consumers]]
-queue = "notification-processing"
-max_batch_size = 10
-max_batch_timeout = 30
+# [[queues.consumers]]
+# queue = "notification-processing"
+# max_batch_size = 10
+# max_batch_timeout = 30
 
-# Queue for email processing
-[[queues.producers]]
-binding = "EMAIL_QUEUE"
-queue = "email-processing"
+# Queue for email processing - Disabled for free plan
+# [[queues.producers]]
+# binding = "EMAIL_QUEUE"
+# queue = "email-processing"
 
-[[queues.consumers]]
-queue = "email-processing"
-max_batch_size = 20
-max_batch_timeout = 15
+# [[queues.consumers]]
+# queue = "email-processing"
+# max_batch_size = 20
+# max_batch_timeout = 15
 
 # Scheduled tasks for cache warming and monitoring (disabled for free plan)
 # [triggers]
