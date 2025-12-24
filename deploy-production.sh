@@ -199,11 +199,12 @@ validate_environment() {
     # Test database connectivity
     log INFO "Testing database connectivity..."
     if ! deno run --allow-net --allow-env -e "
-        import { neon } from 'https://deno.land/x/neon@0.2.0/mod.ts';
-        const sql = neon('$DATABASE_URL');
+        import postgres from 'https://deno.land/x/postgresjs@v3.3.5/mod.js';
+        const sql = postgres('$DATABASE_URL');
         try {
-            await sql\`SELECT 1\`;
+            const result = await sql\`SELECT 1\`;
             console.log('Database connection successful');
+            await sql.end();
         } catch (error) {
             console.error('Database connection failed:', error.message);
             Deno.exit(1);
