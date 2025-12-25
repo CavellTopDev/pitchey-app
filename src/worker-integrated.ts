@@ -936,8 +936,7 @@ class RouteRegistry {
               status: 401,
               headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Credentials': 'true'
+                ...getCorsHeaders(request.headers.get('Origin'))
               }
             }
           );
@@ -983,6 +982,9 @@ class RouteRegistry {
         const token = `${header}.${payload}.${btoa('signature')}`;
         
         // Return response with both session cookie and JWT token
+        const origin = request.headers.get('Origin');
+        const corsHeaders = getCorsHeaders(origin);
+        
         return new Response(
           JSON.stringify({
             success: true,
@@ -1001,8 +1003,7 @@ class RouteRegistry {
             headers: {
               'Content-Type': 'application/json',
               'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`,
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Credentials': 'true'
+              ...corsHeaders
             }
           }
         );
@@ -1118,8 +1119,7 @@ class RouteRegistry {
                       status: 200,
                       headers: {
                         'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Credentials': 'true'
+                        ...getCorsHeaders(request.headers.get('Origin'))
                       }
                     }
                   );
@@ -1152,8 +1152,7 @@ class RouteRegistry {
                 status: 200,
                 headers: {
                   'Content-Type': 'application/json',
-                  'Access-Control-Allow-Origin': '*',
-                  'Access-Control-Allow-Credentials': 'true'
+                  ...getCorsHeaders(request.headers.get('Origin'))
                 }
               }
             );

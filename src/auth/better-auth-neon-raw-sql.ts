@@ -155,6 +155,14 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
           );
         }
         
+        // Get proper CORS headers for the request origin
+        const origin = request.headers.get('Origin');
+        const corsOrigin = origin && (
+          origin.includes('pitchey.pages.dev') || 
+          origin.includes('pitchey-5o8.pages.dev') ||
+          origin.includes('localhost')
+        ) ? origin : 'https://pitchey.pages.dev';
+        
         // Return response with session cookie
         return new Response(
           JSON.stringify({
@@ -176,9 +184,11 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
             status: 200,
             headers: {
               'Content-Type': 'application/json',
-              'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`,
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Credentials': 'true'
+              'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`,
+              'Access-Control-Allow-Origin': corsOrigin,
+              'Access-Control-Allow-Credentials': 'true',
+              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
             }
           }
         );
