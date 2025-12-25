@@ -66,17 +66,6 @@ vi.mock('../../constants/messages', () => ({
     RECOMMENDED_LENGTH: (current, recommended) => `${current}/${recommended} characters recommended`,
     FILE_UPLOAD_INSTRUCTIONS: 'Upload your files here',
   },
-  VALIDATION_MESSAGES: {
-    required: 'This field is required',
-    titleTooLong: 'Title is too long',
-    loglineTooLong: 'Logline is too long',
-  },
-  SUCCESS_MESSAGES: {
-    pitchCreated: 'Pitch created successfully',
-  },
-  ERROR_MESSAGES: {
-    pitchCreateFailed: 'Failed to create pitch',
-  },
   // Mock the MESSAGES object that CreatePitch is incorrectly expecting
   MESSAGES: {
     pitch: {
@@ -150,17 +139,6 @@ vi.mock('../../constants/messages', () => ({
       MEDIA_ASSETS: 'Media & Assets',
       CHARACTER_MANAGEMENT: 'Character Management',
     },
-  },
-  VALIDATION_MESSAGES: {
-    required: 'This field is required',
-    titleTooLong: 'Title is too long',
-    loglineTooLong: 'Logline is too long',
-  },
-  SUCCESS_MESSAGES: {
-    pitchCreated: 'Pitch created successfully',
-  },
-  ERROR_MESSAGES: {
-    pitchCreateFailed: 'Failed to create pitch',
   },
 }))
 

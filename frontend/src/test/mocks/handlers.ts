@@ -380,6 +380,50 @@ export const handlers = [
     })
   }),
 
+  // Follow system endpoints
+  http.get(`${API_BASE}/api/follows/followers`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        followers: [
+          {
+            id: 2,
+            username: 'investor1',
+            name: 'Test Investor',
+            userType: 'investor',
+            followedAt: '2024-01-01T00:00:00Z',
+          },
+          {
+            id: 3,
+            username: 'producer1',
+            name: 'Test Producer',
+            userType: 'production',
+            followedAt: '2024-01-02T00:00:00Z',
+          },
+        ],
+        total: 2,
+      }
+    })
+  }),
+
+  http.get(`${API_BASE}/api/follows/following`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        following: [
+          {
+            id: 4,
+            username: 'creator2',
+            name: 'Other Creator',
+            userType: 'creator',
+            followedAt: '2024-01-03T00:00:00Z',
+          },
+        ],
+        total: 1,
+      }
+    })
+  }),
+
   // Error handlers for testing error states
   http.get(`${API_BASE}/api/error/500`, () => {
     return HttpResponse.json(
