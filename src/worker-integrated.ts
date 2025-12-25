@@ -287,7 +287,7 @@ class RouteRegistry {
         LIMIT 1
       `;
       
-      const userRecord = await this.db.queryOne(query, [authUser.id]);
+      const [userRecord] = await this.db.query(query, [authUser.id]);
       
       if (userRecord) {
         return new Response(JSON.stringify({
@@ -352,7 +352,7 @@ class RouteRegistry {
         LIMIT 1
       `;
       
-      const result = await this.db.queryOne(query, [email, portal]);
+      const [result] = await this.db.query(query, [email, portal]);
       
       if (!result) {
         return new Response(JSON.stringify({
@@ -1189,7 +1189,7 @@ class RouteRegistry {
         [params.id, authResult.user.id]
       );
 
-      if (result.rowCount === 0) {
+      if (result.length === 0) {
         return builder.error(ErrorCode.NOT_FOUND, 'Pitch not found or not authorized');
       }
 
