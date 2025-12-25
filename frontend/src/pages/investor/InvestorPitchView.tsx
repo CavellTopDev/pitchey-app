@@ -95,7 +95,31 @@ const InvestorPitchView: React.FC = () => {
   const fetchPitchData = async () => {
     try {
       setLoading(true);
-      const response = await pitchAPI.getById(parseInt(id!));
+      
+      // For investors, try public endpoint first then authenticated if they have NDA
+      let response;
+      const userType = localStorage.getItem('userType');
+      const token = localStorage.getItem('authToken');
+      
+      try {
+        // Start with public endpoint for reliability
+        response = await pitchAPI.getPublicById(parseInt(id!));
+        
+        // If user is authenticated investor and has NDA, try to get enhanced data
+        if (token && userType === 'investor' && response.hasSignedNDA) {
+          try {
+            const authResponse = await pitchAPI.getById(parseInt(id!));
+            response = authResponse; // Use authenticated data with NDA content
+          } catch (authError) {
+            console.log('Using public data, authenticated request failed:', authError);
+          }
+        }
+      } catch (publicError) {
+        // If public fails, try authenticated as fallback
+        console.log('Public endpoint failed, trying authenticated:', publicError);
+        response = await pitchAPI.getById(parseInt(id!));
+      }
+      
       setPitch(response);
       
       // Check if pitch requires NDA and user hasn't signed

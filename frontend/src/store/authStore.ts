@@ -3,6 +3,7 @@ import { authAPI } from '../lib/api';
 import { config } from '../config';
 import type { User } from '../types';
 import { clearAuthenticationState, checkAuthPortalConsistency, getSafeUserData } from '../utils/auth';
+import { portalAuth, cleanupJWTArtifacts, getCurrentUser, type PortalType } from '../lib/better-auth-client';
 
 interface AuthState {
   user: User | null;
@@ -85,18 +86,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginCreator: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await authAPI.loginCreator(email, password);
-      const user = response.data?.user || response.user;
+      // Use Better Auth portal authentication
+      const response = await portalAuth.signInCreator(email, password);
+      const user = response.user;
+      
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence (namespaced + legacy)
+      
+      // Clean up any JWT artifacts from previous sessions
+      cleanupJWTArtifacts();
+      
+      // Store user data for UI persistence (Better Auth handles session cookies)
       setLS('user', JSON.stringify(user));
       setLS('userType', 'creator');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || error.message || 'Login failed',
+        error: error.message || 'Login failed',
         loading: false 
       });
       throw error;
@@ -106,18 +113,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginInvestor: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await authAPI.loginInvestor(email, password);
-      const user = response.data?.user || response.user;
+      // Use Better Auth portal authentication
+      const response = await portalAuth.signInInvestor(email, password);
+      const user = response.user;
+      
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence (namespaced + legacy)
+      
+      // Clean up any JWT artifacts from previous sessions
+      cleanupJWTArtifacts();
+      
+      // Store user data for UI persistence (Better Auth handles session cookies)
       setLS('user', JSON.stringify(user));
       setLS('userType', 'investor');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || error.message || 'Login failed',
+        error: error.message || 'Login failed',
         loading: false 
       });
       throw error;
@@ -127,18 +140,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginProduction: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await authAPI.loginProduction(email, password);
-      const user = response.data?.user || response.user;
+      // Use Better Auth portal authentication
+      const response = await portalAuth.signInProduction(email, password);
+      const user = response.user;
+      
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence (namespaced + legacy)
+      
+      // Clean up any JWT artifacts from previous sessions
+      cleanupJWTArtifacts();
+      
+      // Store user data for UI persistence (Better Auth handles session cookies)
       setLS('user', JSON.stringify(user));
       setLS('userType', 'production');
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
-        error: error.response?.data?.error || error.message || 'Login failed',
+        error: error.message || 'Login failed',
         loading: false 
       });
       throw error;
@@ -167,7 +186,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: (navigateToLogin = true) => {
-    console.log('🔴 Logout initiated in authStore');
+    console.log('🔴 Logout initiated in authStore (Better Auth)');
     
     // Get current user type before clearing state
     const currentUserType = localStorage.getItem('userType');
@@ -179,9 +198,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Use comprehensive authentication cleanup utility
     clearAuthenticationState();
     
-    // Call backend logout (async but don't wait)
-    authAPI.logout().catch(error => {
-      console.warn('Backend logout failed:', error);
+    // Clean up JWT artifacts (migration cleanup)
+    cleanupJWTArtifacts();
+    
+    // Call Better Auth logout (async but don't wait)
+    portalAuth.signOut().catch(error => {
+      console.warn('Better Auth logout failed:', error);
     });
     
     // Navigate to appropriate login page if requested
@@ -202,25 +224,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchProfile: async () => {
     set({ loading: true });
     try {
-      const response = await authAPI.getProfile();
-      const user = response.data?.user || response.user || response.data;
-      if (!user) {
-        throw new Error('User profile data not received from server');
+      // Use Better Auth to get current session
+      const session = await getCurrentUser();
+      
+      if (!session) {
+        throw new Error('No active session found');
       }
+      
       // Update localStorage with fresh user data (namespaced + legacy)
-      setLS('user', JSON.stringify(user));
-      if (user.userType) {
-        setLS('userType', user.userType);
+      setLS('user', JSON.stringify(session));
+      if (session.userType) {
+        setLS('userType', session.userType);
       }
-      set({ user, isAuthenticated: true, loading: false });
+      set({ user: session, isAuthenticated: true, loading: false });
     } catch (error) {
       // If profile fetch fails and we have no stored user, consider them unauthenticated
       const storedUser = getStoredUser();
       if (!storedUser) {
         set({ isAuthenticated: false, loading: false });
-        removeLS('authToken');
-        removeLS('user');
-        removeLS('userType');
+        // Clean up all authentication artifacts
+        clearAuthenticationState();
+        cleanupJWTArtifacts();
       } else {
         // Keep them authenticated with stored data if available
         set({ loading: false });

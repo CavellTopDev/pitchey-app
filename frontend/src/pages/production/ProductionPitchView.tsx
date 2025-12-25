@@ -113,7 +113,34 @@ const ProductionPitchView: React.FC = () => {
   const fetchPitchData = async () => {
     try {
       setLoading(true);
-      const response = await pitchAPI.getById(parseInt(id!));
+      
+      // Try to use public endpoint first for better compatibility
+      // This ensures the pitch loads even if authentication fails
+      let response;
+      try {
+        // First try the public endpoint which always works
+        response = await pitchAPI.getPublicById(parseInt(id!));
+        
+        // If user is authenticated and has proper access, try to get enhanced data
+        const userType = localStorage.getItem('userType');
+        const token = localStorage.getItem('authToken');
+        
+        if (token && userType === 'production' && response.hasSignedNDA) {
+          // User has signed NDA, try to get full authenticated data
+          try {
+            const fullResponse = await pitchAPI.getById(parseInt(id!));
+            response = fullResponse; // Use the full data if available
+          } catch (authError) {
+            // Fall back to public data if authenticated request fails
+            console.log('Using public data, authenticated request failed:', authError);
+          }
+        }
+      } catch (publicError) {
+        // If public endpoint fails, try authenticated as fallback
+        console.log('Public endpoint failed, trying authenticated:', publicError);
+        response = await pitchAPI.getById(parseInt(id!));
+      }
+      
       setPitch(response);
       
       // Check if pitch requires NDA and user hasn't signed

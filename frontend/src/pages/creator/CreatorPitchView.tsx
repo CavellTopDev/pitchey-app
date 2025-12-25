@@ -80,18 +80,48 @@ const CreatorPitchView: React.FC = () => {
   const fetchPitchData = async () => {
     try {
       setLoading(true);
-      // Fetch pitch details
-      const response = await pitchAPI.getById(parseInt(id!));
+      
+      // For creators, try public endpoint first then authenticated
+      let response;
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = localStorage.getItem('authToken');
+      
+      try {
+        // Try public endpoint first for better reliability
+        response = await pitchAPI.getPublicById(parseInt(id!));
+        
+        // If authenticated, try to get enhanced data
+        if (token && user.id) {
+          try {
+            const authResponse = await pitchAPI.getById(parseInt(id!));
+            response = authResponse; // Use authenticated data if available
+          } catch (authError) {
+            console.log('Using public data, authenticated request failed:', authError);
+          }
+        }
+      } catch (publicError) {
+        // If public fails, try authenticated as fallback
+        console.log('Public endpoint failed, trying authenticated:', publicError);
+        response = await pitchAPI.getById(parseInt(id!));
+      }
+      
       setPitch(response);
       
       // Fetch analytics if owner
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (user.id === response.userId) {
-        const analyticsData = await pitchAPI.getAnalytics(parseInt(id!));
-        setAnalytics(analyticsData);
+      if (user.id === response.userId || user.id === response.creator?.id) {
+        try {
+          const analyticsData = await pitchAPI.getAnalytics(parseInt(id!));
+          setAnalytics(analyticsData);
+        } catch (err) {
+          console.log('Analytics not available:', err);
+        }
         
-        const ndaData = await pitchAPI.getNDARequests(parseInt(id!));
-        setNdaRequests(ndaData);
+        try {
+          const ndaData = await pitchAPI.getNDARequests(parseInt(id!));
+          setNdaRequests(ndaData);
+        } catch (err) {
+          console.log('NDA data not available:', err);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch pitch:', error);

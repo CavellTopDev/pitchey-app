@@ -50,6 +50,7 @@
     "@upstash/redis": "^1.35.7",
     "axios": "^1.6.0",
     "better-auth": "^1.4.7",
+    "better-auth-cloudflare": "^0.2.9",
     "playwright": "^1.57.0",
     "prom-client": "^15.1.0",
     "resend": "^6.6.0",

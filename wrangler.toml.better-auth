@@ -1,26 +1,57 @@
-name = "pitchey-optimized"
-main = "src/worker-service-better-auth.ts"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+# Pitchey Cloudflare Worker - Better Auth Configuration
+# Optimized for free tier with session-based authentication
 
+name = "pitchey-better-auth"
+main = "src/worker-better-auth-optimized.ts"
+compatibility_date = "2024-12-01"
+node_compat = true
+workers_dev = true
+
+# Free tier resource limits
+[limits]
+cpu_ms = 10
+
+# Better Auth Environment Variables
 [vars]
+ENVIRONMENT = "production"
 FRONTEND_URL = "https://pitchey.pages.dev"
-NODE_ENV = "production"
-DENO_ENV = "production"
+TRUSTED_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
 
+# KV Namespaces for session storage (free tier: 1 namespace)
 [[kv_namespaces]]
-binding = "KV"
-id = "your-kv-namespace-id"
-preview_id = "your-kv-namespace-preview-id"
+binding = "SESSIONS_KV"
+id = "your-sessions-kv-namespace-id"
+preview_id = "your-sessions-kv-preview-id"
 
-[[durable_objects]]
-binding = "WEBSOCKET_ROOMS"
-class_name = "WebSocketRoom"
-script_name = "pitchey-optimized"
+# R2 Bucket for file storage (free tier: 10GB)
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "pitchey-production-files"
 
-[[migrations]]
-tag = "v1"
-new_classes = ["WebSocketRoom"]
-
+# Environment-specific configurations
 [env.production]
-vars = { ENVIRONMENT = "production" }
+name = "pitchey-production"
+vars = { 
+  ENVIRONMENT = "production",
+  BETTER_AUTH_URL = "https://pitchey-production.cavelltheleaddev.workers.dev",
+  FRONTEND_URL = "https://pitchey.pages.dev",
+  TRUSTED_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
+}
+
+[env.development]
+name = "pitchey-development"
+vars = { 
+  ENVIRONMENT = "development",
+  BETTER_AUTH_URL = "http://localhost:8787",
+  FRONTEND_URL = "http://localhost:5173",
+  TRUSTED_ORIGINS = "http://localhost:5173,http://localhost:8001,http://localhost:8787"
+}
+
+# Database configuration via secrets
+# Set these with: 
+# wrangler secret put BETTER_AUTH_SECRET
+# wrangler secret put DATABASE_URL
+
+# Deployment commands:
+# Development: wrangler deploy --env development
+# Production: wrangler deploy --env production

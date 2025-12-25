@@ -23,28 +23,28 @@ export class WorkerRateLimiter {
   private readonly cleanupInterval = 60000; // Cleanup every minute
   private lastCleanup = Date.now();
   
-  // Default configurations for different endpoints
+  // Default configurations for different endpoints (relaxed for better UX)
   private readonly configs: Record<string, RateLimitConfig> = {
     default: {
       windowMs: 60000,     // 1 minute
-      maxRequests: 60      // 60 requests per minute
+      maxRequests: 100     // 100 requests per minute
     },
     auth: {
-      windowMs: 900000,    // 15 minutes  
-      maxRequests: 10,     // 10 auth attempts per 15 min
+      windowMs: 300000,    // 5 minutes  
+      maxRequests: 20,     // 20 auth attempts per 5 min
       skipSuccessfulRequests: true
     },
     upload: {
       windowMs: 3600000,   // 1 hour
-      maxRequests: 20      // 20 uploads per hour
+      maxRequests: 50      // 50 uploads per hour
     },
     api: {
       windowMs: 60000,     // 1 minute
-      maxRequests: 100     // 100 API calls per minute
+      maxRequests: 200     // 200 API calls per minute
     },
     strict: {
       windowMs: 60000,     // 1 minute
-      maxRequests: 10      // 10 requests per minute (for expensive operations)
+      maxRequests: 50      // 50 requests per minute (for sensitive operations)
     }
   };
   

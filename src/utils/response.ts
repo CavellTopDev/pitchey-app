@@ -30,6 +30,7 @@ export interface ErrorDetails {
 // CORS configuration - centralized
 const ALLOWED_ORIGINS = [
   'https://pitchey.pages.dev',     // Primary production (Cloudflare Pages)
+  'https://pitchey-5o8.pages.dev', // Main deployment
   'https://pitchey-frontend-ndlovu.pages.dev', // ndlovucavelle's deployment
   'https://pitchey.com',           // Custom domain (future)
   'http://localhost:5173',         // Local development (Vite)
@@ -47,13 +48,15 @@ function isOriginAllowed(origin: string | null): boolean {
   
   // Allow all Cloudflare Pages preview deployments
   // Pattern 1: [hash].pitchey.pages.dev (e.g., 01750dbc.pitchey.pages.dev)
-  // Pattern 2: [hash].pitchey-5o8.pages.dev (e.g., 01750dbc.pitchey-5o8.pages.dev)
+  // Pattern 2: [hash].pitchey-5o8.pages.dev (e.g., 01750dbc.pitchey-5o8.pages.dev)  
   // Pattern 3: pitchey-[anything].pages.dev (e.g., pitchey-frontend.pages.dev)
   // Pattern 4: [anything].pitchey.pages.dev (e.g., preview.pitchey.pages.dev)
+  // Pattern 5: pitchey-5o8.pages.dev (main deployment without hash)
   if (origin.match(/^https:\/\/[a-f0-9]+\.pitchey\.pages\.dev$/) ||           // Hash-based preview
       origin.match(/^https:\/\/[a-f0-9]+\.pitchey-[a-z0-9]+\.pages\.dev$/) || // Hash with project ID
       origin.match(/^https:\/\/pitchey-[a-zA-Z0-9-]+\.pages\.dev$/) ||       // Named deployments
-      origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/)) {      // Subdomains
+      origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/) ||      // Subdomains
+      origin === 'https://pitchey-5o8.pages.dev') {                          // Main deployment
     return true;
   }
   

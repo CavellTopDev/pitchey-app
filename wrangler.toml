@@ -2,7 +2,7 @@
 name = "pitchey-api-prod"
 main = "src/worker-integrated.ts"
 compatibility_date = "2024-11-01"
-# compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat"]
 account_id = "002bd5c0e90ae753a387c60546cf6869"
 
 [vars]
@@ -78,17 +78,17 @@ account_id = "002bd5c0e90ae753a387c60546cf6869"
 # ENABLE_SMS_NOTIFICATIONS - Enable SMS notifications (true|false)
 FRONTEND_URL = "https://pitchey.pages.dev"
 ENVIRONMENT = "production"
-CORS_ORIGINS = "https://pitchey.pages.dev,https://pitchey-production.cavelltheleaddev.workers.dev"
+CORS_ORIGINS = "https://pitchey.pages.dev,https://pitchey-5o8.pages.dev,https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
-# KV for static content caching and sessions - Disabled for free plan
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "98c88a185eb448e4868fcc87e458b3ac"
+# KV for static content caching and sessions - ENABLED for free tier (1GB limit)
+[[kv_namespaces]]
+binding = "KV"
+id = "39cd08d6efe74c7fb99b5fa0471fd148"
 
-# KV for Better Auth sessions - Disabled for free plan
-# [[kv_namespaces]]
-# binding = "SESSIONS_KV"
-# id = "98c88a185eb448e4868fcc87e458b3ac"
+# KV for Better Auth sessions - ENABLED for authentication
+[[kv_namespaces]]
+binding = "SESSIONS_KV"
+id = "776ca67365654698bbf0ac5cd7eca749"
 
 # KV for Better Auth rate limiting - Disabled for free plan
 # [[kv_namespaces]]
@@ -188,9 +188,7 @@ host = "localhost"
 [build]
 command = "npm run build:worker"
 
-# CPU limits (commented out for free plan)
-# [limits]
-# cpu_ms = 50
+# CPU limits not supported on free tier (automatically enforced by Cloudflare)
 
 # Production environment configuration
 [env.production]

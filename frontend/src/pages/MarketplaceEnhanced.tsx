@@ -162,15 +162,18 @@ export default function MarketplaceEnhanced() {
       // Use the getAll method directly on pitchAPI (no browse object)
       const response = await pitchAPI.getAll();
       
-      // Handle the response - API returns {success: boolean, data: Pitch[]}
+      // Handle the response - API returns nested structure
       let pitchesData: Pitch[] = [];
       
-      if (Array.isArray(response)) {
+      // Handle double-wrapped response {success: true, data: {success: true, data: [...]}}
+      if (response?.data?.data && Array.isArray(response.data.data)) {
+        pitchesData = response.data.data;
+      } else if (response?.data && Array.isArray(response.data)) {
+        // Single wrapped response format {success: true, data: [...]}
+        pitchesData = response.data;
+      } else if (Array.isArray(response)) {
         // Direct array response
         pitchesData = response;
-      } else if (response?.data && Array.isArray(response.data)) {
-        // Wrapped response format {success: true, data: [...]}
-        pitchesData = response.data;
       } else if (response?.pitches && Array.isArray(response.pitches)) {
         // Alternative format with pitches key
         pitchesData = response.pitches;

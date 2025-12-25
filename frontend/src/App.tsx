@@ -6,7 +6,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
 import { NotificationToastProvider } from './components/Toast/NotificationToastContainer';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
-import { WebSocketProvider } from './contexts/WebSocketContext';
+// Use PollingProvider for free tier (WebSocket not available)
+// import { WebSocketProvider } from './contexts/WebSocketContext';
+import { PollingProvider } from './contexts/PollingContext';
 import { configService } from './services/config.service';
 import { config } from './config';
 import { AuthService } from './services/auth.service';
@@ -291,7 +293,7 @@ function App() {
 
   return (
     <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
-        <WebSocketProvider>
+        <PollingProvider defaultInterval={30000} enablePolling={true}>
           <NotificationToastProvider>
             <ToastProvider>
             {/* TestSentry component removed */}
@@ -690,7 +692,7 @@ function App() {
           </Router>
             </ToastProvider>
           </NotificationToastProvider>
-        </WebSocketProvider>
+        </PollingProvider>
     </ErrorBoundary>
   );
 }
