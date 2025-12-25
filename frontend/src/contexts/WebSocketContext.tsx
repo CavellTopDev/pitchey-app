@@ -143,6 +143,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     messages: new Set<(message: WebSocketMessage) => void>(), // General message subscriptions
   });
   
+  // Track previous user type for portal switching detection
+  const previousUserType = useRef<string | null>(localStorage.getItem('userType'));
+  
   // WebSocket connection
   const {
     connectionStatus,
@@ -531,7 +534,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   useEffect(() => {
     // Check for portal type change (cross-portal authentication issue fix)
     const currentUserType = localStorage.getItem('userType');
-    const previousUserType = useRef(currentUserType);
     
     // If user type changed, we're switching portals - disconnect WebSocket to prevent conflicts
     if (previousUserType.current && currentUserType && previousUserType.current !== currentUserType) {
