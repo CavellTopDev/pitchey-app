@@ -2,7 +2,7 @@
 
 # Script to seed production and investor accounts with pitches via API
 
-API_URL="https://pitchey-backend.deno.dev"
+API_URL="${BACKEND_URL:-https://pitchey-backend.deno.dev}"
 
 echo "🎬 Seeding Production and Investor Accounts via API"
 echo "=================================================="

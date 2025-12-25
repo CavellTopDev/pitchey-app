@@ -205,8 +205,8 @@ export function getCORSHeaders(origin: string | null, env: any): Record<string, 
     // Allow any origin in development
     headers['Access-Control-Allow-Origin'] = origin || '*';
   } else {
-    // Default to primary domain in production
-    headers['Access-Control-Allow-Origin'] = 'https://pitchey.pages.dev';
+    // Allow all origins temporarily for preview deployments
+    headers['Access-Control-Allow-Origin'] = '*';
   }
   
   return headers;

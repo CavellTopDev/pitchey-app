@@ -220,7 +220,7 @@ class RouteRegistry {
     return { authorized: true, user: result.user };
   }
 
-  private async requirePortalAuth(request: Request, portal: string): Promise<{ authorized: boolean; user?: any; response?: Response }> {
+  private async requirePortalAuth(request: Request, portal: string | string[]): Promise<{ authorized: boolean; user?: any; response?: Response }> {
     const result = await this.validateAuth(request);
     if (!result.valid) {
       return {
@@ -231,6 +231,23 @@ class RouteRegistry {
         }), { status: 401, headers: getCorsHeaders(request.headers.get('Origin')) })
       };
     }
+    
+    // Check user type if portal is specified
+    if (portal) {
+      const allowedPortals = Array.isArray(portal) ? portal : [portal];
+      const userType = result.user.userType || result.user.user_type;
+      
+      if (!allowedPortals.includes(userType)) {
+        return {
+          authorized: false,
+          response: new Response(JSON.stringify({
+            success: false,
+            error: { code: 'FORBIDDEN', message: `Access denied. Required user type: ${allowedPortals.join(' or ')}` }
+          }), { status: 403, headers: getCorsHeaders(request.headers.get('Origin')) })
+        };
+      }
+    }
+    
     return { authorized: true, user: result.user };
   }
 
@@ -989,11 +1006,12 @@ class RouteRegistry {
       const pitches = await this.db.query(`
         SELECT 
           p.*,
-          u.name as creator_name,
+          CONCAT(u.first_name, ' ', u.last_name) as creator_name,
+          u.user_type as creator_type,
           COUNT(DISTINCT v.id) as view_count,
           COUNT(DISTINCT i.id) as investment_count
         FROM pitches p
-        LEFT JOIN users u ON p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN views v ON v.pitch_id = p.id
         LEFT JOIN investments i ON i.pitch_id = p.id
         ${whereClause}
@@ -1017,7 +1035,7 @@ class RouteRegistry {
   }
 
   private async createPitch(request: Request): Promise<Response> {
-    const authResult = await this.requirePortalAuth(request, 'creator');
+    const authResult = await this.requirePortalAuth(request, ['creator', 'production']);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -1026,7 +1044,7 @@ class RouteRegistry {
     try {
       const [pitch] = await this.db.query(`
         INSERT INTO pitches (
-          creator_id, title, logline, genre, format, 
+          user_id, title, logline, genre, format, 
           budget_range, target_audience, synopsis,
           status, created_at, updated_at
         ) VALUES (
@@ -1088,11 +1106,12 @@ class RouteRegistry {
       const [pitch] = await this.db.query(`
         SELECT 
           p.*,
-          u.name as creator_name,
+          CONCAT(u.first_name, ' ', u.last_name) as creator_name,
+          u.user_type as creator_type,
           COUNT(DISTINCT v.id) as view_count,
           COUNT(DISTINCT i.id) as investment_count
         FROM pitches p
-        LEFT JOIN users u ON p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN views v ON v.pitch_id = p.id
         LEFT JOIN investments i ON i.pitch_id = p.id
         WHERE p.id = $1
@@ -1120,7 +1139,7 @@ class RouteRegistry {
     try {
       // Verify ownership
       const [existing] = await this.db.query(
-        `SELECT creator_id FROM pitches WHERE id = $1`,
+        `SELECT user_id FROM pitches WHERE id = $1`,
         [params.id]
       );
 
@@ -1547,10 +1566,10 @@ class RouteRegistry {
           p.status as pitch_status,
           p.genre,
           p.format,
-          u.name as creator_name
+          CONCAT(u.first_name, ' ', u.last_name) as creator_name
         FROM investments i
         JOIN pitches p ON i.pitch_id = p.id
-        JOIN users u ON p.creator_id = u.id
+        JOIN users u ON p.user_id = u.id
         WHERE i.investor_id = $1
         ORDER BY i.created_at DESC
         LIMIT 10
@@ -1763,10 +1782,10 @@ class RouteRegistry {
       const pitches = await this.db.query(`
         SELECT 
           p.*,
-          u.name as creator_name,
+          CONCAT(u.first_name, ' ', u.last_name) as creator_name,
           COUNT(DISTINCT v.id) as view_count
         FROM pitches p
-        LEFT JOIN users u ON p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN views v ON v.pitch_id = p.id
         WHERE ${whereClause}
         GROUP BY p.id, u.name
@@ -1821,12 +1840,12 @@ class RouteRegistry {
       const baseSelect = `
         SELECT 
           p.*,
-          u.name as creator_name,
+          CONCAT(u.first_name, ' ', u.last_name) as creator_name,
           0 as view_count,
           0 as like_count,
           0 as investment_count
         FROM pitches p
-        LEFT JOIN users u ON p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
       `;
 
       switch (tab) {
@@ -1949,7 +1968,7 @@ class RouteRegistry {
           sql = `
             SELECT DISTINCT u.name as value, COUNT(p.id) as count
             FROM users u
-            JOIN pitches p ON p.creator_id = u.id
+            JOIN pitches p ON p.user_id = u.id
             WHERE p.status = 'published' AND LOWER(u.name) LIKE $1
             GROUP BY u.name
             ORDER BY count DESC
@@ -2001,12 +2020,12 @@ class RouteRegistry {
       const trending = await this.db.query(`
         SELECT 
           p.*,
-          u.name as creator_name,
+          CONCAT(u.first_name, ' ', u.last_name) as creator_name,
           COUNT(DISTINCT v.id) as view_count,
           COUNT(DISTINCT l.id) as like_count,
           (COUNT(DISTINCT v.id) * 1.0 / (EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 3600 + 1)) as trending_score
         FROM pitches p
-        LEFT JOIN users u ON p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN views v ON v.pitch_id = p.id
         LEFT JOIN likes l ON l.pitch_id = p.id
         WHERE p.status = 'published' 
@@ -2143,7 +2162,7 @@ class RouteRegistry {
           COUNT(DISTINCT i.id) as total_investments,
           COALESCE(SUM(i.amount), 0) as total_raised
         FROM users u
-        LEFT JOIN pitches p ON p.creator_id = u.id
+        LEFT JOIN pitches p ON p.user_id = u.id
         LEFT JOIN (
           SELECT pitch_id, COUNT(*) as count 
           FROM views GROUP BY pitch_id
@@ -2158,7 +2177,7 @@ class RouteRegistry {
           COUNT(DISTINCT v.id) as view_count
         FROM pitches p
         LEFT JOIN views v ON v.pitch_id = p.id
-        WHERE p.creator_id = $1
+        WHERE p.user_id = $1
         GROUP BY p.id
         ORDER BY p.created_at DESC
         LIMIT 5
@@ -2274,7 +2293,7 @@ class RouteRegistry {
           COUNT(DISTINCT i.id) as total_investments,
           COALESCE(SUM(i.amount), 0) as total_funding
         FROM users u
-        LEFT JOIN pitches p ON p.creator_id = u.id 
+        LEFT JOIN pitches p ON p.user_id = u.id 
         LEFT JOIN views v ON v.pitch_id = p.id AND v.created_at >= NOW() - INTERVAL '${days} days'
         LEFT JOIN investments i ON i.pitch_id = p.id AND i.created_at >= NOW() - INTERVAL '${days} days'
         WHERE u.id = $1
@@ -2403,7 +2422,7 @@ class RouteRegistry {
           AVG(i.amount) as average_investment
         FROM investments i
         JOIN pitches p ON i.pitch_id = p.id
-        WHERE p.creator_id = $1 AND i.status = 'completed'
+        WHERE p.user_id = $1 AND i.status = 'completed'
       `, [authResult.user.id]);
 
       return builder.success({
@@ -2436,7 +2455,7 @@ class RouteRegistry {
           COUNT(*) as total
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
-        WHERE p.creator_id = $1
+        WHERE p.user_id = $1
       `, [authResult.user.id]);
 
       return builder.success({
@@ -2461,19 +2480,30 @@ class RouteRegistry {
     const format = url.searchParams.get('format');
     const search = url.searchParams.get('search');
 
+    console.log(`[DEBUG] getPublicPitches called with params: page=${page}, limit=${limit}, genre=${genre}, format=${format}, search=${search}`);
+
     try {
+      // First, test database connectivity
+      console.log('[DEBUG] Testing database connectivity...');
+      const connectTest = await this.db.query('SELECT 1 as test');
+      console.log('[DEBUG] Database connectivity test:', connectTest);
+
+      // Get total pitches in database
+      console.log('[DEBUG] Getting total pitch count...');
+      const totalPitchesResult = await this.db.query(`SELECT COUNT(*) as total FROM pitches`);
+      console.log('[DEBUG] Total pitches in database:', totalPitchesResult);
+
       // First, try to get all pitches (not just published) to ensure data exists
       let sql = `
-        SELECT p.*, u.name as creator_name
+        SELECT p.*, CONCAT(u.first_name, ' ', u.last_name) as creator_name, u.user_type as creator_type
         FROM pitches p
-        LEFT JOIN users u ON p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         WHERE 1=1
       `;
       const params: any[] = [];
 
-      // Add status filter only if there are published pitches
-      // For now, show all pitches to ensure marketplace works
-      // sql += ` AND p.status = 'published'`;
+      // Add status filter for published pitches
+      sql += ` AND p.status = 'published'`;
 
       if (genre) {
         params.push(genre);
@@ -2494,30 +2524,53 @@ class RouteRegistry {
       params.push(limit, offset);
       sql += ` LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
+      console.log('[DEBUG] Final SQL query:', sql);
+      console.log('[DEBUG] Query parameters:', params);
+
       const pitches = await this.db.query(sql, params);
+      console.log('[DEBUG] Raw pitches result:', {
+        type: typeof pitches,
+        isArray: Array.isArray(pitches),
+        length: pitches?.length || 'undefined',
+        firstItem: pitches?.[0] || 'no items'
+      });
 
       // Get total count
       let totalResult;
       try {
         totalResult = await this.db.query(`SELECT COUNT(*) as total FROM pitches`);
+        console.log('[DEBUG] Total count query result:', totalResult);
       } catch (e) {
-        console.error('Error getting total count:', e);
+        console.error('[DEBUG] Error getting total count:', e);
         totalResult = [{ total: 0 }];
       }
 
       const total = totalResult?.[0]?.total || 0;
+      console.log('[DEBUG] Final total:', total);
 
-      // Return the exact format the frontend expects
-      return builder.success({
+      const response = {
         success: true,
         data: Array.isArray(pitches) ? pitches : [],
         items: Array.isArray(pitches) ? pitches : [], // Also include items for compatibility
         total: total,
         page,
         limit
+      };
+
+      console.log('[DEBUG] Final response structure:', {
+        success: response.success,
+        dataLength: response.data.length,
+        itemsLength: response.items.length,
+        total: response.total,
+        page: response.page,
+        limit: response.limit
       });
+
+      // Return the exact format the frontend expects
+      return builder.success(response);
     } catch (error) {
-      console.error('Error in getPublicPitches:', error);
+      console.error('[DEBUG] Error in getPublicPitches:', error);
+      console.error('[DEBUG] Error stack:', error.stack);
       // Return empty array on error to prevent frontend crash
       return builder.success({
         success: true,
@@ -2864,10 +2917,10 @@ class RouteRegistry {
           p.title,
           p.genre,
           p.budget_range,
-          u.name as creator_name
+          CONCAT(u.first_name, ' ', u.last_name) as creator_name
         FROM investment_deals id
         JOIN pitches p ON id.pitch_id = p.id
-        JOIN users u ON p.creator_id = u.id
+        JOIN users u ON p.user_id = u.id
         WHERE id.investor_id = $1
           AND id.status IN ('negotiating', 'pending', 'due_diligence')
         ORDER BY id.updated_at DESC
@@ -3217,10 +3270,18 @@ export default {
       // Handle CORS preflight
       if (request.method === 'OPTIONS') {
         const origin = request.headers.get('Origin') || '';
-        let allowedOrigin = 'https://pitchey.pages.dev';
+        let allowedOrigin = '*';
         
+        // Allow all Cloudflare Pages preview deployments
+        if (origin.match(/^https:\/\/[a-z0-9-]+\.pitchey-5o8\.pages\.dev$/)) {
+          allowedOrigin = origin;
+        }
         // Allow any pitchey.pages.dev subdomain (for preview deployments)
-        if (origin.match(/^https:\/\/([\w-]+\.)?pitchey\.pages\.dev$/)) {
+        else if (origin.match(/^https:\/\/[a-z0-9-]+\.pitchey\.pages\.dev$/)) {
+          allowedOrigin = origin;
+        }
+        // Allow production domain
+        else if (origin === 'https://pitchey.pages.dev') {
           allowedOrigin = origin;
         }
         // Allow localhost for development
@@ -3242,10 +3303,18 @@ export default {
       // Helper function for CORS headers
       const getCorsHeaders = (request: Request) => {
         const origin = request.headers.get('Origin') || '';
-        let allowedOrigin = 'https://pitchey.pages.dev';
+        let allowedOrigin = '*';
         
+        // Allow all Cloudflare Pages preview deployments
+        if (origin.match(/^https:\/\/[a-z0-9-]+\.pitchey-5o8\.pages\.dev$/)) {
+          allowedOrigin = origin;
+        }
         // Allow any pitchey.pages.dev subdomain (for preview deployments)
-        if (origin.match(/^https:\/\/([\w-]+\.)?pitchey\.pages\.dev$/)) {
+        else if (origin.match(/^https:\/\/[a-z0-9-]+\.pitchey\.pages\.dev$/)) {
+          allowedOrigin = origin;
+        }
+        // Allow production domain
+        else if (origin === 'https://pitchey.pages.dev') {
           allowedOrigin = origin;
         }
         // Allow localhost for development

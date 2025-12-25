@@ -45,10 +45,15 @@ function isOriginAllowed(origin: string | null): boolean {
     return true;
   }
   
-  // Allow all Cloudflare Pages preview deployments (*.pitchey.pages.dev and pitchey-*.pages.dev)
-  // Pattern allows alphanumeric characters and hyphens (typical for CF deployments)
-  if (origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/) ||
-      origin.match(/^https:\/\/pitchey-[a-zA-Z0-9-]+\.pages\.dev$/)) {
+  // Allow all Cloudflare Pages preview deployments
+  // Pattern 1: [hash].pitchey.pages.dev (e.g., 01750dbc.pitchey.pages.dev)
+  // Pattern 2: [hash].pitchey-5o8.pages.dev (e.g., 01750dbc.pitchey-5o8.pages.dev)
+  // Pattern 3: pitchey-[anything].pages.dev (e.g., pitchey-frontend.pages.dev)
+  // Pattern 4: [anything].pitchey.pages.dev (e.g., preview.pitchey.pages.dev)
+  if (origin.match(/^https:\/\/[a-f0-9]+\.pitchey\.pages\.dev$/) ||           // Hash-based preview
+      origin.match(/^https:\/\/[a-f0-9]+\.pitchey-[a-z0-9]+\.pages\.dev$/) || // Hash with project ID
+      origin.match(/^https:\/\/pitchey-[a-zA-Z0-9-]+\.pages\.dev$/) ||       // Named deployments
+      origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/)) {      // Subdomains
     return true;
   }
   
