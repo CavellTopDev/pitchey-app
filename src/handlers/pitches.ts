@@ -1,14 +1,18 @@
 /**
- * Pitches Handler with Error Resilience
+ * Pitches Handler with Raw SQL Queries
+ * Uses new query functions that properly separate trending and new pitches
  */
 
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
+import * as pitchQueries from '../db/queries/pitches';
 
 export async function pitchesHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const genre = url.searchParams.get('genre');
-  const sort = url.searchParams.get('sort') || 'created_at';
+  const format = url.searchParams.get('format');
+  const sort = url.searchParams.get('sort') || 'newest';
+  const searchTerm = url.searchParams.get('q');
   const page = Number(url.searchParams.get('page')) || 1;
   const limit = Number(url.searchParams.get('limit')) || 20;
   const offset = (page - 1) * limit;
@@ -35,40 +39,33 @@ export async function pitchesHandler(request: Request, env: Env): Promise<Respon
   }
   
   try {
-    let query;
-    if (genre) {
-      query = sql`
-        SELECT 
-          p.*, 
-          u.username as creator_name,
-          COUNT(*) OVER() as total_count
-        FROM pitches p
-        JOIN users u ON p.creator_id = u.id
-        WHERE p.genre = ${genre} AND p.status = 'published'
-        ORDER BY p.${sql(sort)} DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
-    } else {
-      query = sql`
-        SELECT 
-          p.*, 
-          u.username as creator_name,
-          COUNT(*) OVER() as total_count
-        FROM pitches p
-        JOIN users u ON p.creator_id = u.id
-        WHERE p.status = 'published'
-        ORDER BY p.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
-    }
+    let pitches;
     
-    const result = await query;
+    // If searching, use search function
+    if (searchTerm) {
+      pitches = await pitchQueries.searchPitches(sql, searchTerm, {
+        genre,
+        format,
+        status: 'published',
+        sortBy: sort as any,
+        limit,
+        offset
+      });
+    } 
+    // If sorting by trending
+    else if (sort === 'trending') {
+      pitches = await pitchQueries.getTrendingPitches(sql, limit, offset);
+    }
+    // Default to newest
+    else {
+      pitches = await pitchQueries.getNewPitches(sql, limit, offset);
+    }
     
     return new Response(JSON.stringify({
       success: true,
       data: {
-        pitches: result || [],
-        totalCount: result[0]?.total_count || 0,
+        pitches: pitches || [],
+        totalCount: pitches.length,
         page,
         pageSize: limit
       }
@@ -92,8 +89,12 @@ export async function pitchesHandler(request: Request, env: Env): Promise<Respon
   }
 }
 
+// FIXED: Browse tab separation - Trending shows only high-engagement pitches
 export async function trendingPitchesHandler(request: Request, env: Env): Promise<Response> {
   const sql = getDb(env);
+  const url = new URL(request.url);
+  const limit = Number(url.searchParams.get('limit')) || 10;
+  const offset = Number(url.searchParams.get('offset')) || 0;
   
   const defaultResponse = {
     success: true,
@@ -114,21 +115,13 @@ export async function trendingPitchesHandler(request: Request, env: Env): Promis
   }
   
   try {
-    const result = await sql`
-      SELECT 
-        p.*, 
-        u.username as creator_name
-      FROM pitches p
-      JOIN users u ON p.creator_id = u.id
-      WHERE p.status = 'published'
-      ORDER BY p.view_count DESC, p.created_at DESC
-      LIMIT 10
-    `;
+    // Use the new getTrendingPitches function that properly filters for high engagement
+    const pitches = await pitchQueries.getTrendingPitches(sql, limit, offset);
     
     return new Response(JSON.stringify({
       success: true,
       data: {
-        pitches: result || []
+        pitches: pitches || []
       }
     }), {
       status: 200,
@@ -150,8 +143,12 @@ export async function trendingPitchesHandler(request: Request, env: Env): Promis
   }
 }
 
+// FIXED: Browse tab separation - New shows only recent pitches from last 30 days
 export async function newPitchesHandler(request: Request, env: Env): Promise<Response> {
   const sql = getDb(env);
+  const url = new URL(request.url);
+  const limit = Number(url.searchParams.get('limit')) || 10;
+  const offset = Number(url.searchParams.get('offset')) || 0;
   
   const defaultResponse = {
     success: true,
@@ -172,21 +169,13 @@ export async function newPitchesHandler(request: Request, env: Env): Promise<Res
   }
   
   try {
-    const result = await sql`
-      SELECT 
-        p.*, 
-        u.username as creator_name
-      FROM pitches p
-      JOIN users u ON p.creator_id = u.id
-      WHERE p.status = 'published'
-      ORDER BY p.created_at DESC
-      LIMIT 10
-    `;
+    // Use the new getNewPitches function that filters for recent pitches only
+    const pitches = await pitchQueries.getNewPitches(sql, limit, offset);
     
     return new Response(JSON.stringify({
       success: true,
       data: {
-        pitches: result || []
+        pitches: pitches || []
       }
     }), {
       status: 200,
