@@ -70,6 +70,9 @@ const CIRCUIT_BREAKER_CONFIG = {
   halfOpenMaxAttempts: 1,  // Only 1 attempt in half-open state
 };
 
+// CRITICAL: Disable WebSocket on Cloudflare free tier - use polling instead
+const WEBSOCKET_ENABLED = false;
+
 export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   
@@ -323,6 +326,17 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
   
   // Connect function with circuit breaker and bundling-loop protection
   const connect = useCallback(() => {
+    // CRITICAL: WebSocket disabled on free tier - use polling instead
+    if (!WEBSOCKET_ENABLED) {
+      console.log('WebSocket: Disabled on free tier - using polling for real-time updates');
+      setConnectionStatus(prev => ({
+        ...prev,
+        connected: false,
+        error: 'WebSocket disabled - using polling mode',
+      }));
+      return;
+    }
+    
     // Check circuit breaker state first
     const circuitState = checkCircuitBreakerState();
     if (circuitState === 'open') {

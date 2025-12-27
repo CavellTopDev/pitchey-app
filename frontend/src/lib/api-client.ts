@@ -19,7 +19,7 @@ interface ApiResponse<T = any> {
 class ApiClient {
   private baseURL: string;
   private defaultHeaders: Record<string, string>;
-  private maxRetries: number = 3;
+  private maxRetries: number = 2; // Reduced to prevent excessive retries
   private retryDelay: number = 1000; // 1 second
 
   // Namespaced localStorage helpers to avoid cross-environment token collisions
@@ -241,12 +241,17 @@ class ApiClient {
   }
 
   private isRetryableError(error: any): boolean {
+    // DO NOT retry on CORS errors - they will never succeed
+    if (error.message?.includes('Failed to fetch') || 
+        error.message?.includes('CORS') ||
+        error.message?.includes('Cross-Origin') ||
+        error.message?.includes('Access-Control')) {
+      return false;
+    }
+    
     // Retry on network errors, timeouts, DNS resolution failures, and server errors (5xx)
     return (
-      error.name === 'TypeError' ||
       error.name === 'NetworkError' ||
-      error.message?.includes('fetch') ||
-      error.message?.includes('network') ||
       error.message?.includes('ERR_NAME_NOT_RESOLVED') ||
       error.message?.includes('getaddrinfo ENOTFOUND') ||
       error.message?.includes('DNS lookup failed') ||

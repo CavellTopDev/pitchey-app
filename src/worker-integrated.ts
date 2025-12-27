@@ -4331,8 +4331,26 @@ export default {
       // Initialize route registry
       const router = new RouteRegistry(env);
       
-      // Handle request
-      return await router.handle(request);
+      // Handle request and ensure CORS headers are always added
+      const response = await router.handle(request);
+      
+      // CRITICAL: Always add CORS headers to ALL responses
+      const origin = request.headers.get('Origin') || '';
+      const corsHeaders = getCorsHeaders(origin);
+      const newHeaders = new Headers(response.headers);
+      
+      // Add CORS headers if they're not already present
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        if (!newHeaders.has(key)) {
+          newHeaders.set(key, value);
+        }
+      });
+      
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders
+      });
       
     } catch (error) {
       console.error('Worker initialization error:', error);

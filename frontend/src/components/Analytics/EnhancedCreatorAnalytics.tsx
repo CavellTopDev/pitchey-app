@@ -129,38 +129,54 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
       console.log('Dashboard metrics received:', dashboardMetrics);
       console.log('User analytics received:', userAnalytics);
 
-      // Transform the data
+      // Transform the data with null safety checks
+      const overview = dashboardMetrics?.overview || {
+        totalPitches: 0,
+        totalViews: 0,
+        totalLikes: 0,
+        totalFollowers: 0,
+        pitchesChange: 0,
+        viewsChange: 0,
+        likesChange: 0,
+        followersChange: 0
+      };
+      
+      const performance = dashboardMetrics?.performance || {
+        engagementTrend: []
+      };
+      
       const transformedData: CreatorAnalyticsData = {
         kpis: {
-          totalPitches: dashboardMetrics.overview.totalPitches,
-          totalViews: dashboardMetrics.overview.totalViews,
-          totalLikes: dashboardMetrics.overview.totalLikes,
+          totalPitches: overview.totalPitches || 0,
+          totalViews: overview.totalViews || 0,
+          totalLikes: overview.totalLikes || 0,
           totalShares: 0, // Will be added when available
-          engagementRate: dashboardMetrics.performance.engagementTrend.reduce((acc, curr) => acc + curr.rate, 0) / dashboardMetrics.performance.engagementTrend.length || 0,
-          fundingReceived: dashboardMetrics.revenue?.total || 0,
+          engagementRate: performance.engagementTrend?.length ? 
+            performance.engagementTrend.reduce((acc, curr) => acc + (curr?.rate || 0), 0) / performance.engagementTrend.length : 0,
+          fundingReceived: dashboardMetrics?.revenue?.total || 0,
           averageRating: 4.2, // Mock data
           responseRate: 45, // Mock data
-          totalFollowers: dashboardMetrics.overview.totalFollowers,
-          ndaRequests: userAnalytics.totalNDAs,
+          totalFollowers: overview.totalFollowers || 0,
+          ndaRequests: userAnalytics?.totalNDAs || 0,
         },
         changes: {
-          pitchesChange: dashboardMetrics.overview.pitchesChange,
-          viewsChange: dashboardMetrics.overview.viewsChange,
-          likesChange: dashboardMetrics.overview.likesChange,
+          pitchesChange: overview.pitchesChange || 0,
+          viewsChange: overview.viewsChange || 0,
+          likesChange: overview.likesChange || 0,
           sharesChange: 8,
           engagementChange: 5,
           fundingChange: dashboardMetrics.revenue?.growth || 0,
           ratingChange: 0.3,
           responseChange: -2,
-          followersChange: dashboardMetrics.overview.followersChange,
+          followersChange: overview.followersChange || 0,
           ndaChange: 15,
         },
         charts: {
-          pitchViews: dashboardMetrics.performance.engagementTrend.map((item, index) => ({
-            date: item.date,
+          pitchViews: (performance.engagementTrend || []).map((item, index) => ({
+            date: item?.date || new Date().toISOString(),
             value: Math.floor(Math.random() * 200) + 100 + index * 10
           })),
-          engagementTrends: dashboardMetrics.performance.engagementTrend,
+          engagementTrends: performance.engagementTrend || [],
           fundingProgress: Array.from({ length: 6 }, (_, i) => ({
             date: new Date(2024, i * 2, 1).toISOString().split('T')[0],
             value: Math.floor(Math.random() * 100000) + 50000 + i * 25000
