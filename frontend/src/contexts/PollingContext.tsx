@@ -4,8 +4,8 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { apiClient } from '../services/api-client';
-import { useAuth } from './AuthContext';
+import { apiClient } from '../lib/api-client';
+import { useAuthStore } from '../store/authStore';
 
 interface PollResponse {
   notifications?: any[];
@@ -48,7 +48,7 @@ export const PollingProvider: React.FC<PollingProviderProps> = ({
   defaultInterval = 30000, // 30 seconds default
   enablePolling = true
 }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuthStore();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [dashboardUpdates, setDashboardUpdates] = useState<any>({});
@@ -267,7 +267,7 @@ export const useNotificationPolling = () => {
  * Hook for message polling with conversation context
  */
 export const useMessagePolling = (conversationId?: string) => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const [messages, setMessages] = useState<any[]>([]);
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);

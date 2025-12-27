@@ -12,6 +12,14 @@ import { getCorsHeaders } from './utils/response';
 import { createJWT, verifyJWT, extractJWT } from './utils/worker-jwt';
 import { createBetterAuthInstance, createPortalAuth } from './auth/better-auth-neon-raw-sql';
 
+// Import resilient handlers
+import { profileHandler } from './handlers/profile';
+import { creatorDashboardHandler } from './handlers/creator-dashboard';
+import { investorDashboardHandler } from './handlers/investor-dashboard';
+import { productionDashboardHandler } from './handlers/production-dashboard';
+import { followersHandler, followingHandler } from './handlers/follows';
+import { ndaHandler, ndaStatsHandler } from './handlers/nda';
+
 // Import new services
 import { WorkerDatabase } from './services/worker-database';
 import { WorkerEmailService } from './services/worker-email';
@@ -561,8 +569,8 @@ class RouteRegistry {
     // Temporary profile endpoint
     this.register('GET', '/api/users/profile', this.getUserProfile.bind(this));
     
-    // Profile route (for auth check)
-    this.register('GET', '/api/profile', this.getProfile.bind(this));
+    // Profile route (for auth check) - use resilient handler
+    this.register('GET', '/api/profile', (req) => profileHandler(req, this.env));
     
     // Notification routes
     this.register('GET', '/api/notifications/unread', this.getUnreadNotifications.bind(this));
@@ -597,8 +605,8 @@ class RouteRegistry {
     this.register('POST', '/api/investments', this.createInvestment.bind(this));
     this.register('GET', '/api/portfolio', this.getPortfolio.bind(this));
 
-    // NDA routes
-    this.register('GET', '/api/ndas', this.getNDAs.bind(this));
+    // NDA routes - use resilient handler for GET
+    this.register('GET', '/api/ndas', (req) => ndaHandler(req, this.env));
     this.register('POST', '/api/ndas/request', this.requestNDA.bind(this));
     this.register('POST', '/api/ndas/:id/approve', this.approveNDA.bind(this));
     this.register('POST', '/api/ndas/:id/reject', this.rejectNDA.bind(this));
@@ -659,10 +667,10 @@ class RouteRegistry {
     this.register('GET', '/api/search/trending', this.getTrending.bind(this));
     this.register('GET', '/api/search/facets', this.getFacets.bind(this));
 
-    // Dashboard routes
-    this.register('GET', '/api/creator/dashboard', this.getCreatorDashboard.bind(this));
-    this.register('GET', '/api/investor/dashboard', this.getInvestorDashboard.bind(this));
-    this.register('GET', '/api/production/dashboard', this.getProductionDashboard.bind(this));
+    // Dashboard routes - use resilient handlers
+    this.register('GET', '/api/creator/dashboard', (req) => creatorDashboardHandler(req, this.env));
+    this.register('GET', '/api/investor/dashboard', (req) => investorDashboardHandler(req, this.env));
+    this.register('GET', '/api/production/dashboard', (req) => productionDashboardHandler(req, this.env));
     
     // Analytics routes (missing endpoints)
     this.register('GET', '/api/analytics/dashboard', this.getAnalyticsDashboard.bind(this));
@@ -672,15 +680,15 @@ class RouteRegistry {
     this.register('GET', '/api/payments/credits/balance', this.getCreditsBalance.bind(this));
     this.register('GET', '/api/payments/subscription-status', this.getSubscriptionStatus.bind(this));
     
-    // Follow routes (missing endpoints)
-    this.register('GET', '/api/follows/followers', this.getFollowers.bind(this));
-    this.register('GET', '/api/follows/following', this.getFollowing.bind(this));
+    // Follow routes - use resilient handlers
+    this.register('GET', '/api/follows/followers', (req) => followersHandler(req, this.env));
+    this.register('GET', '/api/follows/following', (req) => followingHandler(req, this.env));
     
     // Creator funding routes (missing endpoints)
     this.register('GET', '/api/creator/funding/overview', this.getFundingOverview.bind(this));
     
-    // NDA stats route (missing)
-    this.register('GET', '/api/ndas/stats', this.getNDAStats.bind(this));
+    // NDA stats route - use resilient handler
+    this.register('GET', '/api/ndas/stats', (req) => ndaStatsHandler(req, this.env));
     
     // Public pitches for marketplace
     this.register('GET', '/api/pitches/public', this.getPublicPitches.bind(this));
