@@ -5,6 +5,7 @@
 
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
+import { getCorsHeaders } from '../utils/response';
 import * as pitchQueries from '../db/queries/pitches';
 import * as investmentQueries from '../db/queries/investments';
 import * as analyticsQueries from '../db/queries/analytics';
@@ -18,6 +19,8 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
   const url = new URL(request.url);
   const userId = url.searchParams.get('userId') || '1';
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   if (!sql) {
     return new Response(JSON.stringify({ 
@@ -25,7 +28,7 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
       error: 'Database unavailable' 
     }), {
       status: 503,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
   
@@ -78,7 +81,8 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'private, max-age=60'
+        'Cache-Control': 'private, max-age=60',
+        ...corsHeaders
       }
     });
     
@@ -89,7 +93,7 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
       error: 'Failed to load dashboard' 
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 }
@@ -100,6 +104,8 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
   const userId = url.searchParams.get('userId') || '1';
   const period = url.searchParams.get('period') || '30'; // days
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   if (!sql) {
     return new Response(JSON.stringify({ 
@@ -107,7 +113,7 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
       error: 'Database unavailable' 
     }), {
       status: 503,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
   
@@ -191,7 +197,8 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'private, max-age=300'
+        'Cache-Control': 'private, max-age=300',
+        ...corsHeaders
       }
     });
     
@@ -202,7 +209,7 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
       error: 'Failed to load revenue data' 
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 }
@@ -213,6 +220,8 @@ export async function creatorContractsHandler(request: Request, env: Env): Promi
   const userId = url.searchParams.get('userId') || '1';
   const status = url.searchParams.get('status'); // active, pending, completed
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   if (!sql) {
     return new Response(JSON.stringify({ 
@@ -220,7 +229,7 @@ export async function creatorContractsHandler(request: Request, env: Env): Promi
       error: 'Database unavailable' 
     }), {
       status: 503,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
   
@@ -314,7 +323,8 @@ export async function creatorContractsHandler(request: Request, env: Env): Promi
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'private, max-age=60'
+        'Cache-Control': 'private, max-age=60',
+        ...corsHeaders
       }
     });
     
@@ -325,7 +335,7 @@ export async function creatorContractsHandler(request: Request, env: Env): Promi
       error: 'Failed to load contracts' 
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 }
@@ -337,6 +347,8 @@ export async function creatorPitchAnalyticsHandler(request: Request, env: Env): 
   const pitchId = pathParts[pathParts.length - 1];
   const period = url.searchParams.get('period') || '30';
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   if (!sql) {
     return new Response(JSON.stringify({ 
@@ -344,7 +356,7 @@ export async function creatorPitchAnalyticsHandler(request: Request, env: Env): 
       error: 'Database unavailable' 
     }), {
       status: 503,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
   
@@ -399,7 +411,8 @@ export async function creatorPitchAnalyticsHandler(request: Request, env: Env): 
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'private, max-age=300'
+        'Cache-Control': 'private, max-age=300',
+        ...corsHeaders
       }
     });
     
@@ -410,7 +423,7 @@ export async function creatorPitchAnalyticsHandler(request: Request, env: Env): 
       error: 'Failed to load analytics' 
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 }
@@ -421,6 +434,8 @@ export async function creatorInvestorsHandler(request: Request, env: Env): Promi
   const userId = url.searchParams.get('userId') || '1';
   const filter = url.searchParams.get('filter'); // active, potential, past
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   if (!sql) {
     return new Response(JSON.stringify({ 
@@ -428,7 +443,7 @@ export async function creatorInvestorsHandler(request: Request, env: Env): Promi
       error: 'Database unavailable' 
     }), {
       status: 503,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
   
@@ -576,7 +591,8 @@ export async function creatorInvestorsHandler(request: Request, env: Env): Promi
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'private, max-age=120'
+        'Cache-Control': 'private, max-age=120',
+        ...corsHeaders
       }
     });
     
@@ -587,7 +603,7 @@ export async function creatorInvestorsHandler(request: Request, env: Env): Promi
       error: 'Failed to load investors' 
     }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 }

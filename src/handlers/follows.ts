@@ -4,11 +4,14 @@
 
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
+import { getCorsHeaders } from '../utils/response';
 
 export async function followersHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const creatorId = url.searchParams.get('creatorId') || '1';
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   const defaultResponse = {
     success: true,
@@ -23,7 +26,8 @@ export async function followersHandler(request: Request, env: Env): Promise<Resp
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300' // Cache for 5 minutes
+        'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+        ...corsHeaders
       }
     });
   }
@@ -43,7 +47,8 @@ export async function followersHandler(request: Request, env: Env): Promise<Resp
         status: 200,
         headers: { 
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=300'
+          'Cache-Control': 'public, max-age=300',
+          ...corsHeaders
         }
       });
     }
@@ -68,7 +73,8 @@ export async function followersHandler(request: Request, env: Env): Promise<Resp
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=300',
+        ...corsHeaders
       }
     });
     
@@ -78,7 +84,8 @@ export async function followersHandler(request: Request, env: Env): Promise<Resp
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=300',
+        ...corsHeaders
       }
     });
   }
@@ -88,6 +95,8 @@ export async function followingHandler(request: Request, env: Env): Promise<Resp
   const url = new URL(request.url);
   const userId = url.searchParams.get('userId') || '1';
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   const defaultResponse = {
     success: true,
@@ -102,7 +111,8 @@ export async function followingHandler(request: Request, env: Env): Promise<Resp
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=300',
+        ...corsHeaders
       }
     });
   }
@@ -121,7 +131,8 @@ export async function followingHandler(request: Request, env: Env): Promise<Resp
         status: 200,
         headers: { 
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=300'
+          'Cache-Control': 'public, max-age=300',
+          ...corsHeaders
         }
       });
     }
@@ -146,7 +157,8 @@ export async function followingHandler(request: Request, env: Env): Promise<Resp
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=300',
+        ...corsHeaders
       }
     });
     
@@ -156,7 +168,8 @@ export async function followingHandler(request: Request, env: Env): Promise<Resp
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=300',
+        ...corsHeaders
       }
     });
   }

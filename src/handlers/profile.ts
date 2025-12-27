@@ -4,9 +4,12 @@
 
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
+import { getCorsHeaders } from '../utils/response';
 
 export async function profileHandler(request: Request, env: Env): Promise<Response> {
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   // TODO: Get actual user ID from auth
   const userId = 1;
@@ -36,7 +39,8 @@ export async function profileHandler(request: Request, env: Env): Promise<Respon
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300' // Cache for 5 minutes
+        'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+        ...corsHeaders
       }
     });
   }
@@ -62,7 +66,8 @@ export async function profileHandler(request: Request, env: Env): Promise<Respon
         status: 200,
         headers: { 
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=300'
+          'Cache-Control': 'public, max-age=300',
+          ...corsHeaders
         }
       });
     }
@@ -75,7 +80,8 @@ export async function profileHandler(request: Request, env: Env): Promise<Respon
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=300',
+        ...corsHeaders
       }
     });
     
@@ -88,7 +94,8 @@ export async function profileHandler(request: Request, env: Env): Promise<Respon
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=300',
+        ...corsHeaders
       }
     });
   }

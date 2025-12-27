@@ -5,6 +5,7 @@
 
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
+import { getCorsHeaders } from '../utils/response';
 import * as documentQueries from '../db/queries/documents';
 import * as notificationQueries from '../db/queries/notifications';
 
@@ -14,6 +15,8 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
   const type = url.searchParams.get('type') || 'all'; // sent, received, all
   const userId = url.searchParams.get('userId') || '1';
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   const defaultResponse = {
     success: true,
@@ -28,7 +31,8 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60'
+        'Cache-Control': 'public, max-age=60',
+        ...corsHeaders
       }
     });
   }
@@ -50,7 +54,8 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60'
+        'Cache-Control': 'public, max-age=60',
+        ...corsHeaders
       }
     });
     
@@ -60,7 +65,8 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60'
+        'Cache-Control': 'public, max-age=60',
+        ...corsHeaders
       }
     });
   }
@@ -236,7 +242,8 @@ export async function getDocuments(request: Request, env: Env): Promise<Response
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=60'
+        'Cache-Control': 'public, max-age=60',
+        ...corsHeaders
       }
     });
     
@@ -340,6 +347,8 @@ export async function ndaStatsHandler(request: Request, env: Env): Promise<Respo
   const url = new URL(request.url);
   const userId = url.searchParams.get('userId') || '1';
   const sql = getDb(env);
+  const origin = request.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
   
   const defaultResponse = {
     success: true,
@@ -357,7 +366,8 @@ export async function ndaStatsHandler(request: Request, env: Env): Promise<Respo
       status: 200,
       headers: { 
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=120'
+        'Cache-Control': 'public, max-age=120',
+        ...corsHeaders
       }
     });
   }
