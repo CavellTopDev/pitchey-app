@@ -684,8 +684,150 @@ class RouteRegistry {
     this.register('GET', '/api/follows/followers', (req) => followersHandler(req, this.env));
     this.register('GET', '/api/follows/following', (req) => followingHandler(req, this.env));
     
-    // Creator funding routes (missing endpoints)
+    // === CREATOR PORTAL ROUTES (Phase 3) ===
+    // Revenue Dashboard
+    this.register('GET', '/api/creator/revenue', async (req) => {
+      const { creatorRevenueHandler } = await import('./handlers/creator-dashboard');
+      return creatorRevenueHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/revenue/trends', async (req) => {
+      const { creatorRevenueTrendsHandler } = await import('./handlers/creator-dashboard');
+      return creatorRevenueTrendsHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/revenue/breakdown', async (req) => {
+      const { creatorRevenueBreakdownHandler } = await import('./handlers/creator-dashboard');
+      return creatorRevenueBreakdownHandler(req, this.env);
+    });
+    
+    // Contract Management
+    this.register('GET', '/api/creator/contracts', async (req) => {
+      const { creatorContractsHandler } = await import('./handlers/creator-dashboard');
+      return creatorContractsHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/contracts/:id', async (req) => {
+      const { creatorContractDetailsHandler } = await import('./handlers/creator-dashboard');
+      return creatorContractDetailsHandler(req, this.env);
+    });
+    this.register('PUT', '/api/creator/contracts/:id', async (req) => {
+      const { creatorContractUpdateHandler } = await import('./handlers/creator-dashboard');
+      return creatorContractUpdateHandler(req, this.env);
+    });
+    
+    // Pitch Analytics
+    this.register('GET', '/api/creator/analytics/pitches', async (req) => {
+      const { creatorPitchAnalyticsHandler } = await import('./handlers/creator-dashboard');
+      return creatorPitchAnalyticsHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/analytics/engagement', async (req) => {
+      const { creatorEngagementHandler } = await import('./handlers/creator-dashboard');
+      return creatorEngagementHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/analytics/demographics', async (req) => {
+      const { creatorDemographicsHandler } = await import('./handlers/creator-dashboard');
+      return creatorDemographicsHandler(req, this.env);
+    });
+    
+    // Investor Relations
+    this.register('GET', '/api/creator/investors', async (req) => {
+      const { creatorInvestorsHandler } = await import('./handlers/creator-dashboard');
+      return creatorInvestorsHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/investors/:id/communication', async (req) => {
+      const { creatorInvestorCommunicationHandler } = await import('./handlers/creator-dashboard');
+      return creatorInvestorCommunicationHandler(req, this.env);
+    });
+    this.register('POST', '/api/creator/investors/:id/message', async (req) => {
+      const { creatorMessageInvestorHandler } = await import('./handlers/creator-dashboard');
+      return creatorMessageInvestorHandler(req, this.env);
+    });
+    
+    // Creator funding routes (existing)
     this.register('GET', '/api/creator/funding/overview', this.getFundingOverview.bind(this));
+    
+    // === PRODUCTION PORTAL ROUTES (Phase 4) ===
+    // Talent Discovery
+    this.register('GET', '/api/production/talent/search', async (req) => {
+      const { productionTalentSearchHandler } = await import('./handlers/production-dashboard');
+      return productionTalentSearchHandler(req, this.env);
+    });
+    this.register('GET', '/api/production/talent/:id', async (req) => {
+      const { productionTalentDetailsHandler } = await import('./handlers/production-dashboard');
+      return productionTalentDetailsHandler(req, this.env);
+    });
+    this.register('POST', '/api/production/talent/:id/contact', async (req) => {
+      const { productionTalentContactHandler } = await import('./handlers/production-dashboard');
+      return productionTalentContactHandler(req, this.env);
+    });
+    
+    // Project Pipeline
+    this.register('GET', '/api/production/pipeline', async (req) => {
+      const { productionPipelineHandler } = await import('./handlers/production-dashboard');
+      return productionPipelineHandler(req, this.env);
+    });
+    this.register('GET', '/api/production/pipeline/:id', async (req) => {
+      const { productionProjectDetailsHandler } = await import('./handlers/production-dashboard');
+      return productionProjectDetailsHandler(req, this.env);
+    });
+    this.register('PUT', '/api/production/pipeline/:id/status', async (req) => {
+      const { productionProjectStatusHandler } = await import('./handlers/production-dashboard');
+      return productionProjectStatusHandler(req, this.env);
+    });
+    
+    // Budget Management
+    this.register('GET', '/api/production/budget/:projectId', async (req) => {
+      const { productionBudgetHandler } = await import('./handlers/production-dashboard');
+      return productionBudgetHandler(req, this.env);
+    });
+    this.register('PUT', '/api/production/budget/:projectId', async (req) => {
+      const { productionBudgetUpdateHandler } = await import('./handlers/production-dashboard');
+      return productionBudgetUpdateHandler(req, this.env);
+    });
+    this.register('GET', '/api/production/budget/:projectId/variance', async (req) => {
+      const { productionBudgetVarianceHandler } = await import('./handlers/production-dashboard');
+      return productionBudgetVarianceHandler(req, this.env);
+    });
+    
+    // Shooting Schedule
+    this.register('GET', '/api/production/schedule/:projectId', async (req) => {
+      const { productionScheduleHandler } = await import('./handlers/production-dashboard');
+      return productionScheduleHandler(req, this.env);
+    });
+    this.register('PUT', '/api/production/schedule/:projectId', async (req) => {
+      const { productionScheduleUpdateHandler } = await import('./handlers/production-dashboard');
+      return productionScheduleUpdateHandler(req, this.env);
+    });
+    this.register('GET', '/api/production/schedule/:projectId/conflicts', async (req) => {
+      const { productionScheduleConflictsHandler } = await import('./handlers/production-dashboard');
+      return productionScheduleConflictsHandler(req, this.env);
+    });
+    
+    // Location Scouting
+    this.register('GET', '/api/production/locations/search', async (req) => {
+      const { productionLocationSearchHandler } = await import('./handlers/production-dashboard');
+      return productionLocationSearchHandler(req, this.env);
+    });
+    this.register('GET', '/api/production/locations/:id', async (req) => {
+      const { productionLocationDetailsHandler } = await import('./handlers/production-dashboard');
+      return productionLocationDetailsHandler(req, this.env);
+    });
+    this.register('POST', '/api/production/locations/:id/book', async (req) => {
+      const { productionLocationBookHandler } = await import('./handlers/production-dashboard');
+      return productionLocationBookHandler(req, this.env);
+    });
+    
+    // Crew Assembly
+    this.register('GET', '/api/production/crew/search', async (req) => {
+      const { productionCrewSearchHandler } = await import('./handlers/production-dashboard');
+      return productionCrewSearchHandler(req, this.env);
+    });
+    this.register('GET', '/api/production/crew/:id', async (req) => {
+      const { productionCrewDetailsHandler } = await import('./handlers/production-dashboard');
+      return productionCrewDetailsHandler(req, this.env);
+    });
+    this.register('POST', '/api/production/crew/:id/hire', async (req) => {
+      const { productionCrewHireHandler } = await import('./handlers/production-dashboard');
+      return productionCrewHireHandler(req, this.env);
+    });
     
     // NDA stats route - use resilient handler
     this.register('GET', '/api/ndas/stats', (req) => ndaStatsHandler(req, this.env));

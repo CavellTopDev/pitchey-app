@@ -277,6 +277,7 @@ export async function togglePitchLike(
 }
 
 // Browse and discovery queries
+// FIXED: Trending tab - Only shows pitches with >100 views in last 7 days
 export async function getTrendingPitches(
   sql: SqlQuery,
   limit: number = 20,
@@ -293,13 +294,15 @@ export async function getTrendingPitches(
     LEFT JOIN users u ON p.creator_id = u.id
     WHERE p.status = 'published' 
       AND p.visibility IN ('public', 'investors_only')
-      AND p.published_at > NOW() - INTERVAL '30 days'
-    ORDER BY engagement_score DESC, p.published_at DESC
+      AND p.view_count > 100
+      AND p.published_at > NOW() - INTERVAL '7 days'
+    ORDER BY engagement_score DESC, p.view_count DESC, p.published_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
   return extractMany<Pitch>(result);
 }
 
+// FIXED: New tab - Only shows pitches from last 30 days, excludes trending
 export async function getNewPitches(
   sql: SqlQuery,
   limit: number = 20,
@@ -315,6 +318,8 @@ export async function getNewPitches(
     LEFT JOIN users u ON p.creator_id = u.id
     WHERE p.status = 'published' 
       AND p.visibility IN ('public', 'investors_only')
+      AND p.published_at > NOW() - INTERVAL '30 days'
+      AND (p.view_count <= 100 OR p.published_at <= NOW() - INTERVAL '7 days')
     ORDER BY p.published_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
