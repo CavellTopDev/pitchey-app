@@ -1,6 +1,6 @@
 # Raw SQL Worker configuration for ndlovucavelle
-name = "pitchey-api-test-ndlovucavelle"
-main = "src/worker-ndlovucavelle.ts"
+name = "pitchey-api-prod"
+main = "src/worker-integrated.ts"
 compatibility_date = "2024-11-01"
 account_id = "002bd5c0e90ae753a387c60546cf6869"
 
