@@ -35,6 +35,18 @@ import {
   removeTeamMemberHandler
 } from './handlers/teams';
 
+// Import settings management handlers
+import {
+  getUserSettingsHandler,
+  updateUserSettingsHandler,
+  getUserSessionsHandler,
+  getAccountActivityHandler,
+  enableTwoFactorHandler,
+  disableTwoFactorHandler,
+  deleteAccountHandler,
+  logSessionHandler
+} from './handlers/settings';
+
 // Import new services
 import { WorkerDatabase } from './services/worker-database';
 import { WorkerEmailService } from './services/worker-email';
@@ -696,6 +708,16 @@ class RouteRegistry {
     this.register('GET', '/api/teams/invites', (req) => getInvitationsHandler(req, this.env));
     this.register('POST', '/api/teams/invites/:id/accept', (req) => acceptInvitationHandler(req, this.env));
     this.register('POST', '/api/teams/invites/:id/reject', (req) => rejectInvitationHandler(req, this.env));
+    
+    // Settings Management routes
+    this.register('GET', '/api/user/settings', (req) => getUserSettingsHandler(req, this.env));
+    this.register('PUT', '/api/user/settings', (req) => updateUserSettingsHandler(req, this.env));
+    this.register('GET', '/api/user/sessions', (req) => getUserSessionsHandler(req, this.env));
+    this.register('GET', '/api/user/activity', (req) => getAccountActivityHandler(req, this.env));
+    this.register('POST', '/api/user/two-factor/enable', (req) => enableTwoFactorHandler(req, this.env));
+    this.register('POST', '/api/user/two-factor/disable', (req) => disableTwoFactorHandler(req, this.env));
+    this.register('DELETE', '/api/user/account', (req) => deleteAccountHandler(req, this.env));
+    this.register('POST', '/api/user/session/log', (req) => logSessionHandler(req, this.env));
     this.register('GET', '/api/teams/:id', (req) => getTeamByIdHandler(req, this.env));
     this.register('PUT', '/api/teams/:id', (req) => updateTeamHandler(req, this.env));
     this.register('DELETE', '/api/teams/:id', (req) => deleteTeamHandler(req, this.env));
@@ -1144,22 +1166,18 @@ class RouteRegistry {
           );
         }
         
-        // For backward compatibility, also generate a JWT token
-        // Simple JWT generation inline
-        const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-        const payload = btoa(JSON.stringify({
-          sub: user.id.toString(),
-          email: user.email,
-          name: user.username || user.email.split('@')[0],
-          userType: portal,
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days
-          jti: crypto.randomUUID()
-        }));
-        
-        // For now, use a simple token format (not cryptographically signed)
-        // In production, you'd want to use proper HMAC signing
-        const token = `${header}.${payload}.${btoa('signature')}`;
+        // For backward compatibility, also generate a properly signed JWT token
+        const jwtSecret = this.env.JWT_SECRET || 'test-secret-key-for-development';
+        const token = await createJWT(
+          {
+            sub: user.id.toString(),
+            email: user.email,
+            name: user.username || user.email.split('@')[0],
+            userType: portal
+          },
+          jwtSecret,
+          7 * 24 * 60 * 60 // 7 days in seconds
+        );
         
         // Return response with both session cookie and JWT token
         const origin = request.headers.get('Origin');

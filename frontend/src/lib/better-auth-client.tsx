@@ -3,6 +3,7 @@
  * Migrated from JWT to session-based authentication
  */
 
+import React from 'react';
 import { createAuthClient } from 'better-auth/react';
 import { organizationClient } from 'better-auth/client/plugins';
 import { adminClient } from 'better-auth/client/plugins';
@@ -269,6 +270,11 @@ export async function getCurrentUser(): Promise<any> {
 }
 
 /**
+ * Export portal auth instance for use in stores
+ */
+export const portalAuth = createPortalAuthMethods();
+
+/**
  * Higher-order component for authentication checking
  */
 export function withBetterAuth<T extends object>(
@@ -327,6 +333,3 @@ export function withBetterAuth<T extends object>(
     return <WrappedComponent {...props} />;
   };
 }
-
-// Export the portal auth methods instance
-export const portalAuth = createPortalAuthMethods();

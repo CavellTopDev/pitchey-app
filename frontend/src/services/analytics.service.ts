@@ -113,25 +113,126 @@ export interface ComparisonData {
 }
 
 export class AnalyticsService {
+  // Default fallback data to prevent infinite polling loops
+  private static getDefaultPitchAnalytics(pitchId: number): PitchAnalytics {
+    return {
+      pitchId,
+      title: 'Analytics Unavailable',
+      views: 0,
+      uniqueViews: 0,
+      likes: 0,
+      shares: 0,
+      ndaRequests: 0,
+      ndaApproved: 0,
+      messages: 0,
+      avgViewDuration: 0,
+      bounceRate: 0,
+      conversionRate: 0,
+      engagementRate: 0,
+      viewsByDate: [],
+      viewsBySource: [],
+      viewsByLocation: [],
+      viewerDemographics: {
+        userType: [],
+        industry: [],
+      }
+    };
+  }
+
+  private static getDefaultUserAnalytics(userId: number): UserAnalytics {
+    return {
+      userId,
+      username: 'Analytics Unavailable',
+      totalPitches: 0,
+      publishedPitches: 0,
+      totalViews: 0,
+      totalLikes: 0,
+      totalFollowers: 0,
+      totalNDAs: 0,
+      avgEngagement: 0,
+      topPitches: [],
+      growthMetrics: [],
+      audienceInsights: {
+        topLocations: [],
+        topUserTypes: [],
+        peakActivity: [],
+      }
+    };
+  }
+
+  private static getDefaultDashboardMetrics(): DashboardMetrics {
+    return {
+      overview: {
+        totalViews: 0,
+        totalLikes: 0,
+        totalFollowers: 0,
+        totalPitches: 0,
+        viewsChange: 0,
+        likesChange: 0,
+        followersChange: 0,
+        pitchesChange: 0,
+      },
+      performance: {
+        topPitches: [],
+        recentActivity: [],
+        engagementTrend: [],
+      },
+      revenue: {
+        total: 0,
+        subscriptions: 0,
+        transactions: 0,
+        growth: 0,
+      }
+    };
+  }
   // Get pitch analytics
   static async getPitchAnalytics(
     pitchId: number, 
     timeRange?: TimeRange
   ): Promise<PitchAnalytics> {
-    const params = new URLSearchParams();
-    if (timeRange?.start) params.append('start', timeRange.start);
-    if (timeRange?.end) params.append('end', timeRange.end);
-    if (timeRange?.preset) params.append('preset', timeRange.preset);
+    try {
+      const params = new URLSearchParams();
+      if (timeRange?.start) params.append('start', timeRange.start);
+      if (timeRange?.end) params.append('end', timeRange.end);
+      if (timeRange?.preset) params.append('preset', timeRange.preset);
 
-    const response = await apiClient.get<{ success: boolean; analytics: PitchAnalytics }>(
-      `/api/analytics/pitch/${pitchId}?${params}`
-    );
+      const response = await apiClient.get<{ success: boolean; data: { analytics: any } }>(
+        `/api/analytics/pitch/${pitchId}?${params}`
+      );
 
-    if (!response.success || !response.data?.analytics) {
-      throw new Error(response.error?.message || 'Failed to fetch pitch analytics');
+      if (!response.success || !response.data?.data?.analytics) {
+        console.warn('Pitch analytics not available:', response.error?.message);
+        return this.getDefaultPitchAnalytics(pitchId);
+      }
+
+      // Transform the API response to match the expected interface
+      const apiAnalytics = response.data.data.analytics;
+      return {
+        pitchId,
+        title: apiAnalytics.title || 'Untitled Pitch',
+        views: apiAnalytics.views || 0,
+        uniqueViews: apiAnalytics.uniqueViews || 0,
+        likes: apiAnalytics.likes || 0,
+        shares: apiAnalytics.shares || 0,
+        ndaRequests: apiAnalytics.ndaRequests || 0,
+        ndaApproved: apiAnalytics.ndaApproved || 0,
+        messages: apiAnalytics.messages || 0,
+        avgViewDuration: apiAnalytics.avgViewDuration || 0,
+        bounceRate: apiAnalytics.bounceRate || 0,
+        conversionRate: apiAnalytics.conversionRate || 0,
+        engagementRate: apiAnalytics.engagementRate || 0,
+        viewsByDate: apiAnalytics.viewsByDate || [],
+        viewsBySource: apiAnalytics.viewsBySource || [],
+        viewsByLocation: apiAnalytics.viewsByLocation || [],
+        viewerDemographics: {
+          userType: apiAnalytics.viewerDemographics?.userType || [],
+          industry: apiAnalytics.viewerDemographics?.industry || [],
+        }
+      };
+    } catch (error) {
+      console.error('Failed to fetch pitch analytics:', error);
+      return this.getDefaultPitchAnalytics(pitchId);
     }
-
-    return response.data.analytics;
   }
 
   // Get user analytics
@@ -139,39 +240,96 @@ export class AnalyticsService {
     userId?: number,
     timeRange?: TimeRange
   ): Promise<UserAnalytics> {
-    const params = new URLSearchParams();
-    if (timeRange?.start) params.append('start', timeRange.start);
-    if (timeRange?.end) params.append('end', timeRange.end);
-    if (timeRange?.preset) params.append('preset', timeRange.preset);
+    try {
+      const params = new URLSearchParams();
+      if (timeRange?.start) params.append('start', timeRange.start);
+      if (timeRange?.end) params.append('end', timeRange.end);
+      if (timeRange?.preset) params.append('preset', timeRange.preset);
 
-    const endpoint = userId ? `/api/analytics/user/${userId}` : '/api/analytics/user';
-    const response = await apiClient.get<{ success: boolean; analytics: UserAnalytics }>(
-      `${endpoint}?${params}`
-    );
+      const endpoint = userId ? `/api/analytics/user/${userId}` : '/api/analytics/user';
+      const response = await apiClient.get<{ success: boolean; data: { analytics: any } }>(
+        `${endpoint}?${params}`
+      );
 
-    if (!response.success || !response.data?.analytics) {
-      throw new Error(response.error?.message || 'Failed to fetch user analytics');
+      if (!response.success || !response.data?.data?.analytics) {
+        console.warn('User analytics not available:', response.error?.message);
+        return this.getDefaultUserAnalytics(userId || 1);
+      }
+
+      // Transform the API response to match the expected interface
+      const apiAnalytics = response.data.data.analytics;
+      
+      return {
+        userId: userId || 1,
+        username: apiAnalytics.username || 'User',
+        totalPitches: apiAnalytics.totalPitches || 0,
+        publishedPitches: apiAnalytics.publishedPitches || 0,
+        totalViews: apiAnalytics.profileViews || apiAnalytics.pitchViews || 0,
+        totalLikes: apiAnalytics.totalLikes || 0,
+        totalFollowers: apiAnalytics.totalFollowers || 0,
+        totalNDAs: apiAnalytics.totalNDAs || 0,
+        avgEngagement: apiAnalytics.engagement || 0,
+        topPitches: apiAnalytics.topPitches || [],
+        growthMetrics: apiAnalytics.growthMetrics || [],
+        audienceInsights: {
+          topLocations: apiAnalytics.audienceInsights?.topLocations || [],
+          topUserTypes: apiAnalytics.audienceInsights?.topUserTypes || [],
+          peakActivity: apiAnalytics.audienceInsights?.peakActivity || [],
+        }
+      };
+    } catch (error) {
+      console.error('Failed to fetch user analytics:', error);
+      return this.getDefaultUserAnalytics(userId || 1);
     }
-
-    return response.data.analytics;
   }
 
   // Get dashboard metrics
   static async getDashboardMetrics(timeRange?: TimeRange): Promise<DashboardMetrics> {
-    const params = new URLSearchParams();
-    if (timeRange?.start) params.append('start', timeRange.start);
-    if (timeRange?.end) params.append('end', timeRange.end);
-    if (timeRange?.preset) params.append('preset', timeRange.preset);
+    try {
+      const params = new URLSearchParams();
+      if (timeRange?.start) params.append('start', timeRange.start);
+      if (timeRange?.end) params.append('end', timeRange.end);
+      if (timeRange?.preset) params.append('preset', timeRange.preset);
 
-    const response = await apiClient.get<{ success: boolean; metrics: DashboardMetrics }>(
-      `/api/analytics/dashboard?${params}`
-    );
+      const response = await apiClient.get<{ success: boolean; data: { metrics: any } }>(
+        `/api/analytics/dashboard?${params}`
+      );
 
-    if (!response.success || !response.data?.metrics) {
-      throw new Error(response.error?.message || 'Failed to fetch dashboard metrics');
+      if (!response.success || !response.data?.data?.metrics) {
+        console.warn('Dashboard metrics not available:', response.error?.message);
+        return this.getDefaultDashboardMetrics();
+      }
+
+      // Transform the API response to match the expected interface
+      const apiMetrics = response.data.data.metrics;
+      
+      return {
+        overview: {
+          totalViews: apiMetrics.totalViews || 0,
+          totalLikes: apiMetrics.totalLikes || 0,
+          totalFollowers: apiMetrics.totalFollowers || 0,
+          totalPitches: apiMetrics.totalPitches || 0,
+          viewsChange: apiMetrics.viewsChange || 0,
+          likesChange: apiMetrics.likesChange || 0,
+          followersChange: apiMetrics.followersChange || 0,
+          pitchesChange: apiMetrics.pitchesChange || 0,
+        },
+        performance: {
+          topPitches: apiMetrics.topPitches || [],
+          recentActivity: apiMetrics.recentActivity || [],
+          engagementTrend: apiMetrics.engagementTrend || [],
+        },
+        revenue: {
+          total: apiMetrics.revenue || 0,
+          subscriptions: apiMetrics.subscriptions || 0,
+          transactions: apiMetrics.transactions || 0,
+          growth: apiMetrics.growth || 0,
+        }
+      };
+    } catch (error) {
+      console.error('Failed to fetch dashboard metrics:', error);
+      return this.getDefaultDashboardMetrics();
     }
-
-    return response.data.metrics;
   }
 
   // Get activity feed
@@ -182,27 +340,35 @@ export class AnalyticsService {
     limit?: number;
     offset?: number;
   }): Promise<{ activities: Activity[]; total: number }> {
-    const params = new URLSearchParams();
-    if (options?.userId) params.append('userId', options.userId.toString());
-    if (options?.pitchId) params.append('pitchId', options.pitchId.toString());
-    if (options?.type) params.append('type', options.type);
-    if (options?.limit) params.append('limit', options.limit.toString());
-    if (options?.offset) params.append('offset', options.offset.toString());
+    try {
+      const params = new URLSearchParams();
+      if (options?.userId) params.append('userId', options.userId.toString());
+      if (options?.pitchId) params.append('pitchId', options.pitchId.toString());
+      if (options?.type) params.append('type', options.type);
+      if (options?.limit) params.append('limit', options.limit.toString());
+      if (options?.offset) params.append('offset', options.offset.toString());
 
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      activities: Activity[]; 
-      total: number 
-    }>(`/api/analytics/activity?${params}`);
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        data?: { activities: Activity[]; total: number };
+        activities?: Activity[]; 
+        total?: number 
+      }>(`/api/analytics/activity?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch activity feed');
+      if (!response.success) {
+        console.warn('Activity feed not available:', response.error?.message);
+        return { activities: [], total: 0 };
+      }
+
+      // Handle both nested and flat response structures
+      const activities = response.data?.data?.activities || response.data?.activities || [];
+      const total = response.data?.data?.total || response.data?.total || 0;
+
+      return { activities, total };
+    } catch (error) {
+      console.error('Failed to fetch activity feed:', error);
+      return { activities: [], total: 0 };
     }
-
-    return {
-      activities: response.data?.activities || [],
-      total: response.data?.total || 0
-    };
   }
 
   // Track event
@@ -212,13 +378,18 @@ export class AnalyticsService {
     entityId: number;
     metadata?: any;
   }): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/analytics/track',
-      event
-    );
+    try {
+      const response = await apiClient.post<{ success: boolean }>(
+        '/api/analytics/track',
+        event
+      );
 
-    if (!response.success) {
-      console.error('Failed to track event:', response.error?.message);
+      if (!response.success) {
+        console.warn('Failed to track event:', response.error?.message);
+      }
+    } catch (error) {
+      // Silently fail for tracking events to prevent disrupting user experience
+      console.warn('Event tracking failed:', error);
     }
   }
 
@@ -284,20 +455,29 @@ export class AnalyticsService {
     limit?: number;
     genre?: string;
   }): Promise<PitchAnalytics[]> {
-    const params = new URLSearchParams();
-    if (options?.period) params.append('period', options.period);
-    if (options?.limit) params.append('limit', options.limit.toString());
-    if (options?.genre) params.append('genre', options.genre);
+    try {
+      const params = new URLSearchParams();
+      if (options?.period) params.append('period', options.period);
+      if (options?.limit) params.append('limit', options.limit.toString());
+      if (options?.genre) params.append('genre', options.genre);
 
-    const response = await apiClient.get<{ success: boolean; pitches: PitchAnalytics[] }>(
-      `/api/analytics/trending?${params}`
-    );
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        data?: { pitches: PitchAnalytics[] };
+        pitches?: PitchAnalytics[] 
+      }>(`/api/analytics/trending?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch trending pitches');
+      if (!response.success) {
+        console.warn('Trending pitches not available:', response.error?.message);
+        return [];
+      }
+
+      // Handle both nested and flat response structures
+      return response.data?.data?.pitches || response.data?.pitches || [];
+    } catch (error) {
+      console.error('Failed to fetch trending pitches:', error);
+      return [];
     }
-
-    return response.data?.pitches || [];
   }
 
   // Get engagement metrics
