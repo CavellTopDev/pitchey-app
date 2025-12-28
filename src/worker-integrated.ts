@@ -20,6 +20,21 @@ import { productionDashboardHandler } from './handlers/production-dashboard';
 import { followersHandler, followingHandler } from './handlers/follows';
 import { ndaHandler, ndaStatsHandler } from './handlers/nda';
 
+// Import team management handlers
+import {
+  getTeamsHandler,
+  getTeamByIdHandler,
+  createTeamHandler,
+  updateTeamHandler,
+  deleteTeamHandler,
+  inviteToTeamHandler,
+  getInvitationsHandler,
+  acceptInvitationHandler,
+  rejectInvitationHandler,
+  updateMemberRoleHandler,
+  removeTeamMemberHandler
+} from './handlers/teams';
+
 // Import new services
 import { WorkerDatabase } from './services/worker-database';
 import { WorkerEmailService } from './services/worker-email';
@@ -674,6 +689,19 @@ class RouteRegistry {
     this.register('GET', '/api/creator/dashboard', (req) => creatorDashboardHandler(req, this.env));
     this.register('GET', '/api/investor/dashboard', (req) => investorDashboardHandler(req, this.env));
     this.register('GET', '/api/production/dashboard', (req) => productionDashboardHandler(req, this.env));
+    
+    // Team Management routes
+    this.register('GET', '/api/teams', (req) => getTeamsHandler(req, this.env));
+    this.register('POST', '/api/teams', (req) => createTeamHandler(req, this.env));
+    this.register('GET', '/api/teams/invites', (req) => getInvitationsHandler(req, this.env));
+    this.register('POST', '/api/teams/invites/:id/accept', (req) => acceptInvitationHandler(req, this.env));
+    this.register('POST', '/api/teams/invites/:id/reject', (req) => rejectInvitationHandler(req, this.env));
+    this.register('GET', '/api/teams/:id', (req) => getTeamByIdHandler(req, this.env));
+    this.register('PUT', '/api/teams/:id', (req) => updateTeamHandler(req, this.env));
+    this.register('DELETE', '/api/teams/:id', (req) => deleteTeamHandler(req, this.env));
+    this.register('POST', '/api/teams/:id/invite', (req) => inviteToTeamHandler(req, this.env));
+    this.register('PUT', '/api/teams/:teamId/members/:memberId', (req) => updateMemberRoleHandler(req, this.env));
+    this.register('DELETE', '/api/teams/:teamId/members/:memberId', (req) => removeTeamMemberHandler(req, this.env));
     
     // Analytics routes (missing endpoints)
     this.register('GET', '/api/analytics/dashboard', this.getAnalyticsDashboard.bind(this));
