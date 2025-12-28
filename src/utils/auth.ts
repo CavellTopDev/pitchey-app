@@ -19,14 +19,41 @@ export interface AuthResult {
 }
 
 /**
- * Verify authentication using Better Auth session
+ * Verify authentication using Better Auth session or JWT token
  */
 export async function verifyAuth(request: Request, env: Env): Promise<AuthResult> {
   try {
-    // Get session cookie
+    // First check for JWT token in Authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      // Import JWT verification
+      const { verifyJWT } = await import('./worker-jwt');
+      
+      try {
+        const payload = await verifyJWT(token, env.JWT_SECRET || 'test-secret-key-for-development');
+        
+        if (payload) {
+          return {
+            success: true,
+            user: {
+              id: parseInt(payload.sub || payload.userId || '0'),
+              email: payload.email,
+              username: payload.name || payload.username,
+              userType: payload.userType
+            }
+          };
+        }
+      } catch (jwtError) {
+        console.error('JWT verification failed:', jwtError);
+      }
+    }
+    
+    // Fallback to Better Auth session cookie
     const cookieHeader = request.headers.get('Cookie');
     if (!cookieHeader) {
-      return { success: false, error: 'No session cookie' };
+      return { success: false, error: 'No authentication token or session' };
     }
 
     // Parse cookies

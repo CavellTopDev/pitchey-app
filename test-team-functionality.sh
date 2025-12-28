@@ -14,16 +14,18 @@ echo ""
 echo "1️⃣ Logging in as creator..."
 LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" \
-  -c cookies.txt)
+  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
 
 echo "Login response: $LOGIN_RESPONSE"
+
+# Extract JWT token
+TOKEN=$(echo "$LOGIN_RESPONSE" | grep -oP '"token":\s*"[^"]+' | cut -d'"' -f4)
 
 echo ""
 echo "2️⃣ Testing GET /api/teams - List teams..."
 TEAMS_RESPONSE=$(curl -s -X GET "$API_URL/api/teams" \
   -H "Content-Type: application/json" \
-  -b cookies.txt)
+  -H "Authorization: Bearer $TOKEN")
 
 echo "Teams list response:"
 echo "$TEAMS_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$TEAMS_RESPONSE"
@@ -32,7 +34,7 @@ echo ""
 echo "3️⃣ Testing POST /api/teams - Create new team..."
 CREATE_RESPONSE=$(curl -s -X POST "$API_URL/api/teams" \
   -H "Content-Type: application/json" \
-  -b cookies.txt \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "name": "Test Production Team",
     "description": "A test team for movie production collaboration",
@@ -53,7 +55,7 @@ if [ ! -z "$TEAM_ID" ]; then
     echo "4️⃣ Testing GET /api/teams/$TEAM_ID - Get team details..."
     TEAM_DETAILS=$(curl -s -X GET "$API_URL/api/teams/$TEAM_ID" \
       -H "Content-Type: application/json" \
-      -b cookies.txt)
+      -H "Authorization: Bearer $TOKEN")
     
     echo "Team details response:"
     echo "$TEAM_DETAILS" | python3 -m json.tool 2>/dev/null || echo "$TEAM_DETAILS"
@@ -62,7 +64,7 @@ if [ ! -z "$TEAM_ID" ]; then
     echo "5️⃣ Testing POST /api/teams/$TEAM_ID/invite - Send invitation..."
     INVITE_RESPONSE=$(curl -s -X POST "$API_URL/api/teams/$TEAM_ID/invite" \
       -H "Content-Type: application/json" \
-      -b cookies.txt \
+      -H "Authorization: Bearer $TOKEN" \
       -d '{
         "email": "sarah.investor@demo.com",
         "role": "viewer",
@@ -76,7 +78,7 @@ if [ ! -z "$TEAM_ID" ]; then
     echo "6️⃣ Testing PUT /api/teams/$TEAM_ID - Update team..."
     UPDATE_RESPONSE=$(curl -s -X PUT "$API_URL/api/teams/$TEAM_ID" \
       -H "Content-Type: application/json" \
-      -b cookies.txt \
+      -H "Authorization: Bearer $TOKEN" \
       -d '{
         "description": "Updated description for the test team",
         "visibility": "team"
@@ -90,14 +92,15 @@ if [ ! -z "$TEAM_ID" ]; then
     echo "Switching to investor account..."
     
     # Login as investor to check invitations
-    curl -s -X POST "$API_URL/api/auth/login" \
+    INVESTOR_LOGIN=$(curl -s -X POST "$API_URL/api/auth/login" \
       -H "Content-Type: application/json" \
-      -d '{"email":"sarah.investor@demo.com","password":"Demo123"}' \
-      -c cookies2.txt > /dev/null
+      -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
+    
+    INVESTOR_TOKEN=$(echo "$INVESTOR_LOGIN" | grep -oP '"token":\s*"[^"]+' | cut -d'"' -f4)
     
     INVITES_RESPONSE=$(curl -s -X GET "$API_URL/api/teams/invites" \
       -H "Content-Type: application/json" \
-      -b cookies2.txt)
+      -H "Authorization: Bearer $INVESTOR_TOKEN")
     
     echo "Pending invitations response:"
     echo "$INVITES_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$INVITES_RESPONSE"
@@ -106,7 +109,7 @@ if [ ! -z "$TEAM_ID" ]; then
     echo "8️⃣ Cleanup: Deleting test team..."
     DELETE_RESPONSE=$(curl -s -X DELETE "$API_URL/api/teams/$TEAM_ID" \
       -H "Content-Type: application/json" \
-      -b cookies.txt)
+      -H "Authorization: Bearer $TOKEN")
     
     echo "Delete response:"
     echo "$DELETE_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$DELETE_RESPONSE"
@@ -114,8 +117,7 @@ else
     echo "❌ Failed to create team"
 fi
 
-# Cleanup
-rm -f cookies.txt cookies2.txt
+# No cookie files to cleanup anymore
 
 echo ""
 echo "✅ Team management functionality test complete!"
