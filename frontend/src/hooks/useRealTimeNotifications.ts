@@ -132,8 +132,9 @@ export function useRealTimeNotifications() {
 
     const pollNotifications = async () => {
       try {
-        // Fetch recent notifications from API
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/notifications/unread`, {
+        // Fetch recent notifications from API - use config for proper URL
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+        const response = await fetch(`${apiUrl}/api/notifications/unread`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
