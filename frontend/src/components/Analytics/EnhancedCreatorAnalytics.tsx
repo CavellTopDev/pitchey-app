@@ -194,7 +194,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
             { type: 'Directors', count: 15 },
             { type: 'Creators', count: 10 },
           ],
-          topPitches: userAnalytics.topPitches.map(pitch => ({
+          topPitches: (userAnalytics.topPitches || []).map(pitch => ({
             title: pitch.title,
             views: pitch.views,
             engagement: pitch.engagement,

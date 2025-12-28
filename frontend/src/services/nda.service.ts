@@ -353,13 +353,14 @@ export class NDAService {
   // Get NDA statistics
   static async getNDAStats(pitchId?: number): Promise<NDAStats> {
     const endpoint = pitchId ? `/api/ndas/stats/${pitchId}` : '/api/ndas/stats';
-    const response = await apiClient.get<ApiResponse<{ stats: NDAStats }>>(endpoint);
+    const response = await apiClient.get<ApiResponse<NDAStats>>(endpoint);
 
-    if (!response.success || !response.data?.stats) {
+    if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to fetch NDA statistics');
     }
 
-    return response.data.stats;
+    // Handle both formats: data.stats (old) and direct data (new)
+    return (response.data as any).stats || response.data;
   }
 
   // Check if user can request NDA for pitch with business rule validation
