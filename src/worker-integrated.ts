@@ -576,6 +576,9 @@ class RouteRegistry {
     this.register('GET', '/api/notifications/unread', this.getUnreadNotifications.bind(this));
     this.register('GET', '/api/user/notifications', this.getUserNotifications.bind(this));
     
+    // Polling endpoint for free tier (combines multiple data sources)
+    this.register('GET', '/api/poll/all', this.handlePollAll.bind(this));
+    
     // Analytics realtime
     this.register('GET', '/api/analytics/realtime', this.getRealtimeAnalytics.bind(this));
 
@@ -843,7 +846,6 @@ class RouteRegistry {
     this.register('GET', '/api/poll/notifications', this.handlePollNotifications.bind(this));
     this.register('GET', '/api/poll/messages', this.handlePollMessages.bind(this));
     this.register('GET', '/api/poll/dashboard', this.handlePollDashboard.bind(this));
-    this.register('GET', '/api/poll/all', this.handlePollAll.bind(this));
     
     // === MONITORING ROUTES FOR FREE TIER ===
     this.register('GET', '/api/admin/metrics', this.handleGetMetrics.bind(this));
@@ -1137,16 +1139,18 @@ class RouteRegistry {
         
         return new Response(
           JSON.stringify({
-            success: true,
-            data: {
-              token, // For backward compatibility
-              user: {
-                id: user.id.toString(),
-                email: user.email,
-                name: user.username || user.email.split('@')[0],
-                userType: portal
-              }
-            }
+            user: {
+              id: user.id.toString(),
+              email: user.email,
+              name: user.username || user.email.split('@')[0],
+              userType: portal
+            },
+            session: {
+              id: sessionId,
+              expiresAt: expiresAt.toISOString()
+            },
+            token, // For backward compatibility
+            success: true
           }),
           {
             status: 200,
@@ -1250,20 +1254,18 @@ class RouteRegistry {
                 if (user) {
                   return new Response(
                     JSON.stringify({
-                      success: true,
-                      data: {
-                        user: {
-                          id: user.id.toString(),
-                          email: user.email,
-                          username: user.username,
-                          userType: user.user_type,
-                          firstName: user.first_name,
-                          lastName: user.last_name,
-                          companyName: user.company_name,
-                          profileImage: user.profile_image,
-                          subscriptionTier: user.subscription_tier
-                        }
-                      }
+                      user: {
+                        id: user.id.toString(),
+                        email: user.email,
+                        username: user.username,
+                        userType: user.user_type,
+                        firstName: user.first_name,
+                        lastName: user.last_name,
+                        companyName: user.company_name,
+                        profileImage: user.profile_image,
+                        subscriptionTier: user.subscription_tier
+                      },
+                      success: true
                     }),
                     {
                       status: 200,
@@ -1283,20 +1285,18 @@ class RouteRegistry {
           if (session) {
             return new Response(
               JSON.stringify({
-                success: true,
-                data: {
-                  user: {
-                    id: session.user_id.toString(),
-                    email: session.email,
-                    username: session.username,
-                    userType: session.user_type,
-                    firstName: session.first_name,
-                    lastName: session.last_name,
-                    companyName: session.company_name,
-                    profileImage: session.profile_image,
-                    subscriptionTier: session.subscription_tier
-                  }
-                }
+                user: {
+                  id: session.user_id.toString(),
+                  email: session.email,
+                  username: session.username,
+                  userType: session.user_type,
+                  firstName: session.first_name,
+                  lastName: session.last_name,
+                  companyName: session.company_name,
+                  profileImage: session.profile_image,
+                  subscriptionTier: session.subscription_tier
+                },
+                success: true
               }),
               {
                 status: 200,
@@ -3231,30 +3231,6 @@ class RouteRegistry {
     }
   }
 
-  private async handlePollAll(request: Request): Promise<Response> {
-    const authResult = await this.requireAuth(request);
-    if (!authResult.authorized) return authResult.response!;
-
-    try {
-      const polling = new PollingService(this.env);
-      const response = await polling.pollAll(
-        authResult.user.id,
-        authResult.user.role
-      );
-      
-      return new Response(JSON.stringify(response), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          ...getCorsHeaders(request.headers.get('Origin'))
-        }
-      });
-    } catch (error) {
-      return errorHandler(error, request);
-    }
-  }
-
   // === MONITORING HANDLERS FOR FREE TIER ===
   private async handleGetMetrics(request: Request): Promise<Response> {
     // Admin only endpoint
@@ -4174,6 +4150,125 @@ class RouteRegistry {
     } catch (error) {
       // Return empty array if notifications table doesn't exist
       return builder.success({ notifications: [] });
+    }
+  }
+
+  /**
+   * Combined polling endpoint for free tier
+   * Returns notifications, messages, and dashboard updates in a single request
+   */
+  private async handlePollAll(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+    const builder = new ApiResponseBuilder(request);
+    
+    try {
+      // Fetch multiple data sources in parallel
+      const [notifications, unreadCount, dashboardStats] = await Promise.all([
+        // Get recent notifications
+        this.db.query(`
+          SELECT id, type, title, message, created_at, read
+          FROM notifications
+          WHERE user_id = $1
+          ORDER BY created_at DESC
+          LIMIT 10
+        `, [authResult.user.id]).catch(() => []),
+        
+        // Get unread notification count
+        this.db.query(`
+          SELECT COUNT(*) as count
+          FROM notifications
+          WHERE user_id = $1 AND read = false
+        `, [authResult.user.id]).then(([result]) => result?.count || 0).catch(() => 0),
+        
+        // Get basic dashboard stats based on user type
+        this.getDashboardStatsForUser(authResult.user)
+      ]);
+
+      // Determine next poll interval based on activity
+      const hasNewNotifications = notifications.length > 0 && notifications.some((n: any) => !n.read);
+      const nextPollIn = hasNewNotifications ? 15000 : 30000; // 15s if new notifications, 30s otherwise
+
+      return builder.success({
+        notifications: notifications || [],
+        messages: [], // Messages would come from a messaging system if implemented
+        updates: [dashboardStats],
+        unreadCount: parseInt(unreadCount) || 0,
+        timestamp: Date.now(),
+        nextPollIn
+      });
+    } catch (error) {
+      console.error('Poll all error:', error);
+      // Return empty data on error to keep client polling
+      return builder.success({
+        notifications: [],
+        messages: [],
+        updates: [],
+        unreadCount: 0,
+        timestamp: Date.now(),
+        nextPollIn: 60000 // Poll less frequently on error
+      });
+    }
+  }
+
+  /**
+   * Get dashboard stats based on user type
+   */
+  private async getDashboardStatsForUser(user: any): Promise<any> {
+    try {
+      const userType = user.userType || user.user_type;
+      
+      if (userType === 'creator') {
+        const [pitchCount, viewCount] = await Promise.all([
+          this.db.query('SELECT COUNT(*) as count FROM pitches WHERE creator_id = $1', [user.id])
+            .then(([r]) => r?.count || 0).catch(() => 0),
+          this.db.query('SELECT SUM(view_count) as total FROM pitches WHERE creator_id = $1', [user.id])
+            .then(([r]) => r?.total || 0).catch(() => 0)
+        ]);
+        
+        return {
+          type: 'creator',
+          totalPitches: parseInt(pitchCount),
+          totalViews: parseInt(viewCount),
+          lastUpdated: new Date().toISOString()
+        };
+      } else if (userType === 'investor') {
+        const [investmentCount, savedCount] = await Promise.all([
+          this.db.query('SELECT COUNT(*) as count FROM investments WHERE investor_id = $1', [user.id])
+            .then(([r]) => r?.count || 0).catch(() => 0),
+          this.db.query('SELECT COUNT(*) as count FROM saved_pitches WHERE user_id = $1', [user.id])
+            .then(([r]) => r?.count || 0).catch(() => 0)
+        ]);
+        
+        return {
+          type: 'investor',
+          totalInvestments: parseInt(investmentCount),
+          savedPitches: parseInt(savedCount),
+          lastUpdated: new Date().toISOString()
+        };
+      } else if (userType === 'production') {
+        const [projectCount] = await Promise.all([
+          this.db.query('SELECT COUNT(*) as count FROM pitches WHERE status = $1', ['in_production'])
+            .then(([r]) => r?.count || 0).catch(() => 0)
+        ]);
+        
+        return {
+          type: 'production',
+          activeProjects: parseInt(projectCount),
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      
+      return {
+        type: userType || 'unknown',
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting dashboard stats:', error);
+      return {
+        type: user.userType || 'unknown',
+        lastUpdated: new Date().toISOString()
+      };
     }
   }
 

@@ -118,11 +118,11 @@ interface WebSocketProviderProps {
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const { user, isAuthenticated } = useAuthStore();
   
-  // Emergency disable state
-  const [isWebSocketDisabled, setIsWebSocketDisabled] = useState(false);
+  // Emergency disable state - DISABLED BY DEFAULT on free tier
+  const [isWebSocketDisabled, setIsWebSocketDisabled] = useState(true);
   
-  // Fallback state
-  const [usingFallback, setUsingFallback] = useState(false);
+  // Fallback state - always use polling on free tier
+  const [usingFallback, setUsingFallback] = useState(true);
   
   // State
   const [notifications, setNotifications] = useState<NotificationData[]>([]);

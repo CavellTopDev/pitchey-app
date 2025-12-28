@@ -1,7 +1,7 @@
-import { useEffect, useCallback } from 'react';
-import { useWebSocket } from '../contexts/WebSocketContext';
+import { useEffect, useCallback, useRef } from 'react';
 import { useNotificationToast } from '../components/Toast/NotificationToastContainer';
 import { notificationService } from '../services/notification.service';
+import { useAuthStore } from '../store/authStore';
 
 interface NotificationData {
   type: 'nda_request' | 'nda_approved' | 'nda_declined' | 'investment' | 'message' | 
@@ -16,8 +16,14 @@ interface NotificationData {
 }
 
 export function useRealTimeNotifications() {
-  const { subscribeToMessages, sendMessage } = useWebSocket();
   const toast = useNotificationToast();
+  const { isAuthenticated } = useAuthStore();
+  const lastNotificationId = useRef<number>(0);
+  const pollingInterval = useRef<NodeJS.Timer | null>(null);
+
+  // Mock WebSocket functions for compatibility
+  const subscribeToMessages = () => {};
+  const sendMessage = () => {};
 
   // Handle incoming real-time notifications
   const handleNotificationMessage = useCallback((message: any) => {
@@ -120,11 +126,66 @@ export function useRealTimeNotifications() {
     }
   }, [toast]);
 
-  // Subscribe to WebSocket messages
+  // Poll for new notifications instead of WebSocket
   useEffect(() => {
-    const unsubscribe = subscribeToMessages(handleNotificationMessage);
-    return unsubscribe;
-  }, [subscribeToMessages, handleNotificationMessage]);
+    if (!isAuthenticated) return;
+
+    const pollNotifications = async () => {
+      try {
+        // Fetch recent notifications from API
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/notifications/unread`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch notifications: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data && Array.isArray(data)) {
+          const newNotifications = data.filter(
+            (n: any) => n.id > lastNotificationId.current
+          );
+          
+          // Process new notifications
+          newNotifications.forEach((notification: any) => {
+            handleNotificationMessage({
+              type: 'notification',
+              data: {
+                type: notification.type,
+                title: notification.title,
+                message: notification.message,
+                data: notification.data,
+                pitchId: notification.pitchId,
+                conversationId: notification.conversationId
+              }
+            });
+            
+            // Update last notification ID
+            if (notification.id > lastNotificationId.current) {
+              lastNotificationId.current = notification.id;
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error polling notifications:', error);
+      }
+    };
+
+    // Start polling every 30 seconds
+    pollNotifications(); // Initial poll
+    pollingInterval.current = setInterval(pollNotifications, 30000);
+
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+      }
+    };
+  }, [isAuthenticated, handleNotificationMessage]);
 
   // Methods to send real-time notifications (for admin/system use)
   const sendNotification = useCallback((notification: NotificationData) => {

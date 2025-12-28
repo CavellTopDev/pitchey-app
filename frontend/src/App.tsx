@@ -6,8 +6,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
 import { NotificationToastProvider } from './components/Toast/NotificationToastContainer';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
-// Use PollingProvider for free tier (WebSocket not available)
-// import { WebSocketProvider } from './contexts/WebSocketContext';
+// Import both providers - WebSocket provides mock implementation on free tier
+import { WebSocketProvider } from './contexts/WebSocketContext';
 import { PollingProvider } from './contexts/PollingContext';
 import { configService } from './services/config.service';
 import { config } from './config';
@@ -293,6 +293,7 @@ function App() {
 
   return (
     <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
+      <WebSocketProvider>
         <PollingProvider defaultInterval={30000} enablePolling={true}>
           <NotificationToastProvider>
             <ToastProvider>
@@ -693,6 +694,7 @@ function App() {
             </ToastProvider>
           </NotificationToastProvider>
         </PollingProvider>
+      </WebSocketProvider>
     </ErrorBoundary>
   );
 }
