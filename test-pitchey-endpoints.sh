@@ -4,8 +4,8 @@
 # Run this BEFORE Chrome DevTools testing to document API status
 # Usage: ./test-pitchey-endpoints.sh
 
-API_BASE="https://pitchey-production.cavelltheleaddev.workers.dev"
-ORIGIN="https://pitchey.pages.dev"
+API_BASE="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+ORIGIN="https://pitchey-5o8.pages.dev"
 
 # Colors for output
 RED='\033[0;31m'

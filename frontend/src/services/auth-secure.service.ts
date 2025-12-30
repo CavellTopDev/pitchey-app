@@ -24,14 +24,10 @@ class SecureAuthService {
    */
   async login(portal: string, email: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await fetch(`${this.baseURL}/api/auth/${portal}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies
-        body: JSON.stringify({ email, password }),
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
 
       const data = await response.json();
 
@@ -58,7 +54,9 @@ class SecureAuthService {
    */
   async logout(): Promise<void> {
     try {
-      await fetch(`${this.baseURL}/api/auth/logout`, {
+      await 
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         credentials: 'include',
       });
@@ -76,10 +74,10 @@ class SecureAuthService {
    */
   async validateSession(): Promise<SessionResponse | null> {
     try {
-      const response = await fetch(`${this.baseURL}/api/auth/session`, {
-        method: 'GET',
-        credentials: 'include',
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         return null;
@@ -121,10 +119,10 @@ class SecureAuthService {
    */
   async invalidateAllSessions(): Promise<void> {
     try {
-      const response = await fetch(`${this.baseURL}/api/auth/sessions/invalidate-all`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'POST',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error('Failed to invalidate sessions');
@@ -142,10 +140,10 @@ class SecureAuthService {
    */
   async getActiveSessionsCount(): Promise<number> {
     try {
-      const response = await fetch(`${this.baseURL}/api/auth/sessions/count`, {
-        method: 'GET',
-        credentials: 'include',
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         return 0;
@@ -209,7 +207,9 @@ export function setupAxiosForSecureSessions(axios: any) {
  * Fetch wrapper with secure session support
  */
 export async function secureFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  return fetch(url, {
+  return 
+      credentials: 'include', // Send cookies for Better Auth session
+      
     ...options,
     credentials: 'include', // Always include cookies
     headers: {

@@ -3,7 +3,7 @@
 # Performance testing script for cache layer
 # Compares response times with and without caching
 
-WORKER_URL="${1:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+WORKER_URL="${1:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 ITERATIONS=10
 
 echo "🔬 Cache Performance Testing"

@@ -34,7 +34,7 @@ export function getEnhancedCorsHeaders(request: Request): Record<string, string>
   
   // Expanded list of allowed origins
   const allowedOrigins = [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'http://localhost:5173',
     'http://localhost:5174', 
     'http://localhost:3000',

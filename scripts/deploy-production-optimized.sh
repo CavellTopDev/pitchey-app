@@ -327,8 +327,8 @@ deploy_frontend() {
 perform_post_deployment_checks() {
     log "Performing post-deployment health checks..."
     
-    local api_url="${PRODUCTION_API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
-    local frontend_url="${PRODUCTION_FRONTEND_URL:-https://pitchey.pages.dev}"
+    local api_url="${PRODUCTION_API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
+    local frontend_url="${PRODUCTION_FRONTEND_URL:-https://pitchey-5o8.pages.dev}"
     
     # Check API health
     log "Checking API health..."
@@ -364,7 +364,7 @@ perform_post_deployment_checks() {
 run_load_tests() {
     log "Running basic load tests..."
     
-    local api_url="${PRODUCTION_API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+    local api_url="${PRODUCTION_API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
     
     # Simple load test using curl (replace with proper load testing tool in production)
     log "Running concurrent requests test..."
@@ -501,8 +501,8 @@ main() {
     
     success "🎉 Production deployment completed successfully!"
     success "📊 Check the deployment report and logs for detailed information"
-    success "🔗 Frontend: https://pitchey.pages.dev"
-    success "🔗 API: https://pitchey-production.cavelltheleaddev.workers.dev"
+    success "🔗 Frontend: https://pitchey-5o8.pages.dev"
+    success "🔗 API: https://pitchey-api-prod.ndlovucavelle.workers.dev"
     
     log "=================================="
     log "Next steps:"

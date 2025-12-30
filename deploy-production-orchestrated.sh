@@ -16,8 +16,8 @@ NC='\033[0m' # No Color
 # Configuration
 WORKER_NAME="pitchey-optimized"
 FRONTEND_PROJECT="pitchey"
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 TIMEOUT_SECONDS=300
 RETRY_COUNT=3
 
@@ -213,7 +213,7 @@ build_frontend() {
     # Build for production
     echo_status "Building frontend for production..."
     VITE_API_URL="$WORKER_URL" \
-    VITE_WS_URL="wss://pitchey-production.cavelltheleaddev.workers.dev" \
+    VITE_WS_URL="wss://pitchey-api-prod.ndlovucavelle.workers.dev" \
     npm run build
     
     if [[ ! -d "dist" ]]; then

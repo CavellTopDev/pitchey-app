@@ -6,13 +6,13 @@
 ## ✅ DEPLOYMENT SUMMARY
 
 ### Backend Worker
-- **URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+- **URL**: https://pitchey-optimized.ndlovucavelle.workers.dev
 - **Status**: ✅ DEPLOYED & OPERATIONAL
 - **Version**: worker-platform-fixed.ts
 - **Health**: HEALTHY
 
 ### Frontend Application
-- **URL**: https://d066c1b9.pitchey.pages.dev
+- **URL**: https://d066c1b9.pitchey-5o8.pages.dev
 - **Status**: ✅ DEPLOYED
 - **Build**: Successful with warnings
 
@@ -68,9 +68,9 @@ wrangler secret put USE_STORAGE --value "true"
 
 ## 🔗 PRODUCTION URLS
 
-- **Worker API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Frontend**: https://d066c1b9.pitchey.pages.dev
-- **Health Check**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- **Worker API**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Frontend**: https://d066c1b9.pitchey-5o8.pages.dev
+- **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 ## ✨ KEY ACHIEVEMENTS
 

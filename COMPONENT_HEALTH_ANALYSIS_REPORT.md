@@ -12,7 +12,7 @@ Comprehensive security and architecture analysis of the Pitchey platform reveals
 ```mermaid
 graph TB
     subgraph "Frontend (Cloudflare Pages)"
-        FE[React App<br/>pitchey.pages.dev]
+        FE[React App<br/>pitchey-5o8.pages.dev]
     end
 
     subgraph "Edge Layer (Cloudflare)"

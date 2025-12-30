@@ -3,9 +3,9 @@
 // Final comprehensive integration test
 const WebSocket = require('ws');
 
-const WORKER_API = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const WORKER_API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 const WEBSOCKET_URL = 'wss://pitchey-backend-fresh-dpgqq3t2wr6w.deno.dev/ws';
-const FRONTEND_URL = 'https://e7279e57.pitchey.pages.dev';
+const FRONTEND_URL = 'https://e7279e57.pitchey-5o8.pages.dev';
 
 console.log('🚀 Final Integration Testing - Complete Stack Validation\n');
 
@@ -33,7 +33,7 @@ async function testCompleteStack() {
   console.log('\n2. ⚡ Testing Cloudflare Worker API...');
   try {
     const response = await fetch(`${WORKER_API}/api/health`, {
-      headers: { 'Origin': 'https://pitchey.pages.dev' }
+      headers: { 'Origin': 'https://pitchey-5o8.pages.dev' }
     });
     const data = await response.json();
     
@@ -51,7 +51,7 @@ async function testCompleteStack() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify({
         email: 'alex.creator@demo.com',
@@ -68,7 +68,7 @@ async function testCompleteStack() {
       const dashResponse = await fetch(`${WORKER_API}/api/creator/dashboard`, {
         headers: {
           'Authorization': `Bearer ${loginData.token}`,
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         }
       });
       

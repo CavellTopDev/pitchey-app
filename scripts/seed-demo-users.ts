@@ -5,7 +5,7 @@
  * Creates demo users in the production database via API
  */
 
-const API_URL = Deno.env.get("API_URL") || "https://pitchey-production.cavelltheleaddev.workers.dev";
+const API_URL = Deno.env.get("API_URL") || "https://pitchey-api-prod.ndlovucavelle.workers.dev";
 
 // Demo users configuration
 const DEMO_USERS = [
@@ -48,7 +48,7 @@ async function registerUser(user: any) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Origin": "https://pitchey.pages.dev"
+        "Origin": "https://pitchey-5o8.pages.dev"
       },
       body: JSON.stringify(user)
     });
@@ -83,7 +83,7 @@ async function verifyLogin(user: any) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Origin": "https://pitchey.pages.dev"
+        "Origin": "https://pitchey-5o8.pages.dev"
       },
       body: JSON.stringify({
         email: user.email,

@@ -16,9 +16,9 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="/home/supremeisbeing/pitcheymovie/pitchey_v0.2"
 FRONTEND_DIR="${PROJECT_ROOT}/frontend"
 PAGES_PROJECT="pitchey"
-PRODUCTION_URL="https://pitchey.pages.dev"
+PRODUCTION_URL="https://pitchey-5o8.pages.dev"
 WEBSOCKET_URL="wss://pitchey-backend-fresh.deno.dev/ws"
-API_URL="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Logging function
 log() {

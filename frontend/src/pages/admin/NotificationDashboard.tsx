@@ -114,13 +114,10 @@ export const NotificationDashboard: React.FC = () => {
   const fetchMetrics = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/notifications/dashboard', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Time-Range': timeRange,
-          'X-Channel': selectedChannel
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/admin`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) throw new Error('Failed to fetch metrics');
       const data = await response.json();

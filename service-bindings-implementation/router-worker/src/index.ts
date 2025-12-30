@@ -176,7 +176,7 @@ function handleRootPath(): Response {
       browse: '/api/browse/',
       analytics: '/api/analytics/'
     },
-    frontend: 'https://pitchey.pages.dev',
+    frontend: 'https://pitchey-5o8.pages.dev',
     docs: 'https://docs.pitchey.app'
   }), {
     status: 200,

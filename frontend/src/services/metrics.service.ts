@@ -85,9 +85,11 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.baseUrl}/metrics/performance`, {
-        headers: this.getHeaders()
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error('Failed to fetch performance metrics');
@@ -111,9 +113,11 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-      const response = await fetch(`${this.baseUrl}/health/ready`, {
-        headers: this.getHeaders()
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       const data = await response.json();
       
@@ -155,8 +159,7 @@ class MetricsService {
   ): Promise<MetricData[]> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/metrics/history?metric=${metric}&range=${timeRange}`,
-        {
+        `${this.baseUrl}/metrics/history?metric=${metric}&range=${timeRange}`, {
           headers: this.getHeaders()
         }
       );
@@ -178,8 +181,7 @@ class MetricsService {
   async getEndpointMetrics(endpoint: string): Promise<any> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/metrics/endpoint?path=${encodeURIComponent(endpoint)}`,
-        {
+        `${this.baseUrl}/metrics/endpoint?path=${encodeURIComponent(endpoint)}`, {
           headers: this.getHeaders()
         }
       );
@@ -200,9 +202,11 @@ class MetricsService {
    */
   async getDatabaseMetrics(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/metrics/database`, {
-        headers: this.getHeaders()
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error('Failed to fetch database metrics');
@@ -220,9 +224,11 @@ class MetricsService {
    */
   async getCacheMetrics(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/metrics/cache`, {
-        headers: this.getHeaders()
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error('Failed to fetch cache metrics');
@@ -428,9 +434,11 @@ class MetricsService {
    */
   async getAlertThresholds(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/metrics/thresholds`, {
-        headers: this.getHeaders()
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error('Failed to fetch alert thresholds');
@@ -448,11 +456,12 @@ class MetricsService {
    */
   async updateAlertThresholds(thresholds: any): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/metrics/thresholds`, {
-        method: 'PUT',
-        headers: this.getHeaders(),
-        body: JSON.stringify(thresholds)
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(thresholds),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       return response.ok;
     } catch (error) {

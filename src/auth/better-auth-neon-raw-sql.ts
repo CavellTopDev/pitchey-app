@@ -158,10 +158,10 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
         // Get proper CORS headers for the request origin
         const origin = request.headers.get('Origin');
         const corsOrigin = origin && (
-          origin.includes('pitchey.pages.dev') || 
+          origin.includes('pitchey-5o8.pages.dev') || 
           origin.includes('pitchey-5o8.pages.dev') ||
           origin.includes('localhost')
-        ) ? origin : 'https://pitchey.pages.dev';
+        ) ? origin : 'https://pitchey-5o8.pages.dev';
         
         // Return response with session cookie
         return new Response(

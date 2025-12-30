@@ -10,7 +10,7 @@ const mockEnv = {
   HYPERDRIVE: {
     connectionString: "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
   },
-  FRONTEND_URL: "https://pitchey.pages.dev",
+  FRONTEND_URL: "https://pitchey-5o8.pages.dev",
   JWT_SECRET: "test-jwt-secret"
 };
 

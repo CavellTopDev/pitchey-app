@@ -1,10 +1,10 @@
 # Creator Dashboard Production Integration Prompt
 
 ## Overview
-This prompt will help you wire up the CreatorDashboardTest component at https://pitchey.pages.dev/creator/dashboard to connect with your production backend endpoints on Deno Deploy, using Upstash Redis for caching and Neon PostgreSQL for data persistence.
+This prompt will help you wire up the CreatorDashboardTest component at https://pitchey-5o8.pages.dev/creator/dashboard to connect with your production backend endpoints on Deno Deploy, using Upstash Redis for caching and Neon PostgreSQL for data persistence.
 
 ## Production Infrastructure
-- **Frontend**: Cloudflare Pages (https://pitchey.pages.dev)
+- **Frontend**: Cloudflare Pages (https://pitchey-5o8.pages.dev)
 - **Backend API**: Deno Deploy (https://pitchey-backend-fresh.deno.dev)
 - **Database**: Neon PostgreSQL
 - **Cache**: Upstash Redis
@@ -422,7 +422,7 @@ const dashboardData = await fetchWithFallback('/api/creator/dashboard', {
 
 2. **Production Testing**:
    - Deploy to Cloudflare Pages: `wrangler pages deploy frontend/dist --project-name=pitchey`
-   - Verify at https://pitchey.pages.dev/creator/dashboard
+   - Verify at https://pitchey-5o8.pages.dev/creator/dashboard
    - Monitor WebSocket connections in browser DevTools
    - Check Redis cache hits in Upstash dashboard
 

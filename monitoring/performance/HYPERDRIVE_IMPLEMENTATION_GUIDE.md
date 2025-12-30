@@ -197,7 +197,7 @@ await DatabaseManager.executeOptimalQuery(env, queryFn);
 Run the monitoring script to validate performance:
 
 ```bash
-./monitoring/performance/hyperdrive-monitor.sh https://pitchey-production.cavelltheleaddev.workers.dev
+./monitoring/performance/hyperdrive-monitor.sh https://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ### 2. Health Checks
@@ -213,7 +213,7 @@ Monitor endpoint health:
 Check that Hyperdrive is being used:
 
 ```bash
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database-performance | jq '.performance.usingHyperdrive'
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database-performance | jq '.performance.usingHyperdrive'
 ```
 
 ## Troubleshooting
@@ -239,10 +239,10 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database
 
 ```bash
 # Test basic connectivity
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Check Hyperdrive status
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database-performance | jq '.performance'
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database-performance | jq '.performance'
 
 # Run performance benchmark
 ./monitoring/performance/hyperdrive-monitor.sh

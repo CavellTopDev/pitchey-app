@@ -66,13 +66,13 @@ The new endpoints are deployed but require database schema updates:
 
 ```bash
 # Basic route test
-./test-quick-actions.sh https://pitchey.pages.dev
+./test-quick-actions.sh https://pitchey-5o8.pages.dev
 
 # Comprehensive test with API
 ./test-quick-actions-comprehensive.sh
 
 # Browser console test
-# 1. Navigate to https://pitchey.pages.dev/creator/dashboard
+# 1. Navigate to https://pitchey-5o8.pages.dev/creator/dashboard
 # 2. Login as alex.creator@demo.com / Demo123
 # 3. Open console (F12)
 # 4. Paste contents of test-quick-actions.js
@@ -94,5 +94,5 @@ The new endpoints are deployed but require database schema updates:
 
 ---
 *Generated: December 9, 2024*
-*Test Environment: https://pitchey.pages.dev*
-*API: https://pitchey-production.cavelltheleaddev.workers.dev*
+*Test Environment: https://pitchey-5o8.pages.dev*
+*API: https://pitchey-api-prod.ndlovucavelle.workers.dev*

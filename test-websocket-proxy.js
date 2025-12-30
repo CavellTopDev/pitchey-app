@@ -3,7 +3,7 @@
 // Test WebSocket functionality through Worker proxy
 const WebSocket = require('ws');
 
-const WORKER_API = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const WORKER_API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 const DIRECT_WS = 'wss://pitchey-backend-fresh.deno.dev/ws';
 
 console.log('🔌 Testing WebSocket Integration\n');
@@ -16,7 +16,7 @@ function createWebSocketTest(url, name, timeout = 10000) {
     
     const ws = new WebSocket(url, {
       headers: {
-        'Origin': 'https://pitchey.pages.dev',
+        'Origin': 'https://pitchey-5o8.pages.dev',
         'User-Agent': 'WebSocket-Test/1.0'
       }
     });
@@ -102,7 +102,7 @@ async function testWebSocketConnections() {
         'Connection': 'Upgrade',
         'Sec-WebSocket-Key': Buffer.from('test-key').toString('base64'),
         'Sec-WebSocket-Version': '13',
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
     
@@ -137,7 +137,7 @@ async function testWebSocketFeatures() {
   return new Promise((resolve) => {
     const ws = new WebSocket(DIRECT_WS, {
       headers: {
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
     

@@ -58,7 +58,7 @@ export function EnhancedNavigationShadcn({
     switch (userType) {
       case 'creator': return 'purple';
       case 'investor': return 'green';
-      case 'production': return 'blue';
+      case 'production': return 'orange';
       default: return 'gray';
     }
   };

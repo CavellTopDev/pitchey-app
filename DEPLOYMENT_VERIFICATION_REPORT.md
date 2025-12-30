@@ -2,7 +2,7 @@
 
 ## 🚀 Deployment Status: LIVE
 
-**API URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev  
+**API URL**: https://pitchey-optimized.ndlovucavelle.workers.dev  
 **Deployment Time**: 2025-11-24 20:10 UTC  
 **Version**: eef12c46-eae9-4ebd-b192-79debc18d0e6
 
@@ -44,8 +44,8 @@
 
 1. **Update frontend/.env.production**:
 ```env
-VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 ```
 
 2. **Rebuild Frontend**:
@@ -112,16 +112,16 @@ OR via GitHub:
 
 ```bash
 # Test health
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # Test login
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
 # Test with token
 TOKEN="your-token-here"
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/creator/dashboard \
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/creator/dashboard \
   -H "Authorization: Bearer $TOKEN"
 ```
 

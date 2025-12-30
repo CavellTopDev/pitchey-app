@@ -4,7 +4,7 @@ echo "🧪 Testing Browse Tab Fix"
 echo "========================="
 echo ""
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "📊 Getting data from enhanced browse endpoint..."
 RESPONSE=$(curl -s "$API_URL/api/pitches/browse/enhanced")

@@ -63,11 +63,10 @@ export default function EmailAlerts({
   const checkEmailPreferences = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/user/preferences`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -82,11 +81,10 @@ export default function EmailAlerts({
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/alerts/email`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -127,14 +125,12 @@ export default function EmailAlerts({
       
       const method = editingAlert ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         toast.success(editingAlert ? 'Alert updated!' : 'Email alert created!');
@@ -160,12 +156,10 @@ export default function EmailAlerts({
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/alerts/email/${alertId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'DELETE',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         toast.success('Alert deleted');
@@ -186,12 +180,10 @@ export default function EmailAlerts({
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/alerts/email/${alert.id}/toggle`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'PUT',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         await loadEmailAlerts();

@@ -74,10 +74,10 @@ graph TD
 #### Initial Assessment
 ```bash
 # Quick health check
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 # Check error rates
-curl https://pitchey-production.cavelltheleaddev.workers.dev/metrics | grep error
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/metrics | grep error
 
 # View recent logs
 wrangler tail --env production
@@ -110,18 +110,18 @@ open https://sentry.io/organizations/pitchey/issues/
 
 ```bash
 # API Health
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/health | jq .
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/health | jq .
 
 # Database Status
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/db/status \
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/db/status \
   -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 
 # Cache Status
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/cache/stats \
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/cache/stats \
   -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 
 # WebSocket Status
-wscat -c wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+wscat -c wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 ```
 
 #### Log Analysis
@@ -142,10 +142,10 @@ deno run --allow-all scripts/analyze-slow-queries.ts
 ```bash
 # Response time analysis
 curl -w "@curl-format.txt" -o /dev/null -s \
-  https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending
+  https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending
 
 # Load test specific endpoint
-ab -n 100 -c 10 https://pitchey-production.cavelltheleaddev.workers.dev/health
+ab -n 100 -c 10 https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 ```
 
 ### 4. Mitigation & Recovery
@@ -153,7 +153,7 @@ ab -n 100 -c 10 https://pitchey-production.cavelltheleaddev.workers.dev/health
 #### Quick Wins
 1. **Clear Cache** - If stale data issues
    ```bash
-   curl -X DELETE https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/cache \
+   curl -X DELETE https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/cache \
      -H "Authorization: Bearer $ADMIN_TOKEN"
    ```
 
@@ -231,7 +231,7 @@ We apologize for any inconvenience.
 ./tests/smoke/critical-paths.test.ts
 
 # Monitor metrics for 15 minutes
-watch -n 30 'curl -s https://pitchey-production.cavelltheleaddev.workers.dev/metrics | grep -E "error_rate|response_time|active_users"'
+watch -n 30 'curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/metrics | grep -E "error_rate|response_time|active_users"'
 ```
 
 ## 🔍 Incident Scenarios
@@ -328,7 +328,7 @@ See template in [ROLLBACK_PROCEDURES.md](./ROLLBACK_PROCEDURES.md#post-mortem-te
 ### Monitoring Dashboards
 - **CloudFlare Analytics**: https://dash.cloudflare.com
 - **Sentry Errors**: https://sentry.io/organizations/pitchey/
-- **Application Metrics**: https://pitchey-production.cavelltheleaddev.workers.dev/metrics
+- **Application Metrics**: https://pitchey-api-prod.ndlovucavelle.workers.dev/metrics
 - **Status Page**: https://status.pitchey.com
 
 ### Communication Channels

@@ -70,7 +70,7 @@ ctx.waitUntil(
 
 **Deployment Time**: November 27, 2025, 23:21 UTC
 **Worker Version**: `d0bd7983-06ac-4593-b94b-b25b811ba657`
-**Worker URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+**Worker URL**: https://pitchey-optimized.ndlovucavelle.workers.dev
 
 ## Verification Results
 
@@ -126,7 +126,7 @@ git commit -m "fix: Critical production database and validation errors"
 git push origin main
 
 # Verification
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 ```
 
 ## Team Credits

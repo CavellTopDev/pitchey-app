@@ -17,7 +17,7 @@ const dbTransactionLatency = new Trend('db_transaction_latency');
 const dbDeadlocks = new Counter('db_deadlocks');
 
 // Environment configuration
-const API_URL = __ENV.API_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const API_URL = __ENV.API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 const SLOW_QUERY_THRESHOLD = 1000; // 1 second
 
 // Database stress test scenarios

@@ -133,7 +133,7 @@ The Pitchey platform enhancement project (v3.0) was initiated on December 10, 20
 3. **Verify Deployment**
    ```bash
    ./test-complete-platform.sh
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    ```
 
 4. **Start Monitoring**

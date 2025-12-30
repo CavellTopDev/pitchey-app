@@ -3,7 +3,7 @@
 # Comprehensive Notification System Test Suite
 # Tests all notification endpoints, Twilio webhooks, and preferences
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 LOCAL_URL="${LOCAL_URL:-http://localhost:8001}"
 
 # Use local URL if testing locally

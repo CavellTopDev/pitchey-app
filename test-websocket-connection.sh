@@ -11,8 +11,8 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-WS_URL="wss://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+WS_URL="wss://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Test 1: Login as creator to get a fresh token
 echo -e "${YELLOW}1. Logging in as creator to get fresh JWT token...${NC}"
@@ -109,7 +109,7 @@ echo ""
 
 # Test 5: Provide browser console test code
 echo -e "${YELLOW}5. Browser console test code:${NC}"
-echo "Copy and paste this into the browser console at https://pitchey.pages.dev:"
+echo "Copy and paste this into the browser console at https://pitchey-5o8.pages.dev:"
 echo ""
 echo "// Test WebSocket connection"
 echo "const testWS = () => {"

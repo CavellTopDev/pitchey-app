@@ -2,8 +2,8 @@
 
 # Test production notification endpoints
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 
 # Colors for output
 GREEN='\033[0;32m'

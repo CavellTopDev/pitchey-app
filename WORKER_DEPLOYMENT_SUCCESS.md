@@ -8,8 +8,8 @@ After troubleshooting rate limiting issues (Cloudflare error 1027), the Worker i
 
 ## Working URLs
 
-- **Production Worker**: `https://pitchey-api-prod.cavelltheleaddev.workers.dev`
-- **Frontend**: `https://pitchey.pages.dev`
+- **Production Worker**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
+- **Frontend**: `https://pitchey-5o8.pages.dev`
 - **Database**: Neon PostgreSQL (pooler endpoint)
 
 ## Key Fixes Applied
@@ -37,20 +37,20 @@ After troubleshooting rate limiting issues (Cloudflare error 1027), the Worker i
 
 ### Health Check
 ```bash
-curl https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/test
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test
 # Returns: {"success":true,"message":"Worker is healthy","timestamp":"..."}
 ```
 
 ### Database Test
 ```bash
-curl https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/test-db
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test-db
 # Returns: 3 active pitches from database
 ```
 
 ### Main Pitches Endpoint (with CORS)
 ```bash
-curl -H "Origin: https://pitchey.pages.dev" \
-  https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/pitches
+curl -H "Origin: https://pitchey-5o8.pages.dev" \
+  https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches
 # Returns: List of published pitches with proper CORS headers
 ```
 
@@ -83,7 +83,7 @@ echo "your-jwt-secret" | wrangler secret put JWT_SECRET --env production
 
 3. **Verify Deployment**:
 ```bash
-curl https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/test-db
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test-db
 ```
 
 ## Troubleshooting Notes
@@ -115,15 +115,15 @@ curl https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/test-db
 ## Latest Update: December 18, 2024
 
 ### Frontend Deployment Completed
-- **Built frontend with new API URL**: `pitchey-api-prod.cavelltheleaddev.workers.dev`
+- **Built frontend with new API URL**: `pitchey-api-prod.ndlovucavelle.workers.dev`
 - **Deployed to Cloudflare Pages**: Successfully deployed to production
 - **Deployment URLs**:
-  - Preview: https://34c3a579.pitchey.pages.dev
-  - Main: https://83b17b05.pitchey.pages.dev
-  - Production: https://pitchey.pages.dev (auto-updates from main branch)
+  - Preview: https://34c3a579.pitchey-5o8.pages.dev
+  - Main: https://83b17b05.pitchey-5o8.pages.dev
+  - Production: https://pitchey-5o8.pages.dev (auto-updates from main branch)
 
 ### Fixed Console Errors
-The frontend was showing errors because it was still trying to connect to the old Worker URL (`pitchey-production.cavelltheleaddev.workers.dev`) which was rate-limited. This has been fixed by:
+The frontend was showing errors because it was still trying to connect to the old Worker URL (`pitchey-api-prod.ndlovucavelle.workers.dev`) which was rate-limited. This has been fixed by:
 1. Updating `frontend/.env.production` to use the new Worker URL
 2. Rebuilding the frontend with the correct API URL
 3. Deploying to Cloudflare Pages

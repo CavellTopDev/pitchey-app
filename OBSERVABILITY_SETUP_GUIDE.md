@@ -241,7 +241,7 @@ curl https://pitchey-backend-fresh.deno.dev/api/health | jq '.telemetry'
 
 ### Test Frontend Telemetry
 
-1. **Open Browser Console** on https://pitchey.pages.dev
+1. **Open Browser Console** on https://pitchey-5o8.pages.dev
 2. **Trigger an error** (404 page, API failure)
 3. **Check Sentry** for frontend project
 
@@ -342,7 +342,7 @@ VITE_SENTRY_DEBUG=true npm run dev
 
 **Health Endpoints:**
 - Backend: `https://pitchey-backend-fresh.deno.dev/api/health`
-- Frontend: `https://pitchey.pages.dev` (check console for telemetry status)
+- Frontend: `https://pitchey-5o8.pages.dev` (check console for telemetry status)
 
 **Documentation:**
 - Sentry Deno: https://docs.sentry.io/platforms/deno/

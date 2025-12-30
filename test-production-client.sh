@@ -8,17 +8,17 @@ cat << 'EOF'
 ===============================================================================
 PITCHEY PRODUCTION TEST SUITE
 ===============================================================================
-Open https://pitchey.pages.dev in your browser
+Open https://pitchey-5o8.pages.dev in your browser
 Open DevTools Console (F12)
 Copy and paste the following JavaScript code:
 ===============================================================================
 
 // 🚀 PITCHEY PRODUCTION TEST SUITE
-// Run this in your browser console at https://pitchey.pages.dev
+// Run this in your browser console at https://pitchey-5o8.pages.dev
 
 const PitcheyProductionTests = {
-  API_URL: 'https://pitchey-production.cavelltheleaddev.workers.dev',
-  WS_URL: 'wss://pitchey-production.cavelltheleaddev.workers.dev/ws',
+  API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+  WS_URL: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws',
   
   // Test results storage
   results: [],
@@ -267,8 +267,8 @@ const PitcheyProductionTests = {
     console.clear();
     console.log('🚀 PITCHEY PRODUCTION TEST SUITE');
     console.log('=================================');
-    console.log('Testing: https://pitchey.pages.dev');
-    console.log('API: https://pitchey-production.cavelltheleaddev.workers.dev');
+    console.log('Testing: https://pitchey-5o8.pages.dev');
+    console.log('API: https://pitchey-api-prod.ndlovucavelle.workers.dev');
     console.log('=================================\n');
     
     this.results = [];
@@ -309,7 +309,7 @@ EOF
 
 echo ""
 echo "✅ Test script generated! Copy the JavaScript code above and paste it into"
-echo "   your browser console at https://pitchey.pages.dev to test the platform."
+echo "   your browser console at https://pitchey-5o8.pages.dev to test the platform."
 echo ""
 echo "📝 You can also save the JavaScript code to a file:"
 echo "   ./test-production-client.sh > production-tests.js"

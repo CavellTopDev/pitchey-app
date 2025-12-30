@@ -53,7 +53,7 @@ database_id = "your-d1-database-id"
 
 # Environment variables (set as secrets)
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 NODE_ENV = "production"
 ```
 
@@ -180,7 +180,7 @@ Update `frontend/src/services/auth.service.ts`:
 import { createAuthClient } from "better-auth/client";
 
 const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || "https://pitchey-production.cavelltheleaddev.workers.dev"
+  baseURL: import.meta.env.VITE_API_URL || "https://pitchey-api-prod.ndlovucavelle.workers.dev"
 });
 
 class AuthService {
@@ -261,7 +261,7 @@ curl -X POST http://localhost:8787/api/auth/creator/login \
 wrangler deploy
 
 # Verify deployment
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 ```

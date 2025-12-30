@@ -82,7 +82,7 @@ if (request.headers.get('Upgrade') === 'websocket') {
 ### Current Production Deployment
 - **Worker Version:** f1d9c85c-55b8-4adc-8791-2565d282fcfb
 - **Deployed At:** November 30, 2025 02:42 GMT
-- **URL:** https://pitchey-optimized.cavelltheleaddev.workers.dev
+- **URL:** https://pitchey-optimized.ndlovucavelle.workers.dev
 
 ### Bindings Active:
 - ✅ Durable Objects (WebSocketRoom, NotificationRoom)
@@ -95,7 +95,7 @@ if (request.headers.get('Upgrade') === 'websocket') {
 
 ### Browser Console Test:
 ```javascript
-// Run this in the browser console at https://pitchey.pages.dev
+// Run this in the browser console at https://pitchey-5o8.pages.dev
 const testWebSocket = async () => {
   // Ensure logged in
   const token = localStorage.getItem('authToken');
@@ -105,7 +105,7 @@ const testWebSocket = async () => {
   }
   
   // Create WebSocket connection
-  const ws = new WebSocket(`wss://pitchey-optimized.cavelltheleaddev.workers.dev/ws?token=${token}`);
+  const ws = new WebSocket(`wss://pitchey-optimized.ndlovucavelle.workers.dev/ws?token=${token}`);
   
   ws.onopen = () => {
     console.log('✅ WebSocket connected!');

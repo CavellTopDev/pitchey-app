@@ -3,7 +3,7 @@
 # Performance Baseline Measurement Script
 # Captures comprehensive performance metrics for Pitchey Worker
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 BASELINE_DIR="./baseline-data"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 REPORT_FILE="$BASELINE_DIR/baseline_${TIMESTAMP}.json"

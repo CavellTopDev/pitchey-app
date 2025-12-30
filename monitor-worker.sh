@@ -3,7 +3,7 @@
 # Real-time Cloudflare Worker Monitoring Dashboard
 # Displays live metrics and performance indicators
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Colors
 RED='\033[0;31m'

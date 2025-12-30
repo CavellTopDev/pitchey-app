@@ -261,7 +261,7 @@ class EndpointTester {
 
 // Main execution function
 async function runTestSuite() {
-  const tester = new EndpointTester('https://pitchey-browse-api-production.cavelltheleaddev.workers.dev');
+  const tester = new EndpointTester('https://pitchey-api-prod.ndlovucavelle.workers.dev');
   
   console.log('🚀 Starting Comprehensive Endpoint Test Suite');
   console.log(`🎯 Testing against: ${tester['baseUrl']}`);

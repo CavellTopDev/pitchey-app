@@ -10,7 +10,7 @@ mkdir -p monitoring/performance
 cat > monitoring/performance/monitor-live.sh << 'EOF'
 #!/bin/bash
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 INTERVAL=5  # seconds between checks
 
 clear
@@ -82,7 +82,7 @@ chmod +x monitoring/performance/monitor-live.sh
 cat > monitoring/performance/generate-report.sh << 'EOF'
 #!/bin/bash
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 REPORT_FILE="monitoring/performance/report-$(date +%Y%m%d-%H%M%S).md"
 
 echo "📊 Generating Performance Report..."

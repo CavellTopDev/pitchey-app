@@ -152,7 +152,7 @@ export interface APIValidationConfig {
 export const productionSecurityConfig: SecurityConfig = {
   cors: {
     origin: [
-      'https://pitchey.pages.dev',
+      'https://pitchey-5o8.pages.dev',
       'https://*.pitchey.com',
       /^https:\/\/.*\.pitchey\.com$/
     ],
@@ -218,8 +218,8 @@ export const productionSecurityConfig: SecurityConfig = {
         ],
         'connect-src': [
           "'self'",
-          'https://pitchey-api-production.cavelltheleaddev.workers.dev',
-          'wss://pitchey-api-production.cavelltheleaddev.workers.dev',
+          'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+          'wss://pitchey-api-prod.ndlovucavelle.workers.dev',
           'https://pitchey-backend-fresh.deno.dev',
           'wss://pitchey-backend-fresh.deno.dev',
           'https://pitchey-backend-fresh-gwp8c4yfcnna.deno.dev',
@@ -456,7 +456,7 @@ export const getSecurityConfig = (environment: string = 'production'): SecurityC
         cors: {
           ...productionSecurityConfig.cors,
           origin: [
-            'https://staging-pitchey.pages.dev',
+            'https://staging-pitchey-5o8.pages.dev',
             'https://pitchey-staging.pages.dev'
           ]
         }

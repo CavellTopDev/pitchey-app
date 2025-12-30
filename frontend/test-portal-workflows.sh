@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "============================================"
 echo "Testing Portal Workflow Interactions"
@@ -269,7 +269,7 @@ echo ""
 # 15. Test WebSocket connection
 echo "15. TEST WEBSOCKET CONNECTIONS"
 echo "-------------------------------"
-WS_URL="wss://pitchey-production.cavelltheleaddev.workers.dev"
+WS_URL="wss://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Test WebSocket endpoint availability
 WS_TEST=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/ws")

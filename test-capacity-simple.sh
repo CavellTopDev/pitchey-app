@@ -15,7 +15,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Function to run simple load test
 run_simple_test() {

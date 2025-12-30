@@ -23,7 +23,7 @@ export interface Env {
 
 function getCorsHeaders(origin: string | null, env: Env): HeadersInit {
   try {
-    const frontendUrl = env.FRONTEND_URL || 'https://pitchey.pages.dev';
+    const frontendUrl = env.FRONTEND_URL || 'https://pitchey-5o8.pages.dev';
     const allowedOrigin = origin && (
       origin === frontendUrl ||
       origin.includes('.pages.dev') ||

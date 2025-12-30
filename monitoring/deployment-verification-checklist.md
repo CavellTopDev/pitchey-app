@@ -35,15 +35,15 @@
 ### Pre-Deployment Health Checks
 ```bash
 # Database connectivity test
-curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database" \
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database" \
   -H "Content-Type: application/json"
 
 # Cache functionality test
-curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/cache" \
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/cache" \
   -H "Content-Type: application/json"
 
 # WebSocket connectivity test
-curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/websocket" \
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/websocket" \
   -H "Content-Type: application/json"
 ```
 

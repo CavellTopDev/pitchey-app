@@ -6,7 +6,7 @@
 ENV=${1:-production}
 
 if [ "$ENV" = "production" ]; then
-    API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+    API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
     echo "🚀 Testing PRODUCTION worker performance"
 else
     API_URL="http://localhost:8787"

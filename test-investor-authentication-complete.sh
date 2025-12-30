@@ -8,7 +8,7 @@ echo "================================================="
 echo ""
 
 # Configuration
-FRONTEND_URL="https://5a8804e9.pitchey.pages.dev"
+FRONTEND_URL="https://5a8804e9.pitchey-5o8.pages.dev"
 BACKEND_URL="https://pitchey-backend-fresh.deno.dev"
 TEST_EMAIL="sarah.investor@demo.com"
 TEST_PASSWORD="Demo123"
@@ -251,7 +251,7 @@ cat > /tmp/investor_dashboard_test.html << 'EOF'
     <div id="results"></div>
 
     <script>
-        const FRONTEND_URL = 'https://5a8804e9.pitchey.pages.dev';
+        const FRONTEND_URL = 'https://5a8804e9.pitchey-5o8.pages.dev';
         const BACKEND_URL = 'https://pitchey-backend-fresh.deno.dev';
         const TEST_EMAIL = 'sarah.investor@demo.com';
         const TEST_PASSWORD = 'Demo123';

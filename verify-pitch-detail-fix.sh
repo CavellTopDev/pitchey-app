@@ -6,7 +6,7 @@ echo ""
 
 # Test that the API endpoint works
 echo "1. Testing API endpoint /api/pitches/public/2:"
-API_RESPONSE=$(curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public/2")
+API_RESPONSE=$(curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public/2")
 if echo "$API_RESPONSE" | grep -q '"success":true'; then
     echo "   ✅ API returns success"
     if echo "$API_RESPONSE" | grep -q '"title":"Quantum Dreams"'; then
@@ -19,7 +19,7 @@ fi
 echo ""
 echo "2. Testing frontend pitch detail page:"
 # Check if the page loads and contains expected content
-PAGE_CONTENT=$(curl -s "https://36a61a1e.pitchey.pages.dev/pitch/2")
+PAGE_CONTENT=$(curl -s "https://36a61a1e.pitchey-5o8.pages.dev/pitch/2")
 if echo "$PAGE_CONTENT" | grep -q "Pitchey"; then
     echo "   ✅ Frontend page loads successfully"
 else
@@ -36,5 +36,5 @@ else
 fi
 
 echo ""
-echo "✅ Deployment URL: https://36a61a1e.pitchey.pages.dev"
-echo "✅ Test a pitch directly: https://36a61a1e.pitchey.pages.dev/pitch/2"
+echo "✅ Deployment URL: https://36a61a1e.pitchey-5o8.pages.dev"
+echo "✅ Test a pitch directly: https://36a61a1e.pitchey-5o8.pages.dev/pitch/2"

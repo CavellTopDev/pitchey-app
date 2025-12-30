@@ -3,7 +3,7 @@
 ## Current Status: Production Deployment Complete ✅
 
 ### Live Platform URLs
-- **Frontend**: https://pitchey.pages.dev  
+- **Frontend**: https://pitchey-5o8.pages.dev  
 - **Backend**: https://pitchey-backend-fresh.deno.dev
 
 ### Major Accomplishments

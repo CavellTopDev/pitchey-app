@@ -76,7 +76,7 @@ fi
 # Test deployment
 echo -e "${BLUE}🧪 Testing deployment...${NC}"
 
-WORKER_URL="https://pitchey-production-secure.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production-secure.ndlovucavelle.workers.dev"
 
 # Test health endpoint
 echo "Testing health endpoint..."
@@ -90,9 +90,9 @@ fi
 
 # Test CORS headers
 echo "Testing CORS headers..."
-CORS_RESPONSE=$(curl -s -I -H "Origin: https://pitchey.pages.dev" "$WORKER_URL/api/health" || echo "failed")
+CORS_RESPONSE=$(curl -s -I -H "Origin: https://pitchey-5o8.pages.dev" "$WORKER_URL/api/health" || echo "failed")
 
-if echo "$CORS_RESPONSE" | grep -q "Access-Control-Allow-Origin: https://pitchey.pages.dev"; then
+if echo "$CORS_RESPONSE" | grep -q "Access-Control-Allow-Origin: https://pitchey-5o8.pages.dev"; then
     echo -e "${GREEN}✅ CORS configuration correct${NC}"
 else
     echo -e "${YELLOW}⚠️  CORS headers: $CORS_RESPONSE${NC}"

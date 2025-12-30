@@ -23,7 +23,7 @@ async function testPortals() {
   try {
     // Test 1: Creator Portal
     console.log('📝 Testing Creator Portal...');
-    await page.goto('https://pitchey.pages.dev/creator/login', { waitUntil: 'networkidle' });
+    await page.goto('https://pitchey-5o8.pages.dev/creator/login', { waitUntil: 'networkidle' });
     await page.screenshot({ path: 'screenshots/1-creator-login.png', fullPage: true });
     
     // Check if login form exists
@@ -55,7 +55,7 @@ async function testPortals() {
     
     // Test 2: Investor Portal
     console.log('\n💰 Testing Investor Portal...');
-    await page.goto('https://pitchey.pages.dev/investor/login', { waitUntil: 'networkidle' });
+    await page.goto('https://pitchey-5o8.pages.dev/investor/login', { waitUntil: 'networkidle' });
     await page.screenshot({ path: 'screenshots/4-investor-login.png', fullPage: true });
     
     const investorForm = await page.$('form');
@@ -84,7 +84,7 @@ async function testPortals() {
     
     // Test 3: Production Portal
     console.log('\n🎬 Testing Production Portal...');
-    await page.goto('https://pitchey.pages.dev/production/login', { waitUntil: 'networkidle' });
+    await page.goto('https://pitchey-5o8.pages.dev/production/login', { waitUntil: 'networkidle' });
     await page.screenshot({ path: 'screenshots/7-production-login.png', fullPage: true });
     
     const productionForm = await page.$('form');

@@ -46,7 +46,9 @@ const NonDisclosureAgreement: React.FC<NDAAgreementProps> = ({ onAccept, onRejec
 
       // Send acceptance to backend
       const apiUrl = config.API_URL;
-      fetch(`${apiUrl}/api/legal/nda-acceptance`, {
+      
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

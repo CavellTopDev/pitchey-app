@@ -217,10 +217,10 @@ wrangler deploy
 ### 4. Verify Performance
 ```bash
 # Test endpoints
-curl -w "@curl-format.txt" https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -w "@curl-format.txt" https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Check cache headers
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches
 ```
 
 ## 📚 References

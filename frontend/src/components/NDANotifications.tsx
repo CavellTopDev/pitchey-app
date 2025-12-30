@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Bell, 
   FileText, 
@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { ndaService, type NDA } from '../services/nda.service';
+import { useToast } from './Toast/ToastProvider';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { notificationService } from '../services/notification.service';
 
 interface NDANotificationItem {
   id: number;
@@ -33,11 +36,22 @@ interface NDANotificationsProps {
 
 export default function NDANotifications({ className = '', compact = false }: NDANotificationsProps) {
   const { user } = useAuthStore();
+  const { success, error: showError, info } = useToast();
   const [notifications, setNotifications] = useState<NDANotificationItem[]>([]);
   const [pendingRequests, setPendingRequests] = useState<NDA[]>([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
+  
+  // WebSocket for real-time notifications (using polling fallback as per requirements)
+  const { isConnected } = useWebSocket({
+    onMessage: useCallback((message) => {
+      if (message.type === 'nda_request' || message.type === 'nda_update') {
+        fetchNDANotifications();
+        info('New NDA notification received');
+      }
+    }, [])
+  });
 
   useEffect(() => {
     if (user?.userType === 'creator') {
@@ -81,16 +95,30 @@ export default function NDANotifications({ className = '', compact = false }: ND
     try {
       setProcessingIds(prev => new Set(prev).add(ndaId));
       
-      await ndaService.approveNDA(ndaId, 'Request approved. Please review and sign the NDA.');
+      const approvedNDA = await ndaService.approveNDA(ndaId, 'Request approved. Please review and sign the NDA.');
+      
+      // Send notification to requester via notification service
+      try {
+        await notificationService.sendNotification({
+          userId: approvedNDA.requesterId,
+          type: 'nda_approved',
+          title: 'NDA Request Approved',
+          message: `Your NDA request for "${approvedNDA.pitch?.title || 'the pitch'}" has been approved. You can now sign the NDA to access protected content.`,
+          relatedId: ndaId,
+          relatedType: 'nda'
+        });
+      } catch (notifError) {
+        console.warn('Failed to send notification:', notifError);
+      }
       
       // Refresh notifications
       await fetchNDANotifications();
       
       // Show success message
-      alert('NDA request approved successfully!');
+      success('NDA Approved', 'The requester has been notified and can now sign the NDA.');
     } catch (error: any) {
       console.error('Failed to approve NDA:', error);
-      alert(`Failed to approve NDA: ${error.message}`);
+      showError('Approval Failed', error.message || 'Failed to approve NDA request');
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
@@ -101,22 +129,35 @@ export default function NDANotifications({ className = '', compact = false }: ND
   };
 
   const rejectNDA = async (ndaId: number, reason?: string) => {
-    const rejectionReason = reason || prompt('Please provide a reason for rejection (optional):') || 'Request declined by creator';
-    
-    if (!rejectionReason) return;
+    // Use a modal or inline input instead of prompt for better UX
+    const rejectionReason = reason || 'Request declined by creator';
     
     try {
       setProcessingIds(prev => new Set(prev).add(ndaId));
       
-      await ndaService.rejectNDA(ndaId, rejectionReason);
+      const rejectedNDA = await ndaService.rejectNDA(ndaId, rejectionReason);
+      
+      // Send notification to requester
+      try {
+        await notificationService.sendNotification({
+          userId: rejectedNDA.requesterId,
+          type: 'nda_rejected',
+          title: 'NDA Request Declined',
+          message: `Your NDA request for "${rejectedNDA.pitch?.title || 'the pitch'}" has been declined. Reason: ${rejectionReason}`,
+          relatedId: ndaId,
+          relatedType: 'nda'
+        });
+      } catch (notifError) {
+        console.warn('Failed to send notification:', notifError);
+      }
       
       // Refresh notifications
       await fetchNDANotifications();
       
-      alert('NDA request rejected.');
+      info('NDA Request Declined', 'The requester has been notified.');
     } catch (error: any) {
       console.error('Failed to reject NDA:', error);
-      alert(`Failed to reject NDA: ${error.message}`);
+      showError('Rejection Failed', error.message || 'Failed to reject NDA request');
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
@@ -292,13 +333,13 @@ export default function NDANotifications({ className = '', compact = false }: ND
 
                               <button
                                 onClick={() => {
-                                  // Navigate to detailed view or show more info
-                                  alert(`View details for NDA request from ${notification.requesterName}`);
+                                  // Navigate to detailed view
+                                  window.location.href = `/creator/pitches/${notification.nda.pitchId}/ndas/${notification.id}`;
                                 }}
                                 className="flex items-center px-3 py-1.5 border border-gray-300 text-gray-700 text-xs rounded-md hover:bg-gray-50"
                               >
                                 <Eye className="w-3 h-3 mr-1" />
-                                View
+                                View Details
                               </button>
                             </div>
                           )}

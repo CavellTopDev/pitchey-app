@@ -20,7 +20,7 @@
 │                     CLIENT LAYER                            │
 ├────────────────────────────────────────────────────────────┤
 │  Browser → CDN → Cloudflare Pages (React Frontend)         │
-│  https://pitchey.pages.dev                                 │
+│  https://pitchey-5o8.pages.dev                                 │
 └────────────────────┬───────────────────────────────────────┘
                       │ HTTPS/WSS
                       ↓
@@ -28,7 +28,7 @@
 │                  EDGE LAYER (Cloudflare)                    │
 ├────────────────────────────────────────────────────────────┤
 │  Cloudflare Workers (API Proxy & Enhancement)              │
-│  https://pitchey-api-production.cavelltheleaddev.workers.dev│
+│  https://pitchey-api-prod.ndlovucavelle.workers.dev│
 │  ├─ KV Namespace (Edge Cache)                              │
 │  ├─ R2 Storage (File Uploads)                              │
 │  ├─ Durable Objects (WebSocket Rooms)                      │
@@ -111,15 +111,15 @@
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Frontend** | https://pitchey.pages.dev | Main application UI |
-| **Worker API** | https://pitchey-api-production.cavelltheleaddev.workers.dev | Edge API proxy |
+| **Frontend** | https://pitchey-5o8.pages.dev | Main application UI |
+| **Worker API** | https://pitchey-api-prod.ndlovucavelle.workers.dev | Edge API proxy |
 | **Backend API** | https://pitchey-backend-fresh.deno.dev | Full API implementation |
 | **WebSocket** | wss://pitchey-backend-fresh.deno.dev/ws | Real-time communications |
 
 ### API Endpoints Structure
 
 ```
-https://pitchey-api-production.cavelltheleaddev.workers.dev/api/
+https://pitchey-api-prod.ndlovucavelle.workers.dev/api/
 ├── /auth/
 │   ├── /creator/login      # Creator portal authentication
 │   ├── /investor/login     # Investor portal authentication
@@ -151,7 +151,7 @@ Create via Cloudflare Dashboard → Pages → Settings → Environment Variables
 
 ```bash
 # Production Environment
-VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev
 VITE_ENV=production
 VITE_ENABLE_WEBSOCKET=true
@@ -164,7 +164,7 @@ Set via `wrangler secret put` or Cloudflare Dashboard:
 
 ```bash
 # API Configuration
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 ORIGIN_URL=https://pitchey-backend-fresh.deno.dev
 
 # Security (use wrangler secret)
@@ -192,7 +192,7 @@ UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=AcXXXX...
 
 # Service Configuration
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 PORT=8000
 HOST=0.0.0.0
 
@@ -344,7 +344,7 @@ Node version: 20.19.5
 
 3. **Set Environment Variables**:
 ```bash
-VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev
 VITE_ENV=production
 ```
@@ -395,11 +395,11 @@ wrangler pages deploy dist \
 
 ```bash
 # Test frontend
-curl -I https://pitchey.pages.dev
+curl -I https://pitchey-5o8.pages.dev
 # Should return 200 OK
 
 # Test Worker API
-curl https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 # Should return: {"status":"healthy","timestamp":"..."}
 
 # Test Backend API
@@ -411,7 +411,7 @@ curl https://pitchey-backend-fresh.deno.dev/api/health
 
 ```bash
 # Test Creator Login
-curl -X POST https://pitchey-api-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
@@ -445,10 +445,10 @@ cd pitchey_v0.2
 
 ```bash
 # Test response times
-ab -n 100 -c 10 https://pitchey.pages.dev/
+ab -n 100 -c 10 https://pitchey-5o8.pages.dev/
 
 # Test API performance
-ab -n 100 -c 10 https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health
+ab -n 100 -c 10 https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 ## Troubleshooting Guide
@@ -483,8 +483,8 @@ ls -la dist/  # Should contain index.html
 wrangler tail --env production
 
 # Check CORS configuration
-curl -I -X OPTIONS https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health \
-  -H "Origin: https://pitchey.pages.dev" \
+curl -I -X OPTIONS https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health \
+  -H "Origin: https://pitchey-5o8.pages.dev" \
   -H "Access-Control-Request-Method: GET"
 
 # Update Worker CORS settings if needed
@@ -534,7 +534,7 @@ wrangler kv:key list --namespace-id=98c88a185eb448e4868fcc87e458b3ac
 curl https://pitchey-backend-fresh.deno.dev/api/cache/status
 
 # Check cache headers
-curl -I https://pitchey-api-production.cavelltheleaddev.workers.dev/api/pitches
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches
 ```
 
 #### 6. Authentication Failures
@@ -550,7 +550,7 @@ curl -I https://pitchey-api-production.cavelltheleaddev.workers.dev/api/pitches
 # Decode JWT at https://jwt.io to verify exp claim
 
 # Test token refresh
-curl -X POST https://pitchey-api-production.cavelltheleaddev.workers.dev/api/auth/refresh \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/refresh \
   -H "Authorization: Bearer [your-token]"
 ```
 
@@ -669,7 +669,7 @@ export default defineConfig({
 const JWT_OPTIONS = {
   algorithm: 'HS256',
   expiresIn: '24h',
-  issuer: 'pitchey.pages.dev',
+  issuer: 'pitchey-5o8.pages.dev',
   audience: 'pitchey-api'
 };
 
@@ -687,7 +687,7 @@ async function validateToken(request: Request) {
 ```javascript
 // Strict CORS policy
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': 'https://pitchey.pages.dev',
+  'Access-Control-Allow-Origin': 'https://pitchey-5o8.pages.dev',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true',
@@ -743,7 +743,7 @@ function validatePitchInput(data: any) {
 ```javascript
 // Pages _headers file
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://pitchey-api-production.cavelltheleaddev.workers.dev wss://pitchey-backend-fresh.deno.dev
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://pitchey-api-prod.ndlovucavelle.workers.dev wss://pitchey-backend-fresh.deno.dev
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -762,7 +762,7 @@ GET /api/health/detailed # Detailed service status
 # Automated monitoring script
 #!/bin/bash
 while true; do
-  response=$(curl -s https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health)
+  response=$(curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health)
   if [[ $response != *"healthy"* ]]; then
     echo "Health check failed at $(date)"
     # Send alert

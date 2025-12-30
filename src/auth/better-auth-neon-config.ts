@@ -52,7 +52,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
       {
         // App configuration
         appName: "Pitchey",
-        baseURL: env.FRONTEND_URL || "https://pitchey.pages.dev",
+        baseURL: env.FRONTEND_URL || "https://pitchey-5o8.pages.dev",
         secret: env.BETTER_AUTH_SECRET || env.JWT_SECRET,
         
         // Database adapter

@@ -12,9 +12,9 @@ REPORTS_DIR="$PERF_DIR/reports"
 LOG_FILE="$REPORTS_DIR/test-execution.log"
 
 # Environment variables
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
-WS_URL="${WS_URL:-wss://pitchey-production.cavelltheleaddev.workers.dev/ws}"
-FRONTEND_URL="${FRONTEND_URL:-https://pitchey.pages.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
+WS_URL="${WS_URL:-wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws}"
+FRONTEND_URL="${FRONTEND_URL:-https://pitchey-5o8.pages.dev}"
 INTENSITY="${INTENSITY:-medium}"
 
 # Test configuration based on intensity

@@ -42,7 +42,9 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onAccept, onReject }) =
 
       // Send acceptance to backend
       const apiUrl = config.API_URL;
-      fetch(`${apiUrl}/api/legal/terms-acceptance`, {
+      
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

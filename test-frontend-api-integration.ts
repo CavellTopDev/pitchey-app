@@ -121,7 +121,7 @@ async function testWorkerAPI() {
   
   // Test against production URL (if deployed) and local backend as fallback
   const testUrls = [
-    'https://pitchey-api-production.cavelltheleaddev.workers.dev',
+    'https://pitchey-api-prod.ndlovucavelle.workers.dev',
     'https://pitchey-backend-fresh.deno.dev',
     'http://localhost:8001'
   ];

@@ -117,8 +117,8 @@ async function authenticateRequest(request: Request): Promise<AuthResult> {
 ## 🚀 Current Production Status
 
 ### Working ✅
-- **API**: `https://pitchey-production.cavelltheleaddev.workers.dev`
-- **Frontend**: `https://pitchey.pages.dev`
+- **API**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
+- **Frontend**: `https://pitchey-5o8.pages.dev`
 - **Browse endpoint**: Returns valid data
 - **Marketplace**: No infinite loops
 - **All critical endpoints**: Functioning
@@ -134,7 +134,7 @@ async function authenticateRequest(request: Request): Promise<AuthResult> {
 
 ```bash
 # Browse endpoint working
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced"
 # Returns: { success: true, data: [...], pagination: {...} }
 
 # Demo accounts ready

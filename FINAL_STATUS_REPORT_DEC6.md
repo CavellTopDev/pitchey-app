@@ -31,13 +31,13 @@ Successfully identified and fixed **ALL** critical production issues discovered 
 ## 📊 DEPLOYMENT DETAILS
 
 ### Backend (Cloudflare Workers)
-- **URL:** https://pitchey-production.cavelltheleaddev.workers.dev
+- **URL:** https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Latest Version:** bddcb57b-898d-4b59-95aa-cffc4a4652bf
 - **Size:** 885.06 KiB / gzip: 169.83 KiB
 - **Status:** ✅ LIVE & HEALTHY
 
 ### Frontend (Cloudflare Pages)
-- **URL:** https://pitchey.pages.dev
+- **URL:** https://pitchey-5o8.pages.dev
 - **Status:** ✅ LIVE & HEALTHY
 
 ## 🔍 VERIFICATION RESULTS
@@ -98,7 +98,7 @@ const totalInvested = investments.reduce((sum, inv) => sum + Number(inv.amount |
 wrangler deploy
 
 # Verify deployment
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 ## 🎉 FINAL STATUS

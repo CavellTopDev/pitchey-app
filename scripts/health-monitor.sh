@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-API_URL=${API_URL:-"https://pitchey-production.cavelltheleaddev.workers.dev"}
+API_URL=${API_URL:-"https://pitchey-api-prod.ndlovucavelle.workers.dev"}
 CHECK_INTERVAL=${CHECK_INTERVAL:-30}  # seconds
 ALERT_WEBHOOK=${ALERT_WEBHOOK:-""}   # Slack/Discord webhook URL
 LOG_FILE="health-monitor.log"
@@ -320,7 +320,7 @@ main() {
             echo "  monitor - Run continuous monitoring (default)"
             echo ""
             echo "Environment variables:"
-            echo "  API_URL         - API endpoint to monitor (default: https://pitchey-production.cavelltheleaddev.workers.dev)"
+            echo "  API_URL         - API endpoint to monitor (default: https://pitchey-api-prod.ndlovucavelle.workers.dev)"
             echo "  CHECK_INTERVAL  - Seconds between checks (default: 30)"
             echo "  ALERT_WEBHOOK   - Webhook URL for alerts (optional)"
             echo ""

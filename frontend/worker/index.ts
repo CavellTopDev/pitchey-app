@@ -23,7 +23,7 @@ interface ExecutionContext {
 const getCorsHeaders = (origin: string | null) => {
   // Allow specific origins for credentials mode
   const allowedOrigins = [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'https://pitchey-production.pages.dev',
     'http://localhost:5173',
     'http://localhost:5174',
@@ -31,7 +31,7 @@ const getCorsHeaders = (origin: string | null) => {
   
   const corsOrigin = origin && allowedOrigins.includes(origin) 
     ? origin 
-    : 'https://pitchey.pages.dev'; // Default to production frontend
+    : 'https://pitchey-5o8.pages.dev'; // Default to production frontend
   
   return {
     'Access-Control-Allow-Origin': corsOrigin,

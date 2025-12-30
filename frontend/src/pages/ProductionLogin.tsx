@@ -22,11 +22,20 @@ export default function ProductionLogin() {
     }
   };
 
-  const setDemoCredentials = () => {
-    setFormData({ 
+  const setDemoCredentials = async () => {
+    const demoData = { 
       email: 'stellar.production@demo.com', 
       password: 'Demo123' 
-    });
+    };
+    setFormData(demoData);
+    
+    // Auto-submit the form with demo credentials
+    try {
+      await loginProduction(demoData.email, demoData.password);
+      navigate('/production/dashboard');
+    } catch (error) {
+      console.error('Demo production login failed:', error);
+    }
   };
 
   return (

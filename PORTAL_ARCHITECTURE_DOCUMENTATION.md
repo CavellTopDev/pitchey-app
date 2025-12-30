@@ -17,7 +17,7 @@ The Pitchey platform is a comprehensive movie pitch ecosystem connecting creator
 ┌───────────────────────────────────────────────────────────────────┐
 │                    FRONTEND (React + Vite)                         │
 │                  Deployed on Cloudflare Pages                      │
-│                    https://pitchey.pages.dev                       │
+│                    https://pitchey-5o8.pages.dev                       │
 ├─────────────────┬──────────────────┬──────────────────────────────┤
 │ Creator Portal  │ Investor Portal  │ Production Portal            │
 │   /creator/*    │   /investor/*    │   /production/*              │
@@ -26,7 +26,7 @@ The Pitchey platform is a comprehensive movie pitch ecosystem connecting creator
                              ▼
 ┌───────────────────────────────────────────────────────────────────┐
 │                  CLOUDFLARE WORKERS (Edge API)                     │
-│         https://pitchey-optimized.cavelltheleaddev.workers.dev    │
+│         https://pitchey-optimized.ndlovucavelle.workers.dev    │
 ├───────────────────────────────────────────────────────────────────┤
 │  • Authentication & Authorization                                  │
 │  • Business Logic                                                  │
@@ -380,7 +380,7 @@ const permissions = {
 
 ```
 1. Client initiates WebSocket connection
-   wss://pitchey-optimized.cavelltheleaddev.workers.dev/ws
+   wss://pitchey-optimized.ndlovucavelle.workers.dev/ws
 
 2. Worker validates authentication token
    
@@ -424,7 +424,7 @@ enum WebSocketEventType {
 
 ```bash
 # Build frontend with production API URL
-VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev \
+VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev \
 npm run build
 
 # Deploy to Cloudflare Pages

@@ -7,7 +7,7 @@ cat << 'EOF'
 ================================================================================
 PITCHEY PORTAL WORKFLOWS - COMPREHENSIVE TEST SUITE
 ================================================================================
-Open https://pitchey.pages.dev in your browser
+Open https://pitchey-5o8.pages.dev in your browser
 Open DevTools Console (F12)
 Copy and paste the following JavaScript code:
 ================================================================================
@@ -16,8 +16,8 @@ Copy and paste the following JavaScript code:
 // Tests all three portals, quick actions, and dashboard workflows
 
 const PortalWorkflowTests = {
-  API_URL: 'https://pitchey-production.cavelltheleaddev.workers.dev',
-  FRONTEND_URL: 'https://pitchey.pages.dev',
+  API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+  FRONTEND_URL: 'https://pitchey-5o8.pages.dev',
   
   results: [],
   currentPortal: null,
@@ -571,8 +571,8 @@ const PortalWorkflowTests = {
 ╔════════════════════════════════════════════════════════════╗
 ║     PITCHEY PORTAL WORKFLOWS - COMPREHENSIVE TEST         ║
 ║                                                            ║
-║  Testing: https://pitchey.pages.dev                       ║
-║  API: https://pitchey-production.cavelltheleaddev.workers.dev ║
+║  Testing: https://pitchey-5o8.pages.dev                       ║
+║  API: https://pitchey-api-prod.ndlovucavelle.workers.dev ║
 ║  Date: ${new Date().toLocaleDateString().padEnd(51)}║
 ╚════════════════════════════════════════════════════════════╝
     `);
@@ -627,7 +627,7 @@ echo "   • Analytics and time range filters"
 echo "   • Cross-portal workflows"
 echo "   • Dashboard refresh functionality"
 echo ""
-echo "🚀 To run: Copy the JavaScript code above and paste into browser console at https://pitchey.pages.dev"
+echo "🚀 To run: Copy the JavaScript code above and paste into browser console at https://pitchey-5o8.pages.dev"
 echo ""
 echo "💡 Individual portal tests available:"
 echo "   PortalWorkflowTests.testCreatorPortal()"

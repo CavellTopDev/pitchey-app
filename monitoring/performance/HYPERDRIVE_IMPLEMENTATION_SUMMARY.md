@@ -138,10 +138,10 @@ const db = DatabaseManager.getOptimalDrizzle(env);
 ./monitoring/performance/hyperdrive-monitor.sh
 
 # Check Hyperdrive status
-curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database-performance" | jq '.performance'
+curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database-performance" | jq '.performance'
 
 # Monitor connection statistics
-curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database-performance" | jq '.connections'
+curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database-performance" | jq '.connections'
 ```
 
 ## Validation Checklist

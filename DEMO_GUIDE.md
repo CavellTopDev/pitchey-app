@@ -10,27 +10,27 @@ The Pitchey platform demonstrates a complete movie pitch ecosystem with three ty
 - **Production**: stellar.production@demo.com
 
 ### Live URLs
-- **Frontend**: https://pitchey.pages.dev
-- **API**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ## Demo Workflows
 
 ### 1. Browse Public Pitches
 ```bash
-curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public?limit=5" | jq
+curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public?limit=5" | jq
 ```
 
 ### 2. Creator Login & Dashboard
 1. Login as creator:
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 ```
 
 2. View notifications (shows NDA requests, reviews, etc):
 ```bash
-curl -X GET https://pitchey-production.cavelltheleaddev.workers.dev/api/user/notifications \
+curl -X GET https://pitchey-api-prod.ndlovucavelle.workers.dev/api/user/notifications \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -39,14 +39,14 @@ curl -X GET https://pitchey-production.cavelltheleaddev.workers.dev/api/user/not
 2. Browse public pitches
 3. Request NDA for protected content:
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/nda/request \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/nda/request \
   -H "Authorization: Bearer INVESTOR_TOKEN" \
   -d '{"pitchId": 188}'
 ```
 
 4. Express investment interest:
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/investment/express-interest \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/investment/express-interest \
   -H "Authorization: Bearer INVESTOR_TOKEN" \
   -d '{
     "pitchId": 189,
@@ -60,7 +60,7 @@ curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/investm
 1. Login as production company
 2. Review pitches:
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/production/reviews \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/production/reviews \
   -H "Authorization: Bearer PRODUCTION_TOKEN" \
   -d '{
     "pitchId": 190,
@@ -172,7 +172,7 @@ Authorization: Bearer YOUR_TOKEN_HERE
 ```
 
 ### CORS Issues
-The API is configured for CORS from https://pitchey.pages.dev. If testing locally, you may need to adjust CORS settings.
+The API is configured for CORS from https://pitchey-5o8.pages.dev. If testing locally, you may need to adjust CORS settings.
 
 ## Next Steps
 

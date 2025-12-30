@@ -13,13 +13,13 @@
 ```bash
 # Test endpoint performance
 curl -w "Response Time: %{time_total}s\nStatus: %{http_code}\n" \
-  "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/detailed"
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/detailed"
 
 # Check worker metrics
 wrangler tail --format=pretty | grep -i "slow\|timeout\|error"
 
 # Test database connectivity
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/db"
 ```
 
 **Common Causes & Solutions:**
@@ -31,7 +31,7 @@ curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db"
    
    # Test specific endpoints that hit database heavily
    curl -w "Time: %{time_total}s\n" \
-     "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced?limit=50"
+     "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced?limit=50"
    
    # Solution: Add database indexes
    # Review NEON_DATABASE_SETUP_GUIDE.md for optimization
@@ -64,7 +64,7 @@ curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db"
 **Diagnosis:**
 ```bash
 # Check cache headers
-curl -I "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced"
+curl -I "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced"
 
 # Look for:
 # Cache-Control: max-age=300
@@ -74,7 +74,7 @@ curl -I "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/bro
 # Test cache behavior
 for i in {1..5}; do
   echo "Request $i:"
-  curl -I "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced" | grep -i cache
+  curl -I "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced" | grep -i cache
   sleep 2
 done
 ```
@@ -115,7 +115,7 @@ done
 **Diagnosis:**
 ```bash
 # Test database connectivity
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/detailed"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/detailed"
 
 # Check Hyperdrive status in Cloudflare dashboard
 # Review connection pool metrics
@@ -143,7 +143,7 @@ psql "$DATABASE_URL" -c "SELECT 1;"
 3. **Network Connectivity**
    ```bash
    # Test from different locations
-   curl --connect-timeout 10 "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db"
+   curl --connect-timeout 10 "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/db"
    ```
 
 ### Slow Database Queries
@@ -157,7 +157,7 @@ psql "$DATABASE_URL" -c "SELECT 1;"
 ```bash
 # Identify slow endpoints
 curl -w "Time: %{time_total}s\n" \
-  "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced?limit=100"
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced?limit=100"
 
 # Check Neon query performance dashboard
 # Look for queries with high execution time
@@ -192,7 +192,7 @@ curl -w "Time: %{time_total}s\n" \
 ### Page Load Failures
 
 **Symptoms:**
-- White screen on https://pitchey.pages.dev
+- White screen on https://pitchey-5o8.pages.dev
 - JavaScript errors in browser console
 - 404 errors on assets
 
@@ -202,7 +202,7 @@ curl -w "Time: %{time_total}s\n" \
 npx wrangler pages deployment list --project-name=pitchey
 
 # Test page loading
-curl -I https://pitchey.pages.dev
+curl -I https://pitchey-5o8.pages.dev
 
 # Check for JavaScript errors in browser developer tools
 ```
@@ -244,11 +244,11 @@ curl -I https://pitchey.pages.dev
 ```bash
 # Test API from browser developer tools
 # Check CORS headers
-curl -I -H "Origin: https://pitchey.pages.dev" \
-  "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+curl -I -H "Origin: https://pitchey-5o8.pages.dev" \
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 
 # Look for CORS headers:
-# Access-Control-Allow-Origin: https://pitchey.pages.dev
+# Access-Control-Allow-Origin: https://pitchey-5o8.pages.dev
 ```
 
 **Solutions:**
@@ -263,7 +263,7 @@ curl -I -H "Origin: https://pitchey.pages.dev" \
 2. **API Endpoint Issues**
    ```bash
    # Test API endpoints directly
-   curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/check"
+   curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/check"
    ```
 
 ---
@@ -280,10 +280,10 @@ curl -I -H "Origin: https://pitchey.pages.dev" \
 **Diagnosis:**
 ```bash
 # Check certificate status
-echo | openssl s_client -servername pitchey.pages.dev -connect pitchey.pages.dev:443 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -servername pitchey-5o8.pages.dev -connect pitchey-5o8.pages.dev:443 2>/dev/null | openssl x509 -noout -dates
 
 # Check worker certificate
-echo | openssl s_client -servername pitchey-production.cavelltheleaddev.workers.dev -connect pitchey-production.cavelltheleaddev.workers.dev:443 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -servername pitchey-api-prod.ndlovucavelle.workers.dev -connect pitchey-api-prod.ndlovucavelle.workers.dev:443 2>/dev/null | openssl x509 -noout -dates
 ```
 
 **Solutions:**
@@ -301,7 +301,7 @@ echo | openssl s_client -servername pitchey-production.cavelltheleaddev.workers.
 **Diagnosis:**
 ```bash
 # Test login endpoint
-curl -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+curl -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"test123"}'
 

@@ -2,7 +2,7 @@
 
 ## Problem Summary
 - **Error**: HTTP 500 with Cloudflare error code 1101
-- **URL**: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+- **URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 - **Cause**: A/B testing framework causing runtime exceptions during initialization
 
 ## Root Cause Analysis
@@ -179,7 +179,7 @@ wrangler deploy --compatibility-date 2024-11-01
 ### 3. Verify Fix
 ```bash
 # Test production health endpoint
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Should return:
 # {"status":"ok","timestamp":"...","services":{"database":true,"cache":true,"worker":true}}
@@ -205,13 +205,13 @@ wrangler dev --inspect
 ### Manual Testing
 ```bash
 # Health check
-curl -v https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -v https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Basic API test
-curl -v https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending
+curl -v https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending
 
 # A/B testing endpoint
-curl -v https://pitchey-production.cavelltheleaddev.workers.dev/api/ab-test/variant
+curl -v https://pitchey-api-prod.ndlovucavelle.workers.dev/api/ab-test/variant
 ```
 
 ## Prevention Measures

@@ -64,8 +64,8 @@ function corsResponse(request: Request, data: any, status = 200) {
   
   // List of allowed origins for CORS with credentials
   const allowedOrigins = [
-    'https://pitchey.pages.dev',
-    'https://8f6ce7d7.pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
+    'https://8f6ce7d7.pitchey-5o8.pages.dev',
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:3000'
@@ -75,7 +75,7 @@ function corsResponse(request: Request, data: any, status = 200) {
   let corsOrigin = '*';
   if (requestOrigin) {
     if (allowedOrigins.includes(requestOrigin) || 
-        requestOrigin.endsWith('.pitchey.pages.dev') ||
+        requestOrigin.endsWith('.pitchey-5o8.pages.dev') ||
         requestOrigin.startsWith('http://localhost:')) {
       corsOrigin = requestOrigin;
     }
@@ -229,8 +229,8 @@ export default {
         
         // List of allowed origins for CORS with credentials
         const allowedOrigins = [
-          'https://pitchey.pages.dev',
-          'https://8f6ce7d7.pitchey.pages.dev',
+          'https://pitchey-5o8.pages.dev',
+          'https://8f6ce7d7.pitchey-5o8.pages.dev',
           'http://localhost:5173',
           'http://localhost:5174',
           'http://localhost:3000'
@@ -241,7 +241,7 @@ export default {
         let includeCredentials = false;
         if (requestOrigin) {
           if (allowedOrigins.includes(requestOrigin) || 
-              requestOrigin.endsWith('.pitchey.pages.dev') ||
+              requestOrigin.endsWith('.pitchey-5o8.pages.dev') ||
               requestOrigin.startsWith('http://localhost:')) {
             corsOrigin = requestOrigin;
             includeCredentials = true;

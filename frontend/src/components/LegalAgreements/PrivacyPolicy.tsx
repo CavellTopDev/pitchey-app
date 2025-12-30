@@ -44,7 +44,9 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onAccept, onReject }) => 
 
       // Send acceptance to backend
       const apiUrl = config.API_URL;
-      fetch(`${apiUrl}/api/legal/privacy-acceptance`, {
+      
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -264,7 +264,7 @@ export class SecurityMonitor {
   private static triggerAlert(event: SecurityEvent): void {
     // Send to WebSocket for real-time dashboard updates
     if (window.WebSocket) {
-      const ws = new WebSocket('wss://pitchey-api-prod.cavelltheleaddev.workers.dev/ws');
+      const ws = new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws');
       ws.onopen = () => {
         ws.send(JSON.stringify({
           type: 'security_alert',
@@ -280,12 +280,14 @@ export class SecurityMonitor {
    */
   private static async sendToBackend(event: SecurityEvent): Promise<void> {
     try {
-      await fetch('/api/security/events', {
+      await 
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(event)
+        body: JSON.stringify(event),
       });
     } catch (error) {
       console.error('Failed to send security event to backend:', error);

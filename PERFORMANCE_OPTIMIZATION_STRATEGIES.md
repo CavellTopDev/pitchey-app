@@ -609,7 +609,7 @@ const preloadCreatorDashboard = () => {
 export function ResourceHints() {
   return (
     <>
-      <link rel="preconnect" href="https://pitchey-production.cavelltheleaddev.workers.dev" />
+      <link rel="preconnect" href="https://pitchey-api-prod.ndlovucavelle.workers.dev" />
       <link rel="dns-prefetch" href="https://r2.pitchey.com" />
       <link rel="preload" as="font" type="font/woff2" href="/fonts/inter.woff2" crossOrigin="" />
     </>

@@ -18,7 +18,7 @@ cat > monitoring-system/scripts/health-monitor.sh << 'EOF'
 # Continuous health monitoring with automatic alerting
 # Run this in background: nohup ./health-monitor.sh &
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_DIR="./monitoring-system/logs"
 ALERT_DIR="./monitoring-system/alerts"
 CHECK_INTERVAL=60  # 1 minute
@@ -95,7 +95,7 @@ cat > monitoring-system/scripts/performance-analytics.sh << 'EOF'
 # Performance analytics and trend analysis
 # Run daily: ./performance-analytics.sh
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 ANALYTICS_DIR="./monitoring-system/logs"
 REPORT_DIR="./monitoring-system/reports"
 
@@ -215,7 +215,7 @@ echo "🔴 LIVE PITCHEY PLATFORM MONITORING"
 echo "===================================="
 echo ""
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 while true; do
     # Clear and redraw

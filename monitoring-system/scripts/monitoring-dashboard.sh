@@ -8,7 +8,7 @@ echo "🔴 LIVE PITCHEY PLATFORM MONITORING"
 echo "===================================="
 echo ""
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 while true; do
     # Clear and redraw

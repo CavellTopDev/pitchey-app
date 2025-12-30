@@ -38,4 +38,4 @@ else
 fi
 
 echo -e "\n${GREEN}🎉 Deployment Complete!${NC}"
-echo "Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev"
+echo "Worker URL: https://pitchey-api-prod.ndlovucavelle.workers.dev"

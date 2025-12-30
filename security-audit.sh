@@ -190,8 +190,8 @@ check_https_configuration() {
     log "INFO" "🔍 Checking HTTPS configuration..."
     
     local urls=(
-        "https://pitchey.pages.dev"
-        "https://pitchey-api-production.cavelltheleaddev.workers.dev"
+        "https://pitchey-5o8.pages.dev"
+        "https://pitchey-api-prod.ndlovucavelle.workers.dev"
         "https://pitchey-backend-fresh.deno.dev"
     )
     
@@ -219,7 +219,7 @@ check_cors_configuration() {
     
     # Test CORS with malicious origin
     local malicious_origin="https://evil.com"
-    local api_url="https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health"
+    local api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
     
     local cors_response=$(curl -s -H "Origin: $malicious_origin" \
         -H "Access-Control-Request-Method: GET" \
@@ -239,7 +239,7 @@ check_cors_configuration() {
 check_authentication_security() {
     log "INFO" "🔍 Checking authentication security..."
     
-    local api_url="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+    local api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
     
     # Test unauthenticated access to protected endpoints
     local protected_endpoints=(
@@ -266,7 +266,7 @@ check_authentication_security() {
 check_rate_limiting() {
     log "INFO" "🔍 Checking rate limiting..."
     
-    local api_url="https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health"
+    local api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
     local request_count=0
     local rate_limited=false
     
@@ -296,7 +296,7 @@ check_rate_limiting() {
 check_sql_injection_protection() {
     log "INFO" "🔍 Checking SQL injection protection..."
     
-    local api_url="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+    local api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
     local sql_payloads=(
         "' OR '1'='1"
         "'; DROP TABLE users; --"
@@ -329,7 +329,7 @@ check_xss_protection() {
     log "INFO" "🔍 Checking XSS protection..."
     
     # Check for XSS protection headers
-    local frontend_url="https://pitchey.pages.dev"
+    local frontend_url="https://pitchey-5o8.pages.dev"
     local headers=$(curl -s -I "$frontend_url" 2>/dev/null || echo "")
     
     if echo "$headers" | grep -q "X-Content-Type-Options: nosniff"; then
@@ -398,7 +398,7 @@ check_error_handling() {
     log "INFO" "🔍 Checking error handling..."
     
     # Test error responses don't leak information
-    local api_url="https://pitchey-api-production.cavelltheleaddev.workers.dev/api/nonexistent"
+    local api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev/api/nonexistent"
     local error_response=$(curl -s "$api_url" 2>/dev/null || echo "")
     
     if echo "$error_response" | grep -i "stack trace\|internal error\|database error"; then

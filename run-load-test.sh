@@ -7,7 +7,7 @@ echo "🚀 RUNNING PRODUCTION LOAD VALIDATION TESTS"
 echo "==========================================="
 echo ""
 
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 CONCURRENT_USERS=10
 REQUESTS_PER_USER=5
 TOTAL_REQUESTS=$((CONCURRENT_USERS * REQUESTS_PER_USER))

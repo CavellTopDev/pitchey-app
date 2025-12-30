@@ -74,13 +74,10 @@ export default function ProductionActivity() {
   const loadActivityFeed = async () => {
     try {
       setError(null);
-      const response = await fetch(`${config.API_URL}/api/activity/feed`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/production`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error(`Activity feed API error: ${response.status}`);

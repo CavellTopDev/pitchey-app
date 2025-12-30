@@ -16,7 +16,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 DASHBOARD_DIR="./monitoring/dashboards"
 GRAFANA_DIR="./monitoring/grafana"
 
@@ -360,7 +360,7 @@ create_health_monitor() {
 # Pitchey Health Check Monitor
 # Continuously monitors production health endpoints
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_FILE="./monitoring/logs/health-monitor.log"
 ALERT_THRESHOLD=3  # Failed checks before alert
 
@@ -487,8 +487,8 @@ echo "✅ Alert rules configured"
 echo "✅ Health monitoring active"
 echo ""
 echo "🔗 Quick Access Links:"
-echo "- Production API: https://pitchey-production.cavelltheleaddev.workers.dev"
-echo "- Health Check: https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+echo "- Production API: https://pitchey-api-prod.ndlovucavelle.workers.dev"
+echo "- Health Check: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 echo "- Cloudflare Analytics: https://dash.cloudflare.com/analytics"
 echo ""
 echo "📋 Next Steps:"

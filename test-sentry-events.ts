@@ -4,7 +4,7 @@
 // Triggers test events for both frontend and backend monitoring
 
 const BACKEND_URL = "https://pitchey-backend-fresh-r0gm926brse3.deno.dev";
-const FRONTEND_URL = "https://pitchey.pages.dev";
+const FRONTEND_URL = "https://pitchey-5o8.pages.dev";
 
 async function testBackendSentry() {
   console.log("🔧 Testing Backend Sentry Integration");

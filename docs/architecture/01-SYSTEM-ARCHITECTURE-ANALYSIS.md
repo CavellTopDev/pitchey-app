@@ -7,8 +7,8 @@
 ## Current State Analysis (November 2025)
 
 ### ✅ Working Components
-- **Frontend**: Cloudflare Pages (https://pitchey.pages.dev) - ✅ OPERATIONAL
-- **API Gateway**: Cloudflare Worker (https://pitchey-production.cavelltheleaddev.workers.dev) - ✅ PARTIAL
+- **Frontend**: Cloudflare Pages (https://pitchey-5o8.pages.dev) - ✅ OPERATIONAL
+- **API Gateway**: Cloudflare Worker (https://pitchey-api-prod.ndlovucavelle.workers.dev) - ✅ PARTIAL
 - **Database**: Neon PostgreSQL with Hyperdrive - ✅ OPERATIONAL  
 - **Cache**: Upstash Redis - ✅ OPERATIONAL
 - **Storage**: Cloudflare R2 - ✅ OPERATIONAL

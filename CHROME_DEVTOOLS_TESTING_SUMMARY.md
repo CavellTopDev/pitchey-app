@@ -190,8 +190,8 @@ The Pitchey platform demonstrates **excellent front-end architecture and user ex
 ---
 
 **Testing Environment:**
-- Frontend: https://pitchey.pages.dev ✅
-- API: https://pitchey-production.cavelltheleaddev.workers.dev ✅
+- Frontend: https://pitchey-5o8.pages.dev ✅
+- API: https://pitchey-api-prod.ndlovucavelle.workers.dev ✅
 - Database: Neon PostgreSQL ✅
 - Testing Date: December 8, 2025
 - Testing Duration: 1 hour comprehensive coverage

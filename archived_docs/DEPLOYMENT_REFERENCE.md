@@ -7,7 +7,7 @@
 - **Version**: v0.2 Production Release
 
 ### Live Environment URLs
-- **Frontend**: https://pitchey.pages.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
 - **Backend**: https://pitchey-backend-fresh.deno.dev
 
 ## Technical Stack Overview

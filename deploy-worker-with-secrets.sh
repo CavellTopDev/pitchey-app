@@ -74,7 +74,7 @@ fi
 echo -e "${YELLOW}Step 5: Testing deployment...${NC}"
 
 # Test the health endpoint
-WORKER_URL="https://pitchey-api-prod.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 echo "Testing $WORKER_URL/api/health..."
 
 HEALTH_RESPONSE=$(curl -s "$WORKER_URL/api/health")

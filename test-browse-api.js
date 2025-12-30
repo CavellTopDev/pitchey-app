@@ -4,7 +4,7 @@
  */
 
 const API_BASE = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
-// const API_BASE = 'https://pitchey-production.cavelltheleaddev.workers.dev'; // Production URL
+// const API_BASE = 'https://pitchey-api-prod.ndlovucavelle.workers.dev'; // Production URL
 // const API_BASE = 'http://localhost:8001'; // For local testing
 
 async function testBrowseEndpoint(tab, description) {

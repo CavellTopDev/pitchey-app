@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const FormData = require('form-data');
 
-const WORKER_API = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const WORKER_API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 console.log('📁 Testing Worker File Upload Capabilities\n');
 
@@ -14,7 +14,7 @@ async function loginAsCreator() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Origin': 'https://pitchey.pages.dev'
+      'Origin': 'https://pitchey-5o8.pages.dev'
     },
     body: JSON.stringify({
       email: 'alex.creator@demo.com',
@@ -34,7 +34,7 @@ async function testFileUploadEndpoints(token) {
     const response = await fetch(`${WORKER_API}/api/upload/info`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
     
@@ -54,7 +54,7 @@ async function testFileUploadEndpoints(token) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify({
         filename: 'test-pitch-deck.pdf',
@@ -98,7 +98,7 @@ async function testWorkerStorageCapabilities(token) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: formData
     });
@@ -131,7 +131,7 @@ async function testR2Integration(token) {
     const response = await fetch(`${WORKER_API}/api/storage/status`, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
     
@@ -174,7 +174,7 @@ async function testImageProcessing(token) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: formData
     });

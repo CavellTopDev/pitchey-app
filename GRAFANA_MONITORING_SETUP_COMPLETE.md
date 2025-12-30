@@ -104,7 +104,7 @@ I've successfully created a comprehensive Grafana Cloud monitoring system for yo
 ## 🎯 **Current Worker Integration**
 
 ### **Monitoring Targets for Your Deployed Worker**
-- **URL**: `https://pitchey-production.cavelltheleaddev.workers.dev`
+- **URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 - **Version**: `3c5d4b31-030c-48b9-be42-9bccd7177da5`
 - **Cache System**: Advanced cache with management endpoints ✅
 - **Target Hit Rate**: >80% (currently being tracked)

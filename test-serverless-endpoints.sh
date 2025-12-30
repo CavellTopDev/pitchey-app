@@ -3,7 +3,7 @@
 # Test script for Cloudflare Worker serverless endpoints
 # Tests all 25 implemented endpoints with proper authentication
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOCAL_URL="http://localhost:8787"
 
 # Colors for output

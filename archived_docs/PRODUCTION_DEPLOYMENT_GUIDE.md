@@ -26,7 +26,7 @@ Your Pitchey platform uses a **dual-platform deployment strategy** with automate
 
 ## Production URLs
 
-- **Frontend**: https://pitchey.pages.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
 - **Backend API**: https://pitchey-backend-fresh.deno.dev
 - **Database**: Neon PostgreSQL (managed)
 
@@ -105,7 +105,7 @@ VITE_NODE_ENV=production
 ```bash
 DATABASE_URL=${{ secrets.DATABASE_URL }}
 JWT_SECRET=${{ secrets.JWT_SECRET }}
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 CACHE_ENABLED=true
 PORT=8000
 NODE_ENV=production
@@ -176,7 +176,7 @@ DENO_ENV=production
 
 | Aspect | Development | Production |
 |--------|-------------|------------|
-| Frontend | http://localhost:5173 | https://pitchey.pages.dev |
+| Frontend | http://localhost:5173 | https://pitchey-5o8.pages.dev |
 | Backend | http://localhost:8001 | https://pitchey-backend-fresh.deno.dev |
 | Database | Local PostgreSQL | Neon PostgreSQL |
 | WebSocket | ws://localhost:8001 | wss://pitchey-backend-fresh.deno.dev |
@@ -192,7 +192,7 @@ DENO_ENV=production
 - [ ] Backend starts without errors
 
 ### After Deployment
-- [ ] Frontend loads at https://pitchey.pages.dev
+- [ ] Frontend loads at https://pitchey-5o8.pages.dev
 - [ ] API endpoints responding (check /api/health)
 - [ ] WebSocket connections working
 - [ ] Database connections successful

@@ -5,8 +5,8 @@
  * This script tests both the frontend and backend Sentry configurations
  */
 
-const PRODUCTION_FRONTEND_URL = 'https://pitchey.pages.dev';
-const PRODUCTION_API_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const PRODUCTION_FRONTEND_URL = 'https://pitchey-5o8.pages.dev';
+const PRODUCTION_API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 const SENTRY_DSN = 'https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536';
 
 // Test credentials for demo investor account

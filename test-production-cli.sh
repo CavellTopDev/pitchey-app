@@ -12,9 +12,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Production URLs
-WORKER_API="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+WORKER_API="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 BACKEND_API="https://pitchey-backend-fresh-dpgqq3t2wr6w.deno.dev"
-FRONTEND_URL="https://e7279e57.pitchey.pages.dev"
+FRONTEND_URL="https://e7279e57.pitchey-5o8.pages.dev"
 WS_URL="wss://pitchey-backend-fresh-dpgqq3t2wr6w.deno.dev/ws"
 
 echo -e "\n${BLUE}1. 🌐 Testing Frontend Availability${NC}"
@@ -26,7 +26,7 @@ else
 fi
 
 echo -e "\n${BLUE}2. ⚡ Testing Worker API Health${NC}"
-WORKER_RESPONSE=$(curl -s -H "Origin: https://pitchey.pages.dev" "$WORKER_API/api/health")
+WORKER_RESPONSE=$(curl -s -H "Origin: https://pitchey-5o8.pages.dev" "$WORKER_API/api/health")
 WORKER_STATUS=$(echo $WORKER_RESPONSE | jq -r '.status' 2>/dev/null)
 USER_COUNT=$(echo $WORKER_RESPONSE | jq -r '.userCount' 2>/dev/null)
 
@@ -56,7 +56,7 @@ fi
 echo -e "\n${BLUE}4. 🔐 Testing Authentication Flow${NC}"
 LOGIN_RESPONSE=$(curl -s -X POST "$WORKER_API/api/auth/creator/login" \
   -H "Content-Type: application/json" \
-  -H "Origin: https://pitchey.pages.dev" \
+  -H "Origin: https://pitchey-5o8.pages.dev" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
 
 TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.token' 2>/dev/null)
@@ -69,7 +69,7 @@ if [ "$TOKEN" != "null" ] && [ "$TOKEN" != "" ]; then
   # Test authenticated endpoint
   DASHBOARD_RESPONSE=$(curl -s -X GET "$WORKER_API/api/creator/dashboard" \
     -H "Authorization: Bearer $TOKEN" \
-    -H "Origin: https://pitchey.pages.dev")
+    -H "Origin: https://pitchey-5o8.pages.dev")
   
   DASH_STATUS=$(echo $DASHBOARD_RESPONSE | jq -r '.totalPitches' 2>/dev/null)
   if [ "$DASH_STATUS" != "null" ] && [ "$DASH_STATUS" != "" ]; then
@@ -100,7 +100,7 @@ for endpoint_info in "${endpoints[@]}"; do
     if [ "$TOKEN" != "null" ] && [ "$TOKEN" != "" ]; then
       RESPONSE=$(curl -s -X $method "$WORKER_API$endpoint" \
         -H "Authorization: Bearer $TOKEN" \
-        -H "Origin: https://pitchey.pages.dev")
+        -H "Origin: https://pitchey-5o8.pages.dev")
       
       # Check if response is valid JSON
       if echo "$RESPONSE" | jq . >/dev/null 2>&1; then
@@ -116,7 +116,7 @@ done
 
 echo -e "\n${BLUE}6. 🌍 Testing CORS Configuration${NC}"
 CORS_TEST=$(curl -s -X OPTIONS "$WORKER_API/api/health" \
-  -H "Origin: https://pitchey.pages.dev" \
+  -H "Origin: https://pitchey-5o8.pages.dev" \
   -H "Access-Control-Request-Method: GET" \
   -o /dev/null -w "%{http_code}")
 
@@ -128,7 +128,7 @@ fi
 
 echo -e "\n${BLUE}7. ⚡ Performance Testing${NC}"
 START_TIME=$(date +%s%N)
-PERF_RESPONSE=$(curl -s "$WORKER_API/api/health" -H "Origin: https://pitchey.pages.dev")
+PERF_RESPONSE=$(curl -s "$WORKER_API/api/health" -H "Origin: https://pitchey-5o8.pages.dev")
 END_TIME=$(date +%s%N)
 RESPONSE_TIME=$(( ($END_TIME - $START_TIME) / 1000000 ))
 
@@ -155,4 +155,4 @@ echo "   npm install -g wscat"
 echo "   wscat -c '$WS_URL'"
 
 echo -e "\n${YELLOW}🔧 Manual Testing:${NC}"
-echo "   curl '$WORKER_API/api/health' -H 'Origin: https://pitchey.pages.dev'"
+echo "   curl '$WORKER_API/api/health' -H 'Origin: https://pitchey-5o8.pages.dev'"

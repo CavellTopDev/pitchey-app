@@ -101,7 +101,7 @@ echo -e "\n${BLUE}6. VERIFY DEPLOYMENT${NC}"
 echo "--------------------"
 
 echo -e "${GREEN}Test health check:${NC}"
-echo "curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+echo "curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 
 echo -e "\n============================"
 echo -e "${GREEN}✅ PRODUCTION SETUP COMPLETE${NC}"

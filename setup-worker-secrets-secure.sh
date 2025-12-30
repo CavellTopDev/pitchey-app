@@ -36,8 +36,8 @@ set_secret "BETTER_AUTH_SECRET" "Secret key for Better Auth sessions (generate n
 # Better Auth URL
 echo ""
 echo "Setting BETTER_AUTH_URL..."
-echo "Using production URL: https://pitchey-production.cavelltheleaddev.workers.dev"
-echo "https://pitchey-production.cavelltheleaddev.workers.dev" | wrangler secret put BETTER_AUTH_URL
+echo "Using production URL: https://pitchey-api-prod.ndlovucavelle.workers.dev"
+echo "https://pitchey-api-prod.ndlovucavelle.workers.dev" | wrangler secret put BETTER_AUTH_URL
 echo "✅ BETTER_AUTH_URL configured"
 
 # JWT Secret (for backward compatibility)
@@ -69,7 +69,7 @@ echo "========================================="
 echo ""
 echo "Next steps:"
 echo "1. Test the connection:"
-echo "   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+echo "   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 echo ""
 echo "2. If using debug worker:"
 echo "   Run this script with: -c wrangler-debug.toml"

@@ -425,11 +425,9 @@ export class InvestorService {
   // Download investment report
   static async downloadReport(investmentId: number, format: 'pdf' | 'excel'): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/investor/investments/${investmentId}/report?format=${format}`,
-      {
+      `${config.API_URL}/api/investor/investments/${investmentId}/report?format=${format}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+          }
       }
     );
 

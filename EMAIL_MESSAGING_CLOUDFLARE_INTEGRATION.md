@@ -188,7 +188,7 @@ wrangler deploy --env production
 
 ### Test Email Sending
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/email/send \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/email/send \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -203,7 +203,7 @@ curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/email/s
 
 ### Test Messaging
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/messages/send \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/messages/send \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
@@ -215,7 +215,7 @@ curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/message
 
 ### Test Notifications
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/notifications/send \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/notifications/send \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{

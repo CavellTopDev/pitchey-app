@@ -81,7 +81,7 @@ if wrangler deploy; then
     echo ""
     
     # Get deployment URL
-    WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+    WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
     
     echo "🌐 Worker deployed to: $WORKER_URL"
     echo ""
@@ -140,7 +140,7 @@ if wrangler deploy; then
     echo ""
     echo "🔗 Endpoints:"
     echo "   API: $WORKER_URL"
-    echo "   WebSocket: wss://pitchey-production.cavelltheleaddev.workers.dev/ws"
+    echo "   WebSocket: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws"
     echo "   Health: $WORKER_URL/health"
     echo ""
     echo "📝 Next Steps:"

@@ -3,7 +3,7 @@
 echo "Testing Cloudflare Worker endpoints for error rate..."
 echo "=========================================="
 
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 TOTAL_TESTS=0
 SUCCESSFUL_TESTS=0
 

@@ -1,6 +1,6 @@
 # Pitchey Platform - Final Comprehensive Test Report
 **Date**: December 7, 2024  
-**Test Environment**: Production (https://pitchey.pages.dev)  
+**Test Environment**: Production (https://pitchey-5o8.pages.dev)  
 **Test Method**: Chrome DevTools MCP + Browser Console Testing  
 **Status**: ✅ **PRODUCTION READY**
 
@@ -157,9 +157,9 @@ const filteredPitches = useMemo(() => {
 
 ### Working Test Script
 ```javascript
-// Copy this to browser console at https://pitchey.pages.dev
+// Copy this to browser console at https://pitchey-5o8.pages.dev
 const PortalWorkflowTests = {
-  API_URL: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   
   async runAll() {
     // Test all three portals
@@ -276,9 +276,9 @@ The platform has achieved a **98% test success rate** and is ready for productio
 ---
 
 **Test Environment Details:**
-- Frontend URL: https://pitchey.pages.dev
-- API URL: https://pitchey-production.cavelltheleaddev.workers.dev
-- WebSocket URL: wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+- Frontend URL: https://pitchey-5o8.pages.dev
+- API URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- WebSocket URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 - Test Date: December 7, 2024
 - Test Tool: Chrome DevTools MCP
 - Browser: Chrome 141.0.0.0

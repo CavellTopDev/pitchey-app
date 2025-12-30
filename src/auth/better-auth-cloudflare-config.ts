@@ -45,8 +45,8 @@ export function createBetterAuth(env: CloudflareEnv) {
   const trustedOrigins = env.TRUSTED_ORIGINS 
     ? env.TRUSTED_ORIGINS.split(',')
     : [
-        'https://pitchey.pages.dev',
-        'https://pitchey-production.cavelltheleaddev.workers.dev',
+        'https://pitchey-5o8.pages.dev',
+        'https://pitchey-api-prod.ndlovucavelle.workers.dev',
         'http://localhost:5173',
         'http://localhost:8001'
       ];

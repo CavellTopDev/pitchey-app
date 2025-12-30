@@ -308,7 +308,7 @@ async function handleDashboard(env: any, sentry: Toucan): Promise<Response> {
 async function checkApiHealth(env: any): Promise<HealthCheck> {
   const startTime = Date.now();
   try {
-    const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/health', {
+    const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health', {
       method: 'GET',
       timeout: 5000
     });
@@ -335,7 +335,7 @@ async function checkDatabaseHealth(env: any): Promise<HealthCheck> {
   const startTime = Date.now();
   try {
     // Simple database ping
-    const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db', {
+    const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/db', {
       method: 'GET',
       timeout: 10000
     });

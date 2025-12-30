@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Generate performance report
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 REPORT_FILE="monitoring/dashboards/reports/performance-$(date +%Y%m%d-%H%M%S).txt"
 
 echo "PITCHEY PERFORMANCE REPORT" > "$REPORT_FILE"

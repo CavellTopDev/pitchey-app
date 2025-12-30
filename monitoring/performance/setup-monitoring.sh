@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-5}"
 DASHBOARD_REFRESH_INTERVAL="${DASHBOARD_REFRESH_INTERVAL:-1}"
 WEBHOOK_URL="${WEBHOOK_URL:-}"

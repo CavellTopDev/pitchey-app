@@ -1,14 +1,14 @@
 # 📄 PITCHEY FRONTEND ARCHITECTURE DOCUMENTATION
 **Last Updated**: December 2, 2024
-**Frontend URL**: https://pitchey.pages.dev
-**API Worker**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+**Frontend URL**: https://pitchey-5o8.pages.dev
+**API Worker**: https://pitchey-optimized.ndlovucavelle.workers.dev
 
 ## 🏗️ DEPLOYMENT ARCHITECTURE
 
 ### Frontend Hosting: Cloudflare Pages
 ```yaml
 Project Name: pitchey
-Production URL: https://pitchey.pages.dev
+Production URL: https://pitchey-5o8.pages.dev
 Custom Domain: (not configured)
 Deployment Method: GitHub Actions CI/CD
 Build Output: frontend/dist/
@@ -18,7 +18,7 @@ Framework: React + Vite
 ### Backend API: Cloudflare Worker
 ```yaml
 Worker Name: pitchey-optimized
-API URL: https://pitchey-optimized.cavelltheleaddev.workers.dev
+API URL: https://pitchey-optimized.ndlovucavelle.workers.dev
 Type: Edge Worker (runs globally)
 Entry Point: src/worker-platform-fixed.ts
 Runtime: V8 Isolate
@@ -31,8 +31,8 @@ The frontend uses environment variables to connect to the backend:
 
 ```javascript
 // frontend/.env.production
-VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 ```
 
 ### 2. API Service Layer
@@ -61,7 +61,7 @@ const apiClient = axios.create({
                      │
                      ▼
 ┌──────────────────────────────────────────────────────────────┐
-│            CLOUDFLARE PAGES (pitchey.pages.dev)              │
+│            CLOUDFLARE PAGES (pitchey-5o8.pages.dev)              │
 │                                                               │
 │  • Static React App (HTML/JS/CSS)                           │
 │  • Global CDN Distribution                                   │
@@ -115,8 +115,8 @@ const apiClient = axios.create({
    ```
 
 4. **URLs Generated**:
-   - Production: `https://pitchey.pages.dev`
-   - Preview: `https://<commit-hash>.pitchey.pages.dev`
+   - Production: `https://pitchey-5o8.pages.dev`
+   - Preview: `https://<commit-hash>.pitchey-5o8.pages.dev`
 
 ### Worker Deployment (API)
 
@@ -196,7 +196,7 @@ frontend/dist/
 ### CORS Settings
 Worker allows requests from:
 ```javascript
-'Access-Control-Allow-Origin': '*'  // Currently open, should restrict to pitchey.pages.dev
+'Access-Control-Allow-Origin': '*'  // Currently open, should restrict to pitchey-5o8.pages.dev
 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
 'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 ```
@@ -223,7 +223,7 @@ wrangler pages deployment tail --project-name=pitchey
 wrangler tail
 
 # Check worker status
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 ```
 
 ### 3. GitHub Actions Status
@@ -241,7 +241,7 @@ gh run list --limit 5
 4. ✅ Aligned frontend/backend data expectations
 
 ### Current Configuration:
-- Frontend: Points to `pitchey-optimized.cavelltheleaddev.workers.dev`
+- Frontend: Points to `pitchey-optimized.ndlovucavelle.workers.dev`
 - Caching: Enabled with KV namespace
 - WebSockets: Secured with JWT authentication
 - Response Format: Standardized across all endpoints
@@ -307,9 +307,9 @@ wrangler tail | grep "Cache hit"
 
 ## 🔗 IMPORTANT URLS
 
-- **Frontend (Production)**: https://pitchey.pages.dev
-- **API (Worker)**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Health Check**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- **Frontend (Production)**: https://pitchey-5o8.pages.dev
+- **API (Worker)**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 - **GitHub Repo**: pitcheymovie/pitchey_v0.2
 
 ---

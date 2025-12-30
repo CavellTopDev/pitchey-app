@@ -132,7 +132,7 @@ async function handleUserEndpoint(request: Request, logger: SentryLogger, env: E
 ### Successful Deployment Details
 ```
 Worker: pitchey-production
-URL: https://pitchey-production.cavelltheleaddev.workers.dev
+URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
 Version: 1772507b-d99c-4aee-a927-e4353dcaa739
 Size: 571.57 KiB (compressed: 102.26 KiB)
 Startup Time: 18ms
@@ -149,14 +149,14 @@ Status: ✅ DEPLOYED & OPERATIONAL
 
 ### ✅ Authentication Flow Test
 ```bash
-curl -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login"
+curl -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login"
 Response: {"success":true,"data":{"token":"eyJ...","user":{...}}}
 Status: ✅ 200 OK
 ```
 
 ### ✅ User Profile Test (CRITICAL FIX)
 ```bash
-curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/user/profile"
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/user/profile"
 Response: {"success":true,"data":{"user":{...demo user data...}}}
 Status: ✅ 200 OK - **"User data not received from server" FIXED**
 ```

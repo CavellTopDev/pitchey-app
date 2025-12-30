@@ -12,7 +12,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-WORKER_URL="https://pitchey-api-prod.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo -e "\n${YELLOW}1. Health Check:${NC}"
 HEALTH=$(curl -s "$WORKER_URL/api/health")

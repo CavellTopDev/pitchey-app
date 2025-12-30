@@ -51,8 +51,8 @@ OPTIONS:
     --help              Show this help message
 
 ENVIRONMENTS:
-    production          https://pitchey-production.cavelltheleaddev.workers.dev
-    staging             https://pitchey-staging.cavelltheleaddev.workers.dev
+    production          https://pitchey-api-prod.ndlovucavelle.workers.dev
+    staging             https://pitchey-staging.ndlovucavelle.workers.dev
     local               http://localhost:8001
 
 EXAMPLES:
@@ -94,10 +94,10 @@ function increment_failed() {
 function setup_environment() {
     case "$ENVIRONMENT" in
         "production")
-            BASE_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+            BASE_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
             ;;
         "staging")
-            BASE_URL="https://pitchey-staging.cavelltheleaddev.workers.dev"
+            BASE_URL="https://pitchey-staging.ndlovucavelle.workers.dev"
             ;;
         "local")
             BASE_URL="http://localhost:8001"

@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "npx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+    "neon": {
+      "url": "https://mcp.neon.tech/mcp",
+      "headers": {
+        "Authorization": "Bearer ${napi_kgp05m3034hdypx7rqhtshysv1bhkgfqi7hhqsfwf8qmn37l27iztl33528rnn4w}",
+        "x-read-only": "true"
+      }
+    },
+    "cloudflare": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://workers.mcp.cloudflare.com/mcp"]
+    },
+    "upstash": {
+      "command": "npx",
+      "args": ["-y", "@upstash/mcp-server", "run"],
+      "env": {
+        "UPSTASH_EMAIL": "${cavelltheleaddev@gmail.com}",
+        "UPSTASH_API_KEY": "${722ed35a-56ed-477e-ab83-f7806332bad3}"
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    }
+  }
+  }

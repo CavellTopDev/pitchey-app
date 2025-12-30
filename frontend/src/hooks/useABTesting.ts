@@ -86,7 +86,9 @@ class ABTestingClient {
     const events = this.eventQueue.splice(0, this.config.batchSize);
     
     try {
-      await fetch(`${this.config.apiUrl}/track/batch`, {
+      await 
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -106,13 +108,12 @@ class ABTestingClient {
     try {
       const context = { ...this.getUserContext(), ...userContext };
       
-      const response = await fetch(`${this.config.apiUrl}/assignments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userContext: context }),
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userContext: context }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         const result = await response.json();
@@ -138,16 +139,15 @@ class ABTestingClient {
     try {
       const context = { ...this.getUserContext(), ...userContext };
       
-      const response = await fetch(`${this.config.apiUrl}/assignments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          experimentIds: [experimentId],
-          userContext: context 
-        }),
-      });
+    const response = await fetch(`${config.API_URL}/api/ab-testing/assignment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        experimentId,
+        userContext: { ...this.getUserContext(), ...userContext }
+      }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         const result = await response.json();
@@ -178,7 +178,9 @@ class ABTestingClient {
       }
     } else {
       try {
-        await fetch(`${this.config.apiUrl}/track`, {
+        await 
+      credentials: 'include', // Send cookies for Better Auth session
+      
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -199,17 +201,15 @@ class ABTestingClient {
     try {
       const context = { ...this.getUserContext(), ...userContext };
       
-      const response = await fetch(`${this.config.apiUrl}/feature-flag`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          flagKey,
-          defaultValue,
-          userContext: context 
-        }),
-      });
+    const response = await fetch(`${config.API_URL}/api/ab-testing/assignment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        experimentId,
+        userContext: { ...this.getUserContext(), ...userContext }
+      }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         const result = await response.json();

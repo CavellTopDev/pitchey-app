@@ -52,11 +52,27 @@ export default function InvestorLogin() {
     }
   };
 
-  const setDemoCredentials = () => {
-    setFormData({ 
+  const setDemoCredentials = async () => {
+    const demoData = { 
       email: 'sarah.investor@demo.com', 
       password: 'Demo123' 
-    });
+    };
+    setFormData(demoData);
+    
+    // Auto-submit the form with demo credentials
+    setLoading('logging-in', 'Authenticating demo investor account...');
+    
+    try {
+      await loginInvestor(demoData.email, demoData.password);
+      // Small delay for state propagation
+      setTimeout(() => {
+        clearLoading();
+        navigate('/investor/dashboard');
+      }, 100);
+    } catch (error) {
+      console.error('Demo investor login failed:', error);
+      clearLoading();
+    }
   };
 
   return (

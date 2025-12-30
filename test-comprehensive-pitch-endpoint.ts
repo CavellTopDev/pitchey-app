@@ -3,7 +3,7 @@
  * Tests /api/pitches/:id with various scenarios
  */
 
-const WORKER_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const WORKER_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 interface TestCase {
   name: string;

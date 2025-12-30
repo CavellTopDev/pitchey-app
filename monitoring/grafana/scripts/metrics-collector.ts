@@ -181,7 +181,7 @@ class PitcheyMetricsCollector {
    * Collect custom application metrics from the Worker
    */
   async collectApplicationMetrics(): Promise<GrafanaMetric[]> {
-    const workerUrl = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+    const workerUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
     const metricsEndpoint = `${workerUrl}/metrics`;
 
     try {

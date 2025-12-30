@@ -13,7 +13,7 @@ wrangler secret put BETTER_AUTH_SECRET
 # Enter a secure random string (32+ characters)
 
 wrangler secret put BETTER_AUTH_URL
-# Enter: https://pitchey-production.cavelltheleaddev.workers.dev
+# Enter: https://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 **Optional OAuth secrets (for future use):**
@@ -31,7 +31,7 @@ wrangler secret put GITHUB_CLIENT_SECRET
 wrangler deploy
 
 # Verify deployment
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 ```
 
 ### 3. Test Authentication
@@ -229,10 +229,10 @@ wrangler tail --format=pretty
 wrangler tail --format=pretty
 
 # Test health endpoint
-curl -v https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl -v https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 # Test auth endpoints
-curl -v -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/sign-in \
+curl -v -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/sign-in \
   -H "Content-Type: application/json" \
   -d '{"email": "test@example.com", "password": "password123"}'
 ```

@@ -11,9 +11,9 @@ Successfully completed full migration from Deno to Cloudflare Workers with all c
 
 | Component | URL | Status |
 |-----------|-----|--------|
-| **Frontend** | https://e0b2afb4.pitchey.pages.dev | ✅ Live |
-| **API** | https://pitchey-optimized.cavelltheleaddev.workers.dev | ✅ Live |
-| **WebSocket** | wss://pitchey-optimized.cavelltheleaddev.workers.dev/ws | ✅ Live |
+| **Frontend** | https://e0b2afb4.pitchey-5o8.pages.dev | ✅ Live |
+| **API** | https://pitchey-optimized.ndlovucavelle.workers.dev | ✅ Live |
+| **WebSocket** | wss://pitchey-optimized.ndlovucavelle.workers.dev/ws | ✅ Live |
 
 ## What Was Accomplished
 
@@ -72,11 +72,11 @@ Successfully completed full migration from Deno to Cloudflare Workers with all c
 ### Authentication Testing ✅
 ```bash
 # Creator Login - ✅ PASSED
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login
 Response: JWT token received successfully
 
 # Registration - ✅ PASSED  
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/register
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/register
 Response: "Email already registered" (expected for existing user)
 ```
 

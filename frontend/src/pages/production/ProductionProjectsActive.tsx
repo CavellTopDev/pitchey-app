@@ -71,12 +71,10 @@ export default function ProductionProjectsActive() {
   const fetchActiveProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${config.API_URL}/api/projects/production`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/production`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch active projects: ${response.status}`);

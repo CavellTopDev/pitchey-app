@@ -11,7 +11,7 @@ Verification of the Browse tabs fix and NDA upload integration reveals that the 
 - Tab-based UI for quick switching between views
 
 ### Actual Production State
-- **URL**: https://pitchey.pages.dev/browse (redirects to /marketplace)
+- **URL**: https://pitchey-5o8.pages.dev/browse (redirects to /marketplace)
 - **UI Pattern**: Dropdown menu instead of tabs
 - **Sort Options Available**:
   - Trending Now
@@ -66,7 +66,7 @@ The production site is using a **dropdown sorting mechanism** rather than the ta
 ## 3. Technical Discrepancies
 
 ### API Infrastructure
-**Expected**: `pitchey-production.cavelltheleaddev.workers.dev`
+**Expected**: `pitchey-api-prod.ndlovucavelle.workers.dev`
 **Actual**: `pitchey-api.ndlovucavelle.workers.dev`
 
 This indicates a different deployment or routing configuration than documented.
@@ -118,16 +118,16 @@ The API returns a simplified structure:
 
 ```bash
 # 1. Verify current production API
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # 2. Check if browse endpoint supports tab parameter
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/browse?tab=trending
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse?tab=trending
 
 # 3. Deploy latest Worker code
 wrangler deploy
 
 # 4. Deploy frontend with correct API URL
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev npm run build
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev npm run build
 wrangler pages deploy frontend/dist --project-name=pitchey
 ```
 

@@ -296,14 +296,14 @@ export interface Env {
 function getCorsHeaders(request: Request): Record<string, string> {
   const origin = request.headers.get('Origin') || '';
   const allowedOrigins = [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:3000'
   ];
   
   // Also explicitly allow the current preview deployment
-  const previewUrl = 'https://bee4a828.pitchey.pages.dev';
+  const previewUrl = 'https://bee4a828.pitchey-5o8.pages.dev';
   if (!allowedOrigins.includes(previewUrl)) {
     allowedOrigins.push(previewUrl);
   }
@@ -381,7 +381,7 @@ async function authenticateRequest(request: Request, env: Env, db: any): Promise
     try {
       const redis = createRedisClient(env);
       const sessionManager = new SessionManager(redis, {
-        domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+        domain: env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined,
         secure: env.ENVIRONMENT === 'production',
         httpOnly: true,
         sameSite: 'lax'
@@ -497,7 +497,7 @@ async function handleLogin(request: Request, env: Env, userType: string): Promis
 
     // Create secure session instead of JWT
     const sessionManager = new SessionManager(redis, {
-      domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+      domain: env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined,
       secure: env.ENVIRONMENT === 'production',
       httpOnly: true,
       sameSite: 'lax',
@@ -1106,7 +1106,7 @@ export default {
           const redis = createRedisClient(env);
           
           const sessionManager = new SessionManager(redis, {
-            domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+            domain: env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined,
             secure: env.ENVIRONMENT === 'production',
           });
           
@@ -1114,7 +1114,7 @@ export default {
         }
         
         const logoutCookie = SessionManager.generateLogoutCookie(
-          env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined
+          env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined
         );
         
         return corsResponse(request, {
@@ -1187,7 +1187,7 @@ export default {
         const redis = createRedisClient(env);
         
         const sessionManager = new SessionManager(redis, {
-          domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+          domain: env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined,
           secure: env.ENVIRONMENT === 'production',
           httpOnly: true,
           sameSite: 'lax'
@@ -1246,7 +1246,7 @@ export default {
         const redis = createRedisClient(env);
         
         const sessionManager = new SessionManager(redis, {
-          domain: env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+          domain: env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined,
           secure: env.ENVIRONMENT === 'production',
           httpOnly: true,
           sameSite: 'lax'

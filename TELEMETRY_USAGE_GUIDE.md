@@ -296,8 +296,8 @@ Create focused dashboards for:
 ### Health Check Endpoints
 
 - **Backend**: https://pitchey-backend-fresh.deno.dev/api/health
-- **Frontend**: https://pitchey.pages.dev
-- **Worker API**: https://pitchey-api-production.cavelltheleaddev.workers.dev/health
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **Worker API**: https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 ### Key Commands
 

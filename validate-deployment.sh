@@ -6,7 +6,7 @@
 echo "🧪 Validating Phase 1 Optimization Deployment"
 echo "============================================="
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "Testing production endpoint: $PRODUCTION_URL"
 echo ""

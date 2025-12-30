@@ -274,8 +274,8 @@ Dashboard data is cached with appropriate TTLs:
 ### Production URLs
 
 All features have been tested on production:
-- Frontend: https://pitchey.pages.dev
-- API: https://pitchey-production.cavelltheleaddev.workers.dev
+- Frontend: https://pitchey-5o8.pages.dev
+- API: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ### Browser Compatibility
 

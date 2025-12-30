@@ -27,7 +27,7 @@ GitHub Actions → Cloudflare Worker → Neon PostgreSQL
   5. Monitors deployment metrics
 
 ### 2. Cloudflare Worker (Edge API)
-- **URL**: `https://pitchey-api-prod.cavelltheleaddev.workers.dev`
+- **URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 - **File**: `frontend/worker/index.ts`
 - **Features**:
   - Edge-deployed serverless API
@@ -72,14 +72,14 @@ console.log(`Database query executed, returned ${pitches.length} pitches`);
 ### 3. Deployment Verification
 ```bash
 # Health check
-curl https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/test
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test
 
 # Database test
-curl https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/test-db
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test-db
 
 # Main endpoint with CORS
-curl -H "Origin: https://pitchey.pages.dev" \
-  https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/pitches
+curl -H "Origin: https://pitchey-5o8.pages.dev" \
+  https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches
 ```
 
 ## Security Implementation
@@ -112,23 +112,23 @@ const corsHeaders = {
 ### 1. Environment Configuration
 **File**: `frontend/.env.production`
 ```env
-VITE_API_URL=https://pitchey-api-prod.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-api-prod.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ### 2. Deployment Process
 ```bash
 # Build with production env
-VITE_API_URL=https://pitchey-api-prod.cavelltheleaddev.workers.dev npm run build
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev npm run build
 
 # Deploy to Cloudflare Pages
 npx wrangler pages deploy dist --project-name=pitchey --branch=main
 ```
 
 ### 3. Deployment URLs
-- **Production**: https://pitchey.pages.dev
-- **Preview**: https://34c3a579.pitchey.pages.dev
-- **API**: https://pitchey-api-prod.cavelltheleaddev.workers.dev
+- **Production**: https://pitchey-5o8.pages.dev
+- **Preview**: https://34c3a579.pitchey-5o8.pages.dev
+- **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ## Troubleshooting Guide
 

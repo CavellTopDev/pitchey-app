@@ -99,7 +99,7 @@ CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
   secure: true,         // HTTPS only
   sameSite: 'lax',     // CSRF protection
   maxAge: 604800,      // 7 days
-  domain: '.pitchey.pages.dev' // Subdomain support
+  domain: '.pitchey-5o8.pages.dev' // Subdomain support
 }
 ```
 
@@ -155,7 +155,7 @@ CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 UPSTASH_REDIS_REST_URL=https://your-redis-instance.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-token
 ENVIRONMENT=production
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 
 # Development
 UPSTASH_REDIS_REST_URL=https://your-dev-redis.upstash.io

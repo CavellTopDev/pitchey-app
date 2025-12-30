@@ -56,7 +56,7 @@ After deployment, test these endpoints:
 
 ```bash
 # Health check
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # Should return:
 # {"status":"ok","environment":"production","timestamp":"..."}
@@ -77,7 +77,7 @@ npx wrangler tail --env production
 These are already configured in the script:
 - `JWT_SECRET`: Authentication secret
 - `DATABASE_URL`: Neon PostgreSQL connection
-- `FRONTEND_URL`: https://pitchey.pages.dev
+- `FRONTEND_URL`: https://pitchey-5o8.pages.dev
 - `CACHE_ENABLED`: true
 - `UPSTASH_REDIS_REST_URL`: Redis cache URL
 - `UPSTASH_REDIS_REST_TOKEN`: Redis authentication
@@ -124,7 +124,7 @@ Error: Database connection failed
 When deployment is successful, you'll see:
 ```
 ✅ Deployment successful!
-🌐 Worker URL: https://pitchey-optimized.cavelltheleaddev.workers.dev
+🌐 Worker URL: https://pitchey-optimized.ndlovucavelle.workers.dev
 📊 View in Cloudflare Dashboard: https://dash.cloudflare.com
 ```
 

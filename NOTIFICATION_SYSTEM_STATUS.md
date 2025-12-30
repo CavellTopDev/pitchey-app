@@ -3,14 +3,14 @@
 ## ✅ Successfully Completed Tasks
 
 ### 1. Production Monitoring Fixed
-- **GitHub Actions**: Updated to use `pitchey-optimized.cavelltheleaddev.workers.dev`
+- **GitHub Actions**: Updated to use `pitchey-optimized.ndlovucavelle.workers.dev`
 - **Sentry CLI**: Fixed syntax error (combined multiple --query flags)
 - **Enterprise Services**: Added all monitoring endpoints
 - **Database Test**: Working via Hyperdrive connection
 
 ### 2. Notification System Deployed
 - **Worker Version**: 47919f2e-8367-4c54-ade0-51908bce2c1c
-- **URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+- **URL**: https://pitchey-optimized.ndlovucavelle.workers.dev
 - **Durable Objects**: WebSocketRoom (v3) and NotificationRoom (v4) deployed
 
 ### 3. All Monitoring Endpoints Operational
@@ -144,7 +144,7 @@ All workflows configured and running:
 
 2. **Configure Twilio Webhooks**
    - Set webhook URL in Twilio Console to:
-   - `https://pitchey-optimized.cavelltheleaddev.workers.dev/webhooks/twilio/status`
+   - `https://pitchey-optimized.ndlovucavelle.workers.dev/webhooks/twilio/status`
 
 3. **Monitor Production**
    ```bash

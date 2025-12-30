@@ -61,7 +61,7 @@ This document provides comprehensive runbooks for responding to incidents detect
    curl https://pitchey-monitoring.workers.dev/infra/health | jq '.'
    
    # Check main API
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health | jq '.'
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health | jq '.'
    ```
 
 2. **Review Recent Logs**
@@ -99,10 +99,10 @@ This document provides comprehensive runbooks for responding to incidents detect
    curl https://www.cloudflarestatus.com/api/v2/status.json
    
    # Check main worker
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    
    # Check database connectivity
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/db
    ```
 
 2. **Review Recent Deployments**
@@ -130,7 +130,7 @@ This document provides comprehensive runbooks for responding to incidents detect
    wrangler rollback --name pitchey-production
    
    # Verify rollback
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    ```
 
 2. **If Database Issues**
@@ -155,8 +155,8 @@ This document provides comprehensive runbooks for responding to incidents detect
    ./monitoring/scripts/health-check-all.sh
    
    # Check user-facing endpoints
-   curl -I https://pitchey.pages.dev
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches
+   curl -I https://pitchey-5o8.pages.dev
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches
    ```
 
 2. **Monitor for 30 minutes**
@@ -206,7 +206,7 @@ This document provides comprehensive runbooks for responding to incidents detect
    grep "jwt" recent_errors.log
    
    # Verify auth endpoints
-   curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/verify \
+   curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/verify \
      -H "Content-Type: application/json" \
      -d '{"token": "test-token"}'
    ```
@@ -365,7 +365,7 @@ This document provides comprehensive runbooks for responding to incidents detect
 1. **Check Database Connectivity**
    ```bash
    # Test basic connectivity
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/db
    
    # Check connection pool status
    curl https://pitchey-infra.workers.dev/infra/health | jq '.database'
@@ -582,7 +582,7 @@ This document provides comprehensive runbooks for responding to incidents detect
 echo "=== Pitchey Platform Health Check ==="
 
 echo "1. Main API Health:"
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health | jq '.'
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health | jq '.'
 
 echo -e "\n2. Monitoring System:"
 curl -s https://pitchey-monitoring.workers.dev/monitoring/health | jq '.status'

@@ -26,7 +26,7 @@ Your comprehensive observability stack has been successfully deployed and is act
 - ✅ Performance monitoring
 
 #### **2. Frontend Monitoring (Cloudflare Pages)**
-- **URL**: https://pitchey.pages.dev
+- **URL**: https://pitchey-5o8.pages.dev
 - **Sentry DSN**: Configured
 - **Source Maps**: Generated and deployed
 
@@ -119,7 +119,7 @@ VITE_API_URL=https://pitchey-backend-fresh-r0gm926brse3.deno.dev
 4. Verify request tagging is working (routes like `/api/auth/login` should appear)
 
 ### **2. Test Frontend Monitoring** (⏱️ 3-5 minutes)
-1. Visit https://pitchey.pages.dev
+1. Visit https://pitchey-5o8.pages.dev
 2. Open browser developer console
 3. Run: `Sentry.captureException(new Error('frontend test error'))`
 4. Verify the error appears in your Sentry dashboard

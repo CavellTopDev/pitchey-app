@@ -8,7 +8,7 @@ NC='\033[0m'
 echo -e "${BLUE}Logging into Investor Portal...${NC}"
 
 # Get login token
-LOGIN_RESPONSE=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login" \
+LOGIN_RESPONSE=$(curl -s -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/investor/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
 
@@ -47,7 +47,7 @@ if [ -n "$TOKEN" ] && [ "$TOKEN" != "null" ]; then
         
         // Redirect to dashboard
         setTimeout(() => {
-            window.location.href = 'https://pitchey.pages.dev/investor/dashboard';
+            window.location.href = 'https://pitchey-5o8.pages.dev/investor/dashboard';
         }, 1000);
     </script>
     <p>Redirecting to investor dashboard...</p>

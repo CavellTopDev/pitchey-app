@@ -25,7 +25,7 @@ const testPitches = new SharedArray('test_pitches', function () {
 });
 
 // Environment configuration
-const BASE_URL = __ENV.BASE_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = __ENV.BASE_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 const API_PREFIX = '/api';
 
 // Test scenarios with progressive load patterns

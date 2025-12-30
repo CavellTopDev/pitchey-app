@@ -3,7 +3,7 @@
 # Performance analytics and trend analysis
 # Run daily: ./performance-analytics.sh
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 ANALYTICS_DIR="./monitoring-system/logs"
 REPORT_DIR="./monitoring-system/reports"
 

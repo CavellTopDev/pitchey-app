@@ -354,7 +354,7 @@ class ProductionTester {
 
   // Test 6: Frontend Static Assets
   private async testFrontendAssets(): Promise<any> {
-    const response = await fetch('https://pitchey.pages.dev/');
+    const response = await fetch('https://pitchey-5o8.pages.dev/');
     
     if (!response.ok) {
       throw new Error(`Frontend not accessible: HTTP ${response.status}`);
@@ -384,7 +384,7 @@ class ProductionTester {
   // Main test runner
   async runComprehensiveTest(): Promise<ProductionTestSuite> {
     this.log('🚀 STARTING COMPREHENSIVE PRODUCTION TEST SUITE', 'INFO');
-    this.log('🎯 Testing: https://pitchey.pages.dev/', 'INFO');
+    this.log('🎯 Testing: https://pitchey-5o8.pages.dev/', 'INFO');
     
     let token: string = '';
     
@@ -406,7 +406,7 @@ class ProductionTester {
     
     // Generate summary
     const suite: ProductionTestSuite = {
-      siteUrl: 'https://pitchey.pages.dev/',
+      siteUrl: 'https://pitchey-5o8.pages.dev/',
       apiUrl: 'https://pitchey-backend-fresh.deno.dev/',
       wsUrl: 'wss://pitchey-backend-fresh.deno.dev/ws',
       results: this.results,

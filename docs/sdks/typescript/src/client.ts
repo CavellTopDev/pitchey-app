@@ -24,7 +24,7 @@ export class PitcheyAPIClient {
   private userAgent: string;
 
   constructor(config: SDKConfig = {}) {
-    this.apiUrl = config.apiUrl || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+    this.apiUrl = config.apiUrl || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
     this.apiKey = config.apiKey;
     this.timeout = config.timeout || 30000; // 30 seconds
     this.retries = config.retries || 3;

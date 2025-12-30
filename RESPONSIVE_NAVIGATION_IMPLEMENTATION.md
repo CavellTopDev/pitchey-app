@@ -140,7 +140,7 @@ DashboardHeader
 
 ✅ TypeScript compilation: No errors
 ✅ Build successful: All chunks optimized
-✅ Deployed to production: https://a85df1ac.pitchey.pages.dev
+✅ Deployed to production: https://a85df1ac.pitchey-5o8.pages.dev
 
 ### Files Modified
 
@@ -153,7 +153,7 @@ DashboardHeader
    - `frontend/src/pages/ProductionDashboard.tsx`
 
 ### Production URL
-🚀 **Live at**: https://a85df1ac.pitchey.pages.dev
+🚀 **Live at**: https://a85df1ac.pitchey-5o8.pages.dev
 
 ### Recommended Next Steps
 

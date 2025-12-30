@@ -129,7 +129,7 @@ deno run --allow-net --allow-read --allow-write --allow-env real-time-dashboard.
 
 ### Check A/B Test Results
 ```bash
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/ab-test/results
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/ab-test/results
 ```
 
 ## 📝 Architecture Notes

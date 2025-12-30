@@ -13,13 +13,13 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-WORKER_URL="https://pitchey-production-secure.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production-secure.ndlovucavelle.workers.dev"
 FRONTEND_DIR="frontend"
 
 echo -e "${BLUE}📋 Configuration:${NC}"
 echo "• Worker URL: $WORKER_URL"
 echo "• Frontend Directory: $FRONTEND_DIR"
-echo "• Target: Cloudflare Pages (pitchey.pages.dev)"
+echo "• Target: Cloudflare Pages (pitchey-5o8.pages.dev)"
 echo
 
 # Check if we're in the right directory
@@ -63,7 +63,7 @@ fi
 echo -e "${BLUE}🧪 Testing deployment...${NC}"
 
 # Test frontend accessibility
-FRONTEND_URL="https://pitchey.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 echo "Testing frontend: $FRONTEND_URL"
 FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$FRONTEND_URL")
 
@@ -87,7 +87,7 @@ fi
 echo ""
 echo -e "${GREEN}🎉 Deployment Complete!${NC}"
 echo "================================"
-echo "✅ Frontend: https://pitchey.pages.dev"
+echo "✅ Frontend: https://pitchey-5o8.pages.dev"
 echo "✅ Worker API: $WORKER_URL"
 echo "✅ Security: Rate limiting, CORS, Headers, JWT protection"
 echo "✅ Monitoring: /api/health, /api/monitoring/status"
@@ -101,7 +101,7 @@ echo "5. Validate NDA workflows"
 echo "6. Monitor for any errors"
 echo ""
 echo -e "${BLUE}🔗 Important URLs:${NC}"
-echo "• App: https://pitchey.pages.dev"
+echo "• App: https://pitchey-5o8.pages.dev"
 echo "• Health: $WORKER_URL/api/health"
 echo "• Monitoring: $WORKER_URL/api/monitoring/status"
 echo "• Admin Metrics: $WORKER_URL/api/metrics (admin only)"

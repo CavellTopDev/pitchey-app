@@ -88,9 +88,9 @@ module.exports = {
 // Environment-specific configurations
 if (process.env.NODE_ENV === 'production') {
   module.exports.ci.collect.url = [
-    'https://pitchey.pages.dev',
-    'https://pitchey.pages.dev/portal',
-    'https://pitchey.pages.dev/marketplace'
+    'https://pitchey-5o8.pages.dev',
+    'https://pitchey-5o8.pages.dev/portal',
+    'https://pitchey-5o8.pages.dev/marketplace'
   ];
   
   // Stricter thresholds for production

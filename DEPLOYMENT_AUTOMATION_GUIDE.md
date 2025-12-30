@@ -106,7 +106,7 @@ spec:
   monitoring:
     health_checks:
       - name: api-health
-        url: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+        url: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
         interval: 30s
 ```
 
@@ -302,7 +302,7 @@ Automatic rollback triggers:
 1. **Immediate Assessment**:
    ```bash
    # Check current health
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    
    # Check error logs
    wrangler tail pitchey-production
@@ -323,10 +323,10 @@ Automatic rollback triggers:
 3. **Verify Recovery**:
    ```bash
    # Health check
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    
    # Frontend check  
-   curl https://pitchey.pages.dev
+   curl https://pitchey-5o8.pages.dev
    ```
 
 ### Incident Escalation
@@ -453,13 +453,13 @@ wrangler list
 wrangler tail pitchey-production
 
 # Test endpoints
-curl -v https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -v https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Check DNS resolution
-nslookup pitchey.pages.dev
+nslookup pitchey-5o8.pages.dev
 
 # Validate SSL certificates
-openssl s_client -connect pitchey.pages.dev:443
+openssl s_client -connect pitchey-5o8.pages.dev:443
 ```
 
 ## 📞 Support and Contact

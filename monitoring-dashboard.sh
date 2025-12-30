@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-BASE_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+BASE_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 REFRESH_INTERVAL="${REFRESH_INTERVAL:-60}" # seconds
 LOG_FILE="monitoring.log"
 

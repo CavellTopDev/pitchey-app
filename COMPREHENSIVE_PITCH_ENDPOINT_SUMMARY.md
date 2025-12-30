@@ -8,8 +8,8 @@ Successfully implemented a comprehensive individual pitch view API endpoint (`/a
 
 ### 🚀 **Endpoint URL Pattern**
 ```
-GET https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/:id
-GET https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/:slug
+GET https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/:id
+GET https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/:slug
 ```
 
 ### 📊 **Database Integration**
@@ -234,7 +234,7 @@ GET https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/:slug
 
 ## Deployment Status
 
-✅ **Production Ready**: Deployed to `https://pitchey-optimized.cavelltheleaddev.workers.dev`
+✅ **Production Ready**: Deployed to `https://pitchey-optimized.ndlovucavelle.workers.dev`
 ✅ **Comprehensive Testing**: All test scenarios passing
 ✅ **Performance Validated**: Sub-200ms response times
 ✅ **Security Verified**: Access controls working correctly

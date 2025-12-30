@@ -78,7 +78,7 @@ Add to your `.env` or `wrangler.toml`:
 # Core Configuration
 ENVIRONMENT=production
 VERSION=1.0.0
-API_BASE_URL=https://pitchey-production.cavelltheleaddev.workers.dev
+API_BASE_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 # Cloudflare Bindings
 ANALYTICS_ENGINE=pitchey_metrics

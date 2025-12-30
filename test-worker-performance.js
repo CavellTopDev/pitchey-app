@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 // Test Worker performance and edge capabilities
-const API_URL = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
-const FRONTEND_URL = 'https://e7279e57.pitchey.pages.dev';
+const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const FRONTEND_URL = 'https://e7279e57.pitchey-5o8.pages.dev';
 
 console.log('🔥 Testing Worker Performance & Edge Capabilities\n');
 
@@ -42,7 +42,7 @@ async function testPerformance() {
   for (const endpoint of endpoints) {
     const result = await measureResponseTime(`${API_URL}${endpoint.path}`, {
       headers: {
-        'Origin': 'https://pitchey.pages.dev',
+        'Origin': 'https://pitchey-5o8.pages.dev',
         'User-Agent': 'Performance-Test/1.0'
       }
     });
@@ -65,7 +65,7 @@ async function testPerformance() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Origin': 'https://pitchey.pages.dev'
+      'Origin': 'https://pitchey-5o8.pages.dev'
     },
     body: JSON.stringify({
       email: 'alex.creator@demo.com',
@@ -81,7 +81,7 @@ async function testPerformance() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify({
         email: 'alex.creator@demo.com',
@@ -93,7 +93,7 @@ async function testPerformance() {
       const dashResult = await measureResponseTime(`${API_URL}/api/creator/dashboard`, {
         headers: {
           'Authorization': `Bearer ${loginData.token}`,
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         }
       });
       
@@ -116,7 +116,7 @@ async function testPerformance() {
     const result = await measureResponseTime(`${API_URL}/api/health`, {
       headers: {
         ...region.headers,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
     
@@ -129,7 +129,7 @@ async function testPerformance() {
   
   const concurrentTests = Array(10).fill(null).map((_, i) => 
     measureResponseTime(`${API_URL}/api/pitches?page=${i}`, {
-      headers: { 'Origin': 'https://pitchey.pages.dev' }
+      headers: { 'Origin': 'https://pitchey-5o8.pages.dev' }
     })
   );
   
@@ -152,7 +152,7 @@ async function testPerformance() {
     const result = await measureResponseTime(`${API_URL}${test.path}`, {
       method: test.method || 'GET',
       headers: {
-        'Origin': 'https://pitchey.pages.dev',
+        'Origin': 'https://pitchey-5o8.pages.dev',
         ...test.headers
       }
     });
@@ -168,7 +168,7 @@ async function testCaching() {
   
   // First request (should be cache miss)
   const firstResult = await measureResponseTime(`${API_URL}/api/pitches/featured`, {
-    headers: { 'Origin': 'https://pitchey.pages.dev' }
+    headers: { 'Origin': 'https://pitchey-5o8.pages.dev' }
   });
   
   console.log(`   📥 First Request: ${firstResult.responseTime}ms`);
@@ -178,7 +178,7 @@ async function testCaching() {
   await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
   
   const secondResult = await measureResponseTime(`${API_URL}/api/pitches/featured`, {
-    headers: { 'Origin': 'https://pitchey.pages.dev' }
+    headers: { 'Origin': 'https://pitchey-5o8.pages.dev' }
   });
   
   console.log(`   📥 Second Request: ${secondResult.responseTime}ms`);

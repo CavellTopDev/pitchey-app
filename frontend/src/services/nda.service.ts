@@ -253,11 +253,9 @@ export class NDAService {
       `/api/ndas/${ndaId}/download`;
 
     const response = await fetch(
-      `${config.API_URL}${endpoint}`,
-      {
+      `${config.API_URL}${endpoint}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+          }
       }
     );
 

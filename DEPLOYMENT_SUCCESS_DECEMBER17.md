@@ -7,13 +7,13 @@
 ### 🌐 Live URLs
 
 #### Production Frontend (Cloudflare Pages)
-- **Latest Deployment:** https://b9390436.pitchey.pages.dev
-- **Branch Alias:** https://test-neon-integration.pitchey.pages.dev
-- **Main Domain:** https://pitchey.pages.dev
+- **Latest Deployment:** https://b9390436.pitchey-5o8.pages.dev
+- **Branch Alias:** https://test-neon-integration.pitchey-5o8.pages.dev
+- **Main Domain:** https://pitchey-5o8.pages.dev
 
 #### Production API (Cloudflare Workers)
-- **API Endpoint:** https://pitchey-production.cavelltheleaddev.workers.dev
-- **WebSocket:** wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+- **API Endpoint:** https://pitchey-api-prod.ndlovucavelle.workers.dev
+- **WebSocket:** wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 
 ### 🔧 Critical Fixes Implemented
 
@@ -67,22 +67,22 @@ if (origin.match(/^https:\/\/([\w-]+\.)?pitchey\.pages\.dev$/)) {
 
 #### API Health Check
 ```bash
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 # Response: {"success": false, "error": {"message": "Service initialization failed"}}
 # Note: Expected while database connection pending
 ```
 
 #### Trending Pitches (Mock Response)
 ```bash
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending
 # Response: {"success": true, "data": {"pitches": [], "message": "Database connection pending - mock response"}}
 ```
 
 #### CORS Validation
 ```bash
-# From deployment URL: https://b9390436.pitchey.pages.dev
+# From deployment URL: https://b9390436.pitchey-5o8.pages.dev
 # CORS headers correctly set with credentials support
-Access-Control-Allow-Origin: https://b9390436.pitchey.pages.dev
+Access-Control-Allow-Origin: https://b9390436.pitchey-5o8.pages.dev
 Access-Control-Allow-Credentials: true
 ```
 
@@ -151,8 +151,8 @@ The Pitchey platform has been successfully deployed to Cloudflare's edge network
 The platform is now live and ready for database connection to become fully operational.
 
 **Deployment URLs:**
-- Frontend: https://b9390436.pitchey.pages.dev
-- API: https://pitchey-production.cavelltheleaddev.workers.dev
+- Frontend: https://b9390436.pitchey-5o8.pages.dev
+- API: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ---
 *Generated: December 17, 2024 12:54 PM UTC*

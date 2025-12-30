@@ -5,7 +5,7 @@
 **Date**: November 17, 2025  
 **Total Endpoints**: **226+ endpoints**  
 **Platform Status**: ✅ **FULLY DEPLOYED AND WORKING**  
-**Live URL**: https://pitchey-browse-api-production.cavelltheleaddev.workers.dev
+**Live URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ---
 

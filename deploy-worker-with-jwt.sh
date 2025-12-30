@@ -70,7 +70,7 @@ rm -f /tmp/secret-output.txt
 # Step 5: Test the deployment
 echo -e "\n${YELLOW}Step 4: Testing authentication system...${NC}"
 
-WORKER_URL="https://pitchey-api-prod.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Test health endpoint
 echo -e "\n${CYAN}Testing health endpoint...${NC}"

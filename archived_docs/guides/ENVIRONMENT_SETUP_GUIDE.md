@@ -45,7 +45,7 @@ Your application has a **3-tier architecture**:
    ```bash
    DATABASE_URL=postgresql://[from-neon]?sslmode=require
    JWT_SECRET=[your-generated-secret]
-   FRONTEND_URL=https://pitchey.pages.dev
+   FRONTEND_URL=https://pitchey-5o8.pages.dev
    
    # Set these as empty to prevent deployment errors
    UPSTASH_REDIS_REST_URL=

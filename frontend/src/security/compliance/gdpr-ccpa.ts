@@ -484,7 +484,7 @@ export class CookieConsent {
       name: 'Essential',
       description: 'Required for basic site functionality',
       required: true,
-      cookies: ['session_id', 'csrf_token', 'auth_token']
+      cookies: ['session_id', 'csrf_token', 'authToken']
     },
     functional: {
       name: 'Functional',
@@ -577,10 +577,12 @@ export class CookieConsent {
     };
     
     // Send to backend
-    fetch('/api/privacy/consent', {
+    
+      credentials: 'include', // Send cookies for Better Auth session
+      
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ consent, categories })
+      body: JSON.stringify({ consent, categories }),
     });
   }
   

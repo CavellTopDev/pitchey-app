@@ -53,7 +53,7 @@ echo ""
 echo -e "${YELLOW}Testing the deployment...${NC}"
 
 # Test the API
-WORKER_URL="https://pitchey-api-prod.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 RESPONSE=$(curl -s "$WORKER_URL/api/pitches" | head -c 500)
 
 if echo "$RESPONSE" | grep -q "Mock Pitch"; then

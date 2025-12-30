@@ -208,8 +208,8 @@ wrangler kv:namespace create "CACHE"
 wrangler deploy
 
 # 3. Test critical endpoints
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/investor/dashboard \
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/investor/dashboard \
   -H "Authorization: Bearer <token>"
 
 # 4. Monitor logs

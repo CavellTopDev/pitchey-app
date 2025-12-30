@@ -72,7 +72,7 @@ wrangler deploy --config wrangler-better-auth.toml
 ### 5. Test Authentication
 ```bash
 # Test the deployment
-curl https://pitchey-better-auth.cavelltheleaddev.workers.dev/health
+curl https://pitchey-better-auth.ndlovucavelle.workers.dev/health
 ```
 
 ## Key Endpoints
@@ -111,7 +111,7 @@ The following accounts are created automatically (password: `Demo123`):
 ## Environment Configurations
 
 ### Production
-- **URL**: `https://pitchey-production.cavelltheleaddev.workers.dev`
+- **URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 - **Secure cookies**: Enabled
 - **Email verification**: Enabled
 - **Rate limiting**: 100/min per IP

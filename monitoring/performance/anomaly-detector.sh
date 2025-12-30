@@ -3,7 +3,7 @@
 # Performance Anomaly Detection Script
 # Monitors for performance degradation and unusual patterns
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 ALERT_DIR="./anomaly-alerts"
 LOG_FILE="$ALERT_DIR/anomalies_$(date +%Y%m%d).log"
 BASELINE_FILE="${BASELINE_FILE:-./baseline-data/baseline.json}"

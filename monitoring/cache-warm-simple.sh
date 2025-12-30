@@ -2,7 +2,7 @@
 
 # Simple Cache Warming Script
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "🔥 Cache Warming Started"
 echo "========================"

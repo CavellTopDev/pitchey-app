@@ -123,7 +123,7 @@ modifiedUrl.searchParams.delete('token'); // Remove for security
 
 ### Production Deployment
 - **Worker Version:** f1d9c85c-55b8-4adc-8791-2565d282fcfb
-- **URL:** https://pitchey-optimized.cavelltheleaddev.workers.dev
+- **URL:** https://pitchey-optimized.ndlovucavelle.workers.dev
 - **Status:** ✅ Live and operational
 
 ### Bindings Active

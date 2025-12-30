@@ -107,8 +107,8 @@ STRIPE_PRICE_INVESTOR=price_...
 STRIPE_PRICE_PRODUCTION=price_...
 
 # Application URLs
-APP_URL=https://pitchey.pages.dev
-API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+APP_URL=https://pitchey-5o8.pages.dev
+API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ### Setup Instructions

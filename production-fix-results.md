@@ -11,11 +11,11 @@
 #### Verification:
 ```bash
 # Investor Dashboard - FIXED
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/investor/dashboard
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/investor/dashboard
 # Returns: { success: true, data: { dashboard: {...} } } ✅
 
 # Public Pitches - FIXED  
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public
 # Returns: { success: true, data: { items: [...], pitches: [...] } } ✅
 ```
 
@@ -26,12 +26,12 @@ curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public
 #### Verification:
 ```bash
 # Without token - REJECTED ✅
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/ws \
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/ws \
   -H "Upgrade: websocket"
 # Returns: 401 Unauthorized
 
 # With token - ACCEPTED ✅
-curl "https://pitchey-optimized.cavelltheleaddev.workers.dev/ws?token=<jwt>" \
+curl "https://pitchey-optimized.ndlovucavelle.workers.dev/ws?token=<jwt>" \
   -H "Upgrade: websocket"
 # Returns: 101 Switching Protocols
 ```
@@ -72,7 +72,7 @@ curl "https://pitchey-optimized.cavelltheleaddev.workers.dev/ws?token=<jwt>" \
 
 ```yaml
 Worker: pitchey-optimized
-URL: https://pitchey-optimized.cavelltheleaddev.workers.dev
+URL: https://pitchey-optimized.ndlovucavelle.workers.dev
 Bindings:
   - KV Namespace: ✅ Active (caching enabled)
   - R2 Bucket: ✅ Configured
@@ -107,7 +107,7 @@ Scheduled Tasks:
    - Monitor response times
 
 3. **Verify Frontend Integration**:
-   - Test at https://pitchey.pages.dev
+   - Test at https://pitchey-5o8.pages.dev
    - Investor dashboard should load without errors
    - Marketplace should display pitches
 
@@ -127,4 +127,4 @@ The platform is now production-ready with:
 
 ---
 
-**Support**: Monitor with `wrangler tail` or check https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+**Support**: Monitor with `wrangler tail` or check https://pitchey-optimized.ndlovucavelle.workers.dev/api/health

@@ -78,10 +78,10 @@
 2. **Verify service endpoints:**
    ```bash
    # Test main health endpoint
-   curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    
    # Test detailed health
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/detailed
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/detailed
    ```
 
 3. **Check Cloudflare dashboard:**
@@ -99,7 +99,7 @@ curl "https://api.cloudflare.com/client/v4/accounts/e16d3bf549153de23459a6c6a06a
   -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
 
 # Check database connectivity
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/db
 ```
 
 **Resolution:**
@@ -123,7 +123,7 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db
 2. **Test database connectivity:**
    ```bash
    # Test via health endpoint
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/detailed
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/detailed
    
    # Check Hyperdrive status
    # (via Cloudflare dashboard > Hyperdrive)
@@ -161,7 +161,7 @@ wrangler tail --format=pretty | grep -i "database\|neon\|sql"
    ./monitoring/performance/monitor-live.sh
    
    # Check cache hit rates
-   curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced
+   curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced
    ```
 
 2. **Identify bottlenecks:**
@@ -174,7 +174,7 @@ wrangler tail --format=pretty | grep -i "database\|neon\|sql"
 # Profile endpoint performance
 for i in {1..10}; do
   curl -w "Time: %{time_total}s\n" -o /dev/null -s \
-    "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced?limit=10"
+    "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced?limit=10"
 done
 
 # Check slow queries
@@ -194,7 +194,7 @@ grep "cache" ./monitoring/logs/*.log | tail -20
 
 **Symptoms:**
 - FrontendDown alert
-- Users unable to access https://pitchey.pages.dev
+- Users unable to access https://pitchey-5o8.pages.dev
 - 404 or 5xx errors on frontend
 
 **Immediate Actions:**
@@ -210,10 +210,10 @@ grep "cache" ./monitoring/logs/*.log | tail -20
 2. **Verify DNS and routing:**
    ```bash
    # Check DNS resolution
-   nslookup pitchey.pages.dev
+   nslookup pitchey-5o8.pages.dev
    
    # Test direct page access
-   curl -I https://pitchey.pages.dev
+   curl -I https://pitchey-5o8.pages.dev
    ```
 
 **Resolution:**
@@ -232,10 +232,10 @@ grep "cache" ./monitoring/logs/*.log | tail -20
 1. **Check certificate status:**
    ```bash
    # Check certificate expiry
-   echo | openssl s_client -servername pitchey.pages.dev -connect pitchey.pages.dev:443 2>/dev/null | openssl x509 -noout -dates
+   echo | openssl s_client -servername pitchey-5o8.pages.dev -connect pitchey-5o8.pages.dev:443 2>/dev/null | openssl x509 -noout -dates
    
    # Check worker certificate
-   echo | openssl s_client -servername pitchey-production.cavelltheleaddev.workers.dev -connect pitchey-production.cavelltheleaddev.workers.dev:443 2>/dev/null | openssl x509 -noout -dates
+   echo | openssl s_client -servername pitchey-api-prod.ndlovucavelle.workers.dev -connect pitchey-api-prod.ndlovucavelle.workers.dev:443 2>/dev/null | openssl x509 -noout -dates
    ```
 
 **Resolution:**
@@ -287,10 +287,10 @@ grep "cache" ./monitoring/logs/*.log | tail -20
 
 ```bash
 # Quick health check
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Detailed system status
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health/detailed
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/detailed
 
 # Check worker logs
 wrangler tail --format=pretty

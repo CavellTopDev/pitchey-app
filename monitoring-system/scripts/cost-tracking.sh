@@ -3,7 +3,7 @@
 # Cost Tracking and Analytics Script
 # Monitors actual cost savings and optimization impact
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 COST_LOG_DIR="./monitoring-system/logs/cost-tracking"
 ANALYTICS_DIR="./monitoring-system/analytics"
 

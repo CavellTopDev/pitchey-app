@@ -192,8 +192,8 @@ async getCreatorPitches() {
 
 ## Current Deployment Status
 
-- **Frontend**: https://pitchey.pages.dev ✅ Deployed
-- **API**: https://pitchey-production.cavelltheleaddev.workers.dev ✅ Deployed
+- **Frontend**: https://pitchey-5o8.pages.dev ✅ Deployed
+- **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev ✅ Deployed
 - **Database**: Neon PostgreSQL ✅ Connected
 - **Cache**: Upstash Redis ✅ Connected
 - **WebSockets**: Partially working (needs upgrade fix)

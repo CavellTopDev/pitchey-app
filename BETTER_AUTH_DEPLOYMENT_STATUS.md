@@ -18,7 +18,7 @@
 
 ### 3. Worker Deployment
 - ✅ Successfully deployed to Cloudflare Workers
-- ✅ URL: `https://pitchey-production.cavelltheleaddev.workers.dev`
+- ✅ URL: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 - ✅ All Cloudflare secrets configured
 - ✅ Durable Objects exported and configured
 
@@ -49,7 +49,7 @@
 
 3. **Test Connection**
    ```bash
-   curl https://pitchey-debug.cavelltheleaddev.workers.dev/api/debug/db
+   curl https://pitchey-debug.ndlovucavelle.workers.dev/api/debug/db
    ```
 
 ### Once Database is Fixed:
@@ -101,9 +101,9 @@
 
 ## 🔗 Resources
 
-- Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev
-- Debug Worker: https://pitchey-debug.cavelltheleaddev.workers.dev
-- Frontend: https://pitchey.pages.dev
+- Worker URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- Debug Worker: https://pitchey-debug.ndlovucavelle.workers.dev
+- Frontend: https://pitchey-5o8.pages.dev
 - Documentation: See `BETTER_AUTH_IMPLEMENTATION.md`
 
 ---

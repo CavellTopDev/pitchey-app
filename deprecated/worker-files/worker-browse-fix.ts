@@ -2430,7 +2430,7 @@ export default {
               auth: '/api/auth/*',
               users: '/api/users/*'
             },
-            frontend: 'https://pitchey.pages.dev',
+            frontend: 'https://pitchey-5o8.pages.dev',
             documentation: 'https://docs.pitchey.com',
             timestamp: new Date().toISOString()
           }), {
@@ -2450,7 +2450,7 @@ export default {
             message: 'Route not found',
             code: 'NOT_FOUND',
             path: url.pathname,
-            suggestion: 'This is an API-only service. Use /api/ endpoints or visit https://pitchey.pages.dev for the web application.',
+            suggestion: 'This is an API-only service. Use /api/ endpoints or visit https://pitchey-5o8.pages.dev for the web application.',
             availableEndpoints: [
               '/api/health',
               '/api/pitches',

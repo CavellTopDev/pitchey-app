@@ -1,6 +1,6 @@
 // Test CORS configuration
 async function testCorsFromFrontend() {
-  const frontendOrigin = 'https://pitchey.pages.dev';
+  const frontendOrigin = 'https://pitchey-5o8.pages.dev';
   const backendUrl = 'https://pitchey-backend-fresh-sxp78xb7z1at.deno.dev';
   
   console.log('🔧 Testing CORS configuration...');

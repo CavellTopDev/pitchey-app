@@ -4,7 +4,7 @@ echo "========================================="
 echo "  Better Auth Deployment Test"
 echo "========================================="
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo -e "\n1. Testing Health Endpoint..."
 curl -s "$API_URL/api/health" | jq '.'

@@ -2,8 +2,8 @@
 
 # Test the actual connection between Cloudflare frontend and Deno backend
 
-FRONTEND_URL="https://pitchey.pages.dev"
-WORKER_API="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
+WORKER_API="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 BACKEND_URL="https://pitchey-backend-fresh.deno.dev"
 
 echo "🔍 Testing Frontend → Backend Notifications Connection"

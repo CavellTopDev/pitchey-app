@@ -37,16 +37,16 @@ ENCRYPTION_KEY=             # For data encryption at rest
 ### 4. **Application URLs** (REQUIRED)
 ```bash
 # API Endpoints
-STAGING_API_URL=https://pitchey-staging.cavelltheleaddev.workers.dev
-PRODUCTION_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
+STAGING_API_URL=https://pitchey-staging.ndlovucavelle.workers.dev
+PRODUCTION_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
 
 # Frontend URLs
-STAGING_FRONTEND_URL=https://staging.pitchey.pages.dev
-PRODUCTION_FRONTEND_URL=https://pitchey.pages.dev
+STAGING_FRONTEND_URL=https://staging.pitchey-5o8.pages.dev
+PRODUCTION_FRONTEND_URL=https://pitchey-5o8.pages.dev
 
 # WebSocket URLs
-STAGING_WS_URL=wss://pitchey-staging.cavelltheleaddev.workers.dev
-PRODUCTION_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+STAGING_WS_URL=wss://pitchey-staging.ndlovucavelle.workers.dev
+PRODUCTION_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 ```
 
 ---

@@ -187,7 +187,7 @@ CREATE TABLE pitch_views (
 
 ## Deployment Status
 ✅ Successfully deployed to Cloudflare Workers
-- URL: https://pitchey-production.cavelltheleaddev.workers.dev
+- URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - All endpoints tested and functional
 - Database migrations applied
 - Demo data populated

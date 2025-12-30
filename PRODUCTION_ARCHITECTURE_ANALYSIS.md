@@ -7,8 +7,8 @@ The Pitchey production deployment uses a sophisticated **hybrid cloud architectu
 ## 🏗️ Current Architecture
 
 ### Deployment Stack
-- **Frontend**: Cloudflare Pages (https://pitchey.pages.dev)
-- **Primary API**: Cloudflare Workers (https://pitchey-api-production.cavelltheleaddev.workers.dev)
+- **Frontend**: Cloudflare Pages (https://pitchey-5o8.pages.dev)
+- **Primary API**: Cloudflare Workers (https://pitchey-api-prod.ndlovucavelle.workers.dev)
 - **Backup API**: Deno Deploy (https://pitchey-backend-fresh.deno.dev)
 - **Database**: Neon PostgreSQL with Hyperdrive connection pooling
 - **Storage**: Cloudflare R2 (S3-compatible)
@@ -206,8 +206,8 @@ if (env.ORIGIN_URL) {
 
 ## 🔗 Production URLs
 
-- **Frontend**: https://pitchey.pages.dev
-- **Primary API**: https://pitchey-api-production.cavelltheleaddev.workers.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **Primary API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Backup API**: https://pitchey-backend-fresh.deno.dev
 - **Health Monitoring**: Available on all endpoints at `/api/health`
 

@@ -77,7 +77,7 @@ wrangler tail --format pretty
 DATABASE_URL="..." deno run --allow-all scripts/monitor-db.ts
 
 # Redis cache hit rate
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/cache/stats | jq
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/cache/stats | jq
 ```
 
 ### Setting Up Alerts
@@ -135,7 +135,7 @@ wrangler tail --format pretty | grep "CPU time"
 DATABASE_URL="..." deno run --allow-all scripts/analyze-slow-queries.ts
 
 # Check cache hit rate
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/cache/stats
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/cache/stats
 ```
 
 **Solutions**:
@@ -153,12 +153,12 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/api/cache/stats
 wrangler secret list
 
 # Verify Better Auth service
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/session \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/session \
   -H "Content-Type: application/json" \
   -d '{"test": true}'
 
 # Check session storage
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/debug
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/debug
 ```
 
 **Solutions**:
@@ -176,7 +176,7 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/debug
 DATABASE_URL="..." psql -c "SELECT 1"
 
 # Check connection pool
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/db/pool-stats
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/db/pool-stats
 
 # Review connection limits
 echo "SHOW max_connections;" | DATABASE_URL="..." psql
@@ -197,10 +197,10 @@ echo "SHOW max_connections;" | DATABASE_URL="..." psql
 wrangler r2 bucket list
 
 # Verify upload endpoint
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/upload/test
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/upload/test
 
 # Check file size limits
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/config | jq .upload
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/config | jq .upload
 ```
 
 **Solutions**:
@@ -271,15 +271,15 @@ async function invalidateCache(pattern) {
 ### CDN Optimization
 ```yaml
 # Cloudflare Page Rules
-- URL Pattern: pitchey.pages.dev/assets/*
+- URL Pattern: pitchey-5o8.pages.dev/assets/*
   Cache Level: Cache Everything
   Edge Cache TTL: 1 month
   Browser Cache TTL: 1 year
 
-- URL Pattern: pitchey.pages.dev/api/*
+- URL Pattern: pitchey-5o8.pages.dev/api/*
   Cache Level: Bypass
   
-- URL Pattern: pitchey.pages.dev/*.js
+- URL Pattern: pitchey-5o8.pages.dev/*.js
   Cache Level: Cache Everything
   Edge Cache TTL: 1 week
   Auto Minify: JavaScript
@@ -358,10 +358,10 @@ grep -r "password" --include="*.js" --include="*.ts" . 2>/dev/null
 wrangler tail --format json | jq '.[] | select(.status >= 400)' | tail -100
 
 # 3. Check SSL certificates
-curl -I https://pitchey.pages.dev 2>&1 | grep -i "SSL certificate"
+curl -I https://pitchey-5o8.pages.dev 2>&1 | grep -i "SSL certificate"
 
 # 4. Verify security headers
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev | grep -E "X-Frame-Options|X-Content-Type|Strict-Transport"
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev | grep -E "X-Frame-Options|X-Content-Type|Strict-Transport"
 
 # 5. Check for dependency vulnerabilities
 npm audit

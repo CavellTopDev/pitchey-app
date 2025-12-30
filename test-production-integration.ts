@@ -4,7 +4,7 @@
  */
 
 async function testProductionWorker() {
-  const baseUrl = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+  const baseUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   
   console.log("🚀 Testing Production Worker Integration\n");
   

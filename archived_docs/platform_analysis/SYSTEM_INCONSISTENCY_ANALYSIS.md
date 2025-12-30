@@ -8,7 +8,7 @@
 ## 🔍 Executive Summary
 
 This document provides a comprehensive analysis of inconsistencies between the three core components of the Pitchey platform:
-- **Frontend**: React/Vite application hosted on cloudflare-pages (https://pitchey.pages.dev)
+- **Frontend**: React/Vite application hosted on cloudflare-pages (https://pitchey-5o8.pages.dev)
 - **Backend**: Deno/TypeScript API hosted on Deno Deploy (https://pitchey-backend-fresh.deno.dev)
 - **Database**: PostgreSQL hosted on Neon (patient-surf-83998605)
 
@@ -26,7 +26,7 @@ This document provides a comprehensive analysis of inconsistencies between the t
 ┌─────────────────────────────────────────────────────────────┐
 │                     FRONTEND (cloudflare-pages)                       │
 │  React + TypeScript + Vite                                   │
-│  URL: https://pitchey.pages.dev                           │
+│  URL: https://pitchey-5o8.pages.dev                           │
 │  Status: ✅ Deployed & Active                                │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -189,7 +189,7 @@ created_at: TIMESTAMP
 | DATABASE_URL | Not used | Required | postgresql://... |
 | JWT_SECRET | Not used | Required | [secure key] |
 | STRIPE_KEY | VITE_STRIPE_KEY | STRIPE_SECRET_KEY | Different keys needed |
-| FRONTEND_URL | Not used | For CORS | https://pitchey.pages.dev |
+| FRONTEND_URL | Not used | For CORS | https://pitchey-5o8.pages.dev |
 
 #### 🔧 Recent Fixes
 - ✅ Fixed VITE_ prefix for frontend env vars
@@ -204,7 +204,7 @@ created_at: TIMESTAMP
 ```typescript
 // Current CORS configuration (working):
 const allowedOrigins = [
-  'https://pitchey.pages.dev',
+  'https://pitchey-5o8.pages.dev',
   'https://pitchey-frontend.fly.dev',
   'http://localhost:5173',
   'http://localhost:3000'
@@ -422,7 +422,7 @@ Admin: admin@demo.com / Admin123!@# (limited)
 ```
 
 ### Deployment URLs:
-- Frontend: https://pitchey.pages.dev
+- Frontend: https://pitchey-5o8.pages.dev
 - Backend: https://pitchey-backend-fresh.deno.dev
 - Database: Neon Console (patient-surf-83998605)
 - Monitoring: Not configured yet

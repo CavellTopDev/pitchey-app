@@ -25,12 +25,12 @@ Comprehensive log analysis from the recent deployment of the optimized database 
 ✅ DATABASE_URL (Environment Variable - Neon PostgreSQL)
 ✅ UPSTASH_REDIS_REST_URL (Environment Variable)
 ✅ UPSTASH_REDIS_REST_TOKEN (Environment Variable)
-✅ FRONTEND_URL (Environment Variable - https://pitchey.pages.dev)
+✅ FRONTEND_URL (Environment Variable - https://pitchey-5o8.pages.dev)
 ✅ ENVIRONMENT (Environment Variable - production)
 ```
 
 ### Deployment URL
-- **Production URL**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Production URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ### Health Check Status
 ```json

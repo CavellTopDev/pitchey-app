@@ -92,11 +92,10 @@ export const NotificationMonitor: React.FC = () => {
   const fetchMetrics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${config.API_URL}/api/notifications/metrics`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/admin`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -111,11 +110,10 @@ export const NotificationMonitor: React.FC = () => {
   const fetchWebSocketMetrics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${config.API_URL}/api/websocket/metrics`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/admin`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -130,11 +128,10 @@ export const NotificationMonitor: React.FC = () => {
   const fetchRateLimitMetrics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${config.API_URL}/api/notifications/rate-limits`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/admin`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();

@@ -39,7 +39,7 @@ Cache: Upstash Redis (external service)
 
 **Technical Details:**
 ```bash
-Frontend URL: https://pitchey.pages.dev
+Frontend URL: https://pitchey-5o8.pages.dev
 Backend URL: https://pitchey-backend-fresh.deno.dev
 Build Time: ~2-3 minutes
 Deployment: Automatic on git push
@@ -162,7 +162,7 @@ Cache: Fly.io Redis
 
 ### Frontend (Cloudflare Pages) - ✅ WORKING
 ```bash
-URL: https://pitchey.pages.dev
+URL: https://pitchey-5o8.pages.dev
 Status: Successfully deployed
 Features: All 17 client requirements implemented
 Build: Automated via GitHub Actions

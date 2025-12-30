@@ -196,12 +196,10 @@ export class MessagingService {
     });
 
     const response = await fetch(
-      `${config.API_URL}/api/messages/attachments`,
-      {
+      `${config.API_URL}/api/messages/attachments`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        },
+          },
         body: formData
       }
     );

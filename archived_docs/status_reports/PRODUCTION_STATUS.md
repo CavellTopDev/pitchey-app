@@ -6,7 +6,7 @@
 ## Current Production URLs
 | Service | URL | Status | Version |
 |---------|-----|--------|---------|
-| Frontend | https://pitchey.pages.dev | ✅ LIVE | Latest |
+| Frontend | https://pitchey-5o8.pages.dev | ✅ LIVE | Latest |
 | Backend | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev | ✅ LIVE | 3.3-neon-fixed |
 | Health Check | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health | ✅ HEALTHY | - |
 | Database | Neon PostgreSQL (eu-west-2) | ✅ CONNECTED | - |
@@ -163,7 +163,7 @@ curl -X POST https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/auth/creato
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
 # Check frontend
-curl -I https://pitchey.pages.dev
+curl -I https://pitchey-5o8.pages.dev
 
 # View Deno Deploy logs
 # Visit: https://dash.deno.com/projects/pitchey-backend-fresh/logs

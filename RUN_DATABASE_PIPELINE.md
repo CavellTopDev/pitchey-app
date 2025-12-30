@@ -189,13 +189,13 @@ gh run list --workflow=deploy-worker.yml --limit=1
 ```bash
 # Test the production endpoints
 echo "Testing health endpoint..."
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/test
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test
 
 echo -e "\nTesting database connection..."
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/test-db
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test-db
 
 echo -e "\nTesting browse endpoint..."
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse
 ```
 
 ---
@@ -295,4 +295,4 @@ If you encounter issues:
 ---
 
 *Last tested: December 2024*
-*Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev*
+*Worker URL: https://pitchey-api-prod.ndlovucavelle.workers.dev*

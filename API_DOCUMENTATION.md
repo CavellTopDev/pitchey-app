@@ -1,8 +1,8 @@
 # Pitchey API Documentation
 
 ## Base URL
-- **Production**: `https://pitchey-optimized.cavelltheleaddev.workers.dev`
-- **Frontend**: `https://pitchey.pages.dev`
+- **Production**: `https://pitchey-optimized.ndlovucavelle.workers.dev`
+- **Frontend**: `https://pitchey-5o8.pages.dev`
 
 ## Authentication
 All authenticated endpoints require a JWT token in the Authorization header:
@@ -653,7 +653,7 @@ Authorization: Bearer <token>
 
 #### WebSocket Connection
 ```
-wss://pitchey-optimized.cavelltheleaddev.workers.dev/ws
+wss://pitchey-optimized.ndlovucavelle.workers.dev/ws
 ```
 
 #### Get Online Presence
@@ -839,7 +839,7 @@ SENTRY_DSN=https://...
 CACHE_ENABLED=true
 UPSTASH_REDIS_REST_URL=https://...
 UPSTASH_REDIS_REST_TOKEN=...
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 ```
 
 ## Recent Updates (November 2025)
@@ -868,4 +868,4 @@ FRONTEND_URL=https://pitchey.pages.dev
 For issues or questions:
 - GitHub Issues: https://github.com/pitchey/api/issues
 - Documentation: This file
-- Health Check: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- Health Check: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health

@@ -1795,7 +1795,7 @@ export class SecurityManager {
   setCORSHeaders(request: Request, response: Response): Response {
     const origin = request.headers.get('Origin');
     const allowedOrigins = [
-      'https://pitchey.pages.dev',
+      'https://pitchey-5o8.pages.dev',
       'http://localhost:5173'
     ];
     

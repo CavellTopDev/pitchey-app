@@ -190,7 +190,7 @@ fi
 echo -e "\n${BLUE}8. Testing Production Endpoints${NC}"
 echo "------------------------------"
 
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 test_endpoint "$WORKER_URL/api/test" "Health check"
 test_endpoint "$WORKER_URL/api/test-db" "Database test"

@@ -367,10 +367,10 @@ gh workflow run deploy-worker.yml \
 ### 2. Verify Deployment
 ```bash
 # Check deployment status
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/test
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test
 
 # Test database connection
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/test-db
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test-db
 ```
 
 ### 3. Monitor Logs
@@ -382,7 +382,7 @@ wrangler tail pitchey-production --format pretty
 ### 4. Performance Testing
 ```bash
 # Load test with Apache Bench
-ab -n 1000 -c 10 https://pitchey-production.cavelltheleaddev.workers.dev/api/test
+ab -n 1000 -c 10 https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test
 ```
 
 ---

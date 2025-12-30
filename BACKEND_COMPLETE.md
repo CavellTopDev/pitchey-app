@@ -1,7 +1,7 @@
 # ✅ Backend Implementation Complete
 
 ## Deployment Status
-**Production URL**: https://pitchey-production.cavelltheleaddev.workers.dev
+**Production URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ## All Implemented Endpoints (150+)
 
@@ -101,17 +101,17 @@
 
 ### Basic Health Check
 ```bash
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 ### Search Example
 ```bash
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/search/advanced?q=action&genre=thriller"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/search/advanced?q=action&genre=thriller"
 ```
 
 ### Authentication
 ```bash
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 ```
@@ -119,8 +119,8 @@ curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/cr
 ## Frontend Integration
 
 The frontend can now connect to the production API at:
-- **API URL**: `https://pitchey-production.cavelltheleaddev.workers.dev`
-- **WebSocket URL**: `wss://pitchey-production.cavelltheleaddev.workers.dev/ws`
+- **API URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
+- **WebSocket URL**: `wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws`
 
 All endpoints return consistent JSON responses:
 ```json

@@ -2,7 +2,7 @@
 
 # Quick test for critical issues
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "=== TESTING CRITICAL ISSUES ==="
 

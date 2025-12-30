@@ -1,6 +1,6 @@
 # Pitchey Platform - Production Test Report
 **Date**: December 7, 2024
-**Test Environment**: Production (https://pitchey.pages.dev)
+**Test Environment**: Production (https://pitchey-5o8.pages.dev)
 **Test Method**: Chrome DevTools MCP Automated Testing
 
 ## Executive Summary
@@ -14,7 +14,7 @@
 
 ### 1. API Health and Connectivity ✅
 **Status**: PASSED
-- **API URL**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **API URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Response Time**: < 200ms
 - **CORS Headers**: Properly configured
 - **SSL/TLS**: Valid certificate
@@ -91,7 +91,7 @@
 
 ### 6. WebSocket Connectivity ✅
 **Status**: PASSED
-- ✅ WebSocket URL: `wss://pitchey-production.cavelltheleaddev.workers.dev/ws`
+- ✅ WebSocket URL: `wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws`
 - ✅ Connection established successfully
 - ✅ Authentication with JWT token working
 - ✅ Real-time updates functional

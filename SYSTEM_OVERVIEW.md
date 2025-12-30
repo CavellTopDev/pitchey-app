@@ -26,7 +26,7 @@ Pitchey is a comprehensive movie pitch platform that connects:
 ```
 ┌─────────────────────────────────────────────┐
 │           Cloudflare Pages                  │
-│         (pitchey.pages.dev)                │
+│         (pitchey-5o8.pages.dev)                │
 │              React SPA                      │
 └────────────────┬────────────────────────────┘
                  │ API Requests

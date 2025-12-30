@@ -193,7 +193,7 @@ GET /api/health
 ### Health Monitoring
 ```bash
 # Check system health
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Monitor performance
 ./monitor-performance.sh

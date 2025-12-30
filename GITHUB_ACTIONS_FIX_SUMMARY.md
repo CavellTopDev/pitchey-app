@@ -18,7 +18,7 @@ You were experiencing conflicts because:
 - Config: `wrangler-production-fixed.toml`
 - Worker: `pitchey-production`
 - File: `src/worker-production-complete.ts`
-- URL: `https://pitchey-production.cavelltheleaddev.workers.dev`
+- URL: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 
 **GitHub Actions Deployment:**
 - Now uses the same configuration as manual deployment
@@ -32,20 +32,20 @@ All endpoints are now working correctly:
 - ✅ 150+ other API endpoints
 
 ## Current Status
-- **Backend URL**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Backend URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Deployment Method**: Both manual and GitHub Actions use the same configuration
 - **Consistency**: ✅ Achieved
 
 ## Verification Commands
 ```bash
 # Test health endpoint
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Test validate-token endpoint
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/validate-token
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/validate-token
 
 # Test character management
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/1/characters
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/1/characters
 ```
 
 ## GitHub Actions Workflows
@@ -56,6 +56,6 @@ The following workflows have been updated:
 ## Next Steps
 1. GitHub Actions will automatically deploy on push to main branch
 2. Manual deployments should use: `wrangler deploy --config wrangler-production-fixed.toml`
-3. Frontend will connect to: `https://pitchey-production.cavelltheleaddev.workers.dev`
+3. Frontend will connect to: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 
 The deployment conflict has been resolved and both manual and automated deployments are now synchronized!

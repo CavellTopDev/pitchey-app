@@ -3,7 +3,7 @@
 # Test Secure Session Management Implementation
 # This script verifies HTTPOnly cookie-based sessions are working correctly
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 TEST_EMAIL="alex.creator@demo.com"
 TEST_PASSWORD="Demo123"
 
@@ -17,7 +17,7 @@ echo "1️⃣ Testing Login with Session Creation..."
 LOGIN_RESPONSE=$(curl -s -c cookies.txt -w "\nHTTP_STATUS:%{http_code}" \
   -X POST "$API_URL/api/auth/creator/login" \
   -H "Content-Type: application/json" \
-  -H "Origin: https://pitchey.pages.dev" \
+  -H "Origin: https://pitchey-5o8.pages.dev" \
   -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 
 HTTP_STATUS=$(echo "$LOGIN_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
@@ -50,7 +50,7 @@ echo ""
 echo "2️⃣ Testing Protected Endpoint Access..."
 PROFILE_RESPONSE=$(curl -s -b cookies.txt -w "\nHTTP_STATUS:%{http_code}" \
   -X GET "$API_URL/api/auth/profile" \
-  -H "Origin: https://pitchey.pages.dev")
+  -H "Origin: https://pitchey-5o8.pages.dev")
 
 HTTP_STATUS=$(echo "$PROFILE_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
 BODY=$(echo "$PROFILE_RESPONSE" | sed '/HTTP_STATUS:/d')
@@ -69,7 +69,7 @@ echo ""
 echo "3️⃣ Testing Session Validation..."
 SESSION_CHECK=$(curl -s -b cookies.txt -w "\nHTTP_STATUS:%{http_code}" \
   -X GET "$API_URL/api/auth/session" \
-  -H "Origin: https://pitchey.pages.dev")
+  -H "Origin: https://pitchey-5o8.pages.dev")
 
 HTTP_STATUS=$(echo "$SESSION_CHECK" | grep "HTTP_STATUS:" | cut -d':' -f2)
 BODY=$(echo "$SESSION_CHECK" | sed '/HTTP_STATUS:/d')
@@ -91,7 +91,7 @@ echo "4️⃣ Testing Invalid Session Rejection..."
 INVALID_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
   -X GET "$API_URL/api/auth/profile" \
   -H "Cookie: session=invalid_session_id_12345" \
-  -H "Origin: https://pitchey.pages.dev")
+  -H "Origin: https://pitchey-5o8.pages.dev")
 
 HTTP_STATUS=$(echo "$INVALID_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
 
@@ -107,7 +107,7 @@ echo ""
 echo "5️⃣ Testing Logout and Session Destruction..."
 LOGOUT_RESPONSE=$(curl -s -b cookies.txt -c cookies2.txt -w "\nHTTP_STATUS:%{http_code}" \
   -X POST "$API_URL/api/auth/logout" \
-  -H "Origin: https://pitchey.pages.dev")
+  -H "Origin: https://pitchey-5o8.pages.dev")
 
 HTTP_STATUS=$(echo "$LOGOUT_RESPONSE" | grep "HTTP_STATUS:" | cut -d':' -f2)
 
@@ -130,7 +130,7 @@ echo ""
 echo "6️⃣ Testing Access After Logout..."
 POST_LOGOUT=$(curl -s -b cookies.txt -w "\nHTTP_STATUS:%{http_code}" \
   -X GET "$API_URL/api/auth/profile" \
-  -H "Origin: https://pitchey.pages.dev")
+  -H "Origin: https://pitchey-5o8.pages.dev")
 
 HTTP_STATUS=$(echo "$POST_LOGOUT" | grep "HTTP_STATUS:" | cut -d':' -f2)
 
@@ -145,7 +145,7 @@ echo ""
 # Test 7: Test CORS with credentials
 echo "7️⃣ Testing CORS with Credentials..."
 CORS_TEST=$(curl -s -I -X OPTIONS "$API_URL/api/auth/profile" \
-  -H "Origin: https://c360fbb4.pitchey.pages.dev" \
+  -H "Origin: https://c360fbb4.pitchey-5o8.pages.dev" \
   -H "Access-Control-Request-Method: GET" \
   -H "Access-Control-Request-Headers: content-type")
 
@@ -155,7 +155,7 @@ else
   echo "❌ CORS not configured for credentials"
 fi
 
-if echo "$CORS_TEST" | grep -q "Access-Control-Allow-Origin: https://c360fbb4.pitchey.pages.dev"; then
+if echo "$CORS_TEST" | grep -q "Access-Control-Allow-Origin: https://c360fbb4.pitchey-5o8.pages.dev"; then
   echo "✅ CORS allows subdomain origin"
 else
   echo "❌ CORS not allowing subdomain"

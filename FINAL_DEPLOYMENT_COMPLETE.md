@@ -9,7 +9,7 @@
 Using specialized agents, we have successfully completed **ALL** recommended production steps:
 
 ### ✅ 1. SECURITY HARDENING (Security-Auditor Agent)
-- **CORS Protection**: Restricted to `https://pitchey.pages.dev` only
+- **CORS Protection**: Restricted to `https://pitchey-5o8.pages.dev` only
 - **Rate Limiting**: Multi-tier protection (Auth: 5/min, API: 60/min, Global: 100/min)
 - **JWT Security**: Production-grade token validation with blocklist
 - **Security Headers**: Complete CSP, HSTS, X-Frame-Options implementation
@@ -23,8 +23,8 @@ Using specialized agents, we have successfully completed **ALL** recommended pro
 - **Cache Hit Rate**: 85%+ reducing database load
 
 ### ✅ 3. PRODUCTION DEPLOYMENT (Deployment-Engineer Agent)
-- **Secure Worker**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Frontend**: https://7249ec09.pitchey.pages.dev
+- **Secure Worker**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Frontend**: https://7249ec09.pitchey-5o8.pages.dev
 - **Version**: b9bfc00c-7548-441e-8f4b-19fe33417e7c
 - **All Bindings**: KV Cache, R2 Storage, Durable Objects active
 - **Comprehensive Testing**: All security and performance validations passed
@@ -52,7 +52,7 @@ Request 6: HTTP 429 (rate limited) ✅
 
 ### ✅ CORS Security Active
 - Blocks unauthorized origins
-- Only allows https://pitchey.pages.dev
+- Only allows https://pitchey-5o8.pages.dev
 - Proper preflight handling
 
 ### ✅ Performance Caching
@@ -68,9 +68,9 @@ Request 5: 177ms (cached)
 ## 🌐 LIVE PRODUCTION URLS
 
 ### Primary Endpoints
-- **Frontend**: https://7249ec09.pitchey.pages.dev
-- **API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Health Check**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- **Frontend**: https://7249ec09.pitchey-5o8.pages.dev
+- **API**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 ### Monitoring Endpoints
 - **System Health**: `/api/health`
@@ -194,7 +194,7 @@ Analytics: Hourly
 ### Health Monitoring
 ```bash
 # Check system health
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # Monitor real-time logs
 wrangler tail
@@ -221,8 +221,8 @@ wrangler deployments list
 - ✅ **Automated deployment** streamlining future updates
 
 ### Quick Access
-- 🌐 **Visit Platform**: https://7249ec09.pitchey.pages.dev
-- 🔧 **API Health**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- 🌐 **Visit Platform**: https://7249ec09.pitchey-5o8.pages.dev
+- 🔧 **API Health**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 - 📊 **Monitor Logs**: `wrangler tail`
 
 ---

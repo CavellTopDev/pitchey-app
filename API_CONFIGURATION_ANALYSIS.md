@@ -441,5 +441,5 @@ The current health check system provides a **dangerous false sense of security**
 ---
 
 *Analysis completed: November 20, 2025*
-*Test environment: https://pitchey-production.cavelltheleaddev.workers.dev*
-*Frontend: https://48a55f89.pitchey.pages.dev*
+*Test environment: https://pitchey-api-prod.ndlovucavelle.workers.dev*
+*Frontend: https://48a55f89.pitchey-5o8.pages.dev*

@@ -8,7 +8,7 @@ Successfully deployed Pitchey application to production with full functionality.
 
 | Component | Status | URL/Details |
 |-----------|--------|-------------|
-| **Frontend** | ✅ LIVE | https://pitchey.pages.dev |
+| **Frontend** | ✅ LIVE | https://pitchey-5o8.pages.dev |
 | **Backend** | ✅ LIVE | https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev |
 | **Database** | ✅ CONNECTED | Neon PostgreSQL (eu-west-2) |
 | **Authentication** | ✅ WORKING | All portals functional |

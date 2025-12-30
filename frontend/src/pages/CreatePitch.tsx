@@ -16,8 +16,10 @@ import type { Character } from '../types/character';
 import { serializeCharacters } from '../utils/characterUtils';
 import { DocumentUpload } from '../components/DocumentUpload';
 import type { DocumentFile } from '../components/DocumentUpload';
+import DocumentUploadHub from '../components/FileUpload/DocumentUploadHub';
 import NDAUploadSection from '../components/FileUpload/NDAUploadSection';
 import type { NDADocument } from '../components/FileUpload/NDAUploadSection';
+import type { EnhancedUploadResult } from '../services/enhanced-upload.service';
 
 // PitchFormData type is now imported from pitch.schema.ts
 
@@ -271,7 +273,7 @@ export default function CreatePitch() {
           ? validatedData.customFormat 
           : validatedData.formatSubtype || validatedData.formatCategory;
           
-        // Prepare pitch data with NDA information
+        // Prepare pitch data with NDA information and documents
         const pitchData: any = {
           title: validatedData.title,
           genre: validatedData.genre,
@@ -287,7 +289,9 @@ export default function CreatePitch() {
           themes: validatedData.themes,
           worldDescription: validatedData.worldDescription,
           characters: serializeCharacters(validatedData.characters),
-          aiUsed: false
+          aiUsed: false,
+          // Add documents from R2 storage
+          documents: validatedData.documents || []
         };
         
         // Add custom NDA URL if available  
@@ -986,6 +990,46 @@ export default function CreatePitch() {
                 💰 <strong>This Costs Extra:</strong> Video links cost 1 credit each
               </div>
             </div>
+          </div>
+
+          {/* Document Upload Hub with R2 Storage */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Pitch Documents & NDA Settings
+            </h3>
+            <DocumentUploadHub
+              pitchId={undefined} // Will be set after pitch creation
+              onUploadComplete={(results: EnhancedUploadResult[]) => {
+                // Store uploaded documents
+                const documentUrls = results.map(r => ({
+                  url: r.cdnUrl,
+                  filename: r.filename,
+                  size: r.size,
+                  type: r.type,
+                  r2Key: r.r2Key
+                }));
+                setValue('documents', documentUrls);
+                success('Documents uploaded successfully');
+              }}
+              onNDAChange={(nda: NDADocument | null) => {
+                setNdaDocument(nda);
+                if (nda) {
+                  setValue('ndaConfig', {
+                    requireNDA: true,
+                    ndaType: nda.ndaType,
+                    customNDA: nda.ndaType === 'custom' ? nda.documentFile : null
+                  });
+                } else {
+                  setValue('ndaConfig', {
+                    requireNDA: false,
+                    ndaType: 'none',
+                    customNDA: null
+                  });
+                }
+              }}
+              disabled={isSubmitting}
+              className="border-t pt-6"
+            />
           </div>
 
           {/* Submit */}

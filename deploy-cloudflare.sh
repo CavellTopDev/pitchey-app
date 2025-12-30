@@ -23,14 +23,14 @@ wrangler deploy \
   --env production \
   --var JWT_SECRET:"vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz" \
   --var DATABASE_URL:"postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require" \
-  --var FRONTEND_URL:"https://pitchey.pages.dev" \
+  --var FRONTEND_URL:"https://pitchey-5o8.pages.dev" \
   --var CACHE_ENABLED:"true" \
   --var UPSTASH_REDIS_REST_URL:"https://chief-anteater-20186.upstash.io" \
   --var UPSTASH_REDIS_REST_TOKEN:"AU7aAAIncDI3ZGVjNWMxZGUyOWQ0ZmYyYjI4NzdkYjM4OGMxZTE3NnAyMjAxODY"
 
 if [ $? -eq 0 ]; then
     echo "✅ Deployment successful!"
-    echo "🌐 Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev"
+    echo "🌐 Worker URL: https://pitchey-api-prod.ndlovucavelle.workers.dev"
     echo "📊 View in Cloudflare Dashboard: https://dash.cloudflare.com"
 else
     echo "❌ Deployment failed. Check the error messages above."

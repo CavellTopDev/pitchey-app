@@ -124,7 +124,7 @@ account_id = "$CLOUDFLARE_ACCOUNT_ID"
 ENVIRONMENT = "$ENVIRONMENT"
 REGION = "$REGION"
 DATA_CENTER = "$DATA_CENTER"
-FRONTEND_URL = "https://$SUBDOMAIN_PREFIX.pitchey.pages.dev"
+FRONTEND_URL = "https://$SUBDOMAIN_PREFIX.pitchey-5o8.pages.dev"
 
 # Regional KV namespace
 [[kv_namespaces]]
@@ -191,7 +191,7 @@ deploy_worker() {
 health_check_region() {
     log "Performing health check for $REGION deployment..."
     
-    HEALTH_URL="https://$WORKER_NAME.cavelltheleaddev.workers.dev/api/health"
+    HEALTH_URL="https://$WORKER_NAME.ndlovucavelle.workers.dev/api/health"
     MAX_ATTEMPTS=20
     RETRY_INTERVAL=15
     
@@ -257,14 +257,14 @@ configure_regional_dns() {
         --data '{
             "type": "CNAME",
             "name": "'$SUBDOMAIN_PREFIX'-api",
-            "content": "'$WORKER_NAME'.cavelltheleaddev.workers.dev",
+            "content": "'$WORKER_NAME'.ndlovucavelle.workers.dev",
             "ttl": 300,
             "comment": "Regional API endpoint for '$REGION'"
         }')
     
     SUCCESS=$(echo "$DNS_RESPONSE" | jq -r '.success // false')
     if [ "$SUCCESS" == "true" ]; then
-        success "DNS record created: $SUBDOMAIN_PREFIX-api.pitchey.com -> $WORKER_NAME.cavelltheleaddev.workers.dev"
+        success "DNS record created: $SUBDOMAIN_PREFIX-api.pitchey.com -> $WORKER_NAME.ndlovucavelle.workers.dev"
     else
         ERROR_MSG=$(echo "$DNS_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
         if echo "$ERROR_MSG" | grep -q "already exists"; then
@@ -280,7 +280,7 @@ configure_regional_dns() {
 performance_test() {
     log "Running performance test for $REGION..."
     
-    HEALTH_URL="https://$WORKER_NAME.cavelltheleaddev.workers.dev/api/health"
+    HEALTH_URL="https://$WORKER_NAME.ndlovucavelle.workers.dev/api/health"
     SAMPLES=5
     TOTAL_TIME=0
     
@@ -333,9 +333,9 @@ main() {
     
     # Display access URLs
     log "Access URLs:"
-    log "  - Worker: https://$WORKER_NAME.cavelltheleaddev.workers.dev"
+    log "  - Worker: https://$WORKER_NAME.ndlovucavelle.workers.dev"
     log "  - Regional API: https://$SUBDOMAIN_PREFIX-api.pitchey.com"
-    log "  - Health Check: https://$WORKER_NAME.cavelltheleaddev.workers.dev/api/health"
+    log "  - Health Check: https://$WORKER_NAME.ndlovucavelle.workers.dev/api/health"
 }
 
 # Execute main function

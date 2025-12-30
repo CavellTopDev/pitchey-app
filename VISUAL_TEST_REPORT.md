@@ -4,7 +4,7 @@
 
 **Test Date**: November 28, 2025
 **Test Tool**: Playwright with Chromium
-**Target**: https://pitchey.pages.dev
+**Target**: https://pitchey-5o8.pages.dev
 
 ## ✅ API Authentication Test Results
 
@@ -109,7 +109,7 @@ Screenshots captured during testing:
 ### GitHub Actions Deployment
 - **Workflow**: deploy-worker-npx.yml
 - **Status**: ✅ Successfully deployed
-- **Worker URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+- **Worker URL**: https://pitchey-optimized.ndlovucavelle.workers.dev
 - **Deployment Time**: 03:17 UTC
 
 ### Post-Deployment Tests

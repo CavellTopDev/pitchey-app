@@ -7,7 +7,7 @@ import jwt from '@tsndr/cloudflare-worker-jwt';
 
 // Allowed origins configuration - supports custom domains
 const ALLOWED_ORIGINS = [
-  'https://pitchey.pages.dev',
+  'https://pitchey-5o8.pages.dev',
   'https://pitchey.com',
   'https://www.pitchey.com',
   'http://localhost:5173',
@@ -51,7 +51,7 @@ class CorsHandler {
     }
 
     // Default to custom domain if configured, otherwise Pages domain
-    return this.env.FRONTEND_URL || 'https://pitchey.pages.dev';
+    return this.env.FRONTEND_URL || 'https://pitchey-5o8.pages.dev';
   }
 
   getHeaders(): Record<string, string> {

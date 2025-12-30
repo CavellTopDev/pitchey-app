@@ -54,7 +54,7 @@ compatibility_flags = ["nodejs_compat"]
 # Only non-sensitive configuration
 [vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 
 # Bindings
 [[kv_namespaces]]
@@ -193,7 +193,7 @@ The security headers service (`src/security/security-headers.ts`) provides:
 response = SecurityHeaders.apply(response, {
   environment: env.ENVIRONMENT,
   reportUri: env.REPORT_URI,
-  allowedOrigins: ['https://pitchey.pages.dev']
+  allowedOrigins: ['https://pitchey-5o8.pages.dev']
 });
 ```
 
@@ -237,7 +237,7 @@ const report = await auditLogger.generateComplianceReport(startDate, endDate);
 wrangler deploy --env production
 
 # Verify deployment
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 2. **Enable Cloudflare Security Features**:

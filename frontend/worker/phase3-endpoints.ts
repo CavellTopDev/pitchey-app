@@ -549,7 +549,7 @@ async function handleSharePitch(
     `;
 
     // Generate share URL (basic implementation)
-    const shareUrl = `https://pitchey.pages.dev/pitch/${pitchId}`;
+    const shareUrl = `https://pitchey-5o8.pages.dev/pitch/${pitchId}`;
 
     return new Response(JSON.stringify({
       success: true,

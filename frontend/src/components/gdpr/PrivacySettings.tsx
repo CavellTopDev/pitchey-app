@@ -44,9 +44,10 @@ const PrivacySettings: React.FC = () => {
 
   const loadConsentStatus = async () => {
     try {
-      const response = await fetch('/api/gdpr/consent', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       const data = await response.json();
       
       if (data.consents) {
@@ -65,9 +66,10 @@ const PrivacySettings: React.FC = () => {
 
   const loadUserRequests = async () => {
     try {
-      const response = await fetch('/api/gdpr/requests', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       const data = await response.json();
       setRequests(data.requests || []);
     } catch (error) {
@@ -79,17 +81,12 @@ const PrivacySettings: React.FC = () => {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/gdpr/consent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          consents: { [consentType]: granted },
-          source: 'settings'
-        })
-      });
+    const response = await fetch(`${config.API_URL}/api/user/privacy/consent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [consentType]: granted }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         setConsents(prev => ({ ...prev, [consentType]: granted }));
@@ -105,17 +102,12 @@ const PrivacySettings: React.FC = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/gdpr/requests/${requestType}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          description,
-          ...additionalData
-        })
-      });
+    const response = await fetch(`${config.API_URL}/api/user/privacy/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestType, description, ...additionalData }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       const result = await response.json();
       

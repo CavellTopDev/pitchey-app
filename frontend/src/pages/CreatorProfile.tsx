@@ -71,11 +71,9 @@ const CreatorProfile = () => {
     
     try {
       // Fetch creator profile from API
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${config.API_URL}/api/users/profile/${creatorId}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`
-        } : {}
+      const response = await fetch(`${config.API_URL}/api/creators/${username}`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
       });
       
       if (response.ok) {
@@ -98,11 +96,9 @@ const CreatorProfile = () => {
     
     try {
       // Fetch creator's pitches from API
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${config.API_URL}/api/users/${creatorId}/pitches`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`
-        } : {}
+      const response = await fetch(`${config.API_URL}/api/creators/${username}/pitches`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
       });
       
       if (response.ok) {

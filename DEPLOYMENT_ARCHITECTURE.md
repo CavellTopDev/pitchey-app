@@ -423,7 +423,7 @@ const SECURITY_HEADERS = {
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' https://pitchey-api-production.cavelltheleaddev.workers.dev wss://pitchey-backend-fresh.deno.dev; " +
+    "connect-src 'self' https://pitchey-api-prod.ndlovucavelle.workers.dev wss://pitchey-backend-fresh.deno.dev; " +
     "font-src 'self' data:; " +
     "object-src 'none'; " +
     "frame-ancestors 'none'; " +

@@ -607,7 +607,7 @@ Generated: ${new Date(metrics.timestamp).toISOString()}
 # Run every minute via cron
 # */1 * * * * /path/to/health-check-cron.sh
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 SLACK_WEBHOOK="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
 
 # Function to send Slack alert

@@ -28,15 +28,15 @@ NEON_DATABASE_URL="postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94
 JWT_SECRET="vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
 
 # Frontend URL (REQUIRED)
-FRONTEND_URL="https://pitchey.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 ```
 
 #### **Frontend (.env.production)**
 
 ```bash
 # API Configuration (REQUIRED)
-VITE_API_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev"
-VITE_WS_URL="wss://pitchey-optimized.cavelltheleaddev.workers.dev"
+VITE_API_URL="https://pitchey-optimized.ndlovucavelle.workers.dev"
+VITE_WS_URL="wss://pitchey-optimized.ndlovucavelle.workers.dev"
 ```
 
 ### 🟡 IMPORTANT - Enhanced Functionality
@@ -129,8 +129,8 @@ Create `/frontend/.env.production`:
 
 ```bash
 # Production API endpoints
-VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 
 # Sentry (optional but recommended)
 VITE_SENTRY_DSN=https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536
@@ -147,7 +147,7 @@ Update `/pitchey_v0.2/wrangler.toml`:
 ```toml
 # Add to [vars] section
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 SENTRY_ENVIRONMENT = "production"
 
 # Remove hardcoded JWT_SECRET from vars (use secrets instead)
@@ -193,7 +193,7 @@ const sql = neon(connectionString);
 // package.json
 {
   "scripts": {
-    "build:prod": "VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev npm run build"
+    "build:prod": "VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev npm run build"
   }
 }
 ```
@@ -215,10 +215,10 @@ const sql = neon(connectionString);
 
 ```bash
 # Test database connection
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health/db
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health/db
 
 # Test authentication
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 

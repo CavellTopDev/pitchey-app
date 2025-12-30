@@ -6,8 +6,8 @@ echo "🚀 Production Deployment Validation"
 echo "==================================="
 
 # URLs
-FRONTEND_URL="https://pitchey.pages.dev"
-WORKER_URL="https://pitchey-production-secure.cavelltheleaddev.workers.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
+WORKER_URL="https://pitchey-production-secure.ndlovucavelle.workers.dev"
 
 # Color codes
 GREEN='\033[0;32m'
@@ -61,8 +61,8 @@ done
 
 # Test 4: CORS Configuration
 echo -e "${BLUE}4. CORS Configuration${NC}"
-CORS_TEST=$(curl -s -I -H "Origin: https://pitchey.pages.dev" "$WORKER_URL/api/health" | grep -i "access-control-allow-origin")
-if echo "$CORS_TEST" | grep -q "pitchey.pages.dev"; then
+CORS_TEST=$(curl -s -I -H "Origin: https://pitchey-5o8.pages.dev" "$WORKER_URL/api/health" | grep -i "access-control-allow-origin")
+if echo "$CORS_TEST" | grep -q "pitchey-5o8.pages.dev"; then
     echo -e "${GREEN}✅ CORS properly configured for frontend${NC}"
 else
     echo -e "${RED}❌ CORS configuration issue${NC}"

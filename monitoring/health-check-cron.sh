@@ -3,7 +3,7 @@
 # Pitchey Production Health Check Script
 # Run this as a cron job every 5 minutes to monitor worker health
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 WEBHOOK_URL="" # Add Slack/Discord webhook URL for alerts
 LOG_FILE="/var/log/pitchey-health.log"
 

@@ -394,10 +394,10 @@ health_check() {
     
     # Determine health check URL based on environment
     if [ "$ENVIRONMENT" == "production" ]; then
-        HEALTH_URL="https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
-        FRONTEND_URL="https://pitchey.pages.dev"
+        HEALTH_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
+        FRONTEND_URL="https://pitchey-5o8.pages.dev"
     else
-        HEALTH_URL="https://pitchey-$ENVIRONMENT.cavelltheleaddev.workers.dev/api/health"
+        HEALTH_URL="https://pitchey-$ENVIRONMENT.ndlovucavelle.workers.dev/api/health"
         FRONTEND_URL="https://pitchey-$ENVIRONMENT.pages.dev"
     fi
     

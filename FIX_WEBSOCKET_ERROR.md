@@ -2,12 +2,12 @@
 
 ## The Issue
 ```
-WebSocket connection to 'wss://pitchey-optimized.cavelltheleaddev.workers.dev/ws?token=...' failed: 
+WebSocket connection to 'wss://pitchey-optimized.ndlovucavelle.workers.dev/ws?token=...' failed: 
 Error during WebSocket handshake: Unexpected response code: 400
 ```
 
 ## Root Cause
-The Cloudflare Worker at `pitchey-optimized.cavelltheleaddev.workers.dev` doesn't have WebSocket handling implemented. WebSockets in Cloudflare Workers require:
+The Cloudflare Worker at `pitchey-optimized.ndlovucavelle.workers.dev` doesn't have WebSocket handling implemented. WebSockets in Cloudflare Workers require:
 1. Durable Objects for stateful connections
 2. Special WebSocket upgrade handling
 3. Proper routing configuration
@@ -64,7 +64,7 @@ tag = "v1"
 new_classes = ["WebSocketRoom"]
 
 [env.production]
-route = "pitchey-optimized.cavelltheleaddev.workers.dev/*"
+route = "pitchey-optimized.ndlovucavelle.workers.dev/*"
 ```
 
 Then create a Durable Object class:

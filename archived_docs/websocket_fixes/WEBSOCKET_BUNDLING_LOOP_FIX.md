@@ -153,7 +153,7 @@ if (loopDetected) {
 
 ### Production Verification
 
-- **URL**: https://pitchey.pages.dev/
+- **URL**: https://pitchey-5o8.pages.dev/
 - **WebSocket**: wss://pitchey-backend-fresh.deno.dev/ws
 - **Status**: ✅ Fully operational with no infinite loops
 - **Connection Success Rate**: 100%

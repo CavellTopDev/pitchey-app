@@ -183,7 +183,7 @@ Request → Memory Cache (L1) → KV Cache (L2) → Database
 ./monitoring/health-check.sh
 
 # View cache stats
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/cache/stats
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/cache/stats
 
 # Test performance
 ./test-cache-performance.sh

@@ -65,45 +65,52 @@ export const ndaAPI = {
       intendedUse: string;
     };
   }) {
-    const response = await fetch(`${API_URL}/api/ndas/request`, {
+    const response = await fetch(`${API_URL}/api/nda/request`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ pitchId, ...data }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     return response.json();
   },
 
   // Get NDA requests (incoming or outgoing)
   async getRequests(type: 'incoming' | 'outgoing' = 'outgoing') {
-    const response = await fetch(`${API_URL}/api/ndas/request?type=${type}`, {
+    const response = await fetch(`${API_URL}/api/nda/${type}`, {
+      method: 'GET',
       headers: getAuthHeaders(),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     return response.json();
   },
 
   // Approve NDA request
   async approveRequest(requestId: number) {
-    const response = await fetch(`${API_URL}/api/ndas/${requestId}/approve`, {
-      method: 'POST',
+    const response = await fetch(`${API_URL}/api/nda/${requestId}/approve`, {
+      method: 'PUT',
       headers: getAuthHeaders(),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     return response.json();
   },
 
   // Reject NDA request
   async rejectRequest(requestId: number, rejectionReason?: string) {
-    const response = await fetch(`${API_URL}/api/ndas/${requestId}/reject`, {
-      method: 'POST',
+    const response = await fetch(`${API_URL}/api/nda/${requestId}/reject`, {
+      method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ rejectionReason }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     return response.json();
   },
 
   // Get signed NDAs
   async getSignedNDAs() {
-    const response = await fetch(`${API_URL}/api/ndas/signed`, {
+    const response = await fetch(`${API_URL}/api/nda/signed`, {
+      method: 'GET',
       headers: getAuthHeaders(),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     return response.json();
   },
@@ -208,8 +215,10 @@ export const analyticsAPI = {
 export const mediaAPI = {
   // Get media access for a pitch
   async getMediaAccess(pitchId: number) {
-    const response = await fetch(`${API_URL}/api/pitches/${pitchId}/media`, {
+    const response = await fetch(`${API_URL}/api/media/access/${pitchId}`, {
+      method: 'GET',
       headers: getAuthHeaders(),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     return response.json();
   },
@@ -287,10 +296,11 @@ export const mediaAPI = {
 
   // Delete media file
   async deleteMedia(pitchId: number, mediaId: string) {
-    const response = await fetch(`${API_URL}/api/media/delete`, {
+    const response = await fetch(`${API_URL}/api/media/${pitchId}/${mediaId}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
       body: JSON.stringify({ pitchId, mediaId }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     return response.json();
   },
@@ -318,7 +328,9 @@ export const mediaAPI = {
     }
 
     const response = await fetch(`${API_URL}/api/media/stream/${mediaId}?pitchId=${pitchId}`, {
+      method: 'GET',
       headers,
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {

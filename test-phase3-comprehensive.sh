@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Comprehensive test script for Phase 3 endpoints
-API_BASE="https://pitchey-browse-api-production.cavelltheleaddev.workers.dev"
+API_BASE="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "=== COMPREHENSIVE PHASE 3 ENDPOINT TESTING ==="
 echo "🚀 Testing 50+ new endpoints across 8 major categories"

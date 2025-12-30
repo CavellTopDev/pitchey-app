@@ -1,7 +1,7 @@
 # Pitchey Serverless API Documentation
 
 ## Production URL
-`https://pitchey-production.cavelltheleaddev.workers.dev`
+`https://pitchey-api-prod.ndlovucavelle.workers.dev`
 
 ## Current Status
 - **Version**: `serverless-final-v2.0`

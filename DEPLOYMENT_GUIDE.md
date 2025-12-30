@@ -60,9 +60,9 @@ In your GitHub repository settings, add these secrets:
 - `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET` - JWT signing secret
-- `PRODUCTION_URL` - https://pitchey-production.cavelltheleaddev.workers.dev
+- `PRODUCTION_URL` - https://pitchey-api-prod.ndlovucavelle.workers.dev
 - `VITE_API_URL` - Same as PRODUCTION_URL
-- `VITE_WS_URL` - wss://pitchey-production.cavelltheleaddev.workers.dev
+- `VITE_WS_URL` - wss://pitchey-api-prod.ndlovucavelle.workers.dev
 - `VITE_SENTRY_DSN` - Sentry DSN for frontend
 - `SLACK_WEBHOOK` - For deployment notifications (optional)
 - `DATADOG_API_KEY` - For metrics (optional)
@@ -188,13 +188,13 @@ npm run type-check
 ### Health Monitoring
 ```bash
 # Check health status
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 # Detailed health check
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health?detailed=true
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health?detailed=true
 
 # View metrics
-curl https://pitchey-production.cavelltheleaddev.workers.dev/metrics
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/metrics
 ```
 
 ### Performance Monitoring
@@ -215,7 +215,7 @@ npm run perf:test:heavy
 npm run cache:warm
 
 # Clear cache (requires admin token)
-curl -X DELETE https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/cache \
+curl -X DELETE https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/cache \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
 ```
 
@@ -290,7 +290,7 @@ wrangler tail
 wrangler deployments list
 
 # Test specific endpoint
-curl -X GET https://pitchey-production.cavelltheleaddev.workers.dev/api/test \
+curl -X GET https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test \
   -H "Content-Type: application/json"
 
 # View error details in Sentry

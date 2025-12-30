@@ -58,7 +58,7 @@ All recommended optimization priorities have been successfully implemented and d
 
 ### 4. **Performance Headers**
 ```bash
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced
 
 # Returns:
 x-cache-status: BYPASS
@@ -82,9 +82,9 @@ cache-control: no-cache, no-store, must-revalidate
 4. **A/B Test Results**: Live variant performance tracking
 
 ### Key Monitoring URLs
-- **Health**: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
-- **Database Performance**: https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database-performance
-- **A/B Variant**: https://pitchey-production.cavelltheleaddev.workers.dev/api/ab-test/variant
+- **Health**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
+- **Database Performance**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database-performance
+- **A/B Variant**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/ab-test/variant
 
 ## 🎯 **Business Impact**
 
@@ -130,7 +130,7 @@ cache-control: no-cache, no-store, must-revalidate
 ### Quick Commands
 ```bash
 # Check system health
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Monitor continuously  
 ./monitoring/production-alerts.sh monitor

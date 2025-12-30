@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Comprehensive Frontend Testing Script for Pitchey
-# Tests all possible workflows at https://pitchey.pages.dev
+# Tests all possible workflows at https://pitchey-5o8.pages.dev
 
 API_URL="https://pitchey-backend-fresh.deno.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 
 # Colors for output
 RED='\033[0;31m'

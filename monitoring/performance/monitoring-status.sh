@@ -3,7 +3,7 @@
 # Monitoring Status Overview Script
 # Shows current status of all monitoring components
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 
 echo "🎬 Pitchey Performance Monitoring Status"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

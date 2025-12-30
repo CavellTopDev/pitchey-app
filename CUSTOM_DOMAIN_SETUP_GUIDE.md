@@ -32,13 +32,13 @@ Update these at your domain registrar.
 ```
 Type: CNAME
 Name: @ (or pitchey.com)
-Target: pitchey.pages.dev
+Target: pitchey-5o8.pages.dev
 Proxy: ON (Orange cloud)
 TTL: Auto
 
 Type: CNAME
 Name: www
-Target: pitchey.pages.dev
+Target: pitchey-5o8.pages.dev
 Proxy: ON (Orange cloud)
 TTL: Auto
 ```
@@ -47,7 +47,7 @@ TTL: Auto
 ```
 Type: CNAME
 Name: api
-Target: pitchey-optimized.cavelltheleaddev.workers.dev
+Target: pitchey-optimized.ndlovucavelle.workers.dev
 Proxy: ON (Orange cloud)
 TTL: Auto
 ```
@@ -107,7 +107,7 @@ route = "api.pitchey.com/*"
 ```typescript
 // In worker-platform-fixed.ts or worker-optimized-performance.ts
 const ALLOWED_ORIGINS = [
-  'https://pitchey.pages.dev',
+  'https://pitchey-5o8.pages.dev',
   'https://pitchey.com',
   'https://www.pitchey.com',
   'http://localhost:5173' // Development
@@ -271,7 +271,7 @@ if (typeof window !== 'undefined' && window.performance) {
 
 # 2. Update CORS to allow both
 const ALLOWED_ORIGINS = [
-  'https://pitchey.pages.dev',
+  'https://pitchey-5o8.pages.dev',
   'https://pitchey.com',
   // Keep both during transition
 ];

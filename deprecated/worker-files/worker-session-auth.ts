@@ -24,8 +24,8 @@ app.use('*', async (c, next) => {
   const corsMiddleware = cors({
     origin: (origin) => {
       const allowedOrigins = [
-        'https://pitchey.pages.dev',
-        'https://*.pitchey.pages.dev',
+        'https://pitchey-5o8.pages.dev',
+        'https://*.pitchey-5o8.pages.dev',
         'http://localhost:5173',
         'http://localhost:5174',
         'http://localhost:3000'
@@ -63,7 +63,7 @@ app.use('*', async (c, next) => {
   });
 
   const sessionManager = new SessionManager(redis, {
-    domain: c.env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined,
+    domain: c.env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined,
     secure: c.env.ENVIRONMENT === 'production',
     maxAge: 7 * 24 * 60 * 60 // 7 days
   });
@@ -191,7 +191,7 @@ app.post('/api/auth/logout', async (c) => {
 
   // Clear cookie
   const logoutCookie = SessionManager.generateLogoutCookie(
-    c.env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined
+    c.env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined
   );
   
   c.header('Set-Cookie', logoutCookie);
@@ -238,7 +238,7 @@ app.post('/api/auth/sessions/invalidate-all', requireAuth, async (c) => {
   
   // Clear current cookie
   const logoutCookie = SessionManager.generateLogoutCookie(
-    c.env.ENVIRONMENT === 'production' ? '.pitchey.pages.dev' : undefined
+    c.env.ENVIRONMENT === 'production' ? '.pitchey-5o8.pages.dev' : undefined
   );
   
   c.header('Set-Cookie', logoutCookie);

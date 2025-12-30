@@ -337,7 +337,7 @@ echo -e "\n${YELLOW}Testing auth fixes locally...${NC}"
 
 # Test the fixed authentication endpoints
 echo "Testing Creator portal authentication..."
-creator_test=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+creator_test=$(curl -s -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login" \
     -H "Content-Type: application/json" \
     -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
 

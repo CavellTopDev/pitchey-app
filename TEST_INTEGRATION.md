@@ -27,7 +27,7 @@ This test verifies that our automated CI/CD pipeline works correctly with:
    - Test account credentials
 
 ## Expected Outputs:
-- 🌐 Frontend Preview: `https://pr-{number}.pitchey.pages.dev`
+- 🌐 Frontend Preview: `https://pr-{number}.pitchey-5o8.pages.dev`
 - ⚡ API Preview: `https://pitchey-pr-{number}.workers.dev`
 - 🗄️ Database Branch: `preview/pr-{number}`
 

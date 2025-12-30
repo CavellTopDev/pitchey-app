@@ -167,16 +167,16 @@ node test-browse-api.js
 ### Test API Endpoints Manually
 ```bash
 # Test trending tab
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/browse?tab=trending&limit=5"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse?tab=trending&limit=5"
 
 # Test new tab
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/browse?tab=new&limit=5"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse?tab=new&limit=5"
 
 # Test popular tab
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/browse?tab=popular&limit=5"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse?tab=popular&limit=5"
 
 # Test pagination
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/browse?tab=new&limit=5&page=2"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse?tab=new&limit=5&page=2"
 ```
 
 ## Deployment Steps

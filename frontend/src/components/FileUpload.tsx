@@ -256,14 +256,14 @@ const FileUpload: React.FC<FileUploadProps> = ({
       const initResponse = await fetch(`${API_URL}/api/upload/multipart/init`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           filename: file.name,
           context,
           requireNDA
-        })
+        }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!initResponse.ok) throw new Error('Failed to initialize upload');
@@ -303,13 +303,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
       }
 
       // Complete multipart upload
-      const completeResponse = await fetch(`${API_URL}/api/upload/multipart/complete`, {
+      const completeResponse = await fetch(`${API_URL}/api/upload/complete-multipart`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ key, uploadId, parts })
+        body: JSON.stringify({ key, uploadId, parts }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!completeResponse.ok) throw new Error('Failed to complete upload');

@@ -4,7 +4,7 @@
 # Tests ALL services and features in Creator, Investor, and Admin dashboards
 
 API_URL="https://pitchey-backend-fresh.deno.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 
 # Colors for output
 RED='\033[0;31m'

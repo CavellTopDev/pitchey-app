@@ -11,7 +11,7 @@ interface DetailedErrorResult {
 }
 
 class Debug500Errors {
-  private baseUrl = 'https://pitchey-browse-api-production.cavelltheleaddev.workers.dev';
+  private baseUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   private tokens: Map<string, string> = new Map();
 
   // List of endpoints that returned 500 errors

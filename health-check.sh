@@ -13,8 +13,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/health-check.log"
 
 # URLs to check
-FRONTEND_URL="https://pitchey.pages.dev"
-API_WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
+API_WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 BACKUP_API_URL="https://pitchey-backend-fresh.deno.dev"
 
 # Options
@@ -313,7 +313,7 @@ main() {
     check_http_endpoint "Backup_API" "$BACKUP_API_URL/api/health"
     
     # WebSocket check
-    check_websocket "WebSocket" "wss://pitchey-api-production.cavelltheleaddev.workers.dev/ws"
+    check_websocket "WebSocket" "wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws"
     
     # Service-specific checks
     check_database

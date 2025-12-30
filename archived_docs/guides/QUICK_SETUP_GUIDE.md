@@ -109,7 +109,7 @@ CACHE_ENABLED=true
    
    - Add another for frontend:
    - Name: `Pitchey Frontend`
-   - URL: `https://pitchey.pages.dev`
+   - URL: `https://pitchey-5o8.pages.dev`
 
 3. **Set up alerts**:
    - Add your email
@@ -197,7 +197,7 @@ After optimizations:
 ## 🔗 Important URLs
 
 ### Your Production URLs
-- **Frontend**: https://pitchey.pages.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
 - **Backend**: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev
 - **Health**: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
 

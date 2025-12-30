@@ -26,7 +26,7 @@ sleep 5
 
 # Quick validation test
 echo -e "\n${CYAN}Running quick validation tests...${NC}"
-WORKER_URL="https://pitchey-api-prod.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Test 1: Health check
 echo "1. Testing health endpoint..."

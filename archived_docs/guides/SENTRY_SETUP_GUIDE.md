@@ -33,7 +33,7 @@ VITE_SENTRY_RELEASE=pitchey-frontend-v1.0
 
 ### 2. Sentry Project Settings
 - **Project URL**: https://o4510137537396736.sentry.io/projects/4510138262945872/settings/
-- Add `pitchey.pages.dev` to allowed domains
+- Add `pitchey-5o8.pages.dev` to allowed domains
 - Set environment to `production`
 
 ## Testing Sentry Integration

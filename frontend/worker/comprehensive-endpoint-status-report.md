@@ -1,7 +1,7 @@
 # Comprehensive Endpoint Status Report
 
 **Test Date:** November 16, 2025  
-**Test URL:** https://pitchey-browse-api-production.cavelltheleaddev.workers.dev  
+**Test URL:** https://pitchey-api-prod.ndlovucavelle.workers.dev  
 **Test Duration:** ~5 minutes  
 **Total Endpoints Tested:** 15  
 

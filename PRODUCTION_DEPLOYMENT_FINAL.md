@@ -64,8 +64,8 @@ USE_STORAGE=true
 USE_CACHE=true
 
 # URLs
-FRONTEND_URL=https://pitchey.pages.dev
-API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
+API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
 R2_PUBLIC_URL=https://cdn.pitchey.com
 
 # Email Configuration
@@ -122,8 +122,8 @@ npm run db:check
 cd frontend
 
 # Set production API URL
-echo "VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev" > .env.production
-echo "VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev" >> .env.production
+echo "VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev" > .env.production
+echo "VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev" >> .env.production
 
 # Build for production
 npm run build
@@ -140,7 +140,7 @@ sed -i 's/main = .*/main = "src\/worker-platform-complete.ts"/' wrangler.toml
 wrangler deploy
 
 # Verify deployment
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 ```
 
 ### Step 4: Deploy Frontend
@@ -151,7 +151,7 @@ cd frontend
 wrangler pages deploy dist --project-name=pitchey
 
 # Get deployment URL
-echo "Frontend deployed to: https://pitchey.pages.dev"
+echo "Frontend deployed to: https://pitchey-5o8.pages.dev"
 
 cd ..
 ```
@@ -162,7 +162,7 @@ cd ..
 ./test-integration-complete.sh
 
 # Check all services
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health | jq
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health | jq
 ```
 
 ## 📊 Service Status Indicators
@@ -188,7 +188,7 @@ curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health | jq
 ```bash
 # Test all portals
 for portal in creator investor production admin; do
-  curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/$portal/login \
+  curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/$portal/login \
     -H "Content-Type: application/json" \
     -d '{"email":"demo@example.com","password":"Demo123"}'
 done
@@ -198,7 +198,7 @@ done
 ```bash
 # Load test (50 concurrent requests)
 for i in {1..50}; do
-  curl -s https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health &
+  curl -s https://pitchey-optimized.ndlovucavelle.workers.dev/api/health &
 done
 wait
 ```
@@ -377,7 +377,7 @@ curl -X POST https://your-worker.dev/api/auth/request-reset \
 ### Quick Commands
 ```bash
 # Check status
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # View logs
 wrangler tail
@@ -391,8 +391,8 @@ wrangler tail
 
 ### Contact
 - **GitHub Issues**: https://github.com/CavellTopDev/pitchey-app/issues
-- **Worker URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Frontend URL**: https://pitchey.pages.dev
+- **Worker URL**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Frontend URL**: https://pitchey-5o8.pages.dev
 
 ---
 

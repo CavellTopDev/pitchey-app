@@ -14,7 +14,7 @@
 □ CLOUDFLARE_API_TOKEN (Cloudflare deployment)
 □ DATABASE_URL (Neon PostgreSQL connection string)  
 □ JWT_SECRET (Minimum 32 characters)
-□ FRONTEND_URL (https://pitchey.pages.dev)
+□ FRONTEND_URL (https://pitchey-5o8.pages.dev)
 □ SENTRY_DSN (Optional - error tracking)
 □ UPSTASH_REDIS_REST_URL (Optional - caching)
 □ UPSTASH_REDIS_REST_TOKEN (Optional - caching)
@@ -121,7 +121,7 @@ npm test
 wrangler deploy
 
 # Verify deployment
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 ### Phase 2: Frontend Deployment
@@ -178,9 +178,9 @@ deno run --allow-all src/db/migrate.ts
 **Quick Test Script**:
 ```bash
 # Test key endpoints
-curl -I https://pitchey.pages.dev
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches
+curl -I https://pitchey-5o8.pages.dev
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches
 ```
 
 ### 2. Performance Metrics 📊
@@ -196,7 +196,7 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches
 ```bash
 # Use Lighthouse CI or web.dev/measure
 echo "Test at: https://pagespeed.web.dev/"
-echo "URL: https://pitchey.pages.dev"
+echo "URL: https://pitchey-5o8.pages.dev"
 ```
 
 ### 3. Monitoring Setup 📡

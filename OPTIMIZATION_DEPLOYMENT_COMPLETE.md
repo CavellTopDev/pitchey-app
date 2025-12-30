@@ -2,7 +2,7 @@
 
 ## 🚀 Successfully Deployed All Phase Optimizations!
 
-**Deployment URL**: `https://pitchey-optimized.cavelltheleaddev.workers.dev`
+**Deployment URL**: `https://pitchey-optimized.ndlovucavelle.workers.dev`
 
 ### ✅ Deployed Optimizations
 
@@ -107,15 +107,15 @@
 ### Required Frontend Updates
 ```bash
 # Update frontend to use new optimized Worker
-VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 ```
 
 ### Deployment Commands
 ```bash
 # Update frontend environment
-echo "VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev" > frontend/.env.production
-echo "VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev" >> frontend/.env.production
+echo "VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev" > frontend/.env.production
+echo "VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev" >> frontend/.env.production
 
 # Build and deploy frontend
 cd frontend
@@ -140,13 +140,13 @@ psql -f set-neon-limits.sql
 ### Health Checks
 ```bash
 # Basic health check
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # Service status check
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health | jq '.services'
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health | jq '.services'
 
 # Optimization status
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health | jq '.optimizations'
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health | jq '.optimizations'
 ```
 
 ## 📈 Expected Business Impact

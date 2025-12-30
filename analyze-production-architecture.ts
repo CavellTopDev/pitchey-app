@@ -27,27 +27,27 @@ interface DeploymentAnalysis {
 
 const ENDPOINTS_TO_TEST: EndpointTest[] = [
   // Health checks
-  { url: 'https://pitchey.pages.dev', method: 'GET', expectedStatus: [200], description: 'Frontend deployment (Cloudflare Pages)' },
+  { url: 'https://pitchey-5o8.pages.dev', method: 'GET', expectedStatus: [200], description: 'Frontend deployment (Cloudflare Pages)' },
   { url: 'https://pitchey-backend-fresh.deno.dev/api/health', method: 'GET', expectedStatus: [200], description: 'Backend health (Deno Deploy)' },
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health', method: 'GET', expectedStatus: [200], description: 'Worker API health (Cloudflare Workers)' },
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health', method: 'GET', expectedStatus: [200], description: 'Worker API health (Cloudflare Workers)' },
   
   // Public API endpoints
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/pitches/featured', method: 'GET', expectedStatus: [200], description: 'Featured pitches (Worker)' },
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/featured', method: 'GET', expectedStatus: [200], description: 'Featured pitches (Worker)' },
   { url: 'https://pitchey-backend-fresh.deno.dev/api/pitches/featured', method: 'GET', expectedStatus: [200], description: 'Featured pitches (Deno)' },
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/pitches/trending', method: 'GET', expectedStatus: [200], description: 'Trending pitches (Worker)' },
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending', method: 'GET', expectedStatus: [200], description: 'Trending pitches (Worker)' },
   { url: 'https://pitchey-backend-fresh.deno.dev/api/pitches/trending', method: 'GET', expectedStatus: [200], description: 'Trending pitches (Deno)' },
   
   // Authentication endpoints
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/validate-token', method: 'GET', expectedStatus: [401], description: 'Token validation (Worker) - should require auth' },
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/validate-token', method: 'GET', expectedStatus: [401], description: 'Token validation (Worker) - should require auth' },
   { url: 'https://pitchey-backend-fresh.deno.dev/api/auth/status', method: 'GET', expectedStatus: [401], description: 'Auth status (Deno) - should require auth' },
   
   // Role-specific endpoints
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/creator/pitches', method: 'GET', expectedStatus: [401, 403], description: 'Creator pitches (Worker) - requires auth', authRequired: true, role: 'creator' },
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/investor/dashboard', method: 'GET', expectedStatus: [401, 403], description: 'Investor dashboard (Worker) - requires auth', authRequired: true, role: 'investor' },
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/production/dashboard', method: 'GET', expectedStatus: [401, 403], description: 'Production dashboard (Worker) - requires auth', authRequired: true, role: 'production' },
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/creator/pitches', method: 'GET', expectedStatus: [401, 403], description: 'Creator pitches (Worker) - requires auth', authRequired: true, role: 'creator' },
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/investor/dashboard', method: 'GET', expectedStatus: [401, 403], description: 'Investor dashboard (Worker) - requires auth', authRequired: true, role: 'investor' },
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/production/dashboard', method: 'GET', expectedStatus: [401, 403], description: 'Production dashboard (Worker) - requires auth', authRequired: true, role: 'production' },
   
   // Database test endpoints (should be protected or removed)
-  { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/db-test', method: 'GET', expectedStatus: [401, 403, 404, 200], description: 'Database test endpoint (should be protected!)' }
+  { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/db-test', method: 'GET', expectedStatus: [401, 403, 404, 200], description: 'Database test endpoint (should be protected!)' }
 ];
 
 async function testEndpoint(test: EndpointTest): Promise<{
@@ -170,7 +170,7 @@ async function checkSecurityConfiguration(): Promise<{ issues: string[], recomme
   
   // Check if database test endpoint is exposed
   try {
-    const response = await fetch('https://pitchey-api-production.cavelltheleaddev.workers.dev/api/db-test');
+    const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/db-test');
     if (response.status === 200) {
       issues.push('🚨 Database test endpoint is publicly accessible');
       recommendations.push('Remove or protect /api/db-test endpoint in production');
@@ -181,7 +181,7 @@ async function checkSecurityConfiguration(): Promise<{ issues: string[], recomme
   
   // Check CORS headers
   try {
-    const response = await fetch('https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health', {
+    const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health', {
       method: 'OPTIONS'
     });
     
@@ -203,7 +203,7 @@ async function checkSecurityConfiguration(): Promise<{ issues: string[], recomme
   
   for (const token of demoTests) {
     try {
-      const response = await fetch('https://pitchey-api-production.cavelltheleaddev.workers.dev/api/profile', {
+      const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/profile', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -229,9 +229,9 @@ async function analyzeArchitecture(): Promise<void> {
   console.log('-' .repeat(40));
   
   const deployments = [
-    { url: 'https://pitchey.pages.dev', name: 'Frontend (Cloudflare Pages)' },
+    { url: 'https://pitchey-5o8.pages.dev', name: 'Frontend (Cloudflare Pages)' },
     { url: 'https://pitchey-backend-fresh.deno.dev/api/health', name: 'Backend (Deno Deploy)' },
-    { url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health', name: 'API Worker (Cloudflare Workers)' }
+    { url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health', name: 'API Worker (Cloudflare Workers)' }
   ];
   
   const deploymentResults: DeploymentAnalysis[] = [];
@@ -319,8 +319,8 @@ async function analyzeArchitecture(): Promise<void> {
   console.log(`🔒 Security Issues: ${security.issues.length} found`);
   
   console.log('\\n🌐 Production URLs:');
-  console.log(`   Frontend: https://pitchey.pages.dev`);
-  console.log(`   API (Primary): https://pitchey-api-production.cavelltheleaddev.workers.dev`);
+  console.log(`   Frontend: https://pitchey-5o8.pages.dev`);
+  console.log(`   API (Primary): https://pitchey-api-prod.ndlovucavelle.workers.dev`);
   console.log(`   API (Backup): https://pitchey-backend-fresh.deno.dev`);
   
   console.log('\\n⚙️ Architecture Pattern:');

@@ -54,7 +54,7 @@ export CLOUDFLARE_API_TOKEN="your-token-here"
 wrangler deploy --env production \
   --var JWT_SECRET:"vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz" \
   --var DATABASE_URL:"postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require" \
-  --var FRONTEND_URL:"https://pitchey.pages.dev"
+  --var FRONTEND_URL:"https://pitchey-5o8.pages.dev"
 ```
 
 ### Option 3: Fix GitHub Billing

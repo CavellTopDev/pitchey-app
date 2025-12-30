@@ -21,7 +21,7 @@ async function testPortals() {
   
   // Test Creator Portal
   console.log('📝 Testing Creator Portal...');
-  await page.goto('https://pitchey.pages.dev/creator/login');
+  await page.goto('https://pitchey-5o8.pages.dev/creator/login');
   await page.screenshot({ path: 'screenshots/creator-login-page.png' });
   
   // Fill login form
@@ -39,7 +39,7 @@ async function testPortals() {
   
   // Test Investor Portal
   console.log('💰 Testing Investor Portal...');
-  await page.goto('https://pitchey.pages.dev/investor/login');
+  await page.goto('https://pitchey-5o8.pages.dev/investor/login');
   await page.screenshot({ path: 'screenshots/investor-login-page.png' });
   
   await page.fill('input[type="email"]', 'sarah.investor@demo.com');
@@ -55,7 +55,7 @@ async function testPortals() {
   
   // Test Production Portal
   console.log('🎬 Testing Production Portal...');
-  await page.goto('https://pitchey.pages.dev/production/login');
+  await page.goto('https://pitchey-5o8.pages.dev/production/login');
   await page.screenshot({ path: 'screenshots/production-login-page.png' });
   
   await page.fill('input[type="email"]', 'stellar.production@demo.com');

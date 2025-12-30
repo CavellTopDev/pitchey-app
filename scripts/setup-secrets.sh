@@ -76,7 +76,7 @@ echo "--------------------------------"
 set_secret "DATABASE_URL" "PostgreSQL connection string (e.g., postgresql://user:pass@host/db)" false
 set_secret "JWT_SECRET" "JWT signing secret (min 32 characters)" false
 set_secret "BETTER_AUTH_SECRET" "Better Auth secret key" false
-set_secret "BETTER_AUTH_URL" "Better Auth URL (e.g., https://pitchey-production.cavelltheleaddev.workers.dev)" false
+set_secret "BETTER_AUTH_URL" "Better Auth URL (e.g., https://pitchey-api-prod.ndlovucavelle.workers.dev)" false
 
 echo ""
 echo "🔧 Configuring Cache & Storage"
@@ -120,6 +120,6 @@ echo "✅ Secret configuration complete!"
 echo ""
 echo "🚀 Next steps:"
 echo "  1. Deploy the worker: wrangler deploy"
-echo "  2. Test the deployment: curl https://pitchey-production.cavelltheleaddev.workers.dev/health"
+echo "  2. Test the deployment: curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health"
 echo "  3. Set up GitHub Actions secrets for CI/CD"
 echo ""

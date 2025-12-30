@@ -191,8 +191,8 @@ REDIS_URL=redis://localhost:6379
 NOTIFICATION_QUEUE_PREFIX=notification_queue
 
 # Frontend URLs
-FRONTEND_URL=https://pitchey.pages.dev
-API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
+API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ### Service Initialization

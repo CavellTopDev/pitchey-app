@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 ALERT_INTERVAL=300  # 5 minutes
 WEBHOOK_URL="${WEBHOOK_URL:-}"
 SLACK_WEBHOOK="${SLACK_WEBHOOK_URL:-}"

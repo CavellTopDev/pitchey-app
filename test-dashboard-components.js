@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Test all dashboard components with real data
-const WORKER_API = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const WORKER_API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 console.log('📊 Testing Dashboard Components with Real Data\n');
 
@@ -20,7 +20,7 @@ async function authenticateUsers() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         },
         body: JSON.stringify(credentials)
       });
@@ -56,7 +56,7 @@ async function testCreatorDashboard(token) {
       const response = await fetch(`${WORKER_API}${endpoint.path}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         }
       });
       
@@ -127,7 +127,7 @@ async function testInvestorDashboard(token) {
       const response = await fetch(`${WORKER_API}${endpoint.path}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         }
       });
       
@@ -191,7 +191,7 @@ async function testProductionDashboard(token) {
       const response = await fetch(`${WORKER_API}${endpoint.path}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         }
       });
       
@@ -256,7 +256,7 @@ async function testCommonEndpoints() {
     try {
       const response = await fetch(`${WORKER_API}${endpoint.path}`, {
         headers: {
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         }
       });
       

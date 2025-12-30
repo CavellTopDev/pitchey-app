@@ -23,16 +23,16 @@ gh secret set CLOUDFLARE_API_TOKEN --body="your-new-token"
 # WRONG:
 - name: Check Pages Health
   run: |
-    curl -f https://pitchey.pages.dev/api/health
+    curl -f https://pitchey-5o8.pages.dev/api/health
 
 # CORRECT:
 - name: Check Pages Health
   run: |
-    curl -f https://pitchey.pages.dev/  # Frontend check
+    curl -f https://pitchey-5o8.pages.dev/  # Frontend check
     
 - name: Check Worker Health
   run: |
-    curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+    curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 ### 3. Fix Worker Service Name (2 minutes)
@@ -65,7 +65,7 @@ echo "🔧 Fixing GitHub Actions Pipeline..."
 # 1. Fix health check URLs
 echo "Fixing health check URLs..."
 find .github/workflows -name "*.yml" -exec sed -i \
-  's|https://pitchey.pages.dev/api/health|https://pitchey-production.cavelltheleaddev.workers.dev/api/health|g' {} \;
+  's|https://pitchey-5o8.pages.dev/api/health|https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health|g' {} \;
 
 # 2. Fix worker name
 echo "Fixing worker service name..."
@@ -95,15 +95,15 @@ gh workflow run "Deploy to Production"
 gh run watch
 
 # 4. Verify endpoints
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
-curl https://pitchey.pages.dev/
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
+curl https://pitchey-5o8.pages.dev/
 ```
 
 ## Current Working State
 
 Despite pipeline issues, your application is:
-- ✅ **Frontend Live**: https://pitchey.pages.dev
-- ✅ **API Live**: https://pitchey-production.cavelltheleaddev.workers.dev
+- ✅ **Frontend Live**: https://pitchey-5o8.pages.dev
+- ✅ **API Live**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - ✅ **Database Connected**: Neon PostgreSQL operational
 - ✅ **Authentication Working**: All portals functional
 

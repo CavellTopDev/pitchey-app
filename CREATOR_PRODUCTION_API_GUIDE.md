@@ -2,8 +2,8 @@
 
 ## Overview
 This guide documents all new API endpoints for the Creator and Production portals, now live at:
-- **Production Worker**: https://pitchey-api-prod.cavelltheleaddev.workers.dev
-- **Production Worker (Alt)**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Production Worker**: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- **Production Worker (Alt)**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ## Authentication
 All endpoints require authentication via Better Auth session cookies or JWT token in Authorization header.
@@ -356,13 +356,13 @@ Use the following curl commands to test:
 
 ```bash
 # Test Browse Trending
-curl -X GET "https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/browse?type=trending"
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse?type=trending"
 
 # Test Browse New
-curl -X GET "https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/browse?type=new"
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse?type=new"
 
 # Test Health Check
-curl -X GET "https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/health"
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 ```
 
 ## Migration Status

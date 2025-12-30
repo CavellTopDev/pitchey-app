@@ -5,7 +5,7 @@
 
 set -e
 
-BASE_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+BASE_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 PASSWORD="Demo123"
 
 echo "==========================================="

@@ -16,8 +16,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-BASE_URL="${1:-https://pitchey.pages.dev}"
-API_URL="${2:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+BASE_URL="${1:-https://pitchey-5o8.pages.dev}"
+API_URL="${2:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 EMAIL="alex.creator@demo.com"
 PASSWORD="Demo123"
 
@@ -215,7 +215,7 @@ async function testQuickActionButtons() {
     const page = await browser.newPage();
     
     // Navigate to login
-    await page.goto('https://pitchey.pages.dev/login/creator');
+    await page.goto('https://pitchey-5o8.pages.dev/login/creator');
     
     // Login
     await page.type('input[type="email"]', 'alex.creator@demo.com');
@@ -250,7 +250,7 @@ async function testQuickActionButtons() {
                 console.log(`✗ ${button.text} - Wrong destination: ${url}`);
             }
             // Go back to dashboard
-            await page.goto('https://pitchey.pages.dev/creator/dashboard');
+            await page.goto('https://pitchey-5o8.pages.dev/creator/dashboard');
         } catch (e) {
             console.log(`✗ ${button.text} - Error: ${e.message}`);
         }

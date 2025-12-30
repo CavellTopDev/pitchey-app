@@ -99,14 +99,14 @@ const results = await withDatabase(env, async (sql) => await sql`
 ### Test Endpoints
 ```bash
 # High-traffic endpoint
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/trending
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/trending
 
 # Database-intensive endpoint  
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public
 
 # Authenticated endpoint
 curl -H "Authorization: Bearer TOKEN" \
-  https://pitchey-optimized.cavelltheleaddev.workers.dev/api/production/following
+  https://pitchey-optimized.ndlovucavelle.workers.dev/api/production/following
 ```
 
 ## Rollback Procedure

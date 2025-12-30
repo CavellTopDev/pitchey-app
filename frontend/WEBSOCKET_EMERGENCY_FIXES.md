@@ -16,8 +16,8 @@ localStorage.removeItem('pitchey_last_ws_attempt');
 
 ### 2. Fixed CSP Headers
 **File**: `/home/supremeisbeing/pitcheymovie/pitchey_v0.2/frontend/public/_headers`
-- **REMOVED**: `https://pitchey-api-production.cavelltheleaddev.workers.dev`
-- **REMOVED**: `wss://pitchey-api-production.cavelltheleaddev.workers.dev`
+- **REMOVED**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
+- **REMOVED**: `wss://pitchey-api-prod.ndlovucavelle.workers.dev`
 - **KEPT**: `https://pitchey-backend-fresh.deno.dev` (working backend)
 - **KEPT**: `wss://pitchey-backend-fresh.deno.dev` (working WebSocket)
 

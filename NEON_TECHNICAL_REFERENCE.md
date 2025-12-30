@@ -1206,7 +1206,7 @@ compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 JWT_SECRET = "production-secret-key"
 SENTRY_DSN = "https://...@sentry.io/..."
 SENTRY_ENVIRONMENT = "production"

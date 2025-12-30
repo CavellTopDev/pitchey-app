@@ -8,8 +8,8 @@ async function validateMigration() {
   console.log("=".repeat(60));
   
   // Test URLs
-  const workerUrl = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
-  const frontendUrl = 'https://pitchey.pages.dev';
+  const workerUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+  const frontendUrl = 'https://pitchey-5o8.pages.dev';
   
   const results = {
     backend: false,

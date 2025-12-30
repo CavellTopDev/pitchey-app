@@ -5,7 +5,7 @@
  * Tests the Cloudflare Worker cache integration and performance headers
  */
 
-const WORKER_URL = process.env.WORKER_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const WORKER_URL = process.env.WORKER_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 async function testCacheIntegration() {
   console.log('🧪 Testing Cache Integration\n');

@@ -4,7 +4,7 @@
 # Tests database performance with and without Hyperdrive
 # Usage: ./hyperdrive-monitor.sh [production-worker-url]
 
-WORKER_URL=${1:-"https://pitchey-production.cavelltheleaddev.workers.dev"}
+WORKER_URL=${1:-"https://pitchey-api-prod.ndlovucavelle.workers.dev"}
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'

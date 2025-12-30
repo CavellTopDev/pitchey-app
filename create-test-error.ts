@@ -91,10 +91,10 @@ async function testSentryInitialization(): Promise<void> {
 
 async function testFrontendTelemetry(): Promise<void> {
   console.log("\n🌐 Frontend Telemetry Check:");
-  console.log("   ✅ Frontend deployed to: https://pitchey.pages.dev");
+  console.log("   ✅ Frontend deployed to: https://pitchey-5o8.pages.dev");
   console.log("   📝 To validate frontend Sentry:");
   console.log("   1. Open browser dev tools");
-  console.log("   2. Navigate to https://pitchey.pages.dev");
+  console.log("   2. Navigate to https://pitchey-5o8.pages.dev");
   console.log("   3. Look for Sentry initialization logs in console");
   console.log("   4. Check Network tab for Sentry requests");
 }

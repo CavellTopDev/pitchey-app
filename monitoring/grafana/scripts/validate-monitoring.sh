@@ -216,7 +216,7 @@ test_worker_endpoint() {
     log_info "⚡ Testing Worker Endpoint"
     echo
     
-    local worker_url="https://pitchey-production.cavelltheleaddev.workers.dev"
+    local worker_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
     
     # Test main endpoint
     run_test "Worker endpoint responsive" "
@@ -354,7 +354,7 @@ performance_benchmark() {
     log_info "⚡ Running Performance Benchmark"
     echo
     
-    local worker_url="https://pitchey-production.cavelltheleaddev.workers.dev"
+    local worker_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
     
     # Test response time
     local response_time

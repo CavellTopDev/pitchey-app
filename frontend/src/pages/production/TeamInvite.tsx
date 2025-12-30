@@ -81,7 +81,7 @@ export default function TeamInvite() {
             sentAt: '2024-01-15T10:30:00Z',
             expiresAt: '2024-01-22T10:30:00Z',
             status: 'pending',
-            inviteLink: 'https://pitchey.pages.dev/invite/abc123',
+            inviteLink: 'https://pitchey-5o8.pages.dev/invite/abc123',
             message: 'Welcome to our creative team! Looking forward to working together.'
           },
           {
@@ -94,7 +94,7 @@ export default function TeamInvite() {
             sentAt: '2024-01-10T14:20:00Z',
             expiresAt: '2024-01-17T14:20:00Z',
             status: 'expired',
-            inviteLink: 'https://pitchey.pages.dev/invite/def456'
+            inviteLink: 'https://pitchey-5o8.pages.dev/invite/def456'
           },
           {
             id: '3',
@@ -106,18 +106,17 @@ export default function TeamInvite() {
             sentAt: '2024-01-12T09:00:00Z',
             expiresAt: '2024-01-19T09:00:00Z',
             status: 'accepted',
-            inviteLink: 'https://pitchey.pages.dev/invite/ghi789'
+            inviteLink: 'https://pitchey-5o8.pages.dev/invite/ghi789'
           }
         ]);
         setLoading(false);
       }, 1000);
       
       // TODO: Replace with actual API call
-      // const response = await fetch(`${config.API_URL}/api/team/invitations`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      //   }
-      // });
+    const response = await fetch(`${config.API_URL}/api/production`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       // const data = await response.json();
       // setPendingInvitations(data.invitations || []);
     } catch (error) {
@@ -153,14 +152,12 @@ export default function TeamInvite() {
       }
 
       // TODO: Replace with actual API call
-      // const response = await fetch(`${config.API_URL}/api/team/invite`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      //   },
-      //   body: JSON.stringify(formData)
-      // });
+    const response = await fetch(`${config.API_URL}/api/production`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(formData),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       // Mock success
       await new Promise(resolve => setTimeout(resolve, 1500));

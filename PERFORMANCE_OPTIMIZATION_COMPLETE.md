@@ -132,7 +132,7 @@ id = "98c88a185eb448e4868fcc87e458b3ac"
 ### Check Cache Performance
 ```bash
 # Look for cache headers
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced
 
 # Headers to watch:
 # X-Cache-Status: HIT/MISS

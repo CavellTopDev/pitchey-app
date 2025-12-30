@@ -760,8 +760,8 @@ const updateCharacterOptimistically = async (pitchId, characterId, updates) => {
 1. **Environment Variables**
    ```javascript
    // .env.production
-   VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-   VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+   VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+   VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
    ```
 
 2. **CORS Configuration**

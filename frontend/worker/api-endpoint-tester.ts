@@ -17,7 +17,7 @@ interface UserCredentials {
 }
 
 class APIEndpointTester {
-  private baseUrl = 'https://pitchey-browse-api-production.cavelltheleaddev.workers.dev';
+  private baseUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   private tokens: Map<string, string> = new Map();
   private results: TestResult[] = [];
 

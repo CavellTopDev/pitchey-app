@@ -12,7 +12,7 @@ const mockEnv = {
     connectionString: 'postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require'
   },
   JWT_SECRET: 'test-secret-key-for-development',
-  FRONTEND_URL: 'https://pitchey.pages.dev'
+  FRONTEND_URL: 'https://pitchey-5o8.pages.dev'
 };
 
 // Mock auth for investor

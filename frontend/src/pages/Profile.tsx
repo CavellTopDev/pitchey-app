@@ -45,11 +45,10 @@ export default function Profile() {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/user/profile`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -84,21 +83,18 @@ export default function Profile() {
       if (!token || !user?.id) return;
 
       const apiUrl = config.API_URL;
-      const response = await fetch(`${apiUrl}/api/follows/followers?creatorId=${user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/user/profile`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
         const followers = data.followerCount || 0;
         
         // Get following count
-        const followingResponse = await fetch(`${apiUrl}/api/follows/following?type=creators&limit=1`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        const followingResponse = await fetch(`${apiUrl}/api/users/following/count`, {
+          credentials: 'include' // Send cookies for Better Auth session
         });
         
         let following = 0;
@@ -119,14 +115,12 @@ export default function Profile() {
       setSaving(true);
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/profile`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(editedProfile)
-      });
+    const response = await fetch(`${config.API_URL}/api/user/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();

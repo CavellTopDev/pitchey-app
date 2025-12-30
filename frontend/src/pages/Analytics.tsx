@@ -52,13 +52,11 @@ export default function Analytics() {
 
   const quickLogin = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/creator/login`, {
+    const response = await fetch(`${config.API_URL}/api/analytics`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: 'alex.creator@demo.com',
-          password: 'Demo123'
-        })
+        body: JSON.stringify({}),
+        credentials: 'include' // Send cookies for Better Auth session
       });
       
       const data = await response.json();
@@ -90,14 +88,10 @@ export default function Analytics() {
       // Fetch both dashboard and user analytics
       const [dashboardResponse, userResponse] = await Promise.all([
         fetch(`${API_URL}/api/analytics/dashboard?preset=${preset}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include' // Send cookies for Better Auth session
         }),
-        fetch(`${API_URL}/api/analytics/user?preset=${preset}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        fetch(`${API_URL}/api/analytics/users?preset=${preset}`, {
+          credentials: 'include' // Send cookies for Better Auth session
         })
       ]);
       

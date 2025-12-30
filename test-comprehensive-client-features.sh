@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # API Configuration
 #API_URL="http://localhost:8001"
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Test accounts
 CREATOR_EMAIL="alex.creator@demo.com"

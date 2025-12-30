@@ -7,7 +7,7 @@ Migration from the old proxy-based API Worker to the unified Worker with Hyperdr
 
 ### Before (Old - Proxy Worker)
 ```
-https://pitchey-api-production.cavelltheleaddev.workers.dev
+https://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 - **Type**: Proxy Worker 
 - **Function**: Proxied requests to Deno Deploy backend
@@ -15,7 +15,7 @@ https://pitchey-api-production.cavelltheleaddev.workers.dev
 
 ### After (New - Unified Worker)
 ```
-https://pitchey-production.cavelltheleaddev.workers.dev
+https://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 - **Type**: Unified Worker
 - **Function**: Direct API implementation with Hyperdrive
@@ -88,17 +88,17 @@ Now returns:
 
 1. **Test unified Worker health**:
    ```bash
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    ```
 
 2. **Test investor dashboard**:
    ```bash
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/investor/dashboard \
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/investor/dashboard \
      -H "Authorization: Bearer YOUR_TOKEN"
    ```
 
 3. **Frontend verification**:
-   - Open https://pitchey.pages.dev
+   - Open https://pitchey-5o8.pages.dev
    - Login as investor (sarah.investor@demo.com / Demo123)
    - Check browser console for 404 errors
    - Verify dashboard loads properly
@@ -108,17 +108,17 @@ Now returns:
 ### Environment Variables
 ```bash
 # Production Frontend
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev
 
 # Worker Configuration
 JWT_SECRET=vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 ```
 
 ### CSP Headers
 ```
-connect-src 'self' https://pitchey-production.cavelltheleaddev.workers.dev wss://pitchey-production.cavelltheleaddev.workers.dev
+connect-src 'self' https://pitchey-api-prod.ndlovucavelle.workers.dev wss://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ## Impact Analysis
@@ -146,4 +146,4 @@ connect-src 'self' https://pitchey-production.cavelltheleaddev.workers.dev wss:/
 
 ---
 *Migration completed: 2025-11-17*
-*Unified Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev*
+*Unified Worker URL: https://pitchey-api-prod.ndlovucavelle.workers.dev*

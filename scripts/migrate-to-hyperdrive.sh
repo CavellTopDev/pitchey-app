@@ -175,7 +175,7 @@ compatibility_flags = ["nodejs_compat"]
 account_id = "e16d3bf549153de23459a6c6a06a431b"
 
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ENVIRONMENT = "test"
 
 [[hyperdrive]]
@@ -194,7 +194,7 @@ test_hyperdrive_worker() {
     wrangler deploy --config wrangler.test.toml
     
     # Get worker URL
-    WORKER_URL="https://${WORKER_NAME}${TEST_WORKER_SUFFIX}.cavelltheleaddev.workers.dev"
+    WORKER_URL="https://${WORKER_NAME}${TEST_WORKER_SUFFIX}.ndlovucavelle.workers.dev"
     
     print_info "Testing Hyperdrive worker at: $WORKER_URL"
     
@@ -236,7 +236,7 @@ test_hyperdrive_worker() {
 run_comprehensive_tests() {
     print_info "Running comprehensive performance tests..."
     
-    WORKER_URL="https://${WORKER_NAME}${TEST_WORKER_SUFFIX}.cavelltheleaddev.workers.dev"
+    WORKER_URL="https://${WORKER_NAME}${TEST_WORKER_SUFFIX}.ndlovucavelle.workers.dev"
     
     # Run the comprehensive test script we created
     print_info "Deploying comprehensive test worker..."
@@ -260,7 +260,7 @@ EOF
     # Deploy comprehensive test
     wrangler deploy --config wrangler.comprehensive-test.toml
     
-    COMPREHENSIVE_URL="https://${WORKER_NAME}-comprehensive-test.cavelltheleaddev.workers.dev"
+    COMPREHENSIVE_URL="https://${WORKER_NAME}-comprehensive-test.ndlovucavelle.workers.dev"
     
     print_info "Running comprehensive tests at: $COMPREHENSIVE_URL"
     sleep 10
@@ -326,7 +326,7 @@ perform_migration() {
     print_status "Production deployment completed"
     
     # Test production deployment
-    PROD_URL="https://${WORKER_NAME}.cavelltheleaddev.workers.dev"
+    PROD_URL="https://${WORKER_NAME}.ndlovucavelle.workers.dev"
     print_info "Testing production deployment at: $PROD_URL"
     
     sleep 10

@@ -143,8 +143,8 @@ POSTMARK_API_KEY=xxxxx           # Postmark server token
 EMAIL_UNSUBSCRIBE_SECRET=xxxxx   # Secret for unsubscribe tokens
 
 # Frontend URLs
-FRONTEND_URL=https://pitchey.pages.dev
-API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
+API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ## 📊 Testing Results
@@ -172,9 +172,9 @@ import { sendWelcomeEmail } from './src/services/email/index.ts';
 await sendWelcomeEmail('user@example.com', {
   firstName: 'John',
   userType: 'creator',
-  dashboardUrl: 'https://pitchey.pages.dev/dashboard',
-  profileSetupUrl: 'https://pitchey.pages.dev/profile/setup',
-  unsubscribeUrl: 'https://pitchey.pages.dev/unsubscribe?token=xxx'
+  dashboardUrl: 'https://pitchey-5o8.pages.dev/dashboard',
+  profileSetupUrl: 'https://pitchey-5o8.pages.dev/profile/setup',
+  unsubscribeUrl: 'https://pitchey-5o8.pages.dev/unsubscribe?token=xxx'
 });
 ```
 

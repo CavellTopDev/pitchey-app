@@ -238,13 +238,11 @@ export class MFAClient {
    * Setup MFA for user
    */
   async setupMFA(userId: string, password: string): Promise<MFASetup> {
-    const response = await fetch(`${this.apiUrl}/api/auth/mfa/setup`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.getToken()}`
-      },
-      body: JSON.stringify({ userId, password })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, password }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -258,13 +256,11 @@ export class MFAClient {
    * Verify MFA setup
    */
   async verifySetup(userId: string, token: string, secret: string): Promise<{ success: boolean; backupCodes?: string[] }> {
-    const response = await fetch(`${this.apiUrl}/api/auth/mfa/verify-setup`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.getToken()}`
-      },
-      body: JSON.stringify({ userId, token, secret })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, token, secret }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -278,12 +274,11 @@ export class MFAClient {
    * Verify MFA during login
    */
   async verifyLogin(userId: string, token?: string, backupCode?: string): Promise<{ success: boolean; token?: string }> {
-    const response = await fetch(`${this.apiUrl}/api/auth/mfa/verify`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ userId, token, backupCode })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, token, backupCode }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -298,10 +293,9 @@ export class MFAClient {
    * Get MFA status
    */
   async getStatus(userId: string): Promise<MFAStatus> {
-    const response = await fetch(`${this.apiUrl}/api/auth/mfa/status/${userId}`, {
-      headers: {
-        'Authorization': `Bearer ${this.getToken()}`
-      }
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -315,13 +309,11 @@ export class MFAClient {
    * Disable MFA
    */
   async disableMFA(userId: string, password: string): Promise<{ success: boolean }> {
-    const response = await fetch(`${this.apiUrl}/api/auth/mfa/disable`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.getToken()}`
-      },
-      body: JSON.stringify({ userId, password })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, password }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -335,13 +327,11 @@ export class MFAClient {
    * Generate new backup codes
    */
   async regenerateBackupCodes(userId: string, password: string): Promise<{ backupCodes: string[] }> {
-    const response = await fetch(`${this.apiUrl}/api/auth/mfa/backup-codes`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.getToken()}`
-      },
-      body: JSON.stringify({ userId, password })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, password }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -353,9 +343,12 @@ export class MFAClient {
   
   /**
    * Get stored token (implement based on your storage strategy)
+   * Note: Using empty string for now as Better Auth uses cookie-based sessions
    */
   private getToken(): string {
-    return localStorage.getItem('authToken') || '';
+    // Better Auth uses cookie-based sessions, not JWT tokens
+    // MFA will need to be integrated with Better Auth's session management
+    return '';
   }
 }
 

@@ -332,18 +332,12 @@ class EnhancedUploadService {
   private async checkDuplication(file: File): Promise<UploadResult | null> {
     try {
       const hash = await this.calculateFileHash(file);
-      const response = await fetch(`${this.baseUrl}/api/upload/deduplicate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify({
-          hash,
-          fileName: file.name,
-          fileSize: file.size
-        })
-      });
+    const response = await fetch(`${config.API_URL}/api/upload/check-duplicate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hash, name: file.name, size: file.size }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         const result = await response.json();
@@ -375,11 +369,10 @@ class EnhancedUploadService {
     options: EnhancedUploadOptions
   ): Promise<UploadResult> {
     // Get presigned URL from backend
-    const presignedResponse = await fetch(`${this.baseUrl}/api/upload/presigned-enhanced`, {
+    const presignedResponse = await fetch(`${config.API_URL}/api/upload/presigned`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         fileName: file.name,
@@ -387,7 +380,8 @@ class EnhancedUploadService {
         fileSize: file.size,
         folder: this.generateFolder(folder, options),
         metadata: options.customMetadata || {}
-      })
+      }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!presignedResponse.ok) {
@@ -408,13 +402,14 @@ class EnhancedUploadService {
     
     formData.append('file', file);
 
-    const uploadResponse = await fetch(uploadUrl, {
+    const uploadResponse = await fetch(presignedUrl, {
       method: 'PUT',
       body: file, // For R2, send file directly
       signal: options.signal,
       headers: {
         'Content-Type': file.type
-      }
+      },
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!uploadResponse.ok) {
@@ -443,18 +438,18 @@ class EnhancedUploadService {
     const totalChunks = Math.ceil(file.size / chunkSize);
     
     // Initialize multipart upload
-    const initResponse = await fetch(`${this.baseUrl}/api/upload/multipart/init`, {
+    const initResponse = await fetch(`${config.API_URL}/api/upload/multipart/init`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         fileName: file.name,
         contentType: file.type,
         fileSize: file.size,
         folder: this.generateFolder(folder, options)
-      })
+      }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!initResponse.ok) {
@@ -481,17 +476,17 @@ class EnhancedUploadService {
       uploadedParts.push(...parts);
 
       // Complete multipart upload
-      const completeResponse = await fetch(`${this.baseUrl}/api/upload/multipart/complete`, {
+      const completeResponse = await fetch(`${config.API_URL}/api/upload/complete`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           uploadId,
           key,
           parts: uploadedParts
-        })
+        }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!completeResponse.ok) {
@@ -509,13 +504,13 @@ class EnhancedUploadService {
 
     } catch (error) {
       // Abort multipart upload on error
-      await fetch(`${this.baseUrl}/api/upload/multipart/abort`, {
+      await fetch(`${config.API_URL}/api/upload/multipart/abort`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ uploadId, key })
+        body: JSON.stringify({ uploadId, key }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
       
       throw error;
@@ -531,16 +526,15 @@ class EnhancedUploadService {
     partNumber: number,
     key: string
   ): Promise<{ ETag: string; PartNumber: number }> {
-    const response = await fetch(`${this.baseUrl}/api/upload/multipart/chunk`, {
+    const response = await fetch(`${config.API_URL}/api/upload/multipart/upload-part`, {
       method: 'POST',
+      body: chunk,
       headers: {
-        'Content-Type': 'application/octet-stream',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'X-Upload-Id': uploadId,
-        'X-Part-Number': partNumber.toString(),
-        'X-Key': key
+        'x-upload-id': uploadId,
+        'x-part-number': partNumber.toString(),
+        'x-key': key
       },
-      body: chunk
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -626,19 +620,11 @@ class EnhancedUploadService {
    * Generate thumbnail for image/video
    */
   private async generateThumbnail(url: string, mimeType: string): Promise<{ url: string }> {
-    const response = await fetch(`${this.baseUrl}/api/upload/thumbnail`, {
+    const response = await fetch(`${config.API_URL}/api/upload/complete`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      },
-      body: JSON.stringify({
-        sourceUrl: url,
-        mimeType,
-        width: 300,
-        height: 200,
-        quality: 80
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, uploadId, parts }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -698,13 +684,13 @@ class EnhancedUploadService {
 
     // Send to backend
     try {
-      await fetch(`${this.baseUrl}/api/upload/analytics`, {
+      await fetch(`${config.API_URL}/api/analytics/upload`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(analytics)
+        body: JSON.stringify(analytics),
+        credentials: 'include' // Send cookies for Better Auth session
       });
     } catch (error) {
       console.warn('Failed to send upload analytics:', error);

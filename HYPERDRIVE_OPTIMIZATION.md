@@ -19,7 +19,7 @@ chmod +x hyperdrive-setup.sh
 wrangler deploy
 
 # 6. Test database connection
-curl https://pitchey-api-production.cavelltheleaddev.workers.dev/api/db-test
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/db-test
 ```
 
 ## Hyperdrive Connection String Breakdown

@@ -56,7 +56,7 @@ wrangler deploy
 ### Deployment (2 minutes)  
 - [ ] **Deploy fixed worker**: `wrangler deploy`
 - [ ] **Wait for propagation**: `sleep 30`
-- [ ] **Immediate health check**: `curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health`
+- [ ] **Immediate health check**: `curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health`
 
 ### Post-deployment Verification (5 minutes)
 - [ ] **Test authentication**: `./test-all-endpoints.sh --test-type=auth`

@@ -3,8 +3,8 @@
 ## 🚀 Current Status: PRODUCTION READY
 
 The platform is fully deployed and operational at:
-- **Worker API:** https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Frontend:** https://pitchey.pages.dev
+- **Worker API:** https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Frontend:** https://pitchey-5o8.pages.dev
 
 ## Architecture Overview
 
@@ -58,8 +58,8 @@ JWT_SECRET = "vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz"
 **Frontend Environment:**
 ```env
 # frontend/.env.production
-VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 ```
 
 ### 2. Database Connection (Next Step)
@@ -103,7 +103,7 @@ wrangler pages deploy dist --project-name=pitchey
 
 **Health Check Endpoint:**
 ```bash
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 ```
 
 **Expected Response:**
@@ -229,8 +229,8 @@ Rate limit hits: 0
 ## 📞 Support
 
 **GitHub Repository:** https://github.com/CavellTopDev/pitchey-app
-**Live Worker:** https://pitchey-optimized.cavelltheleaddev.workers.dev
-**Frontend:** https://pitchey.pages.dev
+**Live Worker:** https://pitchey-optimized.ndlovucavelle.workers.dev
+**Frontend:** https://pitchey-5o8.pages.dev
 
 ---
 

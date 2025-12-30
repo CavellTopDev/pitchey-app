@@ -6,7 +6,7 @@ echo ""
 
 # Test the API directly
 echo "1. Testing API response for pitch 163:"
-API_RESPONSE=$(curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public/163")
+API_RESPONSE=$(curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public/163")
 if echo "$API_RESPONSE" | grep -q '"success":true'; then
     echo "   ✅ API returns success"
     if echo "$API_RESPONSE" | grep -q '"title":"The Last Colony"'; then
@@ -29,6 +29,6 @@ if 'data' in data:
 "
 
 echo ""
-echo "✅ Deployment URL: https://50c3015a.pitchey.pages.dev"
-echo "✅ Test pitch 163: https://50c3015a.pitchey.pages.dev/pitch/163"
-echo "✅ Test pitch 162: https://50c3015a.pitchey.pages.dev/pitch/162"
+echo "✅ Deployment URL: https://50c3015a.pitchey-5o8.pages.dev"
+echo "✅ Test pitch 163: https://50c3015a.pitchey-5o8.pages.dev/pitch/163"
+echo "✅ Test pitch 162: https://50c3015a.pitchey-5o8.pages.dev/pitch/162"

@@ -3,7 +3,7 @@
 # Test Complete Demo Workflows
 # This script tests all the cross-account interactions
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "=========================================="
 echo "🎬 PITCHEY COMPLETE DEMO WORKFLOW TEST"

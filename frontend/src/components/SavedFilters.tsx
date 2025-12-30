@@ -63,11 +63,10 @@ export default function SavedFilters({
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/filters/saved`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${API_URL}/api/filters/saved`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -103,14 +102,12 @@ export default function SavedFilters({
       
       const method = editingFilter ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -137,12 +134,10 @@ export default function SavedFilters({
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/filters/saved/${filterId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${API_URL}/api/filters/saved/${filterId}`, {
+      method: 'DELETE',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         toast.success('Filter deleted');
@@ -163,12 +158,9 @@ export default function SavedFilters({
     
     // Track usage
     try {
-      const token = localStorage.getItem('authToken');
-      await fetch(`${API_URL}/api/filters/saved/${filter.id}/use`, {
+      await fetch(`${API_URL}/api/filters/saved/${filter.id}/track`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include' // Send cookies for Better Auth session
       });
     } catch (error) {
       console.error('Failed to track filter usage:', error);
@@ -182,12 +174,10 @@ export default function SavedFilters({
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/filters/saved/${filter.id}/default`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${API_URL}/api/filters/saved/${filter.id}/default`, {
+      method: 'PUT',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         await loadSavedFilters();

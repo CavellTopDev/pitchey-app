@@ -34,9 +34,9 @@ DATABASE="🗄️"
 CACHE="💾"
 
 # URLs and endpoints
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
-STAGING_URL="https://pitchey-staging.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
+STAGING_URL="https://pitchey-staging.ndlovucavelle.workers.dev"
 
 # API endpoints for health checks
 HEALTH_ENDPOINTS=(

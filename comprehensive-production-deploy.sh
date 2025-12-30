@@ -25,7 +25,7 @@ deployctl deploy \
   --env="JWT_SECRET=$JWT_SECRET" \
   --env="UPSTASH_REDIS_REST_URL=$UPSTASH_REDIS_REST_URL" \
   --env="UPSTASH_REDIS_REST_TOKEN=$UPSTASH_REDIS_REST_TOKEN" \
-  --env="FRONTEND_URL=https://pitchey.pages.dev" \
+  --env="FRONTEND_URL=https://pitchey-5o8.pages.dev" \
   --production \
   --force
 
@@ -45,6 +45,6 @@ curl -s -w "Status: %{http_code}\n" "https://pitchey-backend-fresh.deno.dev/api/
 echo ""
 echo "✅ Comprehensive production fix deployment complete!"
 echo "🎯 Production URLs:"
-echo "   Frontend: https://pitchey.pages.dev"
+echo "   Frontend: https://pitchey-5o8.pages.dev"
 echo "   Backend:  https://pitchey-backend-fresh.deno.dev"
 echo "   Health:   https://pitchey-backend-fresh.deno.dev/api/health"

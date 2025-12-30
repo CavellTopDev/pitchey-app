@@ -4,7 +4,7 @@
 # This script creates new interactions between demo accounts
 # to showcase the platform's features
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "============================================"
 echo "🎬 CREATING FRESH DEMO INTERACTIONS"
@@ -153,7 +153,7 @@ echo "✨ Demo interactions created successfully!"
 echo "============================================"
 echo ""
 echo "Next steps:"
-echo "1. Visit https://pitchey.pages.dev"
+echo "1. Visit https://pitchey-5o8.pages.dev"
 echo "2. Login with demo accounts"
 echo "3. Check notifications and dashboards"
 echo "4. Approve/reject NDA requests"

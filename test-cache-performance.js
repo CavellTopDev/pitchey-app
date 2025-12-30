@@ -7,7 +7,7 @@
 
 import fetch from 'node-fetch';
 
-const WORKER_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const WORKER_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 const TEST_ENDPOINTS = [
   '/api/pitches/browse/enhanced',
   '/api/pitches/trending?limit=10',

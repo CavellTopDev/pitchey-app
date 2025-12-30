@@ -62,7 +62,7 @@ NEON_DATABASE_URL="postgresql://username:password@ep-xxx.us-east-1.aws.neon.tech
 
 # Better Auth Configuration
 BETTER_AUTH_SECRET="your-super-secret-key-min-32-chars"
-BETTER_AUTH_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+BETTER_AUTH_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # OAuth Providers (Optional)
 GOOGLE_CLIENT_ID="your-google-client-id"
@@ -90,7 +90,7 @@ name = "pitchey-production"
 
 # Environment Variables
 [vars]
-BETTER_AUTH_URL = "https://pitchey-production.cavelltheleaddev.workers.dev"
+BETTER_AUTH_URL = "https://pitchey-api-prod.ndlovucavelle.workers.dev"
 SESSION_COOKIE_NAME = "pitchey-session"
 SESSION_MAX_AGE = "2592000"
 
@@ -214,7 +214,7 @@ export function createAuth(env: any) {
       secure: true,
       sameSite: "lax",
       httpOnly: true,
-      domain: ".cavelltheleaddev.workers.dev"
+      domain: ".ndlovucavelle.workers.dev"
     },
 
     plugins: [
@@ -245,13 +245,13 @@ export function createAuth(env: any) {
       generateId: () => crypto.randomUUID(),
       crossSubDomainCookies: {
         enabled: true,
-        domain: ".cavelltheleaddev.workers.dev"
+        domain: ".ndlovucavelle.workers.dev"
       }
     },
 
     trustedOrigins: [
-      "https://pitchey.pages.dev",
-      "https://pitchey-production.cavelltheleaddev.workers.dev",
+      "https://pitchey-5o8.pages.dev",
+      "https://pitchey-api-prod.ndlovucavelle.workers.dev",
       "http://localhost:5173", // Local development
       "http://localhost:8001"  // Local proxy
     ]
@@ -576,7 +576,7 @@ wrangler secret put GITHUB_CLIENT_SECRET
 wrangler deploy --config wrangler-better-auth.toml
 
 # Test deployment
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 ```
 
 ## Testing

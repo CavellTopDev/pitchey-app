@@ -92,7 +92,7 @@ if [[ " ${DEPLOYED_SERVICES[*]} " =~ " router-worker " ]]; then
     
     # Test router health
     echo -n "Router health check: "
-    ROUTER_HEALTH=$(curl -s -w "HTTP %{http_code}" https://pitchey-router.cavelltheleaddev.workers.dev/api/health || echo "FAILED")
+    ROUTER_HEALTH=$(curl -s -w "HTTP %{http_code}" https://pitchey-router.ndlovucavelle.workers.dev/api/health || echo "FAILED")
     echo "$ROUTER_HEALTH"
     
     if echo "$ROUTER_HEALTH" | grep -q "HTTP 200"; then
@@ -103,12 +103,12 @@ if [[ " ${DEPLOYED_SERVICES[*]} " =~ " router-worker " ]]; then
         
         # Test investor service routing
         echo -n "Investor service routing: "
-        INVESTOR_ROUTE=$(curl -s -w "HTTP %{http_code}" https://pitchey-router.cavelltheleaddev.workers.dev/api/investor/dashboard -H "Authorization: Bearer test-token" || echo "FAILED")
+        INVESTOR_ROUTE=$(curl -s -w "HTTP %{http_code}" https://pitchey-router.ndlovucavelle.workers.dev/api/investor/dashboard -H "Authorization: Bearer test-token" || echo "FAILED")
         echo "$INVESTOR_ROUTE"
         
         # Test auth service routing
         echo -n "Auth service routing: "
-        AUTH_ROUTE=$(curl -s -w "HTTP %{http_code}" https://pitchey-router.cavelltheleaddev.workers.dev/api/auth/validate -H "Authorization: Bearer test-token" || echo "FAILED")
+        AUTH_ROUTE=$(curl -s -w "HTTP %{http_code}" https://pitchey-router.ndlovucavelle.workers.dev/api/auth/validate -H "Authorization: Bearer test-token" || echo "FAILED")
         echo "$AUTH_ROUTE"
         
     else
@@ -128,11 +128,11 @@ if [[ " ${DEPLOYED_SERVICES[*]} " =~ " router-worker " ]]; then
     
     # Test response times
     echo -n "Router response time: "
-    ROUTER_TIME=$(curl -w "%{time_total}" -s -o /dev/null https://pitchey-router.cavelltheleaddev.workers.dev/)
+    ROUTER_TIME=$(curl -w "%{time_total}" -s -o /dev/null https://pitchey-router.ndlovucavelle.workers.dev/)
     echo "${ROUTER_TIME}s"
     
     echo -n "Service routing latency: "
-    SERVICE_TIME=$(curl -w "%{time_total}" -s -o /dev/null https://pitchey-router.cavelltheleaddev.workers.dev/api/investor/dashboard -H "Authorization: Bearer test-token")
+    SERVICE_TIME=$(curl -w "%{time_total}" -s -o /dev/null https://pitchey-router.ndlovucavelle.workers.dev/api/investor/dashboard -H "Authorization: Bearer test-token")
     echo "${SERVICE_TIME}s"
     
     # Performance assessment

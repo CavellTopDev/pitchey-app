@@ -80,20 +80,18 @@ class PresenceFallbackService {
    */
   async updatePresence(data: PresenceUpdateData): Promise<boolean> {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('authToken');
       if (!token) {
         console.warn('No auth token available for presence update');
         return false;
       }
 
-      const response = await fetch(`${config.API_URL}/api/presence/update`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error(`Presence update failed: ${response.status}`);
@@ -120,18 +118,16 @@ class PresenceFallbackService {
    */
   async fetchPresence(): Promise<PresenceData[]> {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('authToken');
       if (!token) {
         // Not authenticated, return empty list
         return [];
       }
 
-      const response = await fetch(`${config.API_URL}/api/presence/online`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error(`Presence fetch failed: ${response.status}`);
@@ -220,17 +216,15 @@ class PresenceFallbackService {
    */
   async testWebSocketAvailability(): Promise<{ available: boolean; error?: string }> {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('authToken');
       if (!token) {
         return { available: false, error: 'Not authenticated' };
       }
 
-      const response = await fetch(`${config.API_URL}/api/websocket/test`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error(`WebSocket test failed: ${response.status}`);

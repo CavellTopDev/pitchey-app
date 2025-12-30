@@ -166,7 +166,7 @@ async function finalVerificationTest() {
   // TEST 5: Frontend Integration
   console.log('\n🌐 Test 5: Frontend Integration');
   try {
-    const frontendResponse = await fetch('https://pitchey.pages.dev/');
+    const frontendResponse = await fetch('https://pitchey-5o8.pages.dev/');
     test('Frontend is accessible', frontendResponse.ok);
     
     const html = await frontendResponse.text();
@@ -175,7 +175,7 @@ async function finalVerificationTest() {
     // Check for JavaScript bundle
     const jsMatch = html.match(/src="([^"]*\.js[^"]*)"/);
     if (jsMatch) {
-      const jsUrl = `https://pitchey.pages.dev${jsMatch[1]}`;
+      const jsUrl = `https://pitchey-5o8.pages.dev${jsMatch[1]}`;
       const jsResponse = await fetch(jsUrl);
       test('Frontend JavaScript bundle loads', jsResponse.ok);
       

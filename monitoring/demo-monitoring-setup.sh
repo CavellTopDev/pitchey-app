@@ -6,7 +6,7 @@
 echo "🎯 Pitchey Monitoring System Demo"
 echo "=================================="
 
-BASE_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+BASE_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "📊 1. Cache Performance Monitoring"
 echo "-----------------------------------"

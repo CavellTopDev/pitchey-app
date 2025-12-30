@@ -52,8 +52,8 @@
 
 | Component | URL | Status | Performance |
 |-----------|-----|--------|-------------|
-| **Frontend** | https://pitchey.pages.dev | ✅ Live | <1s load |
-| **Worker API** | https://pitchey-api-production.cavelltheleaddev.workers.dev | ✅ Live | 69ms avg |
+| **Frontend** | https://pitchey-5o8.pages.dev | ✅ Live | <1s load |
+| **Worker API** | https://pitchey-api-prod.ndlovucavelle.workers.dev | ✅ Live | 69ms avg |
 | **Backend WS** | wss://pitchey-backend-fresh.deno.dev | ✅ Live | 158ms connect |
 | **Database** | Neon PostgreSQL via Hyperdrive | ✅ Connected | <10ms query |
 
@@ -258,10 +258,10 @@ Endpoint                    Before      After     Improvement
 - ✅ **Production-ready infrastructure**
 
 ### **Platform URLs**
-- **Production App**: https://pitchey.pages.dev
-- **API Gateway**: https://pitchey-api-production.cavelltheleaddev.workers.dev
+- **Production App**: https://pitchey-5o8.pages.dev
+- **API Gateway**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **WebSocket**: wss://pitchey-backend-fresh.deno.dev
-- **Health Check**: https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health
+- **Health Check**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 ---
 

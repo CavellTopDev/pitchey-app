@@ -64,11 +64,10 @@ export default function Settings() {
   const fetchSettings = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/user/settings`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();
@@ -89,18 +88,12 @@ export default function Settings() {
       setSaving(true);
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/user/settings`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          notifications,
-          privacy,
-          security
-        })
-      });
+    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notifications, privacy, security }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         // Show success message
@@ -131,12 +124,10 @@ export default function Settings() {
   const handleDeleteAccount = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/user/account`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+      method: 'DELETE',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         logout();

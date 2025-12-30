@@ -277,7 +277,7 @@ function test_worker_functionality() {
     log_info "Testing worker functionality after secret update..."
     
     # Test health endpoint
-    local health_url="https://${WORKER_NAME}.cavelltheleaddev.workers.dev/api/health"
+    local health_url="https://${WORKER_NAME}.ndlovucavelle.workers.dev/api/health"
     local response
     
     response=$(curl -s -f "$health_url" || echo "ERROR")

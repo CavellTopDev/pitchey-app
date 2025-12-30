@@ -55,7 +55,7 @@ if wrangler deploy; then
     else
         # Simple verification
         echo "Testing health endpoint..."
-        HEALTH_STATUS=$(curl -s -w "HTTP %{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "FAILED")
+        HEALTH_STATUS=$(curl -s -w "HTTP %{http_code}" https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health || echo "FAILED")
         echo "Health endpoint: $HEALTH_STATUS"
         
         if echo "$HEALTH_STATUS" | grep -q "HTTP 200"; then

@@ -96,11 +96,11 @@ export default function InvestorBrowse() {
         }
       });
 
-      const response = await fetch(`${API_URL}/api/browse?${params}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`
-        } : {}
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();

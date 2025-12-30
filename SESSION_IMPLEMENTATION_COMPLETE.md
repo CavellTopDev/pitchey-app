@@ -29,7 +29,7 @@ Successfully migrated from localStorage JWT tokens to HTTPOnly cookie-based sess
 - ✅ **HTTPOnly**: Prevents XSS attacks (JavaScript cannot access cookies)
 - ✅ **Secure**: HTTPS-only transmission
 - ✅ **SameSite=Lax**: CSRF protection
-- ✅ **Domain**: Set to `.pitchey.pages.dev` for all subdomains
+- ✅ **Domain**: Set to `.pitchey-5o8.pages.dev` for all subdomains
 - ✅ **Max-Age**: 7-day expiration with sliding window
 - ✅ **Rate Limiting**: Prevents brute force attacks
 
@@ -73,13 +73,13 @@ Successfully migrated from localStorage JWT tokens to HTTPOnly cookie-based sess
 
 ```bash
 # Login creates session and returns cookie
-curl -i -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+curl -i -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login" \
   -H "Content-Type: application/json" \
-  -H "Origin: https://pitchey.pages.dev" \
+  -H "Origin: https://pitchey-5o8.pages.dev" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
 # Response includes Set-Cookie header:
-# session=<session-id>; Max-Age=604800; Path=/; Secure; HttpOnly; SameSite=lax; Domain=.pitchey.pages.dev
+# session=<session-id>; Max-Age=604800; Path=/; Secure; HttpOnly; SameSite=lax; Domain=.pitchey-5o8.pages.dev
 ```
 
 ## Security Improvements
@@ -117,7 +117,7 @@ UPSTASH_REDIS_REST_URL=https://chief-anteater-20186.upstash.io
 UPSTASH_REDIS_REST_TOKEN=AU7aAAIncDI3ZGVjNWMxZGUyOWQ0ZmYyYjI4NzdkYjM4OGMxZTE3NnAyMjAxODY
 
 # Frontend URL for cookie domain
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 ENVIRONMENT=production
 ```
 
@@ -137,7 +137,7 @@ ENVIRONMENT=production
 ./test-secure-sessions.sh
 
 # Check Redis connection
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 
 # View worker logs
 wrangler tail --format pretty

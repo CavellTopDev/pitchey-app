@@ -50,9 +50,9 @@ async function verifyJWT(token: string, secret: string): Promise<any> {
 
 // CORS headers for all responses
 function corsHeaders(origin: string | null): HeadersInit {
-  // Allow any *.pitchey.pages.dev origin or main domain
+  // Allow any *.pitchey-5o8.pages.dev origin or main domain
   const allowedOrigins = [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'http://localhost:5173',
     'http://localhost:3000'
   ];
@@ -61,7 +61,7 @@ function corsHeaders(origin: string | null): HeadersInit {
   const isPreviewOrigin = origin && origin.match(/^https:\/\/[a-z0-9]+\.pitchey\.pages\.dev$/);
   const isAllowedOrigin = origin && allowedOrigins.includes(origin);
   
-  const finalOrigin = isPreviewOrigin || isAllowedOrigin ? origin : 'https://pitchey.pages.dev';
+  const finalOrigin = isPreviewOrigin || isAllowedOrigin ? origin : 'https://pitchey-5o8.pages.dev';
 
   return {
     'Access-Control-Allow-Origin': finalOrigin,

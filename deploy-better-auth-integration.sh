@@ -43,7 +43,7 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 NODE_ENV = "production"
 DENO_ENV = "production"
 
@@ -111,7 +111,7 @@ npm install better-auth
 import { createAuthClient } from "better-auth/client";
 
 const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL || "https://pitchey-production.cavelltheleaddev.workers.dev"
+  baseURL: import.meta.env.VITE_API_URL || "https://pitchey-api-prod.ndlovucavelle.workers.dev"
 });
 
 export const authService = {

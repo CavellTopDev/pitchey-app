@@ -8,7 +8,7 @@
 ```
 ┌─────────────────────────────────────────────┐
 │           CLOUDFLARE PAGES                   │
-│       React App (pitchey.pages.dev)         │
+│       React App (pitchey-5o8.pages.dev)         │
 │                                             │
 │  Frontend Environment Variables:            │
 │  VITE_API_URL=https://pitchey-optimized... │
@@ -41,8 +41,8 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 export const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8001';
 
 // Production values (from .env.production):
-// API_URL = "https://pitchey-optimized.cavelltheleaddev.workers.dev"
-// WS_URL = "wss://pitchey-optimized.cavelltheleaddev.workers.dev"
+// API_URL = "https://pitchey-optimized.ndlovucavelle.workers.dev"
+// WS_URL = "wss://pitchey-optimized.ndlovucavelle.workers.dev"
 ```
 
 ### 2. Worker API Response Format (Fixed for Your Frontend)
@@ -355,7 +355,7 @@ const corsHeaders = {
 
 // ⚠️ RECOMMENDATION: Restrict to your domain
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://pitchey.pages.dev',  // ← Secure
+  'Access-Control-Allow-Origin': 'https://pitchey-5o8.pages.dev',  // ← Secure
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
@@ -445,18 +445,18 @@ GET /api/files/{key}                 // R2 retrieval
 ### Test Your Frontend-Backend Communication
 ```bash
 # 1. Test health endpoint
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # 2. Test login (should return JWT)
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
 # 3. Test cached endpoint (should be fast on second call)
-time curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public
+time curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public
 
 # 4. Test WebSocket (should require token)
-curl -H "Upgrade: websocket" https://pitchey-optimized.cavelltheleaddev.workers.dev/ws
+curl -H "Upgrade: websocket" https://pitchey-optimized.ndlovucavelle.workers.dev/ws
 ```
 
 ## 🎯 SUMMARY
@@ -469,7 +469,7 @@ Your frontend (React on Pages) communicates with your backend (Worker API) throu
 4. **R2 Storage**: File uploads and serving through Worker proxy
 5. **Durable Objects**: Real-time notifications and collaboration
 
-All communication flows through your deployed Worker at `pitchey-optimized.cavelltheleaddev.workers.dev` with proper CORS, authentication, and caching configured for optimal performance.
+All communication flows through your deployed Worker at `pitchey-optimized.ndlovucavelle.workers.dev` with proper CORS, authentication, and caching configured for optimal performance.
 
 ---
 

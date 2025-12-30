@@ -271,7 +271,7 @@ if [ $MISSING -eq 0 ]; then
     
     # Test if we can reach the API endpoint
     echo -n "Testing API endpoint... "
-    if curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health | grep -q "200\|404"; then
+    if curl -s -o /dev/null -w "%{http_code}" https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health | grep -q "200\|404"; then
         echo -e "${GREEN}Reachable${NC}"
     else
         echo -e "${YELLOW}Not deployed yet${NC}"

@@ -63,11 +63,10 @@ const ABTestingDashboard: React.FC = () => {
         queryParams.append('status', selectedStatus);
       }
 
-      const response = await fetch(`/api/experiments?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+    const response = await fetch(`${config.API_URL}/api/admin`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) throw new Error('Failed to fetch experiments');
 
@@ -106,14 +105,12 @@ const ABTestingDashboard: React.FC = () => {
   // Handle experiment actions
   const handleExperimentAction = async (experimentId: number, action: string, reason?: string) => {
     try {
-      const response = await fetch(`/api/experiments/${experimentId}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: reason ? JSON.stringify({ reason }) : undefined,
-      });
+    const response = await fetch(`${config.API_URL}/api/admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: reason ? JSON.stringify({ reason }) : undefined,
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) throw new Error(`Failed to ${action} experiment`);
 
@@ -294,11 +291,10 @@ const ExperimentCard: React.FC<ExperimentCardProps> = ({ experiment, onAction })
 
   const fetchResults = async () => {
     try {
-      const response = await fetch(`/api/experiments/${experiment.id}/results`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+    const response = await fetch(`${config.API_URL}/api/admin`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         const result = await response.json();

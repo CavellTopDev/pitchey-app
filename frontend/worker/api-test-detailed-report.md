@@ -1,6 +1,6 @@
 # API Endpoint Test Report
 **Test Date**: November 16, 2025  
-**Base URL**: https://pitchey-browse-api-production.cavelltheleaddev.workers.dev
+**Base URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ## Executive Summary
 
@@ -176,7 +176,7 @@ Testing from current location shows consistently fast response times, indicating
 ## Test Environment Details
 
 ### Infrastructure
-- **Worker URL**: https://pitchey-browse-api-production.cavelltheleaddev.workers.dev
+- **Worker URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Authentication**: JWT tokens successfully obtained for all user types
 - **Network**: All requests completed (no timeouts or connection errors)
 

@@ -4,7 +4,7 @@
 
 **Status**: 🔴 **CRITICAL INCONSISTENCIES DETECTED**  
 **Impact**: Frontend will fail to connect to optimized backend  
-**API**: `https://pitchey-optimized.cavelltheleaddev.workers.dev`  
+**API**: `https://pitchey-optimized.ndlovucavelle.workers.dev`  
 **Scope**: Authentication, endpoints, service structure
 
 ---
@@ -224,7 +224,7 @@ Complete API Layer
 ### **1. All User Flows Fail**
 ```bash
 # Test login (will fail)
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"demo@test.com","password":"test"}'
   
@@ -234,7 +234,7 @@ curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/cre
 ### **2. Dashboard Calls Fail**  
 ```bash
 # Test investor dashboard (will fail)
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/investor/dashboard \
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/investor/dashboard \
   -H "Authorization: Bearer valid-token"
   
 # Response: Placeholder message instead of dashboard data
@@ -243,7 +243,7 @@ curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/investor/dashboa
 ### **3. Content Loading Fails**
 ```bash
 # Test browse endpoint (will fail)
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/browse/trending
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/browse/trending
   
 # Response: Placeholder message instead of content
 ```

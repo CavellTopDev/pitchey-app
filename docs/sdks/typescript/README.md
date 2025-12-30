@@ -43,7 +43,7 @@ import { PitcheySDK } from '@pitchey/sdk';
 
 // Initialize the SDK
 const pitchey = new PitcheySDK({
-  apiUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  apiUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   debug: true
 });
 
@@ -435,7 +435,7 @@ try {
 ```typescript
 const pitchey = new PitcheySDK({
   // API base URL
-  apiUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  apiUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   
   // API key for authentication
   apiKey: 'your-api-key',

@@ -233,9 +233,9 @@ echo "secret_value" | wrangler secret put SECRET_NAME
 - **Security Team**: [Add contact information]
 
 ### Critical URLs
-- **Frontend**: https://pitchey.pages.dev
-- **API**: https://pitchey-production.cavelltheleaddev.workers.dev
-- **Health Check**: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- **Health Check**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 - **Monitoring Dashboard**: [Add URL when configured]
 - **Error Tracking**: [Add Sentry URL]
 
@@ -263,7 +263,7 @@ echo "secret_value" | wrangler secret put SECRET_NAME
    ./scripts/health-monitor.sh
    
    # Test critical functions
-   curl -sf https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl -sf https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    ```
 
 ### Full Disaster Recovery

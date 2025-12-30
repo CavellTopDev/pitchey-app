@@ -35,9 +35,9 @@ wrangler deploy
 ./scripts/health-monitor.sh monitor
 
 # Test endpoints
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health/ready
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health/detailed
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health/ready
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health/detailed
 ```
 
 ## 📅 Week 1: Foundation (Days 2-7)
@@ -81,7 +81,7 @@ curl -X POST https://api.sentry.io/api/0/projects/{org}/{project}/alerts/
 npm run test:performance
 
 # Generate lighthouse report
-npx lighthouse https://pitchey.pages.dev --output=json --output-path=./lighthouse-baseline.json
+npx lighthouse https://pitchey-5o8.pages.dev --output=json --output-path=./lighthouse-baseline.json
 ```
 
 ### Day 5: Database Optimization

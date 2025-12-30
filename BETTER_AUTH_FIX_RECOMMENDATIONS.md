@@ -95,7 +95,7 @@ async function authenticateRequest(request: Request, env: Env) {
 import { createAuthClient } from "better-auth/client";
 
 const authClient = createAuthClient({
-  baseURL: "https://pitchey-optimized.cavelltheleaddev.workers.dev"
+  baseURL: "https://pitchey-optimized.ndlovucavelle.workers.dev"
 });
 
 // Login with portal-specific validation
@@ -169,7 +169,7 @@ npm run build
 wrangler pages deploy frontend/dist --project-name=pitchey
 
 # Verify authentication works
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/signin \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/signin \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 ```

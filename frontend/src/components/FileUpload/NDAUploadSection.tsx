@@ -110,11 +110,6 @@ export default function NDAUploadSection({
             ...newDocument,
             uploadProgress: progress.percentage
           });
-        },
-        metadata: {
-          documentCategory: 'nda',
-          isCustomNDA: true,
-          originalFileName: file.name
         }
       });
 

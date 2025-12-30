@@ -7,7 +7,7 @@ This deployment plan ensures a safe, zero-downtime deployment of the Pitchey pla
 ## Pre-deployment Checklist
 
 ### 1. Environment Verification
-- [ ] Verify current worker is responsive: `curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health`
+- [ ] Verify current worker is responsive: `curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health`
 - [ ] Check Cloudflare dashboard access
 - [ ] Verify Neon database connectivity
 - [ ] Confirm all secrets are properly configured
@@ -84,7 +84,7 @@ sleep 30
 # Monitor for 5 minutes
 for i in {1..10}; do
   echo "Health check $i/10..."
-  curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "FAILED"
+  curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health || echo "FAILED"
   sleep 30
 done
 ```
@@ -121,7 +121,7 @@ wrangler secret put UPSTASH_REDIS_REST_TOKEN  # If rotation needed
 ### Step 3: Test Database Connection
 ```bash
 # Test database connectivity
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/health/db \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/db \
   -H "Content-Type: application/json"
 ```
 
@@ -209,7 +209,7 @@ curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/health/
 wrangler deploy
 
 # Check health
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Update secrets
 wrangler secret put DATABASE_URL

@@ -155,9 +155,9 @@ Set environment variables to customize testing:
 export INTENSITY=medium
 
 # Target URLs
-export API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-export WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev/ws
-export FRONTEND_URL=https://pitchey.pages.dev
+export API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+export WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
+export FRONTEND_URL=https://pitchey-5o8.pages.dev
 
 # Run tests
 ./scripts/run-all-tests.sh
@@ -308,7 +308,7 @@ curl -X POST https://api.pitchey.com/auth/creator/login \
 3. **WebSocket Connection Issues**:
 ```bash
 # Test WebSocket connectivity
-wscat -c wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+wscat -c wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 ```
 
 4. **Lighthouse Timeout**:

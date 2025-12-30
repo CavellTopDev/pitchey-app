@@ -310,12 +310,14 @@ class WebVitalsMonitor {
         customMetrics: this.customMetrics
       };
 
-      await fetch(`${this.apiEndpoint}/apm/web-vitals`, {
+      await 
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(vitalsData)
+        body: JSON.stringify(vitalsData),
       });
 
       console.log('Web Vitals sent successfully');
@@ -447,12 +449,14 @@ class WebVitalsMonitor {
         timestamp: Date.now()
       };
 
-      await fetch(`${this.apiEndpoint}/alerts/trigger`, {
+      await 
+      credentials: 'include', // Send cookies for Better Auth session
+      
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
+        body: JSON.stringify({}),
           type: alert.severity,
           title: `Performance Alert: ${metric.toUpperCase()}`,
           message: `${metric} threshold exceeded: ${value.toFixed(2)}ms (threshold: ${threshold}ms)`,

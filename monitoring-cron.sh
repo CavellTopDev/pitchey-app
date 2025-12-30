@@ -1,7 +1,7 @@
 #!/bin/bash
 # Add to crontab: */5 * * * * /path/to/monitoring-cron.sh
 
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_FILE="/var/log/pitchey-monitor.log"
 
 # Simple health check

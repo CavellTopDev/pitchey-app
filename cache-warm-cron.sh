@@ -1,7 +1,7 @@
 #!/bin/bash
 # Continuous cache warming script
 
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Endpoints to warm every 5 minutes
 ENDPOINTS=(

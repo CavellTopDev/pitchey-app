@@ -159,8 +159,8 @@ The Pitchey platform now has a comprehensive, production-ready API infrastructur
 ---
 
 ## 🔗 **Production URLs**
-- **API Gateway**: https://pitchey-browse-api-production.cavelltheleaddev.workers.dev
-- **Frontend**: https://pitchey.pages.dev
+- **API Gateway**: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
 - **Backend**: https://pitchey-backend-fresh.deno.dev
 
 **Status: ✅ PRODUCTION READY**

@@ -561,9 +561,7 @@ function ProductionDashboard() {
 
       const response = await fetch(`${config.API_URL}/api/upload/document`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
+        credentials: 'include', // Send cookies for Better Auth session,
         body: formData
       });
 

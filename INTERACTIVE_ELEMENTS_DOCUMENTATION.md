@@ -425,7 +425,7 @@ switch(userType) {
 ### WebSocket Connection
 ```javascript
 // Connection establishment:
-const ws = new WebSocket('wss://pitchey-production.cavelltheleaddev.workers.dev/ws');
+const ws = new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws');
 
 // Authentication:
 ws.send(JSON.stringify({
@@ -681,10 +681,10 @@ const { theme, sidebarOpen, activeTab } = useUIContext();
 
 ### Quick Login Scripts
 ```javascript
-// Copy and paste these into browser console at https://pitchey.pages.dev
+// Copy and paste these into browser console at https://pitchey-5o8.pages.dev
 
 // Login as Creator
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'alex.creator@demo.com', password: 'Demo123' })
@@ -700,7 +700,7 @@ fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/
 });
 
 // Login as Investor
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login', {
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/investor/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'sarah.investor@demo.com', password: 'Demo123' })
@@ -716,7 +716,7 @@ fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor
 });
 
 // Login as Production
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/production/login', {
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/production/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'stellar.production@demo.com', password: 'Demo123' })
@@ -753,11 +753,11 @@ Production:
 
 ### Complete Interactive Test Suite
 ```javascript
-// Full test suite for browser console at https://pitchey.pages.dev
+// Full test suite for browser console at https://pitchey-5o8.pages.dev
 // This tests all interactive elements and cross-portal communication
 
 const PitcheyTestSuite = {
-  API_BASE: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  API_BASE: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   
   // Main test runner
   async runFullTest() {
@@ -900,7 +900,7 @@ const PitcheyTestSuite = {
     console.log(`🔍 Search Results: ${search.data?.length || 0} matches`);
     
     // Test WebSocket connection
-    const ws = new WebSocket(`wss://pitchey-production.cavelltheleaddev.workers.dev/ws`);
+    const ws = new WebSocket(`wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws`);
     ws.onopen = () => console.log('🔌 WebSocket: Connected');
     ws.onerror = () => console.log('❌ WebSocket: Error');
     setTimeout(() => ws.close(), 2000);
@@ -963,19 +963,19 @@ The platform successfully enables collaboration between creators, investors, and
 
 ### Quick Test Reference Card
 ```javascript
-// Essential commands for browser console testing at https://pitchey.pages.dev
+// Essential commands for browser console testing at https://pitchey-5o8.pages.dev
 
 // 1. Quick login (choose one)
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: 'alex.creator@demo.com', password: 'Demo123'})}).then(r => r.json()).then(d => {localStorage.setItem('authToken', d.token); console.log('Logged in as Creator');});
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: 'alex.creator@demo.com', password: 'Demo123'})}).then(r => r.json()).then(d => {localStorage.setItem('authToken', d.token); console.log('Logged in as Creator');});
 
 // 2. Check API health
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/health').then(r => r.json()).then(console.log);
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health').then(r => r.json()).then(console.log);
 
 // 3. Get public pitches
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public').then(r => r.json()).then(console.log);
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public').then(r => r.json()).then(console.log);
 
 // 4. Test WebSocket
-new WebSocket('wss://pitchey-production.cavelltheleaddev.workers.dev/ws').onopen = () => console.log('WebSocket connected');
+new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws').onopen = () => console.log('WebSocket connected');
 
 // 5. Run full test suite
 fetch('https://raw.githubusercontent.com/your-repo/tests.js').then(r => r.text()).then(eval);

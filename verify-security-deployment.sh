@@ -2,7 +2,7 @@
 # Security Verification Script for Production Deployment
 set -e
 
-WORKER_URL="https://pitchey-production-secure.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-production-secure.ndlovucavelle.workers.dev"
 
 echo "🔒 Pitchey Security Verification"
 echo "================================"
@@ -32,9 +32,9 @@ echo
 echo -e "${BLUE}2. CORS Configuration${NC}"
 
 # Test allowed origin
-echo "Testing allowed origin (pitchey.pages.dev):"
-CORS_ALLOWED=$(curl -s -I -H "Origin: https://pitchey.pages.dev" "$WORKER_URL/api/health")
-if echo "$CORS_ALLOWED" | grep -q "Access-Control-Allow-Origin: https://pitchey.pages.dev"; then
+echo "Testing allowed origin (pitchey-5o8.pages.dev):"
+CORS_ALLOWED=$(curl -s -I -H "Origin: https://pitchey-5o8.pages.dev" "$WORKER_URL/api/health")
+if echo "$CORS_ALLOWED" | grep -q "Access-Control-Allow-Origin: https://pitchey-5o8.pages.dev"; then
     echo -e "${GREEN}✅ Allowed origin correctly configured${NC}"
 else
     echo -e "${RED}❌ Allowed origin configuration failed${NC}"
@@ -43,7 +43,7 @@ fi
 # Test disallowed origin
 echo "Testing disallowed origin (malicious.com):"
 CORS_DISALLOWED=$(curl -s -I -H "Origin: https://malicious.com" "$WORKER_URL/api/health")
-if echo "$CORS_DISALLOWED" | grep -q "Access-Control-Allow-Origin: https://pitchey.pages.dev"; then
+if echo "$CORS_DISALLOWED" | grep -q "Access-Control-Allow-Origin: https://pitchey-5o8.pages.dev"; then
     echo -e "${GREEN}✅ CORS properly restricted (doesn't allow malicious origins)${NC}"
 else
     echo -e "${RED}❌ CORS security issue - may be allowing wildcard origins${NC}"
@@ -164,7 +164,7 @@ echo
 echo -e "${BLUE}🎯 Security Verification Summary${NC}"
 echo "=================================="
 echo "✅ Worker deployed at: $WORKER_URL"
-echo "✅ CORS configured for: https://pitchey.pages.dev only"
+echo "✅ CORS configured for: https://pitchey-5o8.pages.dev only"
 echo "✅ Rate limiting active"
 echo "✅ Security headers implemented"
 echo "✅ Monitoring endpoints functional"

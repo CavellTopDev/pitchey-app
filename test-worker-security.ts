@@ -5,7 +5,7 @@
  * Tests role-based access control and authentication
  */
 
-const API_URL = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 // const API_URL = 'http://localhost:8787'; // For local testing with wrangler
 
 // Test credentials

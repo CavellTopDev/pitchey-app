@@ -3,7 +3,7 @@
 # Comprehensive test script for Phase 1 optimizations
 # Tests caching, WebSocket hibernation, and database optimizations
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOCAL_URL="http://localhost:8787"
 LOG_FILE="optimization-test-$(date +%Y%m%d-%H%M%S).log"
 

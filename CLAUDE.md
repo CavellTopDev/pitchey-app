@@ -6,9 +6,9 @@ This file contains project-specific instructions and context for Claude Code.
 Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform uses a modern edge-first serverless architecture with Cloudflare Workers, Neon PostgreSQL, and Upstash Redis. It features real-time WebSocket communication via Durable Objects, edge caching, draft auto-sync, and comprehensive NDA workflows.
 
 ### Production Architecture
-- **Frontend**: Cloudflare Pages (https://pitchey.pages.dev)
-- **API**: Cloudflare Workers (https://pitchey-production.cavelltheleaddev.workers.dev)
-- **Database**: Neon PostgreSQL with Hyperdrive edge pooling
+- **Frontend**: Cloudflare Pages (https://pitchey-5o8.pages.dev)
+- **API**: Cloudflare Workers (https://pitchey-api-prod.ndlovucavelle.workers.dev)
+- **Database**: Neon PostgreSQL with Hyperdrive edge pooling (raw SQL, no ORM)
 - **Cache**: Upstash Redis (global distributed)
 - **Storage**: Cloudflare R2 (S3-compatible)
 - **WebSockets**: Cloudflare Durable Objects
@@ -40,8 +40,8 @@ VITE_WS_URL=ws://localhost:8001
 
 #### Production (.env.production)
 ```
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ### Worker Development
@@ -78,9 +78,9 @@ wrangler deploy
 - Worker Dev: http://localhost:8787 (wrangler dev)
 
 ### Production URLs
-- Frontend: https://pitchey.pages.dev
-- API & WebSocket: https://pitchey-production.cavelltheleaddev.workers.dev
-- WebSocket: wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+- Frontend: https://pitchey-5o8.pages.dev
+- API & WebSocket: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- WebSocket: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 
 ## Real-time Features
 The platform includes comprehensive WebSocket integration:
@@ -99,10 +99,10 @@ The platform includes comprehensive WebSocket integration:
 - Redis services use lazy-loaded getters to avoid static initialization issues
 
 ## Database
-- Uses Drizzle ORM with PostgreSQL
-- Neon database for production
-- Local PostgreSQL for development
-- Schema files in `src/db/schema.ts`
+- Uses raw SQL with PostgreSQL (no ORM)
+- Neon database for production with Hyperdrive pooling
+- Direct postgres.js client for queries
+- Database migrations managed via SQL scripts
 
 ## 🔐 AUTHENTICATION - BETTER AUTH IMPLEMENTED ⚠️
 

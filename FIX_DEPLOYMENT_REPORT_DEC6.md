@@ -34,14 +34,14 @@ Access to fetch blocked by CORS policy: No 'Access-Control-Allow-Origin' header
 ## 📊 DEPLOYMENT DETAILS
 
 ### Backend (Cloudflare Workers)
-- **URL:** https://pitchey-production.cavelltheleaddev.workers.dev
+- **URL:** https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Version:** e2f95a3b-3128-435e-9182-b23952a817e7
 - **Size:** 885.06 KiB / gzip: 169.83 KiB
 - **Status:** ✅ LIVE
 
 ### Frontend (Cloudflare Pages)
-- **URL:** https://pitchey.pages.dev
-- **Preview:** https://e5c80a6d.pitchey.pages.dev
+- **URL:** https://pitchey-5o8.pages.dev
+- **Preview:** https://e5c80a6d.pitchey-5o8.pages.dev
 - **Status:** ✅ LIVE
 
 ## ⚠️ REMAINING ISSUE

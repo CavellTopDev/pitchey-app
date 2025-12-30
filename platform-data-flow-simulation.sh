@@ -11,7 +11,7 @@ echo "This simulation creates realistic data flow through all platform layers"
 echo ""
 
 # Configuration
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 USE_LOCAL="${USE_LOCAL:-false}"
 
 if [ "$USE_LOCAL" = "true" ]; then

@@ -3,7 +3,7 @@
 ## 🎉 Deployment Complete - December 14, 2024 @ 23:19 UTC
 
 ### Production URL
-- **Worker**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Worker**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Version**: neon-serverless-v1.0
 - **Version ID**: 3516d1f3-bee8-4de3-b0d0-193bd3f4c2f3
 
@@ -112,15 +112,15 @@ neonConfig.poolQueryViaFetch = false;
 
 ```bash
 # Health check
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Login test
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
 # Browse endpoint
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced
 ```
 
 ### 🎯 Success Criteria Met

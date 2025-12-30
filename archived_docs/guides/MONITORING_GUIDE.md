@@ -191,7 +191,7 @@ crontab -l
 #### Setup UptimeRobot (Recommended)
 1. Sign up at https://uptimerobot.com
 2. Add monitor for: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
-3. Add monitor for: https://pitchey.pages.dev
+3. Add monitor for: https://pitchey-5o8.pages.dev
 4. Configure email/webhook alerts
 
 ## Maintenance

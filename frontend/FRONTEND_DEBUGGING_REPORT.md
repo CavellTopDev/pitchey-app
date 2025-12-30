@@ -1,14 +1,14 @@
 # Frontend Debugging Report
 
 ## Issue Summary
-User reports that individual pitch pages are not displaying when accessed through the frontend at https://3d4c46bd.pitchey.pages.dev (now updated to https://2d79b6cb.pitchey.pages.dev).
+User reports that individual pitch pages are not displaying when accessed through the frontend at https://3d4c46bd.pitchey-5o8.pages.dev (now updated to https://2d79b6cb.pitchey-5o8.pages.dev).
 
 ## Root Cause Analysis
 
 ### 1. ✅ BACKEND API WORKING CORRECTLY
-- **API Health**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health ✅ WORKING
-- **Public Pitches**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public ✅ WORKING (Returns 5 pitches)
-- **Individual Pitch**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public/1 ✅ WORKING
+- **API Health**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health ✅ WORKING
+- **Public Pitches**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public ✅ WORKING (Returns 5 pitches)
+- **Individual Pitch**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public/1 ✅ WORKING
 
 ### 2. ⚠️ CRITICAL DISCOVERY: Pitch ID 162 Does NOT Exist
 - **Available Pitches**: Only IDs 1, 2, 3, 4 exist in the database
@@ -17,10 +17,10 @@ User reports that individual pitch pages are not displaying when accessed throug
 
 ### 3. ✅ FRONTEND BUILD & CONFIGURATION CORRECT
 - **Environment**: Production build uses `.env.production`
-- **API URL**: Correctly configured to `https://pitchey-optimized.cavelltheleaddev.workers.dev`
+- **API URL**: Correctly configured to `https://pitchey-optimized.ndlovucavelle.workers.dev`
 - **Build Process**: ✅ Completed successfully with correct API URL compiled
 - **CSP Headers**: ✅ Allows connection to optimized worker
-- **New Deployment**: https://2d79b6cb.pitchey.pages.dev
+- **New Deployment**: https://2d79b6cb.pitchey-5o8.pages.dev
 
 ### 4. ✅ REACT APP STRUCTURE CORRECT
 - **Router Configuration**: ✅ `/pitch/:id` routes to `PublicPitchView` component
@@ -40,13 +40,13 @@ User reports that individual pitch pages are not displaying when accessed throug
 ```
 
 ### Frontend Routes to Test
-1. **✅ Homepage**: https://2d79b6cb.pitchey.pages.dev/
-2. **✅ Marketplace**: https://2d79b6cb.pitchey.pages.dev/marketplace  
-3. **✅ Valid Pitch**: https://2d79b6cb.pitchey.pages.dev/pitch/1
-4. **✅ Valid Pitch**: https://2d79b6cb.pitchey.pages.dev/pitch/2
-5. **✅ Valid Pitch**: https://2d79b6cb.pitchey.pages.dev/pitch/3
-6. **✅ Valid Pitch**: https://2d79b6cb.pitchey.pages.dev/pitch/4
-7. **❌ Invalid Pitch**: https://2d79b6cb.pitchey.pages.dev/pitch/162 (Should show error)
+1. **✅ Homepage**: https://2d79b6cb.pitchey-5o8.pages.dev/
+2. **✅ Marketplace**: https://2d79b6cb.pitchey-5o8.pages.dev/marketplace  
+3. **✅ Valid Pitch**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/1
+4. **✅ Valid Pitch**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/2
+5. **✅ Valid Pitch**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/3
+6. **✅ Valid Pitch**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/4
+7. **❌ Invalid Pitch**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/162 (Should show error)
 
 ## Resolution Steps Taken
 
@@ -59,7 +59,7 @@ User reports that individual pitch pages are not displaying when accessed throug
 ```
 Frontend (React) 
   ↓ HTTPS Request
-Worker (pitchey-optimized.cavelltheleaddev.workers.dev)
+Worker (pitchey-optimized.ndlovucavelle.workers.dev)
   ↓ SQL Query  
 Neon Database
   ↓ Response
@@ -80,10 +80,10 @@ Available Pitches in Database:
 ## User Instructions
 
 ### ✅ TEST WITH VALID PITCH IDS:
-1. **Visit**: https://2d79b6cb.pitchey.pages.dev/pitch/1
-2. **Visit**: https://2d79b6cb.pitchey.pages.dev/pitch/2
-3. **Visit**: https://2d79b6cb.pitchey.pages.dev/pitch/3
-4. **Visit**: https://2d79b6cb.pitchey.pages.dev/pitch/4
+1. **Visit**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/1
+2. **Visit**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/2
+3. **Visit**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/3
+4. **Visit**: https://2d79b6cb.pitchey-5o8.pages.dev/pitch/4
 
 ### ❌ DO NOT TEST:
 - `/pitch/162` - This pitch does not exist in the database
@@ -98,8 +98,8 @@ Available Pitches in Database:
 ### Frontend Configuration
 ```typescript
 // Production Environment (.env.production)
-VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 VITE_NODE_ENV=production
 ```
 
@@ -109,7 +109,7 @@ VITE_NODE_ENV=production
 GET /api/pitches/public/${id}
 
 // Which maps to worker route:
-https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public/${id}
+https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public/${id}
 ```
 
 ### React Router Configuration
@@ -132,8 +132,8 @@ function PitchRouter() {
 2. Verify the marketplace loads pitch listings
 3. Test end-to-end flow from marketplace → individual pitch pages
 
-**Latest Deployment**: https://2d79b6cb.pitchey.pages.dev
-**API Backend**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+**Latest Deployment**: https://2d79b6cb.pitchey-5o8.pages.dev
+**API Backend**: https://pitchey-optimized.ndlovucavelle.workers.dev
 **Database**: Neon PostgreSQL with 5 available pitches
 
 ## Additional Debugging Tools

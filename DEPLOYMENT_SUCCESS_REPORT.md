@@ -2,9 +2,9 @@
 ## Date: December 2024
 
 ### ✅ Production Status: FULLY OPERATIONAL
-- **Frontend URL**: https://pitchey.pages.dev
-- **API URL**: https://pitchey-production.cavelltheleaddev.workers.dev
-- **WebSocket**: wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+- **Frontend URL**: https://pitchey-5o8.pages.dev
+- **API URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- **WebSocket**: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 
 ## All Systems Operational
 - User authentication working

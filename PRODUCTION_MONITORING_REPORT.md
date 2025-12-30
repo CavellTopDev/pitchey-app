@@ -18,7 +18,7 @@ The Pitchey platform is **OPERATIONAL** with all core services functioning corre
 
 ## Service-by-Service Analysis
 
-### 1. Frontend Service - https://pitchey.pages.dev
+### 1. Frontend Service - https://pitchey-5o8.pages.dev
 **Status:** ✅ HEALTHY
 
 #### Performance Metrics
@@ -52,7 +52,7 @@ Server: cloudflare
 - Cloudflare edge optimization active
 - Fast global content delivery
 
-### 2. Worker API - https://pitchey-api-production.cavelltheleaddev.workers.dev
+### 2. Worker API - https://pitchey-api-prod.ndlovucavelle.workers.dev
 **Status:** ✅ HEALTHY
 
 #### Performance Metrics  
@@ -65,7 +65,7 @@ Server: cloudflare
 #### Security Assessment
 - ✅ **TLS 1.3** encryption enabled
 - ✅ **HSTS** properly configured
-- ✅ **Strict CORS** policy (only allows pitchey.pages.dev)
+- ✅ **Strict CORS** policy (only allows pitchey-5o8.pages.dev)
 - ✅ **CSP** content security policy active
 - ✅ **Authentication Required** for protected endpoints
 - ✅ **Proper HTTP methods** (GET, POST, PUT, DELETE, OPTIONS)
@@ -200,7 +200,7 @@ Error: "Invalid creator credentials"
 **Status:** ✅ PROPERLY CONFIGURED
 
 - **Frontend:** `Access-Control-Allow-Origin: *` (Appropriate for public frontend)
-- **APIs:** `Access-Control-Allow-Origin: https://pitchey.pages.dev` (Secure single-origin)
+- **APIs:** `Access-Control-Allow-Origin: https://pitchey-5o8.pages.dev` (Secure single-origin)
 - **Credentials:** Properly handled with `Access-Control-Allow-Credentials: true`
 - **Methods:** Restricted to required HTTP methods only
 
@@ -302,7 +302,7 @@ Error: "Invalid creator credentials"
 1. **Health Check Monitoring**
    ```bash
    # Setup automated health checks
-   GET https://pitchey-api-production.cavelltheleaddev.workers.dev/api/health
+   GET https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    GET https://pitchey-backend-fresh.deno.dev/api/health
    
    # Expected: HTTP 200 with "ok" or JSON health data

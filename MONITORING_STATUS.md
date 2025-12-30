@@ -3,8 +3,8 @@
 ## 🔍 Current Production Health
 
 ### ✅ Services Status
-- **Worker API**: ✅ Operational (pitchey-optimized.cavelltheleaddev.workers.dev)
-- **Frontend**: ✅ Operational (pitchey.pages.dev)
+- **Worker API**: ✅ Operational (pitchey-optimized.ndlovucavelle.workers.dev)
+- **Frontend**: ✅ Operational (pitchey-5o8.pages.dev)
 - **Database**: ✅ Connected via Hyperdrive
 - **Cache**: ✅ Upstash Redis configured
 - **WebSockets**: ✅ Durable Objects deployed

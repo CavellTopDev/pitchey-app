@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Continuous monitoring script
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_FILE="monitoring/dashboards/logs/performance.log"
 
 while true; do

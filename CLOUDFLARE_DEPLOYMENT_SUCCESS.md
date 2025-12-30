@@ -1,8 +1,8 @@
 # 🎉 Cloudflare Deployment Successfully Completed
 
 ## Deployment URLs
-- **Frontend**: https://e0b2afb4.pitchey.pages.dev
-- **API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+- **Frontend**: https://e0b2afb4.pitchey-5o8.pages.dev
+- **API**: https://pitchey-optimized.ndlovucavelle.workers.dev
 - **Status**: ✅ **FULLY OPERATIONAL**
 
 ## What Was Accomplished
@@ -76,7 +76,7 @@
 2. **Seed Demo Data**
    ```bash
    # Use the existing seed script
-   BACKEND_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev ./seed-via-api.sh
+   BACKEND_URL=https://pitchey-optimized.ndlovucavelle.workers.dev ./seed-via-api.sh
    ```
 
 3. **Test Complete User Flows**

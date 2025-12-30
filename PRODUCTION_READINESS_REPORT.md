@@ -2,7 +2,7 @@
 
 **Document Version**: 1.0  
 **Assessment Date**: November 15, 2025  
-**Platform URL**: https://pitchey.pages.dev  
+**Platform URL**: https://pitchey-5o8.pages.dev  
 **Assessment Type**: Comprehensive Production Readiness Audit
 
 ---

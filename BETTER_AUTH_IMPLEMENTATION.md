@@ -127,7 +127,7 @@ export const auth = betterAuth({
   trustedOrigins: [
     "http://localhost:5173",      // Local frontend
     "http://localhost:8001",      // Local backend
-    "https://pitchey.pages.dev",  // Production frontend
+    "https://pitchey-5o8.pages.dev",  // Production frontend
   ],
 });
 ```

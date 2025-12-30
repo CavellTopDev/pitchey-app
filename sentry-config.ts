@@ -257,8 +257,8 @@ function generateHealthCheckScript(): string {
 
 const ENDPOINTS = [
   "https://pitchey-backend-fresh.deno.dev/api/health",
-  "https://pitchey.pages.dev",
-  "https://pitchey-api-production.cavelltheleaddev.workers.dev/health"
+  "https://pitchey-5o8.pages.dev",
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/health"
 ];
 
 const CRITICAL_APIS = [

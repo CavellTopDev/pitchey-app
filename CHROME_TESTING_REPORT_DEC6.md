@@ -13,8 +13,8 @@ Comprehensive testing using Chrome DevTools revealed **critical CORS issues** bl
 
 **Error Message:**
 ```
-Access to fetch at 'https://pitchey-production.cavelltheleaddev.workers.dev/api/payments/subscription-status' 
-from origin 'https://pitchey.pages.dev' has been blocked by CORS policy: 
+Access to fetch at 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/payments/subscription-status' 
+from origin 'https://pitchey-5o8.pages.dev' has been blocked by CORS policy: 
 No 'Access-Control-Allow-Origin' header is present on the requested resource.
 ```
 

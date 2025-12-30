@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 LOCAL_URL="${LOCAL_URL:-http://localhost:8787}"
-PROD_URL="${PROD_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+PROD_URL="${PROD_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 AUTH_TOKEN="${AUTH_TOKEN:-}" # Optional: Set for workflow tests
 
 # Function to test endpoint

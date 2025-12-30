@@ -9,7 +9,7 @@ The JWT authentication system has been successfully implemented and deployed to 
 ## Deployment URLs
 
 - **Primary Worker**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
-- **Custom Domain**: `https://pitchey-api-prod.cavelltheleaddev.workers.dev` (needs route update)
+- **Custom Domain**: `https://pitchey-api-prod.ndlovucavelle.workers.dev` (needs route update)
 - **Dashboard**: https://dash.cloudflare.com/workers-and-pages/pitchey-api-prod
 
 ## Test Results Summary
@@ -77,7 +77,7 @@ The worker is deployed but the custom domain may need route updating:
 
 ```bash
 # Update routes in wrangler.toml or Cloudflare Dashboard
-# Point pitchey-api-prod.cavelltheleaddev.workers.dev to the latest deployment
+# Point pitchey-api-prod.ndlovucavelle.workers.dev to the latest deployment
 ```
 
 ### For Local Development

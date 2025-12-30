@@ -65,7 +65,7 @@ Phase 2 deployment requires **CLOUDFLARE_API_TOKEN** environment variable.
 ## 📊 Current Production Status
 
 ### ✅ Fully Operational
-- **Health Endpoint**: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+- **Health Endpoint**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 - **Response Time**: 0.17s (within 100ms target)
 - **Database Pool**: 1 connection (optimal)
 - **Caching System**: Multi-layer active

@@ -4,7 +4,7 @@
 - **Date**: December 15, 2024
 - **Version**: production-final-v3.0
 - **Deployment ID**: 87106dba-039d-4e74-b8b1-11e08fc11175
-- **Live URL**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Live URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Status**: **FULLY OPERATIONAL**
 
 ## 🚀 Major Achievements
@@ -125,7 +125,7 @@
 ### Manual Monitoring
 ```bash
 # Check worker health
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health | jq .
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health | jq .
 
 # View live logs
 wrangler tail --config wrangler-serverless.toml
@@ -150,7 +150,7 @@ wrangler tail --config wrangler-serverless.toml
 
 ### Base URL
 ```javascript
-const API_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 ```
 
 ### Authentication Example

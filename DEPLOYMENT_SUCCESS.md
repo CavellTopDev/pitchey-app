@@ -3,7 +3,7 @@
 ## ✅ Successfully Deployed: December 16, 2024
 
 ### Production URL
-🌐 **https://pitchey-production.cavelltheleaddev.workers.dev**
+🌐 **https://pitchey-api-prod.ndlovucavelle.workers.dev**
 
 ### Deployment Details
 - **Version ID**: 4c441ab7-cae5-4476-8ea9-24500b7aa687
@@ -42,9 +42,9 @@
 ## 🌐 Live Endpoints
 
 ### Public Endpoints
-- **API Root**: https://pitchey-production.cavelltheleaddev.workers.dev/
-- **Health**: https://pitchey-production.cavelltheleaddev.workers.dev/health
-- **WebSocket**: wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+- **API Root**: https://pitchey-api-prod.ndlovucavelle.workers.dev/
+- **Health**: https://pitchey-api-prod.ndlovucavelle.workers.dev/health
+- **WebSocket**: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 
 ### Authentication
 - **Sign Up**: POST /api/auth/signup
@@ -95,8 +95,8 @@
 1. **Update Frontend Configuration**
    ```bash
    # In frontend/.env.production
-   VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-   VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+   VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+   VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
    ```
 
 2. **Test Authentication Flow**
@@ -125,7 +125,7 @@ Your Pitchey platform is now running on a **100% Drizzle-free, raw SQL implement
 - ✅ **Edge-optimized** for global scale
 
 The platform is **LIVE and OPERATIONAL** at:
-### 🌐 https://pitchey-production.cavelltheleaddev.workers.dev
+### 🌐 https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ---
 

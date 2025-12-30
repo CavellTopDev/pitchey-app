@@ -50,7 +50,7 @@ Free external monitoring for your services:
 **Frontend Monitor**
 - Monitor Type: HTTP(s)
 - Friendly Name: "Pitchey Frontend"
-- URL: `https://pitchey.pages.dev`
+- URL: `https://pitchey-5o8.pages.dev`
 - Monitoring Interval: 5 minutes
 
 **Database Health Monitor**
@@ -220,7 +220,7 @@ done
 
 Check your security score:
 - Visit https://securityheaders.com
-- Enter: https://pitchey.pages.dev
+- Enter: https://pitchey-5o8.pages.dev
 - Aim for A+ rating
 
 ## 📈 Monitoring Dashboard
@@ -293,7 +293,7 @@ function checkRateLimit(ip: string): boolean {
 4. Check Sentry for errors
 
 ### If Frontend is Down:
-1. Check https://pitchey.pages.dev
+1. Check https://pitchey-5o8.pages.dev
 2. Check cloudflare-pages deploy logs
 3. Redeploy: `cd frontend && npm run build && cloudflare-pages deploy --prod`
 

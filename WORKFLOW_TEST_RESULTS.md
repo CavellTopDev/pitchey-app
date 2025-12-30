@@ -103,20 +103,20 @@
 
 ```javascript
 // 1. Test Creator Portal - Focus on pitch viewing issue
-chrome-devtools navigate_page --type="url" --url="https://pitchey.pages.dev/login/creator"
+chrome-devtools navigate_page --type="url" --url="https://pitchey-5o8.pages.dev/login/creator"
 chrome-devtools take_snapshot
 // Login as creator
 chrome-devtools wait_for --text="Dashboard" --timeout=5000
-chrome-devtools navigate_page --type="url" --url="https://pitchey.pages.dev/creator/pitches"
+chrome-devtools navigate_page --type="url" --url="https://pitchey-5o8.pages.dev/creator/pitches"
 chrome-devtools list_console_messages --types=["error"]
 chrome-devtools list_network_requests --resourceTypes=["xhr","fetch"]
 
 // 2. Test Investor Portal - Should work fully
-chrome-devtools navigate_page --type="url" --url="https://pitchey.pages.dev/login/investor"
+chrome-devtools navigate_page --type="url" --url="https://pitchey-5o8.pages.dev/login/investor"
 // Login and test all features
 
 // 3. Test Production Portal - Expect issues
-chrome-devtools navigate_page --type="url" --url="https://pitchey.pages.dev/login/production"
+chrome-devtools navigate_page --type="url" --url="https://pitchey-5o8.pages.dev/login/production"
 // Check what loads despite 404s
 ```
 
@@ -188,5 +188,5 @@ Total estimated time: 1 hour
 ---
 
 *Test Environment: Production*
-*API Base: https://pitchey-production.cavelltheleaddev.workers.dev*
-*Frontend: https://pitchey.pages.dev*
+*API Base: https://pitchey-api-prod.ndlovucavelle.workers.dev*
+*Frontend: https://pitchey-5o8.pages.dev*

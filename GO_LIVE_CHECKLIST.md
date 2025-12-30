@@ -79,13 +79,13 @@
 
 - [ ] **Worker Deployment**
   - [ ] Worker deployed successfully
-  - [ ] Health check responds: `https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health`
+  - [ ] Health check responds: `https://pitchey-optimized.ndlovucavelle.workers.dev/api/health`
   - [ ] No deployment errors in Cloudflare dashboard
   - [ ] Worker logs clean (check with `wrangler tail`)
 
 - [ ] **Frontend Deployment**
   - [ ] Frontend deployed to Pages
-  - [ ] Site accessible: `https://pitchey.pages.dev`
+  - [ ] Site accessible: `https://pitchey-5o8.pages.dev`
   - [ ] Build artifacts correct size and content
   - [ ] No console errors in browser
 
@@ -294,7 +294,7 @@
 ### 🔧 Emergency Procedures
 
 - **Rollback**: `./scripts/rollback-deployment.sh`
-- **Health Check**: `curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health`
+- **Health Check**: `curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health`
 - **Worker Logs**: `wrangler tail`
 - **Disable Worker**: Cloudflare Dashboard → Workers → Disable
 
@@ -343,9 +343,9 @@
 **Your Pitchey platform is now LIVE in production!**
 
 🌐 **Production URLs:**
-- **Frontend**: https://pitchey.pages.dev
-- **API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Health Check**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **API**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 📊 **Monitor your platform:**
 - Real-time logs: `wrangler tail`

@@ -65,7 +65,7 @@ graph TD
 - [ ] **Begin impact assessment**
 
 #### Investigation Phase
-- [ ] **Check service status** at https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+- [ ] **Check service status** at https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 - [ ] **Review recent deployments** in GitHub Actions
 - [ ] **Analyze logs** in Cloudflare Workers dashboard
 - [ ] **Check external dependencies** (Neon DB, Redis)
@@ -98,7 +98,7 @@ graph TD
 #### Immediate Actions
 ```bash
 # 1. Check service status
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # 2. Check Cloudflare Workers dashboard
 # - Navigate to Workers & Pages > pitchey-production
@@ -158,7 +158,7 @@ wrangler rollback --name pitchey-production
 # Navigate to Upstash Redis dashboard
 
 # 2. Verify cache connectivity
-curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health" | jq '.services.cache'
+curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health" | jq '.services.cache'
 
 # 3. Clear cache if corrupted
 # Use Upstash dashboard to flush cache
@@ -192,7 +192,7 @@ git pull origin main
 wrangler deploy
 
 # 2. Verify deployment
-curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 
 # 3. Monitor for 10 minutes
 # Watch Cloudflare Workers metrics for errors
@@ -250,7 +250,7 @@ wrangler deploy
 #### High Response Time Alert
 ```bash
 # 1. Check current performance
-curl -w "@curl-format.txt" -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+curl -w "@curl-format.txt" -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 
 # 2. Review recent deployments
 git log --oneline -10
@@ -445,7 +445,7 @@ git log --since="24 hours ago" --oneline
 **Diagnosis**:
 ```bash
 # Check database status
-curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health" | jq '.services.database'
+curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health" | jq '.services.database'
 
 # Test direct connection
 psql "$DATABASE_URL" -c "SELECT 1;"
@@ -484,7 +484,7 @@ echo $JWT_SECRET | wc -c  # Should be >32 characters
 # Test auth endpoint
 curl -X POST -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"test"}' \
-  "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login"
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login"
 ```
 **Solutions**:
 1. Verify JWT_SECRET is properly set
@@ -512,7 +512,7 @@ wrangler tail
 #### Performance Analysis
 ```bash
 # 1. Response time analysis
-curl -w "@curl-timing.txt" -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+curl -w "@curl-timing.txt" -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 
 # 2. Load testing
 ./quick-capacity-test.sh

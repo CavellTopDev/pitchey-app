@@ -3,7 +3,7 @@
 # Cache Diagnostic and Fix Script
 # Identifies why cache is showing MISS and provides fixes
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 DIAG_DIR="./cache-diagnostics"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 REPORT_FILE="$DIAG_DIR/cache_diagnostic_${TIMESTAMP}.md"

@@ -26,7 +26,7 @@ compatibility_flags = ["nodejs_compat"]
 # Only public configuration here
 [vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 
 # Bindings only - secrets managed via wrangler secret
 [[kv_namespaces]]
@@ -148,7 +148,7 @@ export class SecurityHeaders {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' wss://pitchey-production.cavelltheleaddev.workers.dev",
+      "connect-src 'self' wss://pitchey-api-prod.ndlovucavelle.workers.dev",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -238,7 +238,7 @@ export class SecurityHeaders {
 export class CORSHandler {
   private static readonly ALLOWED_ORIGINS = {
     production: [
-      'https://pitchey.pages.dev',
+      'https://pitchey-5o8.pages.dev',
       'https://pitchey.com',
       /^https:\/\/[a-z0-9]+\.pitchey\.pages\.dev$/ // Preview deployments
     ],

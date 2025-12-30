@@ -551,7 +551,7 @@ ${status} ${result.endpoint}
 // Run tests if executed directly
 if (import.meta.main) {
   const config: LoadTestConfig = {
-    baseUrl: Deno.env.get('LOAD_TEST_URL') || 'https://pitchey-production.cavelltheleaddev.workers.dev',
+    baseUrl: Deno.env.get('LOAD_TEST_URL') || 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
     duration: parseInt(Deno.env.get('TEST_DURATION') || '60'),
     virtualUsers: parseInt(Deno.env.get('VIRTUAL_USERS') || '50'),
     rampUpTime: parseInt(Deno.env.get('RAMP_UP_TIME') || '10'),

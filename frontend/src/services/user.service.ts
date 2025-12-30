@@ -199,12 +199,11 @@ export class UserService {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(`${config.API_URL}/api/user/profile-image`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: formData
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -220,12 +219,11 @@ export class UserService {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(`${config.API_URL}/api/user/cover-image`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: formData
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -372,12 +370,11 @@ export class UserService {
       formData.append(`document_${index}`, doc);
     });
 
-    const response = await fetch(`${config.API_URL}/api/user/verify-company`, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: formData
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {

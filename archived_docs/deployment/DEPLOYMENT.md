@@ -7,7 +7,7 @@ This application uses a modern JAMstack architecture:
 - **Database**: PostgreSQL hosted on Neon
 
 ## Production URLs (LIVE as of 2025-10-05)
-- Frontend: https://pitchey.pages.dev
+- Frontend: https://pitchey-5o8.pages.dev
 - Backend: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev
 - Database: Neon PostgreSQL (cloud-hosted)
 - Health Check: https://pitchey-backend-fresh-23jvxyy3bspp.deno.dev/api/health
@@ -98,7 +98,7 @@ cloudflare-pages deploy --prod
 Set these in the Deno Deploy dashboard:
 - `DATABASE_URL`: PostgreSQL connection string from Neon
 - `JWT_SECRET`: Secret key for JWT authentication
-- `FRONTEND_URL`: https://pitchey.pages.dev (for CORS)
+- `FRONTEND_URL`: https://pitchey-5o8.pages.dev (for CORS)
 
 ### Frontend (cloudflare-pages)
 Set in `frontend/.env.production` or cloudflare-pages dashboard:
@@ -122,7 +122,7 @@ PORT=8001
 
 ### After Deploying:
 - [ ] Test health endpoint: `curl https://pitchey-backend-fresh.deno.dev/api/health`
-- [ ] Verify frontend loads: https://pitchey.pages.dev
+- [ ] Verify frontend loads: https://pitchey-5o8.pages.dev
 - [ ] Test demo login functionality
 - [ ] Check CORS is working properly
 

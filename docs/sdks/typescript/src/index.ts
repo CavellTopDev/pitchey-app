@@ -6,7 +6,7 @@
  * import { PitcheySDK } from '@pitchey/sdk';
  * 
  * const pitchey = new PitcheySDK({
- *   apiUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+ *   apiUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
  *   debug: true
  * });
  * 
@@ -137,7 +137,7 @@ export class PitcheySDK {
    */
   static production(apiKey?: string): PitcheySDK {
     return new PitcheySDK({
-      apiUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+      apiUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
       apiKey,
       debug: false,
     });
@@ -181,7 +181,7 @@ export class PitcheySDK {
    */
   static public(): PitcheySDK {
     return new PitcheySDK({
-      apiUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+      apiUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
       debug: false,
     });
   }
@@ -214,7 +214,7 @@ export const USER_AGENT = `Pitchey-SDK-JS/${SDK_VERSION}`;
  */
 export function createPitcheySDK(config?: SDKConfig): PitcheySDK {
   return new PitcheySDK({
-    apiUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+    apiUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
     debug: process?.env?.NODE_ENV === 'development',
     ...config,
   });

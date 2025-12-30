@@ -46,7 +46,7 @@ sed -i 's/PerformanceMiddleware/BasicMiddleware/g' src/worker-production-db.ts
 wrangler deploy --env production
 
 # Step 6: Verify rollback
-curl -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+curl -f "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 ```
 
 #### Rollback Verification
@@ -91,7 +91,7 @@ git checkout HEAD~1 -- src/db/retry-logic.ts
 wrangler deploy --env production
 
 # Step 6: Monitor connection stability
-curl -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database"
+curl -f "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database"
 ```
 
 #### Rollback Verification
@@ -131,7 +131,7 @@ git checkout HEAD~1 -- scripts/cache-warming.sh
 wrangler deploy --env production
 
 # Step 6: Verify cache functionality
-curl -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/cache"
+curl -f "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/cache"
 ```
 
 #### Rollback Verification
@@ -213,7 +213,7 @@ sed -i 's/env\.HYPERDRIVE/env\.DATABASE_URL/g' src/worker-production-db.ts
 wrangler deploy --env production
 
 # Step 5: Monitor database connections
-watch "curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database"
+watch "curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database"
 ```
 
 #### Rollback Verification
@@ -258,7 +258,7 @@ echo "Switching traffic to emergency worker..."
 # Step 5: Verify emergency deployment
 echo "Verifying emergency deployment..."
 for i in {1..10}; do
-  if curl -f "https://pitchey-emergency.cavelltheleaddev.workers.dev/api/health"; then
+  if curl -f "https://pitchey-emergency.ndlovucavelle.workers.dev/api/health"; then
     echo "✅ Emergency deployment verified"
     break
   fi
@@ -350,7 +350,7 @@ curl -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache" \
   --data '{"purge_everything":true}'
 
 # Step 2: Verify cache purge
-curl -I "https://pitchey.pages.dev" | grep -i cache
+curl -I "https://pitchey-5o8.pages.dev" | grep -i cache
 ```
 
 ---
@@ -370,7 +370,7 @@ sed -i '/durable_objects/,/class_name/d' wrangler.toml
 wrangler deploy --env production
 
 # Step 4: Verify basic functionality
-curl -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+curl -f "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 ```
 
 ---
@@ -381,13 +381,13 @@ curl -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
 
 ```bash
 # Monitor error rates
-watch "curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/metrics | jq '.error_rate'"
+watch "curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/metrics | jq '.error_rate'"
 
 # Monitor response times
-watch "curl -w '%{time_total}' -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+watch "curl -w '%{time_total}' -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 
 # Monitor database connections
-watch "curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database | jq '.connection_pool'"
+watch "curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database | jq '.connection_pool'"
 ```
 
 ### Success Criteria

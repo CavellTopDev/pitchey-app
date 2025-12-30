@@ -145,7 +145,7 @@ Authorization: Bearer <jwt_token>
 ```typescript
 // Frontend expects base URL:
 const API_BASE = import.meta.env.VITE_API_URL;
-// Production: https://pitchey-production.cavelltheleaddev.workers.dev
+// Production: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 // Status: ✅ Correctly configured
 ```

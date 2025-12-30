@@ -7,14 +7,14 @@ cat << 'EOF'
 ===============================================================================
 PITCHEY PORTAL WORKFLOW TEST SUITE - FIXED VERSION
 ===============================================================================
-Open https://pitchey.pages.dev in your browser
+Open https://pitchey-5o8.pages.dev in your browser
 Open DevTools Console (F12)
 Copy and paste the following JavaScript code:
 ===============================================================================
 
 // 🚀 PITCHEY PORTAL WORKFLOW TEST SUITE - FIXED VERSION
 const PortalWorkflowTests = {
-  API_URL: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   
   results: [],
   tokens: {},
@@ -342,8 +342,8 @@ const PortalWorkflowTests = {
     console.clear();
     console.log('🚀 PITCHEY PORTAL WORKFLOW TEST SUITE');
     console.log('=====================================');
-    console.log('Testing: https://pitchey.pages.dev');
-    console.log('API: https://pitchey-production.cavelltheleaddev.workers.dev');
+    console.log('Testing: https://pitchey-5o8.pages.dev');
+    console.log('API: https://pitchey-api-prod.ndlovucavelle.workers.dev');
     console.log('=====================================\n');
     
     this.results = [];
@@ -375,7 +375,7 @@ EOF
 
 echo ""
 echo "✅ Fixed test script generated! Copy the JavaScript code above and paste it"
-echo "   into your browser console at https://pitchey.pages.dev to test all portals."
+echo "   into your browser console at https://pitchey-5o8.pages.dev to test all portals."
 echo ""
 echo "📝 The fixed version properly:"
 echo "   - Handles authentication responses correctly"

@@ -4,7 +4,7 @@
 source monitoring/.env.alerts 2>/dev/null || true
 
 BACKEND_URL="https://pitchey-backend-fresh.deno.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 CHECK_INTERVAL=60  # seconds
 ALERT_COOLDOWN=3600  # 1 hour between same alerts
 

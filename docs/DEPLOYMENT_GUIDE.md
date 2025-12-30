@@ -117,7 +117,7 @@ cd frontend && npm run build && npm run preview
 # Required variables
 DATABASE_URL=postgresql://user:pass@host:port/db?sslmode=require
 JWT_SECRET=<secure-random-string>
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 
 # Optional variables
 REDIS_URL=<upstash-redis-url>
@@ -168,7 +168,7 @@ jobs:
 cat > .env.deploy << EOF
 DATABASE_URL=$NEON_DATABASE_URL
 JWT_SECRET=$JWT_SECRET
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 EOF
 
 # Deploy using deployctl
@@ -456,7 +456,7 @@ DATABASE_URL=postgresql://neondb_owner:npg_xyz@ep-xyz.neon.tech/neondb?sslmode=r
 JWT_SECRET=<64-character-random-string>
 
 # CORS
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 
 # Redis (Upstash)
 REDIS_URL=redis://default:password@redis-host:port
@@ -486,7 +486,7 @@ openssl rand -hex 32
 const corsOptions = {
   origin: [
     'http://localhost:5173',  // Development
-    'https://pitchey.pages.dev',  // Production
+    'https://pitchey-5o8.pages.dev',  // Production
   ],
   credentials: true,
   optionsSuccessStatus: 200

@@ -3,7 +3,7 @@
 # Pitchey Health Check Monitor
 # Continuously monitors production health endpoints
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_FILE="./monitoring/logs/health-monitor.log"
 ALERT_THRESHOLD=3  # Failed checks before alert
 

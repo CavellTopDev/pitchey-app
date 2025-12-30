@@ -115,8 +115,8 @@ export function createAuth(env: any) {
 
     // CORS and trusted origins
     trustedOrigins: [
-      "https://pitchey.pages.dev",
-      "https://pitchey-production.cavelltheleaddev.workers.dev",
+      "https://pitchey-5o8.pages.dev",
+      "https://pitchey-api-prod.ndlovucavelle.workers.dev",
       "http://localhost:5173", // Vite dev server
       "http://localhost:8001", // Local proxy
       "http://localhost:3000", // Alternative dev server

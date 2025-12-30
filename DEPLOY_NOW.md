@@ -24,7 +24,7 @@ wrangler deploy --env production
 ### 3. Verify Fix (1 minute)
 ```bash
 # Test health endpoint (should now return 200)
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Should return JSON with "status": "healthy"
 ```

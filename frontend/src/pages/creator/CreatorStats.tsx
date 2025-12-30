@@ -427,6 +427,7 @@ export default function CreatorStats() {
               </tr>
             </tbody>
           </table>
+        </div>
         </CardContent>
       </Card>
     </div>

@@ -9,22 +9,22 @@ The Pitchey platform has been systematically tested across all three user portal
 
 ### Browser Console Test Commands
 ```javascript
-// Quick audit from browser console at https://pitchey.pages.dev
+// Quick audit from browser console at https://pitchey-5o8.pages.dev
 const runAudit = async () => {
   console.log('🔍 Starting Platform Audit...');
   
   // Test API availability
-  const api = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/health')
+  const api = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health')
     .then(r => r.json()).catch(e => ({ error: e.message }));
   console.log('API Status:', api.error ? '❌ Down' : '✅ Online');
   
   // Test public endpoints
-  const pitches = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public')
+  const pitches = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public')
     .then(r => r.json());
   console.log('Public Pitches:', pitches.data?.length || 0, 'available');
   
   // Test WebSocket
-  const ws = new WebSocket('wss://pitchey-production.cavelltheleaddev.workers.dev/ws');
+  const ws = new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws');
   ws.onopen = () => console.log('WebSocket: ✅ Connected');
   ws.onerror = () => console.log('WebSocket: ❌ Error');
   
@@ -51,7 +51,7 @@ runAudit();
 // Test Creator Portal from browser console
 (async () => {
   // Login as Creator
-  const login = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+  const login = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'alex.creator@demo.com', password: 'Demo123' })
@@ -62,7 +62,7 @@ runAudit();
     console.log('✅ Creator login successful');
     
     // Test dashboard
-    const dashboard = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/creator/dashboard', {
+    const dashboard = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/creator/dashboard', {
       headers: { 'Authorization': `Bearer ${login.token}` }
     }).then(r => r.json());
     
@@ -94,7 +94,7 @@ runAudit();
 // Test Investor Portal from browser console
 (async () => {
   // Login as Investor
-  const login = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login', {
+  const login = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/investor/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'sarah.investor@demo.com', password: 'Demo123' })
@@ -105,7 +105,7 @@ runAudit();
     console.log('✅ Investor login successful');
     
     // Test dashboard
-    const dashboard = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/investor/dashboard', {
+    const dashboard = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/investor/dashboard', {
       headers: { 'Authorization': `Bearer ${login.token}` }
     }).then(r => r.json());
     
@@ -141,7 +141,7 @@ runAudit();
 // Test Production Portal from browser console
 (async () => {
   // Login as Production
-  const login = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/production/login', {
+  const login = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/production/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'stellar.production@demo.com', password: 'Demo123' })
@@ -152,7 +152,7 @@ runAudit();
     console.log('✅ Production login successful');
     
     // Test dashboard
-    const dashboard = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/production/dashboard', {
+    const dashboard = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/production/dashboard', {
       headers: { 'Authorization': `Bearer ${login.token}` }
     }).then(r => r.json());
     
@@ -184,7 +184,7 @@ runAudit();
 ```javascript
 // Test Browse Section Tabs from browser console
 (async () => {
-  const API = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+  const API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   
   // Test All Pitches tab
   const allPitches = await fetch(`${API}/api/pitches/browse/enhanced?tab=all`)
@@ -304,7 +304,7 @@ runAudit();
 const verifyFixes = {
   // Test 1: Verify tab filtering is fixed
   async testTabFiltering() {
-    const API = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+    const API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
     const all = await fetch(`${API}/api/pitches/browse/enhanced?tab=all`).then(r => r.json());
     const trending = await fetch(`${API}/api/pitches/browse/enhanced?tab=trending`).then(r => r.json());
     const latest = await fetch(`${API}/api/pitches/browse/enhanced?tab=latest`).then(r => r.json());
@@ -325,7 +325,7 @@ const verifyFixes = {
     const results = [];
     
     for (const portal of portals) {
-      const response = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/${portal}/login`, {
+      const response = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/${portal}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -392,8 +392,8 @@ Overall assessment: **Platform is ready for production use** with recommended im
 ---
 
 **Test Environment**:
-- URL: https://pitchey.pages.dev
-- API: https://pitchey-production.cavelltheleaddev.workers.dev
+- URL: https://pitchey-5o8.pages.dev
+- API: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - Browser: Chrome (via DevTools)
 - Date: December 7, 2024
 - Test Accounts: Demo accounts for all three user types
@@ -407,7 +407,7 @@ const PlatformAudit = {
     console.log('========================');
     
     // Test API
-    const apiHealth = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/health')
+    const apiHealth = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health')
       .then(r => r.ok).catch(() => false);
     console.log('API Status:', apiHealth ? '✅ Online' : '❌ Offline');
     
@@ -419,7 +419,7 @@ const PlatformAudit = {
     };
     
     for (const [type, creds] of Object.entries(logins)) {
-      const result = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/${type}/login`, {
+      const result = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/${type}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(creds)
@@ -437,7 +437,7 @@ const PlatformAudit = {
     ];
     
     for (const endpoint of publicTests) {
-      const result = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev${endpoint}`)
+      const result = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev${endpoint}`)
         .then(r => r.json());
       console.log(`${endpoint}:`, result.data?.length || 0, 'items');
     }

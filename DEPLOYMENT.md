@@ -27,8 +27,8 @@ This guide covers the complete production deployment process for the Pitchey pla
 ```
 
 ### Production URLs
-- **Frontend**: https://pitchey.pages.dev
-- **API Worker**: https://pitchey-api-production.cavelltheleaddev.workers.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **API Worker**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Backup API**: https://pitchey-backend-fresh.deno.dev
 - **Database**: Neon PostgreSQL (Managed)
 - **Cache**: Upstash Redis (Serverless)
@@ -117,7 +117,7 @@ Node version: 20.19.5
 
 #### Environment Variables
 Set in Cloudflare Pages Dashboard:
-- `VITE_API_URL`: https://pitchey-api-production.cavelltheleaddev.workers.dev
+- `VITE_API_URL`: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - `VITE_WS_URL`: wss://pitchey-backend-fresh.deno.dev
 - `VITE_ENV`: production
 
@@ -152,7 +152,7 @@ id = "983d4a1818264b5dbdca26bacf167dee"
   JWT_SECRET=...
   UPSTASH_REDIS_REST_URL=...
   UPSTASH_REDIS_REST_TOKEN=...
-  FRONTEND_URL=https://pitchey.pages.dev
+  FRONTEND_URL=https://pitchey-5o8.pages.dev
   ```
 
 ### Upstash Redis Setup
@@ -237,7 +237,7 @@ curl https://pitchey-backend-fresh.deno.dev/api/cache/status
 ```bash
 # Check CORS configuration
 # Ensure FRONTEND_URL is set in backend env
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 ```
 
 #### WebSocket Connection Failed

@@ -33,12 +33,12 @@ interface MonitoringReport {
 class ProductionMonitor {
   private services = [
     {
-      url: 'https://pitchey.pages.dev',
+      url: 'https://pitchey-5o8.pages.dev',
       name: 'Frontend (Cloudflare Pages)',
       healthPath: ''
     },
     {
-      url: 'https://pitchey-api-production.cavelltheleaddev.workers.dev',
+      url: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
       name: 'Worker API (Edge)',
       healthPath: '/api/health'
     },
@@ -168,7 +168,7 @@ class ProductionMonitor {
 
     try {
       // Check for exposed database test endpoint
-      const response = await fetch('https://pitchey-api-production.cavelltheleaddev.workers.dev/api/db-test');
+      const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/db-test');
       
       if (response.ok) {
         vulnerabilities.push('🚨 CRITICAL: Database test endpoint publicly accessible at /api/db-test');

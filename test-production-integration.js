@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 // Test complete production integration
-const FRONTEND_URL = 'https://e7279e57.pitchey.pages.dev';
-const API_URL = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const FRONTEND_URL = 'https://e7279e57.pitchey-5o8.pages.dev';
+const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 console.log('🚀 Testing Complete Production Integration\n');
 
@@ -27,8 +27,8 @@ async function testProductionStack() {
     // Test with production frontend origin
     const apiResponse = await fetch(`${API_URL}/api/health`, {
       headers: {
-        'Origin': 'https://pitchey.pages.dev',
-        'Referer': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev',
+        'Referer': 'https://pitchey-5o8.pages.dev'
       }
     });
     
@@ -47,8 +47,8 @@ async function testProductionStack() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'https://pitchey.pages.dev',
-        'Referer': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev',
+        'Referer': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify({
         email: 'alex.creator@demo.com',
@@ -66,8 +66,8 @@ async function testProductionStack() {
       const dashResponse = await fetch(`${API_URL}/api/creator/dashboard`, {
         headers: {
           'Authorization': `Bearer ${loginData.token}`,
-          'Origin': 'https://pitchey.pages.dev',
-          'Referer': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev',
+          'Referer': 'https://pitchey-5o8.pages.dev'
         }
       });
       
@@ -94,7 +94,7 @@ async function testProductionStack() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         },
         body: JSON.stringify({
           email: user.email,
@@ -111,7 +111,7 @@ async function testProductionStack() {
         const dashResponse = await fetch(`${API_URL}/api/${user.type}/dashboard`, {
           headers: {
             'Authorization': `Bearer ${data.token}`,
-            'Origin': 'https://pitchey.pages.dev'
+            'Origin': 'https://pitchey-5o8.pages.dev'
           }
         });
         
@@ -130,7 +130,7 @@ async function testProductionStack() {
     // Get pitches list
     const pitchesResponse = await fetch(`${API_URL}/api/pitches`, {
       headers: {
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
     
@@ -140,7 +140,7 @@ async function testProductionStack() {
     // Get featured pitches
     const featuredResponse = await fetch(`${API_URL}/api/pitches/featured`, {
       headers: {
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
     

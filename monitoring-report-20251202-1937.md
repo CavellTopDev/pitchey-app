@@ -96,5 +96,5 @@
 
 **Next Monitoring**: Run `./monitor-production.sh` anytime
 **Live URLs**:
-- Frontend: https://d066c1b9.pitchey.pages.dev
-- API: https://pitchey-optimized.cavelltheleaddev.workers.dev
+- Frontend: https://d066c1b9.pitchey-5o8.pages.dev
+- API: https://pitchey-optimized.ndlovucavelle.workers.dev

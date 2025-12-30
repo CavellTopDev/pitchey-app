@@ -406,14 +406,12 @@ export class AnalyticsService {
   // Export analytics data
   static async exportAnalytics(options: ExportOptions): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/analytics/export`,
-      {
+      `${config.API_URL}/api/analytics/export`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(options)
+        body: JSON.stringify(options),
       }
     );
 

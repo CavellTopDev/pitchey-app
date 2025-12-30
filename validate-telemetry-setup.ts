@@ -13,7 +13,7 @@ interface ValidationResult {
 }
 
 const BACKEND_URL = "https://pitchey-backend-fresh.deno.dev";
-const FRONTEND_URL = "https://pitchey.pages.dev";
+const FRONTEND_URL = "https://pitchey-5o8.pages.dev";
 
 async function validateBackendTelemetry(): Promise<ValidationResult[]> {
   const results: ValidationResult[] = [];

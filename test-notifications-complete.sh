@@ -12,8 +12,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-WS_URL="wss://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+WS_URL="wss://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Test results tracking
 TESTS_PASSED=0

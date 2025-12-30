@@ -99,7 +99,7 @@ if [ $? -eq 0 ]; then
     # Test health endpoint
     echo -n "Testing health check: "
     START=$(date +%s%N)
-    curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+    curl -s -o /dev/null -w "%{http_code}" https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
     END=$(date +%s%N)
     DURATION=$((($END - $START) / 1000000))
     echo " (${DURATION}ms)"
@@ -107,7 +107,7 @@ if [ $? -eq 0 ]; then
     # Test browse endpoint
     echo -n "Testing browse endpoint: "
     START=$(date +%s%N)
-    curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced
+    curl -s -o /dev/null -w "%{http_code}" https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced
     END=$(date +%s%N)
     DURATION=$((($END - $START) / 1000000))
     echo " (${DURATION}ms)"
@@ -133,4 +133,4 @@ rm -f /tmp/neon_optimizations.sql
 
 echo ""
 echo "📈 Monitor continued performance at:"
-echo "   https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+echo "   https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"

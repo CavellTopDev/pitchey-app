@@ -49,7 +49,7 @@ Status: **Partially Deployed** - Core optimizations ready, integration pending
 ### Worker Deployment
 ```yaml
 Name: pitchey-production
-URL: https://pitchey-production.cavelltheleaddev.workers.dev
+URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
 Version: f4ed9348-e90e-411a-a718-8fc025dfb013
 Status: Active
 ```
@@ -177,7 +177,7 @@ If issues occur after deployment:
 
 2. **Verify Services**
    ```bash
-   curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+   curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
    ```
 
 3. **Check Logs**

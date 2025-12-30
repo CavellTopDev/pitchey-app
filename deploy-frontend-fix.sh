@@ -19,4 +19,4 @@ npx wrangler pages deploy dist \
   --commit-hash=$(git rev-parse HEAD)
 
 echo "✅ Deployment complete! Frontend should now use the correct API URL."
-echo "🔗 Check https://pitchey.pages.dev in a few moments"
+echo "🔗 Check https://pitchey-5o8.pages.dev in a few moments"

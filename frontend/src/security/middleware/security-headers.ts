@@ -247,7 +247,7 @@ export const defaultSecurityHeaders = new SecurityHeaders({
     connectSrc: [
       "'self'",
       "https://pitchey-api-prod.cavelltheleaddev.workers.dev",
-      "wss://pitchey-api-prod.cavelltheleaddev.workers.dev",
+      "wss://pitchey-api-prod.ndlovucavelle.workers.dev",
       "https://*.upstash.io",
       "https://*.neon.tech"
     ],

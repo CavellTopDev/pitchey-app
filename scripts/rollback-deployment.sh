@@ -16,8 +16,8 @@ NC='\033[0m'
 # Configuration
 WORKER_NAME="pitchey-production"
 FRONTEND_PROJECT="pitchey"
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 
 # Rollback options
 ROLLBACK_WORKER=false

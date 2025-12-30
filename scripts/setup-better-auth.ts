@@ -248,7 +248,7 @@ NEON_DATABASE_URL="${env.DATABASE_URL}"
 
 # Better Auth Configuration
 BETTER_AUTH_SECRET="${env.BETTER_AUTH_SECRET}"
-BETTER_AUTH_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+BETTER_AUTH_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Session Configuration
 SESSION_COOKIE_NAME="pitchey-session"

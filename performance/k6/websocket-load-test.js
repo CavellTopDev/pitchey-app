@@ -18,8 +18,8 @@ const wsMessagesSent = new Counter('ws_messages_sent');
 const activeConnections = new Counter('ws_active_connections');
 
 // Environment configuration
-const WS_URL = __ENV.WS_URL || 'wss://pitchey-production.cavelltheleaddev.workers.dev/ws';
-const API_URL = __ENV.API_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const WS_URL = __ENV.WS_URL || 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws';
+const API_URL = __ENV.API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export const options = {
   scenarios: {

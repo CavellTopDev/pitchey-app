@@ -30,7 +30,7 @@ INCIDENT_START=""
 INCIDENT_SEVERITY=""
 
 # API endpoints
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 
 # Create incident directory
 mkdir -p "$INCIDENT_DIR"

@@ -198,7 +198,7 @@ cd frontend && wrangler pages deploy dist --project-name=pitchey
 ./scripts/validate-production.sh
 
 # Quick health check
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 ```
 
 #### Real-Time Monitoring
@@ -327,9 +327,9 @@ Your Pitchey platform now includes:
 6. **Go-Live Procedures** - Production readiness verification
 
 ### 🌐 Live Production URLs
-- **Frontend**: https://pitchey.pages.dev
-- **API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Health Check**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **API**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 ### 🔧 Demo Accounts (Password: Demo123)
 - **Creator**: alex.creator@demo.com

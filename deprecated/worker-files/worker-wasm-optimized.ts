@@ -461,7 +461,7 @@ export default {
       }
 
       // Default proxy to production worker for unmatched routes
-      const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev' + path + url.search, {
+      const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev' + path + url.search, {
         method,
         headers: request.headers,
         body: method !== 'GET' && method !== 'HEAD' ? await request.clone().text() : undefined

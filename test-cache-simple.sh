@@ -3,7 +3,7 @@
 echo "🧪 Simple Cache Test for Pitchey"
 echo "================================"
 
-BASE_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+BASE_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "1. Testing cache health..."
 curl -s "$BASE_URL/api/cache/health" | jq -r "\"   Status: \(.status // \"unknown\"), Hit Rate: \(.hitRate // 0)%, Total Requests: \(.totalRequests // 0)\""

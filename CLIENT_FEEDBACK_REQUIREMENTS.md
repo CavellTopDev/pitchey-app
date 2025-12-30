@@ -653,19 +653,19 @@ The platform has three demo accounts with different role-based access:
 #### To Test NDA Workflow:
 ```bash
 # As investor
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/nda/request \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/nda/request \
   -H "Authorization: Bearer {investor_token}" \
   -d '{"pitchId": 188}'
 
 # As creator
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/nda/request/{id}/approve \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/nda/request/{id}/approve \
   -H "Authorization: Bearer {creator_token}"
 ```
 
 #### To Test Investment Interest:
 ```bash
 # As investor
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/investment/express-interest \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/investment/express-interest \
   -H "Authorization: Bearer {investor_token}" \
   -d '{"pitchId": 188, "amount": 250000, "interestLevel": "high"}'
 ```
@@ -869,7 +869,7 @@ The platform is **READY FOR CLIENT DEMONSTRATION** with:
 - Advanced search filters
 
 ### 🚀 How to Demo
-1. Visit https://pitchey.pages.dev
+1. Visit https://pitchey-5o8.pages.dev
 2. Login with any demo account (password: Demo123)
 3. Browse pitches, request NDAs, express interest
 4. Check notifications to see cross-account updates

@@ -4,7 +4,7 @@
 echo "🔐 Testing Lightweight JWT Authentication"
 echo "=========================================="
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Color codes
 GREEN='\033[0;32m'

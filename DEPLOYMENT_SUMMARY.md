@@ -10,8 +10,8 @@
 5. **Notification System** - Fully deployed and operational
 
 ### Current Production Status
-- **Worker**: `pitchey-optimized.cavelltheleaddev.workers.dev` ✅
-- **Frontend**: `pitchey.pages.dev` ✅
+- **Worker**: `pitchey-optimized.ndlovucavelle.workers.dev` ✅
+- **Frontend**: `pitchey-5o8.pages.dev` ✅
 - **Database**: Neon PostgreSQL via Hyperdrive ✅
 - **Cache**: Upstash Redis ✅
 - **WebSockets**: Durable Objects deployed ✅

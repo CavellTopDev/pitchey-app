@@ -12,7 +12,7 @@ The frontend `.env` file was configured to use the **production Cloudflare Worke
 
 ```bash
 # PROBLEMATIC CONFIGURATION
-VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_WS_URL=wss://pitchey-backend-fresh-yfjwdv4z663e.deno.dev
 ```
 
@@ -123,7 +123,7 @@ When deploying to production, the frontend `.env` should be reverted to:
 
 ```bash
 # Production Configuration
-VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev
 ```
 

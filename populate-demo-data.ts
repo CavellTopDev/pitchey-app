@@ -4,7 +4,7 @@
  * to enable full end-to-end workflow testing
  */
 
-const API_BASE = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const API_BASE = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 interface LoginResponse {
   success: boolean;
@@ -109,7 +109,7 @@ async function loginUser(user: DemoUser): Promise<string | null> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify({
         email: user.email,
@@ -141,7 +141,7 @@ async function createPitch(token: string, pitch: any): Promise<any> {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify(pitch)
     });
@@ -170,7 +170,7 @@ async function publishPitch(token: string, pitchId: number): Promise<boolean> {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify({
         status: 'published'
@@ -201,7 +201,7 @@ async function createNDARequest(investorToken: string, pitchId: number): Promise
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${investorToken}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       },
       body: JSON.stringify({
         pitchId: pitchId
@@ -232,7 +232,7 @@ async function followUser(followerToken: string, targetUserId: number): Promise<
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${followerToken}`,
-        'Origin': 'https://pitchey.pages.dev'
+        'Origin': 'https://pitchey-5o8.pages.dev'
       }
     });
 
@@ -262,7 +262,7 @@ async function addPitchViews(token: string, pitchId: number, views: number): Pro
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'Origin': 'https://pitchey.pages.dev'
+          'Origin': 'https://pitchey-5o8.pages.dev'
         }
       });
       

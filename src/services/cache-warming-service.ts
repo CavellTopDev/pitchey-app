@@ -318,7 +318,7 @@ export class CacheWarmingService {
   }
 
   private getApiUrl(): string {
-    return process.env.API_URL || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+    return process.env.API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   }
 
   private sleep(ms: number): Promise<void> {

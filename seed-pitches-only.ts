@@ -102,7 +102,7 @@ async function addPitches() {
     console.log('\n✨ Production pitches added successfully!');
     console.log('\n📋 Demo Account:');
     console.log('  Creator: alex.creator@demo.com / Demo123');
-    console.log('\n🌐 Check: https://pitchey.pages.dev');
+    console.log('\n🌐 Check: https://pitchey-5o8.pages.dev');
     
   } catch (error) {
     console.error('❌ Error adding pitches:', error);

@@ -6,8 +6,8 @@ This file contains project-specific instructions and context for Claude Code.
 Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform uses a modern serverless architecture with Cloudflare edge infrastructure, Deno Deploy backend, and Neon PostgreSQL database. It features real-time WebSocket communication, Redis-powered caching, draft auto-sync, and comprehensive NDA workflows.
 
 ### Production Architecture
-- **Frontend**: Cloudflare Pages (https://pitchey.pages.dev)
-- **API Gateway**: Cloudflare Workers (https://pitchey-api-production.cavelltheleaddev.workers.dev)
+- **Frontend**: Cloudflare Pages (https://pitchey-5o8.pages.dev)
+- **API Gateway**: Cloudflare Workers (https://pitchey-api-prod.ndlovucavelle.workers.dev)
 - **Backend**: Deno Deploy (https://pitchey-backend-fresh.deno.dev)
 - **Database**: Neon PostgreSQL with Hyperdrive pooling
 - **Cache**: Upstash Redis (global distributed)
@@ -37,7 +37,7 @@ VITE_WS_URL=ws://localhost:8001
 
 #### Production (.env.production)
 ```
-VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev
 ```
 
@@ -76,8 +76,8 @@ wrangler deploy --env production
 - Worker Dev: http://localhost:8787 (wrangler dev)
 
 ### Production URLs
-- Frontend: https://pitchey.pages.dev
-- Worker API: https://pitchey-api-production.cavelltheleaddev.workers.dev
+- Frontend: https://pitchey-5o8.pages.dev
+- Worker API: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - Backend API: https://pitchey-backend-fresh.deno.dev
 - WebSocket: wss://pitchey-backend-fresh.deno.dev/ws
 

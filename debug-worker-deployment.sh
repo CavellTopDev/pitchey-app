@@ -75,7 +75,7 @@ if [ "$LOCAL_TEST_SUCCESS" = true ]; then
     
     # Test production health endpoint
     echo "🔍 Testing production health endpoint..."
-    PROD_HEALTH=$(curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "FAILED")
+    PROD_HEALTH=$(curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health || echo "FAILED")
     
     if echo "$PROD_HEALTH" | grep -q "status.*ok"; then
       echo "✅ Production health check PASSED"
@@ -97,13 +97,13 @@ fi
 echo ""
 echo "🔍 Debugging Information:"
 echo "========================="
-echo "Worker URL: https://pitchey-production.cavelltheleaddev.workers.dev"
-echo "Health Endpoint: https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+echo "Worker URL: https://pitchey-api-prod.ndlovucavelle.workers.dev"
+echo "Health Endpoint: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 echo ""
 echo "📊 Monitoring Commands:"
 echo "- Check logs: wrangler tail"
 echo "- Check metrics: wrangler dev --inspect"
-echo "- Test health: curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+echo "- Test health: curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 echo ""
 
 # Step 5: Additional Monitoring Setup
@@ -116,7 +116,7 @@ cat > monitor-worker.sh << 'EOF'
 echo "🔍 Starting worker monitoring..."
 while true; do
   TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-  HEALTH_STATUS=$(curl -s -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/api/health -o /tmp/health_response.json || echo "000")
+  HEALTH_STATUS=$(curl -s -w "%{http_code}" https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health -o /tmp/health_response.json || echo "000")
   
   if [ "$HEALTH_STATUS" = "200" ]; then
     echo "[$TIMESTAMP] ✅ Health check OK (200)"

@@ -7,8 +7,8 @@ A comprehensive production-grade monitoring, alerting, and troubleshooting syste
 ## 🎯 Monitoring Coverage
 
 ### Core Services Monitored
-- **Cloudflare Worker** (https://pitchey-production.cavelltheleaddev.workers.dev)
-- **Frontend** (https://pitchey.pages.dev)
+- **Cloudflare Worker** (https://pitchey-api-prod.ndlovucavelle.workers.dev)
+- **Frontend** (https://pitchey-5o8.pages.dev)
 - **Database** (Neon PostgreSQL via Hyperdrive)
 - **Cache Performance** (Cloudflare Edge Cache)
 - **WebSocket Services** (Durable Objects)

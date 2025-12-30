@@ -20,7 +20,7 @@ account_id = "e16d3bf549153de23459a6c6a06a431b"
 
 # Frontend URL is safe to keep as it's public
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ENVIRONMENT = "production"
 
 # KV for static content caching and sessions
@@ -716,7 +716,7 @@ Create `src/security/cors.ts`:
 ```typescript
 export class SecureCorsHandler {
   private static readonly PRODUCTION_ORIGINS = [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'https://pitchey.com',
     'https://www.pitchey.com'
   ];
@@ -791,7 +791,7 @@ export class SecureCorsHandler {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' https://pitchey-production.cavelltheleaddev.workers.dev wss://pitchey-production.cavelltheleaddev.workers.dev",
+      "connect-src 'self' https://pitchey-api-prod.ndlovucavelle.workers.dev wss://pitchey-api-prod.ndlovucavelle.workers.dev",
       "media-src 'self'",
       "object-src 'none'",
       "child-src 'self'",
@@ -882,7 +882,7 @@ fi
 echo -e "\n[TEST 2] Testing rate limiting..."
 for i in {1..10}; do
     response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-        https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+        https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
         -H "Content-Type: application/json" \
         -d '{"email":"test@test.com","password":"wrong"}')
     echo "Request $i: HTTP $response"
@@ -893,7 +893,7 @@ done
 
 # Test 3: Check security headers
 echo -e "\n[TEST 3] Checking security headers..."
-headers=$(curl -sI https://pitchey-production.cavelltheleaddev.workers.dev/health)
+headers=$(curl -sI https://pitchey-api-prod.ndlovucavelle.workers.dev/health)
 
 check_header() {
     if echo "$headers" | grep -qi "$1"; then
@@ -912,7 +912,7 @@ check_header "Content-Security-Policy"
 # Test 4: SQL Injection attempt
 echo -e "\n[TEST 4] Testing SQL injection protection..."
 response=$(curl -s -X POST \
-    https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+    https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
     -H "Content-Type: application/json" \
     -d '{"email":"admin@test.com'\'' OR 1=1--","password":"x"}')
 
@@ -925,7 +925,7 @@ fi
 # Test 5: XSS attempt
 echo -e "\n[TEST 5] Testing XSS protection..."
 response=$(curl -s -X POST \
-    https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches \
+    https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $TEST_TOKEN" \
     -d '{"title":"<script>alert(1)</script>","logline":"test"}')

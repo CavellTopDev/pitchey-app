@@ -11,9 +11,9 @@ The Pitchey platform uses a modern serverless stack on Cloudflare's global edge 
 
 | Service | URL | Technology | Status |
 |---------|-----|------------|--------|
-| **Frontend** | https://pitchey.pages.dev | Cloudflare Pages (React + Vite) | ✅ LIVE |
-| **API Worker** | https://pitchey-optimized.cavelltheleaddev.workers.dev | Cloudflare Workers (TypeScript) | ✅ LIVE |
-| **Health Check** | https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health | Edge API Endpoint | ✅ LIVE |
+| **Frontend** | https://pitchey-5o8.pages.dev | Cloudflare Pages (React + Vite) | ✅ LIVE |
+| **API Worker** | https://pitchey-optimized.ndlovucavelle.workers.dev | Cloudflare Workers (TypeScript) | ✅ LIVE |
+| **Health Check** | https://pitchey-optimized.ndlovucavelle.workers.dev/api/health | Edge API Endpoint | ✅ LIVE |
 
 ### 🔐 Demo Accounts (Password: Demo123)
 
@@ -46,7 +46,7 @@ The Pitchey platform uses a modern serverless stack on Cloudflare's global edge 
 | Component | Details | Status |
 |-----------|---------|--------|
 | **Project Name** | pitchey | ✅ Active |
-| **Domain** | pitchey.pages.dev | ✅ Live |
+| **Domain** | pitchey-5o8.pages.dev | ✅ Live |
 | **Framework** | React 18 + Vite 5 | ✅ Built |
 | **Build Output** | frontend/dist/ | ✅ Deployed |
 | **CI/CD** | GitHub Actions | ✅ Automated |
@@ -89,7 +89,7 @@ The following secrets have been configured in production:
 ### Real-time Monitoring
 ```bash
 # Check health status
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # Monitor production
 ./monitor-production.sh
@@ -168,20 +168,20 @@ All critical tests passing:
 cd frontend
 npm run build
 wrangler pages deploy dist --project-name=pitchey
-# Deploys to: https://pitchey.pages.dev
+# Deploys to: https://pitchey-5o8.pages.dev
 ```
 
 #### Deploy Backend to Your Worker
 ```bash
 # From root directory
 wrangler deploy
-# Deploys to: https://pitchey-optimized.cavelltheleaddev.workers.dev
+# Deploys to: https://pitchey-optimized.ndlovucavelle.workers.dev
 ```
 
 ### Quick Access to YOUR Resources
-- 🌐 **Your Frontend**: https://pitchey.pages.dev
-- 🔧 **Your API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- ❤️ **Health Check**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- 🌐 **Your Frontend**: https://pitchey-5o8.pages.dev
+- 🔧 **Your API**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- ❤️ **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 - 📊 **Monitor**: `wrangler tail` (real-time logs)
 - 🔑 **Account**: cavelltheleaddev@gmail.com
 

@@ -131,10 +131,10 @@ export default {
 echo "Testing database connection..."
 
 # Test health (should always work)
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Test auth endpoint (requires database)
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 ```

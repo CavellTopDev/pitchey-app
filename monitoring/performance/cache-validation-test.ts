@@ -531,7 +531,7 @@ export class CacheValidator {
 
 // Default test configuration
 export const DEFAULT_CACHE_TEST_CONFIG: CacheTestConfig = {
-  baseUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  baseUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   testEndpoints: [
     { path: '/api/pitches/trending', method: 'GET', expectedCacheBehavior: 'CACHE' },
     { path: '/api/pitches/new', method: 'GET', expectedCacheBehavior: 'CACHE' },

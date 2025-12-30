@@ -25,47 +25,10 @@ interface AuthState {
   updateProfile: (data: Partial<User>) => Promise<void>;
 }
 
-// LocalStorage helpers for namespacing
-const nsKey = (key: string) => {
-  try {
-    const host = new URL(config.API_URL).host;
-    return `pitchey:${host}:${key}`;
-  } catch {
-    return `pitchey:${key}`;
-  }
-};
-const getLS = (key: string) => localStorage.getItem(nsKey(key)) ?? localStorage.getItem(key);
-const setLS = (key: string, value: string) => {
-  localStorage.setItem(nsKey(key), value);
-  localStorage.setItem(key, value);
-};
-const removeLS = (key: string) => {
-  localStorage.removeItem(nsKey(key));
-  localStorage.removeItem(key);
-};
-
-// Helper function to safely get from localStorage with validation
-const getStoredUser = (): User | null => {
-  try {
-    const { user, isValid } = getSafeUserData();
-    
-    if (!isValid && user) {
-      console.warn('⚠️ Authentication state inconsistency detected - clearing corrupted data');
-      clearAuthenticationState();
-      return null;
-    }
-    
-    return user;
-  } catch (error) {
-    console.warn('Failed to parse stored user:', error);
-    clearAuthenticationState();
-    return null;
-  }
-};
-
-export const useAuthStore = create<AuthState>((set) => ({
-  user: getStoredUser(),
-  isAuthenticated: !!getLS('authToken'),
+// Better Auth session-based store - no localStorage needed!
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null, // Will be populated from Better Auth session
+  isAuthenticated: false, // Will be determined by Better Auth session
   loading: false,
   error: null,
 
@@ -97,9 +60,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Clean up any JWT artifacts from previous sessions
       cleanupJWTArtifacts();
       
-      // Store user data for UI persistence (Better Auth handles session cookies)
-      setLS('user', JSON.stringify(user));
-      setLS('userType', 'creator');
+      // Better Auth handles session via secure cookies - no localStorage needed!
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -124,9 +85,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Clean up any JWT artifacts from previous sessions
       cleanupJWTArtifacts();
       
-      // Store user data for UI persistence (Better Auth handles session cookies)
-      setLS('user', JSON.stringify(user));
-      setLS('userType', 'investor');
+      // Better Auth handles session via secure cookies - no localStorage needed!
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -151,9 +110,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Clean up any JWT artifacts from previous sessions
       cleanupJWTArtifacts();
       
-      // Store user data for UI persistence (Better Auth handles session cookies)
-      setLS('user', JSON.stringify(user));
-      setLS('userType', 'production');
+      // Better Auth handles session via secure cookies - no localStorage needed!
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -172,9 +129,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('User data not received from server');
       }
-      // Store user data and type in localStorage for persistence (namespaced + legacy)
-      setLS('user', JSON.stringify(user));
-      setLS('userType', data.userType);
+      // Better Auth handles session via secure cookies - no localStorage needed!
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ 
@@ -224,31 +179,20 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchProfile: async () => {
     set({ loading: true });
     try {
-      // Use Better Auth to get current session
+      // Use Better Auth to get current session from cookies
       const session = await getCurrentUser();
       
       if (!session) {
-        throw new Error('No active session found');
+        // No session means user is not authenticated
+        set({ user: null, isAuthenticated: false, loading: false });
+        return;
       }
       
-      // Update localStorage with fresh user data (namespaced + legacy)
-      setLS('user', JSON.stringify(session));
-      if (session.userType) {
-        setLS('userType', session.userType);
-      }
+      // Session exists - user is authenticated
       set({ user: session, isAuthenticated: true, loading: false });
     } catch (error) {
-      // If profile fetch fails and we have no stored user, consider them unauthenticated
-      const storedUser = getStoredUser();
-      if (!storedUser) {
-        set({ isAuthenticated: false, loading: false });
-        // Clean up all authentication artifacts
-        clearAuthenticationState();
-        cleanupJWTArtifacts();
-      } else {
-        // Keep them authenticated with stored data if available
-        set({ loading: false });
-      }
+      // Session check failed - user is not authenticated
+      set({ user: null, isAuthenticated: false, loading: false });
       console.error('Failed to fetch profile:', error);
     }
   },
@@ -261,8 +205,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (!user) {
         throw new Error('Updated user data not received from server');
       }
-      // Update localStorage with new user data (namespaced + legacy)
-      setLS('user', JSON.stringify(user));
+      // Update user in state - Better Auth handles session cookies
       set({ user, loading: false });
     } catch (error: any) {
       set({ 

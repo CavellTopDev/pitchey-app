@@ -21,7 +21,7 @@
 ```bash
 #!/bin/bash
 # 1. Verify the outage
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 # 2. Check Cloudflare status
 curl https://www.cloudflarestatus.com/api/v2/status.json

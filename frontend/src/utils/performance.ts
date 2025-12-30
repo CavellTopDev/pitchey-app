@@ -70,10 +70,12 @@ export const reportWebVitals = (metric: Metric) => {
 
   // Send to custom monitoring endpoint
   if (import.meta.env.PROD) {
-    fetch('/api/metrics', {
+    
+      credentials: 'include', // Send cookies for Better Auth session
+      
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: JSON.stringify({}),
         metric: metric.name,
         value: metric.value,
         rating: metric.rating,

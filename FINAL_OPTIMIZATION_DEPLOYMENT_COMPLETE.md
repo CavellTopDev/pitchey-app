@@ -78,7 +78,7 @@ Successfully completed the comprehensive performance optimization deployment for
 ### **Currently Active in Production:**
 ```bash
 # Production Worker URL
-https://pitchey-production.cavelltheleaddev.workers.dev
+https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 # Key Endpoints Validated:
 ✅ /api/health                    # 149ms - Optimized health checks
@@ -190,7 +190,7 @@ ANALYZE pitches; ANALYZE users; ANALYZE sessions; ANALYZE ndas;
 ./performance-testing/run-performance-tests.sh health
 
 # Monitor real-time performance
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 ### **Phase 3: Advanced Optimization (Optional)**

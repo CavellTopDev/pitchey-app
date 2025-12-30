@@ -192,9 +192,9 @@ GET  /s/{shortId}                      # URL shortener redirect
 
 ## 🚀 Production URLs
 
-- **Worker API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Frontend**: https://pitchey.pages.dev
-- **WebSocket**: wss://pitchey-optimized.cavelltheleaddev.workers.dev/ws
+- **Worker API**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **WebSocket**: wss://pitchey-optimized.ndlovucavelle.workers.dev/ws
 
 ## 📈 Monitoring & Analytics
 
@@ -240,7 +240,7 @@ npx wrangler secret put TWILIO_FROM_NUMBER
 ```
 
 ### 2. Configure Twilio Console
-- Set webhook URL: `https://pitchey-optimized.cavelltheleaddev.workers.dev/webhooks/twilio/status`
+- Set webhook URL: `https://pitchey-optimized.ndlovucavelle.workers.dev/webhooks/twilio/status`
 - Enable status callbacks
 - Configure phone number settings
 

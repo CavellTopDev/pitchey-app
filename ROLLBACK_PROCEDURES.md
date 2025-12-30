@@ -57,7 +57,7 @@ echo "🚨 EMERGENCY ROLLBACK INITIATED"
 wrangler rollback --env production
 
 # 2. Clear cache
-curl -X DELETE https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/cache \
+curl -X DELETE https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/cache \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # 3. Notify team
@@ -153,11 +153,11 @@ wrangler deploy --env production --var FEATURE_FLAG=false
 ./scripts/verify-deployment.sh
 
 # Manual checks
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
-curl https://pitchey.pages.dev
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
+curl https://pitchey-5o8.pages.dev
 
 # Check error rates
-curl https://pitchey-production.cavelltheleaddev.workers.dev/metrics | grep error_rate
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/metrics | grep error_rate
 
 # Test critical user flows
 # 1. Login as each portal type
@@ -177,7 +177,7 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/metrics | grep erro
 ### Dashboard URLs
 - Cloudflare Analytics: https://dash.cloudflare.com
 - Sentry Issues: https://sentry.io/organizations/pitchey/issues/
-- Application Metrics: https://pitchey-production.cavelltheleaddev.workers.dev/metrics
+- Application Metrics: https://pitchey-api-prod.ndlovucavelle.workers.dev/metrics
 
 ## 🚦 Rollback Communication
 

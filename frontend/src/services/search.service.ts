@@ -355,14 +355,12 @@ export class SearchService {
     format: 'csv' | 'pdf' | 'excel'
   ): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/search/export`,
-      {
+      `${config.API_URL}/api/search/export`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ searchType, filters, format })
+        body: JSON.stringify({ searchType, filters, format }),
       }
     );
 

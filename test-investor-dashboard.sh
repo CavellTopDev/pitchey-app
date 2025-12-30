@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test investor dashboard functionality
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Colors for output
 GREEN='\033[0;32m'

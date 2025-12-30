@@ -4,7 +4,7 @@
  * Test script to verify /api/validate-token routing through auth module
  */
 
-const PRODUCTION_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const PRODUCTION_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 async function testTokenRouting() {
   console.log('🧪 Testing Token Validation Routing');

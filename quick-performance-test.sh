@@ -3,7 +3,7 @@
 # Quick Performance Test Script
 # Tests basic endpoints for response time and availability
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "🚀 Quick Performance Test for Pitchey API"
 echo "=========================================="

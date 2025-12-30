@@ -8,7 +8,7 @@ Run the automated setup script to configure all monitoring components:
 
 ```bash
 # Set API URL (if different from default)
-export API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+export API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Optional: Configure webhook alerts
 export WEBHOOK_URL="https://your-webhook-endpoint.com/alerts"
@@ -285,7 +285,7 @@ wrangler kv:namespace create KV
 ### Priority 2: Add Cache Warming (Today)
 ```bash
 # Warm cache after deployment
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/warm-cache
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/warm-cache
 ```
 
 ### Priority 3: Configure Cloudflare Rules (Today)
@@ -343,10 +343,10 @@ wrangler tail
 3. **Test cache directly:**
 ```bash
 # Write to cache
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/cache-test
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/cache-test
 
 # Read from cache (should be HIT on 2nd request)
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/cache-test
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/cache-test
 ```
 
 ### High Response Times

@@ -6,7 +6,7 @@
 echo "🔄 PITCHEY DEPLOYMENT ROLLBACK & RECOVERY SYSTEM"
 echo "================================================"
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 BACKUP_DIR="./deployment-backups"
 ROLLBACK_LOG="./rollback-operations.log"
 

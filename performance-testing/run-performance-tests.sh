@@ -17,7 +17,7 @@ TEST_FILE="./performance-testing/k6-load-tests.js"
 mkdir -p "$RESULTS_DIR"
 
 echo "📊 Test Configuration:"
-echo "  - Target: https://pitchey-production.cavelltheleaddev.workers.dev"
+echo "  - Target: https://pitchey-api-prod.ndlovucavelle.workers.dev"
 echo "  - Results: $RESULTS_DIR"
 echo "  - Timestamp: $TIMESTAMP"
 echo ""
@@ -139,7 +139,7 @@ generate_report() {
 
 **Date**: $(date)
 **Test Suite**: K6 Load Testing
-**Target**: https://pitchey-production.cavelltheleaddev.workers.dev
+**Target**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ## Test Summary
 

@@ -54,7 +54,7 @@ app.use('*', cors({
     const allowed = [
       'http://localhost:3000',
       'http://localhost:5173',
-      'https://pitchey.pages.dev',
+      'https://pitchey-5o8.pages.dev',
       /https:\/\/.*\.pitchey\.pages\.dev$/
     ];
     
@@ -350,7 +350,7 @@ export default {
   
   async performHealthChecks(env: Env) {
     try {
-      const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/health/ready');
+      const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/ready');
       const data = await response.json();
       
       if (data.status !== 'ready' && env.UPSTASH_REDIS_REST_URL) {

@@ -134,10 +134,11 @@ export default function Marketplace() {
     const hash = location.hash.slice(1) || 'all';
     setCurrentView(hash);
     
-    // Clear genre/format filters when switching to trending or new views
+    // Clear all filters when switching to trending or new views to ensure pure data
     if (hash === 'trending' || hash === 'new') {
       setSelectedGenre('');
       setSelectedFormat('');
+      setSearchQuery('');
     }
   }, [location.hash]);
   
@@ -651,19 +652,36 @@ export default function Marketplace() {
               Browse the latest pitches from talented creators worldwide
             </p>
             
-            {/* Search Bar */}
+            {/* Search Bar - disabled for trending/new tabs */}
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
               <div className="flex bg-white rounded-lg shadow-lg overflow-hidden">
                 <input
                   type="text"
-                  placeholder="Search for films, genres, creators..."
+                  placeholder={
+                    currentView === 'trending' ? "Search is disabled in Trending view" :
+                    currentView === 'new' ? "Search is disabled in New Releases view" :
+                    "Search for films, genres, creators..."
+                  }
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 px-6 py-4 text-gray-900 focus:outline-none"
+                  onChange={(e) => {
+                    // Only allow search changes if not in trending/new views
+                    if (currentView !== 'trending' && currentView !== 'new') {
+                      setSearchQuery(e.target.value);
+                    }
+                  }}
+                  disabled={currentView === 'trending' || currentView === 'new'}
+                  className={`flex-1 px-6 py-4 text-gray-900 focus:outline-none ${
+                    (currentView === 'trending' || currentView === 'new') ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
                 />
                 <button
                   type="submit"
-                  className="px-6 py-4 bg-purple-600 hover:bg-purple-700 transition-colors"
+                  disabled={currentView === 'trending' || currentView === 'new'}
+                  className={`px-6 py-4 transition-colors ${
+                    (currentView === 'trending' || currentView === 'new') 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-purple-600 hover:bg-purple-700'
+                  }`}
                 >
                   <Search className="w-5 h-5" />
                 </button>
@@ -906,37 +924,41 @@ export default function Marketplace() {
             </h2>
             
             <div className="flex flex-wrap items-center space-x-4">
-              {/* Show genre/format filters for all views */}
-              <select
-                value={selectedGenre}
-                onChange={(e) => setSelectedGenre(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">All Genres</option>
-                {genres.map((genre) => (
-                  <option key={genre} value={genre}>{genre}</option>
-                ))}
-              </select>
-              
-              <select
-                value={selectedFormat}
-                onChange={(e) => setSelectedFormat(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">All Formats</option>
-                {formats.map((format) => (
-                  <option key={format} value={format}>{format}</option>
-                ))}
-              </select>
-              
-              {/* Show clear filters if any filters are active */}
-              {(selectedGenre || selectedFormat || searchQuery) && (
-                <button
-                  onClick={clearFilters}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Clear Filters
-                </button>
+              {/* Only show filters for 'all' and 'genres' views, not for trending/new */}
+              {currentView !== 'trending' && currentView !== 'new' && (
+                <>
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">All Genres</option>
+                    {genres.map((genre) => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    value={selectedFormat}
+                    onChange={(e) => setSelectedFormat(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">All Formats</option>
+                    {formats.map((format) => (
+                      <option key={format} value={format}>{format}</option>
+                    ))}
+                  </select>
+                  
+                  {/* Show clear filters if any filters are active */}
+                  {(selectedGenre || selectedFormat || searchQuery) && (
+                    <button
+                      onClick={clearFilters}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </>
               )}
               
               {/* Show info for trending/new views */}
@@ -944,9 +966,6 @@ export default function Marketplace() {
                 <div className="text-sm text-gray-500 italic">
                   {currentView === 'trending' && 'Sorted by views and engagement'}
                   {currentView === 'new' && 'Sorted by publication date'}
-                  {searchQuery && ' (filtered by search)'}
-                  {selectedGenre && ` (filtered by ${selectedGenre})`}
-                  {selectedFormat && ` (filtered by ${selectedFormat})`}
                 </div>
               )}
             </div>

@@ -157,7 +157,7 @@ print_step "Testing deployed worker..."
 
 # Get the worker URL from wrangler.toml
 WORKER_NAME=$(grep "^name = " wrangler.toml | cut -d'"' -f2)
-WORKER_URL="https://${WORKER_NAME}.cavelltheleaddev.workers.dev"
+WORKER_URL="https://${WORKER_NAME}.ndlovucavelle.workers.dev"
 
 print_status "Testing health endpoint at: $WORKER_URL/api/health"
 

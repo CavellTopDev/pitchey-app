@@ -2,7 +2,7 @@
 
 **Date**: November 25, 2025  
 **Environment**: Production (Cloudflare Workers)  
-**URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+**URL**: https://pitchey-optimized.ndlovucavelle.workers.dev
 
 ## Executive Summary
 All critical services and secrets have been successfully configured and deployed. The platform is fully operational with all environment variables properly set.
@@ -72,15 +72,15 @@ The following secrets have been successfully set via wrangler CLI:
 
 ### Frontend (.env.production)
 ```
-✅ VITE_API_URL=https://pitchey-optimized.cavelltheleaddev.workers.dev
-✅ VITE_WS_URL=wss://pitchey-optimized.cavelltheleaddev.workers.dev
+✅ VITE_API_URL=https://pitchey-optimized.ndlovucavelle.workers.dev
+✅ VITE_WS_URL=wss://pitchey-optimized.ndlovucavelle.workers.dev
 ✅ VITE_NODE_ENV=production
 ✅ VITE_SENTRY_DSN=configured
 ```
 
 ### Worker (wrangler.toml)
 ```
-✅ FRONTEND_URL=https://pitchey.pages.dev
+✅ FRONTEND_URL=https://pitchey-5o8.pages.dev
 ✅ JWT_SECRET=configured
 ✅ SENTRY_DSN=configured
 ✅ SENTRY_ENVIRONMENT=production

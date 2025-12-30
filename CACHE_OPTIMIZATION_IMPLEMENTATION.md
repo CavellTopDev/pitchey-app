@@ -157,8 +157,8 @@ wrangler deploy --config wrangler.cache-test.toml
 node test-cache-performance.js
 
 # Manual testing
-curl https://pitchey-cache-test.cavelltheleaddev.workers.dev/api/cache/stats
-curl https://pitchey-cache-test.cavelltheleaddev.workers.dev/api/cache/warm -X POST
+curl https://pitchey-cache-test.ndlovucavelle.workers.dev/api/cache/stats
+curl https://pitchey-cache-test.ndlovucavelle.workers.dev/api/cache/warm -X POST
 ```
 
 ## Expected Results

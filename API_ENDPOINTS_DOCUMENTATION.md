@@ -268,9 +268,9 @@ Portal-specific endpoints also validate user type to ensure proper access contro
 
 ## 🚀 Production URLs
 
-- **API Gateway**: `https://pitchey-production.cavelltheleaddev.workers.dev`
-- **WebSocket**: `wss://pitchey-production.cavelltheleaddev.workers.dev/ws`
-- **Frontend**: `https://pitchey.pages.dev`
+- **API Gateway**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
+- **WebSocket**: `wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws`
+- **Frontend**: `https://pitchey-5o8.pages.dev`
 
 ## 🛠 Local Development
 

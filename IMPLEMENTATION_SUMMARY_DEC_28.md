@@ -66,7 +66,7 @@ Analyze the Creator Portal UI using Chrome DevTools MCP to identify which featur
 ## 📊 Current System Architecture
 
 ### Production URLs
-- **Frontend**: https://pitchey.pages.dev
+- **Frontend**: https://pitchey-5o8.pages.dev
 - **API Worker**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Database**: Neon PostgreSQL (production)
 

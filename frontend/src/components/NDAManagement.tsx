@@ -61,11 +61,10 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
       
       const params = filter !== 'all' ? `?status=${filter}` : '';
       
-      const response = await fetch(`${API_URL}${endpoint}${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+    const response = await fetch(`${config.API_URL}/api/nda`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         const data = await response.json();
@@ -87,17 +86,17 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
     try {
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`${API_URL}/api/nda/process`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          requestId: selectedRequest.requestId,
-          ...approvalForm
-        })
-      });
+    const response = await fetch(`${config.API_URL}/api/nda/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        approved: approvalForm.approved,
+        notes: approvalForm.notes,
+        customTerms: approvalForm.customTerms
+      }),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (response.ok) {
         // Show success message

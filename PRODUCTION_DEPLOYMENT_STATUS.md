@@ -1,7 +1,7 @@
 # Pitchey Production Deployment Status
 
 ## 🚀 Current Deployment
-- **Live URL**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Live URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Version**: production-final-v3.0
 - **Deployment ID**: f39bf596-377a-42c7-8ac9-293dec94cc70
 - **Date**: December 15, 2024
@@ -221,7 +221,7 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=your-secret-key
 
 # Frontend
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 
 # Cache (Optional)
 UPSTASH_REDIS_REST_URL=https://...
@@ -272,7 +272,7 @@ STRIPE_SECRET_KEY=sk_...
 wrangler tail --config wrangler-serverless.toml
 
 # Check worker status
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Test authentication
 ./test-production-worker.sh
@@ -287,7 +287,7 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
 wrangler tail --config wrangler-serverless.toml --status error
 
 # Test specific endpoint
-curl -X GET https://pitchey-production.cavelltheleaddev.workers.dev/api/health | jq .
+curl -X GET https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health | jq .
 ```
 
 ## 📌 Important Notes

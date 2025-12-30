@@ -40,7 +40,7 @@ X deploy-frontend in 37s (ID 55449469740)
 ```bash
 # Use Chrome MCP to inspect current frontend state
 claude -p "Use Chrome DevTools MCP to:
-1. Open https://pitchey.pages.dev
+1. Open https://pitchey-5o8.pages.dev
 2. Check console for API connectivity errors  
 3. Analyze network requests to backend API
 4. Identify version inconsistencies"
@@ -374,10 +374,10 @@ async function checkProductionHealth(includeMetrics: boolean) {
     };
     
     // Check frontend accessibility  
-    const frontendResponse = await fetch("https://pitchey.pages.dev");
+    const frontendResponse = await fetch("https://pitchey-5o8.pages.dev");
     healthData.services.frontend = {
       status: frontendResponse.ok ? "accessible" : "inaccessible",
-      response_time_ms: await measureResponseTime("https://pitchey.pages.dev")
+      response_time_ms: await measureResponseTime("https://pitchey-5o8.pages.dev")
     };
     
     // Test database connectivity via API

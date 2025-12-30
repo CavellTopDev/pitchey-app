@@ -148,11 +148,10 @@ export function useRealTimeResults(experimentId: number, options: {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/experiments/${experimentId}/results`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
       if (!response.ok) {
         throw new Error('Failed to fetch results');
@@ -236,11 +235,10 @@ export function useRealTimeExperimentList(options: {
           options.status.forEach(status => queryParams.append('status', status));
         }
 
-        const response = await fetch(`/api/experiments?${queryParams}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
+    });
 
         if (response.ok) {
           const data = await response.json();

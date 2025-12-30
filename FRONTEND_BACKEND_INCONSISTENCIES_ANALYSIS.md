@@ -121,11 +121,11 @@ GET /api/investor/portfolio/analytics      // Line 347
 ### **1. Test Missing Endpoints**
 ```bash
 # Test each endpoint category
-curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/content/about
-curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/analytics/trending  
-curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/ndas/request
-curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/follows/suggestions
-curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/investor/portfolio/summary
+curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.ndlovucavelle.workers.dev/api/content/about
+curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.ndlovucavelle.workers.dev/api/analytics/trending  
+curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.ndlovucavelle.workers.dev/api/ndas/request
+curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.ndlovucavelle.workers.dev/api/follows/suggestions
+curl -H "Authorization: Bearer $TOKEN" https://pitchey-optimized.ndlovucavelle.workers.dev/api/investor/portfolio/summary
 ```
 
 ### **2. Check Browser Network Tab**

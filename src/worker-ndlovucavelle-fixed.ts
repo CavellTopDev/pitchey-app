@@ -45,7 +45,7 @@ export interface Env extends ConnectionEnv {
 // CORS configuration
 function getCorsHeaders(origin?: string | null): Record<string, string> {
   const allowedOrigins = [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'https://pitchey-5o8.pages.dev',
     'https://pitchey-frontend-ndlovu.pages.dev',
     'http://localhost:5173',

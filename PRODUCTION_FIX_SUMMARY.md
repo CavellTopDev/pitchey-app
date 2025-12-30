@@ -55,10 +55,10 @@ Request Flow:
 ### Test Commands
 ```bash
 # Test trending endpoint
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/trending
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/trending
 
 # Test database connection
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/db-test
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/db-test
 
 # Run continuous monitoring
 ./monitor-production-health.sh

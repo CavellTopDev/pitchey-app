@@ -107,13 +107,13 @@ setup_health_checks() {
 # Monitors all critical endpoints and services
 
 ENDPOINTS=(
-    "https://pitchey.pages.dev"
-    "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
-    "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending"
+    "https://pitchey-5o8.pages.dev"
+    "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
+    "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending"
 )
 
-DB_CHECK_URL="https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database"
-WEBSOCKET_URL="wss://pitchey-production.cavelltheleaddev.workers.dev/ws"
+DB_CHECK_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database"
+WEBSOCKET_URL="wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -185,9 +185,9 @@ const https = require('https');
 const { performance } = require('perf_hooks');
 
 const ENDPOINTS = [
-    'https://pitchey.pages.dev',
-    'https://pitchey-production.cavelltheleaddev.workers.dev/api/health',
-    'https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending'
+    'https://pitchey-5o8.pages.dev',
+    'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health',
+    'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending'
 ];
 
 async function measureResponseTime(url) {
@@ -648,14 +648,14 @@ create_monitoring_dashboard() {
         <div class="status-grid">
             <div class="status-card status-healthy">
                 <h3>🌐 Frontend Status</h3>
-                <p>URL: <a href="https://pitchey.pages.dev" target="_blank">pitchey.pages.dev</a></p>
+                <p>URL: <a href="https://pitchey-5o8.pages.dev" target="_blank">pitchey-5o8.pages.dev</a></p>
                 <p>Status: <span id="frontend-status">Checking...</span></p>
                 <p>Response Time: <span id="frontend-response">-</span>ms</p>
             </div>
             
             <div class="status-card status-healthy">
                 <h3>⚙️ API Worker Status</h3>
-                <p>URL: <a href="https://pitchey-production.cavelltheleaddev.workers.dev" target="_blank">Worker API</a></p>
+                <p>URL: <a href="https://pitchey-api-prod.ndlovucavelle.workers.dev" target="_blank">Worker API</a></p>
                 <p>Status: <span id="api-status">Checking...</span></p>
                 <p>Response Time: <span id="api-response">-</span>ms</p>
             </div>
@@ -669,7 +669,7 @@ create_monitoring_dashboard() {
             
             <div class="status-card status-warning">
                 <h3>🔌 WebSocket Status</h3>
-                <p>URL: wss://pitchey-production.cavelltheleaddev.workers.dev/ws</p>
+                <p>URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws</p>
                 <p>Status: <span id="ws-status">Checking...</span></p>
                 <p>Last Check: <span id="ws-last-check">-</span></p>
             </div>
@@ -741,12 +741,12 @@ create_monitoring_dashboard() {
         // Update dashboard
         async function updateDashboard() {
             // Frontend check
-            const frontendResult = await checkEndpoint('https://pitchey.pages.dev');
+            const frontendResult = await checkEndpoint('https://pitchey-5o8.pages.dev');
             document.getElementById('frontend-status').textContent = frontendResult.status;
             document.getElementById('frontend-response').textContent = frontendResult.responseTime || 'N/A';
             
             // API check
-            const apiResult = await checkEndpoint('https://pitchey-production.cavelltheleaddev.workers.dev/api/health');
+            const apiResult = await checkEndpoint('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health');
             document.getElementById('api-status').textContent = apiResult.status;
             document.getElementById('api-response').textContent = apiResult.responseTime || 'N/A';
             

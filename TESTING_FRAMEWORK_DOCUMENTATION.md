@@ -31,12 +31,12 @@
 
 ### Browser Console Test Configuration
 ```javascript
-// Run these commands directly in browser console at https://pitchey.pages.dev
+// Run these commands directly in browser console at https://pitchey-5o8.pages.dev
 const testConfig = {
   production: {
-    apiUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
-    wsUrl: 'wss://pitchey-production.cavelltheleaddev.workers.dev',
-    frontendUrl: 'https://pitchey.pages.dev'
+    apiUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+    wsUrl: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev',
+    frontendUrl: 'https://pitchey-5o8.pages.dev'
   }
 };
 
@@ -353,7 +353,7 @@ export default defineConfig({
   reporter: 'html',
   
   use: {
-    baseURL: 'https://pitchey.pages.dev',
+    baseURL: 'https://pitchey-5o8.pages.dev',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -383,7 +383,7 @@ export default defineConfig({
   ],
   
   // No local dev server needed for production testing
-  // Tests run directly against https://pitchey.pages.dev
+  // Tests run directly against https://pitchey-5o8.pages.dev
 });
 ```
 
@@ -628,12 +628,12 @@ test('should display mocked trending pitches', async ({ page }) => {
 
 ### REST API Testing from Browser
 ```javascript
-// Run these tests directly in browser console at https://pitchey.pages.dev
+// Run these tests directly in browser console at https://pitchey-5o8.pages.dev
 // First, login with demo account to get auth token
 
 // Test 1: Login as Creator
 (async () => {
-  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+  const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -653,7 +653,7 @@ test('should display mocked trending pitches', async ({ page }) => {
   
 // Test 2: Fetch Pitches
 (async () => {
-  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public?limit=5');
+  const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public?limit=5');
   const data = await response.json();
   console.log('📊 Public Pitches:', data);
   console.log(`✅ Found ${data.data?.length || 0} pitches`);
@@ -668,7 +668,7 @@ test('should display mocked trending pitches', async ({ page }) => {
     return;
   }
   
-  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/user/profile', {
+  const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/user/profile', {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   const data = await response.json();
@@ -679,7 +679,7 @@ test('should display mocked trending pitches', async ({ page }) => {
 // Test 4: View Specific Pitch
 (async () => {
   const pitchId = 1;
-  const response = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public/${pitchId}`);
+  const response = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public/${pitchId}`);
   const data = await response.json();
   console.log(`🎬 Pitch #${pitchId}:`, data);
   return data;
@@ -695,7 +695,7 @@ test('should display mocked trending pitches', async ({ page }) => {
     return;
   }
   
-  const response = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev/api/${userType}/dashboard`, {
+  const response = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev/api/${userType}/dashboard`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   const data = await response.json();
@@ -710,12 +710,12 @@ test('should display mocked trending pitches', async ({ page }) => {
 
 ### Complete Test Suite for Browser Console
 ```javascript
-// Copy and paste this entire test suite into browser console at https://pitchey.pages.dev
+// Copy and paste this entire test suite into browser console at https://pitchey-5o8.pages.dev
 
 // Test Suite Configuration
 const testSuite = {
-  api: 'https://pitchey-production.cavelltheleaddev.workers.dev',
-  ws: 'wss://pitchey-production.cavelltheleaddev.workers.dev/ws',
+  api: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+  ws: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws',
   
   // Run all tests
   async runAll() {
@@ -864,25 +864,25 @@ testSuite.runAll();
 ### Quick Individual Tests
 ```javascript
 // Test 1: Check API Health
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/health')
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health')
   .then(r => r.json())
   .then(data => console.log('API Health:', data))
   .catch(err => console.error('API Error:', err));
 
 // Test 2: Get Trending Pitches
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced?tab=trending')
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced?tab=trending')
   .then(r => r.json())
   .then(data => console.log('Trending:', data.data?.length || 0, 'pitches'));
 
 // Test 3: Check WebSocket Connection
-const ws = new WebSocket('wss://pitchey-production.cavelltheleaddev.workers.dev/ws');
+const ws = new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws');
 ws.onopen = () => console.log('✅ WebSocket connected');
 ws.onerror = (err) => console.error('❌ WebSocket error:', err);
 ws.onclose = () => console.log('WebSocket closed');
 
 // Test 4: Verify Authentication
 if (localStorage.getItem('authToken')) {
-  fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/verify', {
+  fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/verify', {
     headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
   })
   .then(r => r.json())
@@ -900,7 +900,7 @@ if (localStorage.getItem('authToken')) {
 ```javascript
 // Test WebSocket connection from browser console
 const testWebSocket = () => {
-  const ws = new WebSocket('wss://pitchey-production.cavelltheleaddev.workers.dev/ws');
+  const ws = new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws');
   
   ws.onopen = () => {
     console.log('✅ WebSocket connected');
@@ -1011,8 +1011,8 @@ describe('WebSocket Communication', () => {
     client1 = new TestWebSocketClient();
     client2 = new TestWebSocketClient();
     
-    await client1.connect('wss://pitchey-production.cavelltheleaddev.workers.dev/ws', 'creator-token');
-    await client2.connect('wss://pitchey-production.cavelltheleaddev.workers.dev/ws', 'investor-token');
+    await client1.connect('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws', 'creator-token');
+    await client2.connect('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws', 'investor-token');
   });
   
   afterEach(() => {
@@ -1081,7 +1081,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export default function () {
   // Browse pitches
@@ -1429,29 +1429,29 @@ jobs:
 ### Browser Console Test Commands
 ```javascript
 // Quick command reference for browser console testing
-// Run these at https://pitchey.pages.dev
+// Run these at https://pitchey-5o8.pages.dev
 
 // 1. Login Tests
-const loginCreator = () => fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+const loginCreator = () => fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'alex.creator@demo.com', password: 'Demo123' })
 }).then(r => r.json()).then(d => { if(d.token) localStorage.setItem('authToken', d.token); return d; });
 
-const loginInvestor = () => fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login', {
+const loginInvestor = () => fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/investor/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'sarah.investor@demo.com', password: 'Demo123' })
 }).then(r => r.json()).then(d => { if(d.token) localStorage.setItem('authToken', d.token); return d; });
 
-const loginProduction = () => fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/production/login', {
+const loginProduction = () => fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/production/login', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'stellar.production@demo.com', password: 'Demo123' })
 }).then(r => r.json()).then(d => { if(d.token) localStorage.setItem('authToken', d.token); return d; });
 
 // 2. Quick API Tests
-const testAPI = (endpoint) => fetch(`https://pitchey-production.cavelltheleaddev.workers.dev${endpoint}`, {
+const testAPI = (endpoint) => fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev${endpoint}`, {
   headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
 }).then(r => r.json());
 

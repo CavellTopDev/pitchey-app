@@ -46,7 +46,7 @@ class RealTimeDashboard {
   private dataDir: string;
   private dashboardFile: string;
 
-  constructor(apiUrl = 'https://pitchey-production.cavelltheleaddev.workers.dev') {
+  constructor(apiUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev') {
     this.apiUrl = apiUrl;
     this.dataDir = './dashboard-data';
     this.dashboardFile = './performance-dashboard.html';
@@ -703,7 +703,7 @@ class RealTimeDashboard {
 // CLI Interface
 if (import.meta.main) {
   const args = Deno.args;
-  const apiUrl = Deno.env.get('API_URL') || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+  const apiUrl = Deno.env.get('API_URL') || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   
   const dashboard = new RealTimeDashboard(apiUrl);
   

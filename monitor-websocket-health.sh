@@ -16,8 +16,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 WEBSOCKET_URL="wss://pitchey-backend-fresh.deno.dev/ws"
-PRODUCTION_URL="https://pitchey.pages.dev"
-API_URL="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-5o8.pages.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 PROJECT_ROOT="/home/supremeisbeing/pitcheymovie/pitchey_v0.2"
 MONITOR_INTERVAL=30  # seconds between health checks
 PING_TIMEOUT=10      # seconds to wait for ping response

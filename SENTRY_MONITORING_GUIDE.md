@@ -209,7 +209,7 @@ Sentry.init({
   integrations: [
     new BrowserTracing({
       // Set sampling rates
-      tracingOrigins: ['localhost', 'pitchey.pages.dev', /^\//],
+      tracingOrigins: ['localhost', 'pitchey-5o8.pages.dev', /^\//],
       routingInstrumentation: Sentry.reactRouterV6Instrumentation(
         React.useEffect,
         useLocation,
@@ -403,7 +403,7 @@ export default {
 
 ```bash
 # Test error capture
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/test/sentry \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/test/sentry \
   -H "Content-Type: application/json" \
   -d '{"trigger": "test_error"}'
 

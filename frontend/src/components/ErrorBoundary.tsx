@@ -90,6 +90,7 @@ export class ErrorBoundary extends Component<Props, State> {
     //     method: 'POST',
     //     headers: { 'Content-Type': 'application/json' },
     //     body: JSON.stringify(errorReport),
+    //     credentials: 'include' // Send cookies for Better Auth session
     //   }).catch(err => console.warn('Failed to send error report:', err));
     // }
     

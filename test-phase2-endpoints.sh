@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test script for Phase 2 endpoints
-API_BASE="https://pitchey-browse-api-production.cavelltheleaddev.workers.dev"
+API_BASE="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "=== TESTING PHASE 2 ENDPOINTS ==="
 echo ""

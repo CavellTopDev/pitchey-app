@@ -118,7 +118,7 @@ wrangler deploy
 ### Step 5: Verify Everything Works
 ```bash
 # Test your production API
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 # Should return something like:
 # {"status":"healthy","timestamp":"2024-12-12T..."}

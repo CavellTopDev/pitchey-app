@@ -1,8 +1,8 @@
 # 🔍 Frontend-Backend Consistency Analysis & Recommendations
 
 **Analysis Date**: November 15, 2025  
-**Production URL**: https://pitchey.pages.dev  
-**API Gateway**: https://pitchey-api-production.cavelltheleaddev.workers.dev  
+**Production URL**: https://pitchey-5o8.pages.dev  
+**API Gateway**: https://pitchey-api-prod.ndlovucavelle.workers.dev  
 **WebSocket**: wss://pitchey-backend-fresh.deno.dev/ws
 
 ---
@@ -12,7 +12,7 @@
 ### **Frontend Configuration**
 ```javascript
 // Production Environment (.env.production)
-VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_WS_URL=wss://pitchey-backend-fresh.deno.dev/ws
 ```
 

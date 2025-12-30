@@ -141,9 +141,9 @@ async function testTemplateRendering() {
       const welcomeEmail = await templateEngine.buildWelcomeEmail({
         firstName: testUser.firstName,
         userType: testUser.userType,
-        dashboardUrl: "https://pitchey.pages.dev/dashboard",
-        profileSetupUrl: "https://pitchey.pages.dev/profile/setup",
-        unsubscribeUrl: "https://pitchey.pages.dev/unsubscribe?token=test"
+        dashboardUrl: "https://pitchey-5o8.pages.dev/dashboard",
+        profileSetupUrl: "https://pitchey-5o8.pages.dev/profile/setup",
+        unsubscribeUrl: "https://pitchey-5o8.pages.dev/unsubscribe?token=test"
       });
       
       if (welcomeEmail.html.includes(testUser.firstName) && welcomeEmail.subject.includes("Welcome")) {
@@ -163,8 +163,8 @@ async function testTemplateRendering() {
         senderName: testUser.firstName,
         pitchTitle: testPitch.title,
         requestMessage: "I'm very interested in this project",
-        actionUrl: "https://pitchey.pages.dev/ndas/123",
-        unsubscribeUrl: "https://pitchey.pages.dev/unsubscribe?token=test"
+        actionUrl: "https://pitchey-5o8.pages.dev/ndas/123",
+        unsubscribeUrl: "https://pitchey-5o8.pages.dev/unsubscribe?token=test"
       });
       
       if (ndaEmail.html.includes(testPitch.title) && ndaEmail.subject.includes("NDA")) {
@@ -252,7 +252,7 @@ async function testEmailTracking() {
     const clickUrl = trackingService.generateClickTrackingUrl(
       testEmailId, 
       testEmail, 
-      "https://pitchey.pages.dev", 
+      "https://pitchey-5o8.pages.dev", 
       1
     );
     if (clickUrl.includes('track/click')) {
@@ -262,7 +262,7 @@ async function testEmailTracking() {
     }
     
     // Test adding tracking to HTML content
-    const testHtml = '<p>Hello <a href="https://pitchey.pages.dev">Visit Pitchey</a></p>';
+    const testHtml = '<p>Hello <a href="https://pitchey-5o8.pages.dev">Visit Pitchey</a></p>';
     const trackedHtml = trackingService.addClickTracking(testHtml, testEmailId, testEmail);
     const htmlWithPixel = trackingService.addOpenTracking(trackedHtml, testEmailId, testEmail);
     
@@ -274,7 +274,7 @@ async function testEmailTracking() {
     
     // Test event tracking
     await trackingService.trackOpen(testEmailId, testEmail, 'test-agent', '127.0.0.1');
-    await trackingService.trackClick(testEmailId, testEmail, 'https://pitchey.pages.dev', 'test-agent', '127.0.0.1');
+    await trackingService.trackClick(testEmailId, testEmail, 'https://pitchey-5o8.pages.dev', 'test-agent', '127.0.0.1');
     
     log(`✅ Event tracking completed`, colors.green);
     
@@ -344,9 +344,9 @@ async function testHighLevelEmailFunctions() {
       const result = await sendWelcomeEmail(testUser.email, {
         firstName: testUser.firstName,
         userType: testUser.userType,
-        dashboardUrl: "https://pitchey.pages.dev/dashboard",
-        profileSetupUrl: "https://pitchey.pages.dev/profile/setup",
-        unsubscribeUrl: "https://pitchey.pages.dev/unsubscribe?token=test"
+        dashboardUrl: "https://pitchey-5o8.pages.dev/dashboard",
+        profileSetupUrl: "https://pitchey-5o8.pages.dev/profile/setup",
+        unsubscribeUrl: "https://pitchey-5o8.pages.dev/unsubscribe?token=test"
       });
       
       if (result.success) {
@@ -363,9 +363,9 @@ async function testHighLevelEmailFunctions() {
     try {
       const result = await sendPasswordResetEmail(testUser.email, {
         firstName: testUser.firstName,
-        resetUrl: "https://pitchey.pages.dev/reset-password?token=test",
+        resetUrl: "https://pitchey-5o8.pages.dev/reset-password?token=test",
         expiresIn: "1 hour",
-        unsubscribeUrl: "https://pitchey.pages.dev/unsubscribe?token=test"
+        unsubscribeUrl: "https://pitchey-5o8.pages.dev/unsubscribe?token=test"
       });
       
       if (result.success) {

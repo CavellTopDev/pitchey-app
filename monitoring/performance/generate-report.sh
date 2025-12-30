@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 REPORT_FILE="monitoring/performance/report-$(date +%Y%m%d-%H%M%S).md"
 
 echo "📊 Generating Performance Report..."

@@ -3,7 +3,7 @@
 # Cache Warming Script for Cloudflare Worker
 # Pre-populates cache with frequently accessed endpoints
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Colors
 GREEN='\033[0;32m'

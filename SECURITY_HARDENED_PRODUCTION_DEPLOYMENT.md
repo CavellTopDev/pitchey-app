@@ -6,7 +6,7 @@
 **Account**: cavelltheleaddev@gmail.com  
 
 ## 🚀 Successfully Deployed
-✅ **Security-Hardened Worker**: `pitchey-production-secure.cavelltheleaddev.workers.dev`  
+✅ **Security-Hardened Worker**: `pitchey-production-secure.ndlovucavelle.workers.dev`  
 ✅ **Version**: `c621040b-b37d-4e2d-8de4-5787c225ca02`  
 ✅ **Build Size**: 123.62 KiB (25.35 KiB gzipped)  
 ✅ **Startup Time**: 12ms  
@@ -22,7 +22,7 @@
 - **Storage**: KV-based tracking with fallback protection
 
 ### ✅ CORS Protection
-- **Allowed Origins**: `https://pitchey.pages.dev` ONLY
+- **Allowed Origins**: `https://pitchey-5o8.pages.dev` ONLY
 - **No Wildcard**: Explicitly blocks all other domains
 - **Headers**: Content-Type, Authorization, X-Requested-With
 - **Methods**: GET, POST, PUT, DELETE, OPTIONS
@@ -81,7 +81,7 @@
 ### Test Results Summary
 ```
 ✅ Health Check: PASSED
-✅ CORS Protection: PASSED (restricted to pitchey.pages.dev)
+✅ CORS Protection: PASSED (restricted to pitchey-5o8.pages.dev)
 ✅ Security Headers: PASSED (all 6 headers present)
 ✅ Rate Limiting: PASSED (429 after 6 requests)
 ✅ Monitoring: PASSED (endpoints functional)
@@ -146,10 +146,10 @@
 ✅ **Headers**: Browser security feature implementation  
 
 ## 🔗 Production URLs
-- **Worker API**: https://pitchey-production-secure.cavelltheleaddev.workers.dev
-- **Frontend**: https://pitchey.pages.dev (after frontend deployment)
-- **Health Check**: https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/health
-- **Monitoring**: https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/monitoring/status
+- **Worker API**: https://pitchey-production-secure.ndlovucavelle.workers.dev
+- **Frontend**: https://pitchey-5o8.pages.dev (after frontend deployment)
+- **Health Check**: https://pitchey-production-secure.ndlovucavelle.workers.dev/api/health
+- **Monitoring**: https://pitchey-production-secure.ndlovucavelle.workers.dev/api/monitoring/status
 
 ## 📋 Deployment Checklist
 - ✅ Security features implemented

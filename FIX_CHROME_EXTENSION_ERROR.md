@@ -17,19 +17,19 @@ This error is **NOT** from your Pitchey application. It's caused by:
 
 ### Option 1: Test in Incognito Mode (Recommended)
 1. Open Chrome Incognito window (Ctrl+Shift+N or Cmd+Shift+N)
-2. Navigate to https://pitchey.pages.dev/
+2. Navigate to https://pitchey-5o8.pages.dev/
 3. Test authentication - the error should be gone
 
 ### Option 2: Disable Extensions Temporarily
 1. Type `chrome://extensions/` in address bar
 2. Toggle off all extensions
-3. Reload https://pitchey.pages.dev/
+3. Reload https://pitchey-5o8.pages.dev/
 4. Re-enable extensions one by one to find the culprit
 
 ### Option 3: Test in Different Browser
-- Firefox: https://pitchey.pages.dev/
-- Safari: https://pitchey.pages.dev/
-- Edge: https://pitchey.pages.dev/
+- Firefox: https://pitchey-5o8.pages.dev/
+- Safari: https://pitchey-5o8.pages.dev/
+- Edge: https://pitchey-5o8.pages.dev/
 
 ## Common Problematic Extensions
 
@@ -71,7 +71,7 @@ window.addEventListener('unhandledrejection', (e) => {
 
 Run this test to confirm it's an extension issue:
 ```javascript
-// In browser console on https://pitchey.pages.dev/
+// In browser console on https://pitchey-5o8.pages.dev/
 chrome.runtime?.id ? console.log('Extension context detected') : console.log('No extension interference');
 ```
 
@@ -108,7 +108,7 @@ When testing your application:
 
 ```bash
 # Test using curl (no browser extensions)
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 

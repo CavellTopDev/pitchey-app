@@ -330,7 +330,7 @@ class WebhookService {
   ): Promise<ApiResponse<WebhookEndpoint>> {
     return apiRequest<WebhookEndpoint>('/api/webhooks/endpoints/from-template', {
       method: 'POST',
-      body: JSON.stringify({
+      body: JSON.stringify({}),
         template_id: templateId,
         ...config,
       }),
@@ -347,7 +347,7 @@ class WebhookService {
   ): Promise<ApiResponse<{ valid: boolean }>> {
     return apiRequest<{ valid: boolean }>('/api/webhooks/verify-signature', {
       method: 'POST',
-      body: JSON.stringify({
+      body: JSON.stringify({}),
         payload,
         signature,
         secret,

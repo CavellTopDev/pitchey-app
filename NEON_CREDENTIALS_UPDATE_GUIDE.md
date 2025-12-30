@@ -25,7 +25,7 @@ The database credentials were previously exposed in the repository. While they m
 echo "YOUR_ACTUAL_DATABASE_URL" | wrangler secret put DATABASE_URL
 
 # Verify it worked
-curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health | jq '.'
+curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health | jq '.'
 ```
 
 ### For Debug Worker (if testing):
@@ -34,7 +34,7 @@ curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health | jq 
 echo "YOUR_ACTUAL_DATABASE_URL" | wrangler secret put DATABASE_URL -c wrangler-debug.toml
 
 # Test the connection
-curl -s https://pitchey-debug.cavelltheleaddev.workers.dev/api/debug/db | jq '.'
+curl -s https://pitchey-debug.ndlovucavelle.workers.dev/api/debug/db | jq '.'
 ```
 
 ## Using the Secure Setup Script
@@ -56,7 +56,7 @@ After updating the credentials:
 
 1. **Check Database Connection:**
    ```bash
-   curl -s https://pitchey-debug.cavelltheleaddev.workers.dev/api/debug/db | jq '.'
+   curl -s https://pitchey-debug.ndlovucavelle.workers.dev/api/debug/db | jq '.'
    ```
    
    Expected response:
@@ -72,7 +72,7 @@ After updating the credentials:
 
 2. **Check Health Status:**
    ```bash
-   curl -s https://pitchey-production.cavelltheleaddev.workers.dev/api/health | jq '.'
+   curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health | jq '.'
    ```
    
    Should show `"database": "connected"` instead of `"database": "error"`

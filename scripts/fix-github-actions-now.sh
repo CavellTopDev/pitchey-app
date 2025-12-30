@@ -8,7 +8,7 @@ echo "🚨 Emergency GitHub Actions Stabilization Starting..."
 # 1. Fix health check URLs in workflows
 echo "📝 Step 1: Fixing health check URLs..."
 find .github/workflows -name "*.yml" -type f -exec sed -i \
-  's|https://pitchey.pages.dev/api/health|https://pitchey-production.cavelltheleaddev.workers.dev/api/health|g' {} \;
+  's|https://pitchey-5o8.pages.dev/api/health|https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health|g' {} \;
 
 echo "✅ Health check URLs fixed"
 
@@ -67,7 +67,7 @@ jobs:
     steps:
       - name: Check Frontend
         run: |
-          if curl -f https://pitchey.pages.dev/ > /dev/null 2>&1; then
+          if curl -f https://pitchey-5o8.pages.dev/ > /dev/null 2>&1; then
             echo "✅ Frontend is healthy"
           else
             echo "❌ Frontend is down"
@@ -76,7 +76,7 @@ jobs:
           
       - name: Check API
         run: |
-          if curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health > /dev/null 2>&1; then
+          if curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health > /dev/null 2>&1; then
             echo "✅ API is healthy"
           else
             echo "❌ API is down"
@@ -104,4 +104,4 @@ echo ""
 echo "3. Monitor the simplified pipeline:"
 echo "   gh run list --limit 5"
 echo ""
-echo "Your app is still LIVE at https://pitchey.pages.dev ✅"
+echo "Your app is still LIVE at https://pitchey-5o8.pages.dev ✅"

@@ -239,8 +239,8 @@ deploy_frontend() {
     # Build with production environment
     log INFO "Building frontend for production..."
     export NODE_ENV=production
-    export VITE_API_URL="${VITE_API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
-    export VITE_WS_URL="${VITE_WS_URL:-wss://pitchey-api-production.cavelltheleaddev.workers.dev/ws}"
+    export VITE_API_URL="${VITE_API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
+    export VITE_WS_URL="${VITE_WS_URL:-wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws}"
     
     if [ "$DRY_RUN" = true ]; then
         log INFO "[DRY RUN] Would build frontend with production configuration"
@@ -262,7 +262,7 @@ deploy_frontend() {
     local retry_count=0
     
     while [ $retry_count -lt $max_retries ]; do
-        if curl -sf "https://pitchey.pages.dev" > /dev/null; then
+        if curl -sf "https://pitchey-5o8.pages.dev" > /dev/null; then
             log INFO "Frontend deployment verified successfully"
             break
         fi
@@ -315,7 +315,7 @@ deploy_worker() {
     
     # Verify worker deployment
     log INFO "Verifying worker deployment..."
-    local worker_url="https://pitchey-production.cavelltheleaddev.workers.dev"
+    local worker_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
     local max_retries=20
     local retry_count=0
     
@@ -363,7 +363,7 @@ deploy_backend() {
         --token="$DENO_DEPLOY_TOKEN" \
         --env="DATABASE_URL=$DATABASE_URL" \
         --env="JWT_SECRET=$JWT_SECRET" \
-        --env="FRONTEND_URL=https://pitchey.pages.dev" \
+        --env="FRONTEND_URL=https://pitchey-5o8.pages.dev" \
         --env="UPSTASH_REDIS_REST_URL=${UPSTASH_REDIS_REST_URL:-}" \
         --env="UPSTASH_REDIS_REST_TOKEN=${UPSTASH_REDIS_REST_TOKEN:-}" \
         --env="CACHE_ENABLED=true" \
@@ -401,9 +401,9 @@ validate_deployment() {
     
     # Test critical endpoints
     local endpoints=(
-        "https://pitchey.pages.dev"
-        "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
-        "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending"
+        "https://pitchey-5o8.pages.dev"
+        "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
+        "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending"
         "https://pitchey-backend-fresh.deno.dev/api/health"
     )
     
@@ -418,7 +418,7 @@ validate_deployment() {
     # Test WebSocket connectivity
     log INFO "Testing WebSocket connectivity..."
     if ! timeout 10 deno run --allow-net -e "
-        const ws = new WebSocket('wss://pitchey-api-production.cavelltheleaddev.workers.dev/ws');
+        const ws = new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws');
         ws.onopen = () => {
             console.log('WebSocket connected successfully');
             ws.close();
@@ -477,13 +477,13 @@ generate_report() {
 
 ## Endpoints
 
-- Frontend: https://pitchey.pages.dev
-- API Worker: https://pitchey-production.cavelltheleaddev.workers.dev
+- Frontend: https://pitchey-5o8.pages.dev
+- API Worker: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - Backup API: https://pitchey-backend-fresh.deno.dev
 
 ## Health Checks
 
-$(for endpoint in "https://pitchey.pages.dev" "https://pitchey-production.cavelltheleaddev.workers.dev/api/health"; do
+$(for endpoint in "https://pitchey-5o8.pages.dev" "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"; do
     if curl -sf "$endpoint" > /dev/null; then
         echo "- $endpoint: ✅ Healthy"
     else
@@ -563,8 +563,8 @@ main() {
     if [ "$DRY_RUN" = false ]; then
         echo
         echo "🚀 Deployment Complete!"
-        echo "Frontend: https://pitchey.pages.dev"
-        echo "API: https://pitchey-production.cavelltheleaddev.workers.dev"
+        echo "Frontend: https://pitchey-5o8.pages.dev"
+        echo "API: https://pitchey-api-prod.ndlovucavelle.workers.dev"
         echo
         echo "Next steps:"
         echo "1. Monitor application logs"

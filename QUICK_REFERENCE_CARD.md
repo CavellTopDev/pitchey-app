@@ -6,7 +6,7 @@
 ### Health Checks
 ```bash
 # Quick health check
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Full system check
 ./health-check.js
@@ -47,10 +47,10 @@ wrangler rollback [deployment-id]
 ## 🌐 Important URLs
 
 ### Production
-- **Frontend**: https://pitchey.pages.dev
-- **API**: https://pitchey-production.cavelltheleaddev.workers.dev
-- **Health**: https://pitchey-production.cavelltheleaddev.workers.dev/api/health
-- **Metrics**: https://pitchey-production.cavelltheleaddev.workers.dev/api/metrics
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- **Health**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
+- **Metrics**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/metrics
 
 ### Dashboards
 - **Cloudflare**: https://dash.cloudflare.com
@@ -74,7 +74,7 @@ wrangler rollback [deployment-id]
 ### High Response Time
 ```bash
 # Clear cache
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/cache/clear
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/cache/clear
 
 # Check database
 DATABASE_URL="..." psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'idle';"
@@ -86,13 +86,13 @@ DATABASE_URL="..." psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activi
 wrangler secret put JWT_SECRET
 
 # Clear sessions
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/clear-sessions
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/clear-sessions
 ```
 
 ### Database Connection Errors
 ```bash
 # Reset pool
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/db/reset-pool
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/db/reset-pool
 
 # Check connections
 DATABASE_URL="..." psql -c "SELECT count(*) FROM pg_stat_activity;"
@@ -104,7 +104,7 @@ DATABASE_URL="..." psql -c "SELECT count(*) FROM pg_stat_activity;"
 wrangler r2 bucket list
 
 # Test upload endpoint
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/upload/test
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/upload/test
 ```
 
 ---

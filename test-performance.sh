@@ -3,7 +3,7 @@
 # Performance Testing Script for Optimized Worker
 # Tests response times, cache hit rates, and error handling
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Colors for output
 RED='\033[0;31m'

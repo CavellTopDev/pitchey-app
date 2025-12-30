@@ -11,10 +11,10 @@ Pitchey is a comprehensive movie pitch platform successfully deployed on Cloudfl
 ### Technology Stack
 - **Frontend**: React 18 + TypeScript + Vite
   - Deployment: Cloudflare Pages
-  - URL: https://pitchey.pages.dev
+  - URL: https://pitchey-5o8.pages.dev
   
 - **Backend**: Cloudflare Workers (Edge Computing)
-  - API Gateway: https://pitchey-production.cavelltheleaddev.workers.dev
+  - API Gateway: https://pitchey-api-prod.ndlovucavelle.workers.dev
   - Runtime: V8 Isolates
   - Language: TypeScript
   
@@ -156,7 +156,7 @@ Pitchey is a comprehensive movie pitch platform successfully deployed on Cloudfl
 - `/api/ndas/*`
 - `/api/analytics/*`
 
-**Root Cause**: Worker CORS configuration missing `pitchey.pages.dev`
+**Root Cause**: Worker CORS configuration missing `pitchey-5o8.pages.dev`
 
 #### 2. Pitch Detail Pages (404)
 **Impact**: Cannot view individual pitches  
@@ -287,7 +287,7 @@ SENTRY_ENVIRONMENT=production
 SENTRY_RELEASE=...
 
 # Frontend
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 
 # Storage
 R2_BUCKET_NAME=pitchey-uploads
@@ -328,7 +328,7 @@ R2_BUCKET_NAME=pitchey-uploads
 1. **Fix CORS in Worker**:
 ```typescript
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://pitchey.pages.dev',
+  'Access-Control-Allow-Origin': 'https://pitchey-5o8.pages.dev',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Credentials': 'true'

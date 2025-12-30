@@ -262,8 +262,8 @@ Current Sentry setup cannot search issues due to missing OpenAI API key configur
 
 ### Current Production Status
 **URLs**:
-- Frontend: https://d066c1b9.pitchey.pages.dev ✅ Online
-- Worker API: https://pitchey-optimized.cavelltheleaddev.workers.dev ✅ Responding
+- Frontend: https://d066c1b9.pitchey-5o8.pages.dev ✅ Online
+- Worker API: https://pitchey-optimized.ndlovucavelle.workers.dev ✅ Responding
 
 ### Zero-Downtime Fix Deployment
 All identified fixes are **data structure changes only** - no service interruption required.

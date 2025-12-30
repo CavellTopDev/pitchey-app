@@ -28,7 +28,7 @@ echo "   → EnhancedInvestorAnalytics: Chart library issues"
 echo ""
 
 echo "🧪 TO TEST:"
-echo "   1. Go to: https://pitchey.pages.dev/investor/dashboard/debug"
+echo "   1. Go to: https://pitchey-5o8.pages.dev/investor/dashboard/debug"
 echo "   2. Start Phase 1, then incrementally test each phase"
 echo "   3. Note which phase crashes and report back"
 echo ""

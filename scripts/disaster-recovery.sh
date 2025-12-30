@@ -79,7 +79,7 @@ check_database_health() {
 check_api_health() {
     log "Checking API health..."
     
-    API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+    API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
     
     response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/health" || echo "000")
     

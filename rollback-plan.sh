@@ -14,7 +14,7 @@ NC='\033[0m'
 
 # Configuration
 WORKER_NAME="pitchey-production"
-HEALTH_URL="https://pitchey-production.cavelltheleaddev.workers.dev/api/health"
+HEALTH_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 function log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }

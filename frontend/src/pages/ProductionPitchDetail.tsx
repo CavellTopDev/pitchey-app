@@ -83,11 +83,11 @@ export default function ProductionPitchDetail() {
       
       // Fetch from API using public endpoint
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/pitches/public/${id}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`
-        } : {}
-      });
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const data = await response.json();

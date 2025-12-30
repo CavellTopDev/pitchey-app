@@ -45,7 +45,7 @@ export default function Homepage() {
         
         // Sort by creation date for new releases - 4 most recent
         const newOnes = [...pitches].sort((a, b) => 
-          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime()
         ).slice(0, 4);
         setNewReleases(newOnes);
       } catch (fallbackError) {
@@ -310,7 +310,7 @@ export default function Homepage() {
                       </div>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {new Date(pitch.createdAt).toLocaleDateString()}
+                        {pitch.createdAt ? new Date(pitch.createdAt).toLocaleDateString() : 'Recent'}
                       </span>
                     </div>
                   </div>
@@ -388,7 +388,7 @@ export default function Homepage() {
                       </div>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        {new Date(pitch.createdAt).toLocaleDateString()}
+                        {pitch.createdAt ? new Date(pitch.createdAt).toLocaleDateString() : 'Recent'}
                       </span>
                     </div>
                   </div>

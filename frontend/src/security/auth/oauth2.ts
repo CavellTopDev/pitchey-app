@@ -178,13 +178,11 @@ export class OAuth2Service {
       params.code_verifier = codeVerifier;
     }
     
-    const response = await fetch(config.tokenUrl, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: new URLSearchParams(params)
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -213,11 +211,9 @@ export class OAuth2Service {
       throw new Error(`OAuth provider ${provider} not configured`);
     }
     
-    const response = await fetch(config.userInfoUrl, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json'
-      }
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -306,13 +302,11 @@ export class OAuth2Service {
       refresh_token: refreshToken
     });
     
-    const response = await fetch(config.tokenUrl, {
+    const response = await fetch(`${config.API_URL}/api/endpoint`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: params
+      credentials: 'include' // Send cookies for Better Auth session
     });
     
     if (!response.ok) {
@@ -348,7 +342,9 @@ export class OAuth2Service {
       return;
     }
     
-    await fetch(url, {
+    await 
+      credentials: 'include', // Send cookies for Better Auth session
+      
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'

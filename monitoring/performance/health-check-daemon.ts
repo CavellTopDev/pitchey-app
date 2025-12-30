@@ -37,7 +37,7 @@ class HealthCheckDaemon {
   private isRunning: boolean;
   private alertWebhook?: string;
 
-  constructor(apiUrl = 'https://pitchey-production.cavelltheleaddev.workers.dev', intervalMinutes = 5) {
+  constructor(apiUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev', intervalMinutes = 5) {
     this.apiUrl = apiUrl;
     this.logDir = './health-logs';
     this.interval = intervalMinutes * 60 * 1000; // Convert to milliseconds
@@ -394,7 +394,7 @@ class HealthCheckDaemon {
 // CLI Interface
 if (import.meta.main) {
   const args = Deno.args;
-  const apiUrl = Deno.env.get('API_URL') || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+  const apiUrl = Deno.env.get('API_URL') || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   const interval = parseInt(Deno.env.get('HEALTH_CHECK_INTERVAL') || '5');
   
   const daemon = new HealthCheckDaemon(apiUrl, interval);

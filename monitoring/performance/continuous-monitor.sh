@@ -3,7 +3,7 @@
 # Continuous Performance Monitoring Script
 # Logs performance metrics for 24-48 hour analysis
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 LOG_DIR="./continuous-logs"
 INTERVAL="${INTERVAL:-60}" # Default 60 seconds between tests
 DURATION="${DURATION:-86400}" # Default 24 hours (in seconds)

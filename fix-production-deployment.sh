@@ -73,7 +73,7 @@ deno run --allow-all https://deno.land/x/deploy/deployctl.ts deploy \
   --env="DATABASE_URL=$DATABASE_URL" \
   --env="JWT_SECRET=$JWT_SECRET" \
   --env="SENTRY_DSN=$SENTRY_DSN" \
-  --env="FRONTEND_URL=https://pitchey.pages.dev" \
+  --env="FRONTEND_URL=https://pitchey-5o8.pages.dev" \
   --env="CACHE_ENABLED=true" \
   ${UPSTASH_REDIS_REST_URL:+--env="UPSTASH_REDIS_REST_URL=$UPSTASH_REDIS_REST_URL"} \
   ${UPSTASH_REDIS_REST_TOKEN:+--env="UPSTASH_REDIS_REST_TOKEN=$UPSTASH_REDIS_REST_TOKEN"} \
@@ -112,4 +112,4 @@ echo ""
 echo "🔗 URLs:"
 echo "   - Production API: https://pitchey-backend-fresh.deno.dev"
 echo "   - Health Check: https://pitchey-backend-fresh.deno.dev/api/health"
-echo "   - Frontend: https://pitchey.pages.dev"
+echo "   - Frontend: https://pitchey-5o8.pages.dev"

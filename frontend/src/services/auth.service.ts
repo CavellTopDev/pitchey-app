@@ -1,12 +1,10 @@
-// Auth Service - Consolidated authentication for all user types with Drizzle integration
-import { apiClient } from '../lib/api-client';
-import { config } from '../config';
+// Auth Service - Better Auth Implementation (Cookie-based Sessions)
+import { authClient } from '../lib/better-auth-client';
 import type { 
   User, 
   LoginCredentials, 
   RegisterData, 
-  AuthResponse,
-  ApiResponse 
+  AuthResponse 
 } from '../types/api';
 
 // Export types from centralized types file
@@ -18,49 +16,62 @@ export interface TokenValidation {
   exp?: number;
 }
 
-// LocalStorage helpers (namespaced by API host, with legacy fallback)
-function nsKey(key: string): string {
-  try {
-    const host = new URL(config.API_URL).host;
-    return `pitchey:${host}:${key}`;
-  } catch {
-    return `pitchey:${key}`;
-  }
-}
-function getItem(key: string): string | null {
-  return localStorage.getItem(nsKey(key)) ?? localStorage.getItem(key);
-}
-function setItem(key: string, value: string): void {
-  localStorage.setItem(nsKey(key), value);
-  localStorage.setItem(key, value); // keep legacy for compatibility
-}
-function removeItem(key: string): void {
-  localStorage.removeItem(nsKey(key));
-  localStorage.removeItem(key);
+// Clean up any JWT artifacts from localStorage
+function cleanupJWTArtifacts(): void {
+  // Remove all JWT-related items
+  const keysToRemove = [
+    'authToken', 'token', 'jwt', 'accessToken', 'refreshToken',
+    'user', 'userType', 'pitchey:authToken', 'pitchey:token'
+  ];
+  
+  keysToRemove.forEach(key => {
+    localStorage.removeItem(key);
+    // Also remove namespaced versions
+    const storageKeys = Object.keys(localStorage);
+    storageKeys.forEach(storageKey => {
+      if (storageKey.includes(key)) {
+        localStorage.removeItem(storageKey);
+      }
+    });
+  });
 }
 
 export class AuthService {
-  // Generic login for all user types
+  // Removed auto-cleanup on load to prevent session loss on refresh
+
+  // Generic login for all user types using Better Auth
   static async login(credentials: LoginCredentials, userType: 'creator' | 'investor' | 'production'): Promise<AuthResponse> {
-    // Clear any existing auth data first to prevent conflicts
-    removeItem('authToken');
-    removeItem('user');
-    removeItem('userType');
+    cleanupJWTArtifacts(); // Clean up any lingering JWT tokens
     
-    const endpoint = `/api/auth/${userType}/login`;
-    
-    const response = await apiClient.post<AuthResponse>(endpoint, credentials);
+    try {
+      // Use Better Auth signIn with portal-specific endpoint
+      const response = await authClient.signIn.email({
+        email: credentials.email,
+        password: credentials.password,
+        callbackURL: `/${userType}/dashboard`,
+        // Pass userType as metadata for backend routing
+        fetchOptions: {
+          headers: {
+            'X-Portal-Type': userType
+          }
+        }
+      });
 
-    if (!response.success || !response.data?.token) {
-      throw new Error(response.error?.message || 'Login failed');
+      if (!response.data?.session) {
+        throw new Error('Login failed - no session created');
+      }
+
+      // Better Auth handles cookie setting automatically
+      // Return compatible response structure
+      return {
+        success: true,
+        user: response.data.user as User,
+        token: response.data.session.id, // Session ID for compatibility
+        session: response.data.session
+      };
+    } catch (error: any) {
+      throw new Error(error.message || 'Login failed');
     }
-
-    // Store auth data (namespaced + legacy)
-    setItem('authToken', response.data.token);
-    setItem('user', JSON.stringify(response.data.user));
-    setItem('userType', response.data.user.userType);
-
-    return response.data;
   }
 
   // Creator login
@@ -78,22 +89,43 @@ export class AuthService {
     return this.login(credentials, 'production');
   }
 
-  // Generic registration
+  // Generic registration using Better Auth
   static async register(data: RegisterData): Promise<AuthResponse> {
-    const endpoint = `/api/auth/${data.userType}/register`;
+    cleanupJWTArtifacts();
     
-    const response = await apiClient.post<AuthResponse>(endpoint, data);
+    try {
+      const response = await authClient.signUp.email({
+        email: data.email,
+        password: data.password,
+        name: data.name || data.email.split('@')[0],
+        callbackURL: `/${data.userType}/dashboard`,
+        // Pass additional data as metadata
+        fetchOptions: {
+          headers: {
+            'X-Portal-Type': data.userType
+          },
+          body: JSON.stringify({
+            ...data,
+            userType: data.userType,
+            company: data.company,
+            phone: data.phone
+          })
+        }
+      });
 
-    if (!response.success || !response.data?.token) {
-      throw new Error(response.error?.message || 'Registration failed');
+      if (!response.data?.session) {
+        throw new Error('Registration failed - no session created');
+      }
+
+      return {
+        success: true,
+        user: response.data.user as User,
+        token: response.data.session.id,
+        session: response.data.session
+      };
+    } catch (error: any) {
+      throw new Error(error.message || 'Registration failed');
     }
-
-    // Store auth data (namespaced + legacy)
-    setItem('authToken', response.data.token);
-    setItem('user', JSON.stringify(response.data.user));
-    setItem('userType', response.data.user.userType);
-
-    return response.data;
   }
 
   // Creator registration
@@ -111,291 +143,145 @@ export class AuthService {
     return this.register({ ...data, userType: 'production' });
   }
 
-  // Logout
+  // Logout using Better Auth
   static async logout(): Promise<void> {
     try {
-      // Call backend logout endpoint if exists
-      await apiClient.post('/api/auth/logout', {});
-    } catch {
-      // Ignore errors, still clear local storage
+      // Use Better Auth signOut
+      await authClient.signOut({
+        fetchOptions: {
+          redirect: false
+        }
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
     } finally {
-      // Clear all auth data
-      removeItem('authToken');
-      removeItem('user');
-      removeItem('userType');
-      localStorage.clear();
-
-      // Redirect to home
-      window.location.href = '/';
+      // Clean up any remaining artifacts
+      cleanupJWTArtifacts();
+      
+      // Clear all storage for clean slate
+      if (typeof window !== 'undefined') {
+        sessionStorage.clear();
+        
+        // Redirect to home
+        window.location.href = '/';
+      }
     }
   }
 
-  // Validate token
+  // Validate session using Better Auth
   static async validateToken(): Promise<TokenValidation> {
-    const token = getItem('authToken');
-    
-    if (!token) {
+    try {
+      // Use Better Auth session check
+      const { data: session } = await authClient.getSession();
+      
+      if (!session?.user) {
+        cleanupJWTArtifacts();
+        return { valid: false };
+      }
+
+      return {
+        valid: true,
+        user: session.user as User,
+        exp: session.expiresAt ? new Date(session.expiresAt).getTime() : undefined
+      };
+    } catch (error) {
+      cleanupJWTArtifacts();
       return { valid: false };
     }
-
-    try {
-      const response = await apiClient.get<{ success: boolean; user: User; exp: number }>(
-        '/api/validate-token'
-      );
-
-      if (response.success && response.data?.user) {
-        // Update stored user data
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        return {
-          valid: true,
-          user: response.data.user,
-          exp: response.data.exp
-        };
-      }
-    } catch {
-      // Token is invalid
-    }
-
-    return { valid: false };
   }
 
-  // Check if authenticated
+  // Check if user is authenticated using Better Auth
   static isAuthenticated(): boolean {
-    const token = getItem('authToken');
-    const user = getItem('user');
+    // Better Auth handles this via cookies only
+    // This is a sync check - for accurate check use validateToken() or getCurrentUser()
+    const cookies = document.cookie.split(';');
+    const hasSession = cookies.some(cookie => 
+      cookie.trim().startsWith('pitchey-session=') || 
+      cookie.trim().startsWith('better-auth.session_token=')
+    );
     
-    if (!token || !user) {
-      return false;
-    }
+    return hasSession;
+  }
 
+  // Get current user from Better Auth session
+  static async getCurrentUser(): Promise<User | null> {
     try {
-      // Check if token is expired
-      const userData = JSON.parse(user);
-      if (userData.tokenExp && userData.tokenExp * 1000 < Date.now()) {
-        this.logout();
-        return false;
-      }
-    } catch {
-      return false;
-    }
-
-    return true;
-  }
-
-  // Get current user
-  static getCurrentUser(): User | null {
-    const userStr = getItem('user');
-    
-    if (!userStr) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(userStr) as User;
-    } catch {
-      return null;
-    }
-  }
-
-  // Get current user type
-  static getUserType(): 'creator' | 'investor' | 'production' | null {
-    const userType = getItem('userType');
-    return userType as 'creator' | 'investor' | 'production' | null;
-  }
-
-  // Get auth token
-  static getToken(): string | null {
-    return getItem('authToken');
-  }
-
-  // Refresh token
-  static async refreshToken(): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ success: boolean; token: string }>(
-        '/api/refresh-token',
-        {}
-      );
-
-      if (response.success && response.data?.token) {
-        setItem('authToken', response.data.token);
-        return response.data.token;
-      }
-    } catch {
-      // Failed to refresh
-    }
-
-    return null;
-  }
-
-  // Request password reset
-  static async requestPasswordReset(email: string): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/auth/forgot-password',
-      { email }
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to request password reset');
-    }
-  }
-
-  // Reset password with token
-  static async resetPassword(token: string, newPassword: string): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/auth/reset-password',
-      { token, newPassword }
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to reset password');
-    }
-  }
-
-  // Verify email
-  static async verifyEmail(token: string): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/auth/verify-email',
-      { token }
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to verify email');
-    }
-  }
-
-  // Resend verification email
-  static async resendVerificationEmail(): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/auth/resend-verification',
-      {}
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to resend verification email');
-    }
-  }
-
-  // Two-factor authentication
-  static async setupTwoFactor(): Promise<{ qrCode: string; secret: string }> {
-    const response = await apiClient.post<{ 
-      success: boolean; 
-      qrCode: string; 
-      secret: string 
-    }>('/api/auth/2fa/setup', {});
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to setup 2FA');
-    }
-
-    return response.data;
-  }
-
-  static async verifyTwoFactor(code: string): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/auth/2fa/verify',
-      { code }
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to verify 2FA');
-    }
-  }
-
-  static async disableTwoFactor(password: string): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/auth/2fa/disable',
-      { password }
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to disable 2FA');
-    }
-  }
-
-  // Session management
-  static async getSessions(): Promise<any[]> {
-    const response = await apiClient.get<{ success: boolean; sessions: any[] }>(
-      '/api/auth/sessions'
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch sessions');
-    }
-
-    return response.data?.sessions || [];
-  }
-
-  static async revokeSession(sessionId: string): Promise<void> {
-    const response = await apiClient.delete<{ success: boolean }>(
-      `/api/auth/sessions/${sessionId}`
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to revoke session');
-    }
-  }
-
-  static async revokeAllSessions(): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      '/api/auth/sessions/revoke-all',
-      {}
-    );
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to revoke all sessions');
-    }
-  }
-
-  // Check user permissions
-  static hasPermission(permission: string): boolean {
-    const user = this.getCurrentUser();
-    
-    if (!user) {
-      return false;
-    }
-
-    // Check based on user type and permission
-    switch (permission) {
-      case 'create_pitch':
-        return user.userType === 'creator';
-      case 'view_full_pitch':
-        return user.userType === 'investor' || user.userType === 'production';
-      case 'manage_productions':
-        return user.userType === 'production';
-      case 'invest':
-        return user.userType === 'investor';
-      default:
-        return false;
-    }
-  }
-
-  // OAuth providers
-  static async loginWithGoogle(): Promise<void> {
-    window.location.href = `${config.API_URL}/api/auth/google`;
-  }
-
-  static async loginWithLinkedIn(): Promise<void> {
-    window.location.href = `${config.API_URL}/api/auth/linkedin`;
-  }
-
-  static async handleOAuthCallback(): Promise<void> {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const user = params.get('user');
-
-    if (token && user) {
-      setItem('authToken', token);
-      setItem('user', decodeURIComponent(user));
+      const { data: session } = await authClient.getSession();
       
-      const userData = JSON.parse(decodeURIComponent(user));
-      setItem('userType', userData.userType);
+      if (!session?.user) {
+        // Don't cleanup artifacts here - let explicit logout handle it
+        return null;
+      }
 
-      // Redirect to dashboard
-      window.location.href = `/${userData.userType}`;
+      return session.user as User;
+    } catch {
+      // Don't cleanup artifacts here - let explicit logout handle it
+      return null;
+    }
+  }
+
+  // Get user type from session
+  static async getUserType(): Promise<string | null> {
+    const user = await this.getCurrentUser();
+    return user?.userType || null;
+  }
+
+  // Get auth headers (for backward compatibility with API calls expecting headers)
+  static async getAuthHeaders(): Promise<Record<string, string>> {
+    // Better Auth uses cookies, but we can add session ID for tracking
+    const { data: session } = await authClient.getSession();
+    
+    if (session?.id) {
+      return {
+        'X-Session-ID': session.id,
+        'X-User-Type': session.user?.userType || ''
+      };
+    }
+
+    return {};
+  }
+
+  // Permission check
+  static async hasPermission(permission: string): Promise<boolean> {
+    const user = await this.getCurrentUser();
+    
+    if (!user) return false;
+
+    // Basic permission logic
+    const permissions: Record<string, string[]> = {
+      creator: ['create_pitch', 'edit_pitch', 'view_analytics'],
+      investor: ['view_pitches', 'create_nda', 'make_investment'],
+      production: ['view_pitches', 'create_nda', 'manage_projects'],
+      admin: ['all']
+    };
+
+    const userPermissions = permissions[user.userType] || [];
+    
+    return userPermissions.includes('all') || userPermissions.includes(permission);
+  }
+
+  // Refresh session using Better Auth
+  static async refreshSession(): Promise<boolean> {
+    try {
+      // Better Auth handles session refresh automatically
+      // This forces a refresh check
+      const { data: session } = await authClient.getSession({
+        fetchOptions: {
+          headers: {
+            'X-Force-Refresh': 'true'
+          }
+        }
+      });
+
+      return !!session?.user;
+    } catch {
+      cleanupJWTArtifacts();
+      return false;
     }
   }
 }
 
-// Export singleton instance
-export const authService = AuthService;
+// Clean up on module load
+if (typeof window !== 'undefined') {
+  cleanupJWTArtifacts();
+}

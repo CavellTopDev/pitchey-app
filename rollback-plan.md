@@ -34,7 +34,7 @@ echo "Incident start time: $(date)" >> /tmp/incident.log
 ### Step 2: Traffic Assessment
 ```bash
 # Quick health check
-curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health || echo "HEALTH CHECK FAILED"
+curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health || echo "HEALTH CHECK FAILED"
 
 # Test core endpoints (30-second timeout total)
 ./test-all-endpoints.sh --test-type=health --timeout=5 --verbose
@@ -54,7 +54,7 @@ wrangler rollback [DEPLOYMENT_ID] --name pitchey-production
 
 # Immediate verification
 sleep 10
-curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 ```
 
 #### 1B: Deploy Known Good Worker
@@ -98,7 +98,7 @@ cp wrangler.toml.backup.$(ls -t wrangler.toml.backup.* | head -1) wrangler.toml
 wrangler deploy
 
 # Verify functionality
-curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/creator/dashboard
+curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/creator/dashboard
 ```
 
 ### Option 3: Emergency Maintenance Mode (Last Resort)
@@ -139,7 +139,7 @@ wrangler deploy --name pitchey-production
 echo '<!DOCTYPE html><html><head><title>Maintenance</title></head><body><h1>Platform Maintenance</h1><p>We are currently performing maintenance. Please try again in a few minutes.</p></body></html>' > maintenance.html
 
 # This would need to be handled via Cloudflare dashboard or API
-# Add redirect rule: pitchey.pages.dev/* -> maintenance.html
+# Add redirect rule: pitchey-5o8.pages.dev/* -> maintenance.html
 ```
 
 ## Post-Rollback Verification (2-5 minutes)
@@ -151,7 +151,7 @@ echo '<!DOCTYPE html><html><head><title>Maintenance</title></head><body><h1>Plat
 
 # Verify dashboard data
 curl -H "Authorization: Bearer $DEMO_TOKEN" \
-  https://pitchey-production.cavelltheleaddev.workers.dev/api/creator/dashboard
+  https://pitchey-api-prod.ndlovucavelle.workers.dev/api/creator/dashboard
 
 # Test authentication flows
 ./test-all-endpoints.sh --test-type=auth
@@ -163,14 +163,14 @@ curl -H "Authorization: Bearer $DEMO_TOKEN" \
 # This would require direct database access tools
 
 # Verify through API endpoints
-curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/public
-curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/user/stats
+curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/public
+curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/user/stats
 ```
 
 ### Step 3: Cache and Redis
 ```bash
 # Test Redis connectivity through endpoints that use caching
-curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced
+curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced
 
 # Check for cache hit/miss patterns in responses
 ```
@@ -303,7 +303,7 @@ CTO: [CTO_PHONE]
 wrangler rollback [DEPLOYMENT_ID] --name pitchey-production
 
 # Health check
-curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health
+curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health
 
 # Test endpoints
 ./test-all-endpoints.sh --test-type=core --timeout=5

@@ -70,12 +70,12 @@ worker:
 ## Testing Commands:
 ```bash
 # Test health check
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/test
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test
 
 # Test database connection
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/test-db
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/test-db
 
 # Test browse endpoint
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse
 ```
 

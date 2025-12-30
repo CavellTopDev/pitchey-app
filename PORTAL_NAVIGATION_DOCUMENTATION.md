@@ -6,9 +6,9 @@ The Pitchey platform features a comprehensive multi-portal navigation system des
 
 ## Production URLs
 
-- **Frontend**: https://pitchey.pages.dev
-- **Backend API**: https://pitchey-production.cavelltheleaddev.workers.dev
-- **WebSocket**: wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+- **Frontend**: https://pitchey-5o8.pages.dev
+- **Backend API**: https://pitchey-api-prod.ndlovucavelle.workers.dev
+- **WebSocket**: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 
 ## Architecture
 
@@ -380,8 +380,8 @@ wrangler pages deploy frontend/dist --project-name=pitchey
 
 ### Environment Variables
 ```env
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 ### Monitoring

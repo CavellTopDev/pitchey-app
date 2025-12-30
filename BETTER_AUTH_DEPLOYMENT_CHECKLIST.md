@@ -102,14 +102,14 @@ wrangler deploy
 
 ### A. Test Health Check
 ```bash
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 # Should return: { "status": "healthy", "betterAuth": true }
 ```
 
 ### B. Test Demo Account Login
 ```bash
 # Test Creator Login
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/sign-in \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/sign-in \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
@@ -119,7 +119,7 @@ curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/si
 ### C. Test Portal-Specific Login (Backward Compatibility)
 ```bash
 # Test Creator Portal
-curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
@@ -131,7 +131,7 @@ curl -X POST https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/cr
 ### A. Update Environment Variables
 ```env
 # .env.production
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 VITE_AUTH_TYPE=better-auth
 ```
 
@@ -233,10 +233,10 @@ wrangler deploy src/worker-production-db.ts
 ## 🔗 Important URLs
 
 ### Production Endpoints
-- **Health**: https://pitchey-production.cavelltheleaddev.workers.dev/health
-- **Sign In**: https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/sign-in
-- **Session**: https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/session
-- **Sign Out**: https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/sign-out
+- **Health**: https://pitchey-api-prod.ndlovucavelle.workers.dev/health
+- **Sign In**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/sign-in
+- **Session**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/session
+- **Sign Out**: https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/sign-out
 
 ### Portal-Specific (Backward Compatible)
 - **Creator**: /api/auth/creator/login

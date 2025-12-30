@@ -5,7 +5,7 @@ This document comprehensively details all errors that appear in the frontend das
 
 ## Architecture Context
 - **Frontend**: React application deployed on Cloudflare Pages
-- **Backend**: Cloudflare Worker (`pitchey-optimized.cavelltheleaddev.workers.dev`)
+- **Backend**: Cloudflare Worker (`pitchey-optimized.ndlovucavelle.workers.dev`)
 - **Database**: Neon PostgreSQL accessed via Hyperdrive
 - **Authentication**: JWT-based token authentication
 
@@ -455,8 +455,8 @@ GET /api/notifications/unread       404 (Not Found)
 ## ✅ **CURRENT STATUS (POST-IMPLEMENTATION)**
 
 As of the latest deployment:
-- ✅ **Backend Deployed**: `https://pitchey-optimized.cavelltheleaddev.workers.dev`
-- ✅ **Frontend Deployed**: `https://982c7cef.pitchey.pages.dev`
+- ✅ **Backend Deployed**: `https://pitchey-optimized.ndlovucavelle.workers.dev`
+- ✅ **Frontend Deployed**: `https://982c7cef.pitchey-5o8.pages.dev`
 - ✅ **All Endpoints**: 10/10 dashboard endpoints working
 - ✅ **Authentication**: All 3 portals (creator/investor/production) functional
 - ✅ **End-to-End**: Login → Dashboard → Data display working

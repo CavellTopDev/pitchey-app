@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Test frontend API calls with proper headers and error handling
-const API_URL = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 const FRONTEND_URL = 'http://localhost:5173';
 
 console.log('🌐 Testing Frontend → Worker API Integration\n');
@@ -114,8 +114,8 @@ async function testProductionConfiguration() {
   
   // Test with production frontend URL
   const prodHeaders = {
-    'Origin': 'https://pitchey.pages.dev',
-    'Referer': 'https://pitchey.pages.dev',
+    'Origin': 'https://pitchey-5o8.pages.dev',
+    'Referer': 'https://pitchey-5o8.pages.dev',
     'User-Agent': 'Mozilla/5.0 (compatible; Production-Test)',
     'Accept': 'application/json',
     'Content-Type': 'application/json'

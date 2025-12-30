@@ -123,7 +123,7 @@ class PerformanceOptimizer {
 wrangler deploy --config wrangler-optimized.toml
 
 # Verify deployment
-curl https://pitchey-production-optimized.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-production-optimized.ndlovucavelle.workers.dev/api/health
 ```
 
 ### 2. Create Metrics KV Namespace
@@ -198,7 +198,7 @@ node performance-test.js
 wrangler tail --config wrangler-optimized.toml
 
 # Check metrics
-curl https://pitchey-production-optimized.cavelltheleaddev.workers.dev/api/metrics
+curl https://pitchey-production-optimized.ndlovucavelle.workers.dev/api/metrics
 ```
 
 ### Performance Alerts

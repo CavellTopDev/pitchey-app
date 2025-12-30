@@ -25,7 +25,7 @@ const token = await jwt.create({ alg: "HS256", typ: "JWT" }, payload, key);
 console.log('Testing with token:', token.substring(0, 50) + '...');
 
 // Test the endpoint
-const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/creator/following?tab=activity', {
+const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/creator/following?tab=activity', {
   headers: {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'

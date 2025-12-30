@@ -395,11 +395,9 @@ export class ProductionService {
   // Generate contract
   static async generateContract(dealId: number, template?: string): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/production/deals/${dealId}/contract?template=${template || 'standard'}`,
-      {
+      `${config.API_URL}/api/production/deals/${dealId}/contract?template=${template || 'standard'}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+          }
       }
     );
 
@@ -434,11 +432,9 @@ export class ProductionService {
   // Export project data
   static async exportProjectData(projectId: number, format: 'pdf' | 'excel'): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/production/projects/${projectId}/export?format=${format}`,
-      {
+      `${config.API_URL}/api/production/projects/${projectId}/export?format=${format}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+          }
       }
     );
 

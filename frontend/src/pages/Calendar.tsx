@@ -162,14 +162,12 @@ export default function Calendar() {
         reminder: newEvent.reminder
       };
       
-      const response = await fetch(`${API_URL}/api/creator/calendar/events`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(eventData)
-      });
+    const response = await fetch(`${config.API_URL}/api/calendar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      credentials: 'include' // Send cookies for Better Auth session
+    });
       
       if (response.ok) {
         const result = await response.json();

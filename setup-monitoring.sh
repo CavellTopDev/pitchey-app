@@ -26,7 +26,7 @@ cat > monitoring-endpoints.json << 'EOF'
   "endpoints": [
     {
       "name": "Frontend",
-      "url": "https://pitchey.pages.dev",
+      "url": "https://pitchey-5o8.pages.dev",
       "method": "GET",
       "expected_status": 200,
       "timeout": 5000,
@@ -34,7 +34,7 @@ cat > monitoring-endpoints.json << 'EOF'
     },
     {
       "name": "API Health",
-      "url": "https://pitchey-production.cavelltheleaddev.workers.dev/api/health",
+      "url": "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health",
       "method": "GET",
       "expected_status": 200,
       "timeout": 3000,
@@ -42,7 +42,7 @@ cat > monitoring-endpoints.json << 'EOF'
     },
     {
       "name": "API Pitches",
-      "url": "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending",
+      "url": "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending",
       "method": "GET",
       "expected_status": 200,
       "timeout": 5000,
@@ -50,7 +50,7 @@ cat > monitoring-endpoints.json << 'EOF'
     },
     {
       "name": "WebSocket",
-      "url": "wss://pitchey-production.cavelltheleaddev.workers.dev/ws",
+      "url": "wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws",
       "method": "WEBSOCKET",
       "timeout": 5000,
       "check_interval": 180
@@ -363,7 +363,7 @@ const https = require('https');
 const fs = require('fs').promises;
 
 // Metrics to collect
-const METRICS_API = 'https://pitchey-production.cavelltheleaddev.workers.dev/api/metrics';
+const METRICS_API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev/api/metrics';
 
 async function collectMetrics() {
   const metrics = {

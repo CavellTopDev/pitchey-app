@@ -94,7 +94,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
   git push origin main
   
   echo -e "${GREEN}🚀 Emergency fix deployed!${NC}"
-  echo "Wait 2-3 minutes for deployment, then test: https://pitchey.pages.dev/investor/dashboard"
+  echo "Wait 2-3 minutes for deployment, then test: https://pitchey-5o8.pages.dev/investor/dashboard"
 else
   echo -e "${RED}❌ Build failed! Check for syntax errors.${NC}"
   exit 1

@@ -22,7 +22,7 @@ The platform was 85% functional with 3 critical issues - ALL NOW RESOLVED:
 ### Time to Fix: 30 minutes
 
 ### Problem
-The Cloudflare Worker is not allowing requests from `https://pitchey.pages.dev`, causing:
+The Cloudflare Worker is not allowing requests from `https://pitchey-5o8.pages.dev`, causing:
 - Homepage trending/new sections to be empty
 - Production Portal dashboard to fail completely
 - 133+ CORS errors in console
@@ -43,7 +43,7 @@ const corsHeaders = {
 **Replace With**:
 ```typescript
 const corsHeaders = {
-  'Access-Control-Allow-Origin': env.FRONTEND_URL || 'https://pitchey.pages.dev',
+  'Access-Control-Allow-Origin': env.FRONTEND_URL || 'https://pitchey-5o8.pages.dev',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
   'Access-Control-Allow-Credentials': 'true',
@@ -67,7 +67,7 @@ wrangler deploy
 ```
 
 ### Verification
-1. Open https://pitchey.pages.dev
+1. Open https://pitchey-5o8.pages.dev
 2. Check Network tab - should see 200 OK for `/api/pitches/trending`
 3. Homepage should show pitch cards
 
@@ -154,7 +154,7 @@ export const getPitchById = async (id: string): Promise<Pitch> => {
 ```
 
 ### Verification
-1. Navigate to https://pitchey.pages.dev/marketplace
+1. Navigate to https://pitchey-5o8.pages.dev/marketplace
 2. Click on any pitch card
 3. Should load pitch detail page with full content
 
@@ -237,7 +237,7 @@ echo "🔧 Fixing Pitchey Production Issues..."
 
 # 1. Fix CORS in Worker
 echo "📝 Updating CORS configuration..."
-sed -i "s/'Access-Control-Allow-Origin': '\*'/'Access-Control-Allow-Origin': 'https:\/\/pitchey.pages.dev'/g" src/worker-production-db.ts
+sed -i "s/'Access-Control-Allow-Origin': '\*'/'Access-Control-Allow-Origin': 'https:\/\/pitchey-5o8.pages.dev'/g" src/worker-production-db.ts
 
 # 2. Fix pitch routing
 echo "📝 Fixing pitch detail routes..."
@@ -253,14 +253,14 @@ cd frontend
 npm run build
 wrangler pages deploy dist --project-name=pitchey
 
-echo "✅ Fixes deployed! Test at https://pitchey.pages.dev"
+echo "✅ Fixes deployed! Test at https://pitchey-5o8.pages.dev"
 ```
 
 ---
 
 ## Testing Checklist After Fixes
 
-### 1. Homepage (https://pitchey.pages.dev)
+### 1. Homepage (https://pitchey-5o8.pages.dev)
 - [ ] Trending section shows pitches
 - [ ] New Releases section shows pitches
 - [ ] No CORS errors in console
@@ -297,7 +297,7 @@ Ensure these are set in Cloudflare Dashboard:
 # Required for Worker
 DATABASE_URL=postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require
 JWT_SECRET=vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz
-FRONTEND_URL=https://pitchey.pages.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
 CACHE_ENABLED=true
 UPSTASH_REDIS_REST_URL=https://chief-anteater-20186.upstash.io
 UPSTASH_REDIS_REST_TOKEN=AU7aAAIncDI3ZGVjNWMxZGUyOWQ0ZmYyYjI4NzdkYjM4OGMxZTE3NnAyMjAxODY

@@ -3,7 +3,7 @@
  * Run this in the browser console while on the creator dashboard
  * 
  * Usage:
- * 1. Navigate to https://pitchey.pages.dev/creator/dashboard
+ * 1. Navigate to https://pitchey-5o8.pages.dev/creator/dashboard
  * 2. Login as creator (alex.creator@demo.com / Demo123)
  * 3. Open browser console (F12)
  * 4. Copy and paste this entire script

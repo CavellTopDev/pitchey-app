@@ -3,7 +3,7 @@
 # Continuous health monitoring with automatic alerting
 # Run this in background: nohup ./health-monitor.sh &
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_DIR="./monitoring-system/logs"
 ALERT_DIR="./monitoring-system/alerts"
 CHECK_INTERVAL=60  # 1 minute

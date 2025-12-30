@@ -39,7 +39,7 @@ class PerformanceMonitor {
     minCacheHitRate: number;
   };
 
-  constructor(apiUrl = 'https://pitchey-production.cavelltheleaddev.workers.dev') {
+  constructor(apiUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev') {
     this.apiUrl = apiUrl;
     this.outputDir = './baseline-data';
     this.alertThresholds = {
@@ -330,7 +330,7 @@ class PerformanceMonitor {
 
 // Main execution
 if (import.meta.main) {
-  const apiUrl = Deno.env.get('API_URL') || 'https://pitchey-production.cavelltheleaddev.workers.dev';
+  const apiUrl = Deno.env.get('API_URL') || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
   const monitor = new PerformanceMonitor(apiUrl);
   
   try {

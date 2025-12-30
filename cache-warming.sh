@@ -3,7 +3,7 @@
 # Cache Warming Script for Pitchey
 # Warms up frequently accessed endpoints to improve performance
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo "🔥 Cache Warming Script"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

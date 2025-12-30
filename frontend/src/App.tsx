@@ -65,6 +65,16 @@ const PitchEdit = lazy(() => import('./pages/PitchEdit'));
 const PitchAnalytics = lazy(() => import('./pages/PitchAnalytics'));
 const CreatorNDAManagement = lazy(() => import('./pages/CreatorNDAManagement'));
 const CreatorPitchView = lazy(() => import('./pages/creator/CreatorPitchView'));
+const CreatorActivity = lazy(() => import('./pages/creator/CreatorActivity'));
+const CreatorStats = lazy(() => import('./pages/creator/CreatorStats'));
+const CreatorPitchesPublished = lazy(() => import('./pages/creator/CreatorPitchesPublished'));
+const CreatorPitchesDrafts = lazy(() => import('./pages/creator/CreatorPitchesDrafts'));
+const CreatorPitchesReview = lazy(() => import('./pages/creator/CreatorPitchesReview'));
+const CreatorPitchesAnalytics = lazy(() => import('./pages/creator/CreatorPitchesAnalytics'));
+const CreatorTeamMembers = lazy(() => import('./pages/creator/CreatorTeamMembers'));
+const CreatorTeamInvite = lazy(() => import('./pages/creator/CreatorTeamInvite'));
+const CreatorTeamRoles = lazy(() => import('./pages/creator/CreatorTeamRoles'));
+const CreatorCollaborations = lazy(() => import('./pages/creator/CreatorCollaborations'));
 
 // Production Pages
 // ProductionPitchCreate removed - production companies cannot create pitches
@@ -213,73 +223,18 @@ function App() {
     loadConfig();
   }, []);
 
-  // On boot, if a token exists but is invalid for this backend, clear it to avoid loops
+  // On app mount, check Better Auth session from cookies
   useEffect(() => {
-    const nsKey = (key: string) => {
-      try {
-        const host = new URL(config.API_URL).host;
-        return `pitchey:${host}:${key}`;
-      } catch {
-        return `pitchey:${key}`;
-      }
-    };
-    const removeBoth = (key: string) => {
-      localStorage.removeItem(nsKey(key));
-      localStorage.removeItem(key);
+    const checkSession = async () => {
+      // Always check session on mount to restore authentication state
+      // Better Auth will check the session cookie and return user if valid
+      await fetchProfile();
     };
     
-    const token = AuthService.getToken();
-    if (token) {
-      // Only validate token if user is trying to access protected routes
-      // Don't clear tokens on login pages to prevent clearing valid session data
-      const isOnLoginPage = window.location.pathname.includes('/login');
-      const isOnDashboardPage = window.location.pathname.includes('/dashboard');
-      
-      if (!isOnLoginPage) {
-        // Add delay for dashboard routes to allow login process to complete
-        const delay = isOnDashboardPage ? 1000 : 0;
-        
-        setTimeout(() => {
-          AuthService.validateToken().then((res) => {
-            if (!res.valid) {
-              console.log('Token validation failed, clearing auth data');
-              removeBoth('authToken');
-              removeBoth('user');
-              removeBoth('userType');
-              // Only redirect if we're on a protected route
-              if (isOnDashboardPage) {
-                window.location.href = '/login/investor';
-              }
-            } else {
-              console.log('Token validation successful for user:', res.user?.email);
-            }
-          }).catch((error) => {
-            console.log('Token validation error:', error);
-            // Only clear tokens if this is a real validation failure, not a network error
-            if (error.response?.status === 401 || error.response?.status === 403) {
-              removeBoth('authToken');
-              removeBoth('user');
-              removeBoth('userType');
-              if (isOnDashboardPage) {
-                window.location.href = '/login/investor';
-              }
-            } else {
-              console.log('Network error during token validation, keeping token');
-            }
-          });
-        }, delay);
-      }
-    }
-  }, []);
+    checkSession();
+  }, []); // Run once on mount
 
-  useEffect(() => {
-    // Only fetch profile once when authenticated and not yet fetched
-    if (isAuthenticated && !profileFetched) {
-      startTransition(() => {
-        fetchProfile().finally(() => setProfileFetched(true));
-      });
-    }
-  }, [isAuthenticated, profileFetched, fetchProfile]);
+  // Removed redundant profile fetching - handled by session restoration above
 
   const userType = (() => {
     try {
@@ -343,6 +298,11 @@ function App() {
           <Route path="/investor/login" element={<Navigate to="/login/investor" replace />} />
           <Route path="/creator/login" element={<Navigate to="/login/creator" replace />} />
           <Route path="/production/login" element={<Navigate to="/login/production" replace />} />
+          
+          {/* Legacy /auth/* routes - redirect to /login/* */}
+          <Route path="/auth/creator" element={<Navigate to="/login/creator" replace />} />
+          <Route path="/auth/investor" element={<Navigate to="/login/investor" replace />} />
+          <Route path="/auth/production" element={<Navigate to="/login/production" replace />} />
           <Route path="/login/admin" element={
             !isAuthenticated ? <Login /> : 
             userType === 'admin' ? <Navigate to="/admin/dashboard" /> :
@@ -583,17 +543,17 @@ function App() {
           <Route path="/production/settings/security" element={isAuthenticated && userType === 'production' ? <ProductionSettingsSecurity /> : <Navigate to="/login/production" />} />
           
           {/* Creator Routes */}
-          <Route path="/creator/activity" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/stats" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/pitches/published" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/pitches/drafts" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/pitches/review" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/pitches/analytics" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/activity" element={isAuthenticated && userType === 'creator' ? <CreatorActivity /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/stats" element={isAuthenticated && userType === 'creator' ? <CreatorStats /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/published" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesPublished /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/drafts" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesDrafts /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/review" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesReview /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/pitches/analytics" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesAnalytics /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/team" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team/members" element={isAuthenticated && userType === 'creator' ? <TeamMembers /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team/invite" element={isAuthenticated && userType === 'creator' ? <TeamInvite /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team/roles" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/collaborations" element={isAuthenticated && userType === 'creator' ? <ComingSoon /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team/members" element={isAuthenticated && userType === 'creator' ? <CreatorTeamMembers /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team/invite" element={isAuthenticated && userType === 'creator' ? <CreatorTeamInvite /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team/roles" element={isAuthenticated && userType === 'creator' ? <CreatorTeamRoles /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/collaborations" element={isAuthenticated && userType === 'creator' ? <CreatorCollaborations /> : <Navigate to="/login/creator" />} />
           
           {/* Investor Routes */}
           <Route path="/investor/notifications" element={isAuthenticated && userType === 'investor' ? <NotificationCenter /> : <Navigate to="/login/investor" />} />

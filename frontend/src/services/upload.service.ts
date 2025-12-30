@@ -119,11 +119,9 @@ class UploadService {
 
     const response = await fetch(`${this.baseUrl}/api/upload/multiple`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      },
       body: formData,
-      signal: uploadOptions.signal
+      signal: uploadOptions.signal,
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -165,11 +163,9 @@ class UploadService {
 
     const response = await fetch(`${this.baseUrl}/api/upload/media-batch`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-      },
       body: formData,
-      signal: options.signal
+      signal: options.signal,
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -395,18 +391,16 @@ class UploadService {
 
       // Configure request
       xhr.open('POST', `${this.baseUrl}${endpoint}`);
+      xhr.withCredentials = true; // Send cookies for Better Auth session
       xhr.timeout = timeout;
 
-      // Add authentication if available
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      }
+      // Better Auth uses cookies, not Authorization headers
+      // Authentication is handled via withCredentials = true
 
-      // Add metadata as headers if provided
+      // Add metadata to formData instead of headers to avoid CORS issues
       if (metadata) {
         Object.entries(metadata).forEach(([key, value]) => {
-          xhr.setRequestHeader(`X-Upload-Metadata-${key}`, String(value));
+          formData.append(`metadata_${key}`, String(value));
         });
       }
 
@@ -488,10 +482,7 @@ class UploadService {
   async deleteDocument(documentId: number): Promise<void> {
     const response = await fetch(`${this.baseUrl}/api/documents/${documentId}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      }
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -506,10 +497,7 @@ class UploadService {
   async deleteFile(filename: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/api/files/${filename}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      }
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -525,12 +513,9 @@ class UploadService {
     const url = `${this.baseUrl}/api/documents/${documentId}/url`;
     const queryParams = expiresIn ? `?expires=${expiresIn}` : '';
     
-    const response = await fetch(url + queryParams, {
+    const response = await fetch(`${url}${queryParams}`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      }
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -565,7 +550,6 @@ class UploadService {
     const response = await fetch(`${this.baseUrl}/api/upload/presigned`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -573,7 +557,8 @@ class UploadService {
         contentType,
         folder: options.folder || 'uploads',
         fileSize: options.fileSize
-      })
+      }),
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -601,12 +586,9 @@ class UploadService {
     formattedQuota: string;
     formattedRemaining: string;
   }> {
-    const response = await fetch(`${this.baseUrl}/api/upload/quota`, {
+    const response = await fetch(`${this.baseUrl}/api/storage/quota`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      }
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -740,10 +722,8 @@ class UploadService {
     provider?: string;
   }> {
     const response = await fetch(`${this.baseUrl}/api/upload/info`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -765,10 +745,8 @@ class UploadService {
     uploadTrends: Array<{ date: string; count: number; size: number }>;
   }> {
     const response = await fetch(`${this.baseUrl}/api/upload/analytics?timeframe=${timeframe}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      }
+      method: 'GET',
+      credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
@@ -816,10 +794,8 @@ class UploadService {
   async checkFileExists(hash: string): Promise<{ exists: boolean; url?: string }> {
     try {
       const response = await fetch(`${this.baseUrl}/api/files/check/${hash}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
-        }
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (response.ok) {

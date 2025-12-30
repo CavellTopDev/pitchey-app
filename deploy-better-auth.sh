@@ -89,7 +89,7 @@ sleep 5
 
 # Test health endpoint
 echo "Testing health endpoint..."
-health_response=$(curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/health")
+health_response=$(curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health")
 
 if echo "$health_response" | grep -q "healthy"; then
     echo -e "${GREEN}✅ Health check passed${NC}"
@@ -102,7 +102,7 @@ echo -e "\n${YELLOW}Step 5: Test portal authentication...${NC}"
 
 # Test creator login
 echo "Testing Creator portal..."
-creator_response=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+creator_response=$(curl -s -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login" \
     -H "Content-Type: application/json" \
     -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
 
@@ -115,7 +115,7 @@ fi
 
 # Test investor login
 echo "Testing Investor portal..."
-investor_response=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login" \
+investor_response=$(curl -s -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/investor/login" \
     -H "Content-Type: application/json" \
     -d '{"email":"sarah.investor@demo.com","password":"Demo123"}')
 
@@ -134,5 +134,5 @@ echo "1. Run comprehensive tests: ./test-better-auth-portals.sh"
 echo "2. Update frontend to use new authentication endpoints"
 echo "3. Monitor Sentry for any remaining errors"
 echo ""
-echo "Production URL: https://pitchey-production.cavelltheleaddev.workers.dev"
-echo "Frontend URL: https://pitchey.pages.dev"
+echo "Production URL: https://pitchey-api-prod.ndlovucavelle.workers.dev"
+echo "Frontend URL: https://pitchey-5o8.pages.dev"

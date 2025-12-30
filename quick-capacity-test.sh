@@ -5,7 +5,7 @@
 echo "⚡ Quick Capacity Test - Production API"
 echo "======================================"
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Test 1: Health Check Performance
 echo -e "\n🏥 Health Check Performance Test"

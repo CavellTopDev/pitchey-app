@@ -3,8 +3,8 @@
 You are working with a production movie pitch marketplace platform called "Pitchey" that has the following architecture:
 
 ## Current Stack
-- Frontend: React + Vite SPA deployed on Cloudflare Pages (https://pitchey.pages.dev)
-- API Layer: Cloudflare Worker (https://pitchey-api-production.cavelltheleaddev.workers.dev) proxying to Deno backend
+- Frontend: React + Vite SPA deployed on Cloudflare Pages (https://pitchey-5o8.pages.dev)
+- API Layer: Cloudflare Worker (https://pitchey-api-prod.ndlovucavelle.workers.dev) proxying to Deno backend
 - Backend: Deno/TypeScript runtime on Deno Deploy (https://pitchey-backend-fresh.deno.dev) - progressive migration to Workers underway
 - Database: Neon PostgreSQL (55+ tables) with Hyperdrive connection pooling (ID: 983d4a1818264b5dbdca26bacf167dee)
 - ORM: Drizzle ORM for type-safe database operations
@@ -79,7 +79,7 @@ wrangler kv:key list --binding CACHE  # View KV cache entries
 ```
 
 ## Environment Configuration
-- Frontend API URL: VITE_API_URL=https://pitchey-api-production.cavelltheleaddev.workers.dev
+- Frontend API URL: VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 - Database: Neon PostgreSQL via Hyperdrive binding (ID: 983d4a1818264b5dbdca26bacf167dee)
 - JWT secrets: Managed through wrangler secret put JWT_SECRET
 - KV namespace: Bound as CACHE (ID: 98c88a185eb448e4868fcc87e458b3ac)

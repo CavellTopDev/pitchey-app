@@ -139,7 +139,7 @@ wrangler deploy --config quick-test.toml
 
 # Test 3: Run connectivity test
 echo -e "\n${BLUE}3. Testing connectivity...${NC}"
-TEST_URL="https://pitchey-quick-hyperdrive-test.cavelltheleaddev.workers.dev/test"
+TEST_URL="https://pitchey-quick-hyperdrive-test.ndlovucavelle.workers.dev/test"
 
 # Wait for deployment
 sleep 5

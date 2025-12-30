@@ -346,7 +346,7 @@ async function logSecurityEvent(env: Env, event: string, ip: string, details?: a
 
 // SECURITY: Strict CORS configuration for production
 const ALLOWED_ORIGINS = [
-  'https://pitchey.pages.dev',
+  'https://pitchey-5o8.pages.dev',
   'https://pitchey-platform.pages.dev', // Backup domain
   'http://localhost:5173', // Local development only
 ];
@@ -366,7 +366,7 @@ const SECURITY_HEADERS = {
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
-    "connect-src 'self' https://pitchey-production.cavelltheleaddev.workers.dev wss://pitchey-production.cavelltheleaddev.workers.dev https://api.sentry.io",
+    "connect-src 'self' https://pitchey-api-prod.ndlovucavelle.workers.dev wss://pitchey-api-prod.ndlovucavelle.workers.dev https://api.sentry.io",
     "worker-src 'self' blob:",
     "frame-src 'none'",
     "object-src 'none'",
@@ -377,7 +377,7 @@ const SECURITY_HEADERS = {
 };
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : 'https://pitchey.pages.dev';
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : 'https://pitchey-5o8.pages.dev';
   
   return {
     'Access-Control-Allow-Origin': allowedOrigin,

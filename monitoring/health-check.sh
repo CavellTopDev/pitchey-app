@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 BACKEND_URL="https://pitchey-backend-fresh.deno.dev"
-FRONTEND_URL="https://pitchey.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 LOG_FILE="monitoring/health-check.log"
 ALERT_FILE="monitoring/alerts.log"
 

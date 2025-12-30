@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Test Worker edge caching behavior
-const WORKER_API = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const WORKER_API = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 console.log('🌐 Testing Edge Caching Behavior\n');
 
@@ -9,7 +9,7 @@ async function measureWithHeaders(url, headers = {}) {
   const start = Date.now();
   const response = await fetch(url, {
     headers: {
-      'Origin': 'https://pitchey.pages.dev',
+      'Origin': 'https://pitchey-5o8.pages.dev',
       ...headers
     }
   });
@@ -111,7 +111,7 @@ async function testAuthenticatedEndpoints() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Origin': 'https://pitchey.pages.dev'
+      'Origin': 'https://pitchey-5o8.pages.dev'
     },
     body: JSON.stringify({
       email: 'alex.creator@demo.com',

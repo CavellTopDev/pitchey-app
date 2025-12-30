@@ -71,11 +71,9 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async signInCreator(email: string, password: string) {
       const response = await fetch(`${config.API_URL}/api/auth/creator/login`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!response.ok) {
@@ -90,11 +88,9 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async signInInvestor(email: string, password: string) {
       const response = await fetch(`${config.API_URL}/api/auth/investor/login`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!response.ok) {
@@ -109,11 +105,9 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async signInProduction(email: string, password: string) {
       const response = await fetch(`${config.API_URL}/api/auth/production/login`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!response.ok) {
@@ -128,11 +122,9 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async registerCreator(email: string, username: string, password: string) {
       const response = await fetch(`${config.API_URL}/api/auth/creator/register`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, username, password, userType: 'creator' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, password }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!response.ok) {
@@ -147,11 +139,9 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async registerInvestor(email: string, username: string, password: string) {
       const response = await fetch(`${config.API_URL}/api/auth/investor/register`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, username, password, userType: 'investor' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, password }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!response.ok) {
@@ -166,11 +156,9 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async registerProduction(email: string, username: string, password: string) {
       const response = await fetch(`${config.API_URL}/api/auth/production/register`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, username, password, userType: 'production' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, password }),
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!response.ok) {
@@ -185,10 +173,7 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async getSession() {
       const response = await fetch(`${config.API_URL}/api/auth/session`, {
         method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       if (!response.ok) {
@@ -202,10 +187,7 @@ export function createPortalAuthMethods(): PortalAuthMethods {
     async signOut() {
       const response = await fetch(`${config.API_URL}/api/auth/sign-out`, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        credentials: 'include' // Send cookies for Better Auth session
       });
 
       // Always return success for sign out

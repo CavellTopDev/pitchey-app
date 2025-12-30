@@ -71,7 +71,7 @@ const app = new Hono<{ Bindings: Env }>();
 // CORS configuration
 app.use('*', cors({
   origin: [
-    'https://pitchey.pages.dev',
+    'https://pitchey-5o8.pages.dev',
     'http://localhost:5173',
     'http://localhost:5174'
   ],

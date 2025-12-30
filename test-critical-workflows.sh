@@ -6,8 +6,8 @@
 set -e
 
 # Configuration
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
-FRONTEND_URL="${FRONTEND_URL:-https://pitchey.pages.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
+FRONTEND_URL="${FRONTEND_URL:-https://pitchey-5o8.pages.dev}"
 
 # Colors for output
 RED='\033[0;31m'

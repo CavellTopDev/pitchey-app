@@ -24,7 +24,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export default function() {
   // Test homepage
@@ -75,7 +75,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // User profiles
 const USER_TYPES = [
@@ -161,7 +161,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export default function() {
   const endpoints = [
@@ -210,7 +210,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export default function() {
   const res = http.get(\`\${BASE_URL}/api/public/trending\`);
@@ -244,7 +244,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export default function() {
   // Simulate realistic user behavior
@@ -321,7 +321,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export function creatorJourney() {
   const user = testUsers[Math.floor(Math.random() * testUsers.length)];
@@ -456,7 +456,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Weighted endpoint distribution based on real usage patterns
 const ENDPOINTS = [

@@ -27,7 +27,7 @@ wrangler pages deploy dist --project-name=pitchey
 ### Health Check
 ```bash
 # Test worker health
-curl https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/health
+curl https://pitchey-production-secure.ndlovucavelle.workers.dev/api/health
 
 # Expected response:
 {
@@ -46,7 +46,7 @@ curl https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/health
 ### Security Headers Test
 ```bash
 # Check security headers
-curl -I https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/health
+curl -I https://pitchey-production-secure.ndlovucavelle.workers.dev/api/health
 
 # Should include:
 # strict-transport-security: max-age=31536000; includeSubDomains; preload
@@ -61,7 +61,7 @@ curl -I https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/healt
 for i in {1..6}; do
   echo "Attempt $i:"
   curl -s -o /dev/null -w "HTTP %{http_code}\n" \
-    https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/auth/creator/login \
+    https://pitchey-production-secure.ndlovucavelle.workers.dev/api/auth/creator/login \
     -X POST -H "Content-Type: application/json" -d '{}'
 done
 
@@ -72,27 +72,27 @@ done
 ```bash
 # Test CORS with allowed origin
 curl -s -I \
-  -H "Origin: https://pitchey.pages.dev" \
-  https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/health
+  -H "Origin: https://pitchey-5o8.pages.dev" \
+  https://pitchey-production-secure.ndlovucavelle.workers.dev/api/health
 
-# Should include: access-control-allow-origin: https://pitchey.pages.dev
+# Should include: access-control-allow-origin: https://pitchey-5o8.pages.dev
 
 # Test CORS with disallowed origin
 curl -s -I \
   -H "Origin: https://evil-site.com" \
-  https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/health
+  https://pitchey-production-secure.ndlovucavelle.workers.dev/api/health
 
-# Should include: access-control-allow-origin: https://pitchey.pages.dev (not evil-site.com)
+# Should include: access-control-allow-origin: https://pitchey-5o8.pages.dev (not evil-site.com)
 ```
 
 ### Monitoring Endpoints
 ```bash
 # Check monitoring status (requires auth in production)
-curl https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/monitoring/status
+curl https://pitchey-production-secure.ndlovucavelle.workers.dev/api/monitoring/status
 
 # Check metrics (admin only)
 curl -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
-  https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/metrics
+  https://pitchey-production-secure.ndlovucavelle.workers.dev/api/metrics
 ```
 
 ## 🔧 Environment Configuration
@@ -101,8 +101,8 @@ curl -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
 ```bash
 # Update frontend/.env.production
 cat > frontend/.env.production << EOF
-VITE_API_URL=https://pitchey-production-secure.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-production-secure.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-production-secure.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-production-secure.ndlovucavelle.workers.dev
 VITE_NODE_ENV=production
 VITE_ENABLE_ANALYTICS=true
 VITE_ENABLE_WEBSOCKETS=true
@@ -201,21 +201,21 @@ wrangler kv:key put "ip_blocklist:MALICIOUS_IP" "blocked" --binding=KV --ttl=360
 # Install wrk or use existing tool
 # Test API performance
 wrk -t12 -c400 -d30s --latency \
-  https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/health
+  https://pitchey-production-secure.ndlovucavelle.workers.dev/api/health
 
 # Test with authentication
 wrk -t12 -c400 -d30s --latency \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/pitches/public
+  https://pitchey-production-secure.ndlovucavelle.workers.dev/api/pitches/public
 ```
 
 ### Security Scanning
 ```bash
 # Use nmap for basic security scanning
-nmap -sS -O pitchey-production-secure.cavelltheleaddev.workers.dev
+nmap -sS -O pitchey-production-secure.ndlovucavelle.workers.dev
 
 # Use curl to test for common vulnerabilities
-curl -X POST https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/test \
+curl -X POST https://pitchey-production-secure.ndlovucavelle.workers.dev/api/test \
   -d "'; DROP TABLE users; --"
 # Should be blocked by input validation
 ```
@@ -225,21 +225,21 @@ curl -X POST https://pitchey-production-secure.cavelltheleaddev.workers.dev/api/
 ### SSL Certificate Check
 ```bash
 # Check SSL certificate details
-echo | openssl s_client -connect pitchey-production-secure.cavelltheleaddev.workers.dev:443 -servername pitchey-production-secure.cavelltheleaddev.workers.dev 2>/dev/null | openssl x509 -noout -dates
+echo | openssl s_client -connect pitchey-production-secure.ndlovucavelle.workers.dev:443 -servername pitchey-production-secure.ndlovucavelle.workers.dev 2>/dev/null | openssl x509 -noout -dates
 ```
 
 ### DNS Resolution
 ```bash
 # Check DNS resolution
-dig pitchey-production-secure.cavelltheleaddev.workers.dev
-nslookup pitchey-production-secure.cavelltheleaddev.workers.dev
+dig pitchey-production-secure.ndlovucavelle.workers.dev
+nslookup pitchey-production-secure.ndlovucavelle.workers.dev
 ```
 
 ### Network Connectivity
 ```bash
 # Test network connectivity
-traceroute pitchey-production-secure.cavelltheleaddev.workers.dev
-ping pitchey-production-secure.cavelltheleaddev.workers.dev
+traceroute pitchey-production-secure.ndlovucavelle.workers.dev
+ping pitchey-production-secure.ndlovucavelle.workers.dev
 ```
 
 ## 📋 Pre-deployment Checklist
@@ -294,5 +294,5 @@ npm update -g wrangler
 ---
 
 **Last Updated:** December 2024  
-**Worker URL:** https://pitchey-production-secure.cavelltheleaddev.workers.dev  
-**Frontend URL:** https://pitchey.pages.dev
+**Worker URL:** https://pitchey-production-secure.ndlovucavelle.workers.dev  
+**Frontend URL:** https://pitchey-5o8.pages.dev

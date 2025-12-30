@@ -128,7 +128,7 @@ test_database_connection() {
     echo -n "  Database connectivity: "
     
     # Test database connection via health endpoint
-    if curl -s -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/database" >/dev/null 2>&1; then
+    if curl -s -f "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/database" >/dev/null 2>&1; then
         echo -e "${CHECK} ${GREEN}Connected${NC}"
         return 0
     else
@@ -141,7 +141,7 @@ test_redis_connection() {
     echo -n "  Redis connectivity: "
     
     # Test Redis connection via health endpoint
-    if curl -s -f "https://pitchey-production.cavelltheleaddev.workers.dev/api/health/cache" >/dev/null 2>&1; then
+    if curl -s -f "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health/cache" >/dev/null 2>&1; then
         echo -e "${CHECK} ${GREEN}Connected${NC}"
         return 0
     else
@@ -297,7 +297,7 @@ main() {
     
     echo ""
     echo -e "${GEAR} Environment Variables:"
-    verify_environment_variable "FRONTEND_URL" "https://pitchey.pages.dev"
+    verify_environment_variable "FRONTEND_URL" "https://pitchey-5o8.pages.dev"
     verify_environment_variable "ENVIRONMENT" "production"
     
     echo ""

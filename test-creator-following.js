@@ -15,7 +15,7 @@ const token = jwt.sign({
 console.log('Token:', token);
 
 // Test the endpoint
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/creator/following?tab=activity', {
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/creator/following?tab=activity', {
   headers: {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'

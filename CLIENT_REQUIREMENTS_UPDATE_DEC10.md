@@ -122,8 +122,8 @@
 ## 🚀 Deployment Configuration
 
 ### Production Stack:
-- **Frontend**: Cloudflare Pages (pitchey.pages.dev)
-- **API**: Cloudflare Workers (pitchey-production.cavelltheleaddev.workers.dev)
+- **Frontend**: Cloudflare Pages (pitchey-5o8.pages.dev)
+- **API**: Cloudflare Workers (pitchey-api-prod.ndlovucavelle.workers.dev)
 - **Database**: Neon PostgreSQL with Hyperdrive
 - **Cache**: Upstash Redis (global)
 - **Storage**: Cloudflare R2

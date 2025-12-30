@@ -15,9 +15,9 @@
 - **GitHub Status**: https://www.githubstatus.com
 
 ### 🎯 Quick Access URLs
-- **Production Frontend**: https://pitchey.pages.dev
-- **Production API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- **Health Check**: https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+- **Production Frontend**: https://pitchey-5o8.pages.dev
+- **Production API**: https://pitchey-optimized.ndlovucavelle.workers.dev
+- **Health Check**: https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 - **Cloudflare Dashboard**: https://dash.cloudflare.com
 
 ---
@@ -47,10 +47,10 @@
 
 ```bash
 # Quick health check
-curl -f https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+curl -f https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # Check Cloudflare status
-curl -f https://pitchey.pages.dev
+curl -f https://pitchey-5o8.pages.dev
 
 # Monitor worker logs in real-time
 wrangler tail
@@ -98,8 +98,8 @@ echo "Check Cloudflare Dashboard → Pages → Deployments"
 ./scripts/rollback-deployment.sh --all --force
 
 # Verify maintenance mode is working
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
-curl https://pitchey.pages.dev
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
+curl https://pitchey-5o8.pages.dev
 ```
 
 ---
@@ -118,7 +118,7 @@ wrangler tail --format=pretty
 wrangler metrics
 
 # Database connectivity test
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@test.com","password":"test"}'
 ```
@@ -126,10 +126,10 @@ curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/cre
 ### Performance Diagnostics
 ```bash
 # API response time test
-time curl -s https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+time curl -s https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 
 # Frontend load test
-time curl -s https://pitchey.pages.dev > /dev/null
+time curl -s https://pitchey-5o8.pages.dev > /dev/null
 
 # Worker CPU/Memory check (in dashboard)
 echo "Cloudflare Dashboard → Workers → Analytics → Performance"
@@ -141,13 +141,13 @@ echo "Cloudflare Dashboard → Workers → Analytics → Performance"
 wrangler tail --grep="error\|fail\|attack\|suspicious"
 
 # Validate JWT configuration
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}' | jq '.data.token'
 
 # Check CORS configuration
 curl -H "Origin: https://malicious.com" \
-  -I https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
+  -I https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
 ```
 
 ---
@@ -160,8 +160,8 @@ curl -H "Origin: https://malicious.com" \
 **Quick Response**:
 ```bash
 # Check basic connectivity
-curl -I https://pitchey.pages.dev
-curl -I https://pitchey-optimized.cavelltheleaddev.workers.dev
+curl -I https://pitchey-5o8.pages.dev
+curl -I https://pitchey-optimized.ndlovucavelle.workers.dev
 
 # If both fail, check Cloudflare status
 curl -s https://www.cloudflarestatus.com/api/v2/status.json
@@ -176,7 +176,7 @@ curl -s https://www.cloudflarestatus.com/api/v2/status.json
 **Quick Response**:
 ```bash
 # Test demo login
-curl -X POST https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login \
+curl -X POST https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}'
 
@@ -196,7 +196,7 @@ wrangler tail --grep="auth\|jwt\|login"
 curl -s https://neon.tech/api/v2/projects
 
 # Test database connectivity through API
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/search/pitches
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/search/pitches
 
 # Disable database temporarily
 echo "false" | wrangler secret put USE_DATABASE
@@ -244,8 +244,8 @@ gh run view --log
 
 1. **Stabilize**: Ensure maintenance mode is working
    ```bash
-   curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health
-   curl https://pitchey.pages.dev
+   curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/health
+   curl https://pitchey-5o8.pages.dev
    ```
 
 2. **Investigate**: Find the root cause
@@ -280,7 +280,7 @@ gh run view --log
    wrangler tail
    
    # Performance monitoring
-   watch -n 30 'curl -s https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health'
+   watch -n 30 'curl -s https://pitchey-optimized.ndlovucavelle.workers.dev/api/health'
    ```
 
 ---
@@ -329,7 +329,7 @@ gh run view --log
 ```bash
 # Continuous health monitoring
 while true; do
-  echo "$(date): $(curl -s -o /dev/null -w "%{http_code} %{time_total}" https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health)"
+  echo "$(date): $(curl -s -o /dev/null -w "%{http_code} %{time_total}" https://pitchey-optimized.ndlovucavelle.workers.dev/api/health)"
   sleep 30
 done
 
@@ -337,7 +337,7 @@ done
 wrangler tail --format=json | jq 'select(.outcome == "exception")'
 
 # Performance monitoring
-time curl -s https://pitchey-optimized.cavelltheleaddev.workers.dev/api/health >/dev/null
+time curl -s https://pitchey-optimized.ndlovucavelle.workers.dev/api/health >/dev/null
 ```
 
 ---

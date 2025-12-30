@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 echo -e "${BLUE}🔍 Validating Pitchey Production Optimizations${NC}"
 echo "============================================================"
@@ -68,7 +68,7 @@ echo ""
 echo -e "${YELLOW}3. CORS Headers${NC}"
 check_optimization "Access-Control-Allow-Origin" \
     "curl -s -I $API_URL/api/health | grep -i 'access-control-allow-origin:' | cut -d':' -f2 | tr -d ' \r'" \
-    "https://pitchey.pages.dev"
+    "https://pitchey-5o8.pages.dev"
 
 check_optimization "Access-Control-Allow-Methods" \
     "curl -s -I $API_URL/api/health | grep -i 'access-control-allow-methods:' | grep -o 'GET'" \

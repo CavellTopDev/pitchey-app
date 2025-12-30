@@ -300,11 +300,9 @@ export class CreatorService {
   // Export data for creator
   static async exportData(format: 'csv' | 'json' | 'pdf'): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/creator/export?format=${format}`,
-      {
+      `${config.API_URL}/api/creator/export?format=${format}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+          }
       }
     );
 
@@ -321,12 +319,10 @@ export class CreatorService {
     formData.append('image', file);
 
     const response = await fetch(
-      `${config.API_URL}/api/creator/profile/image`,
-      {
+      `${config.API_URL}/api/creator/profile/image`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        },
+          },
         body: formData
       }
     );

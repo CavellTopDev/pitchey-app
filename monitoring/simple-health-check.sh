@@ -4,8 +4,8 @@
 # Basic monitoring without complex dependencies
 
 # Configuration
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
-FRONTEND_URL="${FRONTEND_URL:-https://pitchey.pages.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
+FRONTEND_URL="${FRONTEND_URL:-https://pitchey-5o8.pages.dev}"
 TIMEOUT=10
 
 # Colors

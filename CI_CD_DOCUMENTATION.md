@@ -158,7 +158,7 @@ graph TB
 
 #### Environment URLs:
 - **Frontend:** https://pitchey-staging.pages.dev
-- **API:** https://pitchey-staging.cavelltheleaddev.workers.dev
+- **API:** https://pitchey-staging.ndlovucavelle.workers.dev
 
 ### 3. Production Deployment (`cd-production.yml`)
 
@@ -302,7 +302,7 @@ Monitoring: Prometheus + Grafana
 ```yaml
 Environment: staging
 Frontend: https://pitchey-staging.pages.dev
-API: https://pitchey-staging.cavelltheleaddev.workers.dev
+API: https://pitchey-staging.ndlovucavelle.workers.dev
 Database: Neon PostgreSQL (staging instance)
 Cache: Upstash Redis (staging)
 Storage: Cloudflare R2 (staging bucket)
@@ -323,8 +323,8 @@ Storage: Cloudflare R2 (staging bucket)
 #### Configuration:
 ```yaml
 Environment: production
-Frontend: https://pitchey.pages.dev
-API: https://pitchey-production.cavelltheleaddev.workers.dev
+Frontend: https://pitchey-5o8.pages.dev
+API: https://pitchey-api-prod.ndlovucavelle.workers.dev
 Database: Neon PostgreSQL (production)
 Cache: Upstash Redis (production cluster)
 Storage: Cloudflare R2 (production bucket)
@@ -733,7 +733,7 @@ wrangler tail pitchey-production
 gh deployment view --env production
 
 # Monitor real-time metrics
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 ```
 
 ### Log Analysis

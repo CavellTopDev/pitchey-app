@@ -11,7 +11,7 @@
 ### 2. **Deployed to Production** ✓
 - Successfully deployed optimized worker
 - Version ID: `68d0c579-cb55-4497-94b6-feb976473ec5`
-- URL: https://pitchey-production.cavelltheleaddev.workers.dev
+- URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ### 3. **Performance Features Active** ✓
 - **Response Headers Working**:
@@ -80,7 +80,7 @@ Created patches for optimizing more endpoints:
 3. **Implement Cache Warming**:
    ```bash
    # Add to cron job
-   curl "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse/enhanced"
+   curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse/enhanced"
    ```
 
 ### Performance Optimization Roadmap

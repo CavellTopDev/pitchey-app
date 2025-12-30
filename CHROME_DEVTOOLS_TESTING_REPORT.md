@@ -1,8 +1,8 @@
 # Chrome DevTools Testing Report & Missing Configuration Analysis
 
 **Test Date:** December 3, 2025  
-**Platform:** Pitchey Production (https://pitchey.pages.dev)  
-**API Backend:** https://pitchey-production.cavelltheleaddev.workers.dev  
+**Platform:** Pitchey Production (https://pitchey-5o8.pages.dev)  
+**API Backend:** https://pitchey-api-prod.ndlovucavelle.workers.dev  
 
 ## Executive Summary
 
@@ -13,14 +13,14 @@ Comprehensive testing using Chrome DevTools MCP revealed several critical issues
 ### 1. WebSocket Connection Failure (CRITICAL)
 **Issue:** WebSocket connection consistently fails with 404 error
 ```
-WebSocket connection to 'wss://pitchey-production.cavelltheleaddev.workers.dev/ws?token=...' failed: 
+WebSocket connection to 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws?token=...' failed: 
 Error during WebSocket handshake: Unexpected response code: 404
 ```
 
 **Impact:** Real-time features disabled (notifications, live updates, presence tracking)
 
 **Root Cause:** WebSocket endpoint `/ws` not implemented in Cloudflare Worker
-- Frontend expects: `wss://pitchey-production.cavelltheleaddev.workers.dev/ws`
+- Frontend expects: `wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws`
 - Worker implementation: Missing WebSocket handler
 
 ### 2. Investor Dashboard Rendering Error (HIGH)
@@ -95,9 +95,9 @@ access-control-allow-origin: *
 Frontend CSP allows connections to multiple Worker domains:
 ```
 connect-src 'self' 
-  https://pitchey-production.cavelltheleaddev.workers.dev 
-  wss://pitchey-production.cavelltheleaddev.workers.dev
-  https://pitchey-optimized.cavelltheleaddev.workers.dev
+  https://pitchey-api-prod.ndlovucavelle.workers.dev 
+  wss://pitchey-api-prod.ndlovucavelle.workers.dev
+  https://pitchey-optimized.ndlovucavelle.workers.dev
   ...
 ```
 

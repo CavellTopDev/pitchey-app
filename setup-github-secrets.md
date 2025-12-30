@@ -77,6 +77,6 @@ You can also manually trigger them:
 
 After successful deployment:
 - ✅ Backend: https://pitchey-backend-fresh.deno.dev
-- ✅ Worker: https://pitchey-api-production.cavelltheleaddev.workers.dev  
-- ✅ Frontend: https://pitchey.pages.dev
-- ✅ Browse API: https://pitchey.pages.dev/browse
+- ✅ Worker: https://pitchey-api-prod.ndlovucavelle.workers.dev  
+- ✅ Frontend: https://pitchey-5o8.pages.dev
+- ✅ Browse API: https://pitchey-5o8.pages.dev/browse

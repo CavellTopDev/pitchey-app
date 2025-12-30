@@ -50,7 +50,7 @@ max_retries = 3
 
 # Environment variables
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 FROM_EMAIL = "notifications@pitchey.com"
 ```
 

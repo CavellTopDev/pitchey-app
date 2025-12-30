@@ -9,7 +9,7 @@
 ## Issue Resolution
 
 ### ❌ **Initial Problem Identified**
-The optimized worker endpoint `https://pitchey-optimized.cavelltheleaddev.workers.dev` was returning 404 errors, causing frontend functionality to fail.
+The optimized worker endpoint `https://pitchey-optimized.ndlovucavelle.workers.dev` was returning 404 errors, causing frontend functionality to fail.
 
 ### ✅ **Root Cause & Fix**
 - **Issue**: Worker deployment was incomplete/failed
@@ -21,19 +21,19 @@ The optimized worker endpoint `https://pitchey-optimized.cavelltheleaddev.worker
 ### ✅ **API Connectivity Tests**
 
 #### 1. Public Pitches Endpoint
-- **URL**: `https://pitchey-optimized.cavelltheleaddev.workers.dev/api/pitches/public`
+- **URL**: `https://pitchey-optimized.ndlovucavelle.workers.dev/api/pitches/public`
 - **Status**: ✅ SUCCESS
 - **Response**: Valid JSON with 4 pitch objects
 - **Data**: Contains proper pitch structure with id, title, genre, budget, status, etc.
 
 #### 2. Investor Authentication
-- **URL**: `https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/investor/login`
+- **URL**: `https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/investor/login`
 - **Test Credentials**: sarah.investor@demo.com / Demo123
 - **Status**: ✅ SUCCESS
 - **Response**: Valid JWT token and user object returned
 
 #### 3. Investor Dashboard
-- **URL**: `https://pitchey-optimized.cavelltheleaddev.workers.dev/api/investor/dashboard`
+- **URL**: `https://pitchey-optimized.ndlovucavelle.workers.dev/api/investor/dashboard`
 - **Authentication**: JWT token required
 - **Status**: ✅ SUCCESS
 - **Response**: Complete dashboard data including:
@@ -43,12 +43,12 @@ The optimized worker endpoint `https://pitchey-optimized.cavelltheleaddev.worker
 ### ✅ **Worker Comparison**
 
 #### Production Worker
-- **URL**: `https://pitchey-production.cavelltheleaddev.workers.dev`
+- **URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 - **Status**: ✅ Working correctly
 - **Endpoint**: `/api/pitches` returns valid pitch data
 
 #### Optimized Worker  
-- **URL**: `https://pitchey-optimized.cavelltheleaddev.workers.dev`
+- **URL**: `https://pitchey-optimized.ndlovucavelle.workers.dev`
 - **Status**: ✅ **FIXED** - Now working correctly after redeployment
 - **Endpoints**: All tested endpoints responding properly
 
@@ -58,10 +58,10 @@ The optimized worker endpoint `https://pitchey-optimized.cavelltheleaddev.worker
 The frontend has proper Content Security Policy headers allowing connections to both workers:
 ```
 connect-src 'self' 
-  https://pitchey-production.cavelltheleaddev.workers.dev 
-  wss://pitchey-production.cavelltheleaddev.workers.dev 
-  https://pitchey-optimized.cavelltheleaddev.workers.dev 
-  wss://pitchey-optimized.cavelltheleaddev.workers.dev
+  https://pitchey-api-prod.ndlovucavelle.workers.dev 
+  wss://pitchey-api-prod.ndlovucavelle.workers.dev 
+  https://pitchey-optimized.ndlovucavelle.workers.dev 
+  wss://pitchey-optimized.ndlovucavelle.workers.dev
 ```
 
 ## Key Findings
@@ -81,9 +81,9 @@ connect-src 'self'
 - **Scheduled Tasks**: 4 cron triggers active
 
 ### 🔧 **Architecture Status**
-- **Frontend**: https://pitchey.pages.dev (Cloudflare Pages)
-- **API**: https://pitchey-optimized.cavelltheleaddev.workers.dev (Cloudflare Workers)
-- **WebSockets**: wss://pitchey-optimized.cavelltheleaddev.workers.dev
+- **Frontend**: https://pitchey-5o8.pages.dev (Cloudflare Pages)
+- **API**: https://pitchey-optimized.ndlovucavelle.workers.dev (Cloudflare Workers)
+- **WebSockets**: wss://pitchey-optimized.ndlovucavelle.workers.dev
 - **Database**: Neon PostgreSQL with edge caching
 
 ## Recommendations

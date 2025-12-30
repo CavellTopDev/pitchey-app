@@ -6,7 +6,7 @@
 echo "🚀 PRODUCTION DEPLOYMENT PIPELINE"
 echo "================================="
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 PIPELINE_LOG="./monitoring-system/logs/deployment-pipeline.log"
 TEST_RESULTS_DIR="./monitoring-system/test-results"
 

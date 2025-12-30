@@ -9,7 +9,7 @@
 ## 📋 **PROJECT CONTEXT**
 
 ### **Production Deployment**
-- **Frontend**: https://pitchey.pages.dev (Cloudflare Pages)
+- **Frontend**: https://pitchey-5o8.pages.dev (Cloudflare Pages)
 - **Backend**: https://pitchey-backend-fresh.deno.dev (Deno Deploy)
 - **Repository**: CavellTopDev/pitchey-app
 - **Monitoring**: Complete observability stack with error tracking
@@ -156,7 +156,7 @@ sentry-cli releases finalize $RELEASE_VERSION
 # Set release as deployed
 sentry-cli releases deploys $RELEASE_VERSION new \
   --env production \
-  --url "https://pitchey.pages.dev"
+  --url "https://pitchey-5o8.pages.dev"
 ```
 
 ### **Release Health Monitoring**
@@ -272,7 +272,7 @@ cd ..
 sentry-cli releases finalize $RELEASE_VERSION
 sentry-cli releases deploys $RELEASE_VERSION new \
   --env production \
-  --url "https://pitchey.pages.dev"
+  --url "https://pitchey-5o8.pages.dev"
 
 echo "✅ Release $RELEASE_VERSION deployed successfully!"
 ```

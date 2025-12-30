@@ -137,7 +137,7 @@ echo "5️⃣  Testing CORS Configuration..."
 echo "---------------------------------"
 
 # Test CORS headers
-CORS_HEADERS=$(curl -I -H "Origin: https://pitchey.pages.dev" -s "$BACKEND_URL/api/health" 2>/dev/null)
+CORS_HEADERS=$(curl -I -H "Origin: https://pitchey-5o8.pages.dev" -s "$BACKEND_URL/api/health" 2>/dev/null)
 
 if echo "$CORS_HEADERS" | grep -qi "access-control-allow-origin:"; then
     echo -e "${GREEN}✅ CORS headers present${NC}"

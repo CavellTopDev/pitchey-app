@@ -297,7 +297,7 @@ export class R2UploadHandler {
   async getSignedUrl(key: string, expiresIn = 3600): Promise<string> {
     // R2 doesn't support signed URLs directly in Workers
     // Instead, we'll use a proxy approach through the worker
-    const baseUrl = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+    const baseUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
     const timestamp = Date.now();
     const expires = timestamp + (expiresIn * 1000);
     
@@ -430,7 +430,7 @@ export class R2UploadHandler {
   }
 
   private getPrivateUrl(key: string): string {
-    return `https://pitchey-production.cavelltheleaddev.workers.dev/api/files/${key}`;
+    return `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/files/${key}`;
   }
 
   private getPublicUrl(key: string): string {

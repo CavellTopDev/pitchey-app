@@ -5,7 +5,7 @@
 
 set -e
 
-API_URL="${API_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+API_URL="${API_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 DEMO_DURATION="${DEMO_DURATION:-300}"  # 5 minutes
 
 echo "🎬 Pitchey Performance Monitoring Demo"

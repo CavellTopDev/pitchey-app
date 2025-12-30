@@ -14,7 +14,7 @@ const successfulRequests = new Counter('successful_requests');
 const failedRequests = new Counter('failed_requests');
 
 // Test configuration
-const BASE_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const BASE_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Test scenarios configuration
 export const options = {

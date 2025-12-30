@@ -2,7 +2,7 @@
 
 ## Test Execution Summary
 - **Test Date**: December 2, 2025
-- **Target API**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+- **Target API**: https://pitchey-optimized.ndlovucavelle.workers.dev
 - **Total Endpoints Tested**: 56
 - **Successful**: 7 (12.5%)
 - **Failed**: 9 (16.1%)

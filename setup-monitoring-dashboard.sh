@@ -7,7 +7,7 @@ echo "📊 SETTING UP CONTINUOUS MONITORING DASHBOARDS"
 echo "=============================================="
 echo ""
 
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 MONITORING_DIR="monitoring/dashboards"
 
 # Create monitoring directory structure
@@ -141,7 +141,7 @@ cat > $MONITORING_DIR/performance-monitor.html << 'EOF'
     </div>
     
     <script>
-        const WORKER_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+        const WORKER_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
         const endpoints = [
             '/api/health',
             '/api/pitches/browse/enhanced',
@@ -259,7 +259,7 @@ cat > $MONITORING_DIR/monitor.sh << 'EOF'
 #!/bin/bash
 
 # Continuous monitoring script
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_FILE="monitoring/dashboards/logs/performance.log"
 
 while true; do
@@ -296,7 +296,7 @@ cat > $MONITORING_DIR/generate-report.sh << 'EOF'
 #!/bin/bash
 
 # Generate performance report
-WORKER_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 REPORT_FILE="monitoring/dashboards/reports/performance-$(date +%Y%m%d-%H%M%S).txt"
 
 echo "PITCHEY PERFORMANCE REPORT" > "$REPORT_FILE"

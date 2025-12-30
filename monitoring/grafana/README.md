@@ -31,7 +31,7 @@ The monitoring system includes:
 
 1. **Grafana Cloud Account** with Prometheus and Loki access
 2. **Cloudflare API Token** with Analytics and Zone permissions
-3. **Cloudflare Worker** deployed at: `https://pitchey-production.cavelltheleaddev.workers.dev`
+3. **Cloudflare Worker** deployed at: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 4. **Deno Runtime** for metrics collection scripts
 
 ### Environment Variables
@@ -139,7 +139,7 @@ if (url.pathname === '/metrics') {
 ## 🔧 Configuration Details
 
 ### Current Worker Status
-- **Deployment**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Deployment**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Version ID**: 3c5d4b31-030c-48b9-be42-9bccd7177da5
 - **Cache System**: Advanced cache with management endpoints active
 - **Target Cache Hit Rate**: >80%
@@ -183,7 +183,7 @@ deno run --allow-all monitoring/grafana/scripts/metrics-collector.ts --once
 
 ### 3. Test Worker Metrics Endpoint
 ```bash
-curl "https://pitchey-production.cavelltheleaddev.workers.dev/metrics"
+curl "https://pitchey-api-prod.ndlovucavelle.workers.dev/metrics"
 ```
 
 ### 4. Validate Alert Configuration

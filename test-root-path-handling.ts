@@ -4,7 +4,7 @@
  * Test script to verify root path and non-API request handling
  */
 
-const WORKER_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const WORKER_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 interface TestResult {
   name: string;
@@ -31,7 +31,7 @@ class RootPathTester {
       const hasService = data.service === 'Pitchey API Gateway';
       const hasVersion = data.version === 'v3.0';
       const hasEndpoints = data.endpoints && data.endpoints.health === '/api/health';
-      const hasFrontend = data.frontend === 'https://pitchey.pages.dev';
+      const hasFrontend = data.frontend === 'https://pitchey-5o8.pages.dev';
       
       const passed = response.status === 200 && hasService && hasVersion && hasEndpoints && hasFrontend;
       

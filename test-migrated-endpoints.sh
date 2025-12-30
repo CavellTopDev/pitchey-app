@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test all migrated endpoints
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 TOKEN="your-jwt-token-here"
 
 echo "Testing API endpoints..."

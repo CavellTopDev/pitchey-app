@@ -44,7 +44,7 @@ Multiple API endpoints returning errors:
 ### Functional Components:
 - ✅ Homepage loads and displays correctly
 - ✅ Static assets loading properly
-- ✅ Core API at pitchey-optimized.cavelltheleaddev.workers.dev responding
+- ✅ Core API at pitchey-optimized.ndlovucavelle.workers.dev responding
 - ✅ Database queries executing (when accessible)
 - ✅ Frontend bundles loading correctly
 
@@ -52,15 +52,15 @@ Multiple API endpoints returning errors:
 
 ### Console Errors Found:
 ```
-GET https://pitchey.pages.dev/auth/creator 404
-GET https://pitchey.pages.dev/auth/investor 404
-GET https://pitchey.pages.dev/auth/production 404
-GET https://pitchey.pages.dev/browse 404
+GET https://pitchey-5o8.pages.dev/auth/creator 404
+GET https://pitchey-5o8.pages.dev/auth/investor 404
+GET https://pitchey-5o8.pages.dev/auth/production 404
+GET https://pitchey-5o8.pages.dev/browse 404
 ```
 
 ### Network Analysis:
-- API Base: https://pitchey-optimized.cavelltheleaddev.workers.dev
-- WebSocket: wss://pitchey-optimized.cavelltheleaddev.workers.dev/ws
+- API Base: https://pitchey-optimized.ndlovucavelle.workers.dev
+- WebSocket: wss://pitchey-optimized.ndlovucavelle.workers.dev/ws
 - Multiple 500 errors on dashboard analytics endpoints
 - CORS headers properly configured
 
@@ -99,13 +99,13 @@ GET https://pitchey.pages.dev/browse 404
 
 ```bash
 # Test authentication endpoints
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/creator/login
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/investor/login
-curl https://pitchey-optimized.cavelltheleaddev.workers.dev/api/auth/production/login
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/creator/login
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/investor/login
+curl https://pitchey-optimized.ndlovucavelle.workers.dev/api/auth/production/login
 
 # Verify frontend routes
-curl https://pitchey.pages.dev/login/creator
-curl https://pitchey.pages.dev/marketplace
+curl https://pitchey-5o8.pages.dev/login/creator
+curl https://pitchey-5o8.pages.dev/marketplace
 ```
 
 ## Contact for Questions

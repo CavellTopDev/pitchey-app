@@ -9,7 +9,7 @@ Your Pitchey platform has been **fully optimized and is production-ready** with 
 ## 📊 Current Production Status: FULLY OPERATIONAL
 
 ### 🟢 Live Production Endpoint
-- **URL**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Status**: HTTP 200 ✅ (500 errors eliminated)
 - **Response Time**: 0.17s (within targets)
 - **Database Pool**: 1 optimized connection

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Test script for frontend-worker integration
-const API_URL = 'https://pitchey-api-production.cavelltheleaddev.workers.dev';
+const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 console.log('🧪 Testing Frontend-Worker Integration\n');
 

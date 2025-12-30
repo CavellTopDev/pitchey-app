@@ -10,7 +10,7 @@
 ## Performance Test Results
 
 ### Health Endpoint Performance
-- **URL**: `https://pitchey-production.cavelltheleaddev.workers.dev/api/health`
+- **URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health`
 - **Requests Tested**: 10 sequential requests
 - **Average Response Time**: <100ms
 - **Success Rate**: 100%
@@ -18,7 +18,7 @@
 - **Status**: ✅ EXCELLENT
 
 ### Authentication Endpoint Performance
-- **URL**: `https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login`
+- **URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login`
 - **Requests Tested**: 5 POST requests with invalid credentials
 - **Average Response Time**: ~750ms
 - **Success Rate**: 100% (401 responses as expected)
@@ -26,7 +26,7 @@
 - **Status**: ✅ GOOD (Expected 401 for invalid credentials)
 
 ### Browse Endpoint Performance
-- **URL**: `https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/browse`
+- **URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/browse`
 - **Requests Tested**: 5 requests
 - **Average Response Time**: <70ms
 - **Total Test Duration**: 340ms

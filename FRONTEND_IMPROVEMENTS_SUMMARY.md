@@ -1,7 +1,7 @@
 # Frontend Improvements Summary
 
 ## 🚀 Deployment Status
-- **Production URL**: https://77745c4c.pitchey.pages.dev
+- **Production URL**: https://77745c4c.pitchey-5o8.pages.dev
 - **Status**: ✅ Successfully deployed
 - **Build Time**: 4.55 seconds
 - **Upload**: 374 files uploaded
@@ -166,6 +166,6 @@ Fixed missing dependencies in:
 ## 🎉 Summary
 The frontend has been significantly improved with performance optimizations, accessibility enhancements, and bug fixes. The application now provides a faster, more accessible, and more reliable user experience while maintaining all existing functionality.
 
-**Deployment URL**: https://77745c4c.pitchey.pages.dev
+**Deployment URL**: https://77745c4c.pitchey-5o8.pages.dev
 **GitHub Commit**: 1407a02
 **Date**: December 10, 2025

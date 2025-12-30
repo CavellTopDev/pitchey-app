@@ -123,7 +123,7 @@ After adding the optimizations:
 ./monitor-worker.sh
 
 # Check cache headers
-curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches
+curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches
 ```
 
 Look for these headers:

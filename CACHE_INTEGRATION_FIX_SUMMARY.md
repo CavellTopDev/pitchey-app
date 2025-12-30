@@ -105,7 +105,7 @@ if (shouldCacheResponse(request, data)) {
 
 ### Performance Headers Working
 ```bash
-$ curl -I https://pitchey-production.cavelltheleaddev.workers.dev/api/config/genres
+$ curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/api/config/genres
 
 x-cache-status: MISS
 x-powered-by: Cloudflare Workers  

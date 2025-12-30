@@ -32,7 +32,7 @@ This document provides comprehensive test coverage for all three Pitchey portals
 
 ### Dashboard URL
 ```
-https://pitchey.pages.dev/creator/dashboard
+https://pitchey-5o8.pages.dev/creator/dashboard
 ```
 
 ### Quick Actions Available
@@ -88,7 +88,7 @@ async function testCreatorQuickActions() {
   ];
   
   for (const endpoint of actions) {
-    const response = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev${endpoint}`, {
+    const response = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev${endpoint}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     console.log(`${endpoint}: ${response.status}`);
@@ -104,7 +104,7 @@ testCreatorQuickActions();
 
 ### Dashboard URL
 ```
-https://pitchey.pages.dev/investor/dashboard
+https://pitchey-5o8.pages.dev/investor/dashboard
 ```
 
 ### Navigation Tabs
@@ -149,7 +149,7 @@ async function testInvestorNavigation() {
   };
   
   for (const [tab, endpoint] of Object.entries(tabs)) {
-    const response = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev${endpoint}`, {
+    const response = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev${endpoint}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     console.log(`${tab} Tab: ${response.status} - ${response.ok ? '✅' : '❌'}`);
@@ -165,7 +165,7 @@ testInvestorNavigation();
 
 ### Dashboard URL
 ```
-https://pitchey.pages.dev/production/dashboard
+https://pitchey-5o8.pages.dev/production/dashboard
 ```
 
 ### Navigation Structure
@@ -229,7 +229,7 @@ async function testProductionDashboard() {
   const token = localStorage.getItem('authToken');
   
   // Test main dashboard
-  const dashResponse = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/production/dashboard', {
+  const dashResponse = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/production/dashboard', {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   
@@ -244,7 +244,7 @@ async function testProductionDashboard() {
   // Test navigation items
   const navEndpoints = ['/api/saved-pitches', '/api/follows/following', '/api/nda/active'];
   for (const endpoint of navEndpoints) {
-    const response = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev${endpoint}`, {
+    const response = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev${endpoint}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     console.log(`${endpoint}: ${response.status}`);
@@ -280,7 +280,7 @@ async function testPortalSwitching() {
   for (const portal of portals) {
     localStorage.clear();
     
-    const response = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/${portal.type}/login`, {
+    const response = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/${portal.type}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -325,7 +325,7 @@ async function testDashboardRefresh() {
   console.log('Testing dashboard refresh...');
   
   // Initial data fetch
-  const response1 = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev/api/${userType}/dashboard`, {
+  const response1 = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev/api/${userType}/dashboard`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   const data1 = await response1.json();
@@ -334,7 +334,7 @@ async function testDashboardRefresh() {
   await new Promise(resolve => setTimeout(resolve, 2000));
   
   // Refresh data
-  const response2 = await fetch(`https://pitchey-production.cavelltheleaddev.workers.dev/api/${userType}/dashboard`, {
+  const response2 = await fetch(`https://pitchey-api-prod.ndlovucavelle.workers.dev/api/${userType}/dashboard`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   const data2 = await response2.json();
@@ -352,7 +352,7 @@ testDashboardRefresh();
 ## 🧪 Comprehensive Test Suite
 
 ### Full Portal Workflow Test
-Run this in the browser console at https://pitchey.pages.dev:
+Run this in the browser console at https://pitchey-5o8.pages.dev:
 
 ```javascript
 // Complete portal workflow test
@@ -491,8 +491,8 @@ PortalWorkflowTests.generateReport()
 ## 📚 Additional Resources
 
 - **Test Script**: `./test-portal-workflows.sh`
-- **Production URL**: https://pitchey.pages.dev
-- **API Base**: https://pitchey-production.cavelltheleaddev.workers.dev
+- **Production URL**: https://pitchey-5o8.pages.dev
+- **API Base**: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - **Demo Accounts**: 
   - Creator: alex.creator@demo.com
   - Investor: sarah.investor@demo.com

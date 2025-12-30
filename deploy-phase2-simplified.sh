@@ -22,7 +22,7 @@ echo "✅ Fault isolation boundaries"
 echo ""
 
 # Check current deployment status
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 echo "🔍 Checking current deployment status..."
 
 CURRENT_STATUS=$(curl -s -w "HTTP %{http_code}" "$PRODUCTION_URL/api/health" || echo "FAILED")

@@ -76,7 +76,7 @@ Add to crontab for automated monitoring:
 ## Current Service Status
 
 Based on the health check, the following services are operational:
-✅ Frontend (https://pitchey.pages.dev) - 94ms response time  
+✅ Frontend (https://pitchey-5o8.pages.dev) - 94ms response time  
 ✅ Worker Health API - 84ms response time  
 ✅ Worker Detailed API - 412ms response time  
 ✅ Browse API - 147ms response time  

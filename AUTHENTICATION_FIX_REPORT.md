@@ -4,7 +4,7 @@
 
 **Date**: November 28, 2025
 **Deployment Time**: 03:17 UTC
-**Worker URL**: https://pitchey-optimized.cavelltheleaddev.workers.dev
+**Worker URL**: https://pitchey-optimized.ndlovucavelle.workers.dev
 
 ## 📊 Issues Fixed
 
@@ -61,7 +61,7 @@
 ### Manual Verification
 ```bash
 # Run test suite
-API_URL="https://pitchey-optimized.cavelltheleaddev.workers.dev" ./test-better-auth-portals.sh
+API_URL="https://pitchey-optimized.ndlovucavelle.workers.dev" ./test-better-auth-portals.sh
 
 # All tests passing ✅
 ```

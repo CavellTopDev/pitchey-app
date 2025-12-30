@@ -2,7 +2,7 @@
 
 # Test notifications endpoints with authentication
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 BACKEND_URL="https://pitchey-backend-fresh.deno.dev"
 
 echo "🔧 Testing Notifications Endpoints Fix"

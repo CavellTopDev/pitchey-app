@@ -131,8 +131,8 @@ Chrome DevTools testing revealed several UI consistency and branding issues acro
 - **Screen Resolution**: Desktop (Chrome DevTools default)
 - **Test Date**: December 8, 2025
 - **Platform URLs**:
-  - Frontend: https://pitchey.pages.dev
-  - API: https://pitchey-production.cavelltheleaddev.workers.dev
+  - Frontend: https://pitchey-5o8.pages.dev
+  - API: https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 ## Technical Notes
 

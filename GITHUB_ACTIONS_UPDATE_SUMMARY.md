@@ -21,7 +21,7 @@ Updated and fixed GitHub Actions workflows to ensure proper deployment pipeline 
   - LineChart, BarChart, PieChart components with professional styling
   - MetricCard, ChartContainer, MultiLineChart, AreaChart, StackedBarChart
   - Proper TypeScript interfaces and responsive design
-- **Frontend built and deployed** to https://3eccf552.pitchey.pages.dev
+- **Frontend built and deployed** to https://3eccf552.pitchey-5o8.pages.dev
 
 ### 3. **GitHub Actions Workflow Fixes**
 - **Fixed worker entrypoint references**: Updated from `src/worker-production-complete.ts` to `src/worker-production-db.ts`

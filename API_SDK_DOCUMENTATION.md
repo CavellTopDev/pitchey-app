@@ -26,14 +26,14 @@ import axios from 'axios';
 
 // Production API Configuration
 const api = axios.create({
-  baseURL: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  baseURL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   headers: { 'Content-Type': 'application/json' }
 });
 
 // For client-side testing in browser console
 window.testAPI = {
-  baseURL: 'https://pitchey-production.cavelltheleaddev.workers.dev',
-  frontendURL: 'https://pitchey.pages.dev'
+  baseURL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+  frontendURL: 'https://pitchey-5o8.pages.dev'
 };
 
 // Authentication interceptor
@@ -108,11 +108,11 @@ export default {
 
 #### Production Testing (Browser Console)
 ```javascript
-// Test authentication directly from https://pitchey.pages.dev console
+// Test authentication directly from https://pitchey-5o8.pages.dev console
 
 // 1. Test Creator Login
 const testCreatorLogin = async () => {
-  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login', {
+  const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -131,7 +131,7 @@ const testCreatorLogin = async () => {
 
 // 2. Test Investor Login
 const testInvestorLogin = async () => {
-  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/investor/login', {
+  const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/investor/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -150,7 +150,7 @@ const testInvestorLogin = async () => {
 
 // 3. Test Production Company Login
 const testProductionLogin = async () => {
-  const response = await fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/production/login', {
+  const response = await fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/production/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -219,7 +219,7 @@ export class AuthService {
 
 ### Role-Based Access Control
 
-#### Production Testing (Browser Console at https://pitchey.pages.dev)
+#### Production Testing (Browser Console at https://pitchey-5o8.pages.dev)
 ```javascript
 // Test RBAC by attempting to access different portal dashboards
 
@@ -227,28 +227,28 @@ export class AuthService {
 const token = localStorage.getItem('authToken');
 
 // 2. Test Creator Dashboard Access
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/creator/dashboard', {
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/creator/dashboard', {
   headers: { 'Authorization': `Bearer ${token}` }
 }).then(r => r.json()).then(data => {
   console.log('Creator Dashboard:', data);
 });
 
 // 3. Test Investor Dashboard Access
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/investor/dashboard', {
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/investor/dashboard', {
   headers: { 'Authorization': `Bearer ${token}` }
 }).then(r => r.json()).then(data => {
   console.log('Investor Dashboard:', data);
 });
 
 // 4. Test Production Dashboard Access
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/production/dashboard', {
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/production/dashboard', {
   headers: { 'Authorization': `Bearer ${token}` }
 }).then(r => r.json()).then(data => {
   console.log('Production Dashboard:', data);
 });
 
 // 5. Test Unauthorized Access (should fail)
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/admin/users')
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/admin/users')
   .then(r => r.json())
   .then(console.log)
   .catch(e => console.error('Expected error:', e));
@@ -327,12 +327,12 @@ export const pitchesRelations = relations(pitches, ({ one, many }) => ({
 
 #### Query Patterns - Production Testing
 
-##### Browser Console Tests (run at https://pitchey.pages.dev)
+##### Browser Console Tests (run at https://pitchey-5o8.pages.dev)
 ```javascript
 // Test pitch queries directly from production
 
 // 1. Get all public pitches
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches')
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches')
   .then(r => r.json())
   .then(data => {
     console.log(`Found ${data.data?.length || 0} pitches`);
@@ -340,21 +340,21 @@ fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches')
   });
 
 // 2. Get specific pitch by ID
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/1')
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/1')
   .then(r => r.json())
   .then(data => {
     console.log('Pitch details:', data);
   });
 
 // 3. Test trending pitches
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches/trending')
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches/trending')
   .then(r => r.json())
   .then(data => {
     console.log('Trending pitches:', data);
   });
 
 // 4. Test search functionality
-fetch('https://pitchey-production.cavelltheleaddev.workers.dev/api/pitches?genre=Action')
+fetch('https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches?genre=Action')
   .then(r => r.json())
   .then(data => {
     console.log('Action pitches:', data);

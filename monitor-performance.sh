@@ -3,7 +3,7 @@
 # Post-Deployment Performance Monitoring Script
 # Monitors Phase 1 optimization results and cost savings
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 MONITOR_DURATION=${1:-300}  # Default 5 minutes, or pass duration as argument
 INTERVAL=${2:-30}          # Default 30 seconds, or pass interval as argument
 

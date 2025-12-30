@@ -22,11 +22,20 @@ export default function CreatorLogin() {
     }
   };
 
-  const setDemoCredentials = () => {
-    setFormData({ 
+  const setDemoCredentials = async () => {
+    const demoData = { 
       email: 'alex.creator@demo.com', 
       password: 'Demo123' 
-    });
+    };
+    setFormData(demoData);
+    
+    // Auto-submit the form with demo credentials
+    try {
+      await loginCreator(demoData.email, demoData.password);
+      navigate('/creator/dashboard');
+    } catch (error) {
+      console.error('Demo creator login failed:', error);
+    }
   };
 
   return (

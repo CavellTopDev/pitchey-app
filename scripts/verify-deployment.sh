@@ -10,8 +10,8 @@ echo "============================================="
 echo ""
 
 # Configuration
-PRODUCTION_URL="${PRODUCTION_URL:-https://pitchey-production.cavelltheleaddev.workers.dev}"
-FRONTEND_URL="${FRONTEND_URL:-https://pitchey.pages.dev}"
+PRODUCTION_URL="${PRODUCTION_URL:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
+FRONTEND_URL="${FRONTEND_URL:-https://pitchey-5o8.pages.dev}"
 ADMIN_TOKEN="${ADMIN_TOKEN}"
 
 # Color codes

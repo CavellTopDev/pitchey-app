@@ -53,28 +53,28 @@ const PERFORMANCE_BUDGETS = {
 const TEST_SCENARIOS = [
   {
     name: 'Homepage (Anonymous)',
-    url: 'https://pitchey.pages.dev',
+    url: 'https://pitchey-5o8.pages.dev',
     viewport: { width: 1366, height: 768 },
     throttling: 'fast3g',
     category: 'marketing',
   },
   {
     name: 'Browse Pitches (Anonymous)', 
-    url: 'https://pitchey.pages.dev/browse',
+    url: 'https://pitchey-5o8.pages.dev/browse',
     viewport: { width: 1366, height: 768 },
     throttling: 'fast3g',
     category: 'discovery',
   },
   {
     name: 'Login Page',
-    url: 'https://pitchey.pages.dev/auth/login',
+    url: 'https://pitchey-5o8.pages.dev/auth/login',
     viewport: { width: 1366, height: 768 },
     throttling: 'fast3g',
     category: 'auth',
   },
   {
     name: 'Creator Dashboard (Authenticated)',
-    url: 'https://pitchey.pages.dev/creator/dashboard', 
+    url: 'https://pitchey-5o8.pages.dev/creator/dashboard', 
     viewport: { width: 1366, height: 768 },
     throttling: 'fast3g',
     category: 'dashboard',
@@ -83,7 +83,7 @@ const TEST_SCENARIOS = [
   },
   {
     name: 'Investor Portfolio (Authenticated)',
-    url: 'https://pitchey.pages.dev/investor/portfolio',
+    url: 'https://pitchey-5o8.pages.dev/investor/portfolio',
     viewport: { width: 1366, height: 768 },
     throttling: 'fast3g', 
     category: 'dashboard',
@@ -92,14 +92,14 @@ const TEST_SCENARIOS = [
   },
   {
     name: 'Pitch Detail Page',
-    url: 'https://pitchey.pages.dev/pitch/1',
+    url: 'https://pitchey-5o8.pages.dev/pitch/1',
     viewport: { width: 1366, height: 768 },
     throttling: 'fast3g',
     category: 'content',
   },
   {
     name: 'Mobile Homepage',
-    url: 'https://pitchey.pages.dev',
+    url: 'https://pitchey-5o8.pages.dev',
     viewport: { width: 375, height: 667 }, // iPhone SE
     throttling: 'slow3g',
     category: 'mobile',
@@ -107,7 +107,7 @@ const TEST_SCENARIOS = [
   },
   {
     name: 'Mobile Browse',
-    url: 'https://pitchey.pages.dev/browse',
+    url: 'https://pitchey-5o8.pages.dev/browse',
     viewport: { width: 375, height: 667 },
     throttling: 'slow3g',
     category: 'mobile',
@@ -185,7 +185,7 @@ class PerformanceAnalyzer {
     }
 
     // Navigate to login page
-    await page.goto('https://pitchey.pages.dev/auth/login');
+    await page.goto('https://pitchey-5o8.pages.dev/auth/login');
     await page.waitForSelector('input[type="email"]', { timeout: 10000 });
 
     // Fill in credentials

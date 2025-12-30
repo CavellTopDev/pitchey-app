@@ -14,8 +14,8 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-PRODUCTION_URL="https://pitchey.pages.dev"
-API_URL="https://pitchey-api-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-5o8.pages.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 WEBSOCKET_URL="wss://pitchey-backend-fresh.deno.dev/ws"
 DEMO_EMAIL="alex.creator@demo.com"
 DEMO_PASSWORD="Demo123"

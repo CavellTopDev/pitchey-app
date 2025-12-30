@@ -36,9 +36,9 @@ Pitchey is a comprehensive movie pitch platform connecting creators, investors, 
 
 | Component | Production URL | Status |
 |-----------|---------------|---------|
-| **Frontend** | https://48a55f89.pitchey.pages.dev | ✅ Active |
-| **Backend API** | https://pitchey-production.cavelltheleaddev.workers.dev | ✅ Active |
-| **WebSocket** | wss://pitchey-production.cavelltheleaddev.workers.dev | ✅ Active |
+| **Frontend** | https://48a55f89.pitchey-5o8.pages.dev | ✅ Active |
+| **Backend API** | https://pitchey-api-prod.ndlovucavelle.workers.dev | ✅ Active |
+| **WebSocket** | wss://pitchey-api-prod.ndlovucavelle.workers.dev | ✅ Active |
 | **Database** | Neon PostgreSQL via Hyperdrive | ✅ Connected |
 | **Cache** | Upstash Redis + Cloudflare KV | ✅ Operational |
 
@@ -66,7 +66,7 @@ VITE_API_URL=http://localhost:8001
 VITE_API_URL=https://pitchey-backend-fresh.deno.dev
 
 # 3. Cloudflare Worker (correct but inactive)
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 # 4. Generic production (future state)
 VITE_API_URL=https://pitchey.com
@@ -123,7 +123,7 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 ```
 2025-11-20T21:13:27.882Z ERROR: JWT verification failed
 - Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-- Expected issuer: pitchey-production.cavelltheleaddev.workers.dev
+- Expected issuer: pitchey-api-prod.ndlovucavelle.workers.dev
 - Actual issuer: pitchey-backend-fresh.deno.dev
 ```
 
@@ -141,7 +141,7 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 
 **Current Production Deployment**:
 ```bash
-URL: https://48a55f89.pitchey.pages.dev
+URL: https://48a55f89.pitchey-5o8.pages.dev
 Deployment ID: 48a55f89
 Branch: main
 Build Command: npm run build
@@ -151,8 +151,8 @@ Output Directory: dist/
 **Environment Configuration**:
 ```bash
 # Production Frontend Environment
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 NODE_ENV=production
 VITE_NODE_ENV=production
 ```
@@ -175,7 +175,7 @@ compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
 ```
 
@@ -202,12 +202,12 @@ localConnectionString = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-
 
 | Service Type | URL | Purpose |
 |--------------|-----|---------|
-| **Frontend Application** | https://48a55f89.pitchey.pages.dev | React SPA, primary user interface |
-| **API Gateway** | https://pitchey-production.cavelltheleaddev.workers.dev | Cloudflare Worker API proxy |
-| **WebSocket Endpoint** | wss://pitchey-production.cavelltheleaddev.workers.dev/ws | Real-time communication |
-| **Health Check** | https://pitchey-production.cavelltheleaddev.workers.dev/health | Service status monitoring |
-| **Authentication** | https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/* | JWT-based auth endpoints |
-| **Business API** | https://pitchey-production.cavelltheleaddev.workers.dev/api/* | Core platform functionality |
+| **Frontend Application** | https://48a55f89.pitchey-5o8.pages.dev | React SPA, primary user interface |
+| **API Gateway** | https://pitchey-api-prod.ndlovucavelle.workers.dev | Cloudflare Worker API proxy |
+| **WebSocket Endpoint** | wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws | Real-time communication |
+| **Health Check** | https://pitchey-api-prod.ndlovucavelle.workers.dev/health | Service status monitoring |
+| **Authentication** | https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/* | JWT-based auth endpoints |
+| **Business API** | https://pitchey-api-prod.ndlovucavelle.workers.dev/api/* | Core platform functionality |
 
 ---
 
@@ -261,7 +261,7 @@ Starting verifyWorkerMatchesCITag() with tag: undefined, name: pitchey-optimized
 
 ```bash
 # Trending Pitches Endpoint
-GET https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
+GET https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending
 Response: 200 OK
 {
   "pitches": [
@@ -282,7 +282,7 @@ Response: 200 OK
 
 ```bash
 # WebSocket Handshake Success
-WSS Connection: wss://pitchey-production.cavelltheleaddev.workers.dev/ws
+WSS Connection: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 Protocol: pitchey-v1
 Status: 101 Switching Protocols
 Connection-ID: durable-object-12345
@@ -299,19 +299,19 @@ Connection-ID: durable-object-12345
 # BEFORE (Multiple conflicting URLs)
 # VITE_API_URL=http://localhost:8001
 # VITE_API_URL=https://pitchey-backend-fresh.deno.dev
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
 
 # AFTER (Single production URL)
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 ```
 
 **Command Applied**:
 ```bash
 cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2/frontend
 # Update .env file
-echo "VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev" > .env
-echo "VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev" >> .env
+echo "VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev" > .env
+echo "VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev" >> .env
 ```
 
 #### Step 2: Worker Deployment Name Standardization
@@ -364,7 +364,7 @@ app.get('*', proxyToOrigin);  // Fallback only
 ```typescript
 // Headers applied to all responses
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://48a55f89.pitchey.pages.dev',
+  'Access-Control-Allow-Origin': 'https://48a55f89.pitchey-5o8.pages.dev',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age': '86400'
@@ -376,13 +376,13 @@ const corsHeaders = {
 ## 6. FINAL WORKING CONFIGURATION
 
 ### 6.1 Production Frontend URL
-**Primary**: `https://48a55f89.pitchey.pages.dev`
+**Primary**: `https://48a55f89.pitchey-5o8.pages.dev`
 
 **Frontend Configuration** (`frontend/.env`):
 ```bash
 # Cloudflare Worker API Gateway (Production Ready) - ACTIVE
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 
 # Environment Mode
 NODE_ENV=production
@@ -405,7 +405,7 @@ VITE_NODE_ENV=production
 ```
 
 ### 6.2 Production Backend URL  
-**Primary**: `https://pitchey-production.cavelltheleaddev.workers.dev`
+**Primary**: `https://pitchey-api-prod.ndlovucavelle.workers.dev`
 
 **Worker Configuration** (`wrangler.toml`):
 ```toml
@@ -415,7 +415,7 @@ compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
 
 [[kv_namespaces]]
@@ -447,9 +447,9 @@ DATABASE_URL=postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-poo
 JWT_SECRET=vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz
 
 # Application URLs (Cloudflare Production)
-APP_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-FRONTEND_URL=https://pitchey.pages.dev
-BASE_URL=https://pitchey.pages.dev
+APP_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
+BASE_URL=https://pitchey-5o8.pages.dev
 
 # Redis Configuration (Upstash)
 REDIS_URL=rediss://default:AU7aAAIncDI3ZGVjNWMxZGUyOWQ0ZmYyYjI4NzdkYjM4OGMxZTE3NnAyMjAxODY@chief-anteater-20186.upstash.io:6379
@@ -480,11 +480,11 @@ wrangler secret put UPSTASH_REDIS_REST_TOKEN --env production
 
 ### 7.1 Trending Pitches Endpoint: ✅ Working
 
-**Test URL**: `https://pitchey-production.cavelltheleaddev.workers.dev/api/trending`
+**Test URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending`
 
 **Successful Response**:
 ```bash
-curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/trending" \
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending" \
      -H "Content-Type: application/json" \
      -H "Authorization: Bearer demo_token"
 
@@ -511,11 +511,11 @@ curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/trendin
 
 ### 7.2 Browse Enhanced Endpoint: ✅ Working
 
-**Test URL**: `https://pitchey-production.cavelltheleaddev.workers.dev/api/browse/enhanced`
+**Test URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse/enhanced`
 
 **Parameters Tested**:
 ```bash
-curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/browse/enhanced?genre=Action&sort=rating&order=desc&page=1&limit=10"
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse/enhanced?genre=Action&sort=rating&order=desc&page=1&limit=10"
 
 # Response: 200 OK
 {
@@ -538,11 +538,11 @@ curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/browse/
 
 ### 7.3 Individual Pitch Endpoint: ✅ Working
 
-**Test URL**: `https://pitchey-production.cavelltheleaddev.workers.dev/api/pitch/1`
+**Test URL**: `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitch/1`
 
 **Successful Response**:
 ```bash
-curl -X GET "https://pitchey-production.cavelltheleaddev.workers.dev/api/pitch/1"
+curl -X GET "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitch/1"
 
 # Response: 200 OK
 {
@@ -588,7 +588,7 @@ const loginUser = async (portal: 'creator' | 'investor' | 'production', credenti
 **WebSocket Connection**:
 ```javascript
 // Frontend: WebSocket connection successful
-const ws = new WebSocket('wss://pitchey-production.cavelltheleaddev.workers.dev/ws');
+const ws = new WebSocket('wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws');
 ws.onopen = () => console.log('✅ WebSocket Connected');
 ws.onmessage = (event) => console.log('✅ Real-time data received');
 ```
@@ -614,7 +614,7 @@ ws.onmessage = (event) => console.log('✅ Real-time data received');
 **Symptoms**:
 ```javascript
 // Console errors
-Failed to fetch https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
+Failed to fetch https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending
 TypeError: NetworkError when attempting to fetch resource.
 ```
 
@@ -624,19 +624,19 @@ TypeError: NetworkError when attempting to fetch resource.
 cat frontend/.env | grep VITE_API_URL
 
 # 2. Test API endpoint directly
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending
 
 # 3. Check CORS headers
-curl -H "Origin: https://48a55f89.pitchey.pages.dev" \
+curl -H "Origin: https://48a55f89.pitchey-5o8.pages.dev" \
      -H "Access-Control-Request-Method: GET" \
      -H "Access-Control-Request-Headers: Content-Type" \
-     -X OPTIONS https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
+     -X OPTIONS https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending
 ```
 
 **Resolution**:
 ```bash
 # Update frontend environment
-echo "VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev" > frontend/.env
+echo "VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev" > frontend/.env
 cd frontend && npm run build
 ```
 
@@ -675,8 +675,8 @@ wrangler deploy --env production
 #!/bin/bash
 # health-check.sh
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-FRONTEND_URL="https://48a55f89.pitchey.pages.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+FRONTEND_URL="https://48a55f89.pitchey-5o8.pages.dev"
 
 echo "🏥 Pitchey Health Check - $(date)"
 echo "=================================="
@@ -726,7 +726,7 @@ echo "=================================="
 #### JWT Token Validation
 ```bash
 # Test authentication with demo credentials
-curl -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+curl -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "alex.creator@demo.com",
@@ -743,7 +743,7 @@ curl -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/c
 
 # Test protected endpoint with token
 curl -H "Authorization: Bearer [TOKEN]" \
-     "https://pitchey-production.cavelltheleaddev.workers.dev/api/user/profile"
+     "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/user/profile"
 ```
 
 ### 8.4 Health Check vs Real Functionality Testing
@@ -751,23 +751,23 @@ curl -H "Authorization: Bearer [TOKEN]" \
 #### Comprehensive Functionality Test
 ```bash
 # 1. Health check (basic)
-curl https://pitchey-production.cavelltheleaddev.workers.dev/health
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 
 # 2. Database connectivity test (advanced)
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending
 
 # 3. Authentication flow test (complete)
-TOKEN=$(curl -s -X POST "https://pitchey-production.cavelltheleaddev.workers.dev/api/auth/creator/login" \
+TOKEN=$(curl -s -X POST "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/creator/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"alex.creator@demo.com","password":"Demo123"}' | \
   jq -r '.token')
 
 # 4. Protected endpoint test
 curl -H "Authorization: Bearer $TOKEN" \
-     "https://pitchey-production.cavelltheleaddev.workers.dev/api/user/profile"
+     "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/user/profile"
 
 # 5. WebSocket test
-wscat -c "wss://pitchey-production.cavelltheleaddev.workers.dev/ws"
+wscat -c "wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws"
 ```
 
 ---
@@ -816,7 +816,7 @@ wrangler secret put JWT_SECRET --env production
 wrangler secret put NEON_DATABASE_URL --env production
 
 # Update frontend environment variables
-echo "VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev" > frontend/.env
+echo "VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev" > frontend/.env
 cd frontend && npm run build && cd ..
 wrangler pages deploy frontend/dist --project-name=pitchey
 ```
@@ -831,7 +831,7 @@ npx drizzle-kit generate:pg
 npx drizzle-kit push:pg
 
 # 3. Verify migrations
-curl https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
+curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending
 ```
 
 ### 9.3 Monitoring and Testing Procedures
@@ -841,7 +841,7 @@ curl https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
 #!/bin/bash
 # monitor.sh - Run every 5 minutes via cron
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 LOG_FILE="/var/log/pitchey-monitor.log"
 
 # Check API health
@@ -865,11 +865,11 @@ fi
 #### Performance Testing
 ```bash
 # Load testing with Apache Bench
-ab -n 1000 -c 10 https://pitchey-production.cavelltheleaddev.workers.dev/api/trending
+ab -n 1000 -c 10 https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending
 
 # WebSocket connection testing
 for i in {1..10}; do
-    wscat -c "wss://pitchey-production.cavelltheleaddev.workers.dev/ws" &
+    wscat -c "wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws" &
 done
 ```
 
@@ -882,8 +882,8 @@ done
 #### Frontend Environment (`.env`)
 ```bash
 # Cloudflare Worker API Gateway (Production Ready) - ACTIVE AFTER COMPLETE MIGRATION
-VITE_API_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-VITE_WS_URL=wss://pitchey-production.cavelltheleaddev.workers.dev
+VITE_API_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+VITE_WS_URL=wss://pitchey-api-prod.ndlovucavelle.workers.dev
 
 # Environment Mode
 NODE_ENV=production
@@ -915,9 +915,9 @@ DATABASE_URL=postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-poo
 JWT_SECRET=vYGh89KjLmNpQrStUwXyZ123456789ABCDEFGHIJKLMNOPQRSTuvwxyz
 
 # Application URLs (Updated for Cloudflare Production)
-APP_URL=https://pitchey-production.cavelltheleaddev.workers.dev
-FRONTEND_URL=https://pitchey.pages.dev
-BASE_URL=https://pitchey.pages.dev
+APP_URL=https://pitchey-api-prod.ndlovucavelle.workers.dev
+FRONTEND_URL=https://pitchey-5o8.pages.dev
+BASE_URL=https://pitchey-5o8.pages.dev
 
 # Environment
 DENO_ENV=production
@@ -966,7 +966,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 # Used for CORS and redirects
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 
 # Progressive migration: proxy unmatched API routes to existing Deno backend
 ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
@@ -1006,7 +1006,7 @@ compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 [env.production.vars]
-FRONTEND_URL = "https://pitchey.pages.dev"
+FRONTEND_URL = "https://pitchey-5o8.pages.dev"
 ORIGIN_URL = "https://pitchey-backend-fresh-yfjwdv4z663e.deno.dev"
 
 [[env.production.kv_namespaces]]
@@ -1033,8 +1033,8 @@ id = "983d4a1818264b5dbdca26bacf167dee"
 #!/bin/bash
 # test-api-suite.sh
 
-API_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
-FRONTEND_URL="https://48a55f89.pitchey.pages.dev"
+API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+FRONTEND_URL="https://48a55f89.pitchey-5o8.pages.dev"
 
 echo "🧪 Pitchey API Test Suite - $(date)"
 echo "========================================"
@@ -1134,7 +1134,7 @@ fi
 // test-websocket.js
 const WebSocket = require('ws');
 
-const wsUrl = 'wss://pitchey-production.cavelltheleaddev.workers.dev/ws';
+const wsUrl = 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws';
 
 console.log('🔌 WebSocket Connection Test');
 console.log('============================');
@@ -1178,7 +1178,7 @@ echo "============================"
 
 # Test via API endpoint (recommended)
 echo "Testing database via API..."
-response=$(curl -s "https://pitchey-production.cavelltheleaddev.workers.dev/api/trending")
+response=$(curl -s "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending")
 
 if echo "$response" | grep -q "success"; then
     echo "✅ Database connection via API: OK"

@@ -3,7 +3,7 @@
 # Performance Baseline Measurement Script
 # Establishes performance baselines for all critical endpoints
 
-WORKER_URL="${1:-https://pitchey-production.cavelltheleaddev.workers.dev}"
+WORKER_URL="${1:-https://pitchey-api-prod.ndlovucavelle.workers.dev}"
 OUTPUT_FILE="performance-baseline-$(date +%Y%m%d-%H%M%S).json"
 
 echo "📊 Establishing Performance Baselines"

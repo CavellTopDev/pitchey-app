@@ -30,8 +30,8 @@ function corsResponse(request: Request, data: any, status = 200): Response {
   let allowCredentials = false;
   
   if (origin) {
-    if (origin.endsWith('.pitchey.pages.dev') || 
-        origin === 'https://pitchey.pages.dev' ||
+    if (origin.endsWith('.pitchey-5o8.pages.dev') || 
+        origin === 'https://pitchey-5o8.pages.dev' ||
         origin.startsWith('http://localhost:')) {
       corsOrigin = origin;
       allowCredentials = true;
@@ -89,8 +89,8 @@ export default {
         let allowCredentials = false;
         
         if (origin && (
-          origin.endsWith('.pitchey.pages.dev') || 
-          origin === 'https://pitchey.pages.dev' ||
+          origin.endsWith('.pitchey-5o8.pages.dev') || 
+          origin === 'https://pitchey-5o8.pages.dev' ||
           origin.startsWith('http://localhost:')
         )) {
           corsOrigin = origin;

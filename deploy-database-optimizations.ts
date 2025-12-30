@@ -6,7 +6,7 @@
  */
 
 // Test the database optimization through the production worker
-const WORKER_URL = 'https://pitchey-production.cavelltheleaddev.workers.dev';
+const WORKER_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Critical database optimizations as SQL statements
 const criticalOptimizations = [

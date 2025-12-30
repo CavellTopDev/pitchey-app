@@ -492,7 +492,7 @@ async function main() {
     },
     production: {
       environment: 'production' as const,
-      baseUrl: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+      baseUrl: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
       concurrentUsers: 20,
       testDuration: 10
     }

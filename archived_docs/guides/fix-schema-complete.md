@@ -405,7 +405,7 @@ const pitchData = await pitches.json();
 if (pitchData.data?.pitches?.length > 0) {
   console.log(`✅ SUCCESS! Found ${pitchData.data.pitches.length} pitches`);
   console.log("Your pitches are now visible at:");
-  console.log("https://pitchey.pages.dev/creator/pitches");
+  console.log("https://pitchey-5o8.pages.dev/creator/pitches");
 } else {
   console.log("❌ Still not working. Check deployment logs.");
 }

@@ -7,14 +7,14 @@ cat << 'EOF'
 ===============================================================================
 PRODUCTION DASHBOARD FEATURES TEST SUITE
 ===============================================================================
-Open https://pitchey.pages.dev in your browser
+Open https://pitchey-5o8.pages.dev in your browser
 Open DevTools Console (F12)
 Copy and paste the following JavaScript code:
 ===============================================================================
 
 // 🎬 PRODUCTION DASHBOARD FEATURES TEST
 const ProductionDashboardTests = {
-  API_URL: 'https://pitchey-production.cavelltheleaddev.workers.dev',
+  API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   
   results: [],
   token: null,
@@ -441,8 +441,8 @@ const ProductionDashboardTests = {
     console.clear();
     console.log('🎬 PRODUCTION DASHBOARD FEATURES TEST SUITE');
     console.log('==========================================');
-    console.log('Testing: https://pitchey.pages.dev/production/dashboard');
-    console.log('API: https://pitchey-production.cavelltheleaddev.workers.dev');
+    console.log('Testing: https://pitchey-5o8.pages.dev/production/dashboard');
+    console.log('API: https://pitchey-api-prod.ndlovucavelle.workers.dev');
     console.log('==========================================\n');
     
     this.results = [];
@@ -458,7 +458,7 @@ const ProductionDashboardTests = {
     const report = this.generateReport();
     
     console.log('\n💡 USAGE TIPS:');
-    console.log('1. Navigate to https://pitchey.pages.dev/production/dashboard');
+    console.log('1. Navigate to https://pitchey-5o8.pages.dev/production/dashboard');
     console.log('2. Look for time filter dropdown (7 days, 30 days, 90 days, 1 year)');
     console.log('3. Switch to NDAs tab to see Smart Pitch Discovery');
     console.log('4. Check that metrics update when changing time range');
@@ -480,7 +480,7 @@ echo "✅ Production Dashboard test script generated!"
 echo ""
 echo "📋 TO TEST THE NEW FEATURES:"
 echo "1. Copy the JavaScript code above"
-echo "2. Open https://pitchey.pages.dev in your browser"
+echo "2. Open https://pitchey-5o8.pages.dev in your browser"
 echo "3. Open DevTools Console (F12)"
 echo "4. Paste and run the code"
 echo ""

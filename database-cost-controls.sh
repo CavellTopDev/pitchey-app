@@ -21,7 +21,7 @@ echo "=============================="
 # Check current database optimization status
 echo "🔍 Checking current optimizations..." | tee -a "$COST_LIMIT_LOG"
 
-PRODUCTION_URL="https://pitchey-production.cavelltheleaddev.workers.dev"
+PRODUCTION_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 HEALTH_STATUS=$(curl -s "$PRODUCTION_URL/api/health" 2>/dev/null || echo "{}")
 
 if command -v jq &> /dev/null; then
