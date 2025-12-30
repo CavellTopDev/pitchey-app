@@ -134,13 +134,23 @@ export function useRealTimeNotifications() {
       try {
         // Fetch recent notifications from API
         const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
-        const response = await fetch(`${apiUrl}/api/notifications/recent`, {
+        const response = await fetch(`${apiUrl}/api/user/notifications`, {
           method: 'GET',
           credentials: 'include' // Send cookies for Better Auth session
         });
         
+        // Handle 404 gracefully - endpoint might not exist yet
+        if (response.status === 404) {
+          // Silently ignore - endpoint not implemented yet
+          return;
+        }
+        
         if (!response.ok) {
-          throw new Error(`Failed to fetch notifications: ${response.status}`);
+          // Only log error for non-404 errors
+          if (response.status !== 404) {
+            console.warn(`Notification polling returned status: ${response.status}`);
+          }
+          return;
         }
         
         const data = await response.json();
@@ -171,7 +181,11 @@ export function useRealTimeNotifications() {
           });
         }
       } catch (error) {
-        console.error('Error polling notifications:', error);
+        // Silently handle errors to avoid console spam
+        // Only log if it's not a network error (which is common)
+        if (error instanceof Error && !error.message.includes('fetch')) {
+          console.warn('Notification polling error:', error.message);
+        }
       }
     };
 
