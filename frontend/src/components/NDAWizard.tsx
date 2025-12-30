@@ -85,7 +85,7 @@ export default function NDAWizard({
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [ndaData, setNDAData] = useState<NDA | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string>('');
   const [requestMessage, setRequestMessage] = useState('');
   const [signature, setSignature] = useState({
     fullName: '',
@@ -131,7 +131,11 @@ export default function NDAWizard({
         // Check if user can request NDA
         const canRequest = await ndaService.canRequestNDA(pitchId);
         if (!canRequest.canRequest) {
-          setError(canRequest.reason || 'Cannot request NDA at this time');
+          // Ensure reason is always a string
+          const errorReason = typeof canRequest.reason === 'string' 
+            ? canRequest.reason 
+            : 'Cannot request NDA at this time';
+          setError(errorReason);
           setCurrentStep('info');
         } else {
           setCurrentStep('info');
@@ -162,7 +166,41 @@ export default function NDAWizard({
       setCurrentStep('status');
       onStatusChange?.();
     } catch (err: any) {
-      setError(err.message || 'Failed to submit NDA request');
+      // Handle different error formats
+      let errorMessage = 'Failed to submit NDA request';
+      
+      console.error('NDA request error:', err);
+      console.error('Error type:', typeof err);
+      console.error('Error constructor:', err?.constructor?.name);
+      
+      // Extract message from various error formats
+      if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err instanceof Error && err.message) {
+        // Standard Error object
+        errorMessage = err.message;
+      } else if (typeof err?.message === 'string') {
+        // Has a message property that's a string
+        errorMessage = err.message;
+      } else if (typeof err?.error?.message === 'string') {
+        // Nested error.message
+        errorMessage = err.error.message;
+      } else if (typeof err?.response?.error?.message === 'string') {
+        // Deeply nested response.error.message
+        errorMessage = err.response.error.message;
+      } else if (err && typeof err === 'object') {
+        // Last resort - try to make sense of the object
+        console.error('Unknown error object structure:', err);
+        errorMessage = 'An unexpected error occurred. Please try again.';
+      }
+      
+      // Final safety check - ensure it's ALWAYS a string
+      if (typeof errorMessage !== 'string') {
+        console.error('ERROR: errorMessage is not a string!', errorMessage, typeof errorMessage);
+        errorMessage = String(errorMessage) || 'An unexpected error occurred';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -190,7 +228,42 @@ export default function NDAWizard({
       setCurrentStep('complete');
       onStatusChange?.();
     } catch (err: any) {
-      setError(err.message || 'Failed to sign NDA');
+      // Handle different error formats
+      let errorMessage = 'Failed to sign NDA';
+      
+      console.error('NDA sign error:', err);
+      
+      if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.error?.message) {
+        errorMessage = err.error.message;
+      } else if (err?.response?.error?.message) {
+        errorMessage = err.response.error.message;
+      } else if (err && typeof err === 'object') {
+        // If it's an object without a message, try to stringify it
+        try {
+          // Check if it's actually the error object itself being set
+          const stringified = JSON.stringify(err);
+          // Don't show the raw object, show a meaningful message
+          if (stringified === '{}' || stringified.includes('"success":false')) {
+            errorMessage = 'Failed to sign NDA. Please try again.';
+          } else {
+            errorMessage = 'An unexpected error occurred';
+          }
+        } catch {
+          errorMessage = 'Failed to sign NDA';
+        }
+      }
+      
+      // Ensure we never set an object as the error
+      if (typeof errorMessage !== 'string') {
+        console.error('Error message is not a string:', errorMessage);
+        errorMessage = 'An unexpected error occurred';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -316,7 +389,11 @@ export default function NDAWizard({
               <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
               <div className="flex-1">
                 <h3 className="font-medium text-red-800">Error</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <p className="text-sm text-red-700 mt-1">
+                  {typeof error === 'string' ? error : 
+                   typeof error === 'object' && error?.message ? error.message :
+                   'An unexpected error occurred'}
+                </p>
               </div>
             </div>
           )}

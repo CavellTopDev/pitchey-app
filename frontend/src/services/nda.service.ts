@@ -72,7 +72,19 @@ export class NDAService {
     );
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to request NDA');
+      // Ensure we always throw an Error with a string message
+      // response.error can be either a string or an object with a message property
+      let errorMessage = 'Failed to request NDA';
+      
+      if (typeof response.error === 'string') {
+        errorMessage = response.error;
+      } else if (response.error && typeof response.error.message === 'string') {
+        errorMessage = response.error.message;
+      } else if (response.error?.code === 'INTERNAL_ERROR') {
+        errorMessage = 'An unexpected error occurred. Please try again.';
+      }
+      
+      throw new Error(errorMessage);
     }
 
     // Return the request data as NDA object
@@ -191,10 +203,19 @@ export class NDAService {
 
       if (!response.success) {
         // Handle specific error cases
-        const errorMessage = response.error?.message || 'Failed to fetch NDA status';
+        // response.error can be either a string or an object with a message property
+        let errorMessage = 'Failed to fetch NDA status';
+        let errorStatus: number | undefined;
+        
+        if (typeof response.error === 'string') {
+          errorMessage = response.error;
+        } else if (response.error && typeof response.error === 'object') {
+          errorMessage = response.error.message || errorMessage;
+          errorStatus = response.error.status;
+        }
         
         // Don't throw for business rule violations, return them as part of response
-        if (response.error?.status === 404 || errorMessage.includes('not found')) {
+        if (errorStatus === 404 || errorMessage.includes('not found')) {
           return {
             hasNDA: false,
             canAccess: false,
@@ -202,7 +223,7 @@ export class NDAService {
           };
         }
         
-        if (response.error?.status === 403 || errorMessage.includes('forbidden')) {
+        if (errorStatus === 403 || errorMessage.includes('forbidden')) {
           return {
             hasNDA: false,
             canAccess: false,
@@ -378,7 +399,14 @@ export class NDAService {
 
       if (!response.success) {
         // Handle business rule violations gracefully
-        const errorMessage = response.error?.message || 'Failed to check NDA request status';
+        // response.error can be either a string or an object with a message property
+        let errorMessage = 'Failed to check NDA request status';
+        
+        if (typeof response.error === 'string') {
+          errorMessage = response.error;
+        } else if (response.error && typeof response.error.message === 'string') {
+          errorMessage = response.error.message;
+        }
         
         return {
           canRequest: false,

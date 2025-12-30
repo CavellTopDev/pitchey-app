@@ -11,7 +11,7 @@ async function runMigrations() {
 
   // Get connection string with fallback
   const connectionString = Deno.env.get("DATABASE_URL") || 
-    "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
+    "postgresql://neondb_owner:npg_YibeIGRuv40J@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
   // Find project root by looking for deno.json, starting from script location
   let currentDir = dirname(new URL(import.meta.url).pathname);
@@ -115,7 +115,7 @@ async function runMigrations() {
           
           for (const statement of statements) {
             if (statement.trim()) {
-              await sql`${statement}`;
+              await sql(statement);
             }
           }
           

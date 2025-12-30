@@ -15,7 +15,7 @@ interface ApiError {
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
-  error?: ApiError;
+  error?: ApiError | string;
 }
 
 class ApiClient {

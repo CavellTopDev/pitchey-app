@@ -10,7 +10,7 @@ export interface ApiResponse<T = any> {
     code?: string;
     status?: number;
     details?: any;
-  };
+  } | string;
   message?: string;
   cached?: boolean;
 }
