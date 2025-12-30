@@ -25,8 +25,7 @@ console.log('🚀 Pitchey App Environment:', {
 // Immediately needed components (not lazy loaded)
 import Layout from './components/Layout';
 import { NotificationInitializer } from './components/NotificationInitializer';
-import { TestNotifications } from './components/TestNotifications';
-// TestSentry component removed
+// TestNotifications and TestSentry components removed
 
 // Lazy load Homepage with prefetch
 const Homepage = lazy(() => 
@@ -245,9 +244,8 @@ function App() {
         <PollingProvider defaultInterval={30000} enablePolling={true}>
           <NotificationToastProvider>
             <ToastProvider>
-            {/* TestSentry component removed */}
+            {/* TestSentry and TestNotifications components removed */}
             <NotificationInitializer />
-            <TestNotifications />
             <Router>
             <Suspense fallback={
               <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
