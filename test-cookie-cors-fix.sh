@@ -23,29 +23,29 @@ HEADERS=$(echo "$LOGIN_RESPONSE" | sed '/^$/q')
 BODY=$(echo "$LOGIN_RESPONSE" | sed '1,/^$/d')
 
 echo "Response headers:"
-echo "$HEADERS" | grep -E "(Set-Cookie|Access-Control-Allow-Origin|Access-Control-Allow-Credentials)"
+echo "$HEADERS" | grep -iE "(set-cookie|access-control-allow-origin|access-control-allow-credentials)"
 echo ""
 
-# Check for proper cookie settings
-if echo "$HEADERS" | grep -q "Set-Cookie.*SameSite=None"; then
+# Check for proper cookie settings (case-insensitive)
+if echo "$HEADERS" | grep -iq "set-cookie.*samesite=none"; then
   echo "✅ Cookie has SameSite=None for cross-origin"
 else
   echo "❌ Cookie missing SameSite=None"
 fi
 
-if echo "$HEADERS" | grep -q "Set-Cookie.*Secure"; then
+if echo "$HEADERS" | grep -iq "set-cookie.*secure"; then
   echo "✅ Cookie has Secure flag"
 else
   echo "❌ Cookie missing Secure flag"
 fi
 
-if echo "$HEADERS" | grep -q "Access-Control-Allow-Origin: $FRONTEND_URL"; then
+if echo "$HEADERS" | grep -iq "access-control-allow-origin: $FRONTEND_URL"; then
   echo "✅ CORS origin matches frontend URL"
 else
   echo "❌ CORS origin doesn't match (should be $FRONTEND_URL)"
 fi
 
-if echo "$HEADERS" | grep -q "Access-Control-Allow-Credentials: true"; then
+if echo "$HEADERS" | grep -iq "access-control-allow-credentials: true"; then
   echo "✅ CORS credentials are enabled"
 else
   echo "❌ CORS credentials not enabled"

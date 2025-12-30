@@ -2224,18 +2224,30 @@ class RouteRegistry {
       let nda = null;
       
       try {
-        [nda] = await this.db.query(`
-          INSERT INTO ndas (
-            signer_id, pitch_id, status, nda_type,
-            access_granted, expires_at, created_at, updated_at
-            ${isDemoAccount ? ', approved_at' : ''}
-          ) VALUES (
-            $1, $2, $3, 'basic', $4, 
-            NOW() + INTERVAL '${data.expiryDays || 30} days',
-            NOW(), NOW()
-            ${isDemoAccount ? ', NOW()' : ''}
-          ) RETURNING *
-        `, [authResult.user.id, data.pitchId, ndaStatus, isDemoAccount]);
+        // Build the query properly based on demo account status
+        if (isDemoAccount) {
+          [nda] = await this.db.query(`
+            INSERT INTO ndas (
+              signer_id, pitch_id, status, nda_type,
+              access_granted, expires_at, created_at, updated_at, approved_at
+            ) VALUES (
+              $1, $2, $3, 'basic', $4, 
+              NOW() + INTERVAL '${data.expiryDays || 30} days',
+              NOW(), NOW(), NOW()
+            ) RETURNING *
+          `, [authResult.user.id, data.pitchId, ndaStatus, true]);
+        } else {
+          [nda] = await this.db.query(`
+            INSERT INTO ndas (
+              signer_id, pitch_id, status, nda_type,
+              access_granted, expires_at, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, 'basic', $4, 
+              NOW() + INTERVAL '${data.expiryDays || 30} days',
+              NOW(), NOW()
+            ) RETURNING *
+          `, [authResult.user.id, data.pitchId, ndaStatus, false]);
+        }
       } catch (insertError) {
         console.error('Failed to create NDA request:', insertError);
         throw new Error('Failed to create NDA request');
@@ -2245,7 +2257,38 @@ class RouteRegistry {
         throw new Error('Failed to create NDA request');
       }
 
-      return builder.success({ nda });
+      // Create notification for pitch owner if not auto-approved
+      if (!isDemoAccount && creatorId) {
+        try {
+          await this.db.query(`
+            INSERT INTO notifications (
+              user_id, type, title, message, 
+              related_type, related_id, created_at
+            ) VALUES (
+              $1, 'nda_request', 'New NDA Request',
+              $2, 'nda', $3, NOW()
+            )
+          `, [
+            creatorId,
+            `${authResult.user.name || authResult.user.email} has requested NDA access to your pitch`,
+            nda.id
+          ]);
+        } catch (notifError) {
+          console.error('Failed to create notification:', notifError);
+          // Don't fail the request if notification fails
+        }
+      }
+
+      return builder.success({ 
+        id: nda.id,
+        status: nda.status,
+        pitchId: nda.pitch_id,
+        signerId: nda.signer_id,
+        accessGranted: nda.access_granted,
+        expiresAt: nda.expires_at,
+        createdAt: nda.created_at,
+        success: true
+      });
     } catch (error) {
       console.error('NDA request error:', error);
       return errorHandler(error, request);
