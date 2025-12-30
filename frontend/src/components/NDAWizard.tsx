@@ -163,7 +163,15 @@ export default function NDAWizard({
       });
       
       setNDAData(nda);
-      setCurrentStep('status');
+      
+      // For demo accounts, NDAs are auto-approved
+      // Check if the user is a demo account and the NDA was auto-approved
+      if (user?.email?.includes('@demo.com') || nda.status === 'approved') {
+        setCurrentStep('review');
+      } else {
+        setCurrentStep('status');
+      }
+      
       onStatusChange?.();
     } catch (err: any) {
       // Handle different error formats
@@ -547,22 +555,38 @@ export default function NDAWizard({
                       <div className="bg-blue-50 rounded-lg p-6">
                         <h4 className="font-semibold text-blue-900 mb-3">Request Details</h4>
                         <div className="space-y-2 text-sm text-blue-800">
-                          <p><span className="font-medium">Submitted:</span> {new Date(ndaData.requestedAt).toLocaleDateString()}</p>
-                          <p><span className="font-medium">Status:</span> Pending Review</p>
+                          <p><span className="font-medium">Submitted:</span> {new Date(ndaData.createdAt || ndaData.requestedAt || new Date()).toLocaleDateString()}</p>
+                          <p><span className="font-medium">Status:</span> {ndaData.status === 'approved' ? 'Approved - Ready to Sign' : 'Pending Review'}</p>
                           <p><span className="font-medium">Pitch:</span> {pitchTitle}</p>
                         </div>
                       </div>
 
                       <div className="mt-6 text-center">
-                        <p className="text-sm text-gray-600 mb-4">
-                          You'll be notified when the creator responds to your request.
-                        </p>
-                        <button
-                          onClick={checkNDAStatus}
-                          className="px-4 py-2 text-purple-600 hover:text-purple-700 font-medium"
-                        >
-                          Check Status
-                        </button>
+                        {ndaData.status === 'approved' ? (
+                          <>
+                            <p className="text-sm text-green-600 font-medium mb-4">
+                              Your NDA has been approved! Click below to proceed with signing.
+                            </p>
+                            <button
+                              onClick={() => setCurrentStep('review')}
+                              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                            >
+                              Proceed to Sign NDA
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-600 mb-4">
+                              You'll be notified when the creator responds to your request.
+                            </p>
+                            <button
+                              onClick={checkNDAStatus}
+                              className="px-4 py-2 text-purple-600 hover:text-purple-700 font-medium"
+                            >
+                              Check Status
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}

@@ -66,12 +66,12 @@ export interface NDAStats {
 export class NDAService {
   // Request NDA for a pitch
   static async requestNDA(request: NDARequestInput): Promise<NDA> {
-    const response = await apiClient.post<ApiResponse<NDA>>(
+    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
       '/api/ndas/request',
       request
     );
 
-    if (!response.success || !response.data) {
+    if (!response.success || !response.data?.nda) {
       // Ensure we always throw an Error with a string message
       // response.error can be either a string or an object with a message property
       let errorMessage = 'Failed to request NDA';
@@ -87,8 +87,8 @@ export class NDAService {
       throw new Error(errorMessage);
     }
 
-    // Return the request data as NDA object
-    return response.data;
+    // Return the NDA object from the nested structure
+    return response.data.nda;
   }
 
   // Sign NDA

@@ -196,7 +196,7 @@ export default {
               const result = await auth.signUp(data);
               
               // Set session cookie
-              const cookieHeader = `pitchey-session=${result.session.token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}`;
+              const cookieHeader = `pitchey-session=${result.session.token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${30 * 24 * 60 * 60}`;
               
               return new Response(JSON.stringify({
                 success: true,
@@ -219,7 +219,7 @@ export default {
               const result = await auth.signIn(data);
               
               // Set session cookie
-              const cookieHeader = `pitchey-session=${result.session.token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}`;
+              const cookieHeader = `pitchey-session=${result.session.token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${30 * 24 * 60 * 60}`;
               
               return new Response(JSON.stringify({
                 success: true,

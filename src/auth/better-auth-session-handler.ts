@@ -4,6 +4,7 @@
  */
 
 import { neon } from '@neondatabase/serverless';
+import { getCORSHeaders, createCookieHeader, clearCookieHeader } from './cors-config';
 
 export interface BetterAuthSession {
   id: string;
@@ -162,6 +163,9 @@ export class BetterAuthSessionHandler {
    * Handle Better Auth login
    */
   async handleLogin(request: Request, portal: 'creator' | 'investor' | 'production'): Promise<Response> {
+    const origin = request.headers.get('Origin');
+    const corsHeaders = getCORSHeaders(origin, true);
+    
     try {
       const body = await request.json();
       const { email, password } = body;
@@ -184,8 +188,7 @@ export class BetterAuthSessionHandler {
             status: 401,
             headers: {
               'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Credentials': 'true'
+              ...corsHeaders
             }
           }
         );
@@ -225,6 +228,14 @@ export class BetterAuthSessionHandler {
         );
       }
 
+      // Create session cookie with centralized configuration
+      const sessionCookie = createCookieHeader('better-auth-session', sessionId, {
+        maxAge: 604800, // 7 days
+        sameSite: 'None',
+        secure: true,
+        httpOnly: true
+      });
+
       // Return response with session cookie
       return new Response(
         JSON.stringify({
@@ -246,9 +257,8 @@ export class BetterAuthSessionHandler {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`,
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Credentials': 'true'
+            'Set-Cookie': sessionCookie,
+            ...corsHeaders
           }
         }
       );
@@ -260,7 +270,7 @@ export class BetterAuthSessionHandler {
           status: 500,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            ...corsHeaders
           }
         }
       );
@@ -271,6 +281,9 @@ export class BetterAuthSessionHandler {
    * Handle logout
    */
   async handleLogout(request: Request): Promise<Response> {
+    const origin = request.headers.get('Origin');
+    const corsHeaders = getCORSHeaders(origin, true);
+    
     try {
       const cookieHeader = request.headers.get('Cookie');
       const sessionId = this.parseSessionCookie(cookieHeader);
@@ -287,15 +300,16 @@ export class BetterAuthSessionHandler {
         }
       }
 
+      const logoutCookie = clearCookieHeader('better-auth-session');
+      
       return new Response(
         JSON.stringify({ success: true, message: 'Logged out successfully' }),
         {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            'Set-Cookie': 'better-auth-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Credentials': 'true'
+            'Set-Cookie': logoutCookie,
+            ...corsHeaders
           }
         }
       );
@@ -307,7 +321,7 @@ export class BetterAuthSessionHandler {
           status: 500,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            ...corsHeaders
           }
         }
       );
@@ -318,6 +332,9 @@ export class BetterAuthSessionHandler {
    * Get current session
    */
   async getSession(request: Request): Promise<Response> {
+    const origin = request.headers.get('Origin');
+    const corsHeaders = getCORSHeaders(origin, true);
+    
     const result = await this.validateSession(request);
     
     if (!result.valid) {
@@ -327,7 +344,7 @@ export class BetterAuthSessionHandler {
           status: 401,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Origin': 'https://pitchey-5o8.pages.dev',
             'Access-Control-Allow-Credentials': 'true'
           }
         }

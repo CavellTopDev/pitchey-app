@@ -642,8 +642,8 @@ class RouteRegistry {
     this.register('POST', '/api/ndas/request', this.requestNDA.bind(this));
     this.register('POST', '/api/ndas/:id/approve', this.approveNDA.bind(this));
     this.register('POST', '/api/ndas/:id/reject', this.rejectNDA.bind(this));
-    this.register('POST', '/api/ndas/:id/sign', (req) => ndaHandler(req, this.env));
-    this.register('POST', '/api/ndas/sign', (req) => ndaHandler(req, this.env));
+    this.register('POST', '/api/ndas/:id/sign', this.signNDA.bind(this));
+    this.register('POST', '/api/ndas/sign', this.signNDA.bind(this));
 
     // === NEW INVESTOR PORTAL ROUTES ===
     // Financial Overview
@@ -2182,6 +2182,12 @@ class RouteRegistry {
         return builder.error(ErrorCode.ALREADY_EXISTS, 'NDA request already exists');
       }
 
+      // Auto-approve for demo accounts
+      const userEmail = authResult.user.email || '';
+      const isDemoAccount = userEmail.includes('@demo.com');
+      const ndaStatus = isDemoAccount ? 'approved' : 'pending';
+      console.log(`NDA request from ${userEmail}, isDemoAccount: ${isDemoAccount}, status: ${ndaStatus}`);
+
       // Get pitch creator to ensure the pitch exists - try different column names
       let pitch = null;
       let creatorId = null;
@@ -2222,12 +2228,14 @@ class RouteRegistry {
           INSERT INTO ndas (
             signer_id, pitch_id, status, nda_type,
             access_granted, expires_at, created_at, updated_at
+            ${isDemoAccount ? ', approved_at' : ''}
           ) VALUES (
-            $1, $2, 'pending', 'basic', false, 
+            $1, $2, $3, 'basic', $4, 
             NOW() + INTERVAL '${data.expiryDays || 30} days',
             NOW(), NOW()
+            ${isDemoAccount ? ', NOW()' : ''}
           ) RETURNING *
-        `, [authResult.user.id, data.pitchId]);
+        `, [authResult.user.id, data.pitchId, ndaStatus, isDemoAccount]);
       } catch (insertError) {
         console.error('Failed to create NDA request:', insertError);
         throw new Error('Failed to create NDA request');
@@ -2312,16 +2320,42 @@ class RouteRegistry {
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
     const data = await request.json();
+    
+    // Extract NDA ID from params or body
+    const ndaId = params.id || data.ndaId;
+    if (!ndaId) {
+      return builder.error(ErrorCode.BAD_REQUEST, 'NDA ID is required');
+    }
 
     try {
-      // Verify the NDA is approved and belongs to the user
+      // Verify the NDA exists and belongs to the user (use signer_id which is our column)
       const [nda] = await this.db.query(`
         SELECT * FROM ndas 
-        WHERE id = $1 AND requester_id = $2 AND status = 'approved'
-      `, [params.id, authResult.user.id]);
+        WHERE id = $1 AND signer_id = $2 AND status IN ('approved', 'pending')
+      `, [ndaId, authResult.user.id]);
 
       if (!nda) {
-        return builder.error(ErrorCode.NOT_FOUND, 'NDA not found, not approved, or not authorized');
+        return builder.error(ErrorCode.NOT_FOUND, 'NDA not found or not authorized');
+      }
+      
+      // Auto-approve for demo accounts if still pending
+      const userEmail = authResult.user.email || '';
+      const isDemoAccount = userEmail.includes('@demo.com');
+      
+      if (nda.status === 'pending' && isDemoAccount) {
+        // Update to approved first for demo accounts
+        await this.db.query(`
+          UPDATE ndas SET
+            status = 'approved',
+            approved_at = NOW(),
+            updated_at = NOW()
+          WHERE id = $1 AND signer_id = $2
+        `, [ndaId, authResult.user.id]);
+        nda.status = 'approved';
+      }
+      
+      if (nda.status !== 'approved') {
+        return builder.error(ErrorCode.BAD_REQUEST, 'NDA must be approved before signing');
       }
 
       // Update NDA with signature
@@ -2330,10 +2364,18 @@ class RouteRegistry {
           status = 'signed',
           signed_at = NOW(),
           signature_data = $3,
+          access_granted = true,
           updated_at = NOW()
-        WHERE id = $1 AND requester_id = $2
+        WHERE id = $1 AND signer_id = $2
         RETURNING *
-      `, [params.id, authResult.user.id, JSON.stringify(data.signatureData || {})]);
+      `, [ndaId, authResult.user.id, JSON.stringify({
+        signature: data.signature || '',
+        fullName: data.fullName || '',
+        title: data.title || '',
+        company: data.company || '',
+        acceptTerms: data.acceptTerms || false,
+        signedAt: new Date().toISOString()
+      })]);
 
       return builder.success({ nda: signedNda });
     } catch (error) {
