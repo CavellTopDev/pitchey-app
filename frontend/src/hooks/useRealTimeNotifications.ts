@@ -132,12 +132,12 @@ export function useRealTimeNotifications() {
 
     const pollNotifications = async () => {
       try {
-        // Fetch recent notifications from API - use config for proper URL
+        // Fetch recent notifications from API
         const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
-    const response = await fetch(`${apiUrl}/api/notifications/recent`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
+        const response = await fetch(`${apiUrl}/api/notifications/recent`, {
+          method: 'GET',
+          credentials: 'include' // Send cookies for Better Auth session
+        });
         
         if (!response.ok) {
           throw new Error(`Failed to fetch notifications: ${response.status}`);
