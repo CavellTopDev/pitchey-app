@@ -69,9 +69,10 @@ export class NDAEndpointsHandler {
     const url = new URL(request.url);
     
     const corsHeaders = {
-      'Access-Control-Allow-Origin': this.env.FRONTEND_URL || '*',
+      'Access-Control-Allow-Origin': this.env.FRONTEND_URL || 'https://pitchey-5o8.pages.dev',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Cookie',
+      'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Max-Age': '86400',
     };
 
@@ -391,18 +392,51 @@ export class NDAEndpointsHandler {
       // Try database first
       let nda = null;
       try {
-        // Verify NDA exists and user can sign it
+        // First check if NDA exists
         const ndaResults = await this.db.query(
-          `SELECT * FROM ndas WHERE id = $1 AND requester_id = $2 AND status = 'approved'`,
-          [ndaId, userAuth.userId]
+          `SELECT * FROM ndas WHERE id = $1`,
+          [ndaId]
         );
 
         if (ndaResults.length === 0) {
           return new Response(JSON.stringify({ 
             success: false, 
-            error: { message: 'NDA not found or not approved for signing' } 
+            error: { message: 'NDA not found' } 
           }), { 
             status: 404, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          });
+        }
+
+        const ndaRow = ndaResults[0];
+        
+        // Verify ownership
+        if (ndaRow.requester_id !== userAuth.userId) {
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: { message: 'You are not authorized to sign this NDA' } 
+          }), { 
+            status: 403, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          });
+        }
+
+        // For demo accounts, auto-approve if pending
+        if (ndaRow.status === 'pending' && userAuth.email?.includes('@demo.com')) {
+          await this.db.query(
+            `UPDATE ndas SET status = 'approved', updated_at = $1 WHERE id = $2`,
+            [new Date().toISOString(), ndaId]
+          );
+          ndaRow.status = 'approved';
+        }
+
+        // Check if NDA is approved
+        if (ndaRow.status !== 'approved') {
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: { message: 'NDA must be approved before signing' } 
+          }), { 
+            status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
         }

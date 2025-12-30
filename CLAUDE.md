@@ -3,27 +3,28 @@
 This file contains project-specific instructions and context for Claude Code.
 
 ## Project Overview
-Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform uses a modern edge-first serverless architecture with Cloudflare Workers, Neon PostgreSQL, and Upstash Redis. It features real-time WebSocket communication via Durable Objects, edge caching, draft auto-sync, and comprehensive NDA workflows.
+Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform uses a modern edge-first serverless architecture powered entirely by Cloudflare Workers.
 
 ### Production Architecture
 - **Frontend**: Cloudflare Pages (https://pitchey-5o8.pages.dev)
-- **API**: Cloudflare Workers (https://pitchey-api-prod.ndlovucavelle.workers.dev)
-- **Database**: Neon PostgreSQL with Hyperdrive edge pooling (raw SQL, no ORM)
+- **Backend API**: Cloudflare Workers (https://pitchey-api-prod.ndlovucavelle.workers.dev) - PRIMARY backend
+- **Database**: Neon PostgreSQL (raw SQL queries, no ORM)
+  - Connection: `postgresql://neondb_owner:npg_YibeIGRuv40J@ep-old-snow-a9pr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require`
 - **Cache**: Upstash Redis (global distributed)
-- **Storage**: Cloudflare R2 (S3-compatible)
-- **WebSockets**: Cloudflare Durable Objects
+- **Storage**: Cloudflare R2 (S3-compatible object storage)
+- **WebSockets**: Via Cloudflare Workers (Durable Objects planned for future)
 
 ## Development Setup
 
 ### Local Development Configuration
-**IMPORTANT: Backend uses proxy server on PORT 8001 locally**
+**IMPORTANT: Use proxy server on PORT 8001 for local development**
 ```bash
 cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2
-# Start proxy server (proxies to production API)
+# Start proxy server (proxies to production Worker API)
 PORT=8001 deno run --allow-all working-server.ts
 ```
 
-This proxy server forwards all `/api/*` requests to the production Cloudflare Worker, allowing local frontend development with production data.
+This proxy server forwards all `/api/*` requests to the production Cloudflare Worker API, enabling local frontend development with production data.
 
 ### Frontend Configuration  
 **Frontend connects to backend on port 8001 (local) or Worker API (production)**
@@ -99,21 +100,18 @@ The platform includes comprehensive WebSocket integration:
 - Redis services use lazy-loaded getters to avoid static initialization issues
 
 ## Database
-- Uses raw SQL with PostgreSQL (no ORM)
-- Neon database for production with Hyperdrive pooling
-- Direct postgres.js client for queries
-- Database migrations managed via SQL scripts
+- **Technology**: Neon PostgreSQL with raw SQL queries (no ORM)
+- **Connection**: Uses postgres.js client directly
+- **Migrations**: SQL scripts in `src/db/migrations/`
+- **Edge Pooling**: Via Neon's built-in connection pooler
 
-## 🔐 AUTHENTICATION - BETTER AUTH IMPLEMENTED ⚠️
+## 🔐 AUTHENTICATION - Better Auth ONLY
 
-### ⭐ CRITICAL UPDATE: Better Auth is NOW the Primary Authentication System
-**The platform has been migrated from JWT to Better Auth's session-based authentication**
-
-### Better Auth Integration Details
-- **Primary Auth System**: Better Auth with cookie-based sessions (NOT JWT anymore!)
-- **Session Management**: Server-side sessions stored in cookies
-- **No More JWT Headers**: Authorization headers are NOT used - sessions are in cookies
-- **Portal Compatibility**: All portal endpoints work but route through Better Auth internally
+### Better Auth Session-Based Authentication
+- **Cookie-Based Sessions**: All authentication uses secure HTTP-only cookies
+- **No JWT Headers**: Authorization headers are NOT used - sessions managed entirely via cookies
+- **Unified Auth Flow**: Single authentication system for all portal types
+- **Legacy Note**: Platform was migrated from JWT to Better Auth in December 2024
 
 ### Better Auth Primary Endpoints
 - **Sign In**: `POST /api/auth/sign-in` (unified for all portals)
@@ -122,121 +120,73 @@ The platform includes comprehensive WebSocket integration:
 - **Session Check**: `GET /api/auth/session`
 - **Session Refresh**: `POST /api/auth/session/refresh`
 
-### Portal-Specific Endpoints (Legacy - Still Work via Better Auth)
-These endpoints are maintained for backward compatibility but use Better Auth internally:
-- Creator: `POST /api/auth/creator/login` → Routes to Better Auth
-- Investor: `POST /api/auth/investor/login` → Routes to Better Auth  
-- Production: `POST /api/auth/production/login` → Routes to Better Auth
+### Portal-Specific Endpoints (Backward Compatibility)
+These endpoints still work but internally use Better Auth:
+- Creator: `POST /api/auth/creator/login`
+- Investor: `POST /api/auth/investor/login`  
+- Production: `POST /api/auth/production/login`
 
-### Demo Accounts (All Work with Better Auth!)
+### Demo Accounts
 **Password for all accounts: Demo123**
 - Creator: alex.creator@demo.com
 - Investor: sarah.investor@demo.com
 - Production: stellar.production@demo.com
 
-### Migration Notes
-- ✅ **JWT to Better Auth migration COMPLETE**
-- ✅ **All demo accounts work with Better Auth**
-- ✅ **Cookie-based sessions replace JWT tokens**
-- ✅ **No Authorization headers needed anymore**
-
 ## Architecture Notes
 
-### Cloudflare Integration
-- **Pages**: Hosts the React frontend with global CDN
-- **Workers**: Provides edge API gateway with caching and routing
-- **R2**: S3-compatible object storage with zero egress fees
-- **KV**: Edge key-value storage for caching
-- **Hyperdrive**: Database connection pooling at the edge
-- **Durable Objects**: WebSocket room management
+### Cloudflare Stack
+- **Pages**: React frontend with global CDN distribution
+- **Workers**: Primary backend API (`worker-integrated.ts`) handling all routing
+- **R2**: Object storage for documents, images, and videos
+- **KV**: Edge caching for frequently accessed data
+- **WebSockets**: Implemented via Workers (free tier limitations prevent Durable Objects)
 
-### Key Points
-- Backend serves on 0.0.0.0:8001 locally to accept connections from any interface
-- Frontend environment variables require server restart to take effect
-- WebSocket services initialize automatically on backend startup
-- Redis features use Upstash in production, fallback to memory cache if unavailable
-- Worker proxies unmatched routes to Deno Deploy backend (progressive migration)
-- All 29 test categories are supported by the current implementation
+### Key Implementation Details
+- Local proxy server runs on port 8001 to forward requests to production Worker
+- Frontend environment variables require restart to take effect
+- Redis (Upstash) handles caching with memory fallback when unavailable
+- All API endpoints route through Worker (no direct backend access)
+- Raw SQL queries via postgres.js (no ORM abstraction)
 
 ## Important Reminders
 
 ### Local Development
-1. **ALWAYS use PORT=8001 for backend locally**
-2. **Frontend .env must point to port 8001 for local dev**
-3. **Restart frontend after .env changes**
-4. **Use lazy-loaded getters for Redis service access**
-5. **WebSocket types are in separate types file**
+1. **Use PORT=8001 for local proxy server**
+2. **Frontend .env must point to http://localhost:8001**
+3. **Restart frontend after environment variable changes**
+4. **WebSocket types defined in `frontend/src/types/websocket.ts`**
 
 ### Production Deployment
-1. **Frontend deploys to Cloudflare Pages**
-2. **Worker handles all API routing and edge caching**
-3. **Database uses Neon with Hyperdrive edge pooling**
-4. **WebSockets handled via Cloudflare Durable Objects**
-5. **Check CLOUDFLARE_DEPLOYMENT_GUIDE.md for full instructions**
+1. **Frontend**: `wrangler pages deploy frontend/dist --project-name=pitchey`
+2. **Worker API**: `wrangler deploy` (deploys worker-integrated.ts)
+3. **Documentation**: Organized in `docs/` folder
+4. **No direct backend access** - all requests go through Worker API
 
-## Latest Improvements & Status (December 2024)
+## Current Status
 
-### ✅ COMPLETED: Critical Fixes (December 10, 2024)
+### Working Features
+- **Authentication**: Better Auth session-based auth for all three portals
+- **Core Functionality**: Pitch creation, browsing, NDA management
+- **Real-time**: WebSocket notifications, draft auto-sync, presence tracking
+- **Storage**: R2 integration for documents and media
+- **API**: 117+ endpoints documented and operational
 
-#### **Major Achievements:**
-1. **Test Suite Fixed**: ✅ RESOLVED
-   - Fixed all 37 failing tests in frontend test suite
-   - Achieved 189 passing tests, 2 skipped
-   - Resolved async testing issues with proper waitFor patterns
-
-2. **Investor Portal Fixed**: ✅ RESOLVED
-   - Fixed critical sign-out functionality (was completely broken)
-   - Restored investor dashboard with real production data
-   - Created proxy server for local development
-   - All investor endpoints confirmed working
-
-3. **Documentation Updated**: ✅ RESOLVED
-   - Created comprehensive API documentation (117+ endpoints)
-   - Updated client requirements status
-   - Documented deployment architecture
-
-### 📊 Current System Status
-
-#### **Working Features:**
-- **All Three Portal Logins**: Creator, Investor, Production - all functional
-- **Core Features**: Authentication, Dashboard Data, Pitch Creation, NDA System
-- **API Infrastructure**: 117+ endpoints implemented and documented
-- **Real-time Features**: WebSocket support, Redis caching, Draft auto-sync
-
-### ⚠️ Remaining Priority Items
-**See CLIENT_REQUIREMENTS_UPDATE_DEC10.md for complete details**
-
-#### **High Priority:**
-1. **Browse Section**: Tab content separation issue (Trending/New tabs mixed)
-2. **Document Upload**: Multiple files, custom NDA, R2 storage integration  
-3. **NDA Workflow**: Complete approval flow and notifications
+### Known Issues & Priorities
+1. **Browse Section**: Tab content separation (Trending/New tabs mixed)
+2. **Document Upload**: Multiple files and custom NDA support needed
+3. **NDA Workflow**: Complete approval flow implementation
 4. **Access Control**: Granular role-based permissions
 
-#### **Enhancement Requests:**
-- Character editing and reordering in pitch creation
-- Document upload system improvements (multiple files, custom NDA)
-- General browse view with comprehensive sorting
-- Themes field conversion to free-text
-- New "World" field for world-building descriptions
+### Recent Fixes (December 2024)
+- Migrated from JWT to Better Auth session-based authentication
+- Fixed all production console errors and self-reference issues  
+- Resolved notification polling with proper 404 handling
+- Connected frontend to production API via local proxy server
+- Fixed 37 failing frontend tests
 
-### 🔧 Recent Technical Fixes:
-#### December 30, 2024:
-- **Console Errors**: Fixed all production console errors
-  - Resolved `ReferenceError: config is not defined` in multiple service files
-  - Fixed `Cannot access 'En' before initialization` self-reference errors
-  - Implemented graceful 404 handling for notification polling
-  - Changed notification endpoint from `/api/notifications/recent` to `/api/user/notifications`
-
-#### December 10, 2024:
-- **Test Suite**: Fixed async testing patterns, resolved 37 test failures
-- **Investor Portal**: Fixed sign-out functionality (cursor styling issue)
-- **Dashboard Data**: Connected frontend to production API via proxy server
-- **Documentation**: Created comprehensive API endpoint documentation
-- **Development Setup**: Implemented local proxy server for easier development
-
-For complete details, implementation notes, and testing criteria, refer to:
-📄 **CLIENT_REQUIREMENTS_UPDATE_DEC10.md** - Latest status and fixes
-📄 **API_ENDPOINTS_DOCUMENTATION.md** - Complete API reference (117+ endpoints)
-📄 **CLIENT_FEEDBACK_REQUIREMENTS.md** - Original requirements tracking
-📄 **CLOUDFLARE_DEPLOYMENT_GUIDE.md** - Complete deployment instructions
-📄 **DEPLOYMENT_ARCHITECTURE.md** - Technical architecture details
+### Documentation
+All documentation has been organized in the `docs/` folder:
+- **API Reference**: Complete endpoint documentation
+- **Deployment Guides**: Cloudflare setup and configuration
+- **Architecture**: System design and technical details
+- **Requirements**: Client feedback and implementation status

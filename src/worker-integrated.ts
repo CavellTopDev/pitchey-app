@@ -642,6 +642,8 @@ class RouteRegistry {
     this.register('POST', '/api/ndas/request', this.requestNDA.bind(this));
     this.register('POST', '/api/ndas/:id/approve', this.approveNDA.bind(this));
     this.register('POST', '/api/ndas/:id/reject', this.rejectNDA.bind(this));
+    this.register('POST', '/api/ndas/:id/sign', (req) => ndaHandler(req, this.env));
+    this.register('POST', '/api/ndas/sign', (req) => ndaHandler(req, this.env));
 
     // === NEW INVESTOR PORTAL ROUTES ===
     // Financial Overview
