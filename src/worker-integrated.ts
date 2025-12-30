@@ -2164,27 +2164,74 @@ class RouteRegistry {
     const data = await request.json();
 
     try {
-      // Check if NDA already exists
-      const [existing] = await this.db.query(`
+      // Check if NDA already exists - try both column names for compatibility
+      const existingQuery = `
         SELECT id FROM ndas 
-        WHERE requester_id = $1 AND pitch_id = $2
-      `, [authResult.user.id, data.pitchId]);
+        WHERE (user_id = $1 OR signer_id = $1 OR requester_id = $1) 
+        AND pitch_id = $2
+      `;
+      const [existing] = await this.db.query(existingQuery, [authResult.user.id, data.pitchId]);
 
       if (existing) {
         return builder.error(ErrorCode.ALREADY_EXISTS, 'NDA request already exists');
       }
 
-      const [nda] = await this.db.query(`
-        INSERT INTO ndas (
-          requester_id, pitch_id, status,
-          requested_at, created_at, updated_at
-        ) VALUES (
-          $1, $2, 'pending', NOW(), NOW(), NOW()
-        ) RETURNING *
-      `, [authResult.user.id, data.pitchId]);
+      // Get pitch creator to ensure the pitch exists
+      const [pitch] = await this.db.query(
+        `SELECT created_by, creator_id FROM pitches WHERE id = $1`,
+        [data.pitchId]
+      );
+
+      if (!pitch) {
+        return builder.error(ErrorCode.NOT_FOUND, 'Pitch not found');
+      }
+
+      const creatorId = pitch.creator_id || pitch.created_by;
+
+      // Try to insert with different column configurations for compatibility
+      let nda = null;
+      
+      try {
+        // Try the simpler schema first (user_id column)
+        [nda] = await this.db.query(`
+          INSERT INTO ndas (
+            user_id, pitch_id, status,
+            created_at, updated_at
+          ) VALUES (
+            $1, $2, 'pending', NOW(), NOW()
+          ) RETURNING *
+        `, [authResult.user.id, data.pitchId]);
+      } catch (e1) {
+        try {
+          // Try with signer_id column
+          [nda] = await this.db.query(`
+            INSERT INTO ndas (
+              signer_id, pitch_id, status,
+              signed_at, created_at, updated_at
+            ) VALUES (
+              $1, $2, 'pending', NULL, NOW(), NOW()
+            ) RETURNING *
+          `, [authResult.user.id, data.pitchId]);
+        } catch (e2) {
+          // Try with requester_id and creator_id columns
+          [nda] = await this.db.query(`
+            INSERT INTO ndas (
+              requester_id, creator_id, pitch_id, status,
+              requested_at, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, 'pending', NOW(), NOW(), NOW()
+            ) RETURNING *
+          `, [authResult.user.id, creatorId, data.pitchId]);
+        }
+      }
+
+      if (!nda) {
+        throw new Error('Failed to create NDA request');
+      }
 
       return builder.success({ nda });
     } catch (error) {
+      console.error('NDA request error:', error);
       return errorHandler(error, request);
     }
   }
