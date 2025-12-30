@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { config } from '../config';
 
-const API_URL = API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 const api = axios.create({
   baseURL: API_URL,
