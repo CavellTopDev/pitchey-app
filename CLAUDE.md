@@ -219,7 +219,15 @@ These endpoints are maintained for backward compatibility but use Better Auth in
 - Themes field conversion to free-text
 - New "World" field for world-building descriptions
 
-### 🔧 Recent Technical Fixes (December 10, 2024):
+### 🔧 Recent Technical Fixes:
+#### December 30, 2024:
+- **Console Errors**: Fixed all production console errors
+  - Resolved `ReferenceError: config is not defined` in multiple service files
+  - Fixed `Cannot access 'En' before initialization` self-reference errors
+  - Implemented graceful 404 handling for notification polling
+  - Changed notification endpoint from `/api/notifications/recent` to `/api/user/notifications`
+
+#### December 10, 2024:
 - **Test Suite**: Fixed async testing patterns, resolved 37 test failures
 - **Investor Portal**: Fixed sign-out functionality (cursor styling issue)
 - **Dashboard Data**: Connected frontend to production API via proxy server
