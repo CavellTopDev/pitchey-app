@@ -291,17 +291,19 @@ export class AnalyticsService {
       if (timeRange?.end) params.append('end', timeRange.end);
       if (timeRange?.preset) params.append('preset', timeRange.preset);
 
-      const response = await apiClient.get<{ success: boolean; data: { metrics: any } }>(
+      const response = await apiClient.get<{ metrics: any }>(
         `/api/analytics/dashboard?${params}`
       );
 
-      if (!response.success || !response.data?.data?.metrics) {
-        console.warn('Dashboard metrics not available:', response.error?.message);
+      if (!response.success || !response.data?.metrics) {
+        if (response.error) {
+          console.warn('Dashboard metrics not available:', response.error.message || 'No metrics data returned');
+        }
         return this.getDefaultDashboardMetrics();
       }
 
       // Transform the API response to match the expected interface
-      const apiMetrics = response.data.data.metrics;
+      const apiMetrics = response.data.metrics;
       
       return {
         overview: {

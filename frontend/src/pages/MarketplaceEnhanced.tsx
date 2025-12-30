@@ -1,3 +1,4 @@
+import { getDashboardRoute } from '../utils/navigation';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';

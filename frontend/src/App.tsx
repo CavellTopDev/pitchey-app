@@ -200,7 +200,7 @@ function PitchRouter() {
 }
 
 function App() {
-  const { isAuthenticated, fetchProfile } = useAuthStore();
+  const { isAuthenticated, fetchProfile, user } = useAuthStore();
   const [profileFetched, setProfileFetched] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
 
@@ -236,15 +236,8 @@ function App() {
 
   // Removed redundant profile fetching - handled by session restoration above
 
-  const userType = (() => {
-    try {
-      const host = new URL(config.API_URL).host;
-      const ns = localStorage.getItem(`pitchey:${host}:userType`);
-      return ns ?? localStorage.getItem('userType');
-    } catch {
-      return localStorage.getItem('userType');
-    }
-  })();
+  // Get userType from Better Auth user object, not localStorage
+  const userType = user?.userType || null;
 
   return (
     <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
@@ -265,7 +258,7 @@ function App() {
               </div>
             }>
               <Routes>
-          {/* Homepage - Default route */}
+          {/* Homepage - Only render on exact path match */}
           <Route path="/" element={<Homepage />} />
           
           {/* Marketplace */}
@@ -309,9 +302,15 @@ function App() {
             <Navigate to="/" />
           } />
           
-          {/* Legacy routes (backwards compatibility) */}
-          <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
-          <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/dashboard" />} />
+          {/* Legacy routes (backwards compatibility) - redirect to appropriate dashboard */}
+          <Route path="/login" element={
+            !isAuthenticated ? <Login /> : 
+            <Navigate to={userType ? `/${userType}/dashboard` : '/'} />
+          } />
+          <Route path="/register" element={
+            !isAuthenticated ? <Register /> : 
+            <Navigate to={userType ? `/${userType}/dashboard` : '/'} />
+          } />
           
           {/* Role-specific Protected Dashboards */}
           <Route path="/creator/dashboard" element={

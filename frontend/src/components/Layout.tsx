@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { useRealTimeNotifications } from '../hooks/useRealTimeNotifications';
+import { getDashboardRoute } from '../utils/navigation';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -39,7 +40,7 @@ export default function Layout({ children }: LayoutProps) {
 
                 {/* Simple Navigation */}
                 <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                  <Link to="/dashboard" className="flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-primary-600" data-testid="nav-dashboard">
+                  <Link to={getDashboardRoute(user?.userType)} className="flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-primary-600" data-testid="nav-dashboard">
                     <Home className="mr-2 h-4 w-4" />
                     Dashboard
                   </Link>
@@ -127,7 +128,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="sm:hidden" data-testid="mobile-menu">
               <div className="pt-2 pb-3 space-y-1 border-t border-gray-200">
                 <Link 
-                  to="/dashboard" 
+                  to={getDashboardRoute(user?.userType)} 
                   className="flex items-center gap-3 pl-3 pr-4 py-3 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                   data-testid="mobile-nav-dashboard"

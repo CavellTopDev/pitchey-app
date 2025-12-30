@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import DashboardHeader from '../../../components/DashboardHeader';
 import { useAuthStore } from '../../../store/authStore';
+import { getDashboardRoute } from '../../../utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { toast } from 'react-hot-toast';
 
@@ -443,7 +444,7 @@ export default function ProductionSettingsProfile() {
                 </button>
                 
                 <button
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate(getDashboardRoute(user?.userType))}
                   className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
                 >
                   <X className="w-5 h-5" />
