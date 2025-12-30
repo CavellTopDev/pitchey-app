@@ -45,7 +45,7 @@ export default function Profile() {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/user/profile`, {
+    const response = await fetch(`${API_URL}/api/user/profile`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -82,8 +82,8 @@ export default function Profile() {
       const token = localStorage.getItem('authToken');
       if (!token || !user?.id) return;
 
-      const apiUrl = config.API_URL;
-    const response = await fetch(`${config.API_URL}/api/user/profile`, {
+      const apiUrl = API_URL;
+    const response = await fetch(`${API_URL}/api/user/profile`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -115,7 +115,7 @@ export default function Profile() {
       setSaving(true);
       const token = localStorage.getItem('authToken');
       
-    const response = await fetch(`${config.API_URL}/api/user/profile`, {
+    const response = await fetch(`${API_URL}/api/user/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),

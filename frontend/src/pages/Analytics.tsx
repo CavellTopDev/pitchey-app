@@ -52,7 +52,7 @@ export default function Analytics() {
 
   const quickLogin = async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/analytics`, {
+    const response = await fetch(`${API_URL}/api/analytics`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

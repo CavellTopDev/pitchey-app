@@ -1,4 +1,5 @@
 /**
+import { API_URL } from '../config';
  * OAuth 2.0 Implementation
  * Supports multiple OAuth providers with PKCE flow
  * IETF RFC 6749 and RFC 7636 compliant
@@ -178,7 +179,7 @@ export class OAuth2Service {
       params.code_verifier = codeVerifier;
     }
     
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: new URLSearchParams(params)
@@ -211,7 +212,7 @@ export class OAuth2Service {
       throw new Error(`OAuth provider ${provider} not configured`);
     }
     
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -302,7 +303,7 @@ export class OAuth2Service {
       refresh_token: refreshToken
     });
     
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: params

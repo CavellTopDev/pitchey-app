@@ -64,7 +64,7 @@ export default function Settings() {
   const fetchSettings = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+    const response = await fetch(`${API_URL}/api/user/settings`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -88,7 +88,7 @@ export default function Settings() {
       setSaving(true);
       const token = localStorage.getItem('authToken');
       
-    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+    const response = await fetch(`${API_URL}/api/user/settings`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notifications, privacy, security }),
@@ -124,7 +124,7 @@ export default function Settings() {
   const handleDeleteAccount = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+    const response = await fetch(`${API_URL}/api/user/settings`, {
       method: 'DELETE',
       credentials: 'include' // Send cookies for Better Auth session
     });

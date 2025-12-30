@@ -1,6 +1,6 @@
 import type { ApiResponse } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Helper function to get auth headers
 const getAuthHeaders = (): Record<string, string> => {
@@ -175,7 +175,7 @@ export interface TransactionFilters {
 class AdminService {
   // Dashboard
   async getDashboardStats(): Promise<DashboardStats> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -184,7 +184,7 @@ class AdminService {
   }
 
   async getRecentActivity(): Promise<RecentActivity[]> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -199,7 +199,7 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -208,7 +208,7 @@ class AdminService {
   }
 
   async updateUser(userId: string, updates: Partial<AdminUser>): Promise<AdminUser> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -224,7 +224,7 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -233,7 +233,7 @@ class AdminService {
   }
 
   async approvePitch(pitchId: string, notes?: string): Promise<void> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notes }),
@@ -243,7 +243,7 @@ class AdminService {
   }
 
   async rejectPitch(pitchId: string, reason: string): Promise<void> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
@@ -253,7 +253,7 @@ class AdminService {
   }
 
   async flagPitch(pitchId: string, reasons: string[], notes: string): Promise<void> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reasons, notes }),
@@ -269,7 +269,7 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -278,7 +278,7 @@ class AdminService {
   }
 
   async processRefund(transactionId: string, amount: number, reason: string): Promise<void> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount, reason }),
@@ -289,7 +289,7 @@ class AdminService {
 
   // System Settings
   async getSystemSettings(): Promise<SystemSettings> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -298,7 +298,7 @@ class AdminService {
   }
 
   async updateSystemSettings(settings: SystemSettings): Promise<void> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
@@ -309,7 +309,7 @@ class AdminService {
 
   // Analytics
   async getAnalytics(timeframe: '24h' | '7d' | '30d' | '90d' = '30d'): Promise<any> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -319,7 +319,7 @@ class AdminService {
 
   // System Health
   async getSystemHealth(): Promise<any> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -329,7 +329,7 @@ class AdminService {
 
   // Bulk Operations
   async bulkUpdateUsers(userIds: string[], updates: Partial<AdminUser>): Promise<void> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userIds, updates }),
@@ -339,7 +339,7 @@ class AdminService {
   }
 
   async bulkModeratePitches(pitchIds: string[], action: 'approve' | 'reject' | 'flag', data?: any): Promise<void> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pitchIds, action, data }),
@@ -355,7 +355,7 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -374,7 +374,7 @@ class AdminService {
       if (value) params.append(key, value.toString());
     });
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session

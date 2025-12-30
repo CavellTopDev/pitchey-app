@@ -113,7 +113,7 @@ export default function TeamInvite() {
       }, 1000);
       
       // TODO: Replace with actual API call
-    const response = await fetch(`${config.API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -152,7 +152,7 @@ export default function TeamInvite() {
       }
 
       // TODO: Replace with actual API call
-    const response = await fetch(`${config.API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify(formData),

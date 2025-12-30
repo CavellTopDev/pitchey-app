@@ -20,7 +20,7 @@ const NonDisclosureAgreement: React.FC<NDAAgreementProps> = ({ onAccept, onRejec
     // Fetch NDA content based on selected type
     const fetchNDA = async () => {
       try {
-        const apiUrl = config.API_URL;
+        const apiUrl = API_URL;
         const response = await fetch(`${apiUrl}/legal/nda-templates.md`);
         const content = await response.text();
         setNdaContent(content);
@@ -45,7 +45,7 @@ const NonDisclosureAgreement: React.FC<NDAAgreementProps> = ({ onAccept, onRejec
       };
 
       // Send acceptance to backend
-      const apiUrl = config.API_URL;
+      const apiUrl = API_URL;
       
       credentials: 'include', // Send cookies for Better Auth session
       

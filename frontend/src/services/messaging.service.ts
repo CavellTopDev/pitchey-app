@@ -1,7 +1,8 @@
 // Messaging Service - Complete messaging system with Drizzle integration
 import { apiClient } from '../lib/api-client';
 import type { User } from './user.service';
-import { config } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Types matching Drizzle schema
 export interface Message {
@@ -196,7 +197,7 @@ export class MessagingService {
     });
 
     const response = await fetch(
-      `${config.API_URL}/api/messages/attachments`, {
+      `${API_BASE_URL}/api/messages/attachments`, {
         method: 'POST',
         headers: {
           },

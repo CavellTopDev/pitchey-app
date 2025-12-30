@@ -1,4 +1,5 @@
 /**
+import { API_URL } from '../config';
  * Permission Manager Component
  * Advanced interface for managing roles, permissions, and user assignments
  */
@@ -213,7 +214,7 @@ const PermissionManager: React.FC = () => {
   // Role management
   const handleCreateRole = async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -239,7 +240,7 @@ const PermissionManager: React.FC = () => {
 
   const handleUpdateRole = async (roleId: number, updates: Partial<Role>) => {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -276,7 +277,7 @@ const PermissionManager: React.FC = () => {
         conditions: JSON.parse(permissionForm.conditions || '{}')
       };
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -317,7 +318,7 @@ const PermissionManager: React.FC = () => {
   // User-Role assignment
   const handleAssignUserRole = async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),

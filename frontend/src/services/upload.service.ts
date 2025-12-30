@@ -1,4 +1,5 @@
-import { config } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export interface UploadProgress {
   loaded: number;
@@ -32,7 +33,7 @@ class UploadService {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = config.API_URL;
+    this.baseUrl = API_BASE_URL;
   }
 
   /**

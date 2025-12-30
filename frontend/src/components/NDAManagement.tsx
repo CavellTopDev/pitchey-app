@@ -61,7 +61,7 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
       
       const params = filter !== 'all' ? `?status=${filter}` : '';
       
-    const response = await fetch(`${config.API_URL}/api/nda`, {
+    const response = await fetch(`${API_URL}/api/nda`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -86,7 +86,7 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
     try {
       const token = localStorage.getItem('authToken');
       
-    const response = await fetch(`${config.API_URL}/api/nda/approve`, {
+    const response = await fetch(`${API_URL}/api/nda/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -5,6 +5,8 @@
 
 import { API_URL } from '@/config';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+
 export interface MetricData {
   timestamp: string;
   value: number;
@@ -85,7 +87,7 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -113,7 +115,7 @@ class MetricsService {
     if (cached) return cached;
 
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -202,7 +204,7 @@ class MetricsService {
    */
   async getDatabaseMetrics(): Promise<any> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -224,7 +226,7 @@ class MetricsService {
    */
   async getCacheMetrics(): Promise<any> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -434,7 +436,7 @@ class MetricsService {
    */
   async getAlertThresholds(): Promise<any> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session
@@ -456,7 +458,7 @@ class MetricsService {
    */
   async updateAlertThresholds(thresholds: any): Promise<boolean> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(thresholds),

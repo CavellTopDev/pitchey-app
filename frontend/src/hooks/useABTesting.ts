@@ -1,4 +1,5 @@
 // React hooks for A/B testing
+import { API_URL } from '../config';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useStore } from '../store/authStore';
 
@@ -108,7 +109,7 @@ class ABTestingClient {
     try {
       const context = { ...this.getUserContext(), ...userContext };
       
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userContext: context }),
@@ -139,7 +140,7 @@ class ABTestingClient {
     try {
       const context = { ...this.getUserContext(), ...userContext };
       
-    const response = await fetch(`${config.API_URL}/api/ab-testing/assignment`, {
+    const response = await fetch(`${API_URL}/api/ab-testing/assignment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -201,7 +202,7 @@ class ABTestingClient {
     try {
       const context = { ...this.getUserContext(), ...userContext };
       
-    const response = await fetch(`${config.API_URL}/api/ab-testing/assignment`, {
+    const response = await fetch(`${API_URL}/api/ab-testing/assignment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

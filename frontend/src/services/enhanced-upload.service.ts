@@ -1,5 +1,6 @@
-import { config } from '../config';
 import { uploadService, UploadProgress, UploadResult, UploadOptions } from './upload.service';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 export interface EnhancedUploadOptions extends UploadOptions {
   // R2-specific optimizations
@@ -93,7 +94,7 @@ class EnhancedUploadService {
   private activeUploads: Map<string, AbortController> = new Map();
   
   constructor() {
-    this.baseUrl = config.API_URL;
+    this.baseUrl = API_BASE_URL;
   }
 
   /**
@@ -332,7 +333,7 @@ class EnhancedUploadService {
   private async checkDuplication(file: File): Promise<UploadResult | null> {
     try {
       const hash = await this.calculateFileHash(file);
-    const response = await fetch(`${config.API_URL}/api/upload/check-duplicate`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload/check-duplicate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hash, name: file.name, size: file.size }),
@@ -369,7 +370,7 @@ class EnhancedUploadService {
     options: EnhancedUploadOptions
   ): Promise<UploadResult> {
     // Get presigned URL from backend
-    const presignedResponse = await fetch(`${config.API_URL}/api/upload/presigned`, {
+    const presignedResponse = await fetch(`${API_BASE_URL}/api/upload/presigned`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -438,7 +439,7 @@ class EnhancedUploadService {
     const totalChunks = Math.ceil(file.size / chunkSize);
     
     // Initialize multipart upload
-    const initResponse = await fetch(`${config.API_URL}/api/upload/multipart/init`, {
+    const initResponse = await fetch(`${API_BASE_URL}/api/upload/multipart/init`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -476,7 +477,7 @@ class EnhancedUploadService {
       uploadedParts.push(...parts);
 
       // Complete multipart upload
-      const completeResponse = await fetch(`${config.API_URL}/api/upload/complete`, {
+      const completeResponse = await fetch(`${API_BASE_URL}/api/upload/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -504,7 +505,7 @@ class EnhancedUploadService {
 
     } catch (error) {
       // Abort multipart upload on error
-      await fetch(`${config.API_URL}/api/upload/multipart/abort`, {
+      await fetch(`${API_BASE_URL}/api/upload/multipart/abort`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -526,7 +527,7 @@ class EnhancedUploadService {
     partNumber: number,
     key: string
   ): Promise<{ ETag: string; PartNumber: number }> {
-    const response = await fetch(`${config.API_URL}/api/upload/multipart/upload-part`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload/multipart/upload-part`, {
       method: 'POST',
       body: chunk,
       headers: {
@@ -620,7 +621,7 @@ class EnhancedUploadService {
    * Generate thumbnail for image/video
    */
   private async generateThumbnail(url: string, mimeType: string): Promise<{ url: string }> {
-    const response = await fetch(`${config.API_URL}/api/upload/complete`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, uploadId, parts }),
@@ -684,7 +685,7 @@ class EnhancedUploadService {
 
     // Send to backend
     try {
-      await fetch(`${config.API_URL}/api/analytics/upload`, {
+      await fetch(`${API_BASE_URL}/api/analytics/upload`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

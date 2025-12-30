@@ -76,7 +76,7 @@ export default function ProductionPipeline() {
   const fetchPipelineData = async () => {
     try {
       setLoading(true);
-    const response = await fetch(`${config.API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

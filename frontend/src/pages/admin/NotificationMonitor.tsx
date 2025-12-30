@@ -92,7 +92,7 @@ export const NotificationMonitor: React.FC = () => {
   const fetchMetrics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -110,7 +110,7 @@ export const NotificationMonitor: React.FC = () => {
   const fetchWebSocketMetrics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -128,7 +128,7 @@ export const NotificationMonitor: React.FC = () => {
   const fetchRateLimitMetrics = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

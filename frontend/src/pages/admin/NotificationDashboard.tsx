@@ -1,4 +1,5 @@
 /**
+import { API_URL } from '../config';
  * Real-time Notification Dashboard
  * Live metrics, analytics, and system monitoring
  */
@@ -114,7 +115,7 @@ export const NotificationDashboard: React.FC = () => {
   const fetchMetrics = async () => {
     try {
       const token = localStorage.getItem('token');
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

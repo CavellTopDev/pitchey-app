@@ -7,7 +7,7 @@ let _WS_URL: string | null = null;
 
 function getAPIURL(): string {
   if (!_API_URL) {
-    _API_URL = config.API_URL;
+    _API_URL = API_URL;
   }
   return _API_URL;
 }

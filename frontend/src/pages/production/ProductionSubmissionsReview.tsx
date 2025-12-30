@@ -45,7 +45,7 @@ export default function ProductionSubmissionsReview() {
       try {
         setLoading(true);
         // Connect to production API
-    const response = await fetch(`${config.API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

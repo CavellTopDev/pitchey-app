@@ -1,7 +1,8 @@
 // Search Service - Advanced search functionality with Drizzle integration
 import { apiClient } from '../lib/api-client';
 import type { Pitch, User } from '../types/api';
-import { config } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Search result types
 export interface SearchResult<T> {
@@ -355,7 +356,7 @@ export class SearchService {
     format: 'csv' | 'pdf' | 'excel'
   ): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/search/export`, {
+      `${API_BASE_URL}/api/search/export`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -1,4 +1,5 @@
 /**
+import { API_URL } from '../config';
  * Feature Flags Manager Component
  * Admin interface for managing feature flags with real-time updates
  */
@@ -120,7 +121,7 @@ const FeatureFlagsManager: React.FC = () => {
   // Fetch all feature flags
   const fetchFlags = useCallback(async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -181,7 +182,7 @@ const FeatureFlagsManager: React.FC = () => {
         segments: formData.segments ? formData.segments.split(',').map(s => s.trim()) : undefined
       };
 
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -219,7 +220,7 @@ const FeatureFlagsManager: React.FC = () => {
         segments: formData.segments ? formData.segments.split(',').map(s => s.trim()) : undefined
       };
 
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -251,7 +252,7 @@ const FeatureFlagsManager: React.FC = () => {
     if (!confirm(`Are you sure you want to delete the feature flag "${key}"?`)) return;
 
     try {
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'DELETE',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -277,7 +278,7 @@ const FeatureFlagsManager: React.FC = () => {
   // Toggle flag enabled status
   const toggleFlag = async (flag: FeatureFlag) => {
     try {
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: !flag.enabled }),
@@ -305,7 +306,7 @@ const FeatureFlagsManager: React.FC = () => {
   // Fetch flag analytics
   const fetchAnalytics = async (key: string) => {
     try {
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -328,7 +329,7 @@ const FeatureFlagsManager: React.FC = () => {
   // Export feature flags
   const exportFlags = async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -365,7 +366,7 @@ const FeatureFlagsManager: React.FC = () => {
     try {
       const content = await file.text();
       
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: content

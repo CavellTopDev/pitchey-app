@@ -132,7 +132,7 @@ const UserPortfolio: React.FC = () => {
     setError(null);
 
     try {
-      const apiUrl = config.API_URL;
+      const apiUrl = API_URL;
       
       // Use a unified endpoint that works for all user types
       const response = await fetch(`${apiUrl}/api/portfolio/${effectiveUserId}`);

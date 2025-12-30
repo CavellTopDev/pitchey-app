@@ -18,7 +18,7 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onAccept, onReject }) =
     // Fetch terms of service content
     const fetchTerms = async () => {
       try {
-        const apiUrl = config.API_URL;
+        const apiUrl = API_URL;
         const response = await fetch(`${apiUrl}/legal/terms-of-service.md`);
         const content = await response.text();
         setTermsContent(content);
@@ -41,7 +41,7 @@ const TermsOfService: React.FC<TermsOfServiceProps> = ({ onAccept, onReject }) =
       };
 
       // Send acceptance to backend
-      const apiUrl = config.API_URL;
+      const apiUrl = API_URL;
       
       credentials: 'include', // Send cookies for Better Auth session
       

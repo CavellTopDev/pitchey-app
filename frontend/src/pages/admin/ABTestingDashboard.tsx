@@ -1,4 +1,5 @@
 // Admin Dashboard for A/B Testing Management
+import { API_URL } from '../config';
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
@@ -63,7 +64,7 @@ const ABTestingDashboard: React.FC = () => {
         queryParams.append('status', selectedStatus);
       }
 
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -105,7 +106,7 @@ const ABTestingDashboard: React.FC = () => {
   // Handle experiment actions
   const handleExperimentAction = async (experimentId: number, action: string, reason?: string) => {
     try {
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: reason ? JSON.stringify({ reason }) : undefined,
@@ -291,7 +292,7 @@ const ExperimentCard: React.FC<ExperimentCardProps> = ({ experiment, onAction })
 
   const fetchResults = async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/admin`, {
+    const response = await fetch(`${API_URL}/api/admin`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

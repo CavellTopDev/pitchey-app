@@ -1,7 +1,8 @@
 // User Service - Complete user management with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import { config } from '../config';
 import type { User, ApiResponse } from '../types/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Types matching Drizzle schema
 export interface User {
@@ -199,7 +200,7 @@ export class UserService {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: formData
@@ -219,7 +220,7 @@ export class UserService {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: formData
@@ -370,7 +371,7 @@ export class UserService {
       formData.append(`document_${index}`, doc);
     });
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: formData

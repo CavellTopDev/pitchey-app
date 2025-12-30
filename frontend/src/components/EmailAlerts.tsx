@@ -63,7 +63,7 @@ export default function EmailAlerts({
   const checkEmailPreferences = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -81,7 +81,7 @@ export default function EmailAlerts({
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -125,7 +125,7 @@ export default function EmailAlerts({
       
       const method = editingAlert ? 'PUT' : 'POST';
       
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -156,7 +156,7 @@ export default function EmailAlerts({
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'DELETE',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -180,7 +180,7 @@ export default function EmailAlerts({
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'PUT',
       credentials: 'include' // Send cookies for Better Auth session
     });

@@ -83,7 +83,7 @@ export default function ProductionPitchDetail() {
       
       // Fetch from API using public endpoint
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session

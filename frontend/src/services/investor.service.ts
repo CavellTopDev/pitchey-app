@@ -1,7 +1,7 @@
 // Investor Service - Dashboard and investor-specific operations with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import { config } from '../config';
 import type { 
+
   Pitch, 
   User, 
   Investment, 
@@ -12,6 +12,8 @@ import type {
   ApiResponse,
   DashboardResponse 
 } from '../types/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Export types from centralized types file
 export type { 
@@ -425,7 +427,7 @@ export class InvestorService {
   // Download investment report
   static async downloadReport(investmentId: number, format: 'pdf' | 'excel'): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/investor/investments/${investmentId}/report?format=${format}`, {
+      `${API_BASE_URL}/api/investor/investments/${investmentId}/report?format=${format}`, {
         headers: {
           }
       }

@@ -559,7 +559,7 @@ function ProductionDashboard() {
       formData.append('file', file);
       formData.append('type', 'nda_template');
 
-      const response = await fetch(`${config.API_URL}/api/upload/document`, {
+      const response = await fetch(`${API_URL}/api/upload/document`, {
         method: 'POST',
         credentials: 'include', // Send cookies for Better Auth session,
         body: formData

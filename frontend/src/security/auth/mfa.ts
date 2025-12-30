@@ -1,4 +1,5 @@
 /**
+import { API_URL } from '../config';
  * Multi-Factor Authentication (MFA/2FA) Implementation
  * Supports TOTP (Time-based One-Time Passwords) and backup codes
  * OWASP MFA Cheat Sheet compliant
@@ -238,7 +239,7 @@ export class MFAClient {
    * Setup MFA for user
    */
   async setupMFA(userId: string, password: string): Promise<MFASetup> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, password }),
@@ -256,7 +257,7 @@ export class MFAClient {
    * Verify MFA setup
    */
   async verifySetup(userId: string, token: string, secret: string): Promise<{ success: boolean; backupCodes?: string[] }> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, token, secret }),
@@ -274,7 +275,7 @@ export class MFAClient {
    * Verify MFA during login
    */
   async verifyLogin(userId: string, token?: string, backupCode?: string): Promise<{ success: boolean; token?: string }> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, token, backupCode }),
@@ -293,7 +294,7 @@ export class MFAClient {
    * Get MFA status
    */
   async getStatus(userId: string): Promise<MFAStatus> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -309,7 +310,7 @@ export class MFAClient {
    * Disable MFA
    */
   async disableMFA(userId: string, password: string): Promise<{ success: boolean }> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, password }),
@@ -327,7 +328,7 @@ export class MFAClient {
    * Generate new backup codes
    */
   async regenerateBackupCodes(userId: string, password: string): Promise<{ backupCodes: string[] }> {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, password }),

@@ -2,7 +2,8 @@
 import { apiClient } from '../lib/api-client';
 import type { Pitch } from '../types/api';
 import type { User } from '../types/api';
-import { config } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Types for production dashboard data
 export interface ProductionStats {
@@ -395,7 +396,7 @@ export class ProductionService {
   // Generate contract
   static async generateContract(dealId: number, template?: string): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/production/deals/${dealId}/contract?template=${template || 'standard'}`, {
+      `${API_BASE_URL}/api/production/deals/${dealId}/contract?template=${template || 'standard'}`, {
         headers: {
           }
       }
@@ -432,7 +433,7 @@ export class ProductionService {
   // Export project data
   static async exportProjectData(projectId: number, format: 'pdf' | 'excel'): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/production/projects/${projectId}/export?format=${format}`, {
+      `${API_BASE_URL}/api/production/projects/${projectId}/export?format=${format}`, {
         headers: {
           }
       }

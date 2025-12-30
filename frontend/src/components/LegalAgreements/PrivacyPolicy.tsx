@@ -18,7 +18,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onAccept, onReject }) => 
     // Fetch privacy policy content
     const fetchPolicy = async () => {
       try {
-        const apiUrl = config.API_URL;
+        const apiUrl = API_URL;
         const response = await fetch(`${apiUrl}/legal/privacy-policy.md`);
         const content = await response.text();
         setPolicyContent(content);
@@ -43,7 +43,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onAccept, onReject }) => 
       };
 
       // Send acceptance to backend
-      const apiUrl = config.API_URL;
+      const apiUrl = API_URL;
       
       credentials: 'include', // Send cookies for Better Auth session
       

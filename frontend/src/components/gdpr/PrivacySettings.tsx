@@ -1,4 +1,5 @@
 /**
+import { API_URL } from '../config';
  * Privacy Settings Component
  * User interface for managing data subject rights and privacy preferences
  */
@@ -44,7 +45,7 @@ const PrivacySettings: React.FC = () => {
 
   const loadConsentStatus = async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+    const response = await fetch(`${API_URL}/api/user/settings`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -66,7 +67,7 @@ const PrivacySettings: React.FC = () => {
 
   const loadUserRequests = async () => {
     try {
-    const response = await fetch(`${config.API_URL}/api/user/settings`, {
+    const response = await fetch(`${API_URL}/api/user/settings`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -81,7 +82,7 @@ const PrivacySettings: React.FC = () => {
     try {
       setLoading(true);
       
-    const response = await fetch(`${config.API_URL}/api/user/privacy/consent`, {
+    const response = await fetch(`${API_URL}/api/user/privacy/consent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ [consentType]: granted }),
@@ -102,7 +103,7 @@ const PrivacySettings: React.FC = () => {
     try {
       setLoading(true);
       
-    const response = await fetch(`${config.API_URL}/api/user/privacy/request`, {
+    const response = await fetch(`${API_URL}/api/user/privacy/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ requestType, description, ...additionalData }),

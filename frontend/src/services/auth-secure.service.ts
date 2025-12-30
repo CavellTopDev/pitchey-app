@@ -1,4 +1,5 @@
-import { config } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 interface LoginResponse {
   success: boolean;
@@ -17,14 +18,14 @@ interface SessionResponse {
 }
 
 class SecureAuthService {
-  private baseURL = config.API_URL;
+  private baseURL = API_BASE_URL;
 
   /**
    * Login with secure session cookies
    */
   async login(portal: string, email: string, password: string): Promise<LoginResponse> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -74,7 +75,7 @@ class SecureAuthService {
    */
   async validateSession(): Promise<SessionResponse | null> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -119,7 +120,7 @@ class SecureAuthService {
    */
   async invalidateAllSessions(): Promise<void> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -140,7 +141,7 @@ class SecureAuthService {
    */
   async getActiveSessionsCount(): Promise<number> {
     try {
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

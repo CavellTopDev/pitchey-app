@@ -2,7 +2,8 @@
 import { apiClient } from '../lib/api-client';
 import type { Pitch } from '../types/api';
 import type { User } from '../types/api';
-import { config } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Types for creator dashboard data
 export interface CreatorStats {
@@ -300,7 +301,7 @@ export class CreatorService {
   // Export data for creator
   static async exportData(format: 'csv' | 'json' | 'pdf'): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/creator/export?format=${format}`, {
+      `${API_BASE_URL}/api/creator/export?format=${format}`, {
         headers: {
           }
       }
@@ -319,7 +320,7 @@ export class CreatorService {
     formData.append('image', file);
 
     const response = await fetch(
-      `${config.API_URL}/api/creator/profile/image`, {
+      `${API_BASE_URL}/api/creator/profile/image`, {
         method: 'POST',
         headers: {
           },

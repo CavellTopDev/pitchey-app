@@ -1,4 +1,5 @@
 // Real-time WebSocket integration for A/B testing updates
+import { API_URL } from '../config';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useWebSocket } from './useWebSocket';
 
@@ -148,7 +149,7 @@ export function useRealTimeResults(experimentId: number, options: {
       setLoading(true);
       setError(null);
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -235,7 +236,7 @@ export function useRealTimeExperimentList(options: {
           options.status.forEach(status => queryParams.append('status', status));
         }
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

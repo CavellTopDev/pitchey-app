@@ -96,7 +96,7 @@ export default function InvestorBrowse() {
         }
       });
 
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session

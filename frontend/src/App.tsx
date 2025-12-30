@@ -18,7 +18,7 @@ console.log('🚀 Pitchey App Environment:', {
   PROD: import.meta.env.PROD,
   DEV: import.meta.env.DEV,
   MODE: import.meta.env.MODE,
-  API_URL: config.API_URL,
+  API_URL: API_URL,
   NODE_ENV: config.NODE_ENV
 });
 

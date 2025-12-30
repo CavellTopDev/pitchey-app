@@ -86,7 +86,7 @@ const Following: React.FC = () => {
         endpoint = '/api/follows/following'; // default
       }
       
-    const response = await fetch(`${config.API_URL}/api/follows`, {
+    const response = await fetch(`${API_URL}/api/follows`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

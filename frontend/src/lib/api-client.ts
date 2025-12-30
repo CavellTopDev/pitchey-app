@@ -3,6 +3,8 @@
 
 import { config } from '../config';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+
 interface ApiError {
   message: string;
   status?: number;
@@ -25,7 +27,7 @@ class ApiClient {
   // Namespaced localStorage helpers to avoid cross-environment token collisions
   private nsKey(key: string): string {
     try {
-      const host = new URL(config.API_URL).host;
+      const host = new URL(API_URL).host;
       return `pitchey:${host}:${key}`;
     } catch {
       return `pitchey:${key}`;
@@ -62,7 +64,7 @@ class ApiClient {
 
   private getBaseURL(): string {
     try {
-      return config.API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8001';
+      return API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8001';
     } catch (error) {
       console.warn('Config not available during initialization, using fallback URL');
       return import.meta.env.VITE_API_URL || 'http://localhost:8001';

@@ -104,7 +104,7 @@ const RoleManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -123,7 +123,7 @@ const RoleManagement: React.FC = () => {
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -151,7 +151,7 @@ const RoleManagement: React.FC = () => {
     
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -184,7 +184,7 @@ const RoleManagement: React.FC = () => {
   const addCustomPermission = async (userId: number, permission: Permission) => {
     try {
       const token = localStorage.getItem('authToken');
-    const response = await fetch(`${config.API_URL}/api/endpoint`, {
+    const response = await fetch(`${API_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),

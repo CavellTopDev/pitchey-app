@@ -33,7 +33,7 @@ export function useFeatureFlag(flagKey: string): {
           return;
         }
 
-        const response = await fetch(`${config.API_URL}/api/feature-flags/evaluate`, {
+        const response = await fetch(`${API_URL}/api/feature-flags/evaluate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -83,7 +83,7 @@ export function useFeatureFlags(flagKeys: string[]): Record<string, boolean> {
   useEffect(() => {
     const evaluateFlags = async () => {
       try {
-        const response = await fetch(`${config.API_URL}/api/feature-flags/evaluate-multiple`, {
+        const response = await fetch(`${API_URL}/api/feature-flags/evaluate-multiple`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

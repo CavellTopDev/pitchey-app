@@ -2,12 +2,15 @@
 import { apiClient } from '../lib/api-client';
 import { config } from '../config';
 import type { 
+
   User, 
   LoginCredentials, 
   RegisterData, 
   AuthResponse,
   ApiResponse 
 } from '../types/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Export types from centralized types file
 export type { LoginCredentials, RegisterData, AuthResponse } from '../types/api';
@@ -21,7 +24,7 @@ export interface TokenValidation {
 // LocalStorage helpers (namespaced by API host, with legacy fallback)
 function nsKey(key: string): string {
   try {
-    const host = new URL(config.API_URL).host;
+    const host = new URL(API_BASE_URL).host;
     return `pitchey:${host}:${key}`;
   } catch {
     return `pitchey:${key}`;
@@ -372,11 +375,11 @@ export class AuthService {
 
   // OAuth providers
   static async loginWithGoogle(): Promise<void> {
-    window.location.href = `${config.API_URL}/api/auth/google`;
+    window.location.href = `${API_BASE_URL}/api/auth/google`;
   }
 
   static async loginWithLinkedIn(): Promise<void> {
-    window.location.href = `${config.API_URL}/api/auth/linkedin`;
+    window.location.href = `${API_BASE_URL}/api/auth/linkedin`;
   }
 
   static async handleOAuthCallback(): Promise<void> {

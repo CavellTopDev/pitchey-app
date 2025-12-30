@@ -1,6 +1,5 @@
 // NDA Service - Complete NDA management with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import { config } from '../config';
 import type { 
   NDA, 
   NDARequest, 
@@ -8,6 +7,8 @@ import type {
   Pitch,
   ApiResponse 
 } from '../types/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Export types from centralized types file
 export type { NDA, NDARequest } from '../types/api';
@@ -253,7 +254,7 @@ export class NDAService {
       `/api/ndas/${ndaId}/download`;
 
     const response = await fetch(
-      `${config.API_URL}${endpoint}`, {
+      `${API_BASE_URL}${endpoint}`, {
         headers: {
           }
       }

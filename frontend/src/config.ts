@@ -70,7 +70,7 @@ function createConfig(): AppConfig {
   // Log configuration in development
   if (config.IS_DEVELOPMENT) {
     console.log('🔧 Environment Configuration:', {
-      API_URL: config.API_URL,
+      API_URL: API_URL,
       WS_URL: config.WS_URL,
       NODE_ENV: config.NODE_ENV,
       MODE: config.MODE,
@@ -96,7 +96,7 @@ export const config = new Proxy({} as AppConfig, {
 // Backward compatibility exports with lazy evaluation
 // Use getter functions to avoid proxy issues in template strings
 export function getApiUrl(): string {
-  return config.API_URL;
+  return API_URL;
 }
 
 export function getWsUrl(): string {
@@ -106,7 +106,7 @@ export function getWsUrl(): string {
 // For backward compatibility, export direct access with lazy evaluation
 export const API_URL = (() => {
   try {
-    return config.API_URL;
+    return API_URL;
   } catch {
     // Return defaults for build time
     return import.meta.env.VITE_API_URL || '';
@@ -125,7 +125,7 @@ export const WS_URL = (() => {
 // Export for use in components that haven't been updated yet (lazy)
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'API_URL', {
-    get() { return config.API_URL; }
+    get() { return API_URL; }
   });
   Object.defineProperty(window, 'WS_URL', {
     get() { return config.WS_URL; }

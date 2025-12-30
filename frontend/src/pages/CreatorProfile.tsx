@@ -71,7 +71,7 @@ const CreatorProfile = () => {
     
     try {
       // Fetch creator profile from API
-      const response = await fetch(`${config.API_URL}/api/creators/${username}`, {
+      const response = await fetch(`${API_URL}/api/creators/${username}`, {
         method: 'GET',
         credentials: 'include' // Send cookies for Better Auth session
       });
@@ -96,7 +96,7 @@ const CreatorProfile = () => {
     
     try {
       // Fetch creator's pitches from API
-      const response = await fetch(`${config.API_URL}/api/creators/${username}/pitches`, {
+      const response = await fetch(`${API_URL}/api/creators/${username}/pitches`, {
         method: 'GET',
         credentials: 'include' // Send cookies for Better Auth session
       });

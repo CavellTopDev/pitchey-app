@@ -1,6 +1,7 @@
 // Analytics Service - Complete analytics and reporting with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import { config } from '../config';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
 // Types for analytics data
 export interface TimeRange {
@@ -408,7 +409,7 @@ export class AnalyticsService {
   // Export analytics data
   static async exportAnalytics(options: ExportOptions): Promise<Blob> {
     const response = await fetch(
-      `${config.API_URL}/api/analytics/export`, {
+      `${API_BASE_URL}/api/analytics/export`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
