@@ -66,12 +66,12 @@ export interface NDAStats {
 export class NDAService {
   // Request NDA for a pitch
   static async requestNDA(request: NDARequestInput): Promise<NDA> {
-    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
+    const response = await apiClient.post<ApiResponse<any>>(
       '/api/ndas/request',
       request
     );
 
-    if (!response.success || !response.data?.nda) {
+    if (!response.success) {
       // Ensure we always throw an Error with a string message
       // response.error can be either a string or an object with a message property
       let errorMessage = 'Failed to request NDA';
@@ -87,8 +87,26 @@ export class NDAService {
       throw new Error(errorMessage);
     }
 
-    // Return the NDA object from the nested structure
-    return response.data.nda;
+    // The API returns the NDA data directly, not nested in an 'nda' property
+    // For demo accounts, it returns: { id, status, pitchId, requesterId, ownerId, message, expiresAt, createdAt, success }
+    // Map the response to NDA structure
+    const ndaData = response.data;
+    
+    return {
+      id: ndaData.id,
+      pitchId: ndaData.pitchId,
+      signerId: ndaData.requesterId, // Map requesterId to signerId for compatibility
+      status: ndaData.status,
+      ndaType: ndaData.ndaType || 'basic',
+      accessGranted: ndaData.status === 'approved' || ndaData.accessGranted,
+      expiresAt: ndaData.expiresAt,
+      createdAt: ndaData.createdAt,
+      updatedAt: ndaData.updatedAt || ndaData.createdAt,
+      // Additional fields that may be present
+      signedAt: ndaData.signedAt,
+      documentUrl: ndaData.documentUrl,
+      customNdaUrl: ndaData.customNdaUrl
+    } as NDA;
   }
 
   // Sign NDA

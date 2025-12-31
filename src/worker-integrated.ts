@@ -615,6 +615,7 @@ class RouteRegistry {
     this.register('GET', '/api/pitches/public/:id', this.getPublicPitch.bind(this));
     this.register('GET', '/api/pitches/following', this.getPitchesFollowing.bind(this));
     this.register('GET', '/api/pitches/:id', this.getPitch.bind(this));
+    this.register('GET', '/api/trending', this.getTrending.bind(this));
     this.register('PUT', '/api/pitches/:id', this.updatePitch.bind(this));
     this.register('DELETE', '/api/pitches/:id', this.deletePitch.bind(this));
     
@@ -1004,7 +1005,8 @@ class RouteRegistry {
       '/api/search/facets',
       '/api/browse',
       '/api/pitches',
-      '/api/pitches/public'
+      '/api/pitches/public',
+      '/api/trending'  // Add trending endpoint as public
     ];
     
     // Check if endpoint requires authentication
@@ -1538,13 +1540,76 @@ class RouteRegistry {
     const params = (request as any).params;
     const pitchId = parseInt(params.id);
     
+    // Check if user is authenticated and has NDA access
+    let hasNDAAccess = false;
+    let userId: number | null = null;
+    
+    // Check Better Auth session cookie first
+    const cookies = request.headers.get('Cookie') || '';
+    const sessionCookie = cookies.split(';')
+      .find(c => c.trim().startsWith('better-auth-session='))
+      ?.split('=')[1]?.trim();
+    
+    if (sessionCookie) {
+      // Verify session with Better Auth
+      try {
+        const sessionResult = await this.db.query(`
+          SELECT s.*, u.* 
+          FROM sessions s
+          JOIN users u ON s.user_id = u.id
+          WHERE s.id = $1 AND s.expires_at > NOW()
+        `, [sessionCookie]);
+        
+        if (sessionResult.length > 0) {
+          userId = sessionResult[0].user_id;
+        }
+      } catch (error) {
+        console.error('Session verification failed:', error);
+      }
+    } else {
+      // Fallback to JWT for backward compatibility
+      const authHeader = request.headers.get('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const authResult = await this.verifyAuth(token);
+        if (authResult.isValid && authResult.user) {
+          userId = authResult.user.id;
+        }
+      }
+    }
+    
+    if (userId) {
+      // Check if user has signed NDA for this pitch
+      try {
+        const ndaCheck = await this.db.query(`
+          SELECT * FROM ndas 
+          WHERE pitch_id = $1 AND signer_id = $2 
+          AND (status = 'approved' OR status = 'signed')
+        `, [pitchId, userId]);
+        
+        hasNDAAccess = ndaCheck.length > 0;
+        
+        // Also check if user is the owner
+        const pitchOwnerCheck = await this.db.query(`
+          SELECT user_id FROM pitches WHERE id = $1 AND user_id = $2
+        `, [pitchId, userId]);
+        
+        if (pitchOwnerCheck.length > 0) {
+          hasNDAAccess = true; // Owner always has access
+        }
+      } catch (error) {
+        console.error('NDA check failed:', error);
+      }
+    }
+    
     // Try to fetch from database first
     try {
       const result = await this.db.query(`
         SELECT 
           p.*,
           CONCAT(u.first_name, ' ', u.last_name) as creator_name,
-          u.user_type as creator_type
+          u.user_type as creator_type,
+          u.company_name
         FROM pitches p
         LEFT JOIN users u ON p.user_id = u.id
         WHERE p.id = $1 AND p.status = 'published'
@@ -1552,6 +1617,29 @@ class RouteRegistry {
       
       if (result.length > 0) {
         const pitch = result[0];
+        
+        // Determine creator display based on NDA access
+        let creatorInfo;
+        if (hasNDAAccess) {
+          // Show full creator info if NDA is signed
+          creatorInfo = {
+            id: pitch.user_id,
+            name: pitch.creator_type === 'production' && pitch.company_name 
+              ? pitch.company_name 
+              : (pitch.creator_name || 'Unknown Creator'),
+            type: pitch.creator_type,
+            email: null // Still don't expose email publicly
+          };
+        } else {
+          // Hide creator info if no NDA
+          creatorInfo = {
+            id: null,
+            name: 'Hidden (NDA Required)',
+            type: null,
+            email: null
+          };
+        }
+        
         return builder.success({
           id: pitch.id,
           title: pitch.title,
@@ -1566,12 +1654,8 @@ class RouteRegistry {
           likeCount: pitch.like_count || 0,
           createdAt: pitch.created_at,
           updatedAt: pitch.updated_at,
-          creator: {
-            id: pitch.user_id,
-            name: pitch.creator_name || 'Unknown Creator',
-            email: null // Don't expose email publicly
-          },
-          hasSignedNDA: false,
+          creator: creatorInfo,
+          hasSignedNDA: hasNDAAccess,
           requiresNDA: pitch.require_nda || false
         });
       }
@@ -2477,9 +2561,10 @@ class RouteRegistry {
       }
       
       // Check if user has an NDA for this pitch
+      // Note: ndas table uses signer_id, not requester_id
       const ndaResult = await this.db.query(`
         SELECT * FROM ndas 
-        WHERE pitch_id = $1 AND requester_id = $2 
+        WHERE pitch_id = $1 AND signer_id = $2 
         ORDER BY created_at DESC 
         LIMIT 1
       `, [pitchId, authResult.user.id]);
@@ -2544,9 +2629,10 @@ class RouteRegistry {
       }
       
       // Check if user already has an NDA for this pitch
+      // Note: ndas table uses signer_id, not requester_id
       const existingNDA = await this.db.query(`
         SELECT * FROM ndas 
-        WHERE pitch_id = $1 AND requester_id = $2 
+        WHERE pitch_id = $1 AND signer_id = $2 
         AND status NOT IN ('rejected', 'expired', 'revoked')
         LIMIT 1
       `, [pitchId, authResult.user.id]);

@@ -9,7 +9,7 @@ import { Application, Router } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 
 const PORT = parseInt(Deno.env.get("PORT") || "8001");
-const WORKER_URL = Deno.env.get("WORKER_URL") || "https://pitchey-api.ndlovucavelle.workers.dev";
+const WORKER_URL = Deno.env.get("WORKER_URL") || "https://pitchey-api-prod.ndlovucavelle.workers.dev";
 
 const app = new Application();
 const router = new Router();

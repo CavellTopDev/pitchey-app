@@ -141,8 +141,10 @@ export default function PublicPitchView() {
     if (response.hasNDA && response.nda) {
       console.log('NDA found with status:', response.nda.status);
       setNdaRequestStatus(response.nda.status);
-      if (response.nda.status === 'approved') {
+      // Check if NDA grants access (approved or signed status)
+      if (response.nda.status === 'approved' || response.nda.status === 'signed' || response.nda.accessGranted) {
         setHasSignedNDA(true);
+        setCanRequestNDA(false); // Can't request if already have NDA
       }
     } else {
       console.log('No NDA found for this user-pitch combination');
@@ -151,8 +153,11 @@ export default function PublicPitchView() {
   };
 
   const handleNDASigned = async () => {
-    setNdaRequestStatus('pending');
-    // Don't set hasSignedNDA immediately since NDA needs approval first
+    // For demo accounts, NDA is auto-approved and signed
+    // Refresh the NDA status from the server
+    if (pitch) {
+      await checkNDAStatus(pitch.id);
+    }
   };
 
   const handleNDARequest = async (pitchId: number, requestData: any) => {
@@ -196,8 +201,9 @@ export default function PublicPitchView() {
     );
   }
 
-  const isProduction = pitch.creator?.userType === 'production';
-  const isInvestor = pitch.creator?.userType === 'investor';
+  const isProduction = pitch.creator?.type === 'production';
+  const isInvestor = pitch.creator?.type === 'investor';
+  const creatorHidden = pitch.creator?.name === 'Hidden (NDA Required)';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -711,20 +717,23 @@ export default function PublicPitchView() {
                   </div>
                   <div>
                     <div className={`font-medium ${
+                      creatorHidden ? 'text-gray-500 italic' :
                       isProduction ? 'text-purple-900' :
                       isInvestor ? 'text-green-900' :
                       'text-gray-900'
                     }`}>
-                      {pitch.creator?.companyName || pitch.creator?.username || 'Unknown Creator'}
+                      {creatorHidden ? pitch.creator?.name : (pitch.creator?.name || 'Unknown Creator')}
                     </div>
-                    <div className="text-sm text-gray-500">@{pitch.creator?.username || 'unknown'}</div>
-                    {isProduction && (
+                    <div className="text-sm text-gray-500">
+                      {creatorHidden ? 'Sign NDA to see creator details' : `@${pitch.creator?.name || 'unknown'}`}
+                    </div>
+                    {!creatorHidden && isProduction && (
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-xs px-2 py-0.5 bg-purple-600 text-white rounded-full">Production</span>
                         <span className="text-xs px-2 py-0.5 bg-purple-200 text-purple-800 rounded-full">Verified</span>
                       </div>
                     )}
-                    {isInvestor && (
+                    {!creatorHidden && isInvestor && (
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-xs px-2 py-0.5 bg-green-600 text-white rounded-full">Investor</span>
                         <span className="text-xs px-2 py-0.5 bg-green-200 text-green-800 rounded-full">Accredited</span>
@@ -838,9 +847,9 @@ export default function PublicPitchView() {
           pitchId={pitch.id}
           pitchTitle={pitch.title}
           creatorName={pitch.creator?.username || pitch.creator?.companyName || 'Creator'}
-          onStatusChange={() => {
-            handleNDASigned();
-            handleNDARequest();
+          onStatusChange={async () => {
+            await handleNDASigned();
+            setShowNDAWizard(false);
           }}
         />
       )}

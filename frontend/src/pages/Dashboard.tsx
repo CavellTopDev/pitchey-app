@@ -270,7 +270,7 @@ export default function Dashboard() {
                             {pitch.logline}
                           </p>
                           <div className="flex items-center justify-between text-sm text-gray-500">
-                            <span>By @{pitch.creator.username}</span>
+                            <span>By @{pitch.creator?.username || pitch.creator?.name || 'Unknown'}</span>
                             <div className="flex items-center space-x-3">
                               <span className="flex items-center">
                                 <Eye className="h-4 w-4 mr-1" />
@@ -296,7 +296,7 @@ export default function Dashboard() {
                           </h3>
                           <p className="text-gray-600 mb-2">{pitch.logline}</p>
                           <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>By @{pitch.creator.username}</span>
+                            <span>By @{pitch.creator?.username || pitch.creator?.name || 'Unknown'}</span>
                             <span className="flex items-center">
                               {formatIcon(pitch.format)}
                               <span className="ml-1 capitalize">{pitch.format}</span>
