@@ -2218,35 +2218,51 @@ class RouteRegistry {
 
       creatorId = pitch.creator_id || pitch.created_by || pitch.user_id || 1;
 
-      // Insert NDA request with correct schema
-      // According to table schema: signer_id (required), pitch_id (required), 
-      // nda_type defaults to 'basic', status defaults to 'pending'
+      // Insert NDA request into nda_requests table (not ndas table)
+      // nda_requests table uses requester_id instead of signer_id
       let nda = null;
       
       try {
         // Build the query properly based on demo account status
         if (isDemoAccount) {
+          // For demo accounts, auto-approve the request
           [nda] = await this.db.query(`
-            INSERT INTO ndas (
-              signer_id, pitch_id, status, nda_type,
-              access_granted, expires_at, created_at, updated_at, approved_at
+            INSERT INTO nda_requests (
+              requester_id, pitch_id, owner_id, status, nda_type,
+              request_message, expires_at, created_at, responded_at
             ) VALUES (
-              $1, $2, $3, 'basic', $4, 
-              NOW() + INTERVAL '${data.expiryDays || 30} days',
-              NOW(), NOW(), NOW()
-            ) RETURNING *
-          `, [authResult.user.id, data.pitchId, ndaStatus, true]);
-        } else {
-          [nda] = await this.db.query(`
-            INSERT INTO ndas (
-              signer_id, pitch_id, status, nda_type,
-              access_granted, expires_at, created_at, updated_at
-            ) VALUES (
-              $1, $2, $3, 'basic', $4, 
-              NOW() + INTERVAL '${data.expiryDays || 30} days',
+              $1, $2, $3, 'approved', 'basic',
+              $4, NOW() + INTERVAL '${data.expiryDays || 30} days',
               NOW(), NOW()
             ) RETURNING *
-          `, [authResult.user.id, data.pitchId, ndaStatus, false]);
+          `, [authResult.user.id, data.pitchId, creatorId, data.message || 'NDA Request']);
+          
+          // Also create the actual NDA record for demo accounts
+          await this.db.query(`
+            INSERT INTO ndas (
+              signer_id, pitch_id, status, nda_type,
+              access_granted, expires_at, created_at, updated_at, signed_at
+            ) VALUES (
+              $1, $2, 'signed', 'basic', true,
+              NOW() + INTERVAL '${data.expiryDays || 30} days',
+              NOW(), NOW(), NOW()
+            ) ON CONFLICT (pitch_id, signer_id) DO UPDATE SET
+              status = 'signed',
+              access_granted = true,
+              updated_at = NOW()
+          `, [authResult.user.id, data.pitchId]);
+        } else {
+          // Regular flow - create pending request
+          [nda] = await this.db.query(`
+            INSERT INTO nda_requests (
+              requester_id, pitch_id, owner_id, status, nda_type,
+              request_message, expires_at, created_at
+            ) VALUES (
+              $1, $2, $3, 'pending', 'basic',
+              $4, NOW() + INTERVAL '${data.expiryDays || 30} days',
+              NOW()
+            ) RETURNING *
+          `, [authResult.user.id, data.pitchId, creatorId, data.message || 'NDA Request']);
         }
       } catch (insertError) {
         console.error('Failed to create NDA request:', insertError);
@@ -2283,8 +2299,9 @@ class RouteRegistry {
         id: nda.id,
         status: nda.status,
         pitchId: nda.pitch_id,
-        signerId: nda.signer_id,
-        accessGranted: nda.access_granted,
+        requesterId: nda.requester_id,
+        ownerId: nda.owner_id,
+        message: nda.request_message,
         expiresAt: nda.expires_at,
         createdAt: nda.created_at,
         success: true
@@ -2303,23 +2320,35 @@ class RouteRegistry {
     const params = (request as any).params;
 
     try {
-      const [nda] = await this.db.query(`
-        UPDATE ndas SET
+      // Update the NDA request
+      const [ndaRequest] = await this.db.query(`
+        UPDATE nda_requests SET
           status = 'approved',
-          approved_at = NOW(),
-          approved_by = $2,
-          updated_at = NOW()
-        WHERE id = $1 AND pitch_id IN (
-          SELECT id FROM pitches WHERE creator_id = $2
-        )
+          responded_at = NOW(),
+          approved_by = $2
+        WHERE id = $1 AND owner_id = $2
         RETURNING *
       `, [params.id, authResult.user.id]);
 
-      if (!nda) {
-        return builder.error(ErrorCode.NOT_FOUND, 'NDA not found or not authorized');
+      if (!ndaRequest) {
+        return builder.error(ErrorCode.NOT_FOUND, 'NDA request not found or not authorized');
       }
 
-      return builder.success({ nda });
+      // Create the actual NDA record
+      await this.db.query(`
+        INSERT INTO ndas (
+          signer_id, pitch_id, status, nda_type,
+          access_granted, expires_at, created_at, updated_at, signed_at
+        ) VALUES (
+          $1, $2, 'approved', 'basic', false,
+          $3, NOW(), NOW(), NULL
+        ) ON CONFLICT (pitch_id, signer_id) DO UPDATE SET
+          status = 'approved',
+          access_granted = false,
+          updated_at = NOW()
+      `, [ndaRequest.requester_id, ndaRequest.pitch_id, ndaRequest.expires_at]);
+
+      return builder.success({ nda: ndaRequest });
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -2334,23 +2363,20 @@ class RouteRegistry {
     const data = await request.json();
 
     try {
-      const [nda] = await this.db.query(`
-        UPDATE ndas SET
+      const [ndaRequest] = await this.db.query(`
+        UPDATE nda_requests SET
           status = 'rejected',
-          rejected_at = NOW(),
-          rejection_reason = $3,
-          updated_at = NOW()
-        WHERE id = $1 AND pitch_id IN (
-          SELECT id FROM pitches WHERE creator_id = $2
-        )
+          responded_at = NOW(),
+          rejection_reason = $3
+        WHERE id = $1 AND owner_id = $2
         RETURNING *
       `, [params.id, authResult.user.id, data.reason]);
 
-      if (!nda) {
-        return builder.error(ErrorCode.NOT_FOUND, 'NDA not found or not authorized');
+      if (!ndaRequest) {
+        return builder.error(ErrorCode.NOT_FOUND, 'NDA request not found or not authorized');
       }
 
-      return builder.success({ nda });
+      return builder.success({ nda: ndaRequest });
     } catch (error) {
       return errorHandler(error, request);
     }
