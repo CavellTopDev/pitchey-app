@@ -8,7 +8,7 @@ import { createAuthClient } from 'better-auth/react';
 import { organizationClient } from 'better-auth/client/plugins';
 import { adminClient } from 'better-auth/client/plugins';
 import { multiSessionClient } from 'better-auth/client/plugins';
-import { config } from '../config';
+import { API_URL } from '../config';
 
 // Portal types
 export type PortalType = 'creator' | 'investor' | 'production';
