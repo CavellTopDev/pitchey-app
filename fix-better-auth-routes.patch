@@ -1,0 +1,36 @@
+// Add this to worker-integrated.ts in the registerRoutes() method after line 437:
+
+    // Better Auth routes (compatibility layer)
+    this.register('POST', '/api/auth/sign-in', async (request) => {
+      // Route Better Auth sign-in to our portal login handler
+      const body = await request.json();
+      const portal = body.userType || 'creator'; // Default to creator if not specified
+      
+      // Transform the request to match our existing login format
+      const transformedRequest = new Request(request.url, {
+        method: 'POST',
+        headers: request.headers,
+        body: JSON.stringify({
+          email: body.email,
+          password: body.password,
+          userType: portal
+        })
+      });
+      
+      return this.handlePortalLogin(transformedRequest, portal);
+    });
+    
+    this.register('POST', '/api/auth/sign-up', async (request) => {
+      // Route Better Auth sign-up to our register handler
+      return this.handleRegister(request);
+    });
+    
+    this.register('POST', '/api/auth/sign-out', async (request) => {
+      // Route Better Auth sign-out to our logout handler
+      return this.handleLogout(request);
+    });
+    
+    this.register('POST', '/api/auth/session/refresh', async (request) => {
+      // Session refresh - just return current session for now
+      return this.handleSession(request);
+    });

@@ -555,6 +555,10 @@ class RouteRegistry {
   }
 
   private async handleLogoutSimple(request: Request): Promise<Response> {
+    // Clear the session cookie by setting it to expire immediately
+    const origin = request.headers.get('Origin') || '';
+    const corsHeaders = getCorsHeaders(origin);
+    
     return new Response(JSON.stringify({
       success: true,
       data: { message: 'Logged out successfully' }
@@ -562,7 +566,9 @@ class RouteRegistry {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        ...getCorsHeaders(request.headers.get('Origin'))
+        // Clear the Better Auth session cookie
+        'Set-Cookie': 'better-auth-session=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+        ...corsHeaders
       }
     });
   }
@@ -584,6 +590,41 @@ class RouteRegistry {
     this.register('POST', '/api/auth/creator/login', (req) => this.handlePortalLogin(req, 'creator'));
     this.register('POST', '/api/auth/investor/login', (req) => this.handlePortalLogin(req, 'investor'));
     this.register('POST', '/api/auth/production/login', (req) => this.handlePortalLogin(req, 'production'));
+    
+    // Better Auth routes (compatibility layer for frontend)
+    this.register('POST', '/api/auth/sign-in', async (request) => {
+      // Route Better Auth sign-in to our portal login handler
+      const body = await request.json();
+      const portal = body.userType || 'production'; // Default to production for demo
+      
+      // Transform the request to match our existing login format
+      const transformedRequest = new Request(request.url, {
+        method: 'POST',
+        headers: request.headers,
+        body: JSON.stringify({
+          email: body.email,
+          password: body.password,
+          userType: portal
+        })
+      });
+      
+      return this.handlePortalLogin(transformedRequest, portal as any);
+    });
+    
+    this.register('POST', '/api/auth/sign-up', async (request) => {
+      // Route Better Auth sign-up to our register handler
+      return this.handleRegister(request);
+    });
+    
+    this.register('POST', '/api/auth/sign-out', async (request) => {
+      // Route Better Auth sign-out to our logout handler
+      return this.handleLogout(request);
+    });
+    
+    this.register('POST', '/api/auth/session/refresh', async (request) => {
+      // Session refresh - just return current session for now
+      return this.handleSession(request);
+    });
 
     // User profile routes (commented out - UserProfileRoutes not imported)
     // const userProfileRoutes = new UserProfileRoutes(this.env);
@@ -995,6 +1036,10 @@ class RouteRegistry {
       '/api/health',
       '/api/auth/login',
       '/api/auth/register',
+      '/api/auth/sign-in',
+      '/api/auth/sign-up',
+      '/api/auth/sign-out',
+      '/api/auth/session/refresh',
       '/api/auth/creator/login',
       '/api/auth/investor/login',
       '/api/auth/production/login',
@@ -1230,16 +1275,8 @@ class RouteRegistry {
   }
 
   private async handleLogout(request: Request): Promise<Response> {
-    // Use Better Auth logout if available
-    if (this.betterAuth) {
-      try {
-        const response = await this.betterAuth.handle(request);
-        return response;
-      } catch (error) {
-        console.error('Better Auth logout error:', error);
-      }
-    }
-    // Fallback to simple logout
+    // Always clear the session cookie, even if Better Auth isn't available
+    // This ensures logout always works
     return this.handleLogoutSimple(request);
   }
 

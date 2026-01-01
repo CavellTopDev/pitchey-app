@@ -74,6 +74,9 @@ const CreatorTeamMembers = lazy(() => import('./pages/creator/CreatorTeamMembers
 const CreatorTeamInvite = lazy(() => import('./pages/creator/CreatorTeamInvite'));
 const CreatorTeamRoles = lazy(() => import('./pages/creator/CreatorTeamRoles'));
 const CreatorCollaborations = lazy(() => import('./pages/creator/CreatorCollaborations'));
+const CreatorAnalyticsPage = lazy(() => import('./pages/CreatorAnalyticsPage'));
+const ProductionAnalyticsPage = lazy(() => import('./pages/ProductionAnalyticsPage'));
+const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage'));
 
 // Production Pages
 // ProductionPitchCreate removed - production companies cannot create pitches
@@ -327,7 +330,7 @@ function App() {
             <Navigate to="/login/creator" />
           } />
           <Route path="/creator/analytics" element={
-            isAuthenticated && userType === 'creator' ? <Analytics /> : 
+            isAuthenticated && userType === 'creator' ? <CreatorAnalyticsPage /> : 
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/creator" />
           } />
@@ -524,15 +527,19 @@ function App() {
           <Route path="/production/submissions/accepted" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsAccepted /> : <Navigate to="/login/production" />} />
           <Route path="/production/submissions/rejected" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsRejected /> : <Navigate to="/login/production" />} />
           <Route path="/production/submissions/archive" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsArchive /> : <Navigate to="/login/production" />} />
-          <Route path="/production/team" element={isAuthenticated && userType === 'production' ? <TeamManagement /> : <Navigate to="/login/production" />} />
+          <Route path="/production/team" element={isAuthenticated && userType === 'production' ? <TeamManagementPage /> : <Navigate to="/login/production" />} />
           <Route path="/production/team/members" element={isAuthenticated && userType === 'production' ? <TeamMembers /> : <Navigate to="/login/production" />} />
           <Route path="/production/team/invite" element={isAuthenticated && userType === 'production' ? <TeamInvite /> : <Navigate to="/login/production" />} />
           <Route path="/production/team/roles" element={isAuthenticated && userType === 'production' ? <TeamRoles /> : <Navigate to="/login/production" />} />
-          <Route path="/production/collaborations" element={isAuthenticated && userType === 'production' ? <ProductionCollaborations /> : <Navigate to="/login/production" />} />
-          <Route path="/production/analytics" element={isAuthenticated && userType === 'production' ? <ProductionAnalytics /> : <Navigate to="/login/production" />} />
-          <Route path="/production/activity" element={isAuthenticated && userType === 'production' ? <ProductionActivity /> : <Navigate to="/login/production" />} />
-          <Route path="/production/stats" element={isAuthenticated && userType === 'production' ? <ProductionStats /> : <Navigate to="/login/production" />} />
-          <Route path="/production/revenue" element={isAuthenticated && userType === 'production' ? <ProductionRevenue /> : <Navigate to="/login/production" />} />
+          {/* Collaborations is now a tab in Team page */}
+          <Route path="/production/collaborations" element={<Navigate to="/production/team" />} />
+          <Route path="/production/analytics" element={isAuthenticated && userType === 'production' ? <ProductionAnalyticsPage /> : <Navigate to="/login/production" />} />
+          {/* Activity is now a tab in Analytics page */}
+          <Route path="/production/activity" element={<Navigate to="/production/analytics" />} />
+          {/* Stats is now a tab in Analytics page */}
+          <Route path="/production/stats" element={<Navigate to="/production/analytics" />} />
+          {/* Revenue is now a tab in Analytics page */}
+          <Route path="/production/revenue" element={<Navigate to="/production/analytics" />} />
           <Route path="/production/saved" element={isAuthenticated && userType === 'production' ? <ProductionSaved /> : <Navigate to="/login/production" />} />
           <Route path="/production/settings/profile" element={isAuthenticated && userType === 'production' ? <ProductionSettingsProfile /> : <Navigate to="/login/production" />} />
           <Route path="/production/settings/notifications" element={isAuthenticated && userType === 'production' ? <ProductionSettingsNotifications /> : <Navigate to="/login/production" />} />
@@ -540,17 +547,20 @@ function App() {
           <Route path="/production/settings/security" element={isAuthenticated && userType === 'production' ? <ProductionSettingsSecurity /> : <Navigate to="/login/production" />} />
           
           {/* Creator Routes */}
-          <Route path="/creator/activity" element={isAuthenticated && userType === 'creator' ? <CreatorActivity /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/stats" element={isAuthenticated && userType === 'creator' ? <CreatorStats /> : <Navigate to="/login/creator" />} />
+          {/* Activity is now a tab in Analytics page */}
+          <Route path="/creator/activity" element={<Navigate to="/creator/analytics" />} />
+          {/* Stats is now a tab in Analytics page */}
+          <Route path="/creator/stats" element={<Navigate to="/creator/analytics" />} />
           <Route path="/creator/pitches/published" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesPublished /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/pitches/drafts" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesDrafts /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/pitches/review" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesReview /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/pitches/analytics" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesAnalytics /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team" element={isAuthenticated && userType === 'creator' ? <TeamManagement /> : <Navigate to="/login/creator" />} />
+          <Route path="/creator/team" element={isAuthenticated && userType === 'creator' ? <TeamManagementPage /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/team/members" element={isAuthenticated && userType === 'creator' ? <CreatorTeamMembers /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/team/invite" element={isAuthenticated && userType === 'creator' ? <CreatorTeamInvite /> : <Navigate to="/login/creator" />} />
           <Route path="/creator/team/roles" element={isAuthenticated && userType === 'creator' ? <CreatorTeamRoles /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/collaborations" element={isAuthenticated && userType === 'creator' ? <CreatorCollaborations /> : <Navigate to="/login/creator" />} />
+          {/* Collaborations is now a tab in Team page */}
+          <Route path="/creator/collaborations" element={<Navigate to="/creator/team" />} />
           
           {/* Investor Routes */}
           <Route path="/investor/notifications" element={isAuthenticated && userType === 'investor' ? <NotificationCenter /> : <Navigate to="/login/investor" />} />

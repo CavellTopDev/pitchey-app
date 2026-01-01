@@ -4,6 +4,7 @@ import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus } from '../
 import { useAuthStore } from '../store/authStore';
 import { config } from '../config';
 import { presenceFallbackService } from '../services/presence-fallback.service';
+import { pollingService } from '../services/polling.service';
 
 interface NotificationData {
   id: string;
@@ -549,9 +550,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       setUploadProgress([]);
       setPitchViews(new Map());
       
-      // Stop fallback service
+      // Stop fallback services
       if (usingFallback) {
         presenceFallbackService.stop();
+        pollingService.stop();
         setUsingFallback(false);
       }
       
@@ -580,16 +582,19 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       setUploadProgress([]);
       setPitchViews(new Map());
       
-      // Stop fallback service
+      // Stop fallback services
       if (usingFallback) {
         presenceFallbackService.stop();
+        pollingService.stop();
         setUsingFallback(false);
       }
     } else if (isAuthenticated && (isWebSocketDisabled || !config.WEBSOCKET_ENABLED)) {
       // Start fallback service if WebSocket is disabled but user is authenticated
       if (!usingFallback) {
-        console.log('Starting fallback presence service - WebSocket disabled');
+        console.log('Starting fallback services - WebSocket disabled');
         setUsingFallback(true);
+        
+        // Start presence fallback service
         presenceFallbackService.start();
         
         // Subscribe to fallback presence updates
@@ -599,6 +604,13 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
             lastSeen: new Date(user.lastSeen)
           })));
         });
+        
+        // Start polling service for notifications and real-time updates
+        console.log('🔄 Starting polling service for notifications');
+        pollingService.start();
+        
+        // Add message handler for polling responses
+        pollingService.addMessageHandler(handleMessage);
       }
     }
   }, [isAuthenticated, isConnected, isWebSocketDisabled, usingFallback]); // Added isWebSocketDisabled and usingFallback to deps

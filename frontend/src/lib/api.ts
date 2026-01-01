@@ -279,12 +279,35 @@ export const pitchAPI = {
     format?: string;
     search?: string;
   }) {
-    // Use the public endpoint which is what the marketplace needs
-    const response = await api.get('/api/pitches/public', { params });
-    // Handle the response format from the backend
-    // Backend returns { success: true, data: [...pitches], total: number }
-    const pitches = response.data.data || response.data.items || [];
-    return Array.isArray(pitches) ? pitches : [];
+    try {
+      // Use the public endpoint which is what the marketplace needs
+      const response = await api.get('/api/pitches/public', { params });
+      
+      // Handle various response formats from the backend
+      // The backend may return data in different structures
+      let pitches = [];
+      
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          // Direct array response
+          pitches = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          // Nested data structure
+          pitches = response.data.data;
+        } else if (response.data.items && Array.isArray(response.data.items)) {
+          // Items structure
+          pitches = response.data.items;
+        } else if (response.data.pitches && Array.isArray(response.data.pitches)) {
+          // Pitches structure
+          pitches = response.data.pitches;
+        }
+      }
+      
+      return Array.isArray(pitches) ? pitches : [];
+    } catch (error) {
+      console.error('Failed to fetch pitches:', error);
+      return [];
+    }
   },
 
   async getById(id: number) {
@@ -321,8 +344,21 @@ export const pitchAPI = {
   },
 
   async getTrending() {
-    const response = await api.get<Pitch[]>('/api/trending');
-    return response.data;
+    try {
+      const response = await api.get<Pitch[]>('/api/trending');
+      // Handle various response formats
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      } else if (response.data?.items && Array.isArray(response.data.items)) {
+        return response.data.items;
+      }
+      return [];
+    } catch (error) {
+      console.error('Failed to fetch trending pitches:', error);
+      return [];
+    }
   },
 
   async signNDA(pitchId: number, ndaType: 'basic' | 'enhanced' = 'basic') {
