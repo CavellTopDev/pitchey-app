@@ -783,6 +783,17 @@ class RouteRegistry {
     this.register('GET', '/api/follows/followers', (req) => followersHandler(req, this.env));
     this.register('GET', '/api/follows/following', (req) => followingHandler(req, this.env));
     
+    // Enhanced follows endpoints
+    this.register('POST', '/api/follows/action', (req) => followActionHandler(req, this.env));
+    this.register('GET', '/api/follows/list', (req) => getFollowListHandler(req, this.env));
+    this.register('GET', '/api/follows/stats', (req) => getFollowStatsHandler(req, this.env));
+    this.register('GET', '/api/follows/suggestions', (req) => getFollowSuggestionsHandler(req, this.env));
+    
+    // View tracking endpoints
+    this.register('POST', '/api/views/track', (req) => trackViewHandler(req, this.env));
+    this.register('GET', '/api/views/analytics', (req) => getViewAnalyticsHandler(req, this.env));
+    this.register('GET', '/api/views/pitch/*', (req) => getPitchViewersHandler(req, this.env));
+    
     // === CREATOR PORTAL ROUTES (Phase 3) ===
     // Revenue Dashboard
     this.register('GET', '/api/creator/revenue', async (req) => {
