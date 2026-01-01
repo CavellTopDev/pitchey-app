@@ -8,8 +8,8 @@ import {
 import DashboardHeader from '../components/DashboardHeader';
 import { useAuthStore } from '../store/authStore';
 import { CreatorAnalytics } from '../components/Analytics/CreatorAnalytics';
-import { CreatorActivity } from './creator/CreatorActivity';
-import { CreatorStats } from './creator/CreatorStats';
+import CreatorActivity from './creator/CreatorActivity';
+import CreatorStats from './creator/CreatorStats';
 
 export default function CreatorAnalyticsPage() {
   const navigate = useNavigate();

@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
 import { useAuthStore } from '../store/authStore';
-import { CreatorCollaborations } from './creator/CreatorCollaborations';
-import { ProductionCollaborations } from './production/ProductionCollaborations';
+import CreatorCollaborations from './creator/CreatorCollaborations';
+import ProductionCollaborations from './production/ProductionCollaborations';
 
 interface TeamMember {
   id: string;

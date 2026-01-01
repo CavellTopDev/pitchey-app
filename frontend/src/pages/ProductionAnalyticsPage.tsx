@@ -7,10 +7,10 @@ import {
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
 import { useAuthStore } from '../store/authStore';
-import { ProductionAnalytics } from './production/ProductionAnalytics';
-import { ProductionActivity } from './production/ProductionActivity';
-import { ProductionStats } from './production/ProductionStats';
-import { ProductionRevenue } from './production/ProductionRevenue';
+import ProductionAnalytics from './production/ProductionAnalytics';
+import ProductionActivity from './production/ProductionActivity';
+import ProductionStats from './production/ProductionStats';
+import ProductionRevenue from './production/ProductionRevenue';
 
 export default function ProductionAnalyticsPage() {
   const navigate = useNavigate();
