@@ -31,8 +31,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
-// Using the new Investor-specific navigation with dropdown menus
-import { InvestorNavigation } from '../components/InvestorNavigation';
+// Using the enhanced Investor-specific navigation
+import { EnhancedInvestorNav } from '../components/navigation/EnhancedInvestorNav';
 import { formatCurrency, formatPercentage, safeNumber } from '../utils/formatters';
 
 interface PortfolioSummary {
@@ -183,12 +183,33 @@ export default function InvestorDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Clean, modern Investor navigation with dropdowns */}
-      <InvestorNavigation
-        user={user}
-        onLogout={handleLogout}
-      />
-
+      <div className="flex">
+        {/* Enhanced navigation sidebar */}
+        <EnhancedInvestorNav />
+        
+        {/* Main content */}
+        <div className="flex-1">
+          {/* Top header bar */}
+          <div className="bg-white shadow-sm border-b">
+            <div className="px-6 py-4 flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-gray-900">Investor Dashboard</h1>
+              <div className="flex items-center gap-4">
+                <button className="p-2 text-gray-500 hover:text-gray-700">
+                  <Bell className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Portfolio Summary Cards */}
@@ -1007,6 +1028,8 @@ export default function InvestorDashboard() {
             <p className="font-medium text-gray-900">Documents</p>
             <p className="text-sm text-gray-500">View contracts & NDAs</p>
           </button>
+        </div>
+      </div>
         </div>
       </div>
     </div>

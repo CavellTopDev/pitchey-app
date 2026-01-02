@@ -12,6 +12,8 @@ import { PollingProvider } from './contexts/PollingContext';
 import { configService } from './services/config.service';
 import { config } from './config';
 import { AuthService } from './services/auth.service';
+// Import enhanced route components
+import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './components/routing/AllEnhancedRoutes';
 
 // Log environment on app load
 console.log('🚀 Pitchey App Environment:', {
@@ -384,6 +386,9 @@ function App() {
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/creator" />
           } />
+          
+          {/* Enhanced Creator Routes */}
+          <AllCreatorRoutes isAuthenticated={isAuthenticated} userType={userType} />
           <Route path="/investor/dashboard" element={
             isAuthenticated && userType === 'investor' ? <InvestorDashboard /> : 
             isAuthenticated ? <Navigate to="/" /> :
@@ -409,6 +414,9 @@ function App() {
             isAuthenticated ? <Navigate to="/" /> :
             <Navigate to="/login/investor" />
           } />
+          
+          {/* Enhanced Investor Routes */}
+          <AllInvestorRoutes isAuthenticated={isAuthenticated} userType={userType} />
           <Route path="/production/dashboard" element={
             isAuthenticated && userType === 'production' ? <ProductionDashboard /> : 
             isAuthenticated ? <Navigate to="/" /> :
@@ -425,6 +433,9 @@ function App() {
             <Navigate to="/login/production" />
           } />
           {/* Production companies cannot create or edit pitches - routes removed */}
+          
+          {/* Enhanced Production Routes */}
+          <AllProductionRoutes isAuthenticated={isAuthenticated} userType={userType} />
           
           {/* Admin Protected Routes */}
           <Route path="/admin/dashboard" element={
