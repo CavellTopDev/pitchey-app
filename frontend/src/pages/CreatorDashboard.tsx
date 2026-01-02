@@ -14,8 +14,7 @@ import { EnhancedCreatorAnalytics } from '../components/Analytics/EnhancedCreato
 import { NotificationBell } from '../components/NotificationBell';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
-// Using the enhanced Creator-specific navigation
-import { EnhancedCreatorNav } from '../components/navigation/EnhancedCreatorNav';
+// EnhancedCreatorNav is now handled by PortalLayout
 // import DashboardHeader from '../components/DashboardHeader';
 // import * as Sentry from '@sentry/react';
 
@@ -203,31 +202,27 @@ function CreatorDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-50">
-      <div className="flex">
-        {/* Enhanced navigation sidebar */}
-        <EnhancedCreatorNav />
-        
-        {/* Main content */}
-        <div className="flex-1">
-          {/* Top header bar */}
-          <div className="bg-white shadow-sm border-b">
-            <div className="px-6 py-4 flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900">Creator Dashboard</h1>
-              <div className="flex items-center gap-4">
-                <NotificationBell />
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </div>
+      {/* Main content - removed the flex wrapper and EnhancedCreatorNav since it's handled by PortalLayout */}
+      <div className="w-full">
+        {/* Top header bar */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">Creator Dashboard</h1>
+            <div className="flex items-center gap-4">
+              <NotificationBell />
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
       {/* Error Message */}
       {error && (
@@ -726,7 +721,6 @@ function CreatorDashboard() {
           </div>
         </div>
       </div>
-        </div>
       </div>
     </div>
   );

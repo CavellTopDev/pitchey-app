@@ -27,7 +27,7 @@ import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedPro
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
 // import DashboardHeader from '../components/DashboardHeader';
-import { EnhancedProductionNav } from '../components/navigation/EnhancedProductionNav';
+// EnhancedProductionNav is now handled by PortalLayout
 // import * as Sentry from '@sentry/react';
 
 interface Analytics {
@@ -681,20 +681,16 @@ function ProductionDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        {/* Enhanced navigation sidebar */}
-        <EnhancedProductionNav />
-        
-        {/* Main content */}
-        <div className="flex-1">
-          {/* Top header bar */}
-          <div className="bg-white shadow-sm border-b">
-            <div className="px-6 py-4 flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900">Production Dashboard</h1>
-              <div className="flex items-center gap-4">
-                <button className="p-2 text-gray-500 hover:text-gray-700">
-                  <Bell className="w-5 h-5" />
-                </button>
+      {/* Main content - removed the flex wrapper and EnhancedProductionNav since it's handled by PortalLayout */}
+      <div className="w-full">
+        {/* Top header bar */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">Production Dashboard</h1>
+            <div className="flex items-center gap-4">
+              <button className="p-2 text-gray-500 hover:text-gray-700">
+                <Bell className="w-5 h-5" />
+              </button>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
                   <button
@@ -2281,7 +2277,6 @@ function ProductionDashboard() {
           </div>
         </div>
       )}
-        </div>
       </div>
     </div>
   );
