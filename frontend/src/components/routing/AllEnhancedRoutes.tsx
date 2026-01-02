@@ -4,6 +4,14 @@ import { Route, Navigate } from 'react-router-dom';
 // Import route configurations
 import { CREATOR_ROUTES, INVESTOR_ROUTES, PRODUCTION_ROUTES } from '../../config/navigation.routes';
 
+// Helper function to extract relative path from absolute path
+const getRelativePath = (absolutePath: string, prefix: string): string => {
+  if (absolutePath.startsWith(prefix + '/')) {
+    return absolutePath.substring(prefix.length + 1);
+  }
+  return absolutePath;
+};
+
 // Lazy load all Creator pages
 const CreatorActivity = lazy(() => import('../../pages/creator/CreatorActivity'));
 const CreatorStats = lazy(() => import('../../pages/creator/CreatorStats'));
@@ -79,38 +87,38 @@ export function AllCreatorRoutes({ isAuthenticated, userType }: RoutesProps) {
   return (
     <>
       {/* Activity & Stats */}
-      <Route path={CREATOR_ROUTES.activity} element={
+      <Route path="activity" element={
         isCreator ? <CreatorActivity /> : <Navigate to="/login/creator" />
       } />
-      <Route path={CREATOR_ROUTES.stats} element={
+      <Route path="stats" element={
         isCreator ? <CreatorStats /> : <Navigate to="/login/creator" />
       } />
       
       {/* Pitch Management */}
-      <Route path={CREATOR_ROUTES.pitchesPublished} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.pitchesPublished, '/creator')} element={
         isCreator ? <CreatorPitchesPublished /> : <Navigate to="/login/creator" />
       } />
-      <Route path={CREATOR_ROUTES.pitchesDrafts} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.pitchesDrafts, '/creator')} element={
         isCreator ? <CreatorPitchesDrafts /> : <Navigate to="/login/creator" />
       } />
-      <Route path={CREATOR_ROUTES.pitchesReview} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.pitchesReview, '/creator')} element={
         isCreator ? <CreatorPitchesReview /> : <Navigate to="/login/creator" />
       } />
-      <Route path={CREATOR_ROUTES.pitchesAnalytics} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.pitchesAnalytics, '/creator')} element={
         isCreator ? <CreatorPitchesAnalytics /> : <Navigate to="/login/creator" />
       } />
       
       {/* Team Management */}
-      <Route path={CREATOR_ROUTES.teamMembers} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.teamMembers, '/creator')} element={
         isCreator ? <CreatorTeamMembers /> : <Navigate to="/login/creator" />
       } />
-      <Route path={CREATOR_ROUTES.teamInvite} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.teamInvite, '/creator')} element={
         isCreator ? <CreatorTeamInvite /> : <Navigate to="/login/creator" />
       } />
-      <Route path={CREATOR_ROUTES.teamRoles} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.teamRoles, '/creator')} element={
         isCreator ? <CreatorTeamRoles /> : <Navigate to="/login/creator" />
       } />
-      <Route path={CREATOR_ROUTES.collaborations} element={
+      <Route path={getRelativePath(CREATOR_ROUTES.collaborations, '/creator')} element={
         isCreator ? <CreatorCollaborations /> : <Navigate to="/login/creator" />
       } />
     </>
@@ -123,94 +131,94 @@ export function AllInvestorRoutes({ isAuthenticated, userType }: RoutesProps) {
   return (
     <>
       {/* Dashboard & Analytics */}
-      <Route path={INVESTOR_ROUTES.portfolio} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.portfolio, '/investor')} element={
         isInvestor ? <InvestorPortfolio /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.analytics} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.analytics, '/investor')} element={
         isInvestor ? <InvestorAnalytics /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.activity} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.activity, '/investor')} element={
         isInvestor ? <InvestorActivity /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.performance} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.performance, '/investor')} element={
         isInvestor ? <InvestorPerformance /> : <Navigate to="/login/investor" />
       } />
       
       {/* Deal Management */}
-      <Route path={INVESTOR_ROUTES.deals} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.deals, '/investor')} element={
         isInvestor ? <InvestorDeals /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.pendingDeals} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.pendingDeals, '/investor')} element={
         isInvestor ? <PendingDeals /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.allInvestments} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.allInvestments, '/investor')} element={
         isInvestor ? <AllInvestments /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.completedProjects} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.completedProjects, '/investor')} element={
         isInvestor ? <CompletedProjects /> : <Navigate to="/login/investor" />
       } />
       
       {/* Discovery */}
-      <Route path={INVESTOR_ROUTES.saved} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.saved, '/investor')} element={
         isInvestor ? <InvestorSaved /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.watchlist} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.watchlist, '/investor')} element={
         isInvestor ? <InvestorWatchlist /> : <Navigate to="/login/investor" />
       } />
       
       {/* Financial */}
-      <Route path={INVESTOR_ROUTES.financialOverview} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.financialOverview, '/investor')} element={
         isInvestor ? <FinancialOverview /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.transactionHistory} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.transactionHistory, '/investor')} element={
         isInvestor ? <TransactionHistory /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.budgetAllocation} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.budgetAllocation, '/investor')} element={
         isInvestor ? <BudgetAllocation /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.roiAnalysis} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.roiAnalysis, '/investor')} element={
         isInvestor ? <ROIAnalysis /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.reports} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.reports, '/investor')} element={
         isInvestor ? <InvestorReports /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.taxDocuments} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.taxDocuments, '/investor')} element={
         isInvestor ? <TaxDocuments /> : <Navigate to="/login/investor" />
       } />
       
       {/* Market Analysis */}
-      <Route path={INVESTOR_ROUTES.marketTrends} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.marketTrends, '/investor')} element={
         isInvestor ? <MarketTrends /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.riskAssessment} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.riskAssessment, '/investor')} element={
         isInvestor ? <RiskAssessment /> : <Navigate to="/login/investor" />
       } />
       
       {/* Network */}
-      <Route path={INVESTOR_ROUTES.network} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.network, '/investor')} element={
         isInvestor ? <InvestorNetwork /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.coInvestors} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.coInvestors, '/investor')} element={
         isInvestor ? <InvestorCoInvestors /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.creators} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.creators, '/investor')} element={
         isInvestor ? <InvestorCreators /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.productionCompanies} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.productionCompanies, '/investor')} element={
         isInvestor ? <InvestorProductionCompanies /> : <Navigate to="/login/investor" />
       } />
       
       {/* Account */}
-      <Route path={INVESTOR_ROUTES.wallet} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.wallet, '/investor')} element={
         isInvestor ? <InvestorWallet /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.paymentMethods} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.paymentMethods, '/investor')} element={
         isInvestor ? <PaymentMethods /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.settings} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.settings, '/investor')} element={
         isInvestor ? <InvestorSettings /> : <Navigate to="/login/investor" />
       } />
-      <Route path={INVESTOR_ROUTES.ndaRequests} element={
+      <Route path={getRelativePath(INVESTOR_ROUTES.ndaRequests, '/investor')} element={
         isInvestor ? <NDARequests /> : <Navigate to="/login/investor" />
       } />
     </>
@@ -223,75 +231,75 @@ export function AllProductionRoutes({ isAuthenticated, userType }: RoutesProps) 
   return (
     <>
       {/* Dashboard */}
-      <Route path={PRODUCTION_ROUTES.analytics} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.analytics, '/production')} element={
         isProduction ? <ProductionAnalytics /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.activity} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.activity, '/production')} element={
         isProduction ? <ProductionActivity /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.stats} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.stats, '/production')} element={
         isProduction ? <ProductionStats /> : <Navigate to="/login/production" />
       } />
       
       {/* Projects */}
-      <Route path={PRODUCTION_ROUTES.projects} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.projects, '/production')} element={
         isProduction ? <ProductionProjects /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.projectsActive} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.projectsActive, '/production')} element={
         isProduction ? <ProductionProjectsActive /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.projectsDevelopment} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.projectsDevelopment, '/production')} element={
         isProduction ? <ProductionProjectsDevelopment /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.projectsPost} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.projectsPost, '/production')} element={
         isProduction ? <ProductionProjectsPost /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.projectsCompleted} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.projectsCompleted, '/production')} element={
         isProduction ? <ProductionProjectsCompleted /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.pipeline} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.pipeline, '/production')} element={
         isProduction ? <ProductionPipeline /> : <Navigate to="/login/production" />
       } />
       
       {/* Submissions */}
-      <Route path={PRODUCTION_ROUTES.submissions} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.submissions, '/production')} element={
         isProduction ? <ProductionSubmissions /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.submissionsNew} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.submissionsNew, '/production')} element={
         isProduction ? <ProductionSubmissionsNew /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.submissionsReview} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.submissionsReview, '/production')} element={
         isProduction ? <ProductionSubmissionsReview /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.submissionsShortlisted} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.submissionsShortlisted, '/production')} element={
         isProduction ? <ProductionSubmissionsShortlisted /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.submissionsAccepted} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.submissionsAccepted, '/production')} element={
         isProduction ? <ProductionSubmissionsAccepted /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.submissionsRejected} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.submissionsRejected, '/production')} element={
         isProduction ? <ProductionSubmissionsRejected /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.submissionsArchive} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.submissionsArchive, '/production')} element={
         isProduction ? <ProductionSubmissionsArchive /> : <Navigate to="/login/production" />
       } />
       
       {/* Operations */}
-      <Route path={PRODUCTION_ROUTES.revenue} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.revenue, '/production')} element={
         isProduction ? <ProductionRevenue /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.saved} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.saved, '/production')} element={
         isProduction ? <ProductionSaved /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.collaborations} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.collaborations, '/production')} element={
         isProduction ? <ProductionCollaborations /> : <Navigate to="/login/production" />
       } />
       
       {/* Team */}
-      <Route path={PRODUCTION_ROUTES.teamInvite} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.teamInvite, '/production')} element={
         isProduction ? <TeamInvite /> : <Navigate to="/login/production" />
       } />
-      <Route path={PRODUCTION_ROUTES.teamRoles} element={
+      <Route path={getRelativePath(PRODUCTION_ROUTES.teamRoles, '/production')} element={
         isProduction ? <TeamRoles /> : <Navigate to="/login/production" />
       } />
     </>
