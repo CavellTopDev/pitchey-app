@@ -388,7 +388,7 @@ function App() {
           } />
           
           {/* Enhanced Creator Routes */}
-          <AllCreatorRoutes isAuthenticated={isAuthenticated} userType={userType} />
+          {AllCreatorRoutes({ isAuthenticated, userType })}
           <Route path="/investor/dashboard" element={
             isAuthenticated && userType === 'investor' ? <InvestorDashboard /> : 
             isAuthenticated ? <Navigate to="/" /> :
@@ -416,7 +416,7 @@ function App() {
           } />
           
           {/* Enhanced Investor Routes */}
-          <AllInvestorRoutes isAuthenticated={isAuthenticated} userType={userType} />
+          {AllInvestorRoutes({ isAuthenticated, userType })}
           <Route path="/production/dashboard" element={
             isAuthenticated && userType === 'production' ? <ProductionDashboard /> : 
             isAuthenticated ? <Navigate to="/" /> :
@@ -435,7 +435,7 @@ function App() {
           {/* Production companies cannot create or edit pitches - routes removed */}
           
           {/* Enhanced Production Routes */}
-          <AllProductionRoutes isAuthenticated={isAuthenticated} userType={userType} />
+          {AllProductionRoutes({ isAuthenticated, userType })}
           
           {/* Admin Protected Routes */}
           <Route path="/admin/dashboard" element={
