@@ -1,0 +1,85 @@
+import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import { MinimalHeader } from './MinimalHeader';
+import { BreadcrumbNav } from './BreadcrumbNav';
+import { EnhancedCreatorNav } from '../navigation/EnhancedCreatorNav';
+import { EnhancedInvestorNav } from '../navigation/EnhancedInvestorNav';
+import { EnhancedProductionNav } from '../navigation/EnhancedProductionNav';
+
+interface PortalLayoutProps {
+  userType: string | null;
+}
+
+export function PortalLayout({ userType }: PortalLayoutProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on mobile
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const renderSidebar = () => {
+    switch (userType) {
+      case 'creator':
+        return <EnhancedCreatorNav />;
+      case 'investor':
+        return <EnhancedInvestorNav />;
+      case 'production':
+        return <EnhancedProductionNav />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Minimal Header */}
+      <MinimalHeader 
+        onMenuToggle={toggleSidebar} 
+        isSidebarOpen={isSidebarOpen}
+        userType={userType}
+      />
+
+      <div className="flex h-[calc(100vh-4rem)]">
+        {/* Sidebar - Desktop */}
+        <aside className={`
+          hidden lg:block transition-all duration-300 ease-in-out
+          ${isDesktopSidebarCollapsed ? 'w-16' : 'w-64'}
+        `}>
+          {renderSidebar()}
+        </aside>
+
+        {/* Sidebar - Mobile Overlay */}
+        {isSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+              onClick={toggleSidebar}
+            />
+            
+            {/* Sidebar */}
+            <aside className={`
+              lg:hidden fixed left-0 top-16 bottom-0 z-40
+              transform transition-transform duration-300 ease-in-out
+              ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            `}>
+              {renderSidebar()}
+            </aside>
+          </>
+        )}
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="container mx-auto px-4 py-6 max-w-7xl">
+            {/* Breadcrumb Navigation */}
+            <BreadcrumbNav showBackButton={true} />
+            
+            {/* Page Content */}
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

@@ -14,6 +14,8 @@ import { config } from './config';
 import { AuthService } from './services/auth.service';
 // Import enhanced route components
 import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './components/routing/AllEnhancedRoutes';
+// Import new Portal Layout
+import { PortalLayout } from './components/layout/PortalLayout';
 
 // Log environment on app load
 console.log('🚀 Pitchey App Environment:', {
@@ -315,127 +317,55 @@ function App() {
             <Navigate to={userType ? `/${userType}/dashboard` : '/'} />
           } />
           
-          {/* Role-specific Protected Dashboards */}
-          <Route path="/creator/dashboard" element={
-            isAuthenticated && userType === 'creator' ? <CreatorDashboard /> : 
-            isAuthenticated ? <Navigate to="/" /> :
+          {/* Creator Portal Routes - with PortalLayout */}
+          <Route path="/creator/*" element={
+            isAuthenticated && userType === 'creator' ? <PortalLayout userType="creator" /> : 
             <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitch/new" element={
-            isAuthenticated && userType === 'creator' ? <CreatePitch /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitches" element={
-            isAuthenticated && userType === 'creator' ? <ManagePitches /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/analytics" element={
-            isAuthenticated && userType === 'creator' ? <CreatorAnalyticsPage /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/messages" element={
-            isAuthenticated && userType === 'creator' ? <Messages /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/calendar" element={
-            isAuthenticated && userType === 'creator' ? <Calendar /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitch/:id" element={
-            isAuthenticated && userType === 'creator' ? <CreatorPitchView /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitches/:id" element={
-            isAuthenticated && userType === 'creator' ? <PitchDetail /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitch/:id/edit" element={
-            isAuthenticated && userType === 'creator' ? <PitchEdit /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitches/:id/edit" element={
-            isAuthenticated && userType === 'creator' ? <PitchEdit /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitches/:id/analytics" element={
-            isAuthenticated && userType === 'creator' ? <PitchAnalytics /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/pitches/:id/:slug/analytics" element={
-            isAuthenticated && userType === 'creator' ? <PitchAnalytics /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/ndas" element={
-            isAuthenticated && userType === 'creator' ? <CreatorNDAManagement /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          <Route path="/creator/following" element={
-            isAuthenticated && userType === 'creator' ? <Following /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/creator" />
-          } />
-          
-          {/* Enhanced Creator Routes */}
-          {AllCreatorRoutes({ isAuthenticated, userType })}
-          <Route path="/investor/dashboard" element={
-            isAuthenticated && userType === 'investor' ? <InvestorDashboard /> : 
-            isAuthenticated ? <Navigate to="/" /> :
+          }>
+            <Route path="dashboard" element={<CreatorDashboard />} />
+            <Route path="pitch/new" element={<CreatePitch />} />
+            <Route path="pitches" element={<ManagePitches />} />
+            <Route path="analytics" element={<CreatorAnalyticsPage />} />
+            <Route path="messages" element={<Messages />} />
+            <Route path="calendar" element={<Calendar />} />
+            <Route path="pitch/:id" element={<CreatorPitchView />} />
+            <Route path="pitches/:id" element={<PitchDetail />} />
+            <Route path="pitch/:id/edit" element={<PitchEdit />} />
+            <Route path="pitches/:id/edit" element={<PitchEdit />} />
+            <Route path="pitches/:id/analytics" element={<PitchAnalytics />} />
+            <Route path="pitches/:id/:slug/analytics" element={<PitchAnalytics />} />
+            <Route path="ndas" element={<CreatorNDAManagement />} />
+            <Route path="following" element={<Following />} />
+            
+            {/* Enhanced Creator Routes */}
+            {AllCreatorRoutes({ isAuthenticated: true, userType: 'creator' })}
+          </Route>
+          {/* Investor Portal Routes - with PortalLayout */}
+          <Route path="/investor/*" element={
+            isAuthenticated && userType === 'investor' ? <PortalLayout userType="investor" /> : 
             <Navigate to="/login/investor" />
-          } />
-          <Route path="/investor/dashboard/debug" element={
-            isAuthenticated && userType === 'investor' ? <InvestorDashboardDebug /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/investor" />
-          } />
-          <Route path="/investor/following" element={
-            isAuthenticated && userType === 'investor' ? <Following /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/investor" />
-          } />
-          <Route path="/investor/browse" element={
-            isAuthenticated && userType === 'investor' ? <InvestorBrowse /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/investor" />
-          } />
-          <Route path="/investor/pitch/:id" element={
-            isAuthenticated && userType === 'investor' ? <InvestorPitchView /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/investor" />
-          } />
-          
-          {/* Enhanced Investor Routes */}
-          {AllInvestorRoutes({ isAuthenticated, userType })}
-          <Route path="/production/dashboard" element={
-            isAuthenticated && userType === 'production' ? <ProductionDashboard /> : 
-            isAuthenticated ? <Navigate to="/" /> :
+          }>
+            <Route path="dashboard" element={<InvestorDashboard />} />
+            <Route path="dashboard/debug" element={<InvestorDashboardDebug />} />
+            <Route path="following" element={<Following />} />
+            <Route path="browse" element={<InvestorBrowse />} />
+            <Route path="pitch/:id" element={<InvestorPitchView />} />
+            
+            {/* Enhanced Investor Routes */}
+            {AllInvestorRoutes({ isAuthenticated: true, userType: 'investor' })}
+          </Route>
+          {/* Production Portal Routes - with PortalLayout */}
+          <Route path="/production/*" element={
+            isAuthenticated && userType === 'production' ? <PortalLayout userType="production" /> : 
             <Navigate to="/login/production" />
-          } />
-          <Route path="/production/following" element={
-            isAuthenticated && userType === 'production' ? <Following /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/production" />
-          } />
-          <Route path="/production/pitch/:id" element={
-            isAuthenticated && userType === 'production' ? <ProductionPitchView /> : 
-            isAuthenticated ? <Navigate to="/" /> :
-            <Navigate to="/login/production" />
-          } />
-          {/* Production companies cannot create or edit pitches - routes removed */}
-          
-          {/* Enhanced Production Routes */}
-          {AllProductionRoutes({ isAuthenticated, userType })}
+          }>
+            <Route path="dashboard" element={<ProductionDashboard />} />
+            <Route path="following" element={<Following />} />
+            <Route path="pitch/:id" element={<ProductionPitchView />} />
+            
+            {/* Enhanced Production Routes */}
+            {AllProductionRoutes({ isAuthenticated: true, userType: 'production' })}
+          </Route>
           
           {/* Admin Protected Routes */}
           <Route path="/admin/dashboard" element={
@@ -523,124 +453,8 @@ function App() {
             } />
           </Route>
           
-          {/* Enhanced Navigation Routes - Using Functional Pages */}
-          {/* Production Routes */}
-          <Route path="/production/projects" element={isAuthenticated && userType === 'production' ? <ProductionProjects /> : <Navigate to="/login/production" />} />
-          <Route path="/production/projects/development" element={isAuthenticated && userType === 'production' ? <ProductionProjectsDevelopment /> : <Navigate to="/login/production" />} />
-          <Route path="/production/projects/production" element={isAuthenticated && userType === 'production' ? <ProductionProjectsActive /> : <Navigate to="/login/production" />} />
-          <Route path="/production/projects/post" element={isAuthenticated && userType === 'production' ? <ProductionProjectsPost /> : <Navigate to="/login/production" />} />
-          <Route path="/production/projects/completed" element={isAuthenticated && userType === 'production' ? <ProductionProjectsCompleted /> : <Navigate to="/login/production" />} />
-          <Route path="/production/pipeline" element={isAuthenticated && userType === 'production' ? <ProductionPipeline /> : <Navigate to="/login/production" />} />
-          <Route path="/production/submissions" element={isAuthenticated && userType === 'production' ? <ProductionSubmissions /> : <Navigate to="/login/production" />} />
-          <Route path="/production/submissions/new" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsNew /> : <Navigate to="/login/production" />} />
-          <Route path="/production/submissions/review" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsReview /> : <Navigate to="/login/production" />} />
-          <Route path="/production/submissions/shortlisted" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsShortlisted /> : <Navigate to="/login/production" />} />
-          <Route path="/production/submissions/accepted" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsAccepted /> : <Navigate to="/login/production" />} />
-          <Route path="/production/submissions/rejected" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsRejected /> : <Navigate to="/login/production" />} />
-          <Route path="/production/submissions/archive" element={isAuthenticated && userType === 'production' ? <ProductionSubmissionsArchive /> : <Navigate to="/login/production" />} />
-          <Route path="/production/team" element={isAuthenticated && userType === 'production' ? <TeamManagementPage /> : <Navigate to="/login/production" />} />
-          <Route path="/production/team/members" element={isAuthenticated && userType === 'production' ? <TeamMembers /> : <Navigate to="/login/production" />} />
-          <Route path="/production/team/invite" element={isAuthenticated && userType === 'production' ? <TeamInvite /> : <Navigate to="/login/production" />} />
-          <Route path="/production/team/roles" element={isAuthenticated && userType === 'production' ? <TeamRoles /> : <Navigate to="/login/production" />} />
-          {/* Collaborations is now a tab in Team page */}
-          <Route path="/production/collaborations" element={<Navigate to="/production/team" />} />
-          <Route path="/production/analytics" element={isAuthenticated && userType === 'production' ? <ProductionAnalyticsPage /> : <Navigate to="/login/production" />} />
-          {/* Activity is now a tab in Analytics page */}
-          <Route path="/production/activity" element={<Navigate to="/production/analytics" />} />
-          {/* Stats is now a tab in Analytics page */}
-          <Route path="/production/stats" element={<Navigate to="/production/analytics" />} />
-          {/* Revenue is now a tab in Analytics page */}
-          <Route path="/production/revenue" element={<Navigate to="/production/analytics" />} />
-          <Route path="/production/saved" element={isAuthenticated && userType === 'production' ? <ProductionSaved /> : <Navigate to="/login/production" />} />
-          <Route path="/production/settings/profile" element={isAuthenticated && userType === 'production' ? <ProductionSettingsProfile /> : <Navigate to="/login/production" />} />
-          <Route path="/production/settings/notifications" element={isAuthenticated && userType === 'production' ? <ProductionSettingsNotifications /> : <Navigate to="/login/production" />} />
-          <Route path="/production/settings/billing" element={isAuthenticated && userType === 'production' ? <ProductionSettingsBilling /> : <Navigate to="/login/production" />} />
-          <Route path="/production/settings/security" element={isAuthenticated && userType === 'production' ? <ProductionSettingsSecurity /> : <Navigate to="/login/production" />} />
+          {/* All enhanced navigation routes are now handled within the PortalLayout wrapper above */}
           
-          {/* Creator Routes */}
-          {/* Activity is now a tab in Analytics page */}
-          <Route path="/creator/activity" element={<Navigate to="/creator/analytics" />} />
-          {/* Stats is now a tab in Analytics page */}
-          <Route path="/creator/stats" element={<Navigate to="/creator/analytics" />} />
-          <Route path="/creator/pitches/published" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesPublished /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/pitches/drafts" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesDrafts /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/pitches/review" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesReview /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/pitches/analytics" element={isAuthenticated && userType === 'creator' ? <CreatorPitchesAnalytics /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team" element={isAuthenticated && userType === 'creator' ? <TeamManagementPage /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team/members" element={isAuthenticated && userType === 'creator' ? <CreatorTeamMembers /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team/invite" element={isAuthenticated && userType === 'creator' ? <CreatorTeamInvite /> : <Navigate to="/login/creator" />} />
-          <Route path="/creator/team/roles" element={isAuthenticated && userType === 'creator' ? <CreatorTeamRoles /> : <Navigate to="/login/creator" />} />
-          {/* Collaborations is now a tab in Team page */}
-          <Route path="/creator/collaborations" element={<Navigate to="/creator/team" />} />
-          
-          {/* Investor Routes */}
-          <Route path="/investor/notifications" element={isAuthenticated && userType === 'investor' ? <NotificationCenter /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/activity" element={isAuthenticated && userType === 'investor' ? <InvestorActivity /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/stats" element={isAuthenticated && userType === 'investor' ? <InvestorStats /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/portfolio" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/portfolio/active" element={isAuthenticated && userType === 'investor' ? <InvestorPortfolio /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/portfolio/pending" element={isAuthenticated && userType === 'investor' ? <PendingDeals /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/investments" element={isAuthenticated && userType === 'investor' ? <Navigate to="/investor/portfolio" /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/discover" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/discover/genres" element={isAuthenticated && userType === 'investor' ? <InvestorDiscover /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/saved" element={isAuthenticated && userType === 'investor' ? <InvestorSaved /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/watchlist" element={isAuthenticated && userType === 'investor' ? <InvestorWatchlist /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/deals" element={isAuthenticated && userType === 'investor' ? <InvestorDeals /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <InvestorPerformance /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/ndas" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/nda-requests" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/nda-requests/:status" element={isAuthenticated && userType === 'investor' ? <NDARequests /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/analytics" element={isAuthenticated && userType === 'investor' ? <InvestorAnalytics /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/analytics/market" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/analytics/risk" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/analytics/roi" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/reports" element={isAuthenticated && userType === 'investor' ? <InvestorReports /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/profile" element={isAuthenticated && userType === 'investor' ? <SettingsProfile /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/settings" element={isAuthenticated && userType === 'investor' ? <InvestorSettings /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/tax-documents" element={isAuthenticated && userType === 'investor' ? <TaxDocuments /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/wallet" element={isAuthenticated && userType === 'investor' ? <InvestorWallet /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/payment-methods" element={isAuthenticated && userType === 'investor' ? <PaymentMethods /> : <Navigate to="/login/investor" />} />
-          
-          {/* New Investor Routes - with both legacy and consistent paths */}
-          <Route path="/investor/performance-tracking" element={isAuthenticated && userType === 'investor' ? <PerformanceTracking /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/performance" element={isAuthenticated && userType === 'investor' ? <PerformanceTracking /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/pending-deals" element={isAuthenticated && userType === 'investor' ? <PendingDeals /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/pending" element={isAuthenticated && userType === 'investor' ? <PendingDeals /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/all-investments" element={isAuthenticated && userType === 'investor' ? <AllInvestments /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/completed-projects" element={isAuthenticated && userType === 'investor' ? <CompletedProjects /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/completed" element={isAuthenticated && userType === 'investor' ? <CompletedProjects /> : <Navigate to="/login/investor" />} />
-          
-          {/* Analytics Routes - with simplified aliases and preview support */}
-          <Route path="/investor/roi-analysis" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/roi" element={isAuthenticated && userType === 'investor' ? <ROIAnalysis /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/market-trends" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/trends" element={isAuthenticated && userType === 'investor' ? <MarketTrends /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/risk-assessment" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/risk" element={isAuthenticated && userType === 'investor' ? <RiskAssessment /> : <Navigate to="/login/investor" />} />
-          
-          {/* Financial Routes - with simplified aliases */}
-          <Route path="/investor/financial-overview" element={isAuthenticated && userType === 'investor' ? <FinancialOverview /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/financials" element={isAuthenticated && userType === 'investor' ? <FinancialOverview /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/transaction-history" element={isAuthenticated && userType === 'investor' ? <TransactionHistory /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/transactions" element={isAuthenticated && userType === 'investor' ? <TransactionHistory /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/budget-allocation" element={isAuthenticated && userType === 'investor' ? <BudgetAllocation /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/budget" element={isAuthenticated && userType === 'investor' ? <BudgetAllocation /> : <Navigate to="/login/investor" />} />
-          
-          <Route path="/investor/tax-documents" element={isAuthenticated && userType === 'investor' ? <TaxDocuments /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/tax" element={isAuthenticated && userType === 'investor' ? <TaxDocuments /> : <Navigate to="/login/investor" />} />
-          
-          {/* Investor Network Routes */}
-          <Route path="/investor/network" element={isAuthenticated && userType === 'investor' ? <InvestorNetwork /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/co-investors" element={isAuthenticated && userType === 'investor' ? <InvestorCoInvestors /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/production-companies" element={isAuthenticated && userType === 'investor' ? <InvestorProductionCompanies /> : <Navigate to="/login/investor" />} />
-          <Route path="/investor/creators" element={isAuthenticated && userType === 'investor' ? <InvestorCreators /> : <Navigate to="/login/investor" />} />
           
           {/* Browse Routes - Public access */}
           <Route path="/browse/genres" element={<BrowseGenres />} />
