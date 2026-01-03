@@ -48,8 +48,28 @@ import {
 } from './handlers/settings';
 
 // Import new services
+import { 
+  PasswordService, 
+  EnvironmentValidator, 
+  addSecurityHeaders,
+  ValidationSchemas,
+  rateLimiters,
+  Sanitizer,
+  logSecurityEvent
+} from './services/security-fix';
 import { WorkerDatabase } from './services/worker-database';
 import { WorkerEmailService } from './services/worker-email';
+
+// Import KV cache service
+import { 
+  createKVCache, 
+  KVCacheService, 
+  CacheKeys, 
+  CacheTTL 
+} from './services/kv-cache.service';
+
+// Import schema adapter for database alignment
+import { SchemaAdapter } from './middleware/schema-adapter';
 
 // Import existing routes (commented out - not used directly)
 // import { creatorRoutes } from './routes/creator';
@@ -74,6 +94,9 @@ import { withRateLimit, RATE_LIMIT_CONFIGS } from './middleware/free-tier-rate-l
 import { OptimizedQueries } from './db/optimized-connection';
 import { FreeTierMonitor, withMonitoring } from './services/free-tier-monitor';
 import { StubRoutes } from './routes/stub-routes';
+
+// Import enhanced real-time service
+import { WorkerRealtimeService } from './services/worker-realtime.service';
 
 // WebSocket handler - Stub for free plan
 // import { WebSocketDurableObject } from './websocket-durable-object';
@@ -153,6 +176,7 @@ class RouteRegistry {
   private env: Env;
   private betterAuth?: ReturnType<typeof createBetterAuthInstance>;
   private portalAuth?: ReturnType<typeof createPortalAuth>;
+  private realtimeService: WorkerRealtimeService;
 
   constructor(env: Env) {
     this.env = env;
@@ -182,6 +206,9 @@ class RouteRegistry {
       
       // Initialize file handler for free plan (needs adjustment for new db type)
       this.fileHandler = new WorkerFileHandler(this.db as any);
+      
+      // Initialize realtime service for WebSocket support
+      this.realtimeService = new WorkerRealtimeService(env, this.db);
       
       // Initialize Better Auth with Cloudflare integration
       if (env.DATABASE_URL && (env.SESSIONS_KV || env.KV)) {
@@ -593,8 +620,44 @@ class RouteRegistry {
     
     // Better Auth routes (compatibility layer for frontend)
     this.register('POST', '/api/auth/sign-in', async (request) => {
+      // Apply rate limiting
+      const clientIP = request.headers.get('CF-Connecting-IP') || 
+                      request.headers.get('X-Forwarded-For') || 
+                      'unknown';
+      
+      const canProceed = await rateLimiters.login.checkLimit(clientIP);
+      if (!canProceed) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Too many login attempts. Please try again later.'
+          }
+        }), { 
+          status: 429,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Retry-After': '60'
+          }
+        });
+      }
+      
       // Route Better Auth sign-in to our portal login handler
       const body = await request.json();
+      
+      // Validate input
+      try {
+        ValidationSchemas.userLogin.parse(body);
+      } catch (error) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input'
+          }
+        }), { status: 400 });
+      }
+      
       const portal = body.userType || 'production'; // Default to production for demo
       
       // Transform the request to match our existing login format
@@ -663,6 +726,7 @@ class RouteRegistry {
     // File upload routes
     this.register('POST', '/api/upload', this.handleUpload.bind(this));
     this.register('POST', '/api/upload/document', this.handleDocumentUpload.bind(this));
+    this.register('POST', '/api/upload/documents/multiple', this.handleMultipleDocumentUpload.bind(this));
     this.register('POST', '/api/upload/media', this.handleMediaUpload.bind(this));
     this.register('POST', '/api/upload/nda', this.handleNDAUpload.bind(this));
     this.register('DELETE', '/api/upload/:key', this.handleDeleteUpload.bind(this));
@@ -947,6 +1011,12 @@ class RouteRegistry {
 
     // WebSocket upgrade (disabled on free tier, returns polling info instead)
     this.register('GET', '/ws', this.handleWebSocketUpgrade.bind(this));
+    
+    // === REAL-TIME MANAGEMENT ENDPOINTS ===
+    this.register('GET', '/api/realtime/stats', this.getRealtimeStats.bind(this));
+    this.register('POST', '/api/realtime/broadcast', this.broadcastMessage.bind(this));
+    this.register('POST', '/api/realtime/subscribe', this.subscribeToChannel.bind(this));
+    this.register('POST', '/api/realtime/unsubscribe', this.unsubscribeFromChannel.bind(this));
     
     // === POLLING ROUTES FOR FREE TIER ===
     // Replaces WebSocket functionality with efficient polling
@@ -1965,6 +2035,95 @@ class RouteRegistry {
     }
   }
 
+  private async handleMultipleDocumentUpload(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const formData = await request.formData();
+      const pitchIdStr = formData.get('pitchId') as string | null;
+      const pitchId = pitchIdStr ? parseInt(pitchIdStr) : undefined;
+
+      // Get all files from the form data
+      const files = formData.getAll('files') as File[];
+      const fileFields = formData.getAll('file') as File[]; // Alternative field name
+      const allFiles = [...files, ...fileFields].filter(f => f instanceof File);
+
+      if (allFiles.length === 0) {
+        return builder.error(ErrorCode.VALIDATION_ERROR, 'No files provided for upload');
+      }
+
+      if (allFiles.length > 10) {
+        return builder.error(ErrorCode.VALIDATION_ERROR, 'Maximum 10 files allowed per upload');
+      }
+
+      const uploadResults = [];
+      const errors = [];
+
+      // Process each file sequentially to avoid overwhelming the system
+      for (let i = 0; i < allFiles.length; i++) {
+        const file = allFiles[i];
+        
+        try {
+          // Create a new FormData for each individual file
+          const singleFileFormData = new FormData();
+          singleFileFormData.append('file', file);
+          if (pitchId) singleFileFormData.append('pitchId', pitchId.toString());
+
+          const result = await this.fileHandler.handleUpload(
+            singleFileFormData,
+            authResult.user.id,
+            'document',
+            pitchId
+          );
+
+          if (result.success && result.file) {
+            uploadResults.push({
+              index: i,
+              fileName: file.name,
+              success: true,
+              fileId: result.file.id,
+              url: result.file.url,
+              size: result.file.size,
+              mimeType: result.file.mimeType
+            });
+          } else {
+            errors.push({
+              index: i,
+              fileName: file.name,
+              error: result.error || 'Upload failed'
+            });
+          }
+        } catch (error) {
+          errors.push({
+            index: i,
+            fileName: file.name,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Return results with both successes and errors
+      return builder.success({
+        totalFiles: allFiles.length,
+        successfulUploads: uploadResults.length,
+        failedUploads: errors.length,
+        results: uploadResults,
+        errors: errors,
+        metadata: {
+          userId: authResult.user.id,
+          pitchId: pitchId,
+          uploadedAt: new Date().toISOString(),
+          category: 'document'
+        }
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
   private async handleMediaUpload(request: Request): Promise<Response> {
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
@@ -2832,29 +2991,31 @@ class RouteRegistry {
 
       switch (tab) {
         case 'trending':
-          // Trending: Last 7 days (fallback: without view_count filter)
+          // Trending: Recent content with engagement activity (view_count proxy using title length)
           whereClause = `
             WHERE p.status = 'published' 
             AND p.created_at >= NOW() - INTERVAL '7 days'
+            AND LENGTH(p.title) > 10
           `;
-          orderClause = `ORDER BY p.created_at DESC`;
+          orderClause = `ORDER BY p.updated_at DESC, LENGTH(p.description) DESC, p.id DESC`;
           break;
 
         case 'new':
-          // New: Last 30 days, sorted by creation date
+          // New: Most recently created content (chronological order)
           whereClause = `
             WHERE p.status = 'published'
-            AND p.created_at >= NOW() - INTERVAL '30 days'
+            AND p.created_at >= NOW() - INTERVAL '3 days'
           `;
           orderClause = `ORDER BY p.created_at DESC`;
           break;
 
         case 'popular':
-          // Popular: All published pitches (fallback: sorted by date)
+          // Popular: All published pitches sorted by update activity and description length
           whereClause = `
             WHERE p.status = 'published'
+            AND LENGTH(p.description) > 50
           `;
-          orderClause = `ORDER BY p.created_at DESC`;
+          orderClause = `ORDER BY LENGTH(p.description) DESC, p.updated_at DESC`;
           break;
 
         default:
@@ -2863,7 +3024,7 @@ class RouteRegistry {
             WHERE p.status = 'published' 
             AND p.created_at >= NOW() - INTERVAL '7 days'
           `;
-          orderClause = `ORDER BY p.created_at DESC`;
+          orderClause = `ORDER BY p.updated_at DESC, p.id DESC`;
           break;
       }
 
@@ -3365,14 +3526,8 @@ class RouteRegistry {
     }
 
     try {
-      const followers = await this.db.query(`
-        SELECT u.id, u.name, u.email, u.username
-        FROM follows f
-        JOIN users u ON f.follower_id = u.id
-        WHERE f.following_id = $1
-        ORDER BY f.created_at DESC
-        LIMIT 50
-      `, [creatorId]);
+      const { query, params } = SchemaAdapter.getFollowersQuery(parseInt(creatorId));
+      const followers = await this.db.query(query, params);
 
       return builder.success({ followers: followers || [] });
     } catch (error) {
@@ -3389,14 +3544,8 @@ class RouteRegistry {
     const builder = new ApiResponseBuilder(request);
 
     try {
-      const following = await this.db.query(`
-        SELECT u.id, u.name, u.email, u.username
-        FROM follows f
-        JOIN users u ON f.following_id = u.id
-        WHERE f.follower_id = $1
-        ORDER BY f.created_at DESC
-        LIMIT 50
-      `, [authResult.user.id]);
+      const { query, params } = SchemaAdapter.getFollowingQuery(authResult.user.id);
+      const following = await this.db.query(query, params);
 
       return builder.success({ following: following || [] });
     } catch (error) {
@@ -3606,25 +3755,195 @@ class RouteRegistry {
   }
 
   private async handleWebSocketUpgrade(request: Request): Promise<Response> {
-    // WebSocket not available on free Cloudflare plan
-    // Return polling information instead
-    return new Response(JSON.stringify({
-      error: 'WebSocket not available on free tier',
-      alternative: 'Use polling endpoints instead',
-      endpoints: {
-        notifications: '/api/poll/notifications',
-        messages: '/api/poll/messages',
-        dashboard: '/api/poll/dashboard',
-        all: '/api/poll/all'
-      },
-      pollInterval: 30000 // Recommended polling interval: 30 seconds
-    }), { 
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCorsHeaders(request.headers.get('Origin'))
+    try {
+      // Check if WebSocket is supported (available in paid plans)
+      if (typeof WebSocketPair === 'undefined') {
+        // WebSocket not available on free Cloudflare plan
+        // Return polling information instead
+        return new Response(JSON.stringify({
+          error: 'WebSocket not available on free tier',
+          alternative: 'Use polling endpoints instead',
+          endpoints: {
+            notifications: '/api/poll/notifications',
+            messages: '/api/poll/messages',
+            dashboard: '/api/poll/dashboard',
+            all: '/api/poll/all'
+          },
+          pollInterval: 30000 // Recommended polling interval: 30 seconds
+        }), { 
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
       }
-    });
+
+      // Use the enhanced realtime service for WebSocket handling
+      return await this.realtimeService.handleWebSocketUpgrade(request);
+    } catch (error) {
+      console.error('WebSocket upgrade error:', error);
+      
+      // Fallback to polling information on error
+      return new Response(JSON.stringify({
+        error: 'WebSocket upgrade failed',
+        fallback: true,
+        alternative: 'Use polling endpoints instead',
+        endpoints: {
+          notifications: '/api/poll/notifications',
+          messages: '/api/poll/messages', 
+          dashboard: '/api/poll/dashboard',
+          all: '/api/poll/all'
+        },
+        pollInterval: 30000
+      }), { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    }
+  }
+
+  // === REAL-TIME MANAGEMENT HANDLERS ===
+  private async getRealtimeStats(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    try {
+      const stats = this.realtimeService.getStats();
+      
+      return new Response(JSON.stringify({
+        success: true,
+        data: stats,
+        timestamp: new Date().toISOString()
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async broadcastMessage(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    try {
+      const body = await request.json() as any;
+      const { message, type = 'system' } = body;
+
+      if (!message) {
+        return new Response(JSON.stringify({
+          error: 'Message is required'
+        }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      this.realtimeService.broadcastSystemMessage(message, type);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Broadcast sent',
+        timestamp: new Date().toISOString()
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async subscribeToChannel(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    try {
+      const body = await request.json() as any;
+      const { channelId } = body;
+
+      if (!channelId) {
+        return new Response(JSON.stringify({
+          error: 'Channel ID is required'
+        }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      const success = this.realtimeService.subscribeUserToChannel(authResult.user.id, channelId);
+
+      return new Response(JSON.stringify({
+        success,
+        message: success ? 'Subscribed to channel' : 'Failed to subscribe',
+        channelId,
+        timestamp: new Date().toISOString()
+      }), {
+        status: success ? 200 : 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  private async unsubscribeFromChannel(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    try {
+      const body = await request.json() as any;
+      const { channelId } = body;
+
+      if (!channelId) {
+        return new Response(JSON.stringify({
+          error: 'Channel ID is required'
+        }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      const success = this.realtimeService.unsubscribeUserFromChannel(authResult.user.id, channelId);
+
+      return new Response(JSON.stringify({
+        success,
+        message: success ? 'Unsubscribed from channel' : 'Failed to unsubscribe',
+        channelId,
+        timestamp: new Date().toISOString()
+      }), {
+        status: success ? 200 : 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
   }
 
   // === POLLING HANDLERS FOR FREE TIER ===
@@ -4687,43 +5006,41 @@ class RouteRegistry {
     try {
       const userType = user.userType || user.user_type;
       
+      // Use SchemaAdapter for consistent stats queries
+      const { query, params } = SchemaAdapter.getDashboardStatsQuery(user.id, userType || 'creator');
+      const [stats] = await this.db.query(query, params);
+      
       if (userType === 'creator') {
-        const [pitchCount, viewCount] = await Promise.all([
-          this.db.query('SELECT COUNT(*) as count FROM pitches WHERE creator_id = $1', [user.id])
-            .then(([r]) => r?.count || 0).catch(() => 0),
-          this.db.query('SELECT SUM(view_count) as total FROM pitches WHERE creator_id = $1', [user.id])
-            .then(([r]) => r?.total || 0).catch(() => 0)
-        ]);
-        
         return {
           type: 'creator',
-          totalPitches: parseInt(pitchCount),
-          totalViews: parseInt(viewCount),
+          totalPitches: parseInt(stats?.total_pitches || '0'),
+          totalViews: parseInt(stats?.total_views || '0'),
+          publishedPitches: parseInt(stats?.published_pitches || '0'),
+          draftPitches: parseInt(stats?.draft_pitches || '0'),
+          followersCount: parseInt(stats?.followers_count || '0'),
+          followingCount: parseInt(stats?.following_count || '0'),
+          unreadNotifications: parseInt(stats?.unread_notifications || '0'),
           lastUpdated: new Date().toISOString()
         };
       } else if (userType === 'investor') {
-        const [investmentCount, savedCount] = await Promise.all([
-          this.db.query('SELECT COUNT(*) as count FROM investments WHERE investor_id = $1', [user.id])
-            .then(([r]) => r?.count || 0).catch(() => 0),
-          this.db.query('SELECT COUNT(*) as count FROM saved_pitches WHERE user_id = $1', [user.id])
-            .then(([r]) => r?.count || 0).catch(() => 0)
-        ]);
-        
         return {
           type: 'investor',
-          totalInvestments: parseInt(investmentCount),
-          savedPitches: parseInt(savedCount),
+          totalInvestments: parseInt(stats?.total_investments || '0'),
+          savedPitches: parseInt(stats?.saved_pitches || '0'),
+          approvedNdas: parseInt(stats?.approved_ndas || '0'),
+          pendingNdas: parseInt(stats?.pending_ndas || '0'),
+          followingCount: parseInt(stats?.following_count || '0'),
+          unreadNotifications: parseInt(stats?.unread_notifications || '0'),
           lastUpdated: new Date().toISOString()
         };
       } else if (userType === 'production') {
-        const [projectCount] = await Promise.all([
-          this.db.query('SELECT COUNT(*) as count FROM pitches WHERE status = $1', ['in_production'])
-            .then(([r]) => r?.count || 0).catch(() => 0)
-        ]);
-        
         return {
           type: 'production',
-          activeProjects: parseInt(projectCount),
+          activeProjects: parseInt(stats?.active_projects || '0'),
+          completedProjects: parseInt(stats?.completed_projects || '0'),
+          totalInvestments: parseInt(stats?.total_investments || '0'),
+          approvedNdas: parseInt(stats?.approved_ndas || '0'),
+          unreadNotifications: parseInt(stats?.unread_notifications || '0'),
           lastUpdated: new Date().toISOString()
         };
       }
@@ -4777,11 +5094,25 @@ class RouteRegistry {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
+      // Validate environment variables on first request
+      try {
+        EnvironmentValidator.validate(env);
+      } catch (error) {
+        console.error('Environment validation failed:', error);
+        // Log but don't fail - some endpoints might work without all vars
+      }
+      
+      // Initialize KV cache service
+      let cache: KVCacheService | null = null;
+      if (env.KV) {
+        cache = createKVCache(env.KV, 'pitchey');
+      }
+      
       const url = new URL(request.url);
       
       // Quick health check without database
       if (url.pathname === '/health') {
-        return new Response(
+        const response = new Response(
           JSON.stringify({
             status: 'healthy',
             timestamp: new Date().toISOString(),
@@ -4793,6 +5124,8 @@ export default {
             headers: { 'Content-Type': 'application/json' }
           }
         );
+        // Add security headers to health check
+        return addSecurityHeaders(response);
       }
       
       // Handle CORS preflight
@@ -4879,7 +5212,10 @@ export default {
       const router = new RouteRegistry(env);
       
       // Handle request and ensure CORS headers are always added
-      const response = await router.handle(request);
+      let response = await router.handle(request);
+      
+      // Add security headers to all responses
+      response = addSecurityHeaders(response);
       
       // CRITICAL: Always add CORS headers to ALL responses
       const origin = request.headers.get('Origin') || '';

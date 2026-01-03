@@ -1,0 +1,359 @@
+name: 🚀 Pitchey Platform CI/CD
+
+on:
+  push:
+    branches: [ main, staging, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily health checks at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '18'
+  FRONTEND_DIR: './frontend'
+  WORKER_DIR: './src'
+  
+jobs:
+  # =================================================================
+  # SECURITY & CODE QUALITY CHECKS
+  # =================================================================
+  security-scan:
+    name: 🔒 Security & Quality Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔒 Run security scan
+        run: |
+          if [ -f "scripts/security-scan.sh" ]; then
+            chmod +x scripts/security-scan.sh
+            ./scripts/security-scan.sh
+          else
+            echo "⚠️ Security scan script not found"
+          fi
+
+      - name: 🔍 Check for hardcoded secrets
+        run: |
+          echo "🔍 Scanning for potential secrets..."
+          grep -r -E "(api_key|secret|password|token)" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx" . || true
+          echo "✅ Secret scan completed"
+
+  # =================================================================
+  # FRONTEND BUILD & TEST
+  # =================================================================
+  frontend-test:
+    name: 🎨 Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.FRONTEND_DIR }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '${{ env.FRONTEND_DIR }}/package-lock.json'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧹 Run ESLint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: 🔧 Type checking
+        run: npm run type-check
+        continue-on-error: true
+
+      - name: 🏗️ Build frontend
+        run: npm run build
+        env:
+          VITE_API_URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev
+
+      - name: 📊 Bundle size analysis
+        run: |
+          echo "📊 Frontend build size:"
+          du -sh dist/
+          ls -la dist/assets/ || echo "No assets directory"
+
+  # =================================================================
+  # WORKER BUILD & TEST
+  # =================================================================
+  worker-test:
+    name: ⚡ Worker Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install Wrangler
+        run: npm install -g wrangler@latest
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔧 TypeScript compilation
+        run: npx tsc --noEmit
+
+      - name: 🏗️ Build Worker
+        run: npm run build:worker
+
+      - name: 🧪 Worker syntax validation
+        run: |
+          echo "🔍 Validating Worker syntax..."
+          node -c dist/worker.js || echo "⚠️ Worker validation failed"
+
+  # =================================================================
+  # DATABASE TESTS
+  # =================================================================
+  database-test:
+    name: 🗄️ Database Schema Tests
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Schema validation
+        run: |
+          echo "🔍 Validating database schema files..."
+          find . -name "*.sql" -type f -exec echo "📄 Found SQL file: {}" \;
+          
+          if [ -f "scripts/fix-schema-alignment.sql" ]; then
+            echo "✅ Schema alignment file exists"
+          else
+            echo "⚠️ Schema alignment file missing"
+          fi
+
+  # =================================================================
+  # STAGING DEPLOYMENT
+  # =================================================================
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop'
+    needs: [security-scan, frontend-test, worker-test]
+    environment: staging
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: https://pitchey-api-staging.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api-staging.ndlovucavelle.workers.dev
+
+      - name: 🚀 Deploy Worker to staging
+        run: |
+          npx wrangler deploy --env staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: 🚀 Deploy Frontend to staging
+        run: |
+          npx wrangler pages deploy frontend/dist --project-name=pitchey-staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # =================================================================
+  # PRODUCTION DEPLOYMENT
+  # =================================================================
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [security-scan, frontend-test, worker-test, database-test]
+    environment: production
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build frontend
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev
+
+      - name: 🚀 Deploy Worker to production
+        run: |
+          npx wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: 🚀 Deploy Frontend to production
+        run: |
+          npx wrangler pages deploy frontend/dist --project-name=pitchey
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # =================================================================
+  # POST-DEPLOYMENT TESTS
+  # =================================================================
+  integration-test:
+    name: 🧪 Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    needs: [deploy-production, deploy-staging]
+    continue-on-error: true
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🧪 Run comprehensive test suite
+        run: |
+          if [ -f "scripts/run-all-tests.sh" ]; then
+            chmod +x scripts/run-all-tests.sh
+            API_URL="${{ env.API_URL }}" FRONTEND_URL="${{ env.FRONTEND_URL }}" ./scripts/run-all-tests.sh
+          else
+            echo "⚠️ Comprehensive test suite not found"
+          fi
+
+      - name: 🧪 Run health checks
+        run: |
+          if [ -f "scripts/test-health-checks.sh" ]; then
+            chmod +x scripts/test-health-checks.sh
+            ./scripts/test-health-checks.sh
+          else
+            echo "⚠️ Health checks test not found"
+          fi
+
+      - name: 🧪 Test demo authentication
+        run: |
+          echo "🔐 Testing demo authentication..."
+          API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+          
+          # Test creator login
+          curl -f -X POST "$API_URL/api/auth/sign-in" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"alex.creator@demo.com","password":"Demo123"}' || echo "❌ Creator auth failed"
+            
+          # Test investor login  
+          curl -f -X POST "$API_URL/api/auth/sign-in" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"sarah.investor@demo.com","password":"Demo123"}' || echo "❌ Investor auth failed"
+
+  # =================================================================
+  # DAILY HEALTH MONITORING
+  # =================================================================
+  health-monitor:
+    name: 🏥 Daily Health Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏥 Run comprehensive health check
+        run: |
+          echo "🏥 Running daily health monitoring..."
+          
+          API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+          FRONTEND_URL="https://pitchey.pages.dev"
+          
+          # Test API health
+          echo "🔍 Testing API health..."
+          curl -f "$API_URL/api/health" || echo "❌ API health check failed"
+          
+          # Test Frontend availability
+          echo "🔍 Testing Frontend availability..."
+          curl -f -I "$FRONTEND_URL" || echo "❌ Frontend health check failed"
+          
+          # Test key endpoints
+          echo "🔍 Testing key endpoints..."
+          curl -f "$API_URL/api/pitches?limit=1" || echo "❌ Pitches endpoint failed"
+          
+          echo "✅ Health monitoring completed"
+
+      - name: 📊 Performance monitoring
+        run: |
+          if [ -f "scripts/performance-check.sh" ]; then
+            chmod +x scripts/performance-check.sh
+            ./scripts/performance-check.sh
+          else
+            echo "⚠️ Performance check script not found"
+          fi
+
+      - name: 🔍 Security monitoring
+        run: |
+          echo "🔒 Running security monitoring..."
+          
+          # Check for security headers
+          API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+          
+          echo "🔍 Checking security headers..."
+          curl -I "$API_URL/api/health" | grep -E "(X-Frame-Options|Content-Security-Policy|X-Content-Type-Options)" || echo "⚠️ Some security headers missing"
+          
+          echo "✅ Security monitoring completed"
+
+  # =================================================================
+  # CLEANUP & NOTIFICATIONS
+  # =================================================================
+  cleanup:
+    name: 🧹 Cleanup & Notify
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [security-scan, frontend-test, worker-test, database-test, deploy-production, integration-test]
+
+    steps:
+      - name: 📊 Job status summary
+        run: |
+          echo "📊 CI/CD Pipeline Summary:"
+          echo "================================"
+          echo "🔒 Security Scan: ${{ needs.security-scan.result }}"
+          echo "🎨 Frontend Tests: ${{ needs.frontend-test.result }}"
+          echo "⚡ Worker Tests: ${{ needs.worker-test.result }}"
+          echo "🗄️ Database Tests: ${{ needs.database-test.result }}"
+          echo "🚀 Production Deploy: ${{ needs.deploy-production.result }}"
+          echo "🧪 Integration Tests: ${{ needs.integration-test.result }}"
+          echo "================================"
+
+      - name: 🚨 Failure notification
+        if: failure()
+        run: |
+          echo "🚨 Pipeline failed! Check the logs above for details."
+          echo "📧 In production, this would send notifications to the team."

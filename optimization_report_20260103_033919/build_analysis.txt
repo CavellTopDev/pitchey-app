@@ -1,0 +1,16 @@
+Pitchey Frontend Build Analysis
+Generated: Sat  3 Jan 03:39:29 GMT 2026
+===============================
+
+BUILD SUMMARY:
+Build Duration: 6 seconds
+Total Size: 120K
+Original Size: 95K
+Gzipped Size: 5.2K
+Compression Ratio: N/A%
+
+LARGEST ASSETS:
+-rw-r--r-- 1 supremeisbeing supremeisbeing 8966 Jan  3 03:39 dist/sw.js
+-rw-r--r-- 1 supremeisbeing supremeisbeing 8155 Jan  3 03:39 dist/service-worker.js
+
+CHUNK BREAKDOWN:

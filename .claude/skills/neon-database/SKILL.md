@@ -1,301 +1,198 @@
 ---
 name: neon-database
-description: Raw SQL patterns for Neon PostgreSQL with Hyperdrive. Use when working with database queries, migrations, or performance optimization.
+description: Neon PostgreSQL patterns for Pitchey. Raw SQL only, no ORM. Uses Hyperdrive for connection pooling. Activates for database queries, migrations, or schema work.
+triggers:
+  - database
+  - sql
+  - query
+  - neon
+  - postgres
+  - migration
+  - schema
+  - table
+  - select
+  - insert
+  - update
+  - delete
 ---
 
-# Neon PostgreSQL with Raw SQL
+# Neon Database Patterns for Pitchey
 
-## Connection Patterns
+## CRITICAL: Connection Pattern
 
-### Basic Connection with Hyperdrive
+ALWAYS use Hyperdrive in Workers. NEVER use direct Neon connection string.
+
 ```typescript
 import postgres from 'postgres';
 
-// Always use Hyperdrive for connection pooling
-export function getDb(env: Env) {
-  return postgres(env.HYPERDRIVE.connectionString, {
-    prepare: false, // Required for Hyperdrive
-    max: 1, // Single connection per request
-    idle_timeout: 20,
-    connect_timeout: 10,
-  });
-}
-```
-
-### Query Patterns
-
-#### Basic SELECT with Parameters
-```typescript
-async function getUser(env: Env, userId: string) {
-  const sql = getDb(env);
-  try {
-    const [user] = await sql`
-      SELECT id, email, name, role, created_at
-      FROM users 
-      WHERE id = ${userId}
-      AND deleted_at IS NULL
-    `;
-    return user;
-  } finally {
-    await sql.end(); // Always close connection
-  }
-}
-```
-
-#### INSERT with RETURNING
-```typescript
-async function createPitch(env: Env, data: any) {
-  const sql = getDb(env);
-  try {
-    const [pitch] = await sql`
-      INSERT INTO pitches (
-        title, logline, genre, creator_id, status
-      ) VALUES (
-        ${data.title},
-        ${data.logline},
-        ${data.genre},
-        ${data.creatorId},
-        'draft'
-      )
-      RETURNING *
-    `;
-    return pitch;
-  } finally {
-    await sql.end();
-  }
-}
-```
-
-#### UPDATE with Conditions
-```typescript
-async function updatePitchStatus(env: Env, pitchId: string, status: string) {
-  const sql = getDb(env);
-  try {
-    const result = await sql`
-      UPDATE pitches 
-      SET 
-        status = ${status},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${pitchId}
-      AND creator_id = ${userId} -- Authorization check
-      RETURNING *
-    `;
-    return result[0];
-  } finally {
-    await sql.end();
-  }
-}
-```
-
-#### Complex JOIN Queries
-```typescript
-async function getPitchWithDetails(env: Env, pitchId: string) {
-  const sql = getDb(env);
-  try {
-    const [pitch] = await sql`
-      SELECT 
-        p.*,
-        u.name as creator_name,
-        u.email as creator_email,
-        COUNT(DISTINCT i.id) as investment_count,
-        COUNT(DISTINCT n.id) as nda_count
-      FROM pitches p
-      LEFT JOIN users u ON p.creator_id = u.id
-      LEFT JOIN investments i ON p.id = i.pitch_id
-      LEFT JOIN ndas n ON p.id = n.pitch_id
-      WHERE p.id = ${pitchId}
-      GROUP BY p.id, u.name, u.email
-    `;
-    return pitch;
-  } finally {
-    await sql.end();
-  }
-}
-```
-
-### Transaction Patterns
-
-```typescript
-async function transferFunds(env: Env, fromId: string, toId: string, amount: number) {
-  const sql = getDb(env);
-  try {
-    await sql.begin(async sql => {
-      // Deduct from sender
-      await sql`
-        UPDATE wallets 
-        SET balance = balance - ${amount}
-        WHERE user_id = ${fromId}
-        AND balance >= ${amount}
-      `;
-      
-      // Add to recipient
-      await sql`
-        UPDATE wallets 
-        SET balance = balance + ${amount}
-        WHERE user_id = ${toId}
-      `;
-      
-      // Log transaction
-      await sql`
-        INSERT INTO transactions (from_id, to_id, amount, created_at)
-        VALUES (${fromId}, ${toId}, ${amount}, CURRENT_TIMESTAMP)
-      `;
-    });
+export default {
+  async fetch(request: Request, env: Env) {
+    // ✅ CORRECT - Use Hyperdrive binding
+    const sql = postgres(env.HYPERDRIVE.connectionString);
     
-    return { success: true };
-  } catch (error) {
-    // Transaction automatically rolled back on error
-    throw error;
-  } finally {
-    await sql.end();
-  }
-}
-```
-
-### Performance Optimization
-
-#### Batch Operations
-```typescript
-async function batchInsert(env: Env, records: any[]) {
-  const sql = getDb(env);
-  try {
-    // Build values for batch insert
-    const values = records.map(r => ({
-      title: r.title,
-      status: r.status,
-      created_at: new Date()
-    }));
+    // ❌ WRONG - Never use direct URL
+    // const sql = postgres(process.env.DATABASE_URL);
     
-    await sql`
-      INSERT INTO items ${sql(values, 'title', 'status', 'created_at')}
-    `;
-  } finally {
-    await sql.end();
+    // ❌ WRONG - Never use Neon pooler with Hyperdrive
+    // const sql = postgres('postgres://...pooler.us-east-2.aws.neon.tech/...');
+    
+    const result = await sql`SELECT * FROM users LIMIT 10`;
+    return Response.json(result);
   }
 }
 ```
 
-#### Index Usage
-```sql
--- Common indexes for the platform
-CREATE INDEX idx_pitches_creator_status ON pitches(creator_id, status);
-CREATE INDEX idx_ndas_pitch_user ON ndas(pitch_id, user_id);
-CREATE INDEX idx_investments_investor ON investments(investor_id, created_at DESC);
-CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
-```
+## Query Patterns (Raw SQL - No ORM)
 
-#### Query Optimization
+### Select with Parameters
 ```typescript
-// Bad: N+1 query
-for (const pitch of pitches) {
-  const creator = await getUser(env, pitch.creator_id);
-  pitch.creator = creator;
-}
+// Safe parameterized query (prevents SQL injection)
+const users = await sql`
+  SELECT * FROM users WHERE id = ${userId}
+`;
 
-// Good: Single query with JOIN
-const pitchesWithCreators = await sql`
-  SELECT 
-    p.*,
-    row_to_json(u.*) as creator
-  FROM pitches p
-  LEFT JOIN users u ON p.creator_id = u.id
-  WHERE p.status = 'published'
+// Multiple parameters
+const pitches = await sql`
+  SELECT * FROM pitches 
+  WHERE creator_id = ${creatorId} 
+  AND status = ${status}
+  ORDER BY created_at DESC
+  LIMIT ${limit}
 `;
 ```
 
-### Migration Management
+### Insert and Return
+```typescript
+const [newPitch] = await sql`
+  INSERT INTO pitches (title, description, creator_id)
+  VALUES (${title}, ${description}, ${creatorId})
+  RETURNING *
+`;
+```
 
-#### Migration Table
+### Update
+```typescript
+const [updated] = await sql`
+  UPDATE pitches 
+  SET title = ${title}, updated_at = NOW()
+  WHERE id = ${pitchId} AND creator_id = ${userId}
+  RETURNING *
+`;
+```
+
+### Delete
+```typescript
+await sql`
+  DELETE FROM pitches 
+  WHERE id = ${pitchId} AND creator_id = ${userId}
+`;
+```
+
+### Transactions
+```typescript
+await sql.begin(async (tx) => {
+  await tx`UPDATE accounts SET balance = balance - ${amount} WHERE id = ${fromId}`;
+  await tx`UPDATE accounts SET balance = balance + ${amount} WHERE id = ${toId}`;
+  await tx`INSERT INTO transfers (from_id, to_id, amount) VALUES (${fromId}, ${toId}, ${amount})`;
+});
+```
+
+## Common Pitchey Queries
+
+### Users
 ```sql
-CREATE TABLE IF NOT EXISTS migrations (
-  id SERIAL PRIMARY KEY,
-  filename VARCHAR(255) UNIQUE NOT NULL,
-  applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Get user by ID
+SELECT * FROM users WHERE id = ${userId};
+
+-- Get user with profile
+SELECT u.*, p.bio, p.avatar_url 
+FROM users u 
+LEFT JOIN profiles p ON u.id = p.user_id 
+WHERE u.id = ${userId};
+
+-- Get user by email (for auth)
+SELECT * FROM users WHERE email = ${email};
 ```
 
-#### Running Migrations
-```typescript
-async function runMigration(env: Env, filename: string, sqlContent: string) {
-  const sql = getDb(env);
-  try {
-    await sql.begin(async sql => {
-      // Execute migration
-      await sql.unsafe(sqlContent); // Use unsafe for raw SQL
-      
-      // Record migration
-      await sql`
-        INSERT INTO migrations (filename)
-        VALUES (${filename})
-      `;
-    });
-  } finally {
-    await sql.end();
-  }
-}
+### Pitches
+```sql
+-- Trending pitches (most views in 7 days)
+SELECT p.*, u.name as creator_name, u.avatar_url as creator_avatar
+FROM pitches p
+JOIN users u ON p.creator_id = u.id
+WHERE p.status = 'published'
+  AND p.created_at > NOW() - INTERVAL '7 days'
+ORDER BY p.view_count DESC
+LIMIT ${limit};
+
+-- New releases (most recent)
+SELECT p.*, u.name as creator_name, u.avatar_url as creator_avatar
+FROM pitches p
+JOIN users u ON p.creator_id = u.id
+WHERE p.status = 'published'
+ORDER BY p.created_at DESC
+LIMIT ${limit};
+
+-- Single pitch with creator
+SELECT p.*, u.name as creator_name, u.email as creator_email
+FROM pitches p
+JOIN users u ON p.creator_id = u.id
+WHERE p.id = ${pitchId};
 ```
 
-## Common Patterns
+### NDAs
+```sql
+-- Get NDA with both parties
+SELECT n.*, 
+  req.name as requester_name, req.email as requester_email,
+  own.name as owner_name, own.email as owner_email,
+  p.title as pitch_title
+FROM ndas n
+JOIN users req ON n.requester_id = req.id
+JOIN users own ON n.owner_id = own.id
+JOIN pitches p ON n.pitch_id = p.id
+WHERE n.id = ${ndaId};
 
-### Pagination
-```typescript
-async function getPaginatedPitches(env: Env, page: number, limit: number) {
-  const sql = getDb(env);
-  const offset = (page - 1) * limit;
-  
-  try {
-    const pitches = await sql`
-      SELECT * FROM pitches
-      WHERE status = 'published'
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-      OFFSET ${offset}
-    `;
-    
-    const [{ count }] = await sql`
-      SELECT COUNT(*) FROM pitches
-      WHERE status = 'published'
-    `;
-    
-    return {
-      data: pitches,
-      total: count,
-      page,
-      totalPages: Math.ceil(count / limit)
-    };
-  } finally {
-    await sql.end();
-  }
-}
+-- Pending NDAs for owner
+SELECT n.*, u.name as requester_name, p.title as pitch_title
+FROM ndas n
+JOIN users u ON n.requester_id = u.id
+JOIN pitches p ON n.pitch_id = p.id
+WHERE n.owner_id = ${ownerId} AND n.status = 'pending'
+ORDER BY n.created_at DESC;
+
+-- Update NDA status
+UPDATE ndas 
+SET status = ${status}, 
+    updated_at = NOW(),
+    ${status === 'approved' ? sql`approved_at = NOW()` : sql``}
+WHERE id = ${ndaId}
+RETURNING *;
 ```
 
-### Search with Full Text
-```typescript
-async function searchPitches(env: Env, query: string) {
-  const sql = getDb(env);
-  try {
-    return await sql`
-      SELECT 
-        *,
-        ts_rank(search_vector, plainto_tsquery(${query})) as rank
-      FROM pitches
-      WHERE search_vector @@ plainto_tsquery(${query})
-      ORDER BY rank DESC
-      LIMIT 20
-    `;
-  } finally {
-    await sql.end();
-  }
-}
+## Migrations
+
+Store in `/migrations/` with timestamp prefix. Run via Neon console or MCP.
+
+```sql
+-- migrations/20260102_001_add_nda_fields.sql
+
+-- Add signature tracking
+ALTER TABLE ndas ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ;
+ALTER TABLE ndas ADD COLUMN IF NOT EXISTS signature_url TEXT;
+ALTER TABLE ndas ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+-- Add index for faster queries
+CREATE INDEX IF NOT EXISTS idx_ndas_status ON ndas(status);
+CREATE INDEX IF NOT EXISTS idx_ndas_owner ON ndas(owner_id, status);
+CREATE INDEX IF NOT EXISTS idx_ndas_requester ON ndas(requester_id, status);
 ```
 
-## Best Practices
+## Performance Tips
 
-1. **Always close connections** - Use try/finally blocks
-2. **Use parameterized queries** - Never concatenate SQL strings
-3. **Add appropriate indexes** - Monitor slow queries
-4. **Use transactions for consistency** - Especially for multi-table operations
-5. **Handle errors gracefully** - Return appropriate HTTP status codes
-6. **Avoid SELECT \*** - Specify columns explicitly
-7. **Use LIMIT for large result sets** - Implement pagination
-8. **Monitor connection pool** - Don't exceed Hyperdrive limits
+1. Always use LIMIT on list queries
+2. Add indexes for columns in WHERE and JOIN clauses
+3. Use EXPLAIN ANALYZE to check query plans
+4. Avoid SELECT * in production - select only needed columns
+5. Use transactions for multi-table updates
+6. Connection is managed by Hyperdrive - don't worry about pooling

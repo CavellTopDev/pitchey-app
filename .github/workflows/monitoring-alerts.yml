@@ -1,0 +1,347 @@
+name: 🔔 Production Monitoring & Alerts
+
+on:
+  schedule:
+    # Run every 5 minutes for critical monitoring
+    - cron: '*/5 * * * *'
+    # Run detailed health check every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      check_type:
+        description: 'Type of health check'
+        required: true
+        default: 'basic'
+        type: choice
+        options:
+          - basic
+          - comprehensive
+          - performance
+
+env:
+  PRODUCTION_API: https://pitchey-api-prod.ndlovucavelle.workers.dev
+  PRODUCTION_FRONTEND: https://pitchey.pages.dev
+
+jobs:
+  health-monitoring:
+    name: 🏥 Health Check Monitoring
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏥 API Health Check
+        id: api_health
+        run: |
+          echo "🔍 Testing API health endpoint..."
+          
+          # Test main health endpoint
+          if curl -f -s "${{ env.PRODUCTION_API }}/api/health" > /dev/null; then
+            echo "✅ API Health: ONLINE"
+            echo "api_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ API Health: FAILED"
+            echo "api_status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          # Test detailed health if available
+          if curl -f -s "${{ env.PRODUCTION_API }}/api/health/detailed" > /dev/null; then
+            echo "✅ Detailed Health: ONLINE"
+          else
+            echo "⚠️ Detailed Health: NOT AVAILABLE"
+          fi
+
+      - name: 🎨 Frontend Health Check
+        id: frontend_health
+        run: |
+          echo "🔍 Testing Frontend availability..."
+          
+          if curl -f -s -I "${{ env.PRODUCTION_FRONTEND }}" > /dev/null; then
+            echo "✅ Frontend: ONLINE"
+            echo "frontend_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Frontend: FAILED"
+            echo "frontend_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔐 Authentication Test
+        id: auth_test
+        run: |
+          echo "🔍 Testing authentication endpoints..."
+          
+          auth_failures=0
+          
+          # Test creator auth
+          if ! curl -f -X POST "${{ env.PRODUCTION_API }}/api/auth/sign-in" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"alex.creator@demo.com","password":"Demo123"}' > /dev/null 2>&1; then
+            echo "❌ Creator auth failed"
+            ((auth_failures++))
+          fi
+          
+          # Test investor auth
+          if ! curl -f -X POST "${{ env.PRODUCTION_API }}/api/auth/sign-in" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"sarah.investor@demo.com","password":"Demo123"}' > /dev/null 2>&1; then
+            echo "❌ Investor auth failed"
+            ((auth_failures++))
+          fi
+          
+          if [ $auth_failures -eq 0 ]; then
+            echo "✅ Authentication: WORKING"
+            echo "auth_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Authentication: $auth_failures failures"
+            echo "auth_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📊 Core API Test
+        id: api_test
+        run: |
+          echo "🔍 Testing core API endpoints..."
+          
+          api_failures=0
+          
+          # Test pitches endpoint
+          if ! curl -f -s "${{ env.PRODUCTION_API }}/api/pitches?limit=1" > /dev/null; then
+            echo "❌ Pitches endpoint failed"
+            ((api_failures++))
+          fi
+          
+          # Test categories endpoint
+          if ! curl -f -s "${{ env.PRODUCTION_API }}/api/categories" > /dev/null; then
+            echo "❌ Categories endpoint failed"
+            ((api_failures++))
+          fi
+          
+          if [ $api_failures -eq 0 ]; then
+            echo "✅ Core APIs: WORKING"
+            echo "api_endpoints_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Core APIs: $api_failures failures"
+            echo "api_endpoints_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: ⚡ Performance Check
+        id: performance_check
+        if: github.event.inputs.check_type == 'performance' || github.event.schedule == '0 * * * *'
+        run: |
+          echo "🔍 Running performance tests..."
+          
+          # Measure API response time
+          response_time=$(curl -o /dev/null -s -w "%{time_total}" "${{ env.PRODUCTION_API }}/api/health")
+          
+          echo "📊 API Response Time: ${response_time}s"
+          
+          # Check if response time is acceptable (< 2 seconds)
+          if (( $(echo "$response_time < 2.0" | bc -l) )); then
+            echo "✅ Performance: GOOD (${response_time}s < 2.0s)"
+            echo "performance_status=good" >> $GITHUB_OUTPUT
+          elif (( $(echo "$response_time < 5.0" | bc -l) )); then
+            echo "⚠️ Performance: DEGRADED (${response_time}s)"
+            echo "performance_status=degraded" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Performance: POOR (${response_time}s)"
+            echo "performance_status=poor" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔒 Security Headers Check
+        id: security_check
+        run: |
+          echo "🔍 Checking security headers..."
+          
+          headers_response=$(curl -I -s "${{ env.PRODUCTION_API }}/api/health")
+          
+          security_issues=0
+          
+          if echo "$headers_response" | grep -qi "x-frame-options"; then
+            echo "✅ X-Frame-Options header present"
+          else
+            echo "⚠️ X-Frame-Options header missing"
+            ((security_issues++))
+          fi
+          
+          if echo "$headers_response" | grep -qi "x-content-type-options"; then
+            echo "✅ X-Content-Type-Options header present"
+          else
+            echo "⚠️ X-Content-Type-Options header missing"
+            ((security_issues++))
+          fi
+          
+          if [ $security_issues -eq 0 ]; then
+            echo "security_status=good" >> $GITHUB_OUTPUT
+          else
+            echo "security_status=issues" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 📈 Generate Health Report
+        run: |
+          echo "📊 HEALTH MONITORING REPORT"
+          echo "=========================="
+          echo "Timestamp: $(date -u)"
+          echo "API Status: ${{ steps.api_health.outputs.api_status }}"
+          echo "Frontend Status: ${{ steps.frontend_health.outputs.frontend_status }}"
+          echo "Auth Status: ${{ steps.auth_test.outputs.auth_status }}"
+          echo "API Endpoints Status: ${{ steps.api_test.outputs.api_endpoints_status }}"
+          
+          if [ "${{ steps.performance_check.outputs.performance_status }}" != "" ]; then
+            echo "Performance Status: ${{ steps.performance_check.outputs.performance_status }}"
+          fi
+          
+          echo "Security Status: ${{ steps.security_check.outputs.security_status }}"
+          
+          # Determine overall health
+          overall_health="healthy"
+          
+          if [ "${{ steps.api_health.outputs.api_status }}" = "failed" ] || \
+             [ "${{ steps.frontend_health.outputs.frontend_status }}" = "failed" ]; then
+            overall_health="critical"
+          elif [ "${{ steps.auth_test.outputs.auth_status }}" = "failed" ] || \
+               [ "${{ steps.api_test.outputs.api_endpoints_status }}" = "failed" ]; then
+            overall_health="degraded"
+          elif [ "${{ steps.performance_check.outputs.performance_status }}" = "poor" ]; then
+            overall_health="performance_issues"
+          fi
+          
+          echo "OVERALL HEALTH: $overall_health"
+          echo "overall_health=$overall_health" >> $GITHUB_ENV
+
+      - name: 🚨 Critical Alert
+        if: env.overall_health == 'critical'
+        run: |
+          echo "🚨 CRITICAL ALERT: Production system is down!"
+          echo "- API Status: ${{ steps.api_health.outputs.api_status }}"
+          echo "- Frontend Status: ${{ steps.frontend_health.outputs.frontend_status }}"
+          echo ""
+          echo "Immediate action required!"
+          
+          # In a real environment, this would trigger PagerDuty, Slack, etc.
+          echo "::error title=Production System Down::Critical services are failing health checks"
+
+      - name: ⚠️ Degraded Performance Alert
+        if: env.overall_health == 'degraded' || env.overall_health == 'performance_issues'
+        run: |
+          echo "⚠️ DEGRADED PERFORMANCE: Production system has issues"
+          echo "- Auth Status: ${{ steps.auth_test.outputs.auth_status }}"
+          echo "- API Endpoints: ${{ steps.api_test.outputs.api_endpoints_status }}"
+          echo "- Performance: ${{ steps.performance_check.outputs.performance_status }}"
+          echo ""
+          echo "Investigation recommended within 1 hour"
+          
+          echo "::warning title=Performance Degraded::System performance is below acceptable thresholds"
+
+      - name: ✅ System Healthy
+        if: env.overall_health == 'healthy'
+        run: |
+          echo "✅ All systems operational"
+          echo "Production platform is performing within normal parameters"
+
+  comprehensive-monitoring:
+    name: 📊 Comprehensive System Analysis
+    runs-on: ubuntu-latest
+    if: github.event.inputs.check_type == 'comprehensive' || github.event.schedule == '0 * * * *'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🧪 Run comprehensive test suite
+        run: |
+          if [ -f "scripts/run-all-tests.sh" ]; then
+            chmod +x scripts/run-all-tests.sh
+            timeout 300s ./scripts/run-all-tests.sh || echo "Tests completed with issues"
+          else
+            echo "⚠️ Comprehensive test suite not found"
+          fi
+
+      - name: 📊 System Metrics Collection
+        run: |
+          echo "📊 Collecting system metrics..."
+          
+          # Collect API metrics
+          echo "API Response Time Samples:"
+          for i in {1..5}; do
+            time=$(curl -o /dev/null -s -w "%{time_total}" "${{ env.PRODUCTION_API }}/api/health")
+            echo "  Sample $i: ${time}s"
+            sleep 2
+          done
+          
+          # Test database connectivity (via API)
+          echo ""
+          echo "Database Connectivity:"
+          if curl -f -s "${{ env.PRODUCTION_API }}/api/pitches?limit=1" | grep -q "id"; then
+            echo "  ✅ Database queries working"
+          else
+            echo "  ❌ Database connectivity issues"
+          fi
+
+      - name: 📈 Performance Trend Analysis
+        run: |
+          echo "📈 Performance trend analysis would go here"
+          echo "In production, this would:"
+          echo "  - Compare current metrics with historical baselines"
+          echo "  - Identify performance degradation trends"
+          echo "  - Generate capacity planning recommendations"
+          echo "  - Alert on anomalies"
+
+  deployment-monitoring:
+    name: 🚀 Deployment Health Verification
+    runs-on: ubuntu-latest
+    # Only run this after deployments or manual trigger
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Post-Deployment Verification
+        run: |
+          echo "🔍 Running post-deployment health verification..."
+          
+          # Wait for potential deployment propagation
+          echo "Waiting 30 seconds for deployment propagation..."
+          sleep 30
+          
+          # Test all critical paths
+          echo "Testing critical user paths..."
+          
+          # Test homepage load
+          if curl -f -s "${{ env.PRODUCTION_FRONTEND }}" > /dev/null; then
+            echo "✅ Homepage loads successfully"
+          else
+            echo "❌ Homepage failed to load"
+          fi
+          
+          # Test API authentication flow
+          echo "Testing complete auth flow..."
+          auth_response=$(curl -s -X POST "${{ env.PRODUCTION_API }}/api/auth/sign-in" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
+          
+          if echo "$auth_response" | grep -q "token\|session\|success"; then
+            echo "✅ Authentication flow working"
+          else
+            echo "❌ Authentication flow issues detected"
+            echo "Response: $auth_response"
+          fi
+
+      - name: 🎯 Critical Business Function Test
+        run: |
+          echo "🎯 Testing critical business functions..."
+          
+          # Test pitch browsing
+          pitches_response=$(curl -s "${{ env.PRODUCTION_API }}/api/pitches?limit=5")
+          if echo "$pitches_response" | grep -q '"id"'; then
+            echo "✅ Pitch browsing functional"
+          else
+            echo "❌ Pitch browsing issues"
+          fi
+          
+          # Test search functionality
+          search_response=$(curl -s "${{ env.PRODUCTION_API }}/api/pitches/search?q=movie")
+          if echo "$search_response" | grep -q '"results"'; then
+            echo "✅ Search functionality working"
+          else
+            echo "❌ Search functionality issues"
+          fi

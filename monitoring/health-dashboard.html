@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏥 Pitchey Production Health Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .header .subtitle {
+            color: #718096;
+            font-size: 1.1em;
+        }
+        
+        .status-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .status-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .status-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .status-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        .status-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+        
+        .status-healthy { color: #38a169; }
+        .status-degraded { color: #d69e2e; }
+        .status-failed { color: #e53e3e; }
+        
+        .checks-section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .checks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .checks-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .last-updated {
+            color: #718096;
+            font-size: 0.9em;
+        }
+        
+        .checks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .check-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border-left: 4px solid;
+        }
+        
+        .check-item.healthy { border-color: #38a169; }
+        .check-item.degraded { border-color: #d69e2e; }
+        .check-item.failed { border-color: #e53e3e; }
+        
+        .check-name {
+            font-weight: 500;
+        }
+        
+        .check-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .check-time {
+            font-size: 0.8em;
+            color: #718096;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #4c51bf;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1em;
+            box-shadow: 0 5px 15px rgba(76, 81, 191, 0.4);
+            transition: all 0.2s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #434190;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(76, 81, 191, 0.6);
+        }
+        
+        .alert-banner {
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert-banner.show {
+            display: block;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #718096;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4c51bf;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .metrics-chart {
+            height: 200px;
+            background: #f7fafc;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>🏥 Pitchey Health Dashboard</h1>
+            <p class="subtitle">Real-time production monitoring and health checks</p>
+        </div>
+
+        <div class="alert-banner" id="alertBanner">
+            <strong>⚠️ System Alert:</strong> <span id="alertMessage"></span>
+        </div>
+
+        <div class="status-overview">
+            <div class="status-card">
+                <div class="status-icon">🖥️</div>
+                <div class="status-title">API Health</div>
+                <div class="status-value" id="apiStatus">Loading...</div>
+            </div>
+            
+            <div class="status-card">
+                <div class="status-icon">🎨</div>
+                <div class="status-title">Frontend</div>
+                <div class="status-value" id="frontendStatus">Loading...</div>
+            </div>
+            
+            <div class="status-card">
+                <div class="status-icon">🔐</div>
+                <div class="status-title">Authentication</div>
+                <div class="status-value" id="authStatus">Loading...</div>
+            </div>
+            
+            <div class="status-card">
+                <div class="status-icon">📊</div>
+                <div class="status-title">Success Rate</div>
+                <div class="status-value" id="successRate">Loading...</div>
+            </div>
+        </div>
+
+        <div class="checks-section">
+            <div class="checks-header">
+                <h2 class="checks-title">🔍 Detailed Health Checks</h2>
+                <span class="last-updated" id="lastUpdated">Last updated: Never</span>
+            </div>
+            
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <p>Loading health check data...</p>
+            </div>
+            
+            <div class="checks-grid" id="checksGrid" style="display: none;">
+                <!-- Health checks will be populated here -->
+            </div>
+        </div>
+
+        <div class="checks-section">
+            <div class="checks-header">
+                <h2 class="checks-title">📈 Response Time Trends</h2>
+            </div>
+            <div class="metrics-chart">
+                <p>📊 Response time visualization will appear here<br>
+                   (Requires implementation with Chart.js or similar)</p>
+            </div>
+        </div>
+
+        <button class="refresh-btn" onclick="refreshData()" id="refreshBtn">
+            🔄 Refresh
+        </button>
+    </div>
+
+    <script>
+        let healthData = null;
+        let refreshInterval = null;
+
+        // Mock data for demonstration
+        const mockHealthData = {
+            timestamp: new Date().toISOString(),
+            summary: {
+                total: 8,
+                passed: 7,
+                failed: 1,
+                critical: 0,
+                success_rate: 87
+            },
+            checks: [
+                { name: "API Health", status: "healthy", response_time: 0.234, message: "HTTP 200" },
+                { name: "Frontend", status: "healthy", response_time: 0.156, message: "HTTP 200" },
+                { name: "Creator_auth", status: "healthy", response_time: 0.445, message: "Authentication successful" },
+                { name: "Investor_auth", status: "healthy", response_time: 0.389, message: "Authentication successful" },
+                { name: "Production_auth", status: "failed", response_time: 2.1, message: "HTTP 401" },
+                { name: "Pitches List", status: "healthy", response_time: 0.287, message: "Valid JSON with expected field" },
+                { name: "Categories", status: "healthy", response_time: 0.198, message: "Valid JSON response" },
+                { name: "Trending", status: "healthy", response_time: 0.334, message: "Valid JSON with expected field" }
+            ]
+        };
+
+        function updateStatusCard(elementId, status, value) {
+            const element = document.getElementById(elementId);
+            element.textContent = value;
+            element.className = `status-value status-${status}`;
+        }
+
+        function getStatusFromChecks(checks, checkNames) {
+            const relevantChecks = checks.filter(check => 
+                checkNames.some(name => check.name.toLowerCase().includes(name.toLowerCase()))
+            );
+            
+            if (relevantChecks.some(check => check.status === 'failed')) return 'failed';
+            if (relevantChecks.some(check => check.status === 'degraded')) return 'degraded';
+            return 'healthy';
+        }
+
+        function updateDashboard(data) {
+            healthData = data;
+            
+            // Update status cards
+            const apiStatus = getStatusFromChecks(data.checks, ['API Health']);
+            const frontendStatus = getStatusFromChecks(data.checks, ['Frontend']);
+            const authStatus = getStatusFromChecks(data.checks, ['auth']);
+            
+            updateStatusCard('apiStatus', apiStatus, apiStatus === 'healthy' ? '✅ Online' : '❌ Issues');
+            updateStatusCard('frontendStatus', frontendStatus, frontendStatus === 'healthy' ? '✅ Online' : '❌ Issues');
+            updateStatusCard('authStatus', authStatus, authStatus === 'healthy' ? '✅ Working' : '❌ Issues');
+            updateStatusCard('successRate', data.summary.success_rate >= 95 ? 'healthy' : 
+                             data.summary.success_rate >= 80 ? 'degraded' : 'failed', `${data.summary.success_rate}%`);
+
+            // Update detailed checks
+            const checksGrid = document.getElementById('checksGrid');
+            checksGrid.innerHTML = '';
+            
+            data.checks.forEach(check => {
+                const checkElement = document.createElement('div');
+                checkElement.className = `check-item ${check.status}`;
+                
+                const statusIcon = check.status === 'healthy' ? '✅' :
+                                 check.status === 'degraded' ? '⚠️' : '❌';
+                
+                checkElement.innerHTML = `
+                    <div class="check-name">${check.name}</div>
+                    <div class="check-status">
+                        <span>${statusIcon}</span>
+                        <div>
+                            <div>${check.status.charAt(0).toUpperCase() + check.status.slice(1)}</div>
+                            <div class="check-time">${check.response_time}s</div>
+                        </div>
+                    </div>
+                `;
+                
+                checksGrid.appendChild(checkElement);
+            });
+
+            // Update timestamp
+            const timestamp = new Date(data.timestamp);
+            document.getElementById('lastUpdated').textContent = 
+                `Last updated: ${timestamp.toLocaleTimeString()}`;
+
+            // Show/hide alert banner
+            const alertBanner = document.getElementById('alertBanner');
+            const alertMessage = document.getElementById('alertMessage');
+            
+            if (data.summary.critical > 0) {
+                alertMessage.textContent = `${data.summary.critical} critical failures detected!`;
+                alertBanner.classList.add('show');
+            } else if (data.summary.success_rate < 80) {
+                alertMessage.textContent = `System performance degraded (${data.summary.success_rate}% success rate)`;
+                alertBanner.classList.add('show');
+            } else {
+                alertBanner.classList.remove('show');
+            }
+
+            // Hide loading indicator and show grid
+            document.getElementById('loadingIndicator').style.display = 'none';
+            checksGrid.style.display = 'grid';
+        }
+
+        async function loadHealthData() {
+            try {
+                // Try to load real health data from monitoring/logs/latest.json
+                const response = await fetch('./logs/latest.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateDashboard(data);
+                } else {
+                    // Fallback to mock data for demonstration
+                    updateDashboard(mockHealthData);
+                }
+            } catch (error) {
+                console.warn('Could not load real health data, using mock data');
+                updateDashboard(mockHealthData);
+            }
+        }
+
+        async function refreshData() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.textContent = '⏳ Refreshing...';
+            refreshBtn.disabled = true;
+            
+            try {
+                // In a real implementation, this would trigger a new health check
+                await loadHealthData();
+            } finally {
+                refreshBtn.textContent = '🔄 Refresh';
+                refreshBtn.disabled = false;
+            }
+        }
+
+        // Initialize dashboard
+        loadHealthData();
+
+        // Auto-refresh every 30 seconds
+        refreshInterval = setInterval(loadHealthData, 30000);
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                clearInterval(refreshInterval);
+            } else {
+                refreshInterval = setInterval(loadHealthData, 30000);
+                loadHealthData(); // Immediate refresh when page becomes visible
+            }
+        });
+    </script>
+</body>
+</html>

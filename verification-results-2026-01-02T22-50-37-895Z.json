@@ -1,0 +1,31 @@
+{
+  "url": "https://3801b946.pitchey-5o8.pages.dev",
+  "timestamp": "2026-01-02T22:50:37.895Z",
+  "results": [
+    {
+      "test": "No Navigation Duplication",
+      "passed": true,
+      "details": "Found 0 navigation references (expected ≤ 3)"
+    },
+    {
+      "test": "Dashboard Elements",
+      "passed": false,
+      "details": "Missing: Creator Dashboard, Total Pitches, Active Pitches, Total Views, Avg Rating, Followers, Engagement Rate"
+    },
+    {
+      "test": "Responsive Design",
+      "passed": false,
+      "details": "Missing responsive design classes"
+    },
+    {
+      "test": "Portal Switching",
+      "passed": true,
+      "details": "✓ Creator Portal, ✓ Investor Portal, ✓ Production Portal"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "total": 4,
+    "passRate": 50
+  }
+}

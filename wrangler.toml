@@ -193,3 +193,8 @@ command = "npm run build:worker"
 # Production environment configuration
 [env.production]
 name = "pitchey-api-prod"
+
+# Staging environment configuration
+[env.staging]
+name = "pitchey-api-staging"
+vars = { ENVIRONMENT = "staging", FRONTEND_URL = "https://pitchey-staging.pages.dev", CORS_ORIGINS = "https://pitchey-staging.pages.dev,https://pitchey-api-staging.ndlovucavelle.workers.dev" }

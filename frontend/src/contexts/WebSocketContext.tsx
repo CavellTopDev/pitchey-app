@@ -119,11 +119,11 @@ interface WebSocketProviderProps {
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const { user, isAuthenticated } = useAuthStore();
   
-  // Emergency disable state - DISABLED BY DEFAULT on free tier
-  const [isWebSocketDisabled, setIsWebSocketDisabled] = useState(true);
+  // Emergency disable state - ENABLED by default to test new WebSocket service
+  const [isWebSocketDisabled, setIsWebSocketDisabled] = useState(false);
   
-  // Fallback state - always use polling on free tier
-  const [usingFallback, setUsingFallback] = useState(true);
+  // Fallback state - will automatically switch to polling if WebSocket fails
+  const [usingFallback, setUsingFallback] = useState(false);
   
   // State
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -187,17 +187,40 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       case 'presence_update':
         handlePresenceUpdate(message);
         break;
+      case 'typing_indicator':
+        handleTypingIndicator(message);
+        break;
       case 'typing':
+        // Legacy support - redirect to new handler
         handleTypingIndicator(message);
         break;
       case 'upload_progress':
         handleUploadProgress(message);
         break;
-      case 'pitch_view':
+      case 'pitch_view_update':
         handlePitchView(message);
+        break;
+      case 'pitch_view':
+        // Legacy support - redirect to new handler
+        handlePitchView(message);
+        break;
+      case 'chat_message':
+        handleChatMessage(message);
         break;
       case 'draft_sync':
         // Handled by useDraftSync hook
+        break;
+      case 'connection':
+        // Enhanced connection confirmation from real-time service
+        console.log('🔗 Connection confirmed by enhanced real-time service:', message.payload);
+        break;
+      case 'subscribed':
+        // Channel subscription confirmation
+        console.log('📺 Subscribed to channel:', message.payload?.channelId);
+        break;
+      case 'unsubscribed':
+        // Channel unsubscription confirmation
+        console.log('📴 Unsubscribed from channel:', message.payload?.channelId);
         break;
       case 'ping':
       case 'pong':
@@ -223,20 +246,23 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       default:
         // Only log unhandled messages in development mode
         if (process.env.NODE_ENV === 'development') {
-          console.log('Unhandled WebSocket message type:', message.type);
+          console.log('Unhandled WebSocket message type:', message.type, message);
         }
     }
   }
   
   function handleNotificationMessage(message: WebSocketMessage) {
+    // Support both payload and data formats for compatibility
+    const msgData = (message as any).payload || message.data;
+    
     const notification: NotificationData = {
       id: message.id || `notif_${Date.now()}`,
-      type: message.data?.type || 'info',
-      title: message.data?.title || 'Notification',
-      message: message.data?.message || '',
+      type: msgData?.type || 'info',
+      title: msgData?.title || 'Notification',
+      message: msgData?.message || msgData?.content || '',
       timestamp: new Date(message.timestamp || Date.now()),
       read: false,
-      actions: message.data?.actions,
+      actions: msgData?.actions,
     };
     
     setNotifications(prev => [notification, ...prev]);
@@ -255,12 +281,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   }
   
   function handleDashboardUpdate(message: WebSocketMessage) {
+    // Support both payload and data formats for compatibility
+    const msgData = (message as any).payload || message.data;
+    
     const metrics: DashboardMetrics = {
-      pitchViews: message.data?.pitchViews || 0,
-      totalRevenue: message.data?.totalRevenue || 0,
-      activeInvestors: message.data?.activeInvestors || 0,
-      newMessages: message.data?.newMessages || 0,
-      lastUpdated: new Date(message.timestamp || Date.now()),
+      pitchViews: msgData?.pitchViews || msgData?.metrics?.pitchViews || 0,
+      totalRevenue: msgData?.totalRevenue || msgData?.metrics?.totalRevenue || 0,
+      activeInvestors: msgData?.activeInvestors || msgData?.metrics?.activeInvestors || 0,
+      newMessages: msgData?.newMessages || msgData?.metrics?.newMessages || 0,
+      lastUpdated: new Date(msgData?.timestamp || message.timestamp || Date.now()),
     };
     
     setDashboardMetrics(metrics);
@@ -270,12 +299,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   }
   
   function handlePresenceUpdate(message: WebSocketMessage) {
+    // Support both payload and data formats for compatibility
+    const msgData = (message as any).payload || message.data;
+    
     const presenceData: PresenceData = {
-      userId: message.data?.userId,
-      username: message.data?.username,
-      status: message.data?.status || 'offline',
-      lastSeen: new Date(message.data?.lastSeen || Date.now()),
-      activity: message.data?.activity,
+      userId: msgData?.userId,
+      username: msgData?.username,
+      status: msgData?.status || 'offline',
+      lastSeen: new Date(msgData?.lastSeen || msgData?.timestamp || Date.now()),
+      activity: msgData?.activity,
     };
     
     setOnlineUsers(prev => {
@@ -291,11 +323,14 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   }
   
   function handleTypingIndicator(message: WebSocketMessage) {
+    // Support both payload and data formats for compatibility
+    const msgData = (message as any).payload || message.data;
+    
     const typingData: TypingData = {
-      conversationId: message.data?.conversationId,
-      userId: message.data?.userId,
-      username: message.data?.username,
-      isTyping: message.data?.isTyping,
+      conversationId: msgData?.conversationId,
+      userId: msgData?.userId,
+      username: msgData?.username,
+      isTyping: msgData?.isTyping !== undefined ? msgData?.isTyping : true,
     };
     
     setTypingIndicators(prev => {
@@ -361,47 +396,127 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     }
   }
   
+  function handleChatMessage(message: WebSocketMessage) {
+    // Handle real-time chat messages
+    const chatData = message.payload || message.data;
+    
+    if (chatData?.conversationId && chatData?.senderId && chatData?.content) {
+      // Create a notification for the chat message
+      const chatNotification: NotificationData = {
+        id: `chat_${Date.now()}_${chatData.senderId}`,
+        type: 'info',
+        title: 'New Message',
+        message: `${chatData.senderName || 'Someone'}: ${chatData.content.substring(0, 100)}${chatData.content.length > 100 ? '...' : ''}`,
+        timestamp: new Date(chatData.timestamp || Date.now()),
+        read: false,
+        actions: [{
+          label: 'View Conversation',
+          action: () => {
+            // Navigate to conversation - this would be implemented based on your routing
+            console.log('Navigate to conversation:', chatData.conversationId);
+          },
+          type: 'primary'
+        }]
+      };
+      
+      setNotifications(prev => [chatNotification, ...prev]);
+      
+      // Notify subscribers
+      subscriptions.notifications.forEach(callback => callback(chatNotification));
+      
+      // Show browser notification if permitted and user is not in conversation
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(chatNotification.title, {
+          body: chatNotification.message,
+          icon: '/favicon.ico',
+          tag: `chat_${chatData.conversationId}` // Prevent duplicate notifications
+        });
+      }
+    }
+    
+    // Emit general message for chat-specific hooks
+    subscriptions.messages.forEach(callback => callback(message));
+  }
+  
   function handleConnect() {
-    console.log('WebSocket connected - updating presence to online');
+    console.log('🟢 WebSocket connected with enhanced real-time service');
+    setUsingFallback(false); // We're now using WebSocket successfully
     
     // Update presence to online when connected
     if (user) {
       updatePresence('online');
     }
     
-    // Request initial data
+    // Subscribe to user-specific channels
+    if (user?.id) {
+      // Subscribe to user's notification channel
+      wsSendMessage({
+        type: 'subscribe',
+        data: {
+          channelId: `user_${user.id}_notifications`
+        }
+      });
+      
+      // Subscribe to user's dashboard updates
+      wsSendMessage({
+        type: 'subscribe', 
+        data: {
+          channelId: `user_${user.id}_dashboard`
+        }
+      });
+      
+      // Subscribe to general presence updates
+      wsSendMessage({
+        type: 'subscribe',
+        data: {
+          channelId: `presence_updates`
+        }
+      });
+    }
+    
+    // Request initial data with enhanced format
     wsSendMessage({
       type: 'request_initial_data',
       data: {
         includeDashboard: true,
         includePresence: true,
         includeNotifications: true,
+        clientVersion: '2.0', // Indicate enhanced client
       },
     });
+    
+    console.log('📡 Enhanced WebSocket connection established and subscriptions made');
   }
   
   function handleDisconnect() {
-    console.log('WebSocket disconnected');
+    console.log('🔴 WebSocket disconnected - checking for graceful fallback');
     
     // Update local state to reflect disconnection
     setOnlineUsers(prev => prev.filter(user => user.userId !== user?.id));
     
     // Enhanced circuit breaker for bundling-induced loops
     const recentAttempts = connectionStatus.reconnectAttempts;
-    if (recentAttempts >= 3) { // Reduced threshold for faster detection
-      console.warn(`WebSocket reconnection loop detected (${recentAttempts} attempts). Auto-disabling to prevent infinite loops.`);
+    if (recentAttempts >= 5) { // Increased threshold for enhanced service
+      console.warn(`🚨 WebSocket reconnection loop detected (${recentAttempts} attempts). Falling back to polling.`);
       setTimeout(() => {
-        setIsWebSocketDisabled(true);
-        localStorage.setItem('pitchey_websocket_disabled', 'true');
+        setUsingFallback(true);
+        localStorage.setItem('pitchey_websocket_fallback', 'true');
         localStorage.setItem('pitchey_websocket_loop_detected', Date.now().toString());
         
-        // Start fallback service when WebSocket fails
-        if (isAuthenticated && !usingFallback) {
-          console.log('Starting fallback presence service due to WebSocket failure');
-          setUsingFallback(true);
+        // Start enhanced polling service when WebSocket consistently fails
+        if (isAuthenticated) {
+          console.log('🔄 Starting enhanced polling service due to WebSocket failure');
+          pollingService.start();
           presenceFallbackService.start();
         }
-      }, 500); // Faster disable
+      }, 1000);
+    } else if (recentAttempts >= 2) {
+      // Enable fallback sooner but don't disable WebSocket completely
+      if (!usingFallback) {
+        console.log('🔄 Starting polling fallback while WebSocket retries');
+        setUsingFallback(true);
+        pollingService.start();
+      }
     }
   }
   
