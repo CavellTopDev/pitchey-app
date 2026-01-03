@@ -90,6 +90,16 @@ id = "39cd08d6efe74c7fb99b5fa0471fd148"
 binding = "SESSIONS_KV"
 id = "776ca67365654698bbf0ac5cd7eca749"
 
+# KV for cache - ENABLED for health monitoring and general caching
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "10774a77c8cf47acaed85d6cdfc592c1"
+
+# Alternative CACHE binding using the same namespace for compatibility
+[[kv_namespaces]]
+binding = "CACHE"
+id = "5e9e940dc8af4f159f1bd027f3687dd3"
+
 # KV for Better Auth rate limiting - Disabled for free plan
 # [[kv_namespaces]]
 # binding = "RATE_LIMIT_KV"
@@ -105,7 +115,7 @@ id = "776ca67365654698bbf0ac5cd7eca749"
 # binding = "NOTIFICATION_CACHE"
 # id = "98c88a185eb448e4868fcc87e458b3ac"
 
-# R2 for file storage - Disabled for free plan
+# R2 for file storage - Enable once R2 is activated in Cloudflare Dashboard
 # [[r2_buckets]]
 # binding = "R2_BUCKET"
 # bucket_name = "pitchey-uploads"

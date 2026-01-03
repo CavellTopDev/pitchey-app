@@ -12,6 +12,8 @@ export default defineConfig({
           ['babel-plugin-transform-remove-console', { exclude: ['error', 'warn'] }],
         ],
       },
+      // Fix React 18 compatibility
+      jsxRuntime: 'automatic',
     }),
   ],
   resolve: {
@@ -23,18 +25,21 @@ export default defineConfig({
     },
   },
   build: {
-    // Optimize build output
-    target: 'es2020',
+    // Optimize build output - Updated for React 18 compatibility
+    target: 'es2022', // Updated to es2022 for better React 18 support
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true, // Remove console logs
+        drop_console: process.env.NODE_ENV === 'production', // Only remove console logs in production
         drop_debugger: true,
-        pure_funcs: ['console.log'], // Remove specific functions
+        pure_funcs: process.env.NODE_ENV === 'production' ? ['console.log', 'console.debug', 'console.info'] : [], // Remove specific functions in production
       },
     },
     commonjsOptions: {
       include: [/node_modules/],
+      transformMixedEsModules: true,
+      // Fix for React 18 compatibility
+      defaultIsModuleExports: false,
     },
     rollupOptions: {
       output: {

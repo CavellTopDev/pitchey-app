@@ -47,6 +47,19 @@ import {
   logSessionHandler
 } from './handlers/settings';
 
+// Import new monitoring and password handlers
+import {
+  enhancedHealthHandler,
+  getErrorMetricsHandler,
+  logRequestMetrics,
+  logError
+} from './handlers/health-monitoring';
+import {
+  changePasswordHandler,
+  requestPasswordResetHandler,
+  resetPasswordHandler
+} from './handlers/auth-password';
+
 // Import new services
 import { 
   PasswordService, 
@@ -687,6 +700,34 @@ class RouteRegistry {
     this.register('POST', '/api/auth/session/refresh', async (request) => {
       // Session refresh - just return current session for now
       return this.handleSession(request);
+    });
+    
+    // Password management routes
+    this.register('POST', '/api/auth/change-password', async (request) => {
+      // Create a minimal execution context for the handler
+      const ctx: ExecutionContext = {
+        waitUntil: (promise: Promise<any>) => {},
+        passThroughOnException: () => {}
+      };
+      return changePasswordHandler(request, this.env, ctx);
+    });
+    
+    this.register('POST', '/api/auth/request-reset', async (request) => {
+      // Create a minimal execution context for the handler
+      const ctx: ExecutionContext = {
+        waitUntil: (promise: Promise<any>) => {},
+        passThroughOnException: () => {}
+      };
+      return requestPasswordResetHandler(request, this.env, ctx);
+    });
+    
+    this.register('POST', '/api/auth/reset-password', async (request) => {
+      // Create a minimal execution context for the handler
+      const ctx: ExecutionContext = {
+        waitUntil: (promise: Promise<any>) => {},
+        passThroughOnException: () => {}
+      };
+      return resetPasswordHandler(request, this.env, ctx);
     });
 
     // User profile routes (commented out - UserProfileRoutes not imported)
@@ -5115,21 +5156,15 @@ export default {
       
       const url = new URL(request.url);
       
-      // Quick health check without database
+      // Enhanced health check with comprehensive monitoring
       if (url.pathname === '/health') {
-        const response = new Response(
-          JSON.stringify({
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            environment: env.ENVIRONMENT || 'production',
-            version: '1.0.0'
-          }),
-          { 
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
-        // Add security headers to health check
+        const response = await enhancedHealthHandler(request, env, ctx);
+        return addSecurityHeaders(response);
+      }
+      
+      // Admin metrics endpoint for monitoring dashboard
+      if (url.pathname === '/api/admin/metrics' && request.method === 'GET') {
+        const response = await getErrorMetricsHandler(request, env, ctx);
         return addSecurityHeaders(response);
       }
       
@@ -5216,8 +5251,32 @@ export default {
       // Initialize route registry
       const router = new RouteRegistry(env);
       
+      // Track request start time for performance monitoring
+      const startTime = Date.now();
+      let userId: string | undefined;
+      
+      // Extract user ID from session if available (for logging)
+      try {
+        const cookies = request.headers.get('cookie') || '';
+        const sessionCookie = cookies.split(';')
+          .find(c => c.trim().startsWith('better-auth-session='));
+        if (sessionCookie) {
+          // This is just for logging - actual auth is handled by Better Auth
+          // We don't decode the session here, just mark that a session exists
+          userId = 'authenticated-user';
+        }
+      } catch (e) {
+        // Ignore session extraction errors for logging
+      }
+      
       // Handle request and ensure CORS headers are always added
       let response = await router.handle(request);
+      
+      // Log request metrics (fire and forget)
+      const responseTime = Date.now() - startTime;
+      ctx.waitUntil(
+        logRequestMetrics(request, response, responseTime, env, userId)
+      );
       
       // Add security headers to all responses
       response = addSecurityHeaders(response);
@@ -5242,6 +5301,11 @@ export default {
       
     } catch (error) {
       console.error('Worker initialization error:', error);
+      
+      // Log error to database (fire and forget)
+      ctx.waitUntil(
+        logError(error, request, env)
+      );
       
       // Provide more detailed error information
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

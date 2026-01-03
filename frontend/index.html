@@ -11,6 +11,35 @@
     <link rel="preconnect" href="https://pitchey-api-prod.cavelltheleaddev.workers.dev" crossorigin>
   </head>
   <body>
+    <!-- React 18 Compatibility Inline Patch -->
+    <script>
+      // Patch React before any modules load
+      (function() {
+        // Create a proxy for window.React
+        var _React;
+        Object.defineProperty(window, 'React', {
+          get: function() { return _React; },
+          set: function(value) {
+            _React = value;
+            if (value && typeof value === 'object') {
+              ['AsyncMode', 'unstable_AsyncMode', 'ConcurrentMode', 'unstable_ConcurrentMode'].forEach(function(prop) {
+                if (!(prop in value)) {
+                  try {
+                    Object.defineProperty(value, prop, {
+                      get: function() { return value.Fragment || function(p) { return p.children; }; },
+                      configurable: true
+                    });
+                  } catch(e) {
+                    value[prop] = value.Fragment;
+                  }
+                }
+              });
+            }
+          },
+          configurable: true
+        });
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
