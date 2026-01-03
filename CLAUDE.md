@@ -6,7 +6,7 @@ This file contains project-specific instructions and context for Claude Code.
 Pitchey is a comprehensive movie pitch platform that connects creators, investors, and production companies. The platform uses a modern edge-first serverless architecture powered entirely by Cloudflare Workers.
 
 ### Production Architecture
-- **Frontend**: Cloudflare Pages (https://pitchey-5o8.pages.dev)
+- **Frontend**: Cloudflare Pages (https://pitchey-5o8-66n.pages.dev)
 - **Backend API**: Cloudflare Workers (https://pitchey-api-prod.ndlovucavelle.workers.dev) - PRIMARY backend
 - **Database**: Neon PostgreSQL (raw SQL queries, no ORM)
   - Connection: `postgresql://neondb_owner:npg_YibeIGRuv40J@ep-old-snow-a9pr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require`
@@ -79,7 +79,7 @@ wrangler deploy
 - Worker Dev: http://localhost:8787 (wrangler dev)
 
 ### Production URLs
-- Frontend: https://pitchey-5o8.pages.dev
+- Frontend: https://pitchey-5o8-66n.pages.dev
 - API & WebSocket: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - WebSocket: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws
 
