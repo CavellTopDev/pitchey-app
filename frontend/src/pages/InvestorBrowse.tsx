@@ -96,7 +96,8 @@ export default function InvestorBrowse() {
         }
       });
 
-    const response = await fetch(`${API_URL}/api/endpoint`, {
+    // Use the correct browse endpoint with query parameters
+    const response = await fetch(`${API_URL}/api/browse?${params.toString()}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include' // Send cookies for Better Auth session

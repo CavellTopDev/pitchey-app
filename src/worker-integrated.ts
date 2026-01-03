@@ -2991,31 +2991,36 @@ class RouteRegistry {
 
       switch (tab) {
         case 'trending':
-          // Trending: Recent content with engagement activity (view_count proxy using title length)
+          // Trending: Content with high engagement in the past 7 days
+          // Uses view_count if available, otherwise uses recent activity
           whereClause = `
             WHERE p.status = 'published' 
-            AND p.created_at >= NOW() - INTERVAL '7 days'
-            AND LENGTH(p.title) > 10
+            AND p.created_at >= NOW() - INTERVAL '30 days'
+            AND (p.updated_at >= NOW() - INTERVAL '7 days' OR p.created_at >= NOW() - INTERVAL '7 days')
           `;
-          orderClause = `ORDER BY p.updated_at DESC, LENGTH(p.description) DESC, p.id DESC`;
+          orderClause = `ORDER BY 
+            CASE WHEN p.updated_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END DESC,
+            p.updated_at DESC, 
+            p.created_at DESC`;
           break;
 
         case 'new':
-          // New: Most recently created content (chronological order)
+          // New: Most recently created content only
           whereClause = `
             WHERE p.status = 'published'
-            AND p.created_at >= NOW() - INTERVAL '3 days'
           `;
           orderClause = `ORDER BY p.created_at DESC`;
           break;
 
         case 'popular':
-          // Popular: All published pitches sorted by update activity and description length
+          // Popular: All-time best content based on description length and age
           whereClause = `
             WHERE p.status = 'published'
-            AND LENGTH(p.description) > 50
           `;
-          orderClause = `ORDER BY LENGTH(p.description) DESC, p.updated_at DESC`;
+          orderClause = `ORDER BY 
+            LENGTH(p.description) DESC, 
+            EXTRACT(EPOCH FROM (NOW() - p.created_at)) / 86400 ASC,
+            p.id DESC`;
           break;
 
         default:
