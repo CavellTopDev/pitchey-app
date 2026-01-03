@@ -132,12 +132,10 @@ const ProductionPitchView: React.FC = () => {
             response = fullResponse; // Use the full data if available
           } catch (authError) {
             // Fall back to public data if authenticated request fails
-            console.log('Using public data, authenticated request failed:', authError);
           }
         }
       } catch (publicError) {
         // If public endpoint fails, try authenticated as fallback
-        console.log('Public endpoint failed, trying authenticated:', publicError);
         response = await pitchAPI.getById(parseInt(id!));
       }
       

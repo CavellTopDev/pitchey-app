@@ -278,7 +278,6 @@ export default function PitchEdit() {
       // Skip file uploads for now - media upload endpoint not yet implemented
       // TODO: Implement media upload endpoint in backend
       if (formData.image || formData.pdf || formData.video) {
-        console.log('Media files selected but upload not yet implemented');
         // Comment out media upload to prevent errors
         /*
         const media: string[] = [];
@@ -303,7 +302,6 @@ export default function PitchEdit() {
       }
 
       await pitchService.update(parseInt(id!), updateData);
-      console.log('Pitch updated successfully');
       navigate('/creator/pitches');
     } catch (error) {
       console.error('Error updating pitch:', error);

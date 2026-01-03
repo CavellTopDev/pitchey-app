@@ -41,8 +41,6 @@ export function EnhancedCreatorDashboard() {
               
               {/* Presence Status Selector */}
               <PresenceStatusSelector
-                onStatusChange={(status) => console.log('Status changed:', status)}
-                onActivityChange={(activity) => console.log('Activity changed:', activity)}
               />
             </div>
           </div>
@@ -101,8 +99,6 @@ export function EnhancedCreatorDashboard() {
             <UploadProgressList 
               position="relative"
               maxItems={3}
-              onCancel={(id) => console.log('Cancel upload:', id)}
-              onRetry={(id) => console.log('Retry upload:', id)}
             />
           </div>
         </div>
@@ -232,8 +228,6 @@ export function AutoSyncPitchEditor({ pitchId }: { pitchId: number }) {
     autoSaveInterval: 5000,
     conflictResolution: 'ask',
     validateContent: (content) => content?.title && content?.description,
-    onSave: (draft) => console.log('Draft saved:', draft),
-    onLoad: (draft) => console.log('Draft loaded:', draft),
     onError: (error) => console.error('Draft sync error:', error),
   });
 
@@ -473,7 +467,6 @@ export function EnhancedMessagesPage() {
                 value={message}
                 onChange={setMessage}
                 onSubmit={(msg) => {
-                  console.log('Send message:', msg);
                   setMessage('');
                 }}
                 placeholder="Type a message..."

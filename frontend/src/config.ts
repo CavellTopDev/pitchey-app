@@ -69,7 +69,6 @@ function createConfig(): AppConfig {
 
   // Log configuration in development
   if (config.IS_DEVELOPMENT) {
-    console.log('🔧 Environment Configuration:', {
       API_URL: API_URL,
       WS_URL: config.WS_URL,
       NODE_ENV: config.NODE_ENV,

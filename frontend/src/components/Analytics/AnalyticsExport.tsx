@@ -16,14 +16,12 @@ export const AnalyticsExport: React.FC<AnalyticsExportProps> = ({
 
   const exportToExcel = () => {
     // Temporarily disabled - xlsx library causing initialization errors
-    console.log('Excel export temporarily disabled');
     alert('Excel export temporarily unavailable');
     setMenuOpen(false);
   };
 
   const exportToPDF = async (chartRef: React.RefObject<HTMLDivElement>) => {
     // Temporarily disabled - html-to-image library causing initialization errors  
-    console.log('PDF export temporarily disabled');
     alert('PDF export temporarily unavailable');
     setMenuOpen(false);
   };

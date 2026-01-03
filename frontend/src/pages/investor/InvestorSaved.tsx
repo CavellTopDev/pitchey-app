@@ -262,7 +262,6 @@ export default function InvestorSaved() {
   const handleBulkAction = async (action: 'remove' | 'folder' | 'status') => {
     if (selectedPitches.length > 0) {
       // Simulate API call
-      console.log(`Performing ${action} on pitches:`, selectedPitches);
       setSelectedPitches([]);
     }
   };

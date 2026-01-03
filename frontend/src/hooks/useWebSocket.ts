@@ -45,13 +45,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const connect = useCallback(() => {
     // The WebSocketContext handles connection automatically
     // This is here for compatibility but does nothing
-    console.log('useWebSocket.connect() called - using WebSocketContext connection');
   }, []);
 
   const disconnect = useCallback(() => {
     // The WebSocketContext handles disconnection
     // This is here for compatibility but does nothing
-    console.log('useWebSocket.disconnect() called - WebSocketContext handles disconnection');
   }, []);
 
   const sendMessage = useCallback((message: WebSocketMessage) => {

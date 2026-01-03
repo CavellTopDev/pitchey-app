@@ -209,7 +209,6 @@ export default function NDAWorkflowManager({
   // Send notification (mock implementation)
   const sendNotification = (recipientId: number, title: string, message: string) => {
     // This would integrate with your notification system
-    console.log(`Notification to user ${recipientId}: ${title} - ${message}`);
     info('Notification Sent', message);
   };
 

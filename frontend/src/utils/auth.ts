@@ -46,7 +46,6 @@ export const validatePortalAccess = (userType: string | null, currentPath: strin
  * Comprehensive authentication state cleanup for portal switches
  */
 export const clearAuthenticationState = () => {
-  console.log('🔄 Clearing authentication state for portal switch...');
   
   // Clear localStorage - both namespaced and legacy
   const authKeys = [
@@ -76,14 +75,12 @@ export const clearAuthenticationState = () => {
   const event = new CustomEvent('auth:cleared');
   window.dispatchEvent(event);
   
-  console.log('✅ Authentication state cleared');
 };
 
 /**
  * Safe portal switching that prevents authentication conflicts
  */
 export const switchPortal = (targetPortal: 'creator' | 'investor' | 'production') => {
-  console.log(`🚀 Switching to ${targetPortal} portal...`);
   
   // Clear all auth state first
   clearAuthenticationState();
@@ -91,7 +88,6 @@ export const switchPortal = (targetPortal: 'creator' | 'investor' | 'production'
   // Add a small delay to ensure cleanup completes
   setTimeout(() => {
     const redirectPath = `/login/${targetPortal}`;
-    console.log(`➡️ Redirecting to ${redirectPath}`);
     window.location.replace(redirectPath);
   }, 100);
 };

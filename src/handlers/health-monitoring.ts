@@ -3,7 +3,7 @@
  * Provides comprehensive health checks for all services
  */
 
-import { createDatabase } from '../db/raw-sql-connection';
+import { WorkerDatabase } from '../services/worker-database';
 import { ApiResponseBuilder } from '../utils/api-response';
 
 interface HealthCheckResult {
@@ -61,15 +61,20 @@ export async function enhancedHealthHandler(
 
   // 1. Database health check
   try {
-    const db = createDatabase(env.DATABASE_URL);
+    const db = new WorkerDatabase({
+      connectionString: env.DATABASE_URL,
+      maxRetries: 3,
+      retryDelay: 1000
+    });
     const result = await Promise.race([
       db.query('SELECT 1 as health, COUNT(*) as connections FROM pg_stat_activity'),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Database timeout')), 5000))
     ]) as any;
     
-    if (result.rows && result.rows.length > 0) {
+    // Neon returns rows directly, not wrapped in a .rows property
+    if (result && result.length > 0) {
       healthStatus.checks.database = 'healthy';
-      healthStatus.metrics.activeConnections = parseInt(result.rows[0].connections) || 0;
+      healthStatus.metrics.activeConnections = parseInt(result[0].connections) || 0;
     } else {
       healthStatus.checks.database = 'unhealthy';
       errors.push('Database query returned no results');
@@ -154,7 +159,11 @@ export async function enhancedHealthHandler(
   // 5. Auth service health check
   try {
     // Check if Better Auth tables exist
-    const db = createDatabase(env.DATABASE_URL);
+    const db = new WorkerDatabase({
+      connectionString: env.DATABASE_URL,
+      maxRetries: 3,
+      retryDelay: 1000
+    });
     const authCheck = await db.query(`
       SELECT COUNT(*) as table_count 
       FROM information_schema.tables 
@@ -162,7 +171,8 @@ export async function enhancedHealthHandler(
       AND table_name IN ('users', 'sessions', 'accounts')
     `);
     
-    if (authCheck.rows[0].table_count >= 3) {
+    // Neon returns rows directly, not wrapped in a .rows property
+    if (authCheck && authCheck.length > 0 && authCheck[0].table_count >= 3) {
       healthStatus.checks.auth = 'healthy';
     } else {
       healthStatus.checks.auth = 'unhealthy';
@@ -214,7 +224,11 @@ export async function getErrorMetricsHandler(
   ctx: ExecutionContext
 ): Promise<Response> {
   try {
-    const db = createDatabase(env.DATABASE_URL);
+    const db = new WorkerDatabase({
+      connectionString: env.DATABASE_URL,
+      maxRetries: 3,
+      retryDelay: 1000
+    });
     
     // Get error metrics from the last 24 hours
     const errorMetrics = await db.query(`
@@ -275,17 +289,17 @@ export async function getErrorMetricsHandler(
     return ApiResponseBuilder.success({
       timestamp: new Date().toISOString(),
       errors: {
-        timeline: errorMetrics.rows,
-        critical: criticalErrors.rows
+        timeline: errorMetrics,
+        critical: criticalErrors
       },
-      performance: performanceMetrics.rows,
-      sessions: activeSessions.rows[0],
+      performance: performanceMetrics,
+      sessions: activeSessions[0],
       summary: {
-        totalErrors24h: errorMetrics.rows.reduce((sum: number, row: any) => 
+        totalErrors24h: errorMetrics.reduce((sum: number, row: any) => 
           sum + parseInt(row.error_count), 0),
-        avgResponseTime: performanceMetrics.rows.reduce((sum: number, row: any) => 
-          sum + parseFloat(row.avg_response_time), 0) / (performanceMetrics.rows.length || 1),
-        activeSessions: activeSessions.rows[0]?.total_sessions || 0
+        avgResponseTime: performanceMetrics.reduce((sum: number, row: any) => 
+          sum + parseFloat(row.avg_response_time), 0) / (performanceMetrics.length || 1),
+        activeSessions: activeSessions[0]?.total_sessions || 0
       }
     });
     
@@ -309,7 +323,11 @@ export async function logRequestMetrics(
   userId?: string
 ): Promise<void> {
   try {
-    const db = createDatabase(env.DATABASE_URL);
+    const db = new WorkerDatabase({
+      connectionString: env.DATABASE_URL,
+      maxRetries: 3,
+      retryDelay: 1000
+    });
     const url = new URL(request.url);
     
     await db.query(
@@ -340,7 +358,11 @@ export async function logError(
   userId?: string
 ): Promise<void> {
   try {
-    const db = createDatabase(env.DATABASE_URL);
+    const db = new WorkerDatabase({
+      connectionString: env.DATABASE_URL,
+      maxRetries: 3,
+      retryDelay: 1000
+    });
     const url = new URL(request.url);
     
     await db.query(

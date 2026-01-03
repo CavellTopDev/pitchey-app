@@ -75,15 +75,6 @@ export default function PitchDetail() {
   // Debug logging to see what's being compared
   useEffect(() => {
     if (pitch && user) {
-      console.log('=== SECURE OWNER CHECK DEBUG ===');
-      console.log('Pitch userId:', pitch.userId, 'Type:', typeof pitch.userId, 'IsNaN:', isNaN(Number(pitch.userId)));
-      console.log('Current User ID:', currentUserId, 'Type:', typeof currentUserId, 'IsNaN:', isNaN(Number(currentUserId)));
-      console.log('Pitch isOwner flag:', pitch.isOwner);
-      console.log('Pitch creator ID:', pitch.creator?.id);
-      console.log('Number comparison (userId):', Number(pitch.userId), '===', Number(currentUserId), '=', Number(pitch.userId) === Number(currentUserId));
-      console.log('Number comparison (creator.id):', Number(pitch.creator?.id), '===', Number(currentUserId), '=', Number(pitch.creator?.id) === Number(currentUserId));
-      console.log('SECURE Is Owner Result?', isOwner);
-      console.log('================================');
     }
   }, [pitch, user, currentUserId, isOwner]);
 

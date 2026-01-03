@@ -316,7 +316,6 @@ export default function Marketplace() {
     try {
       // Use the dedicated trending endpoint for proper trending data
       const trending = await pitchService.getTrendingPitches(20);
-      console.log('Loaded trending pitches:', trending.length);
       setTrendingPitches(trending);
     } catch (err) {
       console.error('Failed to load trending pitches:', err);
@@ -332,7 +331,6 @@ export default function Marketplace() {
             }
             return viewDiff;
           });
-          console.log('Fallback trending created:', trending.length, 'pitches');
           setTrendingPitches(trending.slice(0, 20));
         }
       } catch (fallbackErr) {
@@ -346,7 +344,6 @@ export default function Marketplace() {
     try {
       // Use the dedicated new releases endpoint for proper chronological data
       const newReleases = await pitchService.getNewReleases(20);
-      console.log('Loaded new releases:', newReleases.length);
       setNewPitches(newReleases);
     } catch (err) {
       console.error('Failed to load new pitches:', err);
@@ -358,7 +355,6 @@ export default function Marketplace() {
           const newReleases = [...pitchesData].sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
-          console.log('Fallback new releases created:', newReleases.length, 'pitches');
           setNewPitches(newReleases.slice(0, 20));
         }
       } catch (fallbackErr) {
@@ -371,7 +367,6 @@ export default function Marketplace() {
   const loadBrowsePitches = async () => {
     // Prevent multiple simultaneous requests
     if (browseLoading) {
-      console.log('Browse pitches already loading, skipping request');
       return;
     }
     
@@ -380,7 +375,6 @@ export default function Marketplace() {
       setLoading(true);
       const offset = (currentPage - 1) * itemsPerPage;
       
-      console.log('Loading browse pitches:', { sortBy, sortOrder, selectedGenre, selectedFormat, currentPage, offset });
       
       const result = await pitchService.getGeneralBrowse({
         sort: sortBy,
@@ -392,7 +386,6 @@ export default function Marketplace() {
         offset
       });
       
-      console.log('Browse pitches loaded successfully:', result.pitches?.length || 0, 'pitches');
       
       // Store browse results directly (no search filtering here - done in applyFilters)
       setBrowsePitches(result.pitches);

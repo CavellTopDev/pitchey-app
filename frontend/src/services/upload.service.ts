@@ -855,13 +855,11 @@ class UploadService {
   pauseUpload(uploadId: string): void {
     // Implementation for pausing uploads
     // This would work with chunked uploads
-    console.log('Pause upload:', uploadId);
   }
 
   resumeUpload(uploadId: string): void {
     // Implementation for resuming uploads
     // This would work with chunked uploads
-    console.log('Resume upload:', uploadId);
   }
 
   /**

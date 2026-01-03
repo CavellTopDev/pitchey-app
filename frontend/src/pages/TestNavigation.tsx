@@ -10,7 +10,6 @@ export default function TestNavigation() {
   };
 
   const handleLogout = () => {
-    console.log('Logout clicked');
   };
 
   return (

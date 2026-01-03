@@ -122,7 +122,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       case 'open':
         if (now >= breaker.nextAttemptTime) {
           breaker.state = 'half-open';
-          console.log('Circuit breaker: Transitioning to half-open state');
         }
         break;
       case 'half-open':
@@ -163,7 +162,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     const breaker = circuitBreakerRef.current;
     breaker.failureCount = 0;
     breaker.state = 'closed';
-    console.log('Circuit breaker: CLOSED after successful connection');
     
     // Clear persisted circuit breaker state
     if (opts.enablePersistence) {
@@ -320,7 +318,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     persistData();
     
     if (sent > 0) {
-      console.log(`Processed ${sent} queued messages`);
     }
   }, [isRateLimited, updateQueueStatus, persistData]);
   
@@ -328,7 +325,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
   const connect = useCallback(() => {
     // CRITICAL: WebSocket disabled on free tier - use polling instead
     if (!WEBSOCKET_ENABLED) {
-      console.log('WebSocket: Disabled on free tier - using polling for real-time updates');
       setConnectionStatus(prev => ({
         ...prev,
         connected: false,
@@ -342,7 +338,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     if (circuitState === 'open') {
       const breaker = circuitBreakerRef.current;
       const waitTime = Math.ceil((breaker.nextAttemptTime - Date.now()) / 1000);
-      console.log(`WebSocket: Circuit breaker OPEN - next attempt in ${waitTime}s`);
       setConnectionStatus(prev => ({
         ...prev,
         error: `Connection blocked by circuit breaker. Retry in ${waitTime}s`,
@@ -353,7 +348,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     if (wsRef.current && 
         (wsRef.current.readyState === WebSocket.CONNECTING || 
          wsRef.current.readyState === WebSocket.OPEN)) {
-      console.log('WebSocket: Connection already exists, skipping');
       return;
     }
     
@@ -361,29 +355,24 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     const lastAttempt = localStorage.getItem('pitchey_last_ws_attempt');
     const now = Date.now();
     if (lastAttempt && (now - parseInt(lastAttempt)) < 2000) { // Increased to 2 seconds
-      console.log('WebSocket: Rate limiting connection attempt (preventing bundling loop)');
       return;
     }
     localStorage.setItem('pitchey_last_ws_attempt', now.toString());
     
     const token = localStorage.getItem('authToken');
-    console.log('WebSocket: Auth token check:', token ? `${token.substring(0, 20)}...` : 'NULL');
     
     if (!token) {
-      console.log('WebSocket: No authentication token - will connect with limited functionality');
       // Don't return early - allow unauthenticated connections
     }
     
     const isDemoMode = localStorage.getItem('demoMode') === 'true';
     if (isDemoMode) {
-      console.log('WebSocket: Demo mode enabled, skipping connection');
       return;
     }
     
     // Check if WebSocket was manually disabled
     const isDisabled = localStorage.getItem('pitchey_websocket_disabled') === 'true';
     if (isDisabled) {
-      console.log('WebSocket: Manually disabled, skipping connection');
       return;
     }
     
@@ -403,17 +392,14 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       if (token) {
         // Primary method: Query parameter (most compatible)
         finalWsUrl = `${wsUrl}/ws?token=${token}`;
-        console.log(`WebSocket: Attempting connection with token auth to ${wsUrl}/ws`);
       } else {
         // Fallback: Connect without authentication (limited functionality)
         finalWsUrl = `${wsUrl}/ws`;
-        console.log(`WebSocket: Attempting unauthenticated connection to ${wsUrl}/ws`);
       }
       
       const ws = new WebSocket(finalWsUrl);
       
       ws.onopen = () => {
-        console.log('WebSocket: Connection opened successfully');
         
         // Record successful connection in circuit breaker
         recordCircuitBreakerSuccess();
@@ -421,7 +407,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         // If we have a token but connected without it (fallback scenario), 
         // try to authenticate via first message
         if (token && !finalWsUrl.includes('token=')) {
-          console.log('WebSocket: Attempting authentication via first message');
           try {
             ws.send(JSON.stringify({
               type: 'auth',
@@ -481,16 +466,13 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             // Connection health confirmed - no action needed
           } else if (message.type === 'connected') {
             // Handle connection confirmation with authentication status
-            console.log('WebSocket: Connection confirmed', message.data || message);
           } else if (message.type === 'auth_success') {
             // Authentication via first message succeeded
-            console.log('WebSocket: Authentication successful', message.data || message);
           } else if (message.type === 'auth_error') {
             // Authentication via first message failed
             console.warn('WebSocket: Authentication failed', message.data || message);
           } else if (message.type === 'auth_required') {
             // Operation requires authentication
-            console.info('WebSocket: Authentication required for operation', message.data || message);
           } else if (message.type === 'error') {
             // Handle structured error messages
             const errorMsg = message.data?.error || message.data?.message || message.data || 'Unknown error';
@@ -503,7 +485,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
                 errorMsg.toLowerCase().includes('analytics') || 
                 errorMsg.toLowerCase().includes('tracking') ||
                 errorMsg.toLowerCase().includes('analytics_events'))) {
-              console.debug('Backend analytics error (ignored):', errorMsg);
               return; // Silently ignore analytics errors
             }
             
@@ -539,7 +520,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       };
       
       ws.onclose = (event) => {
-        console.log(`WebSocket: Connection closed - Code: ${event.code}, Reason: "${event.reason}", Clean: ${event.wasClean}`);
         setConnectionStatus(prev => ({
           ...prev,
           connected: false,
@@ -569,7 +549,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         // Check circuit breaker before attempting reconnection
         const circuitState = checkCircuitBreakerState();
         if (circuitState === 'open') {
-          console.log('WebSocket: Circuit breaker OPEN - not attempting reconnection');
           setConnectionStatus(prev => ({
             ...prev,
             reconnecting: false,
@@ -593,7 +572,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             reconnectAttempts: attempt,
           }));
           
-          console.log(`WebSocket disconnected (code: ${event.code}). Attempting reconnect ${attempt}/${opts.maxReconnectAttempts} in ${delay}ms`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             opts.onReconnect(attempt);
@@ -634,13 +612,11 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         // Record failure in circuit breaker for connection errors
         if (ws.readyState === WebSocket.CONNECTING) {
           recordCircuitBreakerFailure();
-          console.log('WebSocket failed to connect - recorded in circuit breaker');
         }
         
         // Don't immediately set error state - let onclose handle reconnection logic
         // This prevents error loops when the server is unreachable
         if (ws.readyState === WebSocket.CONNECTING) {
-          console.log('WebSocket failed to connect - will attempt reconnect via onclose handler');
         }
         
         opts.onError(error);
@@ -763,7 +739,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       // Suppress browser extension message channel errors to prevent console spam
       if (event.reason?.message?.includes('message channel closed before a response was received')) {
-        console.debug('Browser extension message channel error suppressed:', event.reason.message);
         event.preventDefault();
         return;
       }
@@ -779,7 +754,6 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     const interval = setInterval(() => {
       const circuitState = checkCircuitBreakerState();
       if (circuitState === 'half-open' && !connectionStatus.connected && !connectionStatus.connecting) {
-        console.log('Circuit breaker: Auto-retry in half-open state');
         connect();
       }
     }, 30000); // Check every 30 seconds

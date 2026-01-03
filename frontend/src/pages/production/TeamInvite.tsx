@@ -187,7 +187,6 @@ export default function TeamInvite() {
   const handleResendInvitation = async (inviteId: string) => {
     try {
       // TODO: Implement resend functionality
-      console.log('Resending invitation:', inviteId);
       setSuccessMessage('Invitation resent successfully!');
     } catch (error) {
       console.error('Failed to resend invitation:', error);
@@ -198,7 +197,6 @@ export default function TeamInvite() {
   const handleCancelInvitation = async (inviteId: string) => {
     try {
       // TODO: Implement cancel functionality
-      console.log('Cancelling invitation:', inviteId);
       setPendingInvitations(prev => prev.filter(inv => inv.id !== inviteId));
       setSuccessMessage('Invitation cancelled successfully');
     } catch (error) {

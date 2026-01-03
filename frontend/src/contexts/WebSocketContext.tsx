@@ -212,15 +212,12 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         break;
       case 'connection':
         // Enhanced connection confirmation from real-time service
-        console.log('🔗 Connection confirmed by enhanced real-time service:', message.payload);
         break;
       case 'subscribed':
         // Channel subscription confirmation
-        console.log('📺 Subscribed to channel:', message.payload?.channelId);
         break;
       case 'unsubscribed':
         // Channel unsubscription confirmation
-        console.log('📴 Unsubscribed from channel:', message.payload?.channelId);
         break;
       case 'ping':
       case 'pong':
@@ -230,7 +227,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         break;
       case 'initial_data':
         // Handle initial data from server
-        console.log('📦 Initial data received:', message.data);
         // Store notifications if present
         if (message.data?.notifications && Array.isArray(message.data.notifications)) {
           setNotifications(message.data.notifications.map((n: any) => ({
@@ -246,7 +242,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       default:
         // Only log unhandled messages in development mode
         if (process.env.NODE_ENV === 'development') {
-          console.log('Unhandled WebSocket message type:', message.type, message);
         }
     }
   }
@@ -413,7 +408,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
           label: 'View Conversation',
           action: () => {
             // Navigate to conversation - this would be implemented based on your routing
-            console.log('Navigate to conversation:', chatData.conversationId);
           },
           type: 'primary'
         }]
@@ -439,7 +433,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   }
   
   function handleConnect() {
-    console.log('🟢 WebSocket connected with enhanced real-time service');
     setUsingFallback(false); // We're now using WebSocket successfully
     
     // Update presence to online when connected
@@ -485,11 +478,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       },
     });
     
-    console.log('📡 Enhanced WebSocket connection established and subscriptions made');
   }
   
   function handleDisconnect() {
-    console.log('🔴 WebSocket disconnected - checking for graceful fallback');
     
     // Update local state to reflect disconnection
     setOnlineUsers(prev => prev.filter(user => user.userId !== user?.id));
@@ -505,7 +496,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         
         // Start enhanced polling service when WebSocket consistently fails
         if (isAuthenticated) {
-          console.log('🔄 Starting enhanced polling service due to WebSocket failure');
           pollingService.start();
           presenceFallbackService.start();
         }
@@ -513,7 +503,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     } else if (recentAttempts >= 2) {
       // Enable fallback sooner but don't disable WebSocket completely
       if (!usingFallback) {
-        console.log('🔄 Starting polling fallback while WebSocket retries');
         setUsingFallback(true);
         pollingService.start();
       }
@@ -554,7 +543,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       });
     } else {
       // Use fallback service
-      console.log('Using fallback presence update');
       await presenceFallbackService.updatePresence({ status, activity });
     }
   }, [sendMessage, isConnected, usingFallback]);
@@ -653,8 +641,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     
     // If user type changed, we're switching portals - disconnect WebSocket to prevent conflicts
     if (previousUserType.current && currentUserType && previousUserType.current !== currentUserType) {
-      console.log(`Portal switch detected: ${previousUserType.current} → ${currentUserType}`);
-      console.log('Disconnecting WebSocket to prevent cross-portal authentication conflicts...');
       disconnect();
       
       // Clear all real-time data for portal switch
@@ -675,7 +661,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       // Allow time for cleanup before reconnecting
       setTimeout(() => {
         if (isAuthenticated && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
-          console.log(`Reconnecting WebSocket for new portal: ${currentUserType}`);
           connect();
         }
       }, 1000);
@@ -684,10 +669,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     previousUserType.current = currentUserType;
     
     if (isAuthenticated && !isConnected && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
-      console.log('User authenticated, connecting WebSocket...');
       connect();
     } else if (!isAuthenticated && isConnected) {
-      console.log('User logged out, disconnecting WebSocket...');
       disconnect();
       // Clear all real-time data when user logs out
       setNotifications([]);
@@ -706,7 +689,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     } else if (isAuthenticated && (isWebSocketDisabled || !config.WEBSOCKET_ENABLED)) {
       // Start fallback service if WebSocket is disabled but user is authenticated
       if (!usingFallback) {
-        console.log('Starting fallback services - WebSocket disabled');
         setUsingFallback(true);
         
         // Start presence fallback service
@@ -721,7 +703,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         });
         
         // Start polling service for notifications and real-time updates
-        console.log('🔄 Starting polling service for notifications');
         pollingService.start();
         
         // Add message handler for polling responses
@@ -732,14 +713,12 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   
   // Emergency control functions
   const disableWebSocket = useCallback(() => {
-    console.log('WebSocket manually disabled - stopping all connections');
     setIsWebSocketDisabled(true);
     disconnect();
     localStorage.setItem('pitchey_websocket_disabled', 'true');
   }, [disconnect]);
 
   const enableWebSocket = useCallback(() => {
-    console.log('WebSocket manually enabled - allowing connections');
     setIsWebSocketDisabled(false);
     localStorage.removeItem('pitchey_websocket_disabled');
     if (isAuthenticated && config.WEBSOCKET_ENABLED) {
@@ -763,10 +742,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       
       if (detectedTime < fiveMinutesAgo) {
         localStorage.removeItem('pitchey_websocket_loop_detected');
-        console.log('WebSocket loop detection expired - allowing reconnection');
       } else {
         setIsWebSocketDisabled(true);
-        console.log('WebSocket loop recently detected - keeping disabled');
       }
     }
   }, []);
@@ -776,7 +753,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     if ('Notification' in window && Notification.permission === 'default') {
       try {
         const permission = await Notification.requestPermission();
-        console.log('Notification permission:', permission);
         return permission;
       } catch (error) {
         console.warn('Failed to request notification permission:', error);

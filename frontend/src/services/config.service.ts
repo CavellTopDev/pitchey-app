@@ -118,7 +118,6 @@ class ConfigService {
       
       if (response.success && response.data) {
         this.config = response.data;
-        console.log('Configuration loaded from API:', this.config);
         return this.config;
       }
 
@@ -159,7 +158,6 @@ class ConfigService {
       };
 
       this.config = config;
-      console.log('Configuration loaded individually from API:', this.config);
       return this.config;
 
     } catch (error) {
@@ -170,7 +168,6 @@ class ConfigService {
 
   private useFallbackConfig(): ConfigurationData {
     this.config = { ...FALLBACK_CONFIG };
-    console.log('Using fallback configuration:', this.config);
     return this.config;
   }
 

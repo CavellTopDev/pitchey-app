@@ -342,7 +342,6 @@ export function ProductListingExperiment() {
         }
       }}
       onVariantSelected={(variantId, config) => {
-        console.log(`User assigned to variant: ${variantId}`, config);
       }}
     >
       <Variant variantId="control">
@@ -460,7 +459,6 @@ export function ExperimentResultsDashboard({ experimentId }: { experimentId: num
     {
       refreshInterval: 30000, // Fallback refresh every 30 seconds
       onSignificantResult: (results) => {
-        console.log('🎉 Experiment reached significance!', results);
         // Show notification or alert
       }
     }

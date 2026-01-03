@@ -5,18 +5,12 @@ const API_URL = window.API_URL || 'http://localhost:8001';
 
 // Check current auth state
 function checkAuth() {
-  console.log('=== AUTH DEBUG ===');
-  console.log('authToken:', localStorage.getItem('authToken'));
-  console.log('token:', localStorage.getItem('token'));
-  console.log('user:', localStorage.getItem('user'));
   
   const user = localStorage.getItem('user');
   if (user) {
     try {
       const userData = JSON.parse(user);
-      console.log('User data:', userData);
     } catch (e) {
-      console.log('Failed to parse user data');
     }
   }
 }
@@ -24,7 +18,6 @@ function checkAuth() {
 // Set auth token manually (for testing)
 function setAuthToken(token) {
   localStorage.setItem('authToken', token);
-  console.log('Auth token set successfully');
 }
 
 // Login and set token
@@ -43,8 +36,6 @@ async function quickLogin() {
     if (data.success && data.token) {
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      console.log('Login successful! Token stored.');
-      console.log('Now refresh the portfolio page.');
       return data.token;
     } else {
       console.error('Login failed:', data);
@@ -61,7 +52,3 @@ window.authDebug = {
   login: quickLogin
 };
 
-console.log('Auth debug tools loaded. Use:');
-console.log('- authDebug.check() to check current auth state');
-console.log('- authDebug.login() to login and store token');
-console.log('- authDebug.setToken(token) to manually set token');

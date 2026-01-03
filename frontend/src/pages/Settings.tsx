@@ -97,7 +97,6 @@ export default function Settings() {
       
       if (response.ok) {
         // Show success message
-        console.log('Settings saved successfully');
       } else {
         // Show error message
         console.error('Failed to save settings');

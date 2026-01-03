@@ -141,11 +141,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: (navigateToLogin = true) => {
-    console.log('🔴 Logout initiated in authStore (Better Auth)');
     
     // Get current user type before clearing state
     const currentUserType = localStorage.getItem('userType');
-    console.log('Current user type:', currentUserType);
     
     // Clear authentication state first
     set({ user: null, isAuthenticated: false, loading: false, error: null });
@@ -167,7 +165,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                        currentUserType === 'investor' ? '/login/investor' :
                        currentUserType === 'production' ? '/login/production' : '/';
       
-      console.log('🔄 Redirecting to:', loginPath);
       
       // Add a small delay to ensure state cleanup completes
       setTimeout(() => {

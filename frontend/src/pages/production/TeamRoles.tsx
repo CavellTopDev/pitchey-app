@@ -180,7 +180,6 @@ export default function TeamRoles() {
   const handleSaveRole = async (roleData: Partial<Role>) => {
     try {
       // TODO: Replace with actual API call
-      console.log('Saving role:', roleData);
       setSuccessMessage('Role saved successfully!');
       setEditingRole(null);
       setShowCreateRole(false);
@@ -198,7 +197,6 @@ export default function TeamRoles() {
 
     try {
       // TODO: Replace with actual API call
-      console.log('Deleting role:', roleId);
       setRoles(prev => prev.filter(role => role.id !== roleId));
       setSuccessMessage('Role deleted successfully!');
     } catch (error) {

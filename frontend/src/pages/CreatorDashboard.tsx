@@ -51,16 +51,13 @@ function CreatorDashboard() {
       try {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
-        console.log('User data loaded from localStorage:', parsedUser);
       } catch (e) {
         console.error('Failed to parse user data:', e);
       }
     } else if (authUser) {
       // Fallback to auth store user if localStorage doesn't have it
       setUser(authUser);
-      console.log('User data loaded from auth store:', authUser);
     } else {
-      console.log('No user data found in localStorage or auth store');
     }
     
     fetchDashboardData();
@@ -188,7 +185,6 @@ function CreatorDashboard() {
   };
 
   const handleLogout = () => {
-    console.log('Logout button clicked - initiating logout');
     logout(); // This will automatically clear storage and navigate to appropriate login page
   };
 

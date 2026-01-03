@@ -184,15 +184,12 @@ export default function ProductionSubmissionsShortlisted() {
   const genres = ['all', ...new Set(submissions.map(s => s.genre))];
 
   const handleApprove = (submissionId: string) => {
-    console.log('Approving shortlisted submission:', submissionId);
   };
 
   const handleReject = (submissionId: string) => {
-    console.log('Removing from shortlist:', submissionId);
   };
 
   const handleStartProduction = (submissionId: string) => {
-    console.log('Starting production for:', submissionId);
   };
 
   const getMarketPotentialColor = (potential: string) => {

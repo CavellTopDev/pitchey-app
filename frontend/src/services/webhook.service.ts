@@ -399,7 +399,6 @@ app.post('/webhook', (req, res) => {
   }
   
   const event = JSON.parse(payload);
-  console.log('Received event:', event.event_type);
   
   // Process your event here
   // ...
@@ -408,7 +407,6 @@ app.post('/webhook', (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log('Webhook server listening on port 3000');
 });`;
 
       case 'python':

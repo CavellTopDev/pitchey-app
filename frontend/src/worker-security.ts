@@ -541,6 +541,5 @@ export default {
     
     // Generate security report
     const metrics = SecurityMonitor.getMetrics();
-    console.log('Daily Security Metrics:', metrics);
   }
 };

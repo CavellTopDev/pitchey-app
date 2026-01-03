@@ -191,7 +191,6 @@ const InvestorWallet = () => {
       const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
-        console.log('Wallet WebSocket connected');
         toast.success('Real-time updates enabled');
       };
       
@@ -205,7 +204,6 @@ const InvestorWallet = () => {
       };
       
       ws.onclose = () => {
-        console.log('Wallet WebSocket disconnected');
         // Attempt to reconnect after 5 seconds
         setTimeout(() => setupWebSocketConnection(), 5000);
       };
@@ -235,7 +233,6 @@ const InvestorWallet = () => {
         handleROIDistribution(data);
         break;
       default:
-        console.log('Unknown real-time update:', data);
     }
   };
 

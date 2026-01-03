@@ -483,7 +483,6 @@ export default function ProductionPitchDetail() {
                   }}
                   onDownload={(item) => {
                     // In production, this would trigger a download
-                    console.log('Downloading:', item);
                   }}
                 />
               )}

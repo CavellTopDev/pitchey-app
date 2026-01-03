@@ -37,18 +37,15 @@ export class WorkerDatabase {
     
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
-        // The neon() function returns an object with a query method for parameterized queries
-        // For queries with $1, $2 placeholders, use the query method
         let result: any[];
         
+        // Use Neon's correct API based on the error message guidance
         if (values && values.length > 0) {
-          // For parameterized queries with $1, $2, etc.
-          // @ts-ignore - TypeScript doesn't recognize the query method
-          result = await this.sql.query(text, values);
+          // For parameterized queries with $1, $2, etc., use sql.query()
+          result = await (this.sql as any).query(text, values);
         } else {
-          // For queries without parameters, also use query method with empty array
-          // @ts-ignore - TypeScript doesn't recognize the query method
-          result = await this.sql.query(text, []);
+          // For queries without parameters, can also use sql.query()
+          result = await (this.sql as any).query(text);
         }
         
         return result as T[];

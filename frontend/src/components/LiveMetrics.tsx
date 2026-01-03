@@ -179,7 +179,6 @@ export function LiveMetrics({
     if (!isConnected && refreshInterval > 0) {
       const interval = setInterval(() => {
         // This would typically trigger a manual refresh of metrics
-        console.log('Auto-refreshing metrics (WebSocket disconnected)');
       }, refreshInterval);
 
       return () => clearInterval(interval);

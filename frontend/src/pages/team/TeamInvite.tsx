@@ -192,7 +192,6 @@ export default function TeamInvite() {
         setSubmitting(false);
         
         // Show success message (you can implement a toast notification)
-        console.log('Invitation sent successfully!');
       }, 1500);
     } catch (error) {
       console.error('Failed to send invitation:', error);
@@ -203,13 +202,11 @@ export default function TeamInvite() {
   const handleBulkInvite = () => {
     const emails = bulkEmails.split('\n').filter(email => email.trim());
     // Process bulk invitations
-    console.log('Bulk inviting:', emails);
     setBulkEmails('');
     setShowBulkInvite(false);
   };
 
   const handleResendInvitation = (inviteId: string) => {
-    console.log('Resending invitation:', inviteId);
     // Implement resend logic
   };
 

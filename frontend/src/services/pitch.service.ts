@@ -262,7 +262,6 @@ export class PitchService {
 
   // Delete a pitch
   static async delete(id: number): Promise<void> {
-    console.log(`🗑️ Attempting to delete pitch ${id}`);
     
     try {
       const response = await apiClient.delete<{ success: boolean; message?: string }>(
@@ -274,7 +273,6 @@ export class PitchService {
         throw new Error(response.error?.message || 'Failed to delete pitch');
       }
       
-      console.log(`✅ Pitch ${id} deleted successfully`);
       
       // Trigger a WebSocket event if connected
       if ((window as any).websocketService?.isConnected()) {
@@ -396,7 +394,6 @@ export class PitchService {
       // The apiClient returns the whole response as data, so we need to check response.data.data
       const responseData = response.data as any;
       const pitches = responseData?.data || responseData?.items || responseData || [];
-      console.log('Trending pitches received:', pitches);
       
       // Ensure we always return an array
       return Array.isArray(pitches) ? pitches : [];
@@ -454,7 +451,6 @@ export class PitchService {
       // The apiClient returns the whole response as data, so we need to check response.data.data
       const responseData = response.data as any;
       const pitches = responseData?.data || responseData?.items || responseData || [];
-      console.log('New releases received:', pitches);
       
       // Ensure we always return an array
       return Array.isArray(pitches) ? pitches : [];

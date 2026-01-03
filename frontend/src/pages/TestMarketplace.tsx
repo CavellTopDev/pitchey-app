@@ -16,15 +16,11 @@ export default function TestMarketplace() {
       setLoading(true);
       setError(null);
       
-      console.log('🧪 TEST: Loading pitches from pitch service...');
       const { pitches: pitchesData } = await pitchService.getPublicPitches();
-      console.log('🧪 TEST: Received pitches:', pitchesData?.length);
       
       if (pitchesData) {
         const stellarPitches = pitchesData.filter(p => p.creator?.username === 'stellarproduction');
-        console.log('🧪 TEST: Stellar pitches found:', stellarPitches.length);
         stellarPitches.forEach(pitch => {
-          console.log(`🧪 TEST: - ${pitch.title} by ${pitch.creator?.username}`);
         });
       }
       

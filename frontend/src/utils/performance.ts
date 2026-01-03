@@ -50,7 +50,6 @@ export const reportWebVitals = (metric: Metric) => {
   if (import.meta.env.DEV) {
     const color = metric.rating === 'good' ? 'green' : 
                   metric.rating === 'needs-improvement' ? 'orange' : 'red'
-    console.log(
       `%c[${metric.name}] ${metric.value.toFixed(2)}ms (${metric.rating})`,
       `color: ${color}; font-weight: bold`
     )
@@ -133,7 +132,6 @@ export const performanceMeasure = (
       const lastEntry = entries[entries.length - 1]
       
       if (lastEntry && import.meta.env.DEV) {
-        console.log(`[Performance] ${measureName}: ${lastEntry.duration.toFixed(2)}ms`)
       }
       
       return lastEntry?.duration
@@ -280,7 +278,6 @@ export const initPerformanceMonitoring = () => {
     window.addEventListener('load', () => {
       setTimeout(() => {
         const stats = getBundleStats()
-        console.log('[Bundle Stats]', {
           ...stats,
           totalSize: `${(stats.totalSize / 1024).toFixed(2)} KB`,
           jsSize: `${(stats.jsSize / 1024).toFixed(2)} KB`,

@@ -287,7 +287,6 @@ export function ProductionPipelineExample() {
 
   const handleUpdate = (updatedItems: PipelineItem[]) => {
     setPipelineItems(updatedItems);
-    console.log('Pipeline updated:', updatedItems);
   };
 
   return (

@@ -30,7 +30,6 @@ export default function ComingSoon() {
     e.preventDefault();
     if (email) {
       // In a real app, this would send to an API
-      console.log('Subscribing email:', email);
       setSubscribed(true);
       
       // Reset after 3 seconds

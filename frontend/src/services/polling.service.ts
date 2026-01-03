@@ -38,11 +38,9 @@ class PollingService {
 
   public start(): void {
     if (this.isActive) {
-      console.log('Polling service already active');
       return;
     }
 
-    console.log('🔄 Starting polling service');
     this.isActive = true;
     
     // Start polling for each endpoint
@@ -52,7 +50,6 @@ class PollingService {
   }
 
   public stop(): void {
-    console.log('🛑 Stopping polling service');
     this.isActive = false;
     
     // Clear all intervals
@@ -225,7 +222,6 @@ class PollingService {
       });
     } else {
       // Restart with backoff
-      console.log(`Restarting polling for ${endpoint} with backoff (attempt ${retryCount})`);
       this.startPolling(endpoint);
     }
   }

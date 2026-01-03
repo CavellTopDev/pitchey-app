@@ -96,15 +96,12 @@ const Following: React.FC = () => {
       }
 
       const result = await response.json();
-      console.log('Following API response:', result);
-      console.log('Active tab:', activeTab);
       
       if (result.success) {
         // Handle different response formats based on the tab
         if (activeTab === 'activity') {
           // For activity tab, the API returns activities directly at root level
           const activities = result.activities || [];
-          console.log('Setting activities:', activities);
           setData(activities);
         } else if (activeTab === 'followers') {
           setData(result.data?.followers || result.followers || result.data || []);
@@ -152,7 +149,6 @@ const Following: React.FC = () => {
 
   const renderActivityTab = () => {
     const activities = data as ActivityUpdate[];
-    console.log('Rendering activity tab with activities:', activities);
     
     return (
       <div className="space-y-6">

@@ -42,7 +42,6 @@ export default function Analytics() {
     // Check for auth token
     const token = localStorage.getItem('authToken');
     if (!token) {
-      console.log('No auth token found. Please login first.');
       // For debugging - auto-login if no token
       quickLogin();
     } else {
@@ -63,7 +62,6 @@ export default function Analytics() {
       if (data.success && data.token) {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        console.log('Auto-login successful, fetching analytics...');
         fetchAnalytics();
       }
     } catch (err) {
@@ -101,8 +99,6 @@ export default function Analytics() {
           userResponse.json()
         ]);
         
-        console.log('Dashboard analytics response:', dashboardResult);
-        console.log('User analytics response:', userResult);
         
         // Combine the data from both endpoints
         const combinedData = {
@@ -113,7 +109,6 @@ export default function Analytics() {
           timeRange: preset
         };
         
-        console.log('Combined analytics data:', combinedData);
         setAnalyticsData(combinedData);
       } else {
         console.error('Analytics request failed:', dashboardResponse.status, userResponse.status);

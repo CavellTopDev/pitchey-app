@@ -419,7 +419,6 @@ function ProductionDashboard() {
           setAnalytics(analyticsData.analytics);
         }
         // Show success message
-        console.log('NDA request approved successfully');
       } else {
         console.error('Failed to approve NDA request:', result?.error || 'Unknown error');
       }
@@ -435,7 +434,6 @@ function ProductionDashboard() {
         // Remove from pending requests
         setIncomingNDARequests(prev => prev.filter(r => r.id !== request.id));
         // Show rejection message
-        console.log('NDA request rejected');
       } else {
         console.error('Failed to reject NDA request:', result?.error || 'Unknown error');
       }
@@ -467,7 +465,6 @@ function ProductionDashboard() {
       });
 
       // In production, this would upload to the server
-      console.log('Uploading media for pitch:', selectedPitchForMedia.id);
       
       // Update the pitch's media files locally
       setMyPitches(prev => prev.map(pitch => {
@@ -595,7 +592,6 @@ function ProductionDashboard() {
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
-    console.log('Smart upload initiated for files:', fileArray.map(f => f.name));
 
     for (const file of fileArray) {
       // Validate file
@@ -612,7 +608,6 @@ function ProductionDashboard() {
 
       // Smart categorization based on filename
       const smartCategory = detectSmartCategory(file.name);
-      console.log(`Smart categorization for ${file.name}: ${smartCategory}`);
       
       // Show analysis notification
       alert(`📁 Smart Upload: "${file.name}" categorized as ${smartCategory}.\n\n🔍 AI Analysis:\n• Format validation: ✓\n• Content type: Detected\n• Processing recommendation: Approved`);
@@ -1188,7 +1183,6 @@ function ProductionDashboard() {
                 <div className="flex gap-3">
                   <select 
                     className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                    onChange={(e) => console.log('Sort by:', e.target.value)}
                   >
                     <option value="recent">Most Recent</option>
                     <option value="popular">Most Popular</option>
@@ -1197,7 +1191,6 @@ function ProductionDashboard() {
                   </select>
                   <select
                     className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                    onChange={(e) => console.log('Filter by:', e.target.value)}
                   >
                     <option value="all">All Content</option>
                     <option value="new">New This Week</option>
@@ -1639,7 +1632,6 @@ function ProductionDashboard() {
                 description="Others who have signed NDAs to access your pitches"
                 emptyMessage="No one has signed NDAs for your pitches yet"
                 onViewPitch={(pitchId) => navigate(`/production/pitch/${pitchId}`)}
-                onDownloadNDA={(nda) => console.log('Download NDA:', nda)}
               />
 
               {/* 3. Your Signed NDAs - Pitches you have access to */}
@@ -1663,7 +1655,6 @@ function ProductionDashboard() {
                 description="Pitches you've signed NDAs to access"
                 emptyMessage="You haven't signed any NDAs yet"
                 onViewPitch={(pitchId) => navigate(`/production/pitch/${pitchId}`)}
-                onDownloadNDA={(nda) => console.log('Download NDA:', nda)}
               />
 
               {/* 4. Your Outgoing NDA Requests - Your pending requests */}

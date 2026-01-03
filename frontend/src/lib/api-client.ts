@@ -127,7 +127,6 @@ class ApiClient {
         credentials: 'include', // Enable cookies for all requests
       };
 
-      console.log(`API Request: ${options.method || 'GET'} ${url}`);
       
       const response = await fetch(url, fetchOptions);
       
@@ -146,7 +145,6 @@ class ApiClient {
       
       const responseText = await response.text();
       
-      console.log(`API Response: ${response.status || 'unknown'} ${response.statusText || 'unknown'}`);
       
       // Handle non-JSON responses
       if (!response.headers.get('content-type')?.includes('application/json')) {
@@ -223,7 +221,6 @@ class ApiClient {
       
       // Retry logic for network errors
       if (retryCount < this.maxRetries && this.isRetryableError(error)) {
-        console.log(`Retrying request (${retryCount + 1}/${this.maxRetries}) after ${this.retryDelay}ms`);
         await this.delay(this.retryDelay * (retryCount + 1)); // Exponential backoff
         return this.makeRequest<T>(endpoint, options, retryCount + 1);
       }

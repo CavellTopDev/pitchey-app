@@ -631,22 +631,18 @@ export class IncidentResponse {
   }
   
   private static lockAccounts(userIds: string[]): void {
-    console.log('Locking accounts:', userIds);
     // Implementation would call backend API
   }
   
   private static lockAccount(userId: string): void {
-    console.log('Locking account:', userId);
     // Implementation would call backend API
   }
   
   private static increaseRateLimits(): void {
-    console.log('Increasing rate limits');
     // Implementation would update rate limiting configuration
   }
   
   private static quarantineFiles(files: string[]): void {
-    console.log('Quarantining files:', files);
     // Implementation would move files to quarantine
   }
 }

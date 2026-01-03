@@ -191,19 +191,15 @@ export default function ProductionSubmissionsRejected() {
   const genres = ['all', ...new Set(submissions.map(s => s.genre))];
 
   const handleReconsider = (submissionId: string) => {
-    console.log('Reconsidering submission:', submissionId);
   };
 
   const handleArchive = (submissionId: string) => {
-    console.log('Archiving rejected submission:', submissionId);
   };
 
   const handleDelete = (submissionId: string) => {
-    console.log('Permanently deleting submission:', submissionId);
   };
 
   const handleSendFeedback = (submissionId: string) => {
-    console.log('Sending additional feedback for:', submissionId);
   };
 
   const getRejectionCategoryColor = (category: string) => {

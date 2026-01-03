@@ -36,12 +36,10 @@ export default function DashboardHeader({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   // Debug logging
-  console.log('DashboardHeader render:', { useEnhancedNav, userType, user });
 
   // Use enhanced navigation for better dropdown experience
   // FORCE enhanced navigation to always render for testing
   if (true || useEnhancedNav) {
-    console.log('Rendering EnhancedNavigationShadcn');
     return (
       <>
         <EnhancedNavigationShadcn

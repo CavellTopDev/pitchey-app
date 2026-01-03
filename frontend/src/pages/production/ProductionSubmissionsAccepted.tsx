@@ -205,11 +205,9 @@ export default function ProductionSubmissionsAccepted() {
   };
 
   const handleManageProduction = (submissionId: string) => {
-    console.log('Managing production for:', submissionId);
   };
 
   const handleViewContract = (submissionId: string) => {
-    console.log('Viewing contract for:', submissionId);
   };
 
   const getProductionStatusColor = (status: string) => {

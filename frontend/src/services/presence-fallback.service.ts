@@ -34,11 +34,9 @@ class PresenceFallbackService {
    */
   start(): void {
     if (this.isPolling) {
-      console.log('Presence fallback service already running');
       return;
     }
 
-    console.log('Starting presence fallback service with HTTP polling');
     this.isPolling = true;
     this.currentStatus = 'online';
 
@@ -58,7 +56,6 @@ class PresenceFallbackService {
    * Stop presence polling and heartbeat
    */
   stop(): void {
-    console.log('Stopping presence fallback service');
     this.isPolling = false;
     this.currentStatus = 'offline';
 
@@ -102,7 +99,6 @@ class PresenceFallbackService {
       if (result.success) {
         this.currentStatus = data.status;
         this.currentActivity = data.activity;
-        console.log('Presence updated successfully:', data);
         return true;
       } else {
         console.warn('Presence update failed:', result.message);

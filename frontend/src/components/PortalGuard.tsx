@@ -25,7 +25,6 @@ export const PortalGuard: React.FC<PortalGuardProps> = ({ children, requiredPort
 
     if (!validation.isValidPortal && userType && userType !== requiredPortal) {
       console.warn(`🚨 Portal mismatch detected: ${userType} user on ${requiredPortal} portal`);
-      console.log(`🔄 Redirecting to correct portal: ${validation.expectedPortal}`);
       
       // Clear auth state and redirect to correct portal
       logout(false); // Don't auto-navigate

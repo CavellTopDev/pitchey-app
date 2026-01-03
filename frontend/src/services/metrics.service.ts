@@ -255,7 +255,6 @@ class MetricsService {
     this.ws = new WebSocket(`${wsUrl}/ws/metrics`);
 
     this.ws.onopen = () => {
-      console.log('Connected to metrics WebSocket');
       this.ws?.send(JSON.stringify({ type: 'subscribe', metrics: ['all'] }));
     };
 
@@ -273,7 +272,6 @@ class MetricsService {
     };
 
     this.ws.onclose = () => {
-      console.log('WebSocket disconnected, reconnecting in 5s...');
       setTimeout(() => this.connectWebSocket(), 5000);
     };
   }

@@ -31,7 +31,6 @@ export default function InvestorDashboardDebug() {
   // Phase 8: Add EnhancedInvestorAnalytics
 
   useEffect(() => {
-    console.log(`🧪 DASHBOARD DEBUG - Phase ${testPhase}`);
     
     // Simulate basic data loading
     setTimeout(() => {

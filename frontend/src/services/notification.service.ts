@@ -55,7 +55,6 @@ export class NotificationService {
         }
       });
     } catch (error) {
-      console.log('Sound files not available, running in silent mode');
     }
   }
 
@@ -76,7 +75,6 @@ export class NotificationService {
   async showNotification(options: NotificationOptions): Promise<void> {
     // Check if we have permission
     if (this.permission !== 'granted') {
-      console.log('Notification permission not granted');
       return;
     }
 
@@ -156,11 +154,9 @@ export class NotificationService {
       if (sound) {
         sound.currentTime = 0;
         sound.play().catch(error => {
-          console.log('Could not play notification sound:', error);
         });
       }
     } catch (error) {
-      console.log('Sound playback failed:', error);
     }
   }
 

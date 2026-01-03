@@ -22,7 +22,6 @@ export function useSentryPortal(config: SentryPortalConfig) {
   useEffect(() => {
     // Set user context - temporarily disabled
     if (user) {
-      console.debug('Sentry user context (disabled):', {
         id: String(user.id),
         email: user.email,
         username: user.username,
@@ -41,13 +40,11 @@ export function useSentryPortal(config: SentryPortalConfig) {
     });
 
     // Add breadcrumb for navigation - temporarily disabled
-    console.debug(`Portal navigation: Entered ${componentName} in ${portalType} portal`);
 
     // Start performance transaction if enabled - temporarily disabled
     let transaction: any | undefined;
     
     if (trackPerformance) {
-      console.debug('Performance tracking disabled:', `${portalType}.${componentName}`);
     }
 
     // Store portal activity for error context
@@ -62,7 +59,6 @@ export function useSentryPortal(config: SentryPortalConfig) {
       }
 
       // Add breadcrumb for leaving component - temporarily disabled
-      console.debug(`Portal navigation: Left ${componentName} in ${portalType} portal`);
     };
   }, [portalType, componentName, user, trackPerformance]);
 
@@ -86,7 +82,6 @@ export function useSentryPortal(config: SentryPortalConfig) {
 
   // Track custom events - temporarily disabled
   const trackEvent = (eventName: string, data?: Record<string, any>) => {
-    console.debug(`Portal event: ${eventName}`, {
       portal: portalType,
       component: componentName,
       ...data

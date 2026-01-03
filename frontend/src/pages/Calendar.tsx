@@ -77,7 +77,6 @@ export default function Calendar() {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Calendar API response:', data);
         
         // Handle the response structure - it's wrapped in data property
         const eventsArray = data.data?.events || data.events || [];
@@ -85,8 +84,6 @@ export default function Calendar() {
         // Filter out any null/undefined events
         const validEvents = eventsArray.filter(event => event && event.date);
         
-        console.log('Valid events loaded:', validEvents);
-        console.log('Events for current month:', validEvents.map(e => ({
           title: e.title,
           date: e.date
         })));
@@ -118,7 +115,6 @@ export default function Calendar() {
       }
       
       // Log the values for debugging
-      console.log('Creating event with:', {
         date: newEvent.date,
         time: newEvent.time,
         title: newEvent.title
@@ -131,7 +127,6 @@ export default function Calendar() {
       
       // Combine date and time with proper validation
       const dateTimeString = `${newEvent.date}T${timeWithSeconds}`;
-      console.log('Date/time string:', dateTimeString);
       
       const eventDateTime = new Date(dateTimeString);
       

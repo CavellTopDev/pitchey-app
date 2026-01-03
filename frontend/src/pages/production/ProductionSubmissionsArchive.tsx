@@ -217,15 +217,12 @@ export default function ProductionSubmissionsArchive() {
   const years = ['all', ...new Set(submissions.map(s => new Date(s.archivedDate).getFullYear().toString()))].sort().reverse();
 
   const handleRestore = (submissionId: string) => {
-    console.log('Restoring archived submission:', submissionId);
   };
 
   const handlePermanentDelete = (submissionId: string) => {
-    console.log('Permanently deleting archived submission:', submissionId);
   };
 
   const handleExport = (submissionId: string) => {
-    console.log('Exporting archived submission data:', submissionId);
   };
 
   const getFinalStatusColor = (status: string) => {

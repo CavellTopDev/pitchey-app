@@ -43,17 +43,14 @@ export class FrontendTelemetryManager {
 
     try {
       // Sentry.init - temporarily disabled to resolve initialization errors
-      console.log("Sentry initialization temporarily disabled");
 
       // Set global context - temporarily disabled
-      console.log("App context:", {
         name: "pitchey-frontend",
         version: this.config.release,
         environment: this.config.environment,
       });
 
       this.isInitialized = true;
-      console.log("✅ Frontend Sentry telemetry initialized", {
         environment: this.config.environment,
         release: this.config.release
       });
@@ -111,7 +108,6 @@ export class FrontendTelemetryManager {
     if (!this.isInitialized) return;
 
     // Sentry.setUser - temporarily disabled
-    console.log("User context set:", {
       id: user.id,
       username: user.email?.split("@")[0],
       segment: user.userType,
@@ -124,7 +120,6 @@ export class FrontendTelemetryManager {
   clearUser(): void {
     if (!this.isInitialized) return;
     // Sentry.setUser(null) - temporarily disabled
-    console.log("User context cleared");
   }
 
   /**
@@ -143,7 +138,6 @@ export class FrontendTelemetryManager {
   captureMessage(message: string, level: "info" | "warning" | "error" = "info"): void {
     if (!this.isInitialized) return;
     // Sentry.captureMessage - temporarily disabled
-    console.log(`[${level.toUpperCase()}] ${message}`);
   }
 
   /**
@@ -153,7 +147,6 @@ export class FrontendTelemetryManager {
     if (!this.isInitialized) return;
 
     // Sentry.addBreadcrumb - temporarily disabled
-    console.debug("Breadcrumb:", { message, data, timestamp: Date.now() / 1000 });
   }
 
   /**
@@ -162,7 +155,6 @@ export class FrontendTelemetryManager {
   setTag(key: string, value: string): void {
     if (!this.isInitialized) return;
     // Sentry.setTag - temporarily disabled
-    console.debug("Tag set:", { key, value });
   }
 
   /**

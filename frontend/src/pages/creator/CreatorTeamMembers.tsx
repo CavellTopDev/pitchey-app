@@ -234,7 +234,6 @@ export default function CreatorTeamMembers() {
   const handleBulkAction = async (action: 'remove' | 'change-role') => {
     if (selectedMembers.length > 0) {
       // Simulate API call
-      console.log(`Performing ${action} on members:`, selectedMembers);
       setSelectedMembers([]);
     }
   };

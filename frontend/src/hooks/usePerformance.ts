@@ -75,7 +75,6 @@ export const usePerformance = (options: UsePerformanceOptions) => {
     return () => {
       // Log final metrics on unmount
       if (enableConsoleLog) {
-        console.log(`🔥 Component unmounted [${componentName}]:`, {
           totalRenders: renderCount.current,
           totalLifetime: `${(performance.now() - mountTime.current).toFixed(2)}ms`,
         });
@@ -104,18 +103,15 @@ export const useWebVitals = () => {
       entries.forEach((entry) => {
         // Largest Contentful Paint
         if (entry.entryType === 'largest-contentful-paint') {
-          console.log('🎯 LCP:', `${entry.startTime.toFixed(2)}ms`);
         }
         
         // First Input Delay
         if (entry.entryType === 'first-input') {
           const fid = entry.processingStart - entry.startTime;
-          console.log('👆 FID:', `${fid.toFixed(2)}ms`);
         }
         
         // Cumulative Layout Shift
         if (entry.entryType === 'layout-shift' && !entry.hadRecentInput) {
-          console.log('📏 CLS:', entry.value);
         }
       });
     });
@@ -141,12 +137,10 @@ export const useWebVitals = () => {
     if (result instanceof Promise) {
       return result.then(() => {
         const duration = performance.now() - start;
-        console.log(`⏱️ ${name}:`, `${duration.toFixed(2)}ms`);
         return duration;
       });
     } else {
       const duration = performance.now() - start;
-      console.log(`⏱️ ${name}:`, `${duration.toFixed(2)}ms`);
       return duration;
     }
   }, []);
@@ -201,7 +195,6 @@ export const useMemoryMonitor = () => {
         usage: `${((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100).toFixed(1)}%`,
       };
       
-      console.log('🧠 Memory Usage:', memoryInfo);
       return memoryInfo;
     } else {
       console.warn('Memory API not supported in this browser');

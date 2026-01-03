@@ -22,7 +22,6 @@ export function NotificationInitializer() {
       const timer = setTimeout(() => {
         if ('Notification' in window && Notification.permission === 'default') {
           // Show a user-friendly prompt instead of immediately requesting
-          console.log('Browser notifications available - user can enable in notification center');
         }
       }, 2000);
 
@@ -33,7 +32,6 @@ export function NotificationInitializer() {
   // Log notification system status in development
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔔 Notification System Status:', {
         authenticated: isAuthenticated,
         webSocketConnected: isConnected,
         browserSupport: 'Notification' in window,

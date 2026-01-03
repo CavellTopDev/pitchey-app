@@ -301,7 +301,6 @@ export default function CreatePitch() {
         
         const pitch = await pitchService.create(pitchData);
 
-        console.log('Pitch created successfully:', pitch);
         
         // Announce success to screen readers
         a11y.validation.announceSuccess(SUCCESS_MESSAGES.PITCH_CREATED || 'Pitch created successfully');

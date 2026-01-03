@@ -237,8 +237,6 @@ export default function InvestorAnalytics() {
   }));
 
   // Debug logging
-  console.log('Market Trends Data:', marketTrendChartData);
-  console.log('Investment Flow Data:', investmentFlowChartData);
 
   const riskDistributionData = [
     { name: 'Low Risk', value: 45, color: '#22c55e' },

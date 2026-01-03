@@ -68,7 +68,6 @@ export default function CreatorDashboardTest() {
 
   // Real-time dashboard message handler
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
-    console.log('📨 Dashboard received WebSocket message:', message.type, message);
     
     switch (message.type) {
       case 'view_update':
@@ -76,7 +75,6 @@ export default function CreatorDashboardTest() {
         setAnimatingViews(true);
         setTotalViews((prev) => {
           const newViews = message.data?.totalViews ?? (prev + 1);
-          console.log('📊 Views updated:', prev, '->', newViews);
           return newViews;
         });
         setTimeout(() => setAnimatingViews(false), 1000);
@@ -87,7 +85,6 @@ export default function CreatorDashboardTest() {
         setAnimatingFollowers(true);
         setFollowers((prev) => {
           const newFollowers = message.data?.followerCount ?? (prev + 1);
-          console.log('👥 Followers updated:', prev, '->', newFollowers);
           return newFollowers;
         });
         setTimeout(() => setAnimatingFollowers(false), 1000);
@@ -101,7 +98,6 @@ export default function CreatorDashboardTest() {
             ...prev,
             pending: message.data?.pendingCount ?? (prev.pending + 1)
           };
-          console.log('📝 NDA stats updated:', prev, '->', newStats);
           return newStats;
         });
         setTimeout(() => setAnimatingNdas(false), 1000);
@@ -115,18 +111,15 @@ export default function CreatorDashboardTest() {
             description: message.data.activity.description || ''
           };
           setRecentActivity((prev) => [newActivity, ...prev].slice(0, 5));
-          console.log('🎯 Activity added:', newActivity);
         }
         break;
         
       case 'notification':
-        console.log('🔔 Notification received via dashboard WebSocket');
         // NotificationBell component will handle this via its own subscription
         break;
         
       case 'dashboard_update':
         if (message.data) {
-          console.log('📊 Dashboard metrics update:', message.data);
           if (message.data.totalViews !== undefined) {
             setTotalViews(message.data.totalViews);
           }
@@ -145,7 +138,6 @@ export default function CreatorDashboardTest() {
       default:
         // Only log unknown messages in development
         if (import.meta.env.DEV) {
-          console.log('🔍 Unhandled dashboard message:', message.type);
         }
     }
   }, []);
@@ -154,10 +146,8 @@ export default function CreatorDashboardTest() {
   useEffect(() => {
     if (!isConnected) return;
     
-    console.log('📡 Dashboard subscribing to WebSocket messages...');
     const unsubscribeMessages = subscribeToMessages(handleWebSocketMessage);
     const unsubscribeDashboard = subscribeToDashboard((metrics) => {
-      console.log('📊 Dashboard metrics received:', metrics);
       if (metrics.pitchViews !== undefined) {
         setTotalViews(metrics.pitchViews);
       }
@@ -165,7 +155,6 @@ export default function CreatorDashboardTest() {
     });
     
     return () => {
-      console.log('📡 Dashboard unsubscribing from WebSocket messages');
       unsubscribeMessages();
       unsubscribeDashboard();
     };

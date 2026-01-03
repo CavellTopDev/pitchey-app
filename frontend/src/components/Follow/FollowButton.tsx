@@ -69,9 +69,7 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
       // Show success feedback
       if (result.isFollowing) {
         // Could trigger a toast notification here
-        console.log(`Now following ${username || 'user'}`);
       } else {
-        console.log(`Unfollowed ${username || 'user'}`);
       }
     } catch (error) {
       console.error('Failed to follow/unfollow:', error);

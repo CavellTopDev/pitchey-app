@@ -147,7 +147,6 @@ const FeatureFlagsManager: React.FC = () => {
     const websocket = new WebSocket(`wss://${window.location.host}/api/feature-flags/ws`);
     
     websocket.onopen = () => {
-      console.log('Connected to feature flags WebSocket');
       websocket.send(JSON.stringify({ type: 'subscribe' }));
     };
 

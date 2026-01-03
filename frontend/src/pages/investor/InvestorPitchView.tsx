@@ -111,12 +111,10 @@ const InvestorPitchView: React.FC = () => {
             const authResponse = await pitchAPI.getById(parseInt(id!));
             response = authResponse; // Use authenticated data with NDA content
           } catch (authError) {
-            console.log('Using public data, authenticated request failed:', authError);
           }
         }
       } catch (publicError) {
         // If public fails, try authenticated as fallback
-        console.log('Public endpoint failed, trying authenticated:', publicError);
         response = await pitchAPI.getById(parseInt(id!));
       }
       

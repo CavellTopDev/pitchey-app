@@ -103,7 +103,6 @@ class WebVitalsMonitor {
       
       this.isMonitoring = true;
       
-      console.log('Web Vitals monitoring initialized');
       
     } catch (error) {
       console.error('Failed to initialize Web Vitals monitoring:', error);
@@ -320,7 +319,6 @@ class WebVitalsMonitor {
         body: JSON.stringify(vitalsData),
       });
 
-      console.log('Web Vitals sent successfully');
 
     } catch (error) {
       console.error('Failed to send Web Vitals:', error);

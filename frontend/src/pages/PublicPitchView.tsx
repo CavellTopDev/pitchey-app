@@ -94,7 +94,6 @@ export default function PublicPitchView() {
       setIsOwner(!!userOwnsThisPitch);
 
       if (userOwnsThisPitch) {
-        console.log('User owns this pitch, skipping NDA status check');
         setHasSignedNDA(true); // Owner has full access
         setCanRequestNDA(false);
         return;
@@ -105,7 +104,6 @@ export default function PublicPitchView() {
       setCanRequestNDA(validation.canRequest);
 
       if (!validation.canRequest) {
-        console.log('User cannot request NDA:', validation.reason);
         return;
       }
 
@@ -121,11 +119,9 @@ export default function PublicPitchView() {
   };
 
   const checkNDAStatus = async (pitchId: number) => {
-    console.log('Checking NDA status for pitch:', pitchId);
     const response = await ndaService.getNDAStatus(pitchId);
     
     if (response.error) {
-      console.log('NDA status check returned error:', response.error);
       if (response.error.includes('not found') || response.error.includes('Network error')) {
         // Handle expected cases gracefully
         setNdaRequestStatus('none');
@@ -139,7 +135,6 @@ export default function PublicPitchView() {
     }
     
     if (response.hasNDA && response.nda) {
-      console.log('NDA found with status:', response.nda.status);
       setNdaRequestStatus(response.nda.status);
       // Check if NDA grants access (approved or signed status)
       if (response.nda.status === 'approved' || response.nda.status === 'signed' || response.nda.accessGranted) {
@@ -147,7 +142,6 @@ export default function PublicPitchView() {
         setCanRequestNDA(false); // Can't request if already have NDA
       }
     } else {
-      console.log('No NDA found for this user-pitch combination');
       setNdaRequestStatus('none');
     }
   };
@@ -164,7 +158,6 @@ export default function PublicPitchView() {
     try {
       const response = await ndaAPI.requestNDA(pitchId, requestData);
       if (response && response.success) {
-        console.log('NDA request submitted successfully');
         // You might want to show a success message to the user
         return { success: true };
       } else {

@@ -165,17 +165,14 @@ export default function ProductionSubmissionsNew() {
 
   const handleStartReview = (submissionId: string) => {
     // API call to start review process
-    console.log('Starting review for submission:', submissionId);
   };
 
   const handleQuickApprove = (submissionId: string) => {
     // API call to quickly approve submission
-    console.log('Quick approving submission:', submissionId);
   };
 
   const handleReject = (submissionId: string) => {
     // API call to reject submission
-    console.log('Rejecting submission:', submissionId);
   };
 
   const getPriorityColor = (priority: string | undefined) => {

@@ -116,26 +116,12 @@ export class RawSQLDatabase {
         let result: any[];
         
         if (typeof queryText === 'string') {
-          // For string queries with params, we need to handle them properly
-          // The Neon serverless driver doesn't support $1, $2 placeholders directly
           if (params && params.length > 0) {
-            // Replace $1, $2 placeholders with actual values for Neon
-            let processedQuery = queryText;
-            for (let i = 0; i < params.length; i++) {
-              const placeholder = `$${i + 1}`;
-              const value = params[i];
-              // Properly escape and format the value
-              const escapedValue = typeof value === 'string' 
-                ? `'${value.replace(/'/g, "''")}'`
-                : value === null 
-                ? 'NULL'
-                : value;
-              processedQuery = processedQuery.replace(placeholder, escapedValue);
-            }
-            result = await connection`${processedQuery}`;
+            // For parameterized queries with $1, $2, etc., use connection.query()
+            result = await (connection as any).query(queryText, params);
           } else {
-            // No parameters, execute as-is
-            result = await connection`${queryText}`;
+            // For queries without parameters, use connection.query()
+            result = await (connection as any).query(queryText);
           }
         } else {
           // Template literal query

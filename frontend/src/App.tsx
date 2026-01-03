@@ -18,7 +18,6 @@ import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './comp
 import { PortalLayout } from './components/layout/PortalLayout';
 
 // Log environment on app load
-console.log('🚀 Pitchey App Environment:', {
   PROD: import.meta.env.PROD,
   DEV: import.meta.env.DEV,
   MODE: import.meta.env.MODE,
@@ -217,7 +216,6 @@ function App() {
         // Use startTransition for non-urgent update
         startTransition(() => {
           configService.getConfiguration().then(() => {
-            console.log('Configuration loaded successfully');
             setConfigLoaded(true);
           });
         });

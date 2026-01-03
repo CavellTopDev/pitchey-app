@@ -179,19 +179,15 @@ export default function ProductionSubmissionsReview() {
   const reviewers = ['all', ...new Set(submissions.map(s => s.reviewer).filter(Boolean))];
 
   const handleApprove = (submissionId: string) => {
-    console.log('Approving submission:', submissionId);
   };
 
   const handleReject = (submissionId: string) => {
-    console.log('Rejecting submission:', submissionId);
   };
 
   const handleShortlist = (submissionId: string) => {
-    console.log('Adding to shortlist:', submissionId);
   };
 
   const handleAddNote = (submissionId: string) => {
-    console.log('Adding note to submission:', submissionId);
   };
 
   const getProgressColor = (progress: number) => {
