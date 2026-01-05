@@ -483,7 +483,7 @@ export class StatisticalAnalysis {
     const overallConversionRate = totalConversions / totalSampleSize;
 
     let chiSquare = 0;
-    let degreesOfFreedom = variants.length - 1;
+    const degreesOfFreedom = variants.length - 1;
 
     for (const variant of variants) {
       const expected = variant.sampleSize * overallConversionRate;

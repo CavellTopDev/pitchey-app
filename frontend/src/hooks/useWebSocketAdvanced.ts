@@ -387,7 +387,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       
       // Try different authentication methods
       let finalWsUrl: string;
-      let authHeaders: Record<string, string> = {};
+      const authHeaders: Record<string, string> = {};
       
       if (token) {
         // Primary method: Query parameter (most compatible)

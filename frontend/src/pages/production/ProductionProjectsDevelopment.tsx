@@ -153,7 +153,7 @@ export default function ProductionProjectsDevelopment() {
   };
 
   const filterProjects = () => {
-    let filtered = projects.filter(project => {
+    const filtered = projects.filter(project => {
       const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            project.genre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            project.director?.toLowerCase().includes(searchTerm.toLowerCase()) ||

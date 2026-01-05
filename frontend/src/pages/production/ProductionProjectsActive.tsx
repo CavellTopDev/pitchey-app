@@ -159,7 +159,7 @@ export default function ProductionProjectsActive() {
   };
 
   const filterProjects = () => {
-    let filtered = projects.filter(project => {
+    const filtered = projects.filter(project => {
       const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
       const matchesPhase = phaseFilter === 'all' || project.currentPhase === phaseFilter;
       const matchesLocation = locationFilter === 'all' || project.location?.toLowerCase().includes(locationFilter.toLowerCase());

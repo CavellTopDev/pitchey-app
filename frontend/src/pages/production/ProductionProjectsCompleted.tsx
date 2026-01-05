@@ -249,7 +249,7 @@ export default function ProductionProjectsCompleted() {
   };
 
   const filterProjects = () => {
-    let filtered = projects.filter(project => {
+    const filtered = projects.filter(project => {
       const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
       const matchesPerformance = performanceFilter === 'all' || project.performance === performanceFilter;
       const matchesGenre = genreFilter === 'all' || project.genre === genreFilter;

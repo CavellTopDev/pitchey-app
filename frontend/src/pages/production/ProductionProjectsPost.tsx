@@ -206,7 +206,7 @@ export default function ProductionProjectsPost() {
   };
 
   const filterProjects = () => {
-    let filtered = projects.filter(project => {
+    const filtered = projects.filter(project => {
       const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
       const matchesPhase = phaseFilter === 'all' || project.phase === phaseFilter;
       const matchesPriority = priorityFilter === 'all' || project.priority === priorityFilter;

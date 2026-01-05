@@ -168,7 +168,7 @@ export default function NDANotificationCenter({
   };
 
   const filteredAndSortedNotifications = useMemo(() => {
-    let filtered = notifications.filter(notification => {
+    const filtered = notifications.filter(notification => {
       const typeMatch = filterType === 'all' || notification.type === filterType;
       const readMatch = !showUnreadOnly || !notification.isRead;
       

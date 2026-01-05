@@ -149,7 +149,7 @@ export default function InvestorBrowse() {
     // Ensure pitches is always an array
     const pitchArray = Array.isArray(pitches) ? pitches : [];
     
-    let filtered = pitchArray.filter(pitch => {
+    const filtered = pitchArray.filter(pitch => {
       const matchesSearch = pitch.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            pitch.logline.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            pitch.genre.toLowerCase().includes(searchTerm.toLowerCase());

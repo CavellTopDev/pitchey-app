@@ -136,7 +136,7 @@ export default function NDAApprovalWorkflow({
   };
 
   const filteredAndSortedRequests = useMemo(() => {
-    let filtered = requests.filter(request => {
+    const filtered = requests.filter(request => {
       const matchesSearch = searchTerm === '' || 
         request.requesterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         request.pitchTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||

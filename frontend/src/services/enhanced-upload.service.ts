@@ -196,7 +196,7 @@ class EnhancedUploadService {
 
     let completedCount = 0;
     let transferredBytes = 0;
-    let totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
 
     const updateProgress = () => {
       const elapsed = (Date.now() - startTime) / 1000;

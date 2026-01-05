@@ -111,7 +111,7 @@ export default function TransactionHistory({
       ];
       
       // Apply filters
-      let filtered = mockTransactions.filter(t => {
+      const filtered = mockTransactions.filter(t => {
         const matchesSearch = !searchTerm || 
           t.pitchTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
           t.creatorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||

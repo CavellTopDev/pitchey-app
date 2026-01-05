@@ -280,7 +280,7 @@ class UploadService {
     
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      let startTime = Date.now();
+      const startTime = Date.now();
       let lastLoaded = 0;
       let lastTime = startTime;
 
@@ -618,7 +618,7 @@ class UploadService {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      let startTime = Date.now();
+      const startTime = Date.now();
       let lastLoaded = 0;
       let lastTime = startTime;
 

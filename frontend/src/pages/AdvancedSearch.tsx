@@ -216,7 +216,7 @@ export default function AdvancedSearch() {
       await new Promise(resolve => setTimeout(resolve, 800));
       
       // Filter and sort mock results
-      let filteredResults = mockResults.filter(result => {
+      const filteredResults = mockResults.filter(result => {
         if (filters.type !== 'all' && result.type !== filters.type) return false;
         if (filters.query && !result.title.toLowerCase().includes(filters.query.toLowerCase()) && 
             !result.description.toLowerCase().includes(filters.query.toLowerCase())) return false;

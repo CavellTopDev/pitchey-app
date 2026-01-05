@@ -572,7 +572,7 @@ const workerHandler = {
         }
         
         // Build filters
-        let whereConditions = [`status = 'published'`];
+        const whereConditions = [`status = 'published'`];
         if (genre && genre !== 'all') {
           whereConditions.push(`genre = '${genre}'`);
         }
