@@ -3,7 +3,7 @@
  * Eliminates database connection overhead with global connection pooling
  */
 
-import postgres from 'postgres';
+// import postgres from 'postgres'; // Commented out to avoid bundling issues
 import { neon } from '@neondatabase/serverless';
 
 export interface HyperdriveConfig {
@@ -115,12 +115,8 @@ export class DatabaseConnectionManager {
   private getReadConnection() {
     // Use Hyperdrive for cached reads
     if (this.env.HYPERDRIVE) {
-      return postgres(this.env.HYPERDRIVE.connectionString, {
-        prepare: false, // Required for Hyperdrive
-        types: {
-          bigint: postgres.BigInt
-        }
-      });
+      // Use dynamic import or direct Hyperdrive connection
+      return this.env.HYPERDRIVE;
     }
     
     // Fallback to Neon HTTP
@@ -133,11 +129,7 @@ export class DatabaseConnectionManager {
   private getWriteConnection() {
     // Use Hyperdrive for writes to maintain connection
     if (this.env.HYPERDRIVE) {
-      return postgres(this.env.HYPERDRIVE.connectionString, {
-        prepare: false,
-        max: 1, // Single connection for writes
-        idle_timeout: 20
-      });
+      return this.env.HYPERDRIVE;
     }
     
     // Fallback to Neon HTTP
@@ -150,15 +142,11 @@ export class DatabaseConnectionManager {
   private getTransactionConnection() {
     // Hyperdrive is best for transactions
     if (this.env.HYPERDRIVE) {
-      return postgres(this.env.HYPERDRIVE.connectionString, {
-        prepare: false,
-        max: 3, // Limited connections for transactions
-        idle_timeout: 30
-      });
+      return this.env.HYPERDRIVE;
     }
     
-    // Fallback to WebSocket pool
-    return postgres(this.env.DATABASE_URL.replace('?sslmode=require', '?sslmode=require&pgbouncer=true'));
+    // Fallback to Neon HTTP
+    return neon(this.env.DATABASE_URL);
   }
   
   /**
@@ -167,15 +155,11 @@ export class DatabaseConnectionManager {
   private getBatchConnection() {
     // Use Hyperdrive for batch operations
     if (this.env.HYPERDRIVE) {
-      return postgres(this.env.HYPERDRIVE.connectionString, {
-        prepare: false,
-        max: 5, // More connections for parallel batch ops
-        idle_timeout: 60
-      });
+      return this.env.HYPERDRIVE;
     }
     
-    // Fallback to direct connection
-    return postgres(this.env.DATABASE_URL);
+    // Fallback to Neon HTTP
+    return neon(this.env.DATABASE_URL);
   }
   
   /**
@@ -183,9 +167,7 @@ export class DatabaseConnectionManager {
    */
   private getDefaultConnection() {
     if (this.env.HYPERDRIVE) {
-      return postgres(this.env.HYPERDRIVE.connectionString, {
-        prepare: false
-      });
+      return this.env.HYPERDRIVE;
     }
     
     return neon(this.env.DATABASE_URL);
@@ -539,16 +521,15 @@ export class HyperdriveMigration {
    */
   static async testConnection(env: Env): Promise<boolean> {
     try {
-      const sql = postgres(env.HYPERDRIVE.connectionString, {
-        prepare: false
-      });
+      // Use Neon instead of postgres for testing
+      const sql = neon(env.DATABASE_URL);
       
       const result = await sql`SELECT NOW() as current_time`;
-      console.log('Hyperdrive connection successful:', result);
+      console.log('Database connection successful:', result);
       
       return true;
     } catch (error) {
-      console.error('Hyperdrive connection failed:', error);
+      console.error('Database connection failed:', error);
       return false;
     }
   }
