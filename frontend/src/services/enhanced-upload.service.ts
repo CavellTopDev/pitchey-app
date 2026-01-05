@@ -333,12 +333,12 @@ class EnhancedUploadService {
   private async checkDuplication(file: File): Promise<UploadResult | null> {
     try {
       const hash = await this.calculateFileHash(file);
-    const response = await fetch(`${API_BASE_URL}/api/upload/check-duplicate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hash, name: file.name, size: file.size }),
-      credentials: 'include' // Send cookies for Better Auth session
-    });
+      const response = await fetch(`${this.baseUrl}/api/upload/check-duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hash, name: file.name, size: file.size }),
+        credentials: 'include' // Send cookies for Better Auth session
+      });
 
       if (response.ok) {
         const result = await response.json();
@@ -370,7 +370,7 @@ class EnhancedUploadService {
     options: EnhancedUploadOptions
   ): Promise<UploadResult> {
     // Get presigned URL from backend
-    const presignedResponse = await fetch(`${API_BASE_URL}/api/upload/presigned`, {
+    const presignedResponse = await fetch(`${this.baseUrl}/api/upload/presigned`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -403,7 +403,7 @@ class EnhancedUploadService {
     
     formData.append('file', file);
 
-    const uploadResponse = await fetch(presignedUrl, {
+    const uploadResponse = await fetch(uploadUrl, {
       method: 'PUT',
       body: file, // For R2, send file directly
       signal: options.signal,
@@ -418,7 +418,7 @@ class EnhancedUploadService {
     }
 
     return {
-      url: `https://${config.R2_DOMAIN}/${key}`,
+      url: `https://cdn.pitchey.com/${key}`, // Use a generic CDN domain
       filename: file.name,
       size: file.size,
       type: file.type,
@@ -439,7 +439,7 @@ class EnhancedUploadService {
     const totalChunks = Math.ceil(file.size / chunkSize);
     
     // Initialize multipart upload
-    const initResponse = await fetch(`${API_BASE_URL}/api/upload/multipart/init`, {
+    const initResponse = await fetch(`${this.baseUrl}/api/upload/multipart/init`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -477,7 +477,7 @@ class EnhancedUploadService {
       uploadedParts.push(...parts);
 
       // Complete multipart upload
-      const completeResponse = await fetch(`${API_BASE_URL}/api/upload/complete`, {
+      const completeResponse = await fetch(`${this.baseUrl}/api/upload/multipart/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -495,7 +495,7 @@ class EnhancedUploadService {
       }
 
       return {
-        url: `https://${config.R2_DOMAIN}/${key}`,
+        url: `https://cdn.pitchey.com/${key}`,
         filename: file.name,
         size: file.size,
         type: file.type,
@@ -505,7 +505,7 @@ class EnhancedUploadService {
 
     } catch (error) {
       // Abort multipart upload on error
-      await fetch(`${API_BASE_URL}/api/upload/multipart/abort`, {
+      await fetch(`${this.baseUrl}/api/upload/multipart/abort`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -527,7 +527,7 @@ class EnhancedUploadService {
     partNumber: number,
     key: string
   ): Promise<{ ETag: string; PartNumber: number }> {
-    const response = await fetch(`${API_BASE_URL}/api/upload/multipart/upload-part`, {
+    const response = await fetch(`${this.baseUrl}/api/upload/multipart/upload-part`, {
       method: 'POST',
       body: chunk,
       headers: {
@@ -621,10 +621,10 @@ class EnhancedUploadService {
    * Generate thumbnail for image/video
    */
   private async generateThumbnail(url: string, mimeType: string): Promise<{ url: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/upload/complete`, {
+    const response = await fetch(`${this.baseUrl}/api/upload/generate-thumbnail`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, uploadId, parts }),
+      body: JSON.stringify({ url, mimeType }),
       credentials: 'include' // Send cookies for Better Auth session
     });
 
@@ -685,7 +685,7 @@ class EnhancedUploadService {
 
     // Send to backend
     try {
-      await fetch(`${API_BASE_URL}/api/analytics/upload`, {
+      await fetch(`${this.baseUrl}/api/analytics/upload`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

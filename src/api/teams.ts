@@ -218,15 +218,15 @@ export class TeamAPI {
     try {
       // Check if user is team owner
       const [team] = await this.db.query(`
-        SELECT * FROM teams WHERE id = ${teamId} AND owner_id = ${authResult.user.id}
-      `);
+        SELECT * FROM teams WHERE id = $1 AND owner_id = $2
+      `, [teamId, authResult.user.id]);
       
       if (!team) {
         return builder.error(ErrorCode.FORBIDDEN, 'Only team owners can delete teams');
       }
       
       // Delete team (cascades to members and invites)
-      await this.db.query(`DELETE FROM teams WHERE id = ${teamId}`);
+      await this.db.query(`DELETE FROM teams WHERE id = $1`, [teamId]);
       
       return builder.success({ message: 'Team deleted successfully' });
     } catch (error) {

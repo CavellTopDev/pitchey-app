@@ -67,6 +67,7 @@ export default {
   	}
   },
   plugins: [
-    require('@tailwindcss/line-clamp'),
+    // @tailwindcss/line-clamp is now included by default in Tailwind CSS v3.3+
+    // Remove this line to eliminate the warning
   ],
 }
