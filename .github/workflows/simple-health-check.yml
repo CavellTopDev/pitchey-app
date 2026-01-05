@@ -20,7 +20,7 @@ jobs:
           
       - name: Check API
         run: |
-          if curl -f https://pitchey-production.cavelltheleaddev.workers.dev/api/health > /dev/null 2>&1; then
+          if curl -f https://pitchey-api-prod.ndlovucavelle.workers.dev/api/health > /dev/null 2>&1; then
             echo "✅ API is healthy"
           else
             echo "❌ API is down"
