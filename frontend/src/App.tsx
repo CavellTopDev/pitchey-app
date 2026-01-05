@@ -237,7 +237,7 @@ function App() {
     };
     
     checkSession();
-  }, []); // Run once on mount
+  }, [fetchProfile]); // Run once on mount
 
   // Removed redundant profile fetching - handled by session restoration above
 

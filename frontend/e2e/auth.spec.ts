@@ -1,15 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { AuthHelper } from './utils/auth-helpers';
 import { PageHelper } from './utils/page-helpers';
-import { TEST_USERS, URLS } from './fixtures/test-data';
+import { URLS } from './fixtures/test-data';
 
 test.describe('Authentication Flows', () => {
   let authHelper: AuthHelper;
-  let pageHelper: PageHelper;
 
   test.beforeEach(async ({ page }) => {
     authHelper = new AuthHelper(page);
-    pageHelper = new PageHelper(page);
   });
 
   test.describe('Portal Selection', () => {
@@ -43,7 +41,7 @@ test.describe('Authentication Flows', () => {
   });
 
   test.describe('Creator Authentication', () => {
-    test('should login successfully with valid credentials', async ({ page }) => {
+    test('should login successfully with valid credentials', async () => {
       await authHelper.loginAsCreator();
       await authHelper.verifyAuthenticated('creator');
     });
@@ -58,7 +56,7 @@ test.describe('Authentication Flows', () => {
       await expect(page.locator('[data-testid="error-message"]')).toBeVisible();
     });
 
-    test('should logout successfully', async ({ page }) => {
+    test('should logout successfully', async () => {
       await authHelper.loginAsCreator();
       await authHelper.logout();
       await authHelper.verifyNotAuthenticated();
@@ -71,7 +69,7 @@ test.describe('Authentication Flows', () => {
   });
 
   test.describe('Investor Authentication', () => {
-    test('should login successfully with valid credentials', async ({ page }) => {
+    test('should login successfully with valid credentials', async () => {
       await authHelper.loginAsInvestor();
       await authHelper.verifyAuthenticated('investor');
     });
@@ -86,7 +84,7 @@ test.describe('Authentication Flows', () => {
       await expect(page.locator('[data-testid="error-message"]')).toBeVisible();
     });
 
-    test('should logout successfully', async ({ page }) => {
+    test('should logout successfully', async () => {
       await authHelper.loginAsInvestor();
       await authHelper.logout();
       await authHelper.verifyNotAuthenticated();
@@ -94,7 +92,7 @@ test.describe('Authentication Flows', () => {
   });
 
   test.describe('Production Authentication', () => {
-    test('should login successfully with valid credentials', async ({ page }) => {
+    test('should login successfully with valid credentials', async () => {
       await authHelper.loginAsProduction();
       await authHelper.verifyAuthenticated('production');
     });
@@ -109,7 +107,7 @@ test.describe('Authentication Flows', () => {
       await expect(page.locator('[data-testid="error-message"]')).toBeVisible();
     });
 
-    test('should logout successfully', async ({ page }) => {
+    test('should logout successfully', async () => {
       await authHelper.loginAsProduction();
       await authHelper.logout();
       await authHelper.verifyNotAuthenticated();

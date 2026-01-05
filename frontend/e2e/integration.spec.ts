@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { AuthHelper } from './utils/auth-helpers';
 import { PageHelper } from './utils/page-helpers';
-import { TEST_PITCH, TEST_CHARACTER } from './fixtures/test-data';
+import { TEST_PITCH } from './fixtures/test-data';
 
 test.describe('Cross-Feature Integration Tests', () => {
   let authHelper: AuthHelper;
@@ -13,7 +13,7 @@ test.describe('Cross-Feature Integration Tests', () => {
   });
 
   test.describe('Complete NDA Workflow', () => {
-    test('should complete full NDA request and approval flow', async ({ page, context }) => {
+    test('should complete full NDA request and approval flow', async ({ page }) => {
       // Step 1: Creator creates and publishes a pitch
       await authHelper.loginAsCreator();
       
