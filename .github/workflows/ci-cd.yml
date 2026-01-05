@@ -108,7 +108,9 @@ jobs:
         run: npm install -g wrangler@latest
 
       - name: 📦 Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm install --save-dev typescript
 
       - name: 🔧 TypeScript compilation
         run: npx tsc --noEmit
