@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "deploy": "wrangler deploy",
-    "deploy:staging": "wrangler deploy --env staging",
-    "deploy:production": "wrangler deploy --env production",
+    "deploy": "wrangler deploy --config wrangler.toml",
+    "deploy:staging": "wrangler deploy --config wrangler.toml --env staging",
+    "deploy:production": "wrangler deploy --config wrangler.toml --env production",
     "deploy:local": "./deploy-cloudflare.sh",
     "dev": "wrangler dev",
     "tail": "wrangler tail",
