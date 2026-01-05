@@ -87,24 +87,24 @@ export async function enhancedHealthHandler(
 
   // 2. KV Cache health check (Cloudflare KV)
   try {
-    if (env.KV_CACHE) {
+    if (env.CACHE) {
       const testKey = `health-check-${Date.now()}`;
       await Promise.race([
-        env.KV_CACHE.put(testKey, Date.now().toString(), { expirationTtl: 60 }),
+        env.CACHE.put(testKey, Date.now().toString(), { expirationTtl: 60 }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('KV timeout')), 3000))
       ]);
       
-      const value = await env.KV_CACHE.get(testKey);
+      const value = await env.CACHE.get(testKey);
       if (value) {
         healthStatus.checks.cache = 'healthy';
-        await env.KV_CACHE.delete(testKey);
+        await env.CACHE.delete(testKey);
       } else {
         healthStatus.checks.cache = 'unhealthy';
         errors.push('KV Cache write/read test failed');
       }
     } else {
       healthStatus.checks.cache = 'unhealthy';
-      errors.push('KV_CACHE not configured');
+      errors.push('CACHE not configured');
     }
   } catch (error: any) {
     healthStatus.checks.cache = 'unhealthy';
@@ -113,24 +113,24 @@ export async function enhancedHealthHandler(
 
   // 3. R2 Storage health check
   try {
-    if (env.R2_BUCKET) {
+    if (env.PITCH_STORAGE) {
       const testKey = `health-check/${Date.now()}.txt`;
       await Promise.race([
-        env.R2_BUCKET.put(testKey, 'health check'),
+        env.PITCH_STORAGE.put(testKey, 'health check'),
         new Promise((_, reject) => setTimeout(() => reject(new Error('R2 timeout')), 3000))
       ]);
       
-      const object = await env.R2_BUCKET.get(testKey);
+      const object = await env.PITCH_STORAGE.get(testKey);
       if (object) {
         healthStatus.checks.storage = 'healthy';
-        await env.R2_BUCKET.delete(testKey);
+        await env.PITCH_STORAGE.delete(testKey);
       } else {
         healthStatus.checks.storage = 'unhealthy';
         errors.push('R2 Storage write/read test failed');
       }
     } else {
       healthStatus.checks.storage = 'unhealthy';
-      errors.push('R2_BUCKET not configured');
+      errors.push('PITCH_STORAGE not configured');
     }
   } catch (error: any) {
     healthStatus.checks.storage = 'unhealthy';

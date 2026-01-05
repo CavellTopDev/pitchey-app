@@ -12,9 +12,9 @@ const ENDPOINTS = [
 ];
 
 const CRITICAL_APIS = [
-  "https://pitchey-backend-fresh.deno.dev/api/auth/status",
-  "https://pitchey-backend-fresh.deno.dev/api/pitches/featured",
-  "https://pitchey-backend-fresh.deno.dev/api/user/notifications"
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/trending",
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/pitches",
+  "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/browse"
 ];
 
 async function checkEndpoint(url: string): Promise<{url: string, status: number, responseTime: number, error?: string}> {
