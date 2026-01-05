@@ -1,13 +1,11 @@
 # Cloudflare Pages _redirects file for SPA routing
 # This ensures all routes are handled by React Router instead of returning 404
 
-# Handle all routes by serving index.html
-/*    /index.html   200
-
-# API routes should not be redirected (if any are served from this domain)
+# Exclude specific paths from the catch-all redirect
 /api/*    /api/:splat   200
-
-# Static assets should be served as-is (this is implicit but can be explicit)
-/assets/*    /assets/:splat   200
+/assets/*    /assets/:splat   200  
 /images/*    /images/:splat   200
-/favicon.ico    /favicon.ico   200
+
+# Handle all other routes by serving index.html (SPA fallback)
+# This must come last to avoid matching the excluded paths above
+/*    /index.html   200!
