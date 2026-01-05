@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { reactAsyncModeFix } from './vite-react-fix.js'
 
 export default defineConfig({
   plugins: [
@@ -15,6 +16,8 @@ export default defineConfig({
       // Fix React 18 compatibility
       jsxRuntime: 'automatic',
     }),
+    // Fix AsyncMode issues in legacy dependencies
+    reactAsyncModeFix(),
   ],
   resolve: {
     alias: {
@@ -40,6 +43,9 @@ export default defineConfig({
       transformMixedEsModules: true,
       // Fix for React 18 compatibility
       defaultIsModuleExports: false,
+      // Fix exports undefined errors for UMD modules
+      requireReturnsDefault: 'auto',
+      ignoreDynamicRequires: true,
     },
     rollupOptions: {
       output: {

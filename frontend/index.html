@@ -11,33 +11,131 @@
     <link rel="preconnect" href="https://pitchey-api-prod.cavelltheleaddev.workers.dev" crossorigin>
   </head>
   <body>
-    <!-- React 18 Compatibility Inline Patch -->
+    <!-- React 18 AsyncMode Compatibility Fix -->
     <script>
-      // Patch React before any modules load
+      // Immediate fix for AsyncMode issues before any modules load
       (function() {
-        // Create a proxy for window.React
-        var _React;
-        Object.defineProperty(window, 'React', {
-          get: function() { return _React; },
-          set: function(value) {
-            _React = value;
-            if (value && typeof value === 'object') {
-              ['AsyncMode', 'unstable_AsyncMode', 'ConcurrentMode', 'unstable_ConcurrentMode'].forEach(function(prop) {
-                if (!(prop in value)) {
-                  try {
-                    Object.defineProperty(value, prop, {
-                      get: function() { return value.Fragment || function(p) { return p.children; }; },
-                      configurable: true
-                    });
-                  } catch(e) {
-                    value[prop] = value.Fragment;
+        // Protect React object from AsyncMode assignments
+        if (typeof Object.defineProperty === 'function') {
+          var reactProxy = {};
+          var reactHandler = {
+            get: function(target, prop) {
+              if (prop === 'AsyncMode' || prop === 'unstable_AsyncMode') {
+                // Return Fragment as fallback for deprecated AsyncMode
+                return target.Fragment || function(props) { 
+                  return props && props.children ? props.children : null; 
+                };
+              }
+              return target[prop];
+            },
+            set: function(target, prop, value) {
+              var deprecatedProps = ['AsyncMode', 'unstable_AsyncMode', 'isAsyncMode', 'isConcurrentMode'];
+              var reactProps = ['ContextConsumer', 'ContextProvider', 'Fragment', 'Element', 'ForwardRef', 'Lazy', 'Memo', 'Portal', 'Profiler', 'StrictMode', 'Suspense', 'SuspenseList', 'isContextConsumer', 'isContextProvider', 'isElement', 'isForwardRef', 'isFragment', 'isLazy', 'isMemo', 'isPortal', 'isProfiler', 'isStrictMode', 'isSuspense', 'isSuspenseList', 'isValidElementType', 'typeOf'];
+              
+              if (deprecatedProps.includes(prop)) {
+                // Silently ignore deprecated props to prevent errors
+                console.warn(prop + ' is deprecated in React 18 - assignment ignored');
+                return true;
+              }
+              
+              if (reactProps.includes(prop)) {
+                // Handle React property assignments safely
+                try {
+                  if (target && typeof target === 'object') {
+                    target[prop] = value;
+                    return true;
+                  } else {
+                    console.warn('Cannot set ' + prop + ' on undefined React object');
+                    return false;
                   }
+                } catch(e) {
+                  console.warn('Failed to set React.' + prop, e);
+                  return false;
                 }
-              });
+              }
+              
+              try {
+                target[prop] = value;
+                return true;
+              } catch(e) {
+                console.warn('Failed to set React.' + prop, e);
+                return false;
+              }
             }
-          },
-          configurable: true
-        });
+          };
+          
+          // Set up global React protection
+          Object.defineProperty(window, 'React', {
+            get: function() { 
+              return typeof Proxy !== 'undefined' ? new Proxy(reactProxy, reactHandler) : reactProxy; 
+            },
+            set: function(value) { 
+              if (value && typeof value === 'object') {
+                Object.assign(reactProxy, value);
+                // Ensure Fragment exists as fallback
+                if (!reactProxy.Fragment) {
+                  reactProxy.Fragment = function(props) { return props.children; };
+                }
+              }
+              return true;
+            },
+            configurable: true
+          });
+        }
+      })();
+
+      // UMD Module Definition Polyfill (based on Context7 webpack patterns)
+      (function() {
+        // Implement the exact UMD pattern from Context7 docs
+        if (typeof window !== 'undefined') {
+          // Define exports object if it doesn't exist
+          if (typeof window.exports === 'undefined') {
+            window.exports = {};
+          }
+          
+          // Define module object if it doesn't exist (CommonJS compatibility)
+          if (typeof window.module === 'undefined') {
+            window.module = { exports: window.exports };
+          }
+          
+          // Global UMD factory function for safe module loading
+          window.webpackUniversalModuleDefinition = function(root, factory) {
+            if (typeof exports === 'object' && typeof module === 'object') {
+              module.exports = factory();
+            } else if (typeof define === 'function' && define.amd) {
+              define([], factory);
+            } else if (typeof exports === 'object') {
+              var result = factory();
+              for (var key in result) {
+                if (result.hasOwnProperty && result.hasOwnProperty(key)) {
+                  exports[key] = result[key];
+                }
+              }
+            } else {
+              var result = factory();
+              for (var key in result) {
+                if (result.hasOwnProperty && result.hasOwnProperty(key)) {
+                  root[key] = result[key];
+                }
+              }
+            }
+          };
+          
+          // Ensure exports is always an object
+          Object.defineProperty(window, 'exports', {
+            get: function() { 
+              return window.__moduleExports || (window.__moduleExports = {}); 
+            },
+            set: function(value) { 
+              window.__moduleExports = value || {};
+              if (window.module) {
+                window.module.exports = window.__moduleExports;
+              }
+            },
+            configurable: true,
+            enumerable: true
+          });
+        }
       })();
     </script>
     <div id="root"></div>

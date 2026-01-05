@@ -1,8 +1,12 @@
 # Cloudflare Pages configuration for the frontend only
-# This file is intentionally minimal to avoid conflicts with the root Worker config.
+# This ensures all deployments go to your original project domain
+# Domain: https://pitchey-5o8-66n.pages.dev
 
-# Name of the Cloudflare Pages project
-name = "pitchey-frontend-ndlovu"
+# Name of the Cloudflare Pages project (your original project)
+name = "pitchey-5o8"
 
 # Directory to deploy for Pages (relative to this file)
 pages_build_output_dir = "dist"
+
+# Compatibility date for consistent behavior
+compatibility_date = "2024-01-01"
