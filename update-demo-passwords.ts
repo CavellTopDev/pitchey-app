@@ -1,41 +1,29 @@
-import { neon } from "@neondatabase/serverless";
-import * as bcrypt from "bcryptjs";
+import postgres from "https://deno.land/x/postgresjs@v3.3.5/mod.js";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
-const DATABASE_URL = "postgresql://neondb_owner:npg_DZhIpVaLAk06@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
+const DATABASE_URL = "postgresql://neondb_owner:npg_YibeIGRuv40J@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
+const sql = postgres(DATABASE_URL);
 
-async function updateDemoPasswords() {
-  const sql = neon(DATABASE_URL);
+try {
+  // Update all demo users to have password "Demo123"
+  const newHash = await bcrypt.hash("Demo123");
   
-  console.log("🔐 Updating demo account passwords with bcrypt hashes...");
+  const result = await sql`
+    UPDATE users 
+    SET password_hash = ${newHash}
+    WHERE email IN ('alex.creator@demo.com', 'sarah.investor@demo.com', 'stellar.production@demo.com')
+    RETURNING email
+  `;
   
-  // Hash the demo password
-  const passwordHash = await bcrypt.hash("Demo123", 10);
-  console.log("Generated bcrypt hash:", passwordHash);
-  
-  // Update demo accounts
-  const demoEmails = [
-    "alex.creator@demo.com",
-    "sarah.investor@demo.com", 
-    "stellar.production@demo.com"
-  ];
-  
-  for (const email of demoEmails) {
-    const result = await sql`
-      UPDATE users 
-      SET password_hash = ${passwordHash}
-      WHERE email = ${email}
-      RETURNING id, email
-    `;
-    
-    if (result.length > 0) {
-      console.log(`✅ Updated password for ${email}`);
-    } else {
-      console.log(`⚠️ User ${email} not found`);
-    }
+  console.log("Updated passwords for:");
+  for (const user of result) {
+    console.log(`- ${user.email}`);
   }
   
-  console.log("\n✨ Demo passwords updated successfully!");
-  console.log("Demo accounts can now login with password: Demo123");
+  console.log("\nAll demo users now have password: Demo123");
+  
+} catch (error) {
+  console.error("Error:", error.message);
+} finally {
+  await sql.end();
 }
-
-updateDemoPasswords().catch(console.error);

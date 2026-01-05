@@ -22,6 +22,7 @@ export function useSentryPortal(config: SentryPortalConfig) {
   useEffect(() => {
     // Set user context - temporarily disabled
     if (user) {
+      Sentry.setUser({
         id: String(user.id),
         email: user.email,
         username: user.username,
@@ -82,6 +83,7 @@ export function useSentryPortal(config: SentryPortalConfig) {
 
   // Track custom events - temporarily disabled
   const trackEvent = (eventName: string, data?: Record<string, any>) => {
+    console.log('Track event:', eventName, {
       portal: portalType,
       component: componentName,
       ...data

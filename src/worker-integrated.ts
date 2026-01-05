@@ -11,6 +11,14 @@ import { ApiResponseBuilder, ErrorCode, errorHandler } from './utils/api-respons
 import { getCorsHeaders } from './utils/response';
 import { createJWT, verifyJWT, extractJWT } from './utils/worker-jwt';
 import { createBetterAuthInstance, createPortalAuth } from './auth/better-auth-neon-raw-sql';
+import { PortalAccessController, createPortalAccessMiddleware } from './middleware/portal-access-control';
+import { CreatorInvestorWorkflow } from './workflows/creator-investor-workflow';
+import { CreatorProductionWorkflow } from './workflows/creator-production-workflow';
+import { NDAStateMachine } from './workflows/nda-state-machine';
+import { SecurePortalEndpoints } from './handlers/secure-portal-endpoints';
+
+// Import Container Integration
+import { ContainerWorkerIntegration } from './workers/container-worker-integration';
 
 // Import resilient handlers
 import { profileHandler } from './handlers/profile';
@@ -190,6 +198,7 @@ class RouteRegistry {
   private betterAuth?: ReturnType<typeof createBetterAuthInstance>;
   private portalAuth?: ReturnType<typeof createPortalAuth>;
   private realtimeService: WorkerRealtimeService;
+  private containerIntegration: ContainerWorkerIntegration;
 
   constructor(env: Env) {
     this.env = env;
@@ -222,6 +231,9 @@ class RouteRegistry {
       
       // Initialize realtime service for WebSocket support
       this.realtimeService = new WorkerRealtimeService(env, this.db);
+      
+      // Initialize container integration
+      this.containerIntegration = new ContainerWorkerIntegration(env);
       
       // Initialize Better Auth with Cloudflare integration
       if (env.DATABASE_URL && (env.SESSIONS_KV || env.KV)) {
@@ -848,10 +860,10 @@ class RouteRegistry {
     this.register('GET', '/api/search/trending', this.getTrending.bind(this));
     this.register('GET', '/api/search/facets', this.getFacets.bind(this));
 
-    // Dashboard routes - use resilient handlers
-    this.register('GET', '/api/creator/dashboard', (req) => creatorDashboardHandler(req, this.env));
-    this.register('GET', '/api/investor/dashboard', (req) => investorDashboardHandler(req, this.env));
-    this.register('GET', '/api/production/dashboard', (req) => productionDashboardHandler(req, this.env));
+    // Dashboard routes - use resilient handlers with portal access control
+    this.registerPortalRoute('GET', '/api/creator/dashboard', 'creator', (req) => creatorDashboardHandler(req, this.env));
+    this.registerPortalRoute('GET', '/api/investor/dashboard', 'investor', (req) => investorDashboardHandler(req, this.env));
+    this.registerPortalRoute('GET', '/api/production/dashboard', 'production', (req) => productionDashboardHandler(req, this.env));
     
     // Team Management routes
     this.register('GET', '/api/teams', (req) => getTeamsHandler(req, this.env));
@@ -900,16 +912,16 @@ class RouteRegistry {
     this.register('GET', '/api/views/pitch/*', (req) => getPitchViewersHandler(req, this.env));
     
     // === CREATOR PORTAL ROUTES (Phase 3) ===
-    // Revenue Dashboard
-    this.register('GET', '/api/creator/revenue', async (req) => {
+    // Revenue Dashboard - Protected for creators only
+    this.registerPortalRoute('GET', '/api/creator/revenue', 'creator', async (req) => {
       const { creatorRevenueHandler } = await import('./handlers/creator-dashboard');
       return creatorRevenueHandler(req, this.env);
     });
-    this.register('GET', '/api/creator/revenue/trends', async (req) => {
+    this.registerPortalRoute('GET', '/api/creator/revenue/trends', 'creator', async (req) => {
       const { creatorRevenueTrendsHandler } = await import('./handlers/creator-dashboard');
       return creatorRevenueTrendsHandler(req, this.env);
     });
-    this.register('GET', '/api/creator/revenue/breakdown', async (req) => {
+    this.registerPortalRoute('GET', '/api/creator/revenue/breakdown', 'creator', async (req) => {
       const { creatorRevenueBreakdownHandler } = await import('./handlers/creator-dashboard');
       return creatorRevenueBreakdownHandler(req, this.env);
     });
@@ -1096,6 +1108,44 @@ class RouteRegistry {
     //   this.register('POST', '/api/notifications/nda/request', this.emailMessagingRoutes.sendNDARequestNotification.bind(this.emailMessagingRoutes));
     //   this.register('POST', '/api/notifications/investment', this.emailMessagingRoutes.sendInvestmentNotification.bind(this.emailMessagingRoutes));
     // }
+
+    // ===== CONTAINER SERVICE ROUTES =====
+    // Container job management
+    this.register('GET', '/api/containers/jobs', this.handleContainerJobs.bind(this));
+    this.register('POST', '/api/containers/jobs', this.handleContainerJobCreate.bind(this));
+    this.register('GET', '/api/containers/jobs/:id', this.handleContainerJobStatus.bind(this));
+    this.register('DELETE', '/api/containers/jobs/:id', this.handleContainerJobCancel.bind(this));
+
+    // Container processing endpoints
+    this.register('POST', '/api/containers/process/video', this.handleVideoProcessing.bind(this));
+    this.register('POST', '/api/containers/process/document', this.handleDocumentProcessing.bind(this));
+    this.register('POST', '/api/containers/process/ai', this.handleAIInference.bind(this));
+    this.register('POST', '/api/containers/process/media', this.handleMediaTranscoding.bind(this));
+    this.register('POST', '/api/containers/process/code', this.handleCodeExecution.bind(this));
+
+    // Container metrics and monitoring
+    this.register('GET', '/api/containers/metrics/dashboard', this.handleContainerDashboard.bind(this));
+    this.register('GET', '/api/containers/metrics/costs', this.handleContainerCosts.bind(this));
+    this.register('GET', '/api/containers/metrics/performance', this.handleContainerPerformance.bind(this));
+    this.register('GET', '/api/containers/metrics/health', this.handleContainerHealth.bind(this));
+
+    // Container instances management (admin only)
+    this.registerPortalRoute('GET', '/api/containers/instances', 'production', this.handleContainerInstances.bind(this));
+    this.registerPortalRoute('POST', '/api/containers/instances/scale', 'production', this.handleContainerScaling.bind(this));
+    this.registerPortalRoute('POST', '/api/containers/instances/restart', 'production', this.handleContainerRestart.bind(this));
+
+    // Container configuration (admin only)
+    this.registerPortalRoute('GET', '/api/containers/config', 'production', this.handleContainerConfig.bind(this));
+    this.registerPortalRoute('PUT', '/api/containers/config', 'production', this.handleContainerConfigUpdate.bind(this));
+
+    // Cost optimization endpoints
+    this.register('GET', '/api/containers/optimization/recommendations', this.handleCostRecommendations.bind(this));
+    this.register('POST', '/api/containers/optimization/implement', this.handleImplementOptimization.bind(this));
+    this.register('GET', '/api/containers/budgets', this.handleContainerBudgets.bind(this));
+    this.register('POST', '/api/containers/budgets', this.handleCreateBudget.bind(this));
+
+    // WebSocket endpoint for real-time container updates
+    this.register('GET', '/api/containers/ws', this.handleContainerWebSocket.bind(this));
   }
 
   /**
@@ -1106,6 +1156,67 @@ class RouteRegistry {
       this.routes.set(method, new Map());
     }
     this.routes.get(method)!.set(path, handler);
+  }
+
+  /**
+   * Register a portal-protected route with access control
+   */
+  private registerPortalRoute(
+    method: string, 
+    path: string, 
+    portal: 'creator' | 'investor' | 'production', 
+    handler: Function
+  ) {
+    const wrappedHandler = async (request: Request) => {
+      // First validate authentication
+      const authResult = await this.validateAuth(request);
+      if (!authResult.valid || !authResult.user) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        }), { 
+          status: 401, 
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      // Create portal access controller
+      const accessController = new PortalAccessController(this.env);
+      
+      // Check portal access (note: parameters are request, portal, user)
+      const accessResult = await accessController.validatePortalAccess(
+        request,
+        portal,
+        authResult.user
+      );
+      
+      if (!accessResult.allowed) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: accessResult.reason || `Access restricted to ${portal} portal users only`
+          }
+        }), { 
+          status: 403, 
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      // Attach user to request for handler use
+      (request as any).user = authResult.user;
+      
+      // Call the original handler
+      return handler(request);
+    };
+
+    this.register(method, path, wrappedHandler);
   }
 
   /**
@@ -5132,6 +5243,315 @@ class RouteRegistry {
       return errorHandler(error, request);
     }
   }
+
+  // ===== CONTAINER SERVICE HANDLERS =====
+
+  /**
+   * Handle container jobs listing and filtering
+   */
+  private async handleContainerJobs(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container job creation
+   */
+  private async handleContainerJobCreate(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container job status retrieval
+   */
+  private async handleContainerJobStatus(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container job cancellation
+   */
+  private async handleContainerJobCancel(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle video processing jobs
+   */
+  private async handleVideoProcessing(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle document processing jobs
+   */
+  private async handleDocumentProcessing(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle AI inference jobs
+   */
+  private async handleAIInference(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle media transcoding jobs
+   */
+  private async handleMediaTranscoding(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle code execution jobs
+   */
+  private async handleCodeExecution(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container dashboard metrics
+   */
+  private async handleContainerDashboard(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container cost metrics
+   */
+  private async handleContainerCosts(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container performance metrics
+   */
+  private async handleContainerPerformance(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container health metrics
+   */
+  private async handleContainerHealth(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container instances management
+   */
+  private async handleContainerInstances(request: Request): Promise<Response> {
+    try {
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container scaling
+   */
+  private async handleContainerScaling(request: Request): Promise<Response> {
+    try {
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container restart
+   */
+  private async handleContainerRestart(request: Request): Promise<Response> {
+    try {
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container configuration
+   */
+  private async handleContainerConfig(request: Request): Promise<Response> {
+    try {
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container configuration updates
+   */
+  private async handleContainerConfigUpdate(request: Request): Promise<Response> {
+    try {
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle cost optimization recommendations
+   */
+  private async handleCostRecommendations(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle optimization implementation
+   */
+  private async handleImplementOptimization(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container budgets
+   */
+  private async handleContainerBudgets(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle budget creation
+   */
+  private async handleCreateBudget(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle container WebSocket connections
+   */
+  private async handleContainerWebSocket(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      return this.containerIntegration.handleRequest(request);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
 }
 
 /**
@@ -5331,8 +5751,10 @@ export default {
   }
 };
 
-// Export Durable Object
+// Export Durable Objects
 export { WebSocketDurableObject };
 // Export aliases for migration compatibility
-export const WebSocketRoom = WebSocketDurableObject;
 export const NotificationRoom = WebSocketDurableObject;
+// Durable Object Exports (Premium Feature)
+export { NotificationHub } from './durable-objects/notification-hub';
+export { WebSocketRoom } from './durable-objects/websocket-room';

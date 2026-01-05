@@ -84,6 +84,7 @@ export default function Calendar() {
         // Filter out any null/undefined events
         const validEvents = eventsArray.filter(event => event && event.date);
         
+        console.log('Loaded events:', validEvents.map(e => ({
           title: e.title,
           date: e.date
         })));
@@ -115,6 +116,7 @@ export default function Calendar() {
       }
       
       // Log the values for debugging
+      console.log('Creating event:', {
         date: newEvent.date,
         time: newEvent.time,
         title: newEvent.title

@@ -18,6 +18,7 @@ import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './comp
 import { PortalLayout } from './components/layout/PortalLayout';
 
 // Log environment on app load
+console.log('App Environment:', {
   PROD: import.meta.env.PROD,
   DEV: import.meta.env.DEV,
   MODE: import.meta.env.MODE,

@@ -1,210 +1,209 @@
-# Production configuration with enhanced features
+# =====================================================
+# Pitchey Production Configuration with Container Services
+# Integrated deployment for existing production URLs
+# =====================================================
+
+# ===== MAIN WORKER CONFIGURATION =====
 name = "pitchey-api-prod"
 main = "src/worker-integrated.ts"
-compatibility_date = "2024-11-01"
-compatibility_flags = ["nodejs_compat"]
-account_id = "002bd5c0e90ae753a387c60546cf6869"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat", "experimental"]
+account_id = "02967e39e44b6266e7873829e94849f5"
 
-[vars]
-# SECURITY: All sensitive values moved to Cloudflare dashboard secrets
-# Set these via: wrangler secret put <KEY_NAME>
-# Required secrets:
-# DATABASE_URL - PostgreSQL connection string
-# JWT_SECRET - JWT signing secret (for legacy compatibility)
-# BETTER_AUTH_SECRET - Better Auth secret
-# BETTER_AUTH_URL - Better Auth URL
-# UPSTASH_REDIS_REST_URL - Redis URL for caching
-# UPSTASH_REDIS_REST_TOKEN - Redis auth token
-# SENTRY_DSN - Error tracking
-# STRIPE_SECRET_KEY - Payment processing
-# ADMIN_TOKEN - Admin API authentication
-# 
-# Email Service Secrets:
-# SENDGRID_API_KEY - Primary email provider
-# SENDGRID_FROM_EMAIL - SendGrid sender email
-# SENDGRID_FROM_NAME - SendGrid sender name
-# AWS_SES_ACCESS_KEY - Fallback email provider access key
-# AWS_SES_SECRET_KEY - Fallback email provider secret key
-# AWS_SES_REGION - AWS SES region
-# AWS_SES_FROM_EMAIL - AWS SES sender email
-# AWS_SES_FROM_NAME - AWS SES sender name
-#
-# Email Configuration Variables:
-# EMAIL_PRIMARY_PROVIDER - Primary email provider (sendgrid|awsSes)
-# EMAIL_RATE_LIMIT_MINUTE - Rate limit per minute
-# EMAIL_RATE_LIMIT_HOUR - Rate limit per hour
-# EMAIL_RATE_LIMIT_DAY - Rate limit per day
-# EMAIL_MAX_RETRIES - Maximum retry attempts
-# EMAIL_RETRY_DELAY - Initial retry delay (ms)
-# EMAIL_RETRY_MAX_DELAY - Maximum retry delay (ms)
-# EMAIL_QUEUE_CONCURRENT - Concurrent processing limit
-# EMAIL_QUEUE_INTERVAL - Queue processing interval (ms)
-# EMAIL_BATCH_SIZE - Batch size for bulk operations
-# ENABLE_EMAIL_TEMPLATE_CACHE - Enable template caching (true|false)
-#
-# Messaging Configuration:
-# WS_HEARTBEAT_INTERVAL - WebSocket heartbeat interval (ms)
-# WS_CONNECTION_TIMEOUT - WebSocket connection timeout (ms)  
-# WS_MAX_CONNECTIONS - Maximum concurrent WebSocket connections
-# MAX_FILE_SIZE - Maximum file upload size (bytes)
-# ALLOWED_FILE_TYPES - Comma-separated list of allowed file extensions
-# ENABLE_E2E_ENCRYPTION - Enable end-to-end encryption (true|false)
-#
-# Notification Configuration:
-# NOTIFICATION_PROCESSING_INTERVAL - Processing interval (ms)
-# NOTIFICATION_BATCH_SIZE - Batch size for notifications
-# NOTIFICATION_MAX_RETRIES - Maximum retry attempts
-# NOTIFICATION_QUEUE_TTL - Queue TTL in seconds
-# MESSAGE_BATCH_SIZE - Message batch size
-# MESSAGE_BATCH_TIMEOUT - Message batch timeout (ms)
-# ENABLE_MESSAGE_CACHE - Enable message caching (true|false)
-#
-# Push Notification Secrets (Future):
-# FCM_SERVER_KEY - Firebase Cloud Messaging server key
-# APNS_CERTIFICATE_PATH - Apple Push Notification certificate path
-# APNS_KEY_ID - Apple Push Notification key ID
-# APNS_TEAM_ID - Apple Push Notification team ID
-#
-# SMS Configuration (Future):
-# TWILIO_ACCOUNT_SID - Twilio account SID
-# TWILIO_AUTH_TOKEN - Twilio authentication token
-# TWILIO_FROM_NUMBER - Twilio sender phone number
-#
-# Feature Flags:
-# ENABLE_EMAIL_SERVICE - Enable email service (true|false)
-# ENABLE_MESSAGING_SERVICE - Enable messaging service (true|false)
-# ENABLE_NOTIFICATION_SERVICE - Enable notification service (true|false)
-# ENABLE_PUSH_NOTIFICATIONS - Enable push notifications (true|false)
-# ENABLE_SMS_NOTIFICATIONS - Enable SMS notifications (true|false)
-FRONTEND_URL = "https://pitchey.pages.dev"
-ENVIRONMENT = "production"
-CORS_ORIGINS = "https://pitchey.pages.dev,https://pitchey-5o8.pages.dev,https://pitchey-api-prod.ndlovucavelle.workers.dev"
+# Production domain routing (existing URLs)
+routes = [
+  { pattern = "pitchey-api-prod.ndlovucavelle.workers.dev/*", custom_domain = true }
+]
 
-# KV for static content caching and sessions - ENABLED for free tier (1GB limit)
-[[kv_namespaces]]
-binding = "KV"
-id = "39cd08d6efe74c7fb99b5fa0471fd148"
+# ===== CONTAINER SERVICES INTEGRATION =====
+# Note: Container endpoints will be available at:
+# https://pitchey-api-prod.ndlovucavelle.workers.dev/api/containers/*
 
-# KV for Better Auth sessions - ENABLED for authentication
-[[kv_namespaces]]
-binding = "SESSIONS_KV"
-id = "776ca67365654698bbf0ac5cd7eca749"
+# ===== DURABLE OBJECTS =====
+[[durable_objects.bindings]]
+name = "NOTIFICATION_HUB"
+class_name = "NotificationHub"
 
-# KV for cache - ENABLED for health monitoring and general caching
-[[kv_namespaces]]
-binding = "KV_CACHE"
-id = "10774a77c8cf47acaed85d6cdfc592c1"
+[[durable_objects.bindings]]
+name = "WEBSOCKET_ROOMS"
+class_name = "WebSocketRoom"
 
-# Alternative CACHE binding using the same namespace for compatibility
+[[durable_objects.bindings]]
+name = "CONTAINER_ORCHESTRATOR"
+class_name = "ContainerOrchestrator"
+
+[[durable_objects.bindings]]
+name = "JOB_SCHEDULER"
+class_name = "JobScheduler"
+
+[[migrations]]
+tag = "v3"
+new_classes = ["NotificationHub", "WebSocketRoom", "ContainerOrchestrator", "JobScheduler"]
+
+# ===== R2 STORAGE =====
+[[r2_buckets]]
+binding = "PITCH_STORAGE"
+bucket_name = "pitchey-pitches"
+
+[[r2_buckets]]
+binding = "NDA_STORAGE"
+bucket_name = "pitchey-ndas"
+
+[[r2_buckets]]
+binding = "MEDIA_STORAGE"
+bucket_name = "pitchey-media"
+
+[[r2_buckets]]
+binding = "PROCESSED_STORAGE"
+bucket_name = "pitchey-processed"
+
+[[r2_buckets]]
+binding = "TEMP_STORAGE"
+bucket_name = "pitchey-temp"
+
+# ===== KV NAMESPACES =====
 [[kv_namespaces]]
 binding = "CACHE"
-id = "5e9e940dc8af4f159f1bd027f3687dd3"
+id = "cache_namespace_prod"
 
-# KV for Better Auth rate limiting - Disabled for free plan
-# [[kv_namespaces]]
-# binding = "RATE_LIMIT_KV"
-# id = "98c88a185eb448e4868fcc87e458b3ac"
+[[kv_namespaces]]
+binding = "SESSION_STORE"
+id = "session_namespace_prod"
 
-# KV for email template caching and email service state - Disabled for free plan
-# [[kv_namespaces]]
-# binding = "EMAIL_CACHE"
-# id = "98c88a185eb448e4868fcc87e458b3ac"
+[[kv_namespaces]]
+binding = "RATE_LIMITER"
+id = "rate_limiter_namespace_prod"
 
-# KV for notification caching and user preferences - Disabled for free plan
-# [[kv_namespaces]]
-# binding = "NOTIFICATION_CACHE"
-# id = "98c88a185eb448e4868fcc87e458b3ac"
+[[kv_namespaces]]
+binding = "JOB_STATUS"
+id = "job_status_namespace_prod"
 
-# R2 for file storage - Enable once R2 is activated in Cloudflare Dashboard
-# [[r2_buckets]]
-# binding = "R2_BUCKET"
-# bucket_name = "pitchey-uploads"
+[[kv_namespaces]]
+binding = "CONTAINER_METRICS"
+id = "container_metrics_namespace_prod"
 
-# R2 for message attachments and email attachments - Disabled for free plan
-# [[r2_buckets]]
-# binding = "MESSAGE_ATTACHMENTS"
-# bucket_name = "pitchey-message-attachments"
+# ===== QUEUES FOR CONTAINER PROCESSING =====
+[[queues.producers]]
+binding = "VIDEO_PROCESSING_QUEUE"
+queue = "pitchey-video-processing"
 
-# R2 for email attachments (if different from general uploads) - Disabled for free plan
-# [[r2_buckets]]
-# binding = "EMAIL_ATTACHMENTS"
-# bucket_name = "pitchey-email-attachments"
+[[queues.producers]]
+binding = "DOCUMENT_PROCESSING_QUEUE"
+queue = "pitchey-document-processing"
 
-# Durable Objects for real-time features - Disabled for free plan
-# [[durable_objects.bindings]]
-# name = "MESSAGE_ROOMS"
-# class_name = "MessageRoom"
-# script_name = "pitchey-api-prod"
+[[queues.producers]]
+binding = "AI_INFERENCE_QUEUE"
+queue = "pitchey-ai-inference"
 
-# Additional Durable Objects for WebSocket management - Disabled for free plan
-# [[durable_objects.bindings]]
-# name = "WEBSOCKET_SESSIONS"
-# class_name = "WebSocketSession"
-# script_name = "pitchey-api-prod"
+[[queues.producers]]
+binding = "MEDIA_TRANSCODING_QUEUE"
+queue = "pitchey-media-transcoding"
 
-# Cache namespace for efficient data storage - Disabled for free plan
-# [[kv_namespaces]]
-# binding = "CACHE"
-# id = "98c88a185eb448e4868fcc87e458b3ac"
+[[queues.producers]]
+binding = "CODE_EXECUTION_QUEUE"
+queue = "pitchey-code-execution"
 
-# Neon PostgreSQL via Hyperdrive - Temporarily disabled due to error
-# [[hyperdrive]]
-# binding = "HYPERDRIVE"
-# id = "0cc3dc7f6d6e4216808a9ee3d736b328"
+[[queues.consumers]]
+queue = "pitchey-video-processing"
+max_batch_size = 5
+max_batch_timeout = 300
+max_retries = 3
+dead_letter_queue = "pitchey-video-dlq"
 
-# Analytics Engine for metrics (disabled for free plan)
-# [[analytics_engine_datasets]]
-# binding = "ANALYTICS"
-# dataset = "pitchey_analytics"
+[[queues.consumers]]
+queue = "pitchey-document-processing"
+max_batch_size = 10
+max_batch_timeout = 60
+max_retries = 3
+dead_letter_queue = "pitchey-document-dlq"
 
-# Queue for background jobs - Disabled for free plan
-# [[queues.producers]]
-# binding = "NOTIFICATION_QUEUE"
-# queue = "notification-processing"
+[[queues.consumers]]
+queue = "pitchey-ai-inference"
+max_batch_size = 8
+max_batch_timeout = 180
+max_retries = 2
+dead_letter_queue = "pitchey-ai-dlq"
 
-# [[queues.consumers]]
-# queue = "notification-processing"
-# max_batch_size = 10
-# max_batch_timeout = 30
+[[queues.consumers]]
+queue = "pitchey-media-transcoding"
+max_batch_size = 3
+max_batch_timeout = 600
+max_retries = 3
+dead_letter_queue = "pitchey-media-dlq"
 
-# Queue for email processing - Disabled for free plan
-# [[queues.producers]]
-# binding = "EMAIL_QUEUE"
-# queue = "email-processing"
+[[queues.consumers]]
+queue = "pitchey-code-execution"
+max_batch_size = 20
+max_batch_timeout = 30
+max_retries = 1
+dead_letter_queue = "pitchey-code-dlq"
 
-# [[queues.consumers]]
-# queue = "email-processing"
-# max_batch_size = 20
-# max_batch_timeout = 15
+# ===== ANALYTICS ENGINE =====
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "pitchey_metrics"
 
-# Scheduled tasks for cache warming and monitoring (disabled for free plan)
-# [triggers]
-# crons = [
-#   "*/30 * * * *"   # Combined cache warming and metrics every 30 minutes
-# ]
+[[analytics_engine_datasets]]
+binding = "CONTAINER_ANALYTICS"
+dataset = "pitchey_container_metrics"
 
-# Observability
-[observability]
-enabled = true
+[[analytics_engine_datasets]]
+binding = "JOB_ANALYTICS"
+dataset = "pitchey_job_analytics"
 
-# Development settings
-[dev]
-port = 8787
-local_protocol = "http"
-upstream_protocol = "https"
-host = "localhost"
+# ===== CRON TRIGGERS =====
+[triggers]
+crons = [
+  "*/5 * * * *",    # Every 5 min: Check NDA expirations
+  "*/5 * * * *",    # Every 5 min: Container health checks
+  "*/10 * * * *",   # Every 10 min: Job queue monitoring
+  "0 * * * *",      # Hourly: Send digest emails
+  "0 * * * *",      # Hourly: Container metrics aggregation
+  "0 0 * * *",      # Daily: Export audit logs
+  "0 0 * * *",      # Daily: Archive completed jobs
+  "0 2 * * 0",      # Weekly: Database cleanup
+  "*/15 * * * *"    # Every 15 min: Update trending algorithm
+]
 
-# Build settings
+# ===== ENVIRONMENT VARIABLES =====
+[vars]
+# Platform Configuration
+FRONTEND_URL = "https://pitchey-5o8-66n.pages.dev"
+BACKEND_URL = "https://pitchey-api-prod.ndlovucavelle.workers.dev"
+ENVIRONMENT = "production"
+VERSION = "2.0-integrated"
+
+# Container Service Configuration
+ENABLE_CONTAINERS = "true"
+CONTAINER_ORCHESTRATION = "true"
+CONTAINER_AUTO_SCALING = "true"
+CONTAINER_HEALTH_MONITORING = "true"
+
+# Processing Limits
+MAX_VIDEO_PROCESSING_TIME = "1800"
+MAX_DOCUMENT_PROCESSING_TIME = "300"
+MAX_AI_INFERENCE_TIME = "120"
+MAX_CODE_EXECUTION_TIME = "30"
+
+# Feature Flags
+ENABLE_DURABLE_OBJECTS = "true"
+ENABLE_WEBSOCKETS = "true"
+ENABLE_QUEUES = "true"
+ENABLE_ANALYTICS = "true"
+MAX_WEBSOCKET_CONNECTIONS = "100000"
+CACHE_TTL = "300"
+
+# Security Configuration
+RATE_LIMITING_ENABLED = "true"
+REQUEST_TIMEOUT_MS = "30000"
+SANDBOX_EXECUTION = "true"
+
+# Legacy Compatibility
+REDIS_CACHE_ENABLED = "true"
+ENABLE_EDGE_CACHING = "true"
+
+# Build Configuration
 [build]
-command = "npm run build:worker"
-
-# CPU limits not supported on free tier (automatically enforced by Cloudflare)
-
-# Production environment configuration
-[env.production]
-name = "pitchey-api-prod"
-
-# Staging environment configuration
-[env.staging]
-name = "pitchey-api-staging"
-vars = { ENVIRONMENT = "staging", FRONTEND_URL = "https://pitchey-staging.pages.dev", CORS_ORIGINS = "https://pitchey-staging.pages.dev,https://pitchey-api-staging.ndlovucavelle.workers.dev" }
+command = "npm run build"
+[build.upload]
+format = "service-worker"

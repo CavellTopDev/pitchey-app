@@ -1,0 +1,408 @@
+# Cloudflare Workers and Container Auto-Scaling Configuration
+# Specific configurations for Cloudflare's serverless platform
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflare-scaling-config
+  namespace: pitchey-production
+data:
+  # Cloudflare Workers Auto-scaling Configuration
+  workers-config.yaml: |
+    workers:
+      pitchey-api-worker:
+        scaling:
+          # CPU utilization thresholds
+          cpu:
+            scale_up_threshold: 70
+            scale_down_threshold: 30
+            evaluation_period: 300
+          
+          # Memory utilization thresholds  
+          memory:
+            scale_up_threshold: 80
+            scale_down_threshold: 40
+            evaluation_period: 300
+          
+          # Request rate thresholds
+          requests:
+            scale_up_threshold: 1000  # requests per minute
+            scale_down_threshold: 200
+            evaluation_period: 180
+          
+          # Error rate thresholds
+          errors:
+            scale_up_threshold: 5.0  # percentage
+            evaluation_period: 120
+          
+          # Response time thresholds
+          response_time:
+            scale_up_threshold: 1000  # milliseconds
+            evaluation_period: 180
+          
+          # Concurrency limits
+          concurrency:
+            max_concurrent_requests: 1000
+            queue_timeout: 30000  # milliseconds
+          
+          # Instance limits
+          instances:
+            min: 2
+            max: 100
+            scale_up_step: 2
+            scale_down_step: 1
+          
+          # Cost controls
+          cost:
+            max_hourly_cost: 50.00
+            currency: "USD"
+            alert_threshold: 40.00
+          
+          # Cooldown periods
+          cooldown:
+            scale_up: 300    # 5 minutes
+            scale_down: 900  # 15 minutes
+        
+        # Durable Objects scaling (when available)
+        durable_objects:
+          notification_hub:
+            scaling:
+              max_objects_per_zone: 100
+              idle_timeout: 3600  # 1 hour
+              memory_limit: 128   # MB
+              cpu_limit: 10       # milliseconds per request
+        
+        # KV namespace scaling
+        kv_namespaces:
+          cache:
+            scaling:
+              read_units_per_second: 1000
+              write_units_per_second: 100
+              storage_limit: 1048576  # 1GB in KB
+
+      # WebSocket service scaling
+      websocket-worker:
+        scaling:
+          connections:
+            max_concurrent: 10000
+            scale_threshold: 8000
+            evaluation_period: 120
+          
+          memory:
+            scale_up_threshold: 85
+            scale_down_threshold: 45
+            evaluation_period: 300
+          
+          instances:
+            min: 1
+            max: 50
+
+  # R2 Storage Auto-scaling
+  r2-config.yaml: |
+    r2_buckets:
+      pitchey-documents-production:
+        scaling:
+          # Request rate limits
+          requests:
+            read_rps_limit: 10000
+            write_rps_limit: 1000
+            list_rps_limit: 100
+          
+          # Bandwidth limits
+          bandwidth:
+            egress_limit: "10GB"  # per hour
+            ingress_limit: "5GB"  # per hour
+          
+          # Storage optimization
+          storage:
+            lifecycle_rules:
+              - id: "transition_to_infrequent_access"
+                status: "Enabled"
+                transitions:
+                  - days: 30
+                    storage_class: "STANDARD_IA"
+              - id: "delete_old_uploads"
+                status: "Enabled"
+                expiration:
+                  days: 365
+
+  # Analytics and Monitoring
+  analytics-config.yaml: |
+    analytics:
+      # Cloudflare Analytics zones
+      zones:
+        pitchey_production:
+          metrics:
+            - requests_per_minute
+            - bandwidth_usage
+            - cache_hit_ratio
+            - origin_response_time
+            - edge_response_time
+            - threat_score
+            - bot_score
+          
+          alerts:
+            - metric: "requests_per_minute"
+              threshold: 10000
+              operator: "greater_than"
+              duration: "5m"
+            - metric: "origin_response_time"
+              threshold: 2000
+              operator: "greater_than"
+              duration: "3m"
+            - metric: "cache_hit_ratio"
+              threshold: 80
+              operator: "less_than"
+              duration: "10m"
+
+  # Custom Metrics Configuration
+  custom-metrics.yaml: |
+    custom_metrics:
+      # Business metrics
+      business:
+        pitches_created_per_minute:
+          type: "counter"
+          labels: ["user_type", "region"]
+          scaling_threshold: 50
+        
+        active_users_count:
+          type: "gauge" 
+          labels: ["portal_type", "region"]
+          scaling_threshold: 500
+        
+        investment_applications_per_hour:
+          type: "counter"
+          labels: ["investment_type", "amount_range"]
+          scaling_threshold: 100
+        
+        nda_approvals_per_hour:
+          type: "counter"
+          labels: ["approval_type", "user_type"]
+          scaling_threshold: 20
+      
+      # Technical metrics
+      technical:
+        database_connection_pool_utilization:
+          type: "gauge"
+          scaling_threshold: 85
+          evaluation_period: 300
+        
+        redis_memory_utilization:
+          type: "gauge"
+          scaling_threshold: 80
+          evaluation_period: 180
+        
+        websocket_connections_count:
+          type: "gauge"
+          scaling_threshold: 8000
+          evaluation_period: 120
+        
+        file_upload_queue_depth:
+          type: "gauge"
+          scaling_threshold: 50
+          evaluation_period: 60
+        
+        notification_delivery_rate:
+          type: "gauge"
+          scaling_threshold: 95  # scale up if delivery rate drops below 95%
+          operator: "less_than"
+          evaluation_period: 300
+
+  # Predictive Scaling Configuration
+  predictive-scaling.yaml: |
+    predictive_scaling:
+      # Machine learning model configuration
+      models:
+        request_prediction:
+          algorithm: "lstm"
+          features:
+            - "historical_request_rate"
+            - "day_of_week"
+            - "hour_of_day"
+            - "business_events"
+            - "marketing_campaigns"
+          
+          training:
+            lookback_period: "7d"
+            training_frequency: "daily"
+            model_accuracy_threshold: 0.85
+          
+          prediction:
+            forecast_horizon: "30m"
+            confidence_interval: 0.9
+            prediction_frequency: "5m"
+        
+        user_activity_prediction:
+          algorithm: "prophet"
+          features:
+            - "historical_user_count"
+            - "seasonal_patterns"
+            - "trend_components"
+            - "holiday_effects"
+          
+          training:
+            lookback_period: "30d"
+            training_frequency: "weekly"
+            model_accuracy_threshold: 0.8
+          
+          prediction:
+            forecast_horizon: "60m"
+            confidence_interval: 0.85
+      
+      # Scaling decisions based on predictions
+      scaling_rules:
+        proactive_scaling:
+          enabled: true
+          lead_time: "15m"  # Scale 15 minutes before predicted need
+          buffer_percentage: 20  # Add 20% buffer to predictions
+          max_scale_up_percentage: 50  # Max 50% increase per prediction cycle
+          
+        reactive_fallback:
+          enabled: true
+          emergency_thresholds:
+            cpu: 95
+            memory: 90
+            response_time: 5000
+
+---
+# Cloudflare-specific scaling controller deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflare-scaling-controller
+  namespace: pitchey-production
+  labels:
+    app: cloudflare-scaling-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflare-scaling-controller
+  template:
+    metadata:
+      labels:
+        app: cloudflare-scaling-controller
+    spec:
+      serviceAccountName: auto-scaling-controller
+      containers:
+      - name: controller
+        image: pitchey/cloudflare-scaling-controller:latest
+        ports:
+        - containerPort: 8080
+          name: metrics
+        env:
+        - name: CLOUDFLARE_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-credentials
+              key: api-token
+        - name: CLOUDFLARE_ACCOUNT_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-credentials
+              key: account-id
+        - name: PROMETHEUS_URL
+          value: "http://prometheus:9090"
+        - name: GRAFANA_URL
+          value: "http://grafana:3000"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: cloudflare-scaling-config
+
+---
+# Service for scaling controller metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudflare-scaling-controller-metrics
+  namespace: pitchey-production
+  labels:
+    app: cloudflare-scaling-controller
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: metrics
+  selector:
+    app: cloudflare-scaling-controller
+
+---
+# Cloudflare credentials secret (to be created separately)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-credentials
+  namespace: pitchey-production
+type: Opaque
+data:
+  # Base64 encoded values (replace with actual values)
+  api-token: <BASE64_ENCODED_API_TOKEN>
+  account-id: <BASE64_ENCODED_ACCOUNT_ID>
+  zone-id: <BASE64_ENCODED_ZONE_ID>
+
+---
+# CronJob for predictive model training
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: predictive-model-training
+  namespace: pitchey-production
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM UTC
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: model-trainer
+            image: pitchey/ml-model-trainer:latest
+            env:
+            - name: PROMETHEUS_URL
+              value: "http://prometheus:9090"
+            - name: MODEL_STORAGE_PATH
+              value: "/models"
+            command:
+            - "/bin/sh"
+            - "-c"
+            - "python train_predictive_models.py --config /etc/config/predictive-scaling.yaml"
+            volumeMounts:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+            - name: model-storage
+              mountPath: /models
+          volumes:
+          - name: config
+            configMap:
+              name: cloudflare-scaling-config
+          - name: model-storage
+            persistentVolumeClaim:
+              claimName: model-storage-pvc
+          restartPolicy: OnFailure
+
+---
+# PersistentVolumeClaim for ML model storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-storage-pvc
+  namespace: pitchey-production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd

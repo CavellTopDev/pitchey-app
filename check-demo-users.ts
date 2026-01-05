@@ -1,61 +1,27 @@
-#!/usr/bin/env -S deno run --allow-env --allow-net
+import postgres from "https://deno.land/x/postgresjs@v3.3.5/mod.js";
 
-// Check demo user userTypes in database
-import { db } from "./src/db/client.ts";
-import { users, pitches } from "./src/db/schema.ts";
-import { eq, or } from "drizzle-orm";
-
-console.log("Checking demo user userTypes...");
+const DATABASE_URL = "postgresql://neondb_owner:npg_YibeIGRuv40J@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require";
+const sql = postgres(DATABASE_URL);
 
 try {
-  const demoUsers = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      email: users.email,
-      userType: users.userType,
-      companyName: users.companyName
-    })
-    .from(users)
-    .where(or(
-      eq(users.email, "stellar.production@demo.com"),
-      eq(users.email, "sarah.investor@demo.com")
-    ));
+  const users = await sql`
+    SELECT id, email, name, user_type, created_at
+    FROM users
+    WHERE email IN ('alex.creator@demo.com', 'sarah.investor@demo.com', 'stellar.production@demo.com')
+    ORDER BY email
+  `;
   
-  console.log("Demo users found:", demoUsers.length);
+  console.log("Demo users in database:");
+  for (const user of users) {
+    console.log(`- ${user.email}: ${user.name} (${user.user_type}) - ID: ${user.id}`);
+  }
   
-  demoUsers.forEach(user => {
-    console.log(`\nUser: ${user.username}`);
-    console.log(`Email: ${user.email}`);
-    console.log(`UserType: ${user.userType}`);
-    console.log(`Company: ${user.companyName}`);
-  });
-  
-  // Also check their pitches
-  console.log("\n--- Checking pitches from demo users ---");
-  
-  const demoPitches = await db
-    .select({
-      id: pitches.id,
-      title: pitches.title,
-      userId: pitches.userId,
-      status: pitches.status,
-      creatorId: users.id,
-      creatorEmail: users.email,
-      creatorUserType: users.userType
-    })
-    .from(pitches)
-    .leftJoin(users, eq(pitches.userId, users.id))
-    .where(or(
-      eq(users.email, "stellar.production@demo.com"),
-      eq(users.email, "sarah.investor@demo.com")
-    ));
-    
-  console.log(`\nFound ${demoPitches.length} pitches from demo accounts:`);
-  demoPitches.forEach(pitch => {
-    console.log(`- ${pitch.title} (${pitch.status}) by ${pitch.creatorEmail} (${pitch.creatorUserType})`);
-  });
+  if (users.length === 0) {
+    console.log("No demo users found! Need to create them.");
+  }
   
 } catch (error) {
-  console.error("Error:", error);
+  console.error("Error checking users:", error.message);
+} finally {
+  await sql.end();
 }

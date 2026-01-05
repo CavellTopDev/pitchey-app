@@ -1,0 +1,57 @@
+{
+  "name": "@pitchey/workflows",
+  "version": "1.0.0",
+  "description": "Cloudflare Workflows for Pitchey platform - Investment, Production, and NDA workflows",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "lint": "eslint . --ext .ts",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write '**/*.{ts,json,md}'",
+    "migrate": "wrangler migrations create",
+    "migrate:apply": "wrangler migrations apply",
+    "secret:put": "wrangler secret put",
+    "analytics": "wrangler analytics"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "postgres": "^3.4.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0",
+    "wrangler": "^3.22.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pitchey/workflows.git"
+  },
+  "keywords": [
+    "cloudflare",
+    "workflows",
+    "workers",
+    "investment",
+    "production",
+    "nda",
+    "entertainment",
+    "film"
+  ],
+  "author": "Pitchey Team",
+  "license": "MIT"
+}

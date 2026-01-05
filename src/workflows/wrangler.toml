@@ -1,0 +1,109 @@
+name = "pitchey-workflows"
+main = "src/workflows/index.ts"
+compatibility_date = "2024-12-20"
+compatibility_flags = ["workflows"]
+
+# Account and deployment settings
+account_id = "your-account-id"
+workers_dev = false
+route = "pitchey-api-prod.ndlovucavelle.workers.dev/*"
+
+# Workflow definitions
+[[workflows]]
+name = "InvestmentDealWorkflow"
+class_name = "InvestmentDealWorkflow"
+
+[[workflows]]
+name = "ProductionDealWorkflow" 
+class_name = "ProductionDealWorkflow"
+
+[[workflows]]
+name = "NDAWorkflow"
+class_name = "NDAWorkflow"
+
+# Database binding via Hyperdrive
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "your-hyperdrive-config-id"
+
+# R2 buckets for document storage
+[[r2_buckets]]
+binding = "DOCUMENTS"
+bucket_name = "pitchey-documents"
+
+[[r2_buckets]]
+binding = "NDA_STORAGE"
+bucket_name = "pitchey-ndas"
+
+[[r2_buckets]]
+binding = "CONTRACTS"
+bucket_name = "pitchey-contracts"
+
+# KV namespaces for caching and state
+[[kv_namespaces]]
+binding = "WORKFLOW_STATE"
+id = "workflow-state-kv-id"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "cache-kv-id"
+
+[[kv_namespaces]]
+binding = "INVESTOR_PROFILES"
+id = "investor-profiles-kv-id"
+
+# Queue for async notifications
+[[queues.consumers]]
+queue = "notifications"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+FRONTEND_URL = "https://pitchey.pages.dev"
+API_VERSION = "v1"
+MAX_WORKFLOW_RETRIES = "3"
+WORKFLOW_TIMEOUT_DAYS = "30"
+
+# Secrets (set via wrangler secret put)
+# DATABASE_URL - Neon PostgreSQL connection string
+# JWT_SECRET - Authentication secret
+# STRIPE_SECRET_KEY - Stripe API key
+# STRIPE_WEBHOOK_SECRET - Stripe webhook signing secret
+# DOCUSIGN_API_KEY - DocuSign API credentials
+# DOCUSIGN_WEBHOOK_SECRET - DocuSign webhook verification
+# SENDGRID_API_KEY - Email notifications
+# SENTRY_DSN - Error monitoring
+# UPSTASH_REDIS_REST_URL - Redis cache URL
+# UPSTASH_REDIS_REST_TOKEN - Redis auth token
+
+# Development overrides
+[env.development]
+name = "pitchey-workflows-dev"
+workers_dev = true
+route = ""
+vars.ENVIRONMENT = "development"
+vars.FRONTEND_URL = "http://localhost:5173"
+
+# Staging environment
+[env.staging]
+name = "pitchey-workflows-staging"
+route = "staging.pitchey-api.ndlovucavelle.workers.dev/*"
+vars.ENVIRONMENT = "staging"
+vars.FRONTEND_URL = "https://staging.pitchey.pages.dev"
+
+# Analytics and observability
+[observability]
+enabled = true
+
+[analytics_engine_datasets]
+WORKFLOW_ANALYTICS = "workflow_analytics"
+
+# Tail consumers for logging
+[[tail_consumers]]
+service = "pitchey-log-processor"
+
+# Migration settings for workflows
+[migrations]
+migrations_dir = "./migrations"

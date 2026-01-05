@@ -1,0 +1,297 @@
+# Prometheus Alert Rules for Pitchey Container Services
+# Comprehensive alerting for production monitoring
+
+groups:
+  - name: pitchey_container_health
+    interval: 30s
+    rules:
+      # Container Down Alerts
+      - alert: ContainerDown
+        expr: up{job=~"video-processor|document-processor|ai-inference|media-transcoder|code-executor"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "Container {{ $labels.job }} is down"
+          description: "Container {{ $labels.job }} has been down for more than 1 minute"
+          runbook: "https://docs.pitchey.com/runbooks/container-down"
+          action: "Check container logs: docker logs {{ $labels.job }}"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: pitchey_cpu_usage > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High CPU usage on {{ $labels.service }}"
+          description: "CPU usage is {{ $value }}% for {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/high-cpu"
+          action: "Check workload and consider scaling"
+
+      - alert: CriticalCPUUsage
+        expr: pitchey_cpu_usage > 90
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.service }}"
+          description: "CPU usage is {{ $value }}% for {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/critical-cpu"
+          action: "IMMEDIATE: Scale service or restart container"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: pitchey_memory_usage > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High memory usage on {{ $labels.service }}"
+          description: "Memory usage is {{ $value }}% for {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/high-memory"
+          action: "Check for memory leaks or increase memory limits"
+
+      - alert: CriticalMemoryUsage
+        expr: pitchey_memory_usage > 95
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Critical memory usage on {{ $labels.service }}"
+          description: "Memory usage is {{ $value }}% for {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/critical-memory"
+          action: "IMMEDIATE: Restart container or increase memory"
+
+      # Disk Space Alerts
+      - alert: HighDiskUsage
+        expr: pitchey_disk_usage > 80
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High disk usage on {{ $labels.service }}"
+          description: "Disk usage is {{ $value }}% for {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/high-disk"
+          action: "Clean up temporary files or increase storage"
+
+      - alert: CriticalDiskUsage
+        expr: pitchey_disk_usage > 90
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Critical disk usage on {{ $labels.service }}"
+          description: "Disk usage is {{ $value }}% for {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/critical-disk"
+          action: "IMMEDIATE: Free up disk space or mount additional storage"
+
+  - name: pitchey_dependency_health
+    interval: 30s
+    rules:
+      # Redis Connection Issues
+      - alert: RedisConnectionFailed
+        expr: pitchey_dependency_status{dependency="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          service: redis
+        annotations:
+          summary: "Redis connection failed"
+          description: "Redis dependency check is failing for {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/redis-down"
+          action: "Check Redis container and network connectivity"
+
+      # Slow Response Times
+      - alert: SlowDependencyResponse
+        expr: pitchey_dependency_response_time > 5000
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+          service: "{{ $labels.service }}"
+          dependency: "{{ $labels.dependency }}"
+        annotations:
+          summary: "Slow dependency response for {{ $labels.dependency }}"
+          description: "{{ $labels.dependency }} response time is {{ $value }}ms"
+          runbook: "https://docs.pitchey.com/runbooks/slow-dependency"
+          action: "Check {{ $labels.dependency }} service performance"
+
+      # Service Connectivity Issues
+      - alert: ServiceConnectivityIssue
+        expr: pitchey_dependency_status{dependency!="redis"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+          service: "{{ $labels.service }}"
+          dependency: "{{ $labels.dependency }}"
+        annotations:
+          summary: "Service connectivity issue with {{ $labels.dependency }}"
+          description: "Cannot connect to {{ $labels.dependency }} from {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/service-connectivity"
+          action: "Check {{ $labels.dependency }} service and network"
+
+  - name: pitchey_application_health
+    interval: 30s
+    rules:
+      # Video Processing Issues
+      - alert: VideoProcessingFailures
+        expr: rate(video_processing_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          team: video
+          service: video-processor
+        annotations:
+          summary: "High video processing failure rate"
+          description: "Video processing error rate is {{ $value }} errors/second"
+          runbook: "https://docs.pitchey.com/runbooks/video-processing"
+          action: "Check video processor logs and input validation"
+
+      # Document Processing Issues
+      - alert: DocumentProcessingFailures
+        expr: rate(document_processing_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          team: documents
+          service: document-processor
+        annotations:
+          summary: "High document processing failure rate"
+          description: "Document processing error rate is {{ $value }} errors/second"
+          runbook: "https://docs.pitchey.com/runbooks/document-processing"
+          action: "Check document processor logs and file formats"
+
+      # AI Inference Issues
+      - alert: AIInferenceFailures
+        expr: rate(ai_inference_errors_total[5m]) > 0.02
+        for: 3m
+        labels:
+          severity: warning
+          team: ai
+          service: ai-inference
+        annotations:
+          summary: "High AI inference failure rate"
+          description: "AI inference error rate is {{ $value }} errors/second"
+          runbook: "https://docs.pitchey.com/runbooks/ai-inference"
+          action: "Check AI models and API keys"
+
+      # Queue Depth Alerts
+      - alert: HighQueueDepth
+        expr: redis_queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: "{{ $labels.queue }}"
+        annotations:
+          summary: "High queue depth for {{ $labels.queue }}"
+          description: "Queue depth is {{ $value }} items"
+          runbook: "https://docs.pitchey.com/runbooks/high-queue"
+          action: "Check processing capacity and scale workers"
+
+  - name: pitchey_security_alerts
+    interval: 60s
+    rules:
+      # Security Scan Failures
+      - alert: SecurityScanFailure
+        expr: security_scan_status == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: security
+          service: security-scanner
+        annotations:
+          summary: "Security scan failure detected"
+          description: "Security scanning has failed for {{ $labels.target }}"
+          runbook: "https://docs.pitchey.com/runbooks/security-scan"
+          action: "Check security scanner logs and fix vulnerabilities"
+
+      # High Vulnerability Count
+      - alert: HighVulnerabilityCount
+        expr: security_vulnerabilities_total{severity="critical"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Critical vulnerabilities detected"
+          description: "{{ $value }} critical vulnerabilities found in {{ $labels.service }}"
+          runbook: "https://docs.pitchey.com/runbooks/vulnerabilities"
+          action: "IMMEDIATE: Patch critical vulnerabilities"
+
+      # Suspicious Activity
+      - alert: SuspiciousActivity
+        expr: rate(suspicious_requests_total[10m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+          service: security-monitor
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "{{ $value }} suspicious requests per second detected"
+          runbook: "https://docs.pitchey.com/runbooks/suspicious-activity"
+          action: "Investigate request patterns and consider blocking IPs"
+
+  - name: pitchey_business_metrics
+    interval: 60s
+    rules:
+      # Low Upload Success Rate
+      - alert: LowUploadSuccessRate
+        expr: (rate(uploads_successful_total[10m]) / rate(uploads_total[10m])) * 100 < 95
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: upload-service
+        annotations:
+          summary: "Low upload success rate"
+          description: "Upload success rate is {{ $value }}%"
+          runbook: "https://docs.pitchey.com/runbooks/upload-failures"
+          action: "Check upload pipeline and storage connectivity"
+
+      # High API Error Rate
+      - alert: HighAPIErrorRate
+        expr: (rate(api_requests_total{status=~"4..|5.."}[5m]) / rate(api_requests_total[5m])) * 100 > 5
+        for: 3m
+        labels:
+          severity: warning
+          team: api
+          service: api-gateway
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is {{ $value }}%"
+          runbook: "https://docs.pitchey.com/runbooks/api-errors"
+          action: "Check API logs and service dependencies"
+
+      # Processing Time Alerts
+      - alert: SlowProcessingTimes
+        expr: histogram_quantile(0.95, rate(processing_duration_seconds_bucket[10m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "Slow processing times for {{ $labels.service }}"
+          description: "95th percentile processing time is {{ $value }} seconds"
+          runbook: "https://docs.pitchey.com/runbooks/slow-processing"
+          action: "Check processing pipeline performance and optimize"

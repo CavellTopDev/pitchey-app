@@ -1,0 +1,584 @@
+# =====================================================
+# Pitchey Cloudflare Containers Configuration
+# Comprehensive setup for containerized microservices
+# =====================================================
+
+# ===== MAIN WORKER CONFIGURATION =====
+name = "pitchey-containers"
+main = "src/worker-integrated.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat", "experimental", "containers"]
+account_id = "02967e39e44b6266e7873829e94849f5"
+
+# Custom domain routing
+routes = [
+  { pattern = "pitchey-production.cavelltheleaddev.workers.dev/*", custom_domain = true },
+  { pattern = "containers.pitchey.com/*", custom_domain = true }
+]
+
+# ===== CLOUDFLARE CONTAINERS CONFIGURATION =====
+
+# 1. Video Processing Container
+[[containers]]
+name = "VideoProcessorContainer"
+image = "pitchey/video-processor:latest"
+instance_type = "standard-2"
+min_instances = 1
+max_instances = 10
+cpu_limit = "2000m"
+memory_limit = "4Gi"
+environment = "production"
+
+[containers.env]
+FFMPEG_PATH = "/usr/bin/ffmpeg"
+MAX_VIDEO_SIZE = "500MB"
+SUPPORTED_FORMATS = "mp4,mov,avi,mkv"
+OUTPUT_QUALITY = "1080p"
+THUMBNAIL_COUNT = "5"
+PROCESSING_TIMEOUT = "1800"
+
+[containers.scaling]
+requests_per_second = 100
+cpu_threshold = 80
+memory_threshold = 85
+scale_down_delay = "5m"
+
+[containers.health_check]
+path = "/health"
+interval = "30s"
+timeout = "10s"
+retries = 3
+
+# 2. Document Processing Container  
+[[containers]]
+name = "DocumentProcessorContainer"
+image = "pitchey/document-processor:latest"
+instance_type = "standard-1"
+min_instances = 1
+max_instances = 5
+cpu_limit = "1000m"
+memory_limit = "2Gi"
+environment = "production"
+
+[containers.env]
+PANDOC_PATH = "/usr/bin/pandoc"
+LIBREOFFICE_PATH = "/usr/bin/libreoffice"
+MAX_DOC_SIZE = "50MB"
+SUPPORTED_FORMATS = "pdf,docx,pptx,xlsx"
+OCR_ENABLED = "true"
+TEXT_EXTRACTION_TIMEOUT = "300"
+
+[containers.scaling]
+requests_per_second = 50
+cpu_threshold = 70
+memory_threshold = 80
+scale_down_delay = "3m"
+
+[containers.health_check]
+path = "/health"
+interval = "30s"
+timeout = "5s"
+retries = 3
+
+# 3. AI Inference Container
+[[containers]]
+name = "AIInferenceContainer"
+image = "pitchey/ai-inference:latest"
+instance_type = "standard-4"
+min_instances = 2
+max_instances = 5
+cpu_limit = "4000m"
+memory_limit = "8Gi"
+environment = "production"
+
+[containers.env]
+MODEL_CACHE_SIZE = "2GB"
+INFERENCE_TIMEOUT = "120"
+BATCH_SIZE = "8"
+GPU_ENABLED = "false"
+MODEL_VERSIONS = "pitch-analyzer-v2,sentiment-v1,summarizer-v3"
+
+[containers.scaling]
+requests_per_second = 20
+cpu_threshold = 85
+memory_threshold = 90
+scale_down_delay = "10m"
+
+[containers.health_check]
+path = "/models/status"
+interval = "60s"
+timeout = "30s"
+retries = 2
+
+# 4. Media Transcoder Container
+[[containers]]
+name = "MediaTranscoderContainer"
+image = "pitchey/media-transcoder:latest"
+instance_type = "standard-2"
+min_instances = 1
+max_instances = 5
+cpu_limit = "2000m"
+memory_limit = "4Gi"
+environment = "production"
+
+[containers.env]
+ENCODING_PRESETS = "web-optimized,mobile-optimized,hd-quality"
+THUMBNAIL_GENERATION = "true"
+WATERMARK_ENABLED = "false"
+CONCURRENT_JOBS = "4"
+STORAGE_CLEANUP = "true"
+
+[containers.scaling]
+requests_per_second = 30
+cpu_threshold = 80
+memory_threshold = 85
+scale_down_delay = "5m"
+
+[containers.health_check]
+path = "/transcoder/health"
+interval = "30s"
+timeout = "15s"
+retries = 3
+
+# 5. Code Executor Container (Sandbox)
+[[containers]]
+name = "CodeExecutorContainer"
+image = "pitchey/code-executor:latest"
+instance_type = "lite"
+min_instances = 2
+max_instances = 10
+cpu_limit = "500m"
+memory_limit = "1Gi"
+environment = "production"
+
+[containers.env]
+EXECUTION_TIMEOUT = "30"
+MEMORY_LIMIT_MB = "512"
+SUPPORTED_LANGUAGES = "javascript,python,typescript"
+SANDBOX_ENABLED = "true"
+NETWORK_ACCESS = "false"
+
+[containers.scaling]
+requests_per_second = 200
+cpu_threshold = 70
+memory_threshold = 75
+scale_down_delay = "2m"
+
+[containers.health_check]
+path = "/executor/health"
+interval = "15s"
+timeout = "5s"
+retries = 5
+
+# ===== DURABLE OBJECTS FOR CONTAINER ORCHESTRATION =====
+
+[[durable_objects.bindings]]
+name = "CONTAINER_ORCHESTRATOR"
+class_name = "ContainerOrchestrator"
+
+[[durable_objects.bindings]]
+name = "JOB_SCHEDULER"
+class_name = "JobScheduler"
+
+[[durable_objects.bindings]]
+name = "RESOURCE_MONITOR"
+class_name = "ResourceMonitor"
+
+[[durable_objects.bindings]]
+name = "NOTIFICATION_HUB"
+class_name = "NotificationHub"
+
+[[durable_objects.bindings]]
+name = "WEBSOCKET_ROOMS"
+class_name = "WebSocketRoom"
+
+# Durable Object migrations
+[[migrations]]
+tag = "v3"
+new_classes = [
+  "ContainerOrchestrator", 
+  "JobScheduler", 
+  "ResourceMonitor",
+  "NotificationHub", 
+  "WebSocketRoom"
+]
+
+# ===== QUEUE CONFIGURATION =====
+
+# Video Processing Queue
+[[queues.producers]]
+binding = "VIDEO_PROCESSING_QUEUE"
+queue = "pitchey-video-jobs"
+
+[[queues.consumers]]
+queue = "pitchey-video-jobs"
+max_batch_size = 5
+max_batch_timeout = 300
+max_retries = 3
+dead_letter_queue = "pitchey-video-dlq"
+max_concurrency = 10
+
+# Document Processing Queue
+[[queues.producers]]
+binding = "DOCUMENT_PROCESSING_QUEUE"
+queue = "pitchey-document-jobs"
+
+[[queues.consumers]]
+queue = "pitchey-document-jobs"
+max_batch_size = 10
+max_batch_timeout = 60
+max_retries = 3
+dead_letter_queue = "pitchey-document-dlq"
+max_concurrency = 20
+
+# AI Inference Queue
+[[queues.producers]]
+binding = "AI_INFERENCE_QUEUE"
+queue = "pitchey-ai-jobs"
+
+[[queues.consumers]]
+queue = "pitchey-ai-jobs"
+max_batch_size = 8
+max_batch_timeout = 180
+max_retries = 2
+dead_letter_queue = "pitchey-ai-dlq"
+max_concurrency = 5
+
+# Media Transcoding Queue
+[[queues.producers]]
+binding = "MEDIA_TRANSCODING_QUEUE"
+queue = "pitchey-media-jobs"
+
+[[queues.consumers]]
+queue = "pitchey-media-jobs"
+max_batch_size = 3
+max_batch_timeout = 600
+max_retries = 3
+dead_letter_queue = "pitchey-media-dlq"
+max_concurrency = 8
+
+# Code Execution Queue
+[[queues.producers]]
+binding = "CODE_EXECUTION_QUEUE"
+queue = "pitchey-code-jobs"
+
+[[queues.consumers]]
+queue = "pitchey-code-jobs"
+max_batch_size = 20
+max_batch_timeout = 30
+max_retries = 1
+dead_letter_queue = "pitchey-code-dlq"
+max_concurrency = 50
+
+# General job coordination
+[[queues.producers]]
+binding = "JOB_COORDINATION_QUEUE"
+queue = "pitchey-coordination"
+
+[[queues.consumers]]
+queue = "pitchey-coordination"
+max_batch_size = 50
+max_batch_timeout = 10
+max_retries = 5
+
+# Dead Letter Queue Processors
+[[queues.producers]]
+binding = "DLQ_PROCESSOR"
+queue = "pitchey-dlq-processor"
+
+[[queues.consumers]]
+queue = "pitchey-dlq-processor"
+max_batch_size = 1
+max_batch_timeout = 30
+max_retries = 0
+
+# ===== R2 STORAGE CONFIGURATION =====
+
+# Media Storage (Videos, Images, Assets)
+[[r2_buckets]]
+binding = "PITCHEY_MEDIA_STORAGE"
+bucket_name = "pitchey-media"
+jurisdiction = "eu"
+
+# Document Storage (PDFs, NDAs, Legal Docs)
+[[r2_buckets]]
+binding = "PITCHEY_DOCUMENT_STORAGE"
+bucket_name = "pitchey-documents"
+jurisdiction = "eu"
+
+# Processed Content Storage
+[[r2_buckets]]
+binding = "PITCHEY_PROCESSED_STORAGE"
+bucket_name = "pitchey-processed"
+jurisdiction = "eu"
+
+# Temporary Storage for Container Jobs
+[[r2_buckets]]
+binding = "PITCHEY_TEMP_STORAGE"
+bucket_name = "pitchey-temp"
+jurisdiction = "eu"
+
+# Container Images and Artifacts
+[[r2_buckets]]
+binding = "PITCHEY_CONTAINER_REGISTRY"
+bucket_name = "pitchey-containers"
+jurisdiction = "eu"
+
+# ===== KV NAMESPACES =====
+
+# Job Status Tracking
+[[kv_namespaces]]
+binding = "JOB_STATUS_KV"
+id = "job_status_namespace_prod"
+preview_id = "job_status_namespace_dev"
+
+# Container Metrics
+[[kv_namespaces]]
+binding = "CONTAINER_METRICS_KV"
+id = "container_metrics_namespace_prod"
+preview_id = "container_metrics_namespace_dev"
+
+# Cache Layer
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "cache_namespace_prod"
+preview_id = "cache_namespace_dev"
+
+# Session Store
+[[kv_namespaces]]
+binding = "SESSION_STORE_KV"
+id = "session_store_namespace_prod"
+preview_id = "session_store_namespace_dev"
+
+# Rate Limiting
+[[kv_namespaces]]
+binding = "RATE_LIMITER_KV"
+id = "rate_limiter_namespace_prod"
+preview_id = "rate_limiter_namespace_dev"
+
+# Container Configuration
+[[kv_namespaces]]
+binding = "CONTAINER_CONFIG_KV"
+id = "container_config_namespace_prod"
+preview_id = "container_config_namespace_dev"
+
+# ===== HYPERDRIVE DATABASE CONNECTION =====
+
+[[hyperdrive]]
+binding = "HYPERDRIVE_DB"
+id = "pitchey-hyperdrive-prod"
+
+[hyperdrive.caching]
+max_age = 60
+stale_while_revalidate = 300
+
+[hyperdrive.connection_pooling]
+max_connections = 25
+idle_timeout = 270
+
+# ===== ANALYTICS ENGINE =====
+
+[[analytics_engine_datasets]]
+binding = "CONTAINER_ANALYTICS"
+dataset = "pitchey_container_metrics"
+
+[[analytics_engine_datasets]]
+binding = "JOB_ANALYTICS"
+dataset = "pitchey_job_analytics"
+
+[[analytics_engine_datasets]]
+binding = "PERFORMANCE_ANALYTICS"
+dataset = "pitchey_performance_metrics"
+
+# ===== CRON TRIGGERS =====
+
+[triggers]
+crons = [
+  "*/2 * * * *",    # Every 2 min: Container health checks
+  "*/5 * * * *",    # Every 5 min: Job queue monitoring
+  "*/10 * * * *",   # Every 10 min: Resource optimization
+  "*/15 * * * *",   # Every 15 min: Dead letter queue processing
+  "0 * * * *",      # Hourly: Container metrics aggregation
+  "0 */4 * * *",    # Every 4 hours: Cleanup temporary files
+  "0 0 * * *",      # Daily: Archive completed jobs
+  "0 2 * * 0",      # Weekly: Container image cleanup
+]
+
+# ===== ENVIRONMENT VARIABLES =====
+
+[vars]
+# Platform Configuration
+ENVIRONMENT = "production"
+PLATFORM_NAME = "Pitchey"
+VERSION = "2.0-containers"
+
+# URLs and Endpoints
+FRONTEND_URL = "https://pitchey.pages.dev"
+BACKEND_URL = "https://pitchey-production.cavelltheleaddev.workers.dev"
+CONTAINER_GATEWAY_URL = "https://containers.pitchey.com"
+
+# Container Configuration
+ENABLE_CONTAINERS = "true"
+CONTAINER_ORCHESTRATION = "true"
+CONTAINER_AUTO_SCALING = "true"
+CONTAINER_HEALTH_MONITORING = "true"
+
+# Processing Limits
+MAX_VIDEO_PROCESSING_TIME = "1800"
+MAX_DOCUMENT_PROCESSING_TIME = "300"
+MAX_AI_INFERENCE_TIME = "120"
+MAX_CODE_EXECUTION_TIME = "30"
+
+# Queue Configuration
+QUEUE_PROCESSING_ENABLED = "true"
+DLQ_RETRY_ENABLED = "true"
+JOB_TIMEOUT_SECONDS = "3600"
+
+# Scaling Configuration
+AUTO_SCALE_ENABLED = "true"
+MIN_CONTAINER_INSTANCES = "1"
+MAX_CONTAINER_INSTANCES = "50"
+SCALE_UP_THRESHOLD = "80"
+SCALE_DOWN_THRESHOLD = "30"
+
+# Monitoring and Logging
+ENABLE_DETAILED_LOGGING = "true"
+METRICS_COLLECTION_ENABLED = "true"
+ALERT_WEBHOOKS_ENABLED = "true"
+
+# Cache Settings
+CACHE_TTL_SECONDS = "300"
+ENABLE_EDGE_CACHING = "true"
+REDIS_CACHE_ENABLED = "true"
+
+# Security Configuration
+CONTAINER_NETWORK_ISOLATION = "true"
+SANDBOX_EXECUTION = "true"
+RATE_LIMITING_ENABLED = "true"
+REQUEST_TIMEOUT_MS = "30000"
+
+# Legacy Features (maintained for compatibility)
+ENABLE_DURABLE_OBJECTS = "true"
+ENABLE_WEBSOCKETS = "true"
+ENABLE_ANALYTICS = "true"
+MAX_WEBSOCKET_CONNECTIONS = "100000"
+
+# Build Configuration
+[build]
+command = "npm run build:containers"
+
+[build.upload]
+format = "service-worker"
+
+# ===== PODMAN COMPATIBILITY SETTINGS =====
+
+[podman]
+enabled = true
+socket_path = "/run/podman/podman.sock"
+registry_mirrors = ["docker.io", "quay.io"]
+storage_driver = "overlay"
+
+[podman.build]
+isolation = "oci"
+format = "oci"
+pull = "missing"
+cache_from = ["pitchey/base:latest"]
+
+[podman.runtime]
+cgroup_manager = "systemd"
+events_logger = "journald"
+log_driver = "journald"
+
+# ===== ROLLOUT CONFIGURATION =====
+
+[rollout]
+strategy = "canary"
+canary_percentage = 10
+success_rate_threshold = 99.5
+error_rate_threshold = 0.1
+rollback_on_failure = true
+
+[rollout.health_check]
+endpoint = "/health/containers"
+expected_status = 200
+timeout = "30s"
+interval = "10s"
+
+# ===== COST OPTIMIZATION =====
+
+[cost_optimization]
+enabled = true
+idle_timeout_seconds = 300
+max_idle_instances = 2
+min_active_instances = 1
+cost_alert_threshold_usd = 1000
+
+# ===== SECRETS (Environment-specific) =====
+# Note: Actual secrets should be set via Wrangler CLI
+# wrangler secret put SECRET_NAME
+
+# Required secrets:
+# - DATABASE_URL (Neon PostgreSQL connection string)
+# - REDIS_URL (Upstash Redis connection string)  
+# - SENTRY_DSN (Error tracking)
+# - OPENAI_API_KEY (AI inference)
+# - CLOUDFLARE_API_TOKEN (Container management)
+# - WEBHOOK_SIGNING_SECRET (External integrations)
+# - ENCRYPTION_KEY (Data encryption)
+
+# ===== DEVELOPMENT ENVIRONMENT OVERRIDES =====
+
+[env.development]
+name = "pitchey-containers-dev"
+account_id = "02967e39e44b6266e7873829e94849f5"
+
+[env.development.vars]
+ENVIRONMENT = "development"
+FRONTEND_URL = "http://localhost:5173"
+BACKEND_URL = "http://localhost:8001"
+ENABLE_DEBUG_LOGGING = "true"
+CONTAINER_AUTO_SCALING = "false"
+MIN_CONTAINER_INSTANCES = "1"
+MAX_CONTAINER_INSTANCES = "2"
+
+[[env.development.kv_namespaces]]
+binding = "JOB_STATUS_KV"
+id = "job_status_namespace_dev"
+
+[[env.development.kv_namespaces]]
+binding = "CACHE_KV"
+id = "cache_namespace_dev"
+
+# ===== STAGING ENVIRONMENT =====
+
+[env.staging]
+name = "pitchey-containers-staging"
+account_id = "02967e39e44b6266e7873829e94849f5"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+FRONTEND_URL = "https://staging.pitchey.pages.dev"
+BACKEND_URL = "https://pitchey-staging.cavelltheleaddev.workers.dev"
+CONTAINER_AUTO_SCALING = "true"
+MIN_CONTAINER_INSTANCES = "1"
+MAX_CONTAINER_INSTANCES = "5"
+
+# ===== MONITORING WEBHOOKS =====
+
+[webhooks]
+container_health = "https://pitchey-monitoring.webhook.com/container-health"
+job_failure = "https://pitchey-monitoring.webhook.com/job-failure"
+scaling_events = "https://pitchey-monitoring.webhook.com/scaling"
+cost_alerts = "https://pitchey-monitoring.webhook.com/cost-alerts"
+
+# ===== CUSTOM DOMAINS =====
+
+[[custom_domains]]
+hostname = "api.pitchey.com"
+certificate_authority = "google"
+min_tls_version = "1.2"
+
+[[custom_domains]]
+hostname = "containers.pitchey.com"
+certificate_authority = "google"
+min_tls_version = "1.2"
