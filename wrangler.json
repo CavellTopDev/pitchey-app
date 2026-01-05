@@ -1,8 +1,6 @@
 {
-  "name": "pitchey",
-  "compatibility_date": "2024-01-01",
-  "pages_build_output_dir": "frontend/dist",
-  "assets": {
-    "directory": "frontend/dist"
+  "pages": {
+    "name": "pitchey",
+    "build_output_dir": "frontend/dist"
   }
 }
