@@ -62,7 +62,10 @@ jobs:
           cache-dependency-path: '${{ env.FRONTEND_DIR }}/package-lock.json'
 
       - name: 📦 Install dependencies
-        run: npm ci
+        run: |
+          npm ci --no-audit --prefer-offline
+          echo "✅ Dependencies installed"
+          npx eslint --version || echo "⚠️ ESLint not found after install"
 
       - name: 🧹 Run ESLint
         run: npm run lint
