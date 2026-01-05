@@ -159,6 +159,16 @@ ENABLE_EDGE_CACHING = "true"
 # Authentication Configuration
 BETTER_AUTH_URL = "https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
+# ===== OBSERVABILITY CONFIGURATION =====
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = false
+head_sampling_rate = 1.0
+invocation_logs = true
+persist = true
+
 # Build Configuration
 [build]
 command = "npm run build"

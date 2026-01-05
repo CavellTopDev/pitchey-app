@@ -9,7 +9,7 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 - **Frontend**: Cloudflare Pages (https://pitchey-5o8-66n.pages.dev)
 - **Backend API**: Cloudflare Workers (https://pitchey-api-prod.ndlovucavelle.workers.dev) - PRIMARY backend
 - **Database**: Neon PostgreSQL (raw SQL queries, no ORM)
-  - Connection: `postgresql://neondb_owner:npg_YibeIGRuv40J@ep-old-snow-a9pr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require`
+  - Connection: `postgresql://neondb_owner:npg_YibeIGRuv40J@ep-old-snow-abpr94lc-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`
 - **Cache**: Upstash Redis (global distributed)
 - **Storage**: Cloudflare R2 (S3-compatible object storage)
 - **WebSockets**: Via Cloudflare Workers (Durable Objects planned for future)
