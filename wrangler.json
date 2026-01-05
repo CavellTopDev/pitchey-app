@@ -1,6 +1,7 @@
 {
-  "pages": {
-    "name": "pitchey-5o8-66n",
-    "build_output_dir": "frontend/dist"
+  "name": "pitchey-5o8-66n",
+  "compatibility_date": "2026-01-05",
+  "assets": {
+    "directory": "frontend/dist"
   }
 }
