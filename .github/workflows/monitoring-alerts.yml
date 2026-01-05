@@ -20,7 +20,7 @@ on:
 
 env:
   PRODUCTION_API: https://pitchey-api-prod.ndlovucavelle.workers.dev
-  PRODUCTION_FRONTEND: https://pitchey.pages.dev
+  PRODUCTION_FRONTEND: https://pitchey-5o8-66n.pages.dev
 
 jobs:
   health-monitoring:
