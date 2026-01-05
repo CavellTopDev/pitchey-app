@@ -142,3 +142,31 @@ Object.defineProperty(window, 'sessionStorage', {
   value: sessionStorageMock,
   writable: true,
 })
+
+// Mock Sentry
+const mockSentry = {
+  setUser: vi.fn(),
+  setTag: vi.fn(),
+  addBreadcrumb: vi.fn(),
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+  startTransaction: vi.fn(() => ({
+    finish: vi.fn(),
+    setTag: vi.fn(),
+    setData: vi.fn(),
+  })),
+  getCurrentHub: vi.fn(() => ({
+    getScope: vi.fn(() => ({
+      setTag: vi.fn(),
+      setUser: vi.fn(),
+      setLevel: vi.fn(),
+      setContext: vi.fn(),
+    })),
+  })),
+}
+
+// Make Sentry globally available
+Object.defineProperty(global, 'Sentry', {
+  value: mockSentry,
+  writable: true,
+})

@@ -21,7 +21,7 @@ export function useSentryPortal(config: SentryPortalConfig) {
 
   useEffect(() => {
     // Set user context - temporarily disabled
-    if (user) {
+    if (user && typeof Sentry !== 'undefined') {
       Sentry.setUser({
         id: String(user.id),
         email: user.email,
