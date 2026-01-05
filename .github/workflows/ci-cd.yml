@@ -181,7 +181,7 @@ jobs:
 
       - name: 🚀 Deploy Frontend to staging
         run: |
-          npx wrangler pages deploy frontend/dist --project-name=pitchey-staging
+          npx wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n-staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
@@ -225,7 +225,7 @@ jobs:
 
       - name: 🚀 Deploy Frontend to production
         run: |
-          npx wrangler pages deploy frontend/dist --project-name=pitchey
+          npx wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
