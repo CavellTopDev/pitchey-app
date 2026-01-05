@@ -5758,3 +5758,98 @@ export const NotificationRoom = WebSocketDurableObject;
 // Durable Object Exports (Premium Feature)
 export { NotificationHub } from './durable-objects/notification-hub';
 export { WebSocketRoom } from './durable-objects/websocket-room';
+export { ContainerOrchestrator } from './durable-objects/container-orchestrator-do';
+export { JobScheduler } from './durable-objects/job-scheduler-do';
+
+// Scheduled Event Handler
+export async function scheduled(
+  controller: ScheduledController,
+  env: any,
+  ctx: ExecutionContext
+): Promise<void> {
+  try {
+    const cron = controller.cron;
+    console.log(`Executing scheduled task: ${cron}`);
+    
+    // Route scheduled tasks based on cron pattern
+    switch (cron) {
+      case "*/5 * * * *": // Every 5 minutes
+        await Promise.all([
+          checkNDAExpirations(env, ctx),
+          checkContainerHealth(env, ctx)
+        ]);
+        break;
+        
+      case "*/10 * * * *": // Every 10 minutes  
+        await monitorJobQueues(env, ctx);
+        break;
+        
+      case "0 * * * *": // Hourly
+        await Promise.all([
+          sendDigestEmails(env, ctx),
+          aggregateMetrics(env, ctx)
+        ]);
+        break;
+        
+      case "0 0 * * *": // Daily
+        await Promise.all([
+          exportAuditLogs(env, ctx),
+          archiveOldJobs(env, ctx)
+        ]);
+        break;
+        
+      case "0 2 * * 1": // Weekly (Monday 2 AM)
+        await cleanupDatabase(env, ctx);
+        break;
+        
+      case "*/15 * * * *": // Every 15 minutes
+        await updateTrendingAlgorithm(env, ctx);
+        break;
+        
+      default:
+        console.warn(`Unknown cron pattern: ${cron}`);
+    }
+  } catch (error) {
+    console.error("Scheduled task error:", error);
+    // Don't throw - just log and continue
+  }
+}
+
+// Placeholder scheduled task functions
+async function checkNDAExpirations(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Checking NDA expirations...");
+}
+
+async function checkContainerHealth(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Checking container health...");
+}
+
+async function monitorJobQueues(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Monitoring job queues...");
+}
+
+async function sendDigestEmails(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Sending digest emails...");
+}
+
+async function aggregateMetrics(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Aggregating metrics...");
+}
+
+async function exportAuditLogs(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Exporting audit logs...");
+}
+
+async function archiveOldJobs(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Archiving old jobs...");
+}
+
+async function cleanupDatabase(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Cleaning up database...");
+}
+
+async function updateTrendingAlgorithm(env: any, ctx: ExecutionContext): Promise<void> {
+  console.log("Updating trending algorithm...");
+}
+
+

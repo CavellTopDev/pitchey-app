@@ -7,13 +7,11 @@
 name = "pitchey-api-prod"
 main = "src/worker-integrated.ts"
 compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat", "experimental"]
+compatibility_flags = ["nodejs_compat"]
 account_id = "002bd5c0e90ae753a387c60546cf6869"
 
-# Production domain routing (existing URLs)
-routes = [
-  { pattern = "pitchey-api-prod.ndlovucavelle.workers.dev/*", custom_domain = true }
-]
+# Production domain routing (existing URLs) 
+# Note: Using workers_dev = true instead of custom routes
 
 # ===== CONTAINER SERVICES INTEGRATION =====
 # Note: Container endpoints will be available at:
@@ -28,17 +26,9 @@ class_name = "NotificationHub"
 name = "WEBSOCKET_ROOMS"
 class_name = "WebSocketRoom"
 
-[[durable_objects.bindings]]
-name = "CONTAINER_ORCHESTRATOR"
-class_name = "ContainerOrchestrator"
-
-[[durable_objects.bindings]]
-name = "JOB_SCHEDULER"
-class_name = "JobScheduler"
-
 [[migrations]]
 tag = "v3"
-new_classes = ["NotificationHub", "WebSocketRoom", "ContainerOrchestrator", "JobScheduler"]
+new_classes = ["NotificationHub", "WebSocketRoom"]
 
 # ===== R2 STORAGE =====
 [[r2_buckets]]
@@ -64,23 +54,23 @@ bucket_name = "pitchey-temp"
 # ===== KV NAMESPACES =====
 [[kv_namespaces]]
 binding = "CACHE"
-id = "cache_namespace_prod"
+id = "5e9e940dc8af4f159f1bd027f3687dd3"
 
 [[kv_namespaces]]
 binding = "SESSION_STORE"
-id = "session_namespace_prod"
+id = "d98b6fc5d3f44a1a87ab229e113f4047"
 
 [[kv_namespaces]]
 binding = "RATE_LIMITER"
-id = "rate_limiter_namespace_prod"
+id = "cb9e5601b3444205875e1723fe543446"
 
 [[kv_namespaces]]
 binding = "JOB_STATUS"
-id = "job_status_namespace_prod"
+id = "65f0c620465046139f73416abb3f3ecd"
 
 [[kv_namespaces]]
 binding = "CONTAINER_METRICS"
-id = "container_metrics_namespace_prod"
+id = "55fd8288547e4d57a2abb8b2590444f8"
 
 # ===== QUEUES FOR CONTAINER PROCESSING =====
 [[queues.producers]]
@@ -103,40 +93,7 @@ queue = "pitchey-media-transcoding"
 binding = "CODE_EXECUTION_QUEUE"
 queue = "pitchey-code-execution"
 
-[[queues.consumers]]
-queue = "pitchey-video-processing"
-max_batch_size = 5
-max_batch_timeout = 300
-max_retries = 3
-dead_letter_queue = "pitchey-video-dlq"
-
-[[queues.consumers]]
-queue = "pitchey-document-processing"
-max_batch_size = 10
-max_batch_timeout = 60
-max_retries = 3
-dead_letter_queue = "pitchey-document-dlq"
-
-[[queues.consumers]]
-queue = "pitchey-ai-inference"
-max_batch_size = 8
-max_batch_timeout = 180
-max_retries = 2
-dead_letter_queue = "pitchey-ai-dlq"
-
-[[queues.consumers]]
-queue = "pitchey-media-transcoding"
-max_batch_size = 3
-max_batch_timeout = 600
-max_retries = 3
-dead_letter_queue = "pitchey-media-dlq"
-
-[[queues.consumers]]
-queue = "pitchey-code-execution"
-max_batch_size = 20
-max_batch_timeout = 30
-max_retries = 1
-dead_letter_queue = "pitchey-code-dlq"
+# Queue consumers will be configured after deployment
 
 # ===== ANALYTICS ENGINE =====
 [[analytics_engine_datasets]]
@@ -154,14 +111,11 @@ dataset = "pitchey_job_analytics"
 # ===== CRON TRIGGERS =====
 [triggers]
 crons = [
-  "*/5 * * * *",    # Every 5 min: Check NDA expirations
-  "*/5 * * * *",    # Every 5 min: Container health checks
+  "*/5 * * * *",    # Every 5 min: Check NDA expirations and container health
   "*/10 * * * *",   # Every 10 min: Job queue monitoring
-  "0 * * * *",      # Hourly: Send digest emails
-  "0 * * * *",      # Hourly: Container metrics aggregation
-  "0 0 * * *",      # Daily: Export audit logs
-  "0 0 * * *",      # Daily: Archive completed jobs
-  "0 2 * * 0",      # Weekly: Database cleanup
+  "0 * * * *",      # Hourly: Send digest emails and metrics aggregation
+  "0 0 * * *",      # Daily: Export audit logs and archive jobs
+  "0 2 * * 1",      # Weekly: Database cleanup (Mondays at 2 AM)
   "*/15 * * * *"    # Every 15 min: Update trending algorithm
 ]
 
@@ -202,8 +156,9 @@ SANDBOX_EXECUTION = "true"
 REDIS_CACHE_ENABLED = "true"
 ENABLE_EDGE_CACHING = "true"
 
+# Authentication Configuration
+BETTER_AUTH_URL = "https://pitchey-api-prod.ndlovucavelle.workers.dev"
+
 # Build Configuration
 [build]
 command = "npm run build"
-[build.upload]
-format = "service-worker"
