@@ -540,10 +540,8 @@ describe('PitchForm (CreatePitch)', () => {
       const fileInputs = document.querySelectorAll('input[type="file"]')
       if (fileInputs.length > 0) {
         const invalidFile = new File(['test'], 'test.txt', { type: 'text/plain' })
-        const dataTransfer = new DataTransfer()
-        dataTransfer.items.add(invalidFile)
-        ;(fileInputs[0] as HTMLInputElement).files = dataTransfer.files
-        fileInputs[0].dispatchEvent(new Event('change', { bubbles: true }))
+        // Use user.upload instead of DataTransfer which might not be available
+        await user.upload(fileInputs[0] as HTMLInputElement, invalidFile)
       }
       // Pass test - file validation is handled internally
       expect(true).toBe(true)
@@ -564,10 +562,8 @@ describe('PitchForm (CreatePitch)', () => {
           type: 'image/jpeg' 
         })
         Object.defineProperty(largeFile, 'size', { value: 11 * 1024 * 1024 })
-        const dataTransfer = new DataTransfer()
-        dataTransfer.items.add(largeFile)
-        ;(fileInputs[0] as HTMLInputElement).files = dataTransfer.files
-        fileInputs[0].dispatchEvent(new Event('change', { bubbles: true }))
+        // Use user.upload instead of DataTransfer which might not be available
+        await user.upload(fileInputs[0] as HTMLInputElement, largeFile)
       }
       // Pass test - file size validation is handled internally
       expect(true).toBe(true)
