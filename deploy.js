@@ -11,7 +11,7 @@ console.log('🚀 Deploying to Cloudflare Pages...');
 
 try {
   // Run the Pages deploy command
-  execSync('npx wrangler pages deploy frontend/dist --project-name=pitchey', {
+  execSync('npx wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n', {
     stdio: 'inherit'
   });
   console.log('✅ Deployment successful!');
