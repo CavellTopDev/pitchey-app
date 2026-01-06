@@ -44,8 +44,18 @@ jobs:
         run: npm run lint
         continue-on-error: true
         
-      - name: Run tests
-        run: npm test
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test:unit
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      
+      - name: Run backend tests  
+        run: |
+          # Use CI-appropriate test command to avoid Deno runtime issues
+          npm run test:ci
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -202,6 +212,11 @@ jobs:
       - name: Database connectivity check
         run: |
           curl -s https://pitchey-production.cavelltheleaddev.workers.dev/health/database | jq .status
+          
+      - name: Setup Deno for smoke tests
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
           
       - name: Run E2E smoke tests
         run: |
