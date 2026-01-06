@@ -231,6 +231,9 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
       - name: Send deployment notification
         uses: actions/github-script@v7
         with:
@@ -239,19 +242,36 @@ jobs:
             const status = '${{ needs.smoke-test.result }}' === 'success' ? '✅' : '❌';
             const color = '${{ needs.smoke-test.result }}' === 'success' ? '28a745' : 'dc3545';
             
-            // Create deployment status
-            await github.rest.repos.createDeploymentStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              deployment_id: context.payload.deployment?.id || 1,
-              state: '${{ needs.smoke-test.result }}' === 'success' ? 'success' : 'failure',
-              environment_url: 'https://pitchey.pages.dev',
-              description: `Deployment ${status}`,
-            });
+            // Create deployment first, then create status
+            try {
+              const deployment = await github.rest.repos.createDeployment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.sha,
+                environment: 'production',
+                description: 'Production deployment',
+                auto_merge: false,
+                required_contexts: []
+              });
+              
+              // Create deployment status
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.data.id,
+                state: '${{ needs.smoke-test.result }}' === 'success' ? 'success' : 'failure',
+                environment_url: 'https://pitchey.pages.dev',
+                description: `Deployment ${status}`,
+              });
+            } catch (error) {
+              console.log('Could not create deployment status:', error.message);
+              // Continue with notification even if deployment status fails
+            }
             
             // Send Slack notification if webhook is configured
-            if ('${{ secrets.SLACK_WEBHOOK }}') {
-              await fetch('${{ secrets.SLACK_WEBHOOK }}', {
+            const slackWebhook = '${{ secrets.SLACK_WEBHOOK }}';
+            if (slackWebhook) {
+              await fetch(slackWebhook, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
