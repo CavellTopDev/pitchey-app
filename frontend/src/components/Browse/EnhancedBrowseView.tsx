@@ -95,7 +95,7 @@ export default function EnhancedBrowseView() {
   // Load pitches when filters or sorting change
   useEffect(() => {
     loadPitches();
-  }, [page, sortField, sortDirection, filters]);
+  }, [page, sortField, sortDirection, filters, loadPitches]);
 
   const loadFilterOptions = async () => {
     try {

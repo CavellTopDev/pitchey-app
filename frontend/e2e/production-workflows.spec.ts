@@ -43,7 +43,7 @@ test.describe('Production Workflows', () => {
       await expect(activitySection).toBeVisible();
     });
 
-    test('should allow logout functionality', async ({ page }) => {
+    test('should allow logout functionality', async () => {
       await authHelper.logout();
       await authHelper.verifyNotAuthenticated();
     });

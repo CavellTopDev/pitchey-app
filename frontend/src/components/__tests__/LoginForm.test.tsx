@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '../../test/utils'
 import userEvent from '@testing-library/user-event'
-import { server } from '../../test/mocks/server'
-import { http, HttpResponse } from 'msw'
 import CreatorLogin from '../../pages/CreatorLogin'
 import InvestorLogin from '../../pages/InvestorLogin'
 import ProductionLogin from '../../pages/ProductionLogin'
@@ -45,28 +43,6 @@ describe('LoginForm Components', () => {
     
     // Reset navigation mock
     getMockNavigate().mockClear()
-
-    // Setup successful login responses
-    server.use(
-      http.post('http://localhost:8001/api/auth/creator/login', () => {
-        return HttpResponse.json({
-          token: 'mock-creator-token',
-          user: { id: '1', email: 'creator@test.com', role: 'creator' },
-        })
-      }),
-      http.post('http://localhost:8001/api/auth/investor/login', () => {
-        return HttpResponse.json({
-          token: 'mock-investor-token',
-          user: { id: '2', email: 'investor@test.com', role: 'investor' },
-        })
-      }),
-      http.post('http://localhost:8001/api/auth/production/login', () => {
-        return HttpResponse.json({
-          token: 'mock-production-token',
-          user: { id: '3', email: 'production@test.com', role: 'production' },
-        })
-      })
-    )
   })
 
   describe('CreatorLogin', () => {
@@ -423,15 +399,6 @@ describe('LoginForm Components', () => {
     })
 
     it('should handle API login failure', async () => {
-      server.use(
-        http.post('http://localhost:8001/api/auth/creator/login', () => {
-          return HttpResponse.json(
-            { message: 'Invalid credentials' },
-            { status: 401 }
-          )
-        })
-      )
-
       const authStore = getMockAuthStore()
       authStore.loginCreator.mockRejectedValue(new Error('Login failed'))
       authStore.error = 'Invalid credentials'
@@ -442,12 +409,6 @@ describe('LoginForm Components', () => {
     })
 
     it('should handle network errors', async () => {
-      server.use(
-        http.post('http://localhost:8001/api/auth/creator/login', () => {
-          return HttpResponse.error()
-        })
-      )
-
       const authStore = getMockAuthStore()
       authStore.loginCreator.mockRejectedValue(new Error('Network error'))
       authStore.error = 'Network error'

@@ -38,7 +38,7 @@ test.describe('Investor Workflows', () => {
       await expect(analyticsSection).toBeVisible();
     });
 
-    test('should allow logout functionality', async ({ page }) => {
+    test('should allow logout functionality', async () => {
       await authHelper.logout();
       await authHelper.verifyNotAuthenticated();
     });

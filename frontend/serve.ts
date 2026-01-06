@@ -4,8 +4,6 @@ import { serveDir } from "https://deno.land/std@0.224.0/http/file_server.ts";
 const port = 8000;
 
 serve((req: Request) => {
-  const url = new URL(req.url);
-  
   // Serve static files from the dist directory
   return serveDir(req, {
     fsRoot: "dist",

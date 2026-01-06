@@ -31,7 +31,6 @@ test.describe('Cross-Feature Integration Tests', () => {
       await page.click('[data-testid="confirm-publish-button"]');
       await pageHelper.waitForNotification('success');
       
-      const pitchUrl = page.url();
       await authHelper.logout();
       
       // Step 2: Investor requests NDA
@@ -100,15 +99,12 @@ test.describe('Cross-Feature Integration Tests', () => {
   });
 
   test.describe('Real-time Notifications', () => {
-    test('should receive real-time notifications via WebSocket', async ({ page, context }) => {
+    test('should receive real-time notifications via WebSocket', async ({ page }) => {
       // Login as creator
       await authHelper.loginAsCreator();
       
       // Check WebSocket connection
       await pageHelper.checkWebSocketConnection();
-      
-      // Monitor for notifications
-      const notificationPromise = page.waitForSelector('[data-testid="new-notification"]');
       
       // In a real test, you would trigger an action that generates a notification
       // For this test, we'll verify the notification system is active
@@ -117,10 +113,6 @@ test.describe('Cross-Feature Integration Tests', () => {
 
     test('should update notification count in real-time', async ({ page }) => {
       await authHelper.loginAsInvestor();
-      
-      // Get initial notification count
-      const notificationBell = page.locator('[data-testid="notification-bell"]');
-      const initialCount = await notificationBell.getAttribute('data-count') || '0';
       
       // WebSocket should be connected and ready to receive notifications
       await pageHelper.checkWebSocketConnection();
@@ -276,7 +268,7 @@ test.describe('Cross-Feature Integration Tests', () => {
   });
 
   test.describe('Multi-User Collaboration', () => {
-    test('should handle concurrent editing of pitch', async ({ page, context }) => {
+    test('should handle concurrent editing of pitch', async ({ page }) => {
       // This test would require multiple browser contexts
       // For now, we'll test the draft sync mechanism
       

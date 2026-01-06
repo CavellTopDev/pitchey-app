@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -98,9 +98,9 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timeRange, autoRefresh]);
+  }, [timeRange, autoRefresh, fetchAnalyticsData]);
 
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -122,7 +122,7 @@ export const EnhancedInvestorAnalytics: React.FC<InvestorAnalyticsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   const getMockData = (): InvestorAnalyticsData => ({
     kpis: {

@@ -121,7 +121,7 @@ export default function FilterBar({
     if (searchParam) setSearchQuery(searchParam);
     if (sortParam) setSortField(sortParam as SortOption['field']);
     if (orderParam) setSortOrder(orderParam as SortOption['order']);
-  }, []);
+  }, [searchParams]);
 
   // Close dropdowns on outside click
   useEffect(() => {

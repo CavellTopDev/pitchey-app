@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, TrendingDown, Users, Eye, DollarSign, Star, 
   BarChart3, PieChart, LineChart, Activity, Clock, Target,
@@ -101,9 +101,9 @@ export default function AnalyticsDashboard() {
 
   useEffect(() => {
     loadAnalytics();
-  }, [dateRange, customDateRange]);
+  }, [dateRange, customDateRange, loadAnalytics]);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -128,7 +128,7 @@ export default function AnalyticsDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange, customDateRange]);
 
   const refreshData = async () => {
     setRefreshing(true);

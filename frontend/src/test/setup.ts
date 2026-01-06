@@ -1,30 +1,17 @@
 import '@testing-library/jest-dom'
-import { afterEach, beforeAll, afterAll, vi } from 'vitest'
+import { afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import { server } from './mocks/server'
 
-// Establish API mocking before all tests
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' })
-})
-
-// Reset any request handlers that we may add during the tests,
-// so they don't affect other tests
+// Reset any test state after each test
 afterEach(() => {
   cleanup()
-  server.resetHandlers()
 })
 
-// Clean up after the tests are finished
-afterAll(() => {
-  server.close()
-})
-
-// Mock environment variables
+// Real API environment variables for testing
 Object.defineProperty(window, 'ENV', {
   value: {
-    VITE_API_URL: 'http://localhost:8001',
-    VITE_WS_URL: 'ws://localhost:8001',
+    VITE_API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+    VITE_WS_URL: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev',
   },
   writable: true,
 })
@@ -32,11 +19,11 @@ Object.defineProperty(window, 'ENV', {
 // Set environment variables for Vite
 Object.defineProperty(import.meta, 'env', {
   value: {
-    VITE_API_URL: 'http://localhost:8001',
-    VITE_WS_URL: 'ws://localhost:8001',
+    VITE_API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
+    VITE_WS_URL: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev',
     MODE: 'test',
-    DEV: true,
-    PROD: false,
+    DEV: false,
+    PROD: true,
     SSR: false,
     BASE_URL: '/'
   },

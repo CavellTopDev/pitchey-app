@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import { AuthHelper } from './utils/auth-helpers';
-import { PageHelper } from './utils/page-helpers';
 import { URLS } from './fixtures/test-data';
 
 test.describe('Authentication Flows', () => {

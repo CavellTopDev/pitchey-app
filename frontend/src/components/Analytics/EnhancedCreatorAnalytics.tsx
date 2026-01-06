@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, 
   Eye, 
@@ -107,9 +107,9 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timeRange, autoRefresh, disableRemoteFetch]);
+  }, [timeRange, autoRefresh, disableRemoteFetch, fetchAnalyticsData]);
 
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -212,7 +212,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange, disableRemoteFetch]);
 
   const getMockData = (): CreatorAnalyticsData => ({
     kpis: {

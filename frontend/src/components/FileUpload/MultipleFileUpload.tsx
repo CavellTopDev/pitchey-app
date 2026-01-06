@@ -166,6 +166,17 @@ export default function MultipleFileUpload({
     return { total, completed, uploading, failed, pending };
   }, [files]);
 
+  // Detect file type
+  const detectFileType = useCallback((file: File): EnhancedMediaFile['type'] => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('audio/')) return 'audio';
+    if (['application/zip', 'application/x-zip-compressed', 'application/x-rar-compressed'].includes(file.type)) {
+      return 'archive';
+    }
+    return 'document';
+  }, []);
+
   // Process dropped/selected files
   const processFiles = useCallback(async (fileList: FileList | File[]) => {
     const newFiles = Array.from(fileList);
@@ -229,18 +240,7 @@ export default function MultipleFileUpload({
       onChange(updatedFiles);
       success('Files Added', `${processedFiles.length} file(s) ready for upload`);
     }
-  }, [files, maxFiles, maxFileSize, selectedFolder, onChange, error, success]);
-
-  // Detect file type
-  const detectFileType = useCallback((file: File): EnhancedMediaFile['type'] => {
-    if (file.type.startsWith('image/')) return 'image';
-    if (file.type.startsWith('video/')) return 'video';
-    if (file.type.startsWith('audio/')) return 'audio';
-    if (['application/zip', 'application/x-zip-compressed', 'application/x-rar-compressed'].includes(file.type)) {
-      return 'archive';
-    }
-    return 'document';
-  }, []);
+  }, [files, maxFiles, maxFileSize, selectedFolder, onChange, error, success, detectFileType]);
 
   // Upload a single file
   const uploadFile = useCallback(async (fileData: EnhancedMediaFile) => {

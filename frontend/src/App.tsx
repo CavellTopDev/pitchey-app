@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Suspense, lazy, startTransition } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 // React Query temporarily disabled to resolve JavaScript initialization errors
 import { useAuthStore } from './store/authStore';
 import ErrorBoundary from './components/ErrorBoundary';

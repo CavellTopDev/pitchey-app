@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -100,9 +100,9 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [timeRange, autoRefresh]);
+  }, [timeRange, autoRefresh, fetchAnalyticsData]);
 
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -124,7 +124,7 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   const getMockData = (): ProductionAnalyticsData => ({
     kpis: {

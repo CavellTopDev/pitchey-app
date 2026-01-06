@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UserPlus, UserMinus, UserCheck } from 'lucide-react';
 import { followService } from '../../services/follow.service';
 import { useAuthStore } from '../../store/authStore';
@@ -36,16 +36,16 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
     if (!initialFollowing && user?.id && userId && user.id !== userId) {
       checkFollowStatus();
     }
-  }, [userId, user?.id]);
+  }, [userId, user?.id, initialFollowing, checkFollowStatus]);
 
-  const checkFollowStatus = async () => {
+  const checkFollowStatus = useCallback(async () => {
     try {
       const following = await followService.isFollowing(userId);
       setIsFollowing(following);
     } catch (error) {
       console.error('Failed to check follow status:', error);
     }
-  };
+  }, [userId]);
 
   const handleFollow = async () => {
     if (!user) {

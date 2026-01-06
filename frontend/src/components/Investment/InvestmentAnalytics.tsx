@@ -55,7 +55,7 @@ export default function InvestmentAnalytics({ userType, className = '' }: Invest
     } finally {
       setLoading(false);
     }
-  }, [timeRange, userType]);
+  }, [userType]);
 
   useEffect(() => {
     fetchAnalytics();

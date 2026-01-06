@@ -173,12 +173,10 @@ export default function DocumentUploadHub({
       error('Upload Error', uploadError.message || 'Failed to upload files');
       setIsUploading(false);
       
-      if (uploadSession) {
-        setUploadSession({
-          ...uploadSession,
-          isActive: false
-        });
-      }
+      setUploadSession(prev => prev ? {
+        ...prev,
+        isActive: false
+      } : null);
     }
   }, [files, uploadOptions, pitchId, startUploadSession, completeUploadSession, error]);
 
