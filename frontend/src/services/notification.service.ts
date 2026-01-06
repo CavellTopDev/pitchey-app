@@ -121,22 +121,48 @@ export class NotificationService {
   }
 
   private showInAppNotification(options: NotificationOptions) {
-    // Create in-app notification element
+    // Create in-app notification element securely
     const notification = document.createElement('div');
     notification.className = 'fixed top-4 right-4 bg-white shadow-lg rounded-lg p-4 border-l-4 border-purple-500 z-50 max-w-sm';
-    notification.innerHTML = `
-      <div class="flex items-start">
-        <div class="flex-1">
-          <h4 class="font-semibold text-gray-900">${options.title}</h4>
-          <p class="text-sm text-gray-600 mt-1">${options.body}</p>
-        </div>
-        <button class="ml-4 text-gray-400 hover:text-gray-600" onclick="this.parentElement.parentElement.remove()">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-          </svg>
-        </button>
-      </div>
-    `;
+    
+    // Create structure using DOM methods to prevent XSS
+    const container = document.createElement('div');
+    container.className = 'flex items-start';
+    
+    const content = document.createElement('div');
+    content.className = 'flex-1';
+    
+    const title = document.createElement('h4');
+    title.className = 'font-semibold text-gray-900';
+    title.textContent = options.title; // Safe - uses textContent
+    
+    const body = document.createElement('p');
+    body.className = 'text-sm text-gray-600 mt-1';
+    body.textContent = options.body; // Safe - uses textContent
+    
+    const closeButton = document.createElement('button');
+    closeButton.className = 'ml-4 text-gray-400 hover:text-gray-600';
+    closeButton.addEventListener('click', () => notification.remove());
+    
+    // Create SVG safely
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'w-4 h-4');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('viewBox', '0 0 20 20');
+    
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('fill-rule', 'evenodd');
+    path.setAttribute('d', 'M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z');
+    path.setAttribute('clip-rule', 'evenodd');
+    
+    svg.appendChild(path);
+    closeButton.appendChild(svg);
+    
+    content.appendChild(title);
+    content.appendChild(body);
+    container.appendChild(content);
+    container.appendChild(closeButton);
+    notification.appendChild(container);
 
     document.body.appendChild(notification);
 

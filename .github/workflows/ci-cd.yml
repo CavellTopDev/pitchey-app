@@ -104,6 +104,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: 🦕 Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
       - name: 📦 Install Wrangler
         run: npm install -g wrangler@latest
 
@@ -114,6 +119,12 @@ jobs:
 
       - name: 🔧 TypeScript compilation
         run: npx tsc --noEmit
+
+      - name: 🧪 Run Worker tests
+        run: npm run test:ci
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       - name: 🏗️ Build Worker
         run: npm run build:worker
@@ -134,6 +145,20 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 🦕 Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: 📦 Install dependencies
+        run: npm ci
 
       - name: 🔍 Schema validation
         run: |

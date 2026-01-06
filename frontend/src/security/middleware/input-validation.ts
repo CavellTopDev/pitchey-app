@@ -206,11 +206,14 @@ export class XSSPrevention {
   
   /**
    * Escape HTML for display
+   * Note: innerHTML usage here is SAFE because we first set textContent,
+   * which automatically escapes all HTML characters, then read innerHTML
+   * to get the escaped version.
    */
   static escapeHTML(text: string): string {
     const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    div.textContent = text; // This escapes HTML automatically
+    return div.innerHTML;   // Safe - reading escaped content
   }
   
   /**
