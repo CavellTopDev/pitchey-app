@@ -1,5 +1,11 @@
 name: Release Management Pipeline
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  packages: write
+
 on:
   push:
     branches: [main]
