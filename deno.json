@@ -53,7 +53,12 @@
       "src/worker-modules/admin-endpoints.ts"
     ],
     "rules": {
-      "exclude": ["no-process-global", "require-await", "no-explicit-any", "no-unused-vars"]
+      "exclude": [
+        "no-process-global",
+        "require-await",
+        "no-explicit-any",
+        "no-unused-vars"
+      ]
     }
   },
   "fmt": {
@@ -64,5 +69,6 @@
       "build/",
       ".wrangler/"
     ]
-  }
+  },
+  "version": "0.0.0"
 }
