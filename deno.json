@@ -8,7 +8,8 @@
     "@sentry/deno": "npm:@sentry/deno@8.55.0",
     "zod": "npm:zod@3.22.4",
     "stripe": "npm:stripe@17.5.0",
-    "sinon": "npm:sinon@19.0.2"
+    "sinon": "npm:sinon@19.0.2",
+    "@faker-js/faker": "npm:@faker-js/faker@8.4.1"
   },
   "compilerOptions": {
     "jsx": "react-jsx",
