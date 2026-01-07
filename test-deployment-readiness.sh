@@ -1,120 +1,116 @@
 #!/bin/bash
 
-echo "🧪 Deployment Readiness Test"
-echo "============================="
+# Test Deployment Readiness Script
+# Checks if everything is ready for GitHub Actions deployment
+
+echo "🔍 Pitchey Deployment Readiness Check"
+echo "======================================"
 echo ""
 
-GREEN='\033[0;32m'
+# Colors
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
 READY=true
 
-# Test 1: Backend Health
-echo "1️⃣  Testing Backend Health..."
-HEALTH=$(curl -s http://localhost:8001/api/health)
-if echo "$HEALTH" | grep -q "healthy"; then
-  echo -e "${GREEN}✅ Backend is healthy${NC}"
-  
-  # Check cache status
-  CACHE_TYPE=$(echo "$HEALTH" | grep -o '"type":"[^"]*' | cut -d'"' -f4)
-  echo "   Cache type: $CACHE_TYPE"
+# Check if GitHub CLI is installed
+echo "1. Checking GitHub CLI..."
+if command -v gh &> /dev/null; then
+    echo -e "${GREEN}✅ GitHub CLI installed${NC}"
 else
-  echo -e "${RED}❌ Backend health check failed${NC}"
-  READY=false
-fi
-echo ""
-
-# Test 2: Database Connection
-echo "2️⃣  Testing Database Connection..."
-LOGIN=$(curl -s -X POST http://localhost:8001/api/auth/creator/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alex.creator@demo.com","password":"Demo123"}')
-  
-if echo "$LOGIN" | grep -q "token"; then
-  echo -e "${GREEN}✅ Database connection working${NC}"
-else
-  echo -e "${RED}❌ Database connection failed${NC}"
-  READY=false
-fi
-echo ""
-
-# Test 3: Frontend Build
-echo "3️⃣  Testing Frontend..."
-if [ -d "frontend/dist" ]; then
-  echo -e "${GREEN}✅ Frontend build exists${NC}"
-else
-  echo -e "${YELLOW}⚠️  Frontend not built yet${NC}"
-  echo "   Run: cd frontend && npm run build"
-fi
-echo ""
-
-# Test 4: Environment Files
-echo "4️⃣  Checking Environment Files..."
-if [ -f ".env.production" ]; then
-  echo -e "${GREEN}✅ .env.production exists${NC}"
-  
-  # Check required vars
-  source .env.production
-  if [ ! -z "$DATABASE_URL" ] && [ ! -z "$JWT_SECRET" ]; then
-    echo -e "${GREEN}✅ Required environment variables set${NC}"
-  else
-    echo -e "${RED}❌ Missing required environment variables${NC}"
+    echo -e "${RED}❌ GitHub CLI not installed${NC}"
+    echo "   Install from: https://cli.github.com/"
     READY=false
-  fi
-else
-  echo -e "${RED}❌ .env.production not found${NC}"
-  echo "   Copy .env.example to .env.production and configure"
-  READY=false
 fi
+
+# Check GitHub authentication
 echo ""
-
-# Test 5: Deployment Tools
-echo "5️⃣  Checking Deployment Tools..."
-MISSING=""
-
-if ! command -v deployctl &> /dev/null; then
-  MISSING="$MISSING deployctl"
-fi
-
-if ! command -v vercel &> /dev/null; then
-  MISSING="$MISSING vercel"
-fi
-
-if [ -z "$MISSING" ]; then
-  echo -e "${GREEN}✅ All deployment tools installed${NC}"
+echo "2. Checking GitHub authentication..."
+if gh auth status &> /dev/null; then
+    echo -e "${GREEN}✅ GitHub authenticated${NC}"
 else
-  echo -e "${YELLOW}⚠️  Missing tools:$MISSING${NC}"
-  echo "   Install deployctl: deno install -A https://deno.land/x/deploy/deployctl.ts"
-  echo "   Install vercel: npm i -g vercel"
+    echo -e "${YELLOW}⚠️  Not authenticated with GitHub${NC}"
+    echo "   Run: gh auth login"
+    READY=false
 fi
+
+# Check if secrets are configured
 echo ""
+echo "3. Checking GitHub secrets..."
+if gh auth status &> /dev/null; then
+    SECRETS=$(gh secret list 2>/dev/null | wc -l)
+    if [ "$SECRETS" -gt 0 ]; then
+        echo -e "${GREEN}✅ $SECRETS secrets configured${NC}"
+        
+        # Check for required secrets
+        if gh secret list | grep -q "CLOUDFLARE_API_TOKEN"; then
+            echo -e "   ${GREEN}✓ CLOUDFLARE_API_TOKEN${NC}"
+        else
+            echo -e "   ${RED}✗ CLOUDFLARE_API_TOKEN missing${NC}"
+            READY=false
+        fi
+        
+        if gh secret list | grep -q "CLOUDFLARE_ACCOUNT_ID"; then
+            echo -e "   ${GREEN}✓ CLOUDFLARE_ACCOUNT_ID${NC}"
+        else
+            echo -e "   ${RED}✗ CLOUDFLARE_ACCOUNT_ID missing${NC}"
+            READY=false
+        fi
+    else
+        echo -e "${RED}❌ No secrets configured${NC}"
+        echo "   Run: ./setup-github-secrets.sh"
+        READY=false
+    fi
+fi
+
+# Check if frontend builds
+echo ""
+echo "4. Testing frontend build..."
+cd frontend
+if npm run build > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Frontend builds successfully${NC}"
+else
+    echo -e "${RED}❌ Frontend build failed${NC}"
+    READY=false
+fi
+cd ..
+
+# Check workflow files
+echo ""
+echo "5. Checking workflow files..."
+if [ -f ".github/workflows/deploy-frontend.yml" ]; then
+    echo -e "${GREEN}✅ deploy-frontend.yml exists${NC}"
+else
+    echo -e "${RED}❌ deploy-frontend.yml missing${NC}"
+    READY=false
+fi
 
 # Summary
-echo "============================="
+echo ""
+echo "======================================"
 if [ "$READY" = true ]; then
-  echo -e "${GREEN}🎉 READY FOR DEPLOYMENT!${NC}"
-  echo ""
-  echo "Next steps:"
-  echo "1. Run: ./deploy-mvp-free.sh"
-  echo "2. Follow the prompts"
-  echo "3. Your MVP will be live in minutes!"
+    echo -e "${GREEN}✅ DEPLOYMENT READY!${NC}"
+    echo ""
+    echo "Next steps:"
+    echo "1. Push to GitHub: git push origin main"
+    echo "2. Monitor deployment: https://github.com/YOUR_REPO/actions"
+    echo "3. View your site: https://pitchey.pages.dev"
 else
-  echo -e "${RED}❌ NOT READY FOR DEPLOYMENT${NC}"
-  echo ""
-  echo "Fix the issues above, then run this test again."
+    echo -e "${RED}❌ NOT READY FOR DEPLOYMENT${NC}"
+    echo ""
+    echo "Fix the issues above, then run this script again."
 fi
-echo ""
 
-# Show current resource usage
-echo "📊 Current Local Resources:"
-echo "   • Requests handled: N/A (local only)"
-echo "   • Cache entries: $(curl -s http://localhost:8001/api/health | grep -o '"type":"[^"]*' | cut -d'"' -f4)"
-echo "   • Database: PostgreSQL (Docker)"
 echo ""
-echo "📈 Free Tier Limits (Production):"
-echo "   • Deno Deploy: 100,000 requests/day"
-echo "   • Vercel: 100GB bandwidth/month"
-echo "   • Neon: 0.5GB storage, 3GB compute/month"
-echo "   • Upstash: 10,000 Redis commands/day"
+echo "Quick setup commands:"
+echo "---------------------"
+echo "# Configure secrets (if not done):"
+echo "./setup-github-secrets.sh"
+echo ""
+echo "# Push to trigger deployment:"
+echo "git push origin main"
+echo ""
+echo "# Manual deployment trigger:"
+echo "gh workflow run deploy-frontend.yml"
