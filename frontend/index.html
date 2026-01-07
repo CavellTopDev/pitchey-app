@@ -7,10 +7,70 @@
     <title>Pitchey - Where Ideas Meet Investment</title>
     
     <!-- DNS prefetch for API domain to reduce resolution delays -->
-    <link rel="dns-prefetch" href="//pitchey-api-prod.cavelltheleaddev.workers.dev">
-    <link rel="preconnect" href="https://pitchey-api-prod.cavelltheleaddev.workers.dev" crossorigin>
+    <link rel="dns-prefetch" href="//pitchey-api-prod.ndlovucavelle.workers.dev">
+    <link rel="preconnect" href="https://pitchey-api-prod.ndlovucavelle.workers.dev" crossorigin>
   </head>
   <body>
+    <!-- React Scheduler Polyfill - MUST load before React -->
+    <script>
+      // Polyfill for React's scheduler to prevent "Cannot set properties of undefined" errors
+      (function() {
+        if (typeof window !== 'undefined') {
+          // Create global performance object if it doesn't exist
+          window.performance = window.performance || {};
+          window.performance.now = window.performance.now || function() {
+            return Date.now();
+          };
+          
+          // Create scheduler polyfill for React
+          var Scheduler = {
+            unstable_now: function() {
+              return performance.now();
+            },
+            unstable_IdlePriority: 5,
+            unstable_ImmediatePriority: 1,
+            unstable_LowPriority: 4,
+            unstable_NormalPriority: 3,
+            unstable_UserBlockingPriority: 2,
+            unstable_runWithPriority: function(priority, callback) {
+              return callback();
+            },
+            unstable_next: function(callback) {
+              return callback();
+            },
+            unstable_scheduleCallback: function(priority, callback) {
+              return setTimeout(callback, 0);
+            },
+            unstable_cancelCallback: function(timeoutId) {
+              clearTimeout(timeoutId);
+            },
+            unstable_wrapCallback: function(callback) {
+              return callback;
+            },
+            unstable_getCurrentPriorityLevel: function() {
+              return 3; // NormalPriority
+            },
+            unstable_shouldYield: function() {
+              return false;
+            },
+            unstable_continueExecution: function() {},
+            unstable_pauseExecution: function() {},
+            unstable_getFirstCallbackNode: function() {
+              return null;
+            },
+            unstable_forceFrameRate: function() {}
+          };
+          
+          // Make Scheduler available globally for React
+          window.Scheduler = Scheduler;
+          
+          // Also set on global for CommonJS compatibility
+          if (typeof global !== 'undefined') {
+            global.Scheduler = Scheduler;
+          }
+        }
+      })();
+    </script>
     <!-- React 18 AsyncMode Compatibility Fix -->
     <script>
       // Immediate fix for AsyncMode issues before any modules load
@@ -138,6 +198,85 @@
         }
       })();
     </script>
+    
+    <!-- React Global Provision for libraries that expect it -->
+    <script>
+      // CRITICAL: Provide React stub until real React loads to prevent undefined errors
+      (function() {
+        if (typeof window !== 'undefined' && !window.React) {
+          // Create a more complete React stub
+          var ReactStub = {
+            createElement: function() { return null; },
+            Component: function() {},
+            Fragment: Symbol ? Symbol.for('react.fragment') : 0xeac7,
+            StrictMode: Symbol ? Symbol.for('react.strict_mode') : 0xeacc,
+            Suspense: Symbol ? Symbol.for('react.suspense') : 0xead1,
+            createContext: function() { 
+              return { Provider: function() { return null; }, Consumer: function() { return null; } };
+            },
+            forwardRef: function(render) {
+              // Return a component that will work until React loads
+              return function ForwardRef(props) {
+                return render ? render(props, null) : null;
+              };
+            },
+            lazy: function(loader) { return loader; },
+            memo: function(component) { return component; },
+            useCallback: function(cb) { return cb; },
+            useContext: function() { return {}; },
+            useEffect: function() {},
+            useLayoutEffect: function() {},
+            useMemo: function(fn) { return fn(); },
+            useReducer: function(reducer, initialState) { return [initialState, function() {}]; },
+            useRef: function(initialValue) { return { current: initialValue }; },
+            useState: function(initial) { return [initial, function() {}]; },
+            useDebugValue: function() {},
+            useImperativeHandle: function() {},
+            // CRITICAL: Add React 18 hooks for React Router
+            useSyncExternalStore: function(subscribe, getSnapshot) { 
+              return getSnapshot ? getSnapshot() : null; 
+            },
+            useId: function() { return ':r0:'; },
+            useTransition: function() { return [false, function(fn) { fn(); }]; },
+            useDeferredValue: function(value) { return value; },
+            useInsertionEffect: function() {},
+            cloneElement: function(element) { return element; },
+            isValidElement: function() { return false; },
+            Children: {
+              map: function(children, fn) { return fn ? fn(children) : children; },
+              forEach: function() {},
+              count: function() { return 0; },
+              toArray: function(children) { return Array.isArray(children) ? children : [children]; },
+              only: function(children) { return children; }
+            },
+            version: '18.2.0'
+          };
+          
+          // Make React available globally
+          window.React = ReactStub;
+          
+          // Also provide ReactDOM stub
+          window.ReactDOM = {
+            render: function() {},
+            hydrate: function() {},
+            unmountComponentAtNode: function() {},
+            findDOMNode: function() { return null; },
+            createPortal: function(children) { return children; }
+          };
+          
+          // Watch for real React to load and replace the stub
+          var originalDefineProperty = Object.defineProperty;
+          Object.defineProperty = function(obj, prop, descriptor) {
+            if (obj === window && (prop === 'React' || prop === 'ReactDOM') && descriptor.value) {
+              // Real React is being loaded, let it replace our stub
+              console.log('Real ' + prop + ' loaded, replacing stub');
+            }
+            return originalDefineProperty.call(this, obj, prop, descriptor);
+          };
+        }
+      })();
+    </script>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

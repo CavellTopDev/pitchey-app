@@ -1,5 +1,12 @@
-import React, { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
+// CRITICAL: Import React global setup FIRST before anything else
+import './react-global';
+import './jsx-runtime-fix'; // Fix jsxDEV errors in production
+
+// ENSURE React is available globally before any other imports
+import * as React from 'react';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+
 import './index.css'
 import './lib/fix-all-apis.ts' // Fix all API URLs globally
 import App from './App.tsx'

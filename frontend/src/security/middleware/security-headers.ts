@@ -246,7 +246,7 @@ export const defaultSecurityHeaders = new SecurityHeaders({
     imgSrc: ["'self'", "data:", "https:", "blob:"],
     connectSrc: [
       "'self'",
-      "https://pitchey-api-prod.cavelltheleaddev.workers.dev",
+      "https://pitchey-api-prod.ndlovucavelle.workers.dev",
       "wss://pitchey-api-prod.ndlovucavelle.workers.dev",
       "https://*.upstash.io",
       "https://*.neon.tech"
@@ -255,7 +255,7 @@ export const defaultSecurityHeaders = new SecurityHeaders({
     objectSrc: ["'none'"],
     mediaSrc: ["'self'", "blob:"],
     frameSrc: ["'none'"],
-    reportUri: "https://pitchey-api-prod.cavelltheleaddev.workers.dev/api/security/csp-report"
+    reportUri: "https://pitchey-api-prod.ndlovucavelle.workers.dev/api/security/csp-report"
   },
   hsts: {
     maxAge: 63072000, // 2 years

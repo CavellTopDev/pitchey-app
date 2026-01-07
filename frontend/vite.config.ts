@@ -13,8 +13,12 @@ export default defineConfig({
           ['babel-plugin-transform-remove-console', { exclude: ['error', 'warn'] }],
         ],
       },
-      // Fix React 18 compatibility
+      // CRITICAL FIX: Force production to use jsx, not jsxDEV
       jsxRuntime: 'automatic',
+      jsxImportSource: 'react',
+      // Disable jsxDEV in production completely
+      jsxPure: true,
+      fastRefresh: false, // Disable fast refresh which requires jsxDEV
     }),
     // Fix AsyncMode issues in legacy dependencies
     reactAsyncModeFix(),
@@ -25,7 +29,13 @@ export default defineConfig({
       // CRITICAL: Force single React instance to prevent duplicate React error
       'react': path.resolve(__dirname, './node_modules/react'),
       'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      'react-is': path.resolve(__dirname, './node_modules/react-is'),
+      // Also dedupe React internals used by libraries
+      'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
+      'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-dev-runtime'),
     },
+    // Deduplicate React across all dependencies
+    dedupe: ['react', 'react-dom', 'react-is'],
   },
   build: {
     // Optimize build output - Updated for React 18 compatibility
@@ -49,23 +59,77 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        // Optimized code splitting for better performance
+        // Ensure proper chunk dependencies - use function for better control
         manualChunks: (id) => {
+          // CRITICAL: React and react-global MUST be in vendor chunk and loaded first
+          if (id.includes('react-global')) {
+            return 'vendor'; // Ensure react-global is in vendor chunk
+          }
+          
+          if (id.includes('node_modules')) {
+            // React core + scheduler in single vendor chunk
+            if (id.includes('/react/') || id.includes('/react-dom/') || 
+                id.includes('/scheduler/') || id.includes('react-is') ||
+                id.includes('react/jsx-runtime') || id.includes('react/jsx-dev-runtime')) {
+              return 'vendor'; // Put React in vendor chunk that loads first
+            }
+            
+            // React Router in separate chunk after vendor
+            if (id.includes('react-router')) {
+              return 'react-router';
+            }
+            
+            // UI libraries after React
+            if (id.includes('@radix-ui')) {
+              return 'radix-ui';
+            }
+            
+            // Charts
+            if (id.includes('recharts') || id.includes('react-smooth') || id.includes('d3-')) {
+              return 'charts';
+            }
+            
+            // Icons
+            if (id.includes('lucide-react')) {
+              return 'icons';
+            }
+            
+            // Utils in vendor
+            return 'vendor';
+          }
+        },
+        // OLD manual chunks function - keeping as fallback
+        manualChunks_OLD: (id) => {
           // Vendor chunk for core dependencies
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'vendor-react';
+            // CRITICAL: React and scheduler MUST be in a single chunk loaded first
+            if (id.includes('/react/index') || id.includes('/react-dom/index') || 
+                id.includes('/react-is/') || id.includes('/scheduler/') ||
+                id.includes('react/cjs/') || id.includes('react-dom/cjs/') ||
+                id.includes('scheduler/cjs/')) {
+              return 'react'; // Single chunk for React core and scheduler
             }
-            if (id.includes('lucide-react')) {
-              return 'vendor-icons';
+            
+            // React-dependent UI libraries (must load AFTER React)
+            if (id.includes('@radix-ui') || id.includes('framer-motion') || 
+                id.includes('react-hook-form') || id.includes('@tanstack') ||
+                id.includes('react-router') || id.includes('lucide-react')) {
+              return 'react-libs';
             }
-            if (id.includes('recharts') || id.includes('chart')) {
-              return 'vendor-charts';
+            
+            // Recharts and react-smooth MUST be together (they share dependencies)
+            if (id.includes('recharts') || id.includes('react-smooth') || 
+                id.includes('d3-') || id.includes('victory')) {
+              return 'charts';
             }
+            
+            // Sentry and monitoring
             if (id.includes('@sentry') || id.includes('sentry')) {
-              return 'vendor-monitoring';
+              return 'monitoring';
             }
-            return 'vendor-misc';
+            
+            // Everything else that doesn't use React
+            return 'vendor';
           }
           
           // Portal-specific chunks with sub-splitting
@@ -122,9 +186,30 @@ export default defineConfig({
     reportCompressedSize: true,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
-    // Force optimization to prevent duplicates
+    include: [
+      'react', 
+      'react-dom',
+      'react-is',
+      'react-router-dom',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-slot',
+      'recharts',
+      'react-smooth'
+    ],
+    // Ensure consistent React version
+    esbuildOptions: {
+      // Treat React as external to force resolution through aliases
+      define: {
+        global: 'globalThis',
+      },
+    },
+    // Force re-optimization when deps change
     force: true,
+  },
+  // Define global variables for production
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   },
   // Development server optimizations
   server: {
