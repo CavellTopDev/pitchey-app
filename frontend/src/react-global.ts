@@ -4,6 +4,9 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import * as ReactDOMClient from 'react-dom/client';
 
+// Import useSyncExternalStore directly for React 18
+import { useSyncExternalStore as importedUseSyncExternalStore } from 'react';
+
 // Import JSX runtime for production
 import { jsx, jsxs, Fragment } from 'react/jsx-runtime';
 
@@ -16,18 +19,29 @@ const jsxDEV = (type: any, config: any, maybeKey: any, source?: any, self?: any)
 };
 
 // CRITICAL FIX: Ensure useSyncExternalStore is available
-// React 18 exports this, but we need to make sure it's accessible
-const useSyncExternalStore = (React as any).useSyncExternalStore || 
+// Use the imported version or React's version or fallback
+const useSyncExternalStore = importedUseSyncExternalStore || 
+  (React as any).useSyncExternalStore || 
   function(subscribe: any, getSnapshot: any, getServerSnapshot?: any) {
     // Fallback implementation for compatibility
-    const value = getSnapshot ? getSnapshot() : undefined;
+    const [value, setValue] = React.useState(() => 
+      getSnapshot ? getSnapshot() : undefined
+    );
+    
     React.useEffect(() => {
-      if (subscribe) {
-        return subscribe(() => {
-          // Trigger re-render on store change
-        });
-      }
-    }, [subscribe]);
+      if (!subscribe || !getSnapshot) return;
+      
+      // Set initial value
+      setValue(getSnapshot());
+      
+      // Subscribe to changes
+      const unsubscribe = subscribe(() => {
+        setValue(getSnapshot());
+      });
+      
+      return unsubscribe;
+    }, [subscribe, getSnapshot]);
+    
     return value;
   };
 
