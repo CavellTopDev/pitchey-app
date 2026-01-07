@@ -1,0 +1,63 @@
+name: Deploy Frontend to Cloudflare Pages
+
+# This workflow automatically deploys the frontend when you push to main
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  deploy:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: 📦 Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: 🏗️ Build frontend
+        working-directory: frontend
+        run: npm run build
+        env:
+          # These variables are baked into the build
+          VITE_API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev'
+          VITE_WS_URL: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws'
+          VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN || 'https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536' }}
+          NODE_ENV: production
+
+      - name: 🚀 Deploy to Cloudflare Pages (using Wrangler)
+        working-directory: frontend
+        run: |
+          npx wrangler pages deploy dist \
+            --project-name=pitchey \
+            --branch=${{ github.ref_name }} \
+            --commit-hash=${{ github.sha }} \
+            --commit-message="${{ github.event.head_commit.message }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: ✅ Deployment Complete
+        run: |
+          echo "✅ Frontend deployed successfully!"
+          echo "🌐 Production URL: https://pitchey.pages.dev"
+          echo "🔄 Deployment ID: ${{ github.sha }}"
+          echo ""
+          echo "The deployment may take 1-2 minutes to propagate globally."
