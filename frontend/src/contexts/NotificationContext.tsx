@@ -51,7 +51,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const fetchNotifications = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await notificationService.getNotifications();
+      const response = await notificationService.getNotifications();
+      const data = response.notifications || [];
       
       // Transform API notifications to context format
       const formattedNotifications: Notification[] = data.map(n => ({

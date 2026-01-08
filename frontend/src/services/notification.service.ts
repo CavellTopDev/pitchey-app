@@ -285,6 +285,26 @@ export class NotificationService {
       audio.volume = clampedVolume;
     });
   }
+
+  // Get notifications from API
+  async getNotifications(options?: { limit?: number; offset?: number }) {
+    try {
+      const { default: apiClient } = await import('../lib/api-client');
+      const limit = options?.limit || 20;
+      const offset = options?.offset || 0;
+      
+      const response = await apiClient.get(`/api/user/notifications?limit=${limit}&offset=${offset}`);
+      
+      if (response.success && response.data?.notifications) {
+        return response.data;
+      }
+      
+      return { notifications: [], unreadCount: 0, hasMore: false };
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      return { notifications: [], unreadCount: 0, hasMore: false };
+    }
+  }
 }
 
 // Export singleton instance

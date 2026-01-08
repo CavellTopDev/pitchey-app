@@ -1,0 +1,99 @@
+// CRITICAL: This must run BEFORE any bundled code
+// Provides React stub with useSyncExternalStore until real React loads
+(function() {
+  'use strict';
+  
+  // Create useSyncExternalStore shim
+  var useSyncExternalStoreShim = function(subscribe, getSnapshot, getServerSnapshot) {
+    // Basic implementation for production
+    var value = getSnapshot ? getSnapshot() : undefined;
+    return value;
+  };
+  
+  // Create a minimal React object that will be replaced by the real one
+  var ReactShim = {
+    useSyncExternalStore: useSyncExternalStoreShim,
+    useState: function(initial) { return [initial, function() {}]; },
+    useEffect: function() {},
+    useLayoutEffect: function() {},
+    useCallback: function(cb) { return cb; },
+    useMemo: function(fn) { return typeof fn === 'function' ? fn() : fn; },
+    useRef: function(initial) { return { current: initial }; },
+    useContext: function() { return {}; },
+    useReducer: function(reducer, initial) { return [initial, function() {}]; },
+    createElement: function() { return null; },
+    Fragment: Symbol ? Symbol.for('react.fragment') : 0xeac7,
+    StrictMode: Symbol ? Symbol.for('react.strict_mode') : 0xeacc,
+    Suspense: Symbol ? Symbol.for('react.suspense') : 0xead1,
+    createContext: function() { 
+      return { Provider: function() { return null; }, Consumer: function() { return null; } };
+    },
+    forwardRef: function(render) { return render; },
+    lazy: function(loader) { return loader; },
+    memo: function(component) { return component; },
+    useDebugValue: function() {},
+    useImperativeHandle: function() {},
+    useId: function() { return ':r' + Math.random().toString(36).substr(2, 9) + ':'; },
+    useTransition: function() { return [false, function(fn) { fn(); }]; },
+    useDeferredValue: function(value) { return value; },
+    useInsertionEffect: function() {},
+    startTransition: function(fn) { fn(); },
+    version: '18.2.0'
+  };
+  
+  // Make React available globally at all possible locations
+  window.React = ReactShim;
+  window.react = ReactShim;
+  globalThis.React = ReactShim;
+  globalThis.react = ReactShim;
+  
+  // Also set common minified names
+  window.Js = ReactShim;  // Common minified name for React
+  window.z = ReactShim;   // Another common minified name
+  window.R = ReactShim;   // Another variant
+  
+  // Set up module exports pattern
+  if (!window.exports) window.exports = {};
+  window.exports.React = ReactShim;
+  window.exports.react = ReactShim;
+  
+  if (!window.module) window.module = { exports: {} };
+  window.module.exports.React = ReactShim;
+  window.module.exports.react = ReactShim;
+  
+  // Intercept property access to provide React when needed
+  if (typeof Proxy !== 'undefined') {
+    var handler = {
+      get: function(target, prop) {
+        // If accessing undefined React-like objects, return our shim
+        if ((prop === 'Js' || prop === 'z' || prop === 'R') && !target[prop]) {
+          return ReactShim;
+        }
+        return target[prop];
+      }
+    };
+    
+    // Wrap window in a Proxy to catch undefined React references
+    try {
+      var windowProxy = new Proxy(window, handler);
+      // Can't actually replace window, but we can set up getters
+      ['Js', 'z', 'R'].forEach(function(name) {
+        if (!window[name]) {
+          Object.defineProperty(window, name, {
+            get: function() { return window.React || ReactShim; },
+            set: function(val) { window['_' + name] = val; },
+            configurable: true
+          });
+        }
+      });
+    } catch (e) {
+      // Proxy not supported or failed, continue without it
+    }
+  }
+  
+  console.log('React shim installed:', {
+    React: !!window.React,
+    useSyncExternalStore: !!(window.React && window.React.useSyncExternalStore),
+    Js: !!window.Js
+  });
+})();

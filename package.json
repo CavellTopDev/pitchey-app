@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "deploy": "echo 'Pages auto-deploy complete'",
+    "deploy": "wrangler deploy",
     "deploy:staging": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n --env staging",
     "deploy:production": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n --env production",
     "deploy:worker": "wrangler deploy --config wrangler.toml",
@@ -11,7 +11,7 @@
     "deploy:local": "./deploy-cloudflare.sh",
     "dev": "wrangler dev",
     "tail": "wrangler tail",
-    "build": "npm run build:frontend",
+    "build": "echo 'Worker uses TypeScript directly, no build needed'",
     "build:full": "npm run build:worker && npm run build:frontend",
     "build:worker": "esbuild src/worker-integrated.ts --bundle --format=esm --outfile=dist/worker.js --platform=browser --target=es2020",
     "build:frontend": "cd frontend && npm install && npm run build",
