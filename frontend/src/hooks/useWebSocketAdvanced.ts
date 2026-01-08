@@ -70,8 +70,8 @@ const CIRCUIT_BREAKER_CONFIG = {
   halfOpenMaxAttempts: 1,  // Only 1 attempt in half-open state
 };
 
-// CRITICAL: Disable WebSocket on Cloudflare free tier - use polling instead
-const WEBSOCKET_ENABLED = false;
+// WebSocket is now enabled with Cloudflare Workers Paid plan
+const WEBSOCKET_ENABLED = true;
 
 export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
