@@ -2485,6 +2485,7 @@
     "packageJson": {
       "dependencies": [
         "npm:@cloudflare/workers-types@4",
+        "npm:@faker-js/faker@^8.4.1",
         "npm:@neondatabase/serverless@^1.0.2",
         "npm:@sendgrid/mail@^8.1.6",
         "npm:@sentry/browser@7",
