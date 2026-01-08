@@ -35,7 +35,9 @@ const ALLOWED_ORIGINS = [
   'https://pitchey-frontend-ndlovu.pages.dev', // ndlovucavelle's deployment
   'https://pitchey.com',           // Custom domain (future)
   'http://localhost:5173',         // Local development (Vite)
-  'http://localhost:3000'          // Local development (alternative)
+  'http://127.0.0.1:5173',        // Local development (Vite via IP)
+  'http://localhost:3000',        // Local development (alternative)
+  'http://127.0.0.1:3000'         // Local development (alternative via IP)
 ];
 
 // Function to check if origin is allowed (includes Cloudflare Pages subdomains)

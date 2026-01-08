@@ -9,7 +9,62 @@
  * - Secure secret storage
  */
 
-import * as base32 from "https://deno.land/x/base32@v1.0.0/mod.ts";
+// Base32 encoding/decoding implementation for Cloudflare Workers
+// RFC 4648 compliant implementation
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+const base32 = {
+  encode(buffer: Uint8Array): string {
+    let result = '';
+    let bits = 0;
+    let value = 0;
+    
+    for (let i = 0; i < buffer.length; i++) {
+      value = (value << 8) | buffer[i];
+      bits += 8;
+      
+      while (bits >= 5) {
+        result += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+        bits -= 5;
+      }
+    }
+    
+    if (bits > 0) {
+      result += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+    }
+    
+    // Add padding
+    while (result.length % 8 !== 0) {
+      result += '=';
+    }
+    
+    return result;
+  },
+  
+  decode(encoded: string): Uint8Array {
+    const cleanStr = encoded.replace(/=/g, '');
+    const bytes: number[] = [];
+    let bits = 0;
+    let value = 0;
+    
+    for (let i = 0; i < cleanStr.length; i++) {
+      const idx = BASE32_ALPHABET.indexOf(cleanStr[i]);
+      if (idx === -1) {
+        throw new Error(`Invalid base32 character: ${cleanStr[i]}`);
+      }
+      
+      value = (value << 5) | idx;
+      bits += 5;
+      
+      if (bits >= 8) {
+        bytes.push((value >>> (bits - 8)) & 255);
+        bits -= 8;
+      }
+    }
+    
+    return new Uint8Array(bytes);
+  }
+};
 
 // TOTP Configuration
 const TOTP_CONFIG = {

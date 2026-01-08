@@ -20,7 +20,12 @@ export default function Homepage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPitches();
+    // Add delay to prevent rate limiting on initial page load
+    const timer = setTimeout(() => {
+      fetchPitches();
+    }, 1500); // Stagger after auth and notification delays
+
+    return () => clearTimeout(timer);
   }, []);
 
   const fetchPitches = async () => {

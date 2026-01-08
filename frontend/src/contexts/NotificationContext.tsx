@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { notificationService } from '../services/notification.service';
-import { pollingService } from '../services/polling.service';
+import { useWebSocket } from './WebSocketContext';
 
 export interface Notification {
   id: string;
@@ -45,6 +45,7 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { notifications: wsNotifications } = useWebSocket();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -108,16 +109,32 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     setNotifications([]);
   }, []);
 
-  // Set up polling for notifications
+  // Handle WebSocket notifications in real-time
   useEffect(() => {
-    // Initial fetch
-    fetchNotifications();
+    if (wsNotifications && wsNotifications.length > 0) {
+      // Transform WebSocket notifications to context format
+      const formattedNotifications: Notification[] = wsNotifications.map(n => ({
+        id: n.id.toString(),
+        type: n.type as Notification['type'],
+        title: n.title,
+        message: n.message,
+        timestamp: n.timestamp,
+        read: n.read,
+      }));
+      
+      setNotifications(formattedNotifications);
+    }
+  }, [wsNotifications]);
 
-    // Set up polling interval
-    const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
+  // Initial fetch only once on mount (no aggressive polling)
+  useEffect(() => {
+    // Single initial fetch with delay to avoid rate limiting on page load
+    const timer = setTimeout(() => {
+      fetchNotifications();
+    }, 3000);
 
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array - only run once on mount
 
   const value: NotificationContextType = {
     notifications,

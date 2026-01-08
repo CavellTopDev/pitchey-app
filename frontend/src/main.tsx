@@ -38,9 +38,6 @@ window.addEventListener('unhandledrejection', (event) => {
   })
 })
 
-console.log('main.tsx: Creating app wrapper');
-const AppWrapper = <App />;
-
 console.log('main.tsx: Getting root element');
 const rootElement = document.getElementById('root');
 console.log('main.tsx: Root element found:', !!rootElement);
@@ -50,9 +47,7 @@ if (rootElement) {
   const root = createRoot(rootElement);
   console.log('main.tsx: Rendering app');
   root.render(
-    <StrictMode>
-      {AppWrapper}
-    </StrictMode>,
+    React.createElement(StrictMode, {}, React.createElement(App))
   );
   console.log('main.tsx: Render call completed');
 } else {

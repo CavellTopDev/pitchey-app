@@ -228,16 +228,33 @@ function App() {
     loadConfig();
   }, []);
 
-  // On app mount, check Better Auth session from cookies
+  // Only check session for authenticated routes, not public pages like homepage
   useEffect(() => {
+    const path = location.pathname;
+    const isPublicRoute = ['/', '/how-it-works', '/about', '/contact', '/terms', '/privacy', '/portals'].includes(path) ||
+                         path.startsWith('/login/') || path.startsWith('/auth/');
+    
+    // Skip auth session check for public routes
+    if (isPublicRoute) {
+      return;
+    }
+    
+    // For protected routes, check session with delay to prevent rate limiting
     const checkSession = async () => {
-      // Always check session on mount to restore authentication state
-      // Better Auth will check the session cookie and return user if valid
-      await fetchProfile();
+      try {
+        await fetchProfile();
+      } catch (error) {
+        // If auth fails, don't retry - just log the error
+        console.warn('Auth session check failed:', error);
+      }
     };
     
-    checkSession();
-  }, [fetchProfile]); // Run once on mount
+    const timer = setTimeout(() => {
+      checkSession();
+    }, 1000); // 1 second delay for protected routes only
+    
+    return () => clearTimeout(timer);
+  }, [fetchProfile, location.pathname]);
 
   // Removed redundant profile fetching - handled by session restoration above
 

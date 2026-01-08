@@ -3,19 +3,16 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // SIMPLIFIED CONFIG TO FIX TDZ ERRORS
-export default defineConfig(({ mode }) => {
-  // Force production mode for build
-  const isProduction = mode === 'production' || process.env.NODE_ENV === 'production';
-  
+export default defineConfig(() => {
   return {
     plugins: [
       react({
-        // CRITICAL: Force production JSX runtime
+        // CRITICAL: Force production JSX runtime always
         jsxRuntime: 'automatic',
         jsxImportSource: 'react',
-        // Force production transform
-        jsxDev: false,  // Disable dev JSX transform
-        fastRefresh: false,  // Disable fast refresh in production
+        // Force production transform EVERYWHERE
+        jsxDev: false,
+        fastRefresh: false,
       }),
     ],
   resolve: {
@@ -55,6 +52,6 @@ export default defineConfig(({ mode }) => {
     'import.meta.env.DEV': 'false',
     'import.meta.env.PROD': 'true',
   },
-  mode: 'production', // Force production mode
+  mode: 'production',
   }
 })

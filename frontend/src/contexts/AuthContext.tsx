@@ -73,7 +73,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    checkSession();
+    // Skip auth session check for public routes (homepage, login pages, etc.)
+    const path = window.location.pathname;
+    const isPublicRoute = ['/', '/how-it-works', '/about', '/contact', '/terms', '/privacy', '/portals'].includes(path) ||
+                         path.startsWith('/login/') || path.startsWith('/auth/');
+    
+    // Only check session for protected routes
+    if (!isPublicRoute) {
+      checkSession();
+    }
   }, []);
 
   const value: AuthContextType = {
