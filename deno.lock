@@ -2,15 +2,18 @@
   "version": "5",
   "specifiers": {
     "npm:@cloudflare/workers-types@4": "4.20251225.0",
+    "npm:@faker-js/faker@8.4.1": "8.4.1",
     "npm:@neondatabase/serverless@0.10.3": "0.10.3",
     "npm:@neondatabase/serverless@^1.0.2": "1.0.2",
     "npm:@sendgrid/mail@^8.1.6": "8.1.6",
     "npm:@sentry/browser@7": "7.120.4",
     "npm:@sentry/deno@8.55.0": "8.55.0",
+    "npm:@types/bcryptjs@^2.4.6": "2.4.6",
     "npm:@types/node@20": "20.19.27",
     "npm:@upstash/redis@^1.35.7": "1.36.0",
     "npm:axios@^1.6.0": "1.13.2",
     "npm:bcrypt@5.1.1": "5.1.1",
+    "npm:bcryptjs@^3.0.3": "3.0.3",
     "npm:better-auth-cloudflare@~0.2.9": "0.2.9_better-auth@1.4.9__drizzle-orm@0.35.3___@cloudflare+workers-types@4.20251225.0___@libsql+client-wasm@0.15.15___@neondatabase+serverless@0.10.3___kysely@0.28.9__@better-auth+utils@0.3.0__@better-fetch+fetch@1.1.21__better-call@1.1.7___zod@4.2.1__jose@6.1.3__kysely@0.28.9__nanostores@1.1.0__@better-auth+core@1.4.9___@better-auth+utils@0.3.0___@better-fetch+fetch@1.1.21___better-call@1.1.7____zod@4.2.1___jose@6.1.3___kysely@0.28.9___nanostores@1.1.0___zod@4.2.1__zod@4.2.1__@cloudflare+workers-types@4.20251225.0__@neondatabase+serverless@0.10.3_drizzle-orm@0.35.3__@cloudflare+workers-types@4.20251225.0__@libsql+client-wasm@0.15.15__@neondatabase+serverless@0.10.3__kysely@0.28.9_@cloudflare+workers-types@4.20251225.0_@neondatabase+serverless@0.10.3_@upstash+redis@1.36.0",
     "npm:better-auth@^1.4.7": "1.4.9_drizzle-orm@0.35.3__@cloudflare+workers-types@4.20251225.0__@libsql+client-wasm@0.15.15__@neondatabase+serverless@0.10.3__kysely@0.28.9_@better-auth+utils@0.3.0_@better-fetch+fetch@1.1.21_better-call@1.1.7__zod@4.2.1_jose@6.1.3_kysely@0.28.9_nanostores@1.1.0_@better-auth+core@1.4.9__@better-auth+utils@0.3.0__@better-fetch+fetch@1.1.21__better-call@1.1.7___zod@4.2.1__jose@6.1.3__kysely@0.28.9__nanostores@1.1.0__zod@4.2.1_zod@4.2.1_@cloudflare+workers-types@4.20251225.0_@neondatabase+serverless@0.10.3",
     "npm:drizzle-orm@0.35.3": "0.35.3_@cloudflare+workers-types@4.20251225.0_@libsql+client-wasm@0.15.15_@neondatabase+serverless@0.10.3_kysely@0.28.9",
@@ -355,6 +358,9 @@
       "integrity": "sha512-aIitBcjQeyOhMTImhLZmtxfdOcuNRpwlPNmlFKPcHQYPhEssw75Cl1TSXJXpMkzaua9FUetx/4OQKq7eJul5Cg==",
       "os": ["win32"],
       "cpu": ["x64"]
+    },
+    "@faker-js/faker@8.4.1": {
+      "integrity": "sha512-XQ3cU+Q8Uqmrbf2e0cIC/QN43sTBSC8KF12u29Mb47tWrt2hAgBXSgpZMj4Ao8Uk0iJcU99QsOCaIL8934obCg=="
     },
     "@img/sharp-darwin-arm64@0.33.5": {
       "integrity": "sha512-UT4p+iz/2H4twwAoLCqfA9UH5pI6DggwKEGuaPy7nCVQ8ZsiY5PIcrRvD1DzuY3qYL07NtIQcWnBSY/heikIFQ==",
@@ -708,6 +714,9 @@
     "@standard-schema/spec@1.1.0": {
       "integrity": "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="
     },
+    "@types/bcryptjs@2.4.6": {
+      "integrity": "sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ=="
+    },
     "@types/node@20.19.27": {
       "integrity": "sha512-N2clP5pJhB2YnZJ3PIHFk5RkygRX5WO/5f0WC08tp0wd+sv0rsJk3MqWn3CbNmT2J505a5336jaQj4ph1AdMug==",
       "dependencies": [
@@ -791,6 +800,10 @@
         "node-addon-api"
       ],
       "scripts": true
+    },
+    "bcryptjs@3.0.3": {
+      "integrity": "sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==",
+      "bin": true
     },
     "better-auth-cloudflare@0.2.9_better-auth@1.4.9__drizzle-orm@0.35.3___@cloudflare+workers-types@4.20251225.0___@libsql+client-wasm@0.15.15___@neondatabase+serverless@0.10.3___kysely@0.28.9__@better-auth+utils@0.3.0__@better-fetch+fetch@1.1.21__better-call@1.1.7___zod@4.2.1__jose@6.1.3__kysely@0.28.9__nanostores@1.1.0__@better-auth+core@1.4.9___@better-auth+utils@0.3.0___@better-fetch+fetch@1.1.21___better-call@1.1.7____zod@4.2.1___jose@6.1.3___kysely@0.28.9___nanostores@1.1.0___zod@4.2.1__zod@4.2.1__@cloudflare+workers-types@4.20251225.0__@neondatabase+serverless@0.10.3_drizzle-orm@0.35.3__@cloudflare+workers-types@4.20251225.0__@libsql+client-wasm@0.15.15__@neondatabase+serverless@0.10.3__kysely@0.28.9_@cloudflare+workers-types@4.20251225.0_@neondatabase+serverless@0.10.3_@upstash+redis@1.36.0": {
       "integrity": "sha512-hGnDPxkdD01jjtKmha19EJ3CJGERHFVgqL3sT8b6BMy94AnbnU8lIpQLYdteAw95JEDTBuXWdpHjy/Fqqr2HNg==",
@@ -2459,6 +2472,7 @@
   },
   "workspace": {
     "dependencies": [
+      "npm:@faker-js/faker@8.4.1",
       "npm:@neondatabase/serverless@0.10.3",
       "npm:@sentry/deno@8.55.0",
       "npm:bcrypt@5.1.1",
@@ -2474,9 +2488,11 @@
         "npm:@neondatabase/serverless@^1.0.2",
         "npm:@sendgrid/mail@^8.1.6",
         "npm:@sentry/browser@7",
+        "npm:@types/bcryptjs@^2.4.6",
         "npm:@types/node@20",
         "npm:@upstash/redis@^1.35.7",
         "npm:axios@^1.6.0",
+        "npm:bcryptjs@^3.0.3",
         "npm:better-auth-cloudflare@~0.2.9",
         "npm:better-auth@^1.4.7",
         "npm:esbuild@0.19",

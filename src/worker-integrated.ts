@@ -880,6 +880,19 @@ class RouteRegistry {
     this.register('POST', '/api/user/two-factor/enable', (req) => enableTwoFactorHandler(req, this.env));
     this.register('POST', '/api/user/two-factor/disable', (req) => disableTwoFactorHandler(req, this.env));
     this.register('DELETE', '/api/user/account', (req) => deleteAccountHandler(req, this.env));
+    
+    // Multi-Factor Authentication (MFA) routes
+    this.register('GET', '/api/mfa/status', (req) => this.handleMFARequest(req, 'status'));
+    this.register('POST', '/api/mfa/setup/start', (req) => this.handleMFARequest(req, 'setup/start'));
+    this.register('POST', '/api/mfa/setup/verify', (req) => this.handleMFARequest(req, 'setup/verify'));
+    this.register('POST', '/api/mfa/verify', (req) => this.handleMFARequest(req, 'verify'));
+    this.register('POST', '/api/mfa/challenge', (req) => this.handleMFARequest(req, 'challenge'));
+    this.register('POST', '/api/mfa/disable', (req) => this.handleMFARequest(req, 'disable'));
+    this.register('POST', '/api/mfa/backup-codes/regenerate', (req) => this.handleMFARequest(req, 'backup-codes/regenerate'));
+    this.register('GET', '/api/mfa/recovery-options', (req) => this.handleMFARequest(req, 'recovery-options'));
+    this.register('POST', '/api/mfa/trusted-device', (req) => this.handleMFARequest(req, 'trusted-device'));
+    this.register('GET', '/api/mfa/trusted-devices', (req) => this.handleMFARequest(req, 'trusted-devices'));
+    this.register('DELETE', '/api/mfa/trusted-device/:id', (req) => this.handleMFARequest(req, 'trusted-device/delete'));
     this.register('POST', '/api/user/session/log', (req) => logSessionHandler(req, this.env));
     this.register('GET', '/api/teams/:id', (req) => getTeamByIdHandler(req, this.env));
     this.register('PUT', '/api/teams/:id', (req) => updateTeamHandler(req, this.env));
@@ -5419,6 +5432,241 @@ class RouteRegistry {
 
       return this.containerIntegration.handleRequest(request);
     } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle MFA requests by delegating to MFA service
+   */
+  private async handleMFARequest(request: Request, endpoint: string): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authorized) return authResult.response!;
+
+      const builder = new ApiResponseBuilder(request);
+      
+      // Import MFA service dynamically to avoid circular dependencies
+      const { 
+        setupMFA,
+        verifyTOTP,
+        verifyBackupCode,
+        generateBackupCodes,
+        hashBackupCode,
+        logMFAEvent,
+        createMFAChallenge,
+        getRecoveryOptions
+      } = await import('./services/mfa.service');
+
+      const url = new URL(request.url);
+      const method = request.method;
+
+      // Handle different MFA endpoints
+      switch (endpoint) {
+        case 'status': {
+          // Get MFA status for current user
+          const result = await this.db.query(`
+            SELECT 
+              um.enabled,
+              um.method,
+              um.enrolled_at,
+              um.last_used_at,
+              array_length(um.backup_codes, 1) - um.backup_codes_used as backup_codes_remaining
+            FROM user_mfa um
+            WHERE um.user_id = $1
+          `, [authResult.user.id]);
+          
+          if (!result.length) {
+            return builder.success({ enabled: false });
+          }
+          
+          const mfa = result[0];
+          return builder.success({
+            enabled: mfa.enabled,
+            method: mfa.method,
+            backupCodesRemaining: mfa.backup_codes_remaining,
+            lastUsed: mfa.last_used_at,
+            enrolledAt: mfa.enrolled_at
+          });
+        }
+
+        case 'setup/start': {
+          // Start MFA setup
+          const existing = await this.db.query(
+            `SELECT enabled FROM user_mfa WHERE user_id = $1`,
+            [authResult.user.id]
+          );
+          
+          if (existing.length && existing[0].enabled) {
+            return builder.error(ErrorCode.ALREADY_EXISTS, 'MFA already enabled');
+          }
+          
+          const setup = await setupMFA(authResult.user.id, authResult.user.email);
+          const hashedBackupCodes = await Promise.all(
+            setup.backupCodes.map(code => hashBackupCode(code))
+          );
+          
+          await this.db.query(`
+            INSERT INTO user_mfa (
+              user_id, enabled, method, secret, backup_codes
+            ) VALUES (
+              $1, false, 'totp', $2, $3
+            )
+            ON CONFLICT (user_id) 
+            DO UPDATE SET
+              secret = $2,
+              backup_codes = $3,
+              updated_at = CURRENT_TIMESTAMP
+          `, [authResult.user.id, setup.secret, hashedBackupCodes]);
+          
+          return builder.success({
+            qrCode: setup.qrCode,
+            backupCodes: setup.backupCodes
+          });
+        }
+
+        case 'setup/verify': {
+          // Verify TOTP and complete setup
+          const { code } = await request.json();
+          
+          if (!code || !/^\d{6}$/.test(code)) {
+            return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code format');
+          }
+          
+          const [mfaData] = await this.db.query(
+            `SELECT secret, enabled FROM user_mfa WHERE user_id = $1`,
+            [authResult.user.id]
+          );
+          
+          if (!mfaData) {
+            return builder.error(ErrorCode.NOT_FOUND, 'MFA setup not started');
+          }
+          
+          if (mfaData.enabled) {
+            return builder.error(ErrorCode.ALREADY_EXISTS, 'MFA already enabled');
+          }
+          
+          const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
+          
+          if (!verification.valid) {
+            return builder.error(ErrorCode.INVALID_REQUEST, verification.reason || 'Invalid code');
+          }
+          
+          // Enable MFA
+          await this.db.query(`
+            UPDATE user_mfa 
+            SET enabled = true, enrolled_at = CURRENT_TIMESTAMP
+            WHERE user_id = $1
+          `, [authResult.user.id]);
+          
+          await this.db.query(`
+            UPDATE users 
+            SET mfa_enabled = true, mfa_method = 'totp'
+            WHERE id = $1
+          `, [authResult.user.id]);
+          
+          return builder.success({ 
+            success: true,
+            message: 'MFA enabled successfully'
+          });
+        }
+
+        case 'verify': {
+          // Verify MFA code
+          const { code, method = 'totp' } = await request.json();
+          
+          if (!code) {
+            return builder.error(ErrorCode.INVALID_REQUEST, 'Code required');
+          }
+          
+          const [mfaData] = await this.db.query(
+            `SELECT secret, backup_codes, backup_codes_used
+             FROM user_mfa
+             WHERE user_id = $1 AND enabled = true`,
+            [authResult.user.id]
+          );
+          
+          if (!mfaData) {
+            return builder.error(ErrorCode.NOT_FOUND, 'MFA not enabled');
+          }
+          
+          let verified = false;
+          
+          if (method === 'totp') {
+            const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
+            verified = verification.valid;
+            
+            if (!verified) {
+              return builder.error(ErrorCode.INVALID_REQUEST, verification.reason || 'Invalid code');
+            }
+          } else if (method === 'backup') {
+            verified = await verifyBackupCode(code, mfaData.backup_codes);
+            
+            if (verified) {
+              await this.db.query(
+                `UPDATE user_mfa
+                 SET backup_codes_used = backup_codes_used + 1
+                 WHERE user_id = $1`,
+                [authResult.user.id]
+              );
+            }
+          }
+          
+          if (!verified) {
+            return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code');
+          }
+          
+          await this.db.query(
+            `UPDATE user_mfa SET last_used_at = CURRENT_TIMESTAMP WHERE user_id = $1`,
+            [authResult.user.id]
+          );
+          
+          return builder.success({
+            success: true,
+            mfaToken: crypto.randomUUID()
+          });
+        }
+
+        case 'disable': {
+          // Disable MFA
+          const { code } = await request.json();
+          
+          const [mfaData] = await this.db.query(
+            `SELECT secret FROM user_mfa WHERE user_id = $1 AND enabled = true`,
+            [authResult.user.id]
+          );
+          
+          if (!mfaData) {
+            return builder.error(ErrorCode.NOT_FOUND, 'MFA not enabled');
+          }
+          
+          const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
+          
+          if (!verification.valid) {
+            return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code');
+          }
+          
+          await this.db.query(
+            `UPDATE user_mfa SET enabled = false WHERE user_id = $1`,
+            [authResult.user.id]
+          );
+          
+          await this.db.query(
+            `UPDATE users SET mfa_enabled = false, mfa_method = NULL WHERE id = $1`,
+            [authResult.user.id]
+          );
+          
+          return builder.success({
+            success: true,
+            message: 'MFA disabled successfully'
+          });
+        }
+
+        default:
+          return builder.error(ErrorCode.NOT_FOUND, 'MFA endpoint not found');
+      }
+    } catch (error) {
+      console.error('MFA error:', error);
       return errorHandler(error, request);
     }
   }

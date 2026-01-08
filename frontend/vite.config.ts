@@ -29,7 +29,7 @@ export default defineConfig({
       'react-is': path.resolve(__dirname, './node_modules/react-is'),
       // Also dedupe React internals used by libraries
       'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
-      // CRITICAL: In production, jsx-dev-runtime should use the production runtime!
+      // CRITICAL: jsx-dev-runtime should NEVER be used - always use production runtime
       'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
     },
     // Deduplicate React across all dependencies
@@ -208,6 +208,9 @@ export default defineConfig({
   // Define global variables for production
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+    // Force production mode to prevent any dev-only code
+    '__DEV__': 'false',
+    'process.env': JSON.stringify({ NODE_ENV: process.env.NODE_ENV || 'production' }),
   },
   // Development server optimizations
   server: {
