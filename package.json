@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "deploy": "",
+    "deploy": "echo 'Pages auto-deploy complete'",
     "deploy:staging": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n --env staging",
     "deploy:production": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n --env production",
     "deploy:worker": "wrangler deploy --config wrangler.toml",
