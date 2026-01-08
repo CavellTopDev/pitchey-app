@@ -80,6 +80,29 @@ class ApiClient {
     }
   }
 
+  private getCSRFToken(): string | null {
+    try {
+      // First try to get from meta tag
+      const metaTag = document.querySelector('meta[name="csrf-token"]');
+      if (metaTag) {
+        return metaTag.getAttribute('content');
+      }
+      
+      // Fall back to cookie
+      const cookies = document.cookie.split(';').map(c => c.trim());
+      const csrfCookie = cookies.find(c => c.startsWith('csrf-token='));
+      
+      if (csrfCookie) {
+        return csrfCookie.split('=')[1];
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('Failed to get CSRF token:', error);
+      return null;
+    }
+  }
+
   private async delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -119,6 +142,15 @@ class ApiClient {
 
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Add CSRF token for mutation methods
+      const method = options.method?.toUpperCase() || 'GET';
+      if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+        const csrfToken = this.getCSRFToken();
+        if (csrfToken) {
+          headers['X-CSRF-Token'] = csrfToken;
+        }
       }
 
       const fetchOptions: RequestInit = {
