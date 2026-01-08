@@ -203,7 +203,7 @@ export class UserService {
     const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: formData
+      body: formData,
       credentials: 'include' // Send cookies for Better Auth session
     });
 
@@ -223,7 +223,7 @@ export class UserService {
     const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: formData
+      body: formData,
       credentials: 'include' // Send cookies for Better Auth session
     });
 
@@ -374,7 +374,7 @@ export class UserService {
     const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: formData
+      body: formData,
       credentials: 'include' // Send cookies for Better Auth session
     });
 

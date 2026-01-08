@@ -1,15 +1,22 @@
 // CRITICAL: Import React global setup FIRST before anything else
+// React Router v7 doesn't need use-sync-external-store polyfill
 import './react-global';
-import './jsx-runtime-fix'; // Fix jsxDEV errors in production
+
+// Debug: Mark that main.tsx is executing
+console.log('main.tsx: Starting execution');
 
 // ENSURE React is available globally before any other imports
 import * as React from 'react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+console.log('main.tsx: React imported', { React: !!React, createRoot: !!createRoot });
+
 import './index.css'
 import './lib/fix-all-apis.ts' // Fix all API URLs globally
 import App from './App.tsx'
+
+console.log('main.tsx: App imported', { App: !!App });
 
 // Sentry temporarily completely removed to resolve initialization errors
 // Enhanced console fallback for debugging
@@ -31,10 +38,23 @@ window.addEventListener('unhandledrejection', (event) => {
   })
 })
 
+console.log('main.tsx: Creating app wrapper');
 const AppWrapper = <App />;
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    {AppWrapper}
-  </StrictMode>,
-)
+console.log('main.tsx: Getting root element');
+const rootElement = document.getElementById('root');
+console.log('main.tsx: Root element found:', !!rootElement);
+
+if (rootElement) {
+  console.log('main.tsx: Creating React root');
+  const root = createRoot(rootElement);
+  console.log('main.tsx: Rendering app');
+  root.render(
+    <StrictMode>
+      {AppWrapper}
+    </StrictMode>,
+  );
+  console.log('main.tsx: Render call completed');
+} else {
+  console.error('main.tsx: Root element not found!');
+}

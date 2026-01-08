@@ -76,27 +76,22 @@ export class CachedPitchesHandler {
       nextParamNum++;
     }
     
-    const whereClause = 'WHERE ' + whereConditions.join(' AND ');
+    const whereClause = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')}` 
+      : '';
     
-    // Build ORDER BY clause
-    let orderByClause = 'ORDER BY ';
-    switch (params.sortBy) {
-      case 'views':
-        orderByClause += 'view_count';
-        break;
-      case 'investments':
-        orderByClause += 'investment_count';
-        break;
-      case 'title':
-        orderByClause += 'p.title';
-        break;
-      case 'budget':
-        orderByClause += 'p.budget_range';
-        break;
-      default:
-        orderByClause += 'p.created_at';
-    }
-    orderByClause += ` ${params.sortOrder.toUpperCase()}`;
+    // Build ORDER BY clause safely
+    const allowedSortColumns: Record<string, string> = {
+      'views': 'view_count',
+      'investments': 'investment_count',
+      'title': 'p.title',
+      'budget': 'p.budget_range',
+      'date': 'p.created_at'
+    };
+    
+    const sortColumn = allowedSortColumns[params.sortBy] || 'p.created_at';
+    const validSortOrder = params.sortOrder?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+    const orderByClause = `ORDER BY ${sortColumn} ${validSortOrder}`;
     
     // Add pagination params
     queryParams.push(params.limit);

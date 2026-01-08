@@ -6,19 +6,16 @@ import { reactAsyncModeFix } from './vite-react-fix.js'
 export default defineConfig({
   plugins: [
     react({
-      // Optimize React production build
-      babel: {
-        plugins: [
-          // Remove prop-types in production
-          ['babel-plugin-transform-remove-console', { exclude: ['error', 'warn'] }],
-        ],
-      },
-      // CRITICAL FIX: Force production to use jsx, not jsxDEV
+      // CRITICAL: Use automatic JSX runtime (production mode)
       jsxRuntime: 'automatic',
       jsxImportSource: 'react',
-      // Disable jsxDEV in production completely
-      jsxPure: true,
-      fastRefresh: false, // Disable fast refresh which requires jsxDEV
+      // Ensure production build uses correct JSX transform
+      babel: {
+        plugins: process.env.NODE_ENV === 'production' ? [
+          // Remove console logs in production
+          ['babel-plugin-transform-remove-console', { exclude: ['error', 'warn'] }],
+        ] : [],
+      },
     }),
     // Fix AsyncMode issues in legacy dependencies
     reactAsyncModeFix(),
@@ -32,7 +29,8 @@ export default defineConfig({
       'react-is': path.resolve(__dirname, './node_modules/react-is'),
       // Also dedupe React internals used by libraries
       'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
-      'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-dev-runtime'),
+      // CRITICAL: In production, jsx-dev-runtime should use the production runtime!
+      'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
     },
     // Deduplicate React across all dependencies
     dedupe: ['react', 'react-dom', 'react-is'],

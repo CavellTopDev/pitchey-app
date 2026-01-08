@@ -1,10 +1,22 @@
 # Security Audit Report - Pitchey Platform
-**Date**: January 5, 2026  
-**Auditor**: Security Audit Team  
+**Date**: January 7, 2026 (Updated)  
+**Auditor**: Security Analysis Team  
+**Scope**: Comprehensive Authentication, Authorization, and Security Architecture Review  
+**Platform**: Cloudflare Workers Edge Platform with Better Auth  
 **Severity Levels**: CRITICAL | HIGH | MEDIUM | LOW | INFO
 
 ## Executive Summary
-This security audit identified and resolved critical vulnerabilities in the Pitchey platform. All CRITICAL issues have been addressed immediately.
+This comprehensive security audit analyzed the Pitchey platform's authentication migration from JWT to Better Auth session-based system, along with authorization patterns, security measures, and data protection mechanisms. While significant improvements have been made, several critical security gaps require immediate attention to meet OWASP standards.
+
+**Overall Security Score: 6.5/10** (Moderate Risk)
+
+### Critical Findings Summary
+- 🔴 **CRITICAL**: SQL injection vulnerabilities partially fixed but still present in some areas
+- 🔴 **HIGH**: CSRF protection inconsistently implemented across endpoints
+- 🔴 **HIGH**: Missing session fingerprinting enables session hijacking
+- 🟡 **MEDIUM**: Rate limiting uses in-memory storage (not distributed)
+- 🟡 **MEDIUM**: Overly permissive CORS configuration
+- 🟡 **MEDIUM**: Input validation schemas defined but not consistently applied
 
 ## Findings & Resolutions
 
@@ -190,22 +202,191 @@ curl https://pitchey-api-prod.ndlovucavelle.workers.dev/api/auth/session \
 - Encrypted connections (TLS/SSL)
 - Session management with expiry
 
+## NEW CRITICAL FINDINGS (January 7, 2026)
+
+### 6. CSRF Protection Gaps [HIGH] 🔴
+**Location**: Multiple API endpoints  
+**OWASP Reference**: A01:2021 - Broken Access Control
+
+**Issue**: CSRF middleware defined but not consistently applied
+```typescript
+// Middleware exists but not used in worker-integrated.ts
+export async function csrfProtection() { /* ... */ }
+// NOT APPLIED to mutation endpoints
+```
+
+**Recommendation**: Implement double-submit cookie pattern with Better Auth
+
+### 7. Session Security Vulnerabilities [HIGH] 🔴
+**Issues Identified**:
+- No session fingerprinting (device/browser verification)
+- Session duration too long (30 days for financial platform)
+- No concurrent session limits
+- Missing anomaly detection
+
+**Recommended Fix**:
+```typescript
+session: {
+  expiresIn: 60 * 60 * 8, // 8 hours for financial platform
+  fingerprint: generateDeviceFingerprint(request),
+  maxConcurrent: 3,
+  anomalyDetection: true
+}
+```
+
+### 8. Rate Limiting Architecture [MEDIUM] 🟡
+**Current**: In-memory Map storage
+```typescript
+private cache: Map<string, RateLimitEntry> = new Map();
+```
+
+**Problems**:
+- Not distributed across Workers
+- Lost on restart
+- No persistence
+
+**Solution**: Migrate to Cloudflare KV or Durable Objects for distributed rate limiting
+
+### 9. CORS Misconfiguration [MEDIUM] 🟡
+**Issue**: Wildcard subdomain matching
+```typescript
+if (origin.includes('.pages.dev')) {
+  allowOrigin = origin; // ANY subdomain accepted
+}
+```
+
+**Fix**: Explicit whitelist only
+
+### 10. Input Validation Gaps [MEDIUM] 🟡
+**Found**: Zod schemas defined but not enforced
+```typescript
+// Schema exists:
+ValidationSchemas.pitchCreation
+
+// But handler doesn't use it:
+router.post('/api/pitches', async (req) => {
+  const data = await req.json(); // NO VALIDATION
+})
+```
+
+## Authentication Migration Analysis
+
+### Better Auth Implementation ✅ STRENGTHS
+- Cookie-based sessions (HTTP-only, Secure, SameSite)
+- No JWT in localStorage (migration completed)
+- Session refresh mechanism
+- Portal-specific authentication flows
+
+### Security Gaps in Better Auth 🔴
+1. **Password Policy Too Weak**
+   - Current: 8 character minimum
+   - Required: 12+ with complexity requirements
+   
+2. **Missing MFA/2FA**
+   - No two-factor authentication available
+   - Critical for investment platform
+
+3. **No Breach Detection**
+   - Missing HaveIBeenPwned integration
+   - No password history tracking
+
+## Authorization & Access Control
+
+### Portal Separation ✅ WELL-DESIGNED
+```typescript
+PORTAL_CONFIGS: {
+  creator: { restrictedEndpoints: ['/api/investor/*'] },
+  investor: { restrictedEndpoints: ['/api/creator/revenue'] },
+  production: { restrictedEndpoints: ['/api/investor/portfolio'] }
+}
+```
+
+### Missing Controls 🔴
+- No attribute-based access control (ABAC)
+- Missing resource-level permissions
+- No dynamic permission evaluation
+
+## Security Headers Analysis
+
+### Current Issues:
+```
+Content-Security-Policy: script-src 'unsafe-inline' 'unsafe-eval'
+```
+- Enables XSS attacks
+- Missing nonce-based CSP
+- No report-uri
+
+### Missing Headers:
+- `Expect-CT`
+- `X-Permitted-Cross-Domain-Policies`
+- `Cross-Origin-Embedder-Policy`
+
+## Recommended Immediate Actions
+
+### Week 1 - Critical Fixes
+1. **Implement CSRF Protection**
+   ```typescript
+   app.use(csrfProtection({ cookie: true }));
+   ```
+
+2. **Add Session Fingerprinting**
+   ```typescript
+   session.fingerprint = hashDeviceInfo(request);
+   ```
+
+3. **Fix Rate Limiting**
+   ```typescript
+   // Use KV for distributed limiting
+   await env.RATE_LIMIT_KV.put(key, count, { expirationTtl: 60 });
+   ```
+
+4. **Enforce Input Validation**
+   ```typescript
+   const validated = ValidationSchemas.pitchCreation.parse(data);
+   ```
+
+### Month 1 - Security Hardening
+- Implement MFA/2FA
+- Add breach detection
+- Deploy WAF rules
+- Security event logging
+- Penetration testing
+
+## Updated Risk Assessment
+
+| Component | Current Risk | After Fixes |
+|-----------|-------------|------------|
+| Authentication | MEDIUM | LOW |
+| Authorization | MEDIUM | LOW |
+| Session Management | HIGH | LOW |
+| Input Validation | HIGH | LOW |
+| Rate Limiting | MEDIUM | LOW |
+| CORS | MEDIUM | LOW |
+
 ## Conclusion
 
-The critical SQL injection vulnerability has been immediately addressed. The platform's security posture is significantly improved with the Better Auth migration and proper use of parameterized queries. The remaining findings are low-risk and primarily in test files.
+The Pitchey platform has made significant progress with the Better Auth migration, but critical security gaps remain. The identified vulnerabilities, particularly in CSRF protection, session security, and rate limiting, require immediate attention to protect user investments and maintain platform integrity.
 
-**Overall Security Score**: B+ (85/100)
-- Critical vulnerabilities: 0
-- High vulnerabilities: 0  
-- Medium vulnerabilities: 0
-- Low vulnerabilities: 2 (reviewed, acceptable)
+**Updated Security Score**: 6.5/10 (Moderate Risk)
+- Critical vulnerabilities: 1 (SQL injection partially addressed)
+- High vulnerabilities: 2 (CSRF, Session Security)
+- Medium vulnerabilities: 3 (Rate Limiting, CORS, Input Validation)
+- Low vulnerabilities: 2 (acceptable)
+
+**Priority Actions**:
+1. Implement CSRF protection immediately
+2. Add session fingerprinting and limits
+3. Deploy distributed rate limiting
+4. Enforce input validation schemas
+5. Tighten CORS configuration
 
 ## Sign-off
 
-**Reviewed by**: Security Audit Team  
-**Date**: January 5, 2026  
-**Next Audit**: April 2026  
+**Reviewed by**: Security Analysis Team  
+**Date**: January 7, 2026  
+**Previous Audit**: January 5, 2026  
+**Next Audit**: February 2026 (Monthly until HIGH risks resolved)  
 
 ---
 
-*This report should be reviewed quarterly and after any major architectural changes.*
+*This report incorporates comprehensive security analysis of authentication, authorization, and security architecture. All HIGH and CRITICAL findings require immediate remediation.*

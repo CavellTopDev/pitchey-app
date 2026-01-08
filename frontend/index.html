@@ -9,6 +9,70 @@
     <!-- DNS prefetch for API domain to reduce resolution delays -->
     <link rel="dns-prefetch" href="//pitchey-api-prod.ndlovucavelle.workers.dev">
     <link rel="preconnect" href="https://pitchey-api-prod.ndlovucavelle.workers.dev" crossorigin>
+    <!-- CRITICAL: Pre-load React and use-sync-external-store shim BEFORE vendor bundle -->
+    <script>
+      // This MUST run before ANY module loading to prevent undefined errors
+      (function() {
+        'use strict';
+        
+        // Create a basic React stub with useSyncExternalStore
+        var useSyncExternalStoreShim = function(subscribe, getSnapshot) {
+          // Minimal implementation - will be replaced by real React
+          try {
+            return getSnapshot ? getSnapshot() : undefined;
+          } catch(e) {
+            return undefined;
+          }
+        };
+        
+        // Create React stub with the hook
+        window.React = window.React || {
+          useSyncExternalStore: useSyncExternalStoreShim,
+          useState: function(initial) { return [initial, function() {}]; },
+          useEffect: function() {},
+          useLayoutEffect: function() {},
+          useCallback: function(cb) { return cb; },
+          useMemo: function(fn) { return fn(); },
+          useRef: function(initial) { return { current: initial }; },
+          useContext: function() { return {}; },
+          useReducer: function(reducer, initial) { return [initial, function() {}]; },
+          createElement: function() { return null; },
+          Fragment: Symbol ? Symbol.for('react.fragment') : 0xeac7,
+          version: '18.3.1'
+        };
+        
+        // Ensure the use-sync-external-store package module is available
+        var shimModule = {
+          useSyncExternalStore: useSyncExternalStoreShim,
+          useSyncExternalStoreWithSelector: useSyncExternalStoreShim,
+          useSyncExternalStoreExports: useSyncExternalStoreShim
+        };
+        
+        // Make it available at all possible paths
+        window['use-sync-external-store'] = shimModule;
+        window['use-sync-external-store/shim'] = shimModule;
+        window['use-sync-external-store/shim/index'] = shimModule;
+        window['use-sync-external-store/shim/index.js'] = shimModule;
+        window['use-sync-external-store/shim/with-selector'] = shimModule;
+        window['use-sync-external-store/shim.js'] = shimModule;
+        window['use-sync-external-store/shim/index.production.min.js'] = shimModule;
+        
+        // Intercept module.exports pattern
+        if (!window.exports) window.exports = {};
+        window.exports['use-sync-external-store'] = shimModule;
+        window.exports['use-sync-external-store/shim'] = shimModule;
+        
+        // Create a fake module system for libraries that check for it
+        if (!window.module) window.module = { exports: {} };
+        window.module.exports['use-sync-external-store'] = shimModule;
+        
+        console.log('Pre-vendor shim loaded:', {
+          React: !!window.React,
+          ReactHook: !!window.React.useSyncExternalStore,
+          Module: !!window['use-sync-external-store']
+        });
+      })();
+    </script>
   </head>
   <body>
     <!-- React Scheduler Polyfill - MUST load before React -->

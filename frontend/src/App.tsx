@@ -2,13 +2,13 @@ import React, { useEffect, useState, Suspense, lazy, startTransition } from 'rea
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 // React Query temporarily disabled to resolve JavaScript initialization errors
 import { useAuthStore } from './store/authStore';
+import { useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
 import { NotificationToastProvider } from './components/Toast/NotificationToastContainer';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
-// Import both providers - WebSocket provides mock implementation on free tier
-import { WebSocketProvider } from './contexts/WebSocketContext';
-import { PollingProvider } from './contexts/PollingContext';
+// Import unified context provider
+import { AppContextProvider } from './contexts/AppContextProvider';
 import { configService } from './services/config.service';
 import { config } from './config';
 import { AuthService } from './services/auth.service';
@@ -246,22 +246,21 @@ function App() {
 
   return (
     <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
-      <WebSocketProvider>
-        <PollingProvider defaultInterval={30000} enablePolling={true}>
-          <NotificationToastProvider>
-            <ToastProvider>
+      <AppContextProvider>
+        <NotificationToastProvider>
+          <ToastProvider>
             {/* TestSentry and TestNotifications components removed */}
             <NotificationInitializer />
             <Router>
-            <Suspense fallback={
-              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-                <div className="text-center">
-                  <LoadingSpinner size="lg" text="Loading..." />
-                  <p className="mt-4 text-gray-600">Optimizing your experience...</p>
+              <Suspense fallback={
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="text-center">
+                    <LoadingSpinner size="lg" text="Loading..." />
+                    <p className="mt-4 text-gray-600">Optimizing your experience...</p>
+                  </div>
                 </div>
-              </div>
-            }>
-              <Routes>
+              }>
+                <Routes>
           {/* Homepage - Only render on exact path match */}
           <Route path="/" element={<Homepage />} />
           
@@ -482,10 +481,9 @@ function App() {
               </Routes>
             </Suspense>
           </Router>
-            </ToastProvider>
-          </NotificationToastProvider>
-        </PollingProvider>
-      </WebSocketProvider>
+          </ToastProvider>
+        </NotificationToastProvider>
+      </AppContextProvider>
     </ErrorBoundary>
   );
 }
