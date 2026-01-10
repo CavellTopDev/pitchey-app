@@ -236,9 +236,15 @@ class RouteRegistry {
       this.containerIntegration = new ContainerWorkerIntegration(env);
       
       // Initialize Better Auth with Cloudflare integration
-      if (env.DATABASE_URL && (env.SESSIONS_KV || env.KV)) {
+      // Check for SESSION_STORE (wrangler.toml binding) or SESSIONS_KV or KV
+      if (env.DATABASE_URL && (env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE)) {
         console.log('Initializing Better Auth with Cloudflare integration');
-        this.betterAuth = createBetterAuthInstance(env);
+        // Pass the correct KV binding to Better Auth
+        const authEnv = {
+          ...env,
+          SESSIONS_KV: env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE
+        };
+        this.betterAuth = createBetterAuthInstance(authEnv);
         this.portalAuth = createPortalAuth(this.betterAuth);
       } else {
         console.log('Better Auth not initialized - missing DATABASE_URL or KV namespace');
@@ -284,15 +290,79 @@ class RouteRegistry {
    * Auth validation - Better Auth sessions first, then JWT fallback
    */
   private async validateAuth(request: Request): Promise<{ valid: boolean; user?: any }> {
-    // First try Better Auth session validation
-    if (this.portalAuth) {
+    // First try Better Auth session validation via cookie
+    const cookieHeader = request.headers.get('Cookie');
+    const sessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
+    
+    if (sessionId && this.db) {
       try {
-        const session = await this.portalAuth.getSession(request.headers);
-        if (session?.user) {
-          return { valid: true, user: session.user };
+        // Check KV cache first for performance (check all possible KV bindings)
+        const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+        if (kv) {
+          const cached = await kv.get(`session:${sessionId}`, 'json') as any;
+          if (cached && new Date(cached.expiresAt) > new Date()) {
+            return {
+              valid: true,
+              user: {
+                id: cached.userId,
+                email: cached.userEmail,
+                name: cached.userName || cached.userEmail,
+                userType: cached.userType
+              }
+            };
+          }
+        }
+        
+        // Fallback to database lookup
+        const result = await this.db.query(
+          `SELECT s.id, s.user_id, s.expires_at,
+                  u.id as user_id, u.email, u.username, u.user_type,
+                  u.first_name, u.last_name, u.company_name,
+                  COALESCE(u.name, u.username, u.email) as name
+           FROM sessions s
+           JOIN users u ON s.user_id::text = u.id::text
+           WHERE s.id = $1
+           AND s.expires_at > NOW()
+           LIMIT 1`,
+          [sessionId]
+        );
+        
+        if (result.rows && result.rows.length > 0) {
+          const session = result.rows[0];
+          
+          // Cache the session for future requests
+          const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+          if (kv) {
+            await kv.put(
+              `session:${sessionId}`,
+              JSON.stringify({
+                userId: session.user_id,
+                userEmail: session.email,
+                userName: session.name,
+                userType: session.user_type,
+                expiresAt: session.expires_at
+              }),
+              { expirationTtl: 3600 } // Cache for 1 hour
+            );
+          }
+          
+          return {
+            valid: true,
+            user: {
+              id: session.user_id,
+              email: session.email,
+              name: session.name,
+              username: session.username,
+              userType: session.user_type,
+              firstName: session.first_name,
+              lastName: session.last_name,
+              companyName: session.company_name
+            }
+          };
         }
       } catch (error) {
-        // Session invalid, try JWT fallback
+        console.error('Session validation error:', error);
+        // Fall through to JWT validation
       }
     }
     
@@ -1448,9 +1518,10 @@ class RouteRegistry {
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
         const sessionId = await this.betterAuth.dbAdapter.createSession(user.id, expiresAt);
         
-        // Store session in KV if available
-        if (this.env.SESSIONS_KV) {
-          await this.env.SESSIONS_KV.put(
+        // Store session in KV if available (check for all possible KV bindings)
+        const kvStore = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+        if (kvStore) {
+          await kvStore.put(
             `session:${sessionId}`,
             JSON.stringify({
               id: sessionId,
@@ -1579,9 +1650,10 @@ class RouteRegistry {
         const sessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
         
         if (sessionId) {
-          // Check KV cache first
-          if (this.env.SESSIONS_KV) {
-            const cached = await this.env.SESSIONS_KV.get(`session:${sessionId}`, 'json');
+          // Check KV cache first (check all possible KV bindings)
+          const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+          if (kv) {
+            const cached = await kv.get(`session:${sessionId}`, 'json');
             if (cached) {
               const session = cached as any;
               if (new Date(session.expiresAt) > new Date()) {

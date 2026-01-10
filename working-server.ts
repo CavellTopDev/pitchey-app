@@ -1,28 +1,33 @@
 #!/usr/bin/env -S deno run --allow-all
 
 /**
- * Local Development Server
- * Proxies to Cloudflare Worker for API endpoints
+ * Local Development Server with Enhanced Session Handling
+ * Proxies to Cloudflare Worker for API endpoints and handles session cookies
  */
 
 import { Application, Router } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
+import { getCookies, setCookie } from "https://deno.land/std@0.208.0/http/cookie.ts";
 
 const PORT = parseInt(Deno.env.get("PORT") || "8001");
 const WORKER_URL = Deno.env.get("WORKER_URL") || "https://pitchey-api-prod.ndlovucavelle.workers.dev";
 
+// Local session store for development
+const sessionStore = new Map<string, any>();
+
 const app = new Application();
 const router = new Router();
 
-// Enable CORS
+// Enable CORS with enhanced settings for cookies
 app.use(oakCors({
   origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+  exposedHeaders: ["Set-Cookie"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
 }));
 
-// Proxy all /api/* requests to the worker
+// Enhanced proxy for all /api/* requests
 router.all("/api/(.*)", async (ctx) => {
   const path = ctx.request.url.pathname;
   const method = ctx.request.method;
@@ -34,13 +39,19 @@ router.all("/api/(.*)", async (ctx) => {
     const workerUrl = new URL(path, WORKER_URL);
     workerUrl.search = ctx.request.url.search;
     
-    // Prepare headers
+    // Prepare headers with cookie forwarding
     const headers = new Headers();
     ctx.request.headers.forEach((value, key) => {
       if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'connection') {
         headers.set(key, value);
       }
     });
+    
+    // Ensure cookies are forwarded
+    const cookieHeader = ctx.request.headers.get('cookie');
+    if (cookieHeader) {
+      headers.set('Cookie', cookieHeader);
+    }
     
     // Get request body if present
     let body = null;
@@ -52,19 +63,35 @@ router.all("/api/(.*)", async (ctx) => {
       }
     }
     
-    // Make request to worker
+    // Make request to worker with credentials
     const response = await fetch(workerUrl.toString(), {
       method,
       headers,
       body: body || undefined,
+      credentials: 'include', // Important for cookies
     });
     
-    // Copy response headers
+    // Handle Set-Cookie headers properly
+    const setCookieHeaders = response.headers.getSetCookie ? 
+      response.headers.getSetCookie() : 
+      response.headers.get('set-cookie') ? 
+        [response.headers.get('set-cookie')] : [];
+    
+    // Copy response headers (except set-cookie which we'll handle separately)
     response.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== 'connection' && key.toLowerCase() !== 'content-encoding') {
+      if (key.toLowerCase() !== 'connection' && 
+          key.toLowerCase() !== 'content-encoding' && 
+          key.toLowerCase() !== 'set-cookie') {
         ctx.response.headers.set(key, value);
       }
     });
+    
+    // Set cookies properly
+    for (const cookie of setCookieHeaders) {
+      if (cookie) {
+        ctx.response.headers.append('Set-Cookie', cookie);
+      }
+    }
     
     // Set response
     ctx.response.status = response.status;
