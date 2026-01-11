@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
@@ -21,6 +21,23 @@ export default function PitchDetail() {
   const [showNDAWizard, setShowNDAWizard] = useState(false);
   const [showEnhancedNDARequest, setShowEnhancedNDARequest] = useState(false);
   const [hasSignedNDA, setHasSignedNDA] = useState(false);
+  
+  // Debug: Track renders
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  
+  // Debug: Log all state changes
+  useEffect(() => {
+    console.log('🔄 [PitchDetail] Render #', renderCount.current);
+    console.log('🔄 [PitchDetail] Current state:', {
+      pitch: pitch?.id ? `${pitch.id}: ${pitch.title}` : null,
+      hasSignedNDA,
+      isAuthenticated,
+      isOwner,
+      hasProtectedContent: !!pitch?.protectedContent,
+      protectedContentKeys: pitch?.protectedContent ? Object.keys(pitch.protectedContent) : []
+    });
+  });
   
   // Check if current user owns this pitch
   // First check the isOwner flag from backend, then fallback to comparing IDs
@@ -82,13 +99,48 @@ export default function PitchDetail() {
     if (id) {
       fetchPitch(parseInt(id));
     }
-  }, [id]);
+  }, [id, isAuthenticated]);
+
+  const hasValidSession = (): boolean => {
+    // Check if the user is authenticated via Better Auth
+    const validAuth = isAuthenticated && user && (user.id || user.data?.id || user.user?.id);
+    
+    console.log('🔐 [PitchDetail] Authentication check details:', {
+      isAuthenticated,
+      hasUser: !!user,
+      userId: user?.id || user?.data?.id || user?.user?.id,
+      validAuth
+    });
+    
+    return !!validAuth;
+  };
 
   const fetchPitch = async (pitchId: number) => {
     try {
-      const pitch = await pitchService.getById(pitchId);
+      const validAuth = hasValidSession();
+      console.log('📡 [PitchDetail] Calling endpoint with isAuthenticated:', isAuthenticated);
+      console.log('📡 [PitchDetail] hasValidSession:', validAuth);
+      console.log('📡 [PitchDetail] User object:', user);
+      
+      // Use authenticated endpoint if user has valid session, otherwise use public
+      const endpoint = validAuth ? `/api/pitches/${pitchId}` : `/api/pitches/public/${pitchId}`;
+      console.log('📡 [PitchDetail] Selected endpoint:', endpoint);
+      
+      const pitch = validAuth 
+        ? await pitchService.getByIdAuthenticated(pitchId)
+        : await pitchService.getById(pitchId);
+      
+      console.log('🔍 [PitchDetail] Raw API Response:', pitch);
+      console.log('🔍 [PitchDetail] isAuthenticated:', isAuthenticated);
+      console.log('🔍 [PitchDetail] hasSignedNDA from API:', pitch.hasSignedNDA);
+      console.log('🔍 [PitchDetail] hasNDA from API:', pitch.hasNDA);
+      console.log('🔍 [PitchDetail] protectedContent from API:', pitch.protectedContent);
+      console.log('🔍 [PitchDetail] isOwner from API:', pitch.isOwner);
+      
       setPitch(pitch);
-      setHasSignedNDA(pitch.hasSignedNDA || pitch.hasNDA || false);
+      const ndaStatus = pitch.hasSignedNDA || pitch.hasNDA || false;
+      console.log('🔍 [PitchDetail] Setting hasSignedNDA to:', ndaStatus);
+      setHasSignedNDA(ndaStatus);
       setIsLiked(pitch.isLiked || false);
       
       // Track view for analytics (only if not the owner)
@@ -149,10 +201,22 @@ export default function PitchDetail() {
   };
 
   const handleNDASigned = () => {
+    console.log('✅ [PitchDetail] NDA signed callback triggered');
+    
+    // Immediately update state to trigger UI updates
     setHasSignedNDA(true);
+    
+    // Clear any existing error state
+    setError(null);
+    
     // Refresh pitch data to get enhanced information
     if (id) {
-      fetchPitch(parseInt(id));
+      console.log('🔄 [PitchDetail] Refreshing pitch data after NDA signing...');
+      
+      // Add a small delay to ensure the backend has processed the NDA
+      setTimeout(() => {
+        fetchPitch(parseInt(id));
+      }, 500);
     }
   };
 
@@ -366,8 +430,14 @@ export default function PitchDetail() {
                   </div>
                 </div>
               </div>
-            ) : hasSignedNDA && pitch.protectedContent ? (
-              <div className="bg-white rounded-xl shadow-sm p-6">
+            ) : (hasSignedNDA || isOwner) && pitch?.protectedContent ? (
+              (() => {
+                console.log('🎉 [PitchDetail] RENDERING PROTECTED CONTENT!');
+                console.log('🎉 [PitchDetail] hasSignedNDA:', hasSignedNDA);
+                console.log('🎉 [PitchDetail] pitch.protectedContent:', pitch.protectedContent);
+                return null;
+              })(),
+              <div key={`protected-${hasSignedNDA}-${pitch?.id}`} className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Enhanced Information</h3>
                   <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
@@ -376,80 +446,158 @@ export default function PitchDetail() {
                   </span>
                 </div>
                 <div className="space-y-4">
-                  {pitch.protectedContent.budgetBreakdown && (
+                  {(() => {
+                    console.log('🔍 [ProtectedContent] Debugging individual field conditions:');
+                    console.log('🔍 [ProtectedContent] pitch.protectedContent:', pitch.protectedContent);
+                    console.log('🔍 [ProtectedContent] budgetBreakdown exists:', !!pitch.protectedContent?.budgetBreakdown);
+                    console.log('🔍 [ProtectedContent] productionTimeline exists:', !!pitch.protectedContent?.productionTimeline);
+                    console.log('🔍 [ProtectedContent] attachedTalent exists:', !!pitch.protectedContent?.attachedTalent);
+                    console.log('🔍 [ProtectedContent] financialProjections exists:', !!pitch.protectedContent?.financialProjections);
+                    console.log('🔍 [ProtectedContent] distributionPlan exists:', !!pitch.protectedContent?.distributionPlan);
+                    console.log('🔍 [ProtectedContent] marketingStrategy exists:', !!pitch.protectedContent?.marketingStrategy);
+                    console.log('🔍 [ProtectedContent] revenueModel exists:', !!pitch.protectedContent?.revenueModel);
+                    console.log('🔍 [ProtectedContent] privateAttachments exists:', !!pitch.protectedContent?.privateAttachments);
+                    console.log('🔍 [ProtectedContent] contactDetails exists:', !!pitch.protectedContent?.contactDetails);
+                    return null;
+                  })()}
+                  
+                  {/* Budget Breakdown with improved null checks */}
+                  {pitch.protectedContent?.budgetBreakdown && 
+                   typeof pitch.protectedContent.budgetBreakdown === 'object' && 
+                   pitch.protectedContent.budgetBreakdown !== null && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Budget Breakdown</h4>
                       <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-sm font-semibold">Total Budget: ${pitch.protectedContent.budgetBreakdown.total?.toLocaleString()}</p>
+                        {pitch.protectedContent.budgetBreakdown.total && (
+                          <p className="text-sm font-semibold">
+                            Total Budget: ${Number(pitch.protectedContent.budgetBreakdown.total).toLocaleString()}
+                          </p>
+                        )}
                         <div className="grid grid-cols-2 gap-2 mt-2">
-                          <div className="text-sm text-gray-600">Production: ${pitch.protectedContent.budgetBreakdown.production?.toLocaleString()}</div>
-                          <div className="text-sm text-gray-600">Marketing: ${pitch.protectedContent.budgetBreakdown.marketing?.toLocaleString()}</div>
-                          <div className="text-sm text-gray-600">Distribution: ${pitch.protectedContent.budgetBreakdown.distribution?.toLocaleString()}</div>
-                          <div className="text-sm text-gray-600">Contingency: ${pitch.protectedContent.budgetBreakdown.contingency?.toLocaleString()}</div>
+                          {pitch.protectedContent.budgetBreakdown.production && (
+                            <div className="text-sm text-gray-600">
+                              Production: ${Number(pitch.protectedContent.budgetBreakdown.production).toLocaleString()}
+                            </div>
+                          )}
+                          {pitch.protectedContent.budgetBreakdown.marketing && (
+                            <div className="text-sm text-gray-600">
+                              Marketing: ${Number(pitch.protectedContent.budgetBreakdown.marketing).toLocaleString()}
+                            </div>
+                          )}
+                          {pitch.protectedContent.budgetBreakdown.distribution && (
+                            <div className="text-sm text-gray-600">
+                              Distribution: ${Number(pitch.protectedContent.budgetBreakdown.distribution).toLocaleString()}
+                            </div>
+                          )}
+                          {pitch.protectedContent.budgetBreakdown.contingency && (
+                            <div className="text-sm text-gray-600">
+                              Contingency: ${Number(pitch.protectedContent.budgetBreakdown.contingency).toLocaleString()}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   )}
-                  {pitch.protectedContent.productionTimeline && (
+                  
+                  {/* Production Timeline with improved null checks */}
+                  {pitch.protectedContent?.productionTimeline && 
+                   typeof pitch.protectedContent.productionTimeline === 'string' && 
+                   pitch.protectedContent.productionTimeline.trim().length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Production Timeline</h4>
                       <p className="text-gray-700 whitespace-pre-line">{pitch.protectedContent.productionTimeline}</p>
                     </div>
                   )}
-                  {pitch.protectedContent.attachedTalent && pitch.protectedContent.attachedTalent.length > 0 && (
+                  
+                  {/* Attached Talent with improved null checks */}
+                  {pitch.protectedContent?.attachedTalent && 
+                   Array.isArray(pitch.protectedContent.attachedTalent) && 
+                   pitch.protectedContent.attachedTalent.length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Attached Talent</h4>
                       <div className="space-y-2">
                         {pitch.protectedContent.attachedTalent.map((talent, index) => (
                           <div key={index} className="bg-gray-50 p-2 rounded">
-                            <p className="text-sm font-semibold">{talent.role}: {talent.name}</p>
-                            {talent.notable_works && <p className="text-xs text-gray-600">Notable: {talent.notable_works.join(', ')}</p>}
+                            <p className="text-sm font-semibold">{talent?.role}: {talent?.name}</p>
+                            {talent?.notable_works && Array.isArray(talent.notable_works) && (
+                              <p className="text-xs text-gray-600">Notable: {talent.notable_works.join(', ')}</p>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  {pitch.protectedContent.financialProjections && (
+                  
+                  {/* Financial Projections with improved null checks */}
+                  {pitch.protectedContent?.financialProjections && 
+                   typeof pitch.protectedContent.financialProjections === 'object' && 
+                   pitch.protectedContent.financialProjections !== null && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Financial Projections</h4>
                       <div className="bg-gray-50 p-3 rounded">
-                        <p className="text-sm font-semibold">ROI: {pitch.protectedContent.financialProjections.roi}%</p>
-                        <p className="text-sm text-gray-600">Break-even: {pitch.protectedContent.financialProjections.break_even_months} months</p>
+                        {pitch.protectedContent.financialProjections.roi && (
+                          <p className="text-sm font-semibold">ROI: {pitch.protectedContent.financialProjections.roi}%</p>
+                        )}
+                        {pitch.protectedContent.financialProjections.break_even_months && (
+                          <p className="text-sm text-gray-600">
+                            Break-even: {pitch.protectedContent.financialProjections.break_even_months} months
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
-                  {pitch.protectedContent.distributionPlan && (
+                  
+                  {/* Distribution Plan with improved null checks */}
+                  {pitch.protectedContent?.distributionPlan && 
+                   typeof pitch.protectedContent.distributionPlan === 'string' && 
+                   pitch.protectedContent.distributionPlan.trim().length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Distribution Plan</h4>
                       <p className="text-gray-700">{pitch.protectedContent.distributionPlan}</p>
                     </div>
                   )}
-                  {pitch.protectedContent.marketingStrategy && (
+                  
+                  {/* Marketing Strategy with improved null checks */}
+                  {pitch.protectedContent?.marketingStrategy && 
+                   typeof pitch.protectedContent.marketingStrategy === 'string' && 
+                   pitch.protectedContent.marketingStrategy.trim().length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Marketing Strategy</h4>
                       <p className="text-gray-700">{pitch.protectedContent.marketingStrategy}</p>
                     </div>
                   )}
-                  {pitch.protectedContent.revenueModel && (
+                  
+                  {/* Revenue Model with improved null checks */}
+                  {pitch.protectedContent?.revenueModel && 
+                   typeof pitch.protectedContent.revenueModel === 'string' && 
+                   pitch.protectedContent.revenueModel.trim().length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Revenue Model</h4>
                       <p className="text-gray-700">{pitch.protectedContent.revenueModel}</p>
                     </div>
                   )}
-                  {pitch.protectedContent.privateAttachments && pitch.protectedContent.privateAttachments.length > 0 && (
+                  
+                  {/* Private Attachments with improved null checks */}
+                  {pitch.protectedContent?.privateAttachments && 
+                   Array.isArray(pitch.protectedContent.privateAttachments) && 
+                   pitch.protectedContent.privateAttachments.length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Private Documents</h4>
                       <div className="space-y-2">
                         {pitch.protectedContent.privateAttachments.map((doc, index) => (
-                          <a key={index} href={doc.url} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm">
+                          <a key={index} href={doc?.url} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm">
                             <FileText className="w-4 h-4" />
-                            {doc.name}
+                            {doc?.name || `Document ${index + 1}`}
                           </a>
                         ))}
                       </div>
                     </div>
                   )}
-                  {pitch.protectedContent.contactDetails && (
+                  
+                  {/* Contact Details with improved null checks */}
+                  {pitch.protectedContent?.contactDetails && 
+                   typeof pitch.protectedContent.contactDetails === 'object' && 
+                   pitch.protectedContent.contactDetails !== null && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Contact Information</h4>
                       <div className="bg-gray-50 p-3 rounded">
@@ -470,9 +618,36 @@ export default function PitchDetail() {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Fallback message if no protected content is available */}
+                  {Object.keys(pitch.protectedContent || {}).length === 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-yellow-800 text-sm">
+                        No enhanced information is currently available for this pitch. 
+                        The creator may not have added protected content yet.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : null}
+            ) : (
+              // Fallback: Show message if user has signed NDA but no protected content is available
+              (hasSignedNDA || isOwner) && !pitch?.protectedContent ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-yellow-600" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-yellow-800 mb-1">
+                        Enhanced Information Unavailable
+                      </h3>
+                      <p className="text-yellow-700 text-sm">
+                        This pitch doesn't have additional protected content available at this time.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null
+            )}
 
             {/* Media */}
             {(pitch.titleImage || pitch.scriptUrl || pitch.trailerUrl) && (

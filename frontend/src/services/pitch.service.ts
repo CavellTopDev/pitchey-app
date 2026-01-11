@@ -207,6 +207,22 @@ export class PitchService {
     return pitch;
   }
 
+  // Get pitch with authenticated access for protected content
+  static async getByIdAuthenticated(id: number): Promise<Pitch> {
+    console.log('🔐 [PitchService] Fetching authenticated pitch data for ID:', id);
+    
+    const response = await apiClient.get<any>(
+      `/api/pitches/${id}`
+    );
+    
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch authenticated pitch data');
+    }
+    
+    console.log('🔐 [PitchService] Authenticated endpoint response:', response.data);
+    return response.data;
+  }
+
   // Get all pitches for current creator
   static async getMyPitches(): Promise<Pitch[]> {
     const response = await apiClient.get<any>(
