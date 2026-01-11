@@ -88,7 +88,7 @@ export default function PitchDetail() {
     try {
       const pitch = await pitchService.getById(pitchId);
       setPitch(pitch);
-      setHasSignedNDA(pitch.hasNDA || false);
+      setHasSignedNDA(pitch.hasSignedNDA || pitch.hasNDA || false);
       setIsLiked(pitch.isLiked || false);
       
       // Track view for analytics (only if not the owner)
