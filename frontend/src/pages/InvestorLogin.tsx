@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { DollarSign, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { useLoadingState } from '../hooks/useLoadingState';
@@ -8,7 +8,7 @@ import { clearAuthenticationState } from '../utils/auth';
 
 export default function InvestorLogin() {
   const navigate = useNavigate();
-  const { loginInvestor, error, loading: storeLoading } = useAuthStore();
+  const { loginInvestor, error, loading: storeLoading } = useBetterAuthStore();
   const { loading, setLoading, clearLoading, loadingMessage } = useLoadingState({
     timeout: 15000,
     onTimeout: () => {

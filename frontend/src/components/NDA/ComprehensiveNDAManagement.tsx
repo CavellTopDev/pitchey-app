@@ -5,7 +5,8 @@ import {
   MoreHorizontal, Bell, Users, TrendingUp, FileText,
   ArrowUp, ArrowDown, RefreshCw, Trash2, Send
 } from 'lucide-react';
-import { ndaService, type NDA } from '../../services/nda.service';
+import { ndaService } from '../../services/nda.service';
+import type { NDA, NDARequest } from '../../types/nda.types';
 import NDAManagementPanel from '../NDAManagementPanel';
 import NDAStatusBadge from '../NDAStatusBadge';
 
@@ -38,9 +39,9 @@ export default function ComprehensiveNDAManagement({
   userId 
 }: ComprehensiveNDAManagementProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'incoming' | 'outgoing' | 'signed' | 'analytics'>('overview');
-  const [incomingNDAs, setIncomingNDAs] = useState<NDA[]>([]);
-  const [outgoingNDAs, setOutgoingNDAs] = useState<NDA[]>([]);
-  const [signedNDAs, setSignedNDAs] = useState<NDA[]>([]);
+  const [incomingNDAs, setIncomingNDAs] = useState<NDARequest[]>([]);
+  const [outgoingNDAs, setOutgoingNDAs] = useState<NDARequest[]>([]);
+  const [signedNDAs, setSignedNDAs] = useState<NDARequest[]>([]);
   const [analytics, setAnalytics] = useState<NDAAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNDAs, setSelectedNDAs] = useState<Set<number>>(new Set());
@@ -98,38 +99,22 @@ export default function ComprehensiveNDAManagement({
     try {
       setLoading(true);
       
-      // Fetch NDAs based on user type
-      const filters = { limit: 100, offset: 0 };
-      
       if (userType === 'creator') {
-        // For creators: incoming requests from others, outgoing signed NDAs
-        const incoming = await ndaService.getNDAs({ 
-          ...filters, 
-          creatorId: userId,
-          status: 'pending'
-        });
-        setIncomingNDAs(incoming.ndas);
+        // For creators: incoming requests from others (pending approval)
+        const incomingResult = await ndaService.getIncomingRequests();
+        setIncomingNDAs(incomingResult.ndaRequests);
         
-        const signed = await ndaService.getNDAs({
-          ...filters,
-          creatorId: userId,
-          status: 'signed'
-        });
-        setSignedNDAs(signed.ndas);
+        // Get signed NDAs where creator approved
+        const signedResult = await ndaService.getSignedNDAs();
+        setSignedNDAs(signedResult.ndaRequests);
       } else {
-        // For investors/production: outgoing requests to others, incoming signed NDAs
-        const outgoing = await ndaService.getNDAs({
-          ...filters,
-          requesterId: userId
-        });
-        setOutgoingNDAs(outgoing.ndas);
+        // For investors/production: outgoing requests to creators
+        const outgoingResult = await ndaService.getOutgoingRequests();
+        setOutgoingNDAs(outgoingResult.ndaRequests);
         
-        const signed = await ndaService.getNDAs({
-          ...filters,
-          requesterId: userId,
-          status: 'signed'
-        });
-        setSignedNDAs(signed.ndas);
+        // Get signed NDAs where they are the requester
+        const signedResult = await ndaService.getSignedNDAs();
+        setSignedNDAs(signedResult.ndaRequests);
       }
 
       // Fetch analytics
@@ -227,25 +212,25 @@ export default function ComprehensiveNDAManagement({
     }
   };
 
-  const sortNDAs = (ndas: NDA[]) => {
+  const sortNDAs = (ndas: NDARequest[]) => {
     return [...ndas].sort((a, b) => {
       let comparison = 0;
       
       switch (sortBy) {
         case 'date':
-          comparison = new Date(a.updatedAt || a.createdAt).getTime() - 
-                      new Date(b.updatedAt || b.createdAt).getTime();
+          comparison = new Date(a.respondedAt || a.requestedAt).getTime() - 
+                      new Date(b.respondedAt || b.requestedAt).getTime();
           break;
         case 'title':
-          comparison = (a.pitchTitle || '').localeCompare(b.pitchTitle || '');
+          comparison = (a.pitch?.title || '').localeCompare(b.pitch?.title || '');
           break;
         case 'status':
           comparison = a.status.localeCompare(b.status);
           break;
         case 'urgency':
           // Custom urgency logic based on days since request
-          const aDays = Math.floor((Date.now() - new Date(a.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-          const bDays = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+          const aDays = Math.floor((Date.now() - new Date(a.requestedAt).getTime()) / (1000 * 60 * 60 * 24));
+          const bDays = Math.floor((Date.now() - new Date(b.requestedAt).getTime()) / (1000 * 60 * 60 * 24));
           comparison = bDays - aDays; // More days = higher urgency
           break;
       }
@@ -254,7 +239,7 @@ export default function ComprehensiveNDAManagement({
     });
   };
 
-  const filterNDAs = (ndas: NDA[]) => {
+  const filterNDAs = (ndas: NDARequest[]) => {
     return ndas.filter(nda => {
       // Status filter
       if (filterStatus !== 'all' && nda.status !== filterStatus) {
@@ -265,9 +250,9 @@ export default function ComprehensiveNDAManagement({
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
-          (nda.pitchTitle || '').toLowerCase().includes(query) ||
-          (nda.requesterName || '').toLowerCase().includes(query) ||
-          (nda.creatorName || '').toLowerCase().includes(query)
+          (nda.pitch?.title || '').toLowerCase().includes(query) ||
+          (nda.requester?.username || '').toLowerCase().includes(query) ||
+          (nda.owner?.username || '').toLowerCase().includes(query)
         );
       }
       
@@ -275,11 +260,11 @@ export default function ComprehensiveNDAManagement({
     });
   };
 
-  const getUrgencyColor = (nda: NDA) => {
+  const getUrgencyColor = (nda: NDARequest) => {
     if (nda.status !== 'pending') return '';
     
     const daysSinceRequest = Math.floor(
-      (Date.now() - new Date(nda.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(nda.requestedAt).getTime()) / (1000 * 60 * 60 * 24)
     );
     
     if (daysSinceRequest > 7) return 'text-red-600';
@@ -473,18 +458,18 @@ export default function ComprehensiveNDAManagement({
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
               <div className="space-y-4">
                 {[...incomingNDAs, ...outgoingNDAs, ...signedNDAs]
-                  .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
+                  .sort((a, b) => new Date(b.respondedAt || b.requestedAt).getTime() - new Date(a.respondedAt || a.requestedAt).getTime())
                   .slice(0, 5)
                   .map((nda) => (
                     <div key={nda.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                       <NDAStatusBadge status={nda.status as any} showLabel={false} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {nda.pitchTitle}
+                          {nda.pitch?.title || 'Unknown Pitch'}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {userType === 'creator' ? nda.requesterName : nda.creatorName} • 
-                          {new Date(nda.updatedAt || nda.createdAt).toLocaleDateString()}
+                          {userType === 'creator' ? nda.requester?.username : nda.owner?.username} • 
+                          {new Date(nda.respondedAt || nda.requestedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -650,21 +635,21 @@ export default function ComprehensiveNDAManagement({
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
                                 <h4 className="text-lg font-medium text-gray-900 mb-2">
-                                  {nda.pitchTitle}
+                                  {nda.pitch?.title || 'Unknown Pitch'}
                                 </h4>
                                 
                                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                                   <span>
                                     {userType === 'creator' ? 'From' : 'To'}: {' '}
-                                    {userType === 'creator' ? nda.requesterName : nda.creatorName}
+                                    {userType === 'creator' ? nda.requester?.username : nda.owner?.username}
                                   </span>
                                   <span>•</span>
                                   <span>
-                                    {new Date(nda.createdAt).toLocaleDateString()}
+                                    {new Date(nda.requestedAt).toLocaleDateString()}
                                   </span>
                                   <span className={getUrgencyColor(nda)}>
                                     {nda.status === 'pending' && 
-                                      Math.floor((Date.now() - new Date(nda.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+                                      Math.floor((Date.now() - new Date(nda.requestedAt).getTime()) / (1000 * 60 * 60 * 24))
                                     } days ago
                                   </span>
                                 </div>
@@ -672,7 +657,7 @@ export default function ComprehensiveNDAManagement({
                                 <div className="flex items-center gap-3">
                                   <NDAStatusBadge status={nda.status as any} />
                                   
-                                  {nda.message && (
+                                  {nda.requestMessage && (
                                     <button className="text-xs text-gray-500 hover:text-gray-700">
                                       View message
                                     </button>
@@ -724,15 +709,15 @@ export default function ComprehensiveNDAManagement({
             items={signedNDAs.map(nda => ({
               id: nda.id,
               pitchId: nda.pitchId,
-              pitchTitle: nda.pitchTitle || 'Untitled',
+              pitchTitle: nda.pitch?.title || 'Untitled',
               status: nda.status,
               ndaType: 'basic',
-              signedDate: nda.signedAt,
+              signedDate: nda.respondedAt,
               expiresAt: nda.expiresAt,
               expiresIn: nda.expiresAt ? 
                 Math.ceil((new Date(nda.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) + ' days' : 
                 'No expiry',
-              signerName: userType === 'creator' ? nda.requesterName : nda.creatorName,
+              signerName: userType === 'creator' ? nda.requester?.username : nda.owner?.username,
               signerType: userType === 'creator' ? 'investor' : 'creator',
               accessGranted: true
             }))}

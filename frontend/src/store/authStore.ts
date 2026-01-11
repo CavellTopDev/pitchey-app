@@ -166,10 +166,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                        currentUserType === 'production' ? '/login/production' : '/';
       
       
-      // Add a small delay to ensure state cleanup completes
-      setTimeout(() => {
-        window.location.replace(loginPath);
-      }, 100);
+      // DISABLED: This was causing redirect loops with Better Auth
+      // Better Auth handles authentication state, not this redirect
+      // setTimeout(() => {
+      //   window.location.replace(loginPath);
+      // }, 100);
     }
   },
 

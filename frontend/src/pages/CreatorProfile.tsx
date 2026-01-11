@@ -5,7 +5,7 @@ import {
   Heart, Eye, Shield, Star, CheckCircle, ArrowLeft, Share2,
   MessageSquare, Bookmark, UserPlus, UserCheck, TrendingUp
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import FollowButton from '../components/FollowButton';
 import { config } from '../config';
 import FormatDisplay from '../components/FormatDisplay';
@@ -50,7 +50,7 @@ interface CreatorPitch {
 const CreatorProfile = () => {
   const { creatorId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [creator, setCreator] = useState<CreatorData | null>(null);
   const [pitches, setPitches] = useState<CreatorPitch[]>([]);
   const [activeTab, setActiveTab] = useState<'pitches' | 'about' | 'contact'>('pitches');
@@ -71,7 +71,7 @@ const CreatorProfile = () => {
     
     try {
       // Fetch creator profile from API
-      const response = await fetch(`${API_URL}/api/creators/${username}`, {
+      const response = await fetch(`${config.apiUrl}/api/creators/${creatorId}`, {
         method: 'GET',
         credentials: 'include' // Send cookies for Better Auth session
       });
@@ -96,7 +96,7 @@ const CreatorProfile = () => {
     
     try {
       // Fetch creator's pitches from API
-      const response = await fetch(`${API_URL}/api/creators/${username}/pitches`, {
+      const response = await fetch(`${config.apiUrl}/api/creators/${creatorId}/pitches`, {
         method: 'GET',
         credentials: 'include' // Send cookies for Better Auth session
       });

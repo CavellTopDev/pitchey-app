@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { apiClient } from '../lib/api-client';
+import { ndaService } from '../services/nda.service';
 import NDAStatus from './NDAStatus';
 import ProtectedContent, { 
   ProtectedBudget, 
@@ -47,7 +48,7 @@ interface Pitch {
 
 export default function PitchDetailWithNDA() {
   const { pitchId } = useParams<{ pitchId: string }>();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNDAWizard, setShowNDAWizard] = useState(false);
@@ -77,10 +78,8 @@ export default function PitchDetailWithNDA() {
     if (!user || !pitchId) return;
     
     try {
-      const response = await apiClient.get(`/api/pitches/${pitchId}/nda-status`);
-      if (response.success) {
-        setNDAStatus(response);
-      }
+      const response = await ndaService.getNDAStatus(parseInt(pitchId));
+      setNDAStatus(response);
     } catch (error) {
       console.error('Failed to fetch NDA status:', error);
     }
@@ -115,7 +114,7 @@ export default function PitchDetailWithNDA() {
   }
 
   const isOwner = user?.id === pitch.creator.id;
-  const hasNDAAccess = ndaStatus?.hasAccess || isOwner;
+  const hasNDAAccess = ndaStatus?.canAccess || isOwner;
 
   return (
     <div className="min-h-screen bg-gray-50">

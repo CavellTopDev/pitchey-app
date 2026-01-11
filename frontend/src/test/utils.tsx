@@ -72,11 +72,13 @@ vi.mock('../contexts/WebSocketContext', () => {
 // Mock Zustand stores
 const mockAuthStore = {
   user: null,
-  token: null,
+  session: null,
   isAuthenticated: false,
   login: vi.fn(),
   logout: vi.fn(),
   updateUser: vi.fn(),
+  checkSession: vi.fn(),
+  refreshSession: vi.fn(),
 }
 
 const mockPitchStore = {
@@ -114,42 +116,53 @@ vi.mock('../store/pitchStore', () => ({
 
 // Test data factories
 export const createMockUser = (overrides = {}) => ({
-  id: '1',
+  id: 'mock-user-uuid-' + Date.now(),
   email: 'test@example.com',
   name: 'Test User',
+  portalType: 'creator',
   role: 'creator',
-  createdAt: '2024-01-01T00:00:00Z',
+  company: 'Test Company',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  subscription_tier: 'basic',
   ...overrides,
 })
 
 export const createMockPitch = (overrides = {}) => ({
-  id: '1',
+  id: 'mock-pitch-uuid-' + Date.now(),
   title: 'Test Pitch',
-  description: 'A test pitch description',
+  logline: 'A compelling test pitch logline',
+  synopsis: 'A detailed synopsis of the test pitch',
   genre: 'Drama',
-  duration: 120,
-  budget: 1000000,
+  budget: '1000000',
   format: 'Feature Film',
   status: 'published',
-  creator: createMockUser(),
-  createdAt: '2024-01-01T00:00:00Z',
-  updatedAt: '2024-01-01T00:00:00Z',
+  creator: {
+    id: 'mock-creator-uuid-' + Date.now(),
+    name: 'Test Creator',
+    company: 'Test Production Co'
+  },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  viewCount: 0,
   isPublic: true,
   ndaRequired: false,
-  themes: ['Action', 'Adventure'],
+  genres: ['Drama', 'Action'],
+  target_audience: '18-35',
+  comparables: 'Similar to Test Movie A and Test Movie B',
   characters: [],
   documents: [],
   ...overrides,
 })
 
 export const createMockNDARequest = (overrides = {}) => ({
-  id: '1',
-  pitchId: '1',
-  investorId: '2',
+  id: 'mock-nda-uuid-' + Date.now(),
+  pitchId: 'mock-pitch-uuid-' + Date.now(),
+  investorId: 'mock-investor-uuid-' + Date.now(),
   status: 'pending',
-  requestedAt: '2024-01-01T00:00:00Z',
+  requestedAt: new Date().toISOString(),
   investor: {
-    id: '2',
+    id: 'mock-investor-uuid-' + Date.now(),
     name: 'Test Investor',
     email: 'investor@example.com',
     company: 'Test Investment Co.',
@@ -158,12 +171,14 @@ export const createMockNDARequest = (overrides = {}) => ({
 })
 
 export const createMockCharacter = (overrides = {}) => ({
-  id: '1',
+  id: 'mock-character-uuid-' + Date.now(),
   name: 'Test Character',
   description: 'A test character description',
   age: 25,
   role: 'protagonist',
   importance: 'main',
+  arc: 'Character development arc',
+  background: 'Character background story',
   ...overrides,
 })
 

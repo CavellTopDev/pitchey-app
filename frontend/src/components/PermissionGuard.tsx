@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { usePermissions } from '../hooks/usePermissions';
-import { useAuth } from '../hooks/useAuth';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface PermissionGuardProps {
   permission?: string;
@@ -40,7 +40,7 @@ export function PermissionGuard({
   children 
 }: PermissionGuardProps) {
   const { hasPermission, hasRole, hasAnyPermission, hasAllPermissions, hasAnyRole, loading } = usePermissions();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useBetterAuthStore();
 
   // Don't render anything while loading
   if (loading) {
@@ -124,7 +124,7 @@ export function usePermissionVisibility(
   options: Omit<PermissionGuardProps, 'children' | 'fallback' | 'showMessage'>
 ): boolean {
   const { hasPermission, hasRole, hasAnyPermission, hasAllPermissions, hasAnyRole, loading } = usePermissions();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useBetterAuthStore();
 
   if (loading || !isAuthenticated) {
     return false;

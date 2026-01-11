@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Shield, Lock, CheckCircle, Clock, AlertCircle, Download, FileText, AlertTriangle } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { ndaService } from '../services/nda.service';
 import NDAWizard from './NDAWizard';
 
@@ -34,7 +34,7 @@ export default function NDAStatus({
   compact = false,
   showWizard = true 
 }: NDAStatusProps) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [ndaStatus, setNDAStatus] = useState<NDAStatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestLoading, setRequestLoading] = useState(false);

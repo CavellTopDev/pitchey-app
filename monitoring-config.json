@@ -1,66 +1,27 @@
 {
-  "service": "pitchey-production",
-  "worker_url": "https://pitchey-production.cavelltheleaddev.workers.dev",
+  "serviceName": "pitchey-api",
+  "environment": "production",
+  "version": "1.0.0",
   "monitoring": {
-    "endpoints": [
-      {
-        "name": "Trending Pitches",
-        "path": "/api/pitches/trending?limit=1",
-        "critical": true,
-        "timeout_ms": 5000,
-        "expected_response": {
-          "success": true
-        }
+    "enabled": true,
+    "providers": {
+      "sentry": {
+        "enabled": true,
+        "dsn": "SENTRY_DSN_PLACEHOLDER",
+        "tracesSampleRate": 0.1,
+        "profilesSampleRate": 0.1
       },
-      {
-        "name": "New Releases",
-        "path": "/api/pitches/new?limit=1",
-        "critical": true,
-        "timeout_ms": 5000,
-        "expected_response": {
-          "success": true
-        }
-      },
-      {
-        "name": "Public Pitches",
-        "path": "/api/pitches/public?limit=1",
-        "critical": true,
-        "timeout_ms": 5000,
-        "expected_response": {
-          "success": true
-        }
-      },
-      {
-        "name": "Database Connection",
-        "path": "/api/db-test",
-        "critical": true,
-        "timeout_ms": 10000,
-        "expected_response": {
-          "success": true
-        }
+      "cloudflare": {
+        "analytics": true,
+        "webAnalytics": true,
+        "realUserMonitoring": true
       }
-    ],
-    "thresholds": {
-      "error_rate": 0.05,
-      "response_time_p95": 1000,
-      "response_time_p99": 3000,
-      "consecutive_failures": 3,
-      "connection_pool_size": 10
     },
-    "alerts": {
-      "channels": ["console", "log", "slack", "email"],
-      "escalation": {
-        "level_1": {
-          "after_minutes": 5,
-          "channels": ["slack", "log"]
-        },
-        "level_2": {
-          "after_minutes": 15,
-          "channels": ["email", "slack"]
-        },
-        "level_3": {
-          "after_minutes": 30,
-          "channels": ["phone", "pagerduty"]
+    "metrics": {
+      "api": {
+        "responseTime": {
+          "enabled": true,
+          "buckets": [10, 25, 50, 100, 250, 500, 1000, 2500, 5000]
         }
       }
     }

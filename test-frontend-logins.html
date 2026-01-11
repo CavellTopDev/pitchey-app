@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Frontend Logins</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .portal {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .portal h2 {
+            margin-top: 0;
+            color: #555;
+        }
+        .portal-info {
+            margin: 10px 0;
+            color: #666;
+        }
+        .test-button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .test-button:hover {
+            background: #5a67d8;
+        }
+        .open-button {
+            background: #48bb78;
+        }
+        .open-button:hover {
+            background: #38a169;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #c6f6d5;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+        }
+        .error {
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            color: #742a2a;
+        }
+        .loading {
+            background: #bee3f8;
+            border: 1px solid #90cdf4;
+            color: #2c5282;
+        }
+        .credentials {
+            background: #e6fffa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .badge-working {
+            background: #48bb78;
+            color: white;
+        }
+        .badge-testing {
+            background: #ed8936;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Pitchey Demo Account Testing</h1>
+        
+        <div class="portal">
+            <h2>👤 Creator Portal <span class="status-badge badge-working">WORKING</span></h2>
+            <div class="portal-info">
+                For filmmakers and content creators to submit pitches
+            </div>
+            <div class="credentials">
+                <strong>Email:</strong> alex.creator@demo.com<br>
+                <strong>Password:</strong> Demo123
+            </div>
+            <button class="test-button" onclick="testLogin('creator')">Test API Login</button>
+            <a href="https://7990cec7.pitchey-5o8.pages.dev/creator/login" target="_blank" class="test-button open-button">Open Portal</a>
+            <div id="creator-result" class="result"></div>
+        </div>
+
+        <div class="portal">
+            <h2>💰 Investor Portal <span class="status-badge badge-working">WORKING</span></h2>
+            <div class="portal-info">
+                For investors to browse and invest in film projects
+            </div>
+            <div class="credentials">
+                <strong>Email:</strong> sarah.investor@demo.com<br>
+                <strong>Password:</strong> Demo123
+            </div>
+            <button class="test-button" onclick="testLogin('investor')">Test API Login</button>
+            <a href="https://7990cec7.pitchey-5o8.pages.dev/investor/login" target="_blank" class="test-button open-button">Open Portal</a>
+            <div id="investor-result" class="result"></div>
+        </div>
+
+        <div class="portal">
+            <h2>🏢 Production Portal <span class="status-badge badge-working">WORKING</span></h2>
+            <div class="portal-info">
+                For production companies to manage projects
+            </div>
+            <div class="credentials">
+                <strong>Email:</strong> stellar.production@demo.com<br>
+                <strong>Password:</strong> Demo123
+            </div>
+            <button class="test-button" onclick="testLogin('production')">Test API Login</button>
+            <a href="https://7990cec7.pitchey-5o8.pages.dev/production/login" target="_blank" class="test-button open-button">Open Portal</a>
+            <div id="production-result" class="result"></div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #f7fafc; border-radius: 5px;">
+            <h3 style="margin-top: 0;">📝 Testing Instructions:</h3>
+            <ol style="line-height: 1.8;">
+                <li>Click "Test API Login" to verify the backend authentication</li>
+                <li>Click "Open Portal" to open the frontend login page</li>
+                <li>Copy and paste the credentials to log in</li>
+                <li>After login, you should be redirected to the appropriate dashboard</li>
+            </ol>
+            <p style="margin-top: 15px;"><strong>Production API:</strong> https://pitchey-api-prod.ndlovucavelle.workers.dev</p>
+            <p><strong>Frontend:</strong> https://7990cec7.pitchey-5o8.pages.dev</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+        
+        const credentials = {
+            creator: { email: 'alex.creator@demo.com', password: 'Demo123' },
+            investor: { email: 'sarah.investor@demo.com', password: 'Demo123' },
+            production: { email: 'stellar.production@demo.com', password: 'Demo123' }
+        };
+
+        async function testLogin(portal) {
+            const resultDiv = document.getElementById(`${portal}-result`);
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '⏳ Testing login...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/${portal}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(credentials[portal])
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>Login Successful!</strong><br>
+                        User: ${data.user.email}<br>
+                        Type: ${data.user.userType}<br>
+                        Session ID: ${data.session.id}<br>
+                        <small>Token: ${data.token.substring(0, 50)}...</small>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ <strong>Login Failed</strong><br>Error: ${data.error?.message || 'Unknown error'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ <strong>Connection Error</strong><br>${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

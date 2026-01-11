@@ -286,9 +286,17 @@ export class NotificationService {
     });
   }
 
-  // Get notifications from API
+  // Get notifications from API with auth check
   async getNotifications(options?: { limit?: number; offset?: number }) {
     try {
+      // ✅ Check auth state before making API call
+      const { useBetterAuthStore } = await import('../store/betterAuthStore');
+      const { user } = useBetterAuthStore.getState();
+      
+      if (!user || !user.id) {
+        return { notifications: [], unreadCount: 0, hasMore: false };
+      }
+      
       const { default: apiClient } = await import('../lib/api-client');
       const limit = options?.limit || 20;
       const offset = options?.offset || 0;
@@ -301,6 +309,11 @@ export class NotificationService {
       
       return { notifications: [], unreadCount: 0, hasMore: false };
     } catch (error) {
+      // ✅ Smart error handling for auth issues
+      if (error?.response?.status === 401 || error?.status === 401 || error?.message?.includes('401')) {
+        return { notifications: [], unreadCount: 0, hasMore: false };
+      }
+      
       console.error('Failed to fetch notifications:', error);
       return { notifications: [], unreadCount: 0, hasMore: false };
     }

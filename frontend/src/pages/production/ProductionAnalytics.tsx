@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, DollarSign, Film, Users, BarChart3, PieChart, 
   Activity, Calendar, Target, Award, ArrowUp, ArrowDown,
   Eye, Heart, Clock, CheckCircle, AlertTriangle, PlayCircle,
   Zap, Star, Download, Filter, RefreshCw
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
+import { RevenueChart } from '../../components/charts/RevenueChart';
+import { ROIChart } from '../../components/charts/ROIChart';
 
 interface AnalyticsMetric {
   title: string;
@@ -49,8 +49,7 @@ interface ResourceUtilization {
 }
 
 export default function ProductionAnalytics() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,7 +69,7 @@ export default function ProductionAnalytics() {
   const loadAnalyticsData = async () => {
     try {
       setError(null);
-    const response = await fetch(`${API_URL}/api/analytics`, {
+    const response = await fetch(`${config.apiUrl}/api/production/analytics`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -207,15 +206,8 @@ export default function ProductionAnalytics() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
-          user={user}
-          userType="production"
-          title="Analytics"
-          onLogout={logout}
-          useEnhancedNav={true}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="flex items-center space-x-2">
             <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
             <span className="text-gray-600">Loading analytics data...</span>
@@ -226,15 +218,8 @@ export default function ProductionAnalytics() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="Analytics Dashboard"
-        onLogout={logout}
-        useEnhancedNav={true}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
@@ -337,12 +322,8 @@ export default function ProductionAnalytics() {
                 <h3 className="text-lg font-medium text-gray-900">Revenue Trends</h3>
                 <BarChart3 className="w-5 h-5 text-gray-400" />
               </div>
-              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <PieChart className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Revenue chart visualization</p>
-                  <p className="text-xs text-gray-500 mt-1">Chart component integration needed</p>
-                </div>
+              <div className="h-64">
+                <RevenueChart data={financialData?.monthlyRevenue} />
               </div>
             </div>
           </div>
@@ -354,12 +335,12 @@ export default function ProductionAnalytics() {
                 <h3 className="text-lg font-medium text-gray-900">ROI by Project</h3>
                 <Target className="w-5 h-5 text-gray-400" />
               </div>
-              <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">ROI comparison chart</p>
-                  <p className="text-xs text-gray-500 mt-1">Chart component integration needed</p>
-                </div>
+              <div className="h-64">
+                <ROIChart data={projectPerformance?.map(p => ({
+                  project: p.title,
+                  roi: p.roi,
+                  revenue: p.revenue
+                }))} />
               </div>
             </div>
           </div>

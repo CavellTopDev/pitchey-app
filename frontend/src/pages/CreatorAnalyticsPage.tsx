@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
-  BarChart3, Activity, TrendingUp, Eye, Heart, 
-  Share2, Users, DollarSign, Clock, Film,
-  Star, MessageCircle, FileText, Target
+  BarChart3, Activity, TrendingUp, Film, Target
 } from 'lucide-react';
-import DashboardHeader from '../components/DashboardHeader';
-import { useAuthStore } from '../store/authStore';
 import { CreatorAnalytics } from '../components/Analytics/CreatorAnalytics';
 import CreatorActivity from './creator/CreatorActivity';
 import CreatorStats from './creator/CreatorStats';
 
 export default function CreatorAnalyticsPage() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'stats'>('overview');
 
   // Mock data for analytics
@@ -28,11 +21,6 @@ export default function CreatorAnalyticsPage() {
     investmentChange: 15.7
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'activity', label: 'Activity', icon: Activity },
@@ -40,15 +28,13 @@ export default function CreatorAnalyticsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="creator"
-        title="Analytics & Insights"
-        onLogout={handleLogout}
-      />
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Analytics & Insights</h1>
+        <p className="text-gray-600 mt-1">Track your pitch performance and audience engagement</p>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
           <div className="border-b border-gray-200">

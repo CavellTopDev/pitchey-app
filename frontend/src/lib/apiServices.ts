@@ -1,4 +1,4 @@
-import apiClient, { ndaAPI as newNdaAPI, authAPI, pitchAPI as newPitchAPI } from './api-client';
+import apiClient, { ndaAPI as newNdaAPI, authAPI, pitchAPI as newPitchAPI, savedPitchesAPI } from './api-client';
 import { config } from '../config';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
@@ -651,4 +651,49 @@ export const paymentsAPI = {
     }
     return { success: false, error: response.error?.message };
   },
+};
+
+// Saved Pitches Services (Re-export from api-client with enhanced error handling)
+export const savedPitchesService = {
+  // Use new API client methods
+  ...savedPitchesAPI,
+  
+  // Enhanced methods with consistent error handling
+  async getSavedPitches(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    genre?: string;
+    format?: string;
+  }) {
+    const response = await savedPitchesAPI.getSavedPitches(params);
+    if (response.success) {
+      return { success: true, ...response.data };
+    }
+    return { success: false, error: response.error?.message, savedPitches: [], total: 0 };
+  },
+
+  async savePitch(pitchId: number, notes?: string) {
+    const response = await savedPitchesAPI.savePitch(pitchId, notes);
+    if (response.success) {
+      return { success: true, ...response.data };
+    }
+    return { success: false, error: response.error?.message };
+  },
+
+  async unsavePitch(savedPitchId: number) {
+    const response = await savedPitchesAPI.unsavePitch(savedPitchId);
+    if (response.success) {
+      return { success: true, ...response.data };
+    }
+    return { success: false, error: response.error?.message };
+  },
+
+  async isPitchSaved(pitchId: number) {
+    const response = await savedPitchesAPI.isPitchSaved(pitchId);
+    if (response.success) {
+      return { success: true, ...response.data };
+    }
+    return { success: false, error: response.error?.message, isSaved: false };
+  }
 };

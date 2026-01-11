@@ -5,8 +5,6 @@ import {
   Filter, Search, Calendar, User, DollarSign, TrendingUp,
   Eye, Download, MessageSquare, ThumbsUp, ThumbsDown
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
 
 interface Submission {
   id: string;
@@ -34,9 +32,8 @@ const statusConfig = {
 };
 
 export default function ProductionSubmissions() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user, logout } = useAuthStore();
+    const [searchParams] = useSearchParams();
+  
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,14 +142,8 @@ export default function ProductionSubmissions() {
   const genres = ['all', ...new Set(submissions.map(s => s.genre))];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="Submissions Management"
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

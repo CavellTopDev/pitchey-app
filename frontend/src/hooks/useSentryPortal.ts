@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 // import * as Sentry from '@sentry/react'; // Temporarily disabled
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 export type PortalType = 'creator' | 'investor' | 'production' | 'admin';
 
@@ -16,7 +16,7 @@ interface SentryPortalConfig {
  * Automatically tracks navigation, errors, and performance
  */
 export function useSentryPortal(config: SentryPortalConfig) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const { portalType, componentName, trackPerformance = true, customTags = {} } = config;
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function useSentryPortal(config: SentryPortalConfig) {
 
   // Track custom events - temporarily disabled
   const trackEvent = (eventName: string, data?: Record<string, any>) => {
-    console.log('Track event:', eventName, {
+    console.info(`Portal Event: ${eventName}`, {
       portal: portalType,
       component: componentName,
       ...data

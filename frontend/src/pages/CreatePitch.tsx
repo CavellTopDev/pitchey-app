@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, X, FileText, Video, Image as ImageIcon, Shield, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { useToast } from '../components/Toast/ToastProvider';
 import LoadingSpinner from '../components/Loading/LoadingSpinner';
 import { pitchService } from '../services/pitch.service';
@@ -25,7 +25,7 @@ import type { EnhancedUploadResult } from '../services/enhanced-upload.service';
 
 export default function CreatePitch() {
   const navigate = useNavigate();
-  const { } = useAuthStore();
+  const { } = useBetterAuthStore();
   const { success, error } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [genres, setGenres] = useState<string[]>(getGenresSync() || []);

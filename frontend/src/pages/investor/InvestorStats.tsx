@@ -13,8 +13,6 @@ import {
   PieChart as RechartsPieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
 
 interface QuickStat {
   label: string;
@@ -40,7 +38,7 @@ interface PerformanceMetrics {
 }
 
 export default function InvestorStats() {
-  const { user, logout } = useAuthStore();
+  
   const [timeRange, setTimeRange] = useState('30d');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<QuickStat[]>([]);
@@ -230,12 +228,8 @@ export default function InvestorStats() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-        user={user}
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

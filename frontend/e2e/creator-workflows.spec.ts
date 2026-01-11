@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { AuthHelper } from './utils/auth-helpers';
 import { PageHelper } from './utils/page-helpers';
-import { TEST_PITCH, TEST_CHARACTER } from './fixtures/test-data';
+import { TEST_PITCHES, TEST_CHARACTERS } from './fixtures/test-data';
+
+// Use the first pitch and character for testing
+const TEST_PITCH = TEST_PITCHES.actionThriller;
+const TEST_CHARACTER = TEST_CHARACTERS.maya;
 
 test.describe('Creator Workflows', () => {
   let authHelper: AuthHelper;

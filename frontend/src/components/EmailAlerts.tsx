@@ -18,7 +18,7 @@ import {
 import { API_URL } from '../config';
 import { useToast } from './Toast/ToastProvider';
 import type { FilterState } from './FilterBar';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface EmailAlert {
   id: number;
@@ -41,7 +41,7 @@ export default function EmailAlerts({
   currentFilters,
   className = '' 
 }: EmailAlertsProps) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const toast = useToast();
   const [emailAlerts, setEmailAlerts] = useState<EmailAlert[]>([]);
   const [loading, setLoading] = useState(false);

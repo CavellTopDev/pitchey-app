@@ -6,7 +6,7 @@ import {
   Award, Briefcase, Clock, Star
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface TeamMember {
   id: string;
@@ -28,7 +28,7 @@ const roles = ['Producer', 'Director', 'Writer', 'Editor', 'Cinematographer', 'S
 
 export default function TeamManagement() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);

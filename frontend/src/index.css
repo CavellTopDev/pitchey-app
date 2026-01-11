@@ -1,3 +1,6 @@
+/* Import onboarding animations */
+@import './components/Onboarding/onboarding.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

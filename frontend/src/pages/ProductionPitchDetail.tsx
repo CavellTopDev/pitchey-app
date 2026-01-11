@@ -6,7 +6,7 @@ import {
   Edit, BarChart3, FileText, BookOpen, Video,
   Clock, CheckCircle, X, Maximize2, Star, TrendingUp
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import PitchMediaGallery from '../components/PitchMediaGallery';
 import { API_URL } from '../config';
 import FormatDisplay from '../components/FormatDisplay';
@@ -61,7 +61,7 @@ interface PitchDetails {
 export default function ProductionPitchDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [pitch, setPitch] = useState<PitchDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'analytics' | 'engagement'>('overview');

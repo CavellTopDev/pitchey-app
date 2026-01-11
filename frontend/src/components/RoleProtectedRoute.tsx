@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { AlertTriangle, Lock } from 'lucide-react';
 
 interface RoleProtectedRouteProps {
@@ -17,7 +17,7 @@ export default function RoleProtectedRoute({
   showErrorPage = true 
 }: RoleProtectedRouteProps) {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useBetterAuthStore();
   const userType = localStorage.getItem('userType') as 'creator' | 'investor' | 'production' | null;
 
   useEffect(() => {

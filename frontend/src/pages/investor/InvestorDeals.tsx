@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Handshake, Clock, CheckCircle, XCircle, AlertCircle,
   DollarSign, Calendar, FileText, Search, Filter,
   Eye, MessageSquare, Download, TrendingUp, Users,
   Building, Star, Award, Target, Globe, ArrowRight
 } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface Deal {
   id: string;
@@ -68,8 +66,7 @@ interface DealFilters {
 }
 
 export default function InvestorDeals() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [filteredDeals, setFilteredDeals] = useState<Deal[]>([]);
@@ -450,12 +447,8 @@ export default function InvestorDeals() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -468,12 +461,8 @@ export default function InvestorDeals() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-        user={user}
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
@@ -488,7 +477,7 @@ export default function InvestorDeals() {
               <Download className="w-4 h-4 mr-2" />
               Export Pipeline
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
               <Handshake className="w-4 h-4 mr-2" />
               New Deal
             </button>

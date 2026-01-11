@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { toast } from 'react-hot-toast';
 
 interface NavigationGuard {
@@ -44,7 +44,7 @@ const PORTAL_GUARDS: NavigationGuard[] = [
 export function usePortalNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, checkSession } = useAuth();
+  const { user, isAuthenticated, checkSession } = useBetterAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 

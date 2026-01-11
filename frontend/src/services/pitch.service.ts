@@ -77,6 +77,18 @@ export interface Pitch {
   hasNDA?: boolean; // For current viewer
   isLiked?: boolean; // For current viewer
   canEdit?: boolean; // For current viewer
+  hasSignedNDA?: boolean; // Whether user has signed NDA
+  protectedContent?: {
+    budgetBreakdown?: any;
+    productionTimeline?: string;
+    attachedTalent?: any[];
+    financialProjections?: any;
+    distributionPlan?: string;
+    marketingStrategy?: string;
+    privateAttachments?: any[];
+    contactDetails?: any;
+    revenueModel?: string;
+  };
 }
 
 export interface CreatePitchInput {
@@ -680,6 +692,186 @@ export class PitchService {
     }
 
     return response.data.url;
+  }
+
+  // === PUBLIC ENDPOINTS FOR GUEST BROWSING ===
+  // These endpoints work without authentication and are rate-limited
+
+  // Get public trending pitches (no auth required)
+  static async getPublicTrendingPitches(limit: number = 20): Promise<Pitch[]> {
+    try {
+      const response = await fetch(`${API_URL}/api/pitches/public/trending?limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.success ? (data.data?.pitches || []) : [];
+    } catch (error) {
+      console.error('Error fetching public trending pitches:', error);
+      return [];
+    }
+  }
+
+  // Get public new pitches (no auth required)
+  static async getPublicNewPitches(limit: number = 20): Promise<Pitch[]> {
+    try {
+      const response = await fetch(`${API_URL}/api/pitches/public/new?limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.success ? (data.data?.pitches || []) : [];
+    } catch (error) {
+      console.error('Error fetching public new pitches:', error);
+      return [];
+    }
+  }
+
+  // Get public featured pitches (no auth required)
+  static async getPublicFeaturedPitches(limit: number = 6): Promise<Pitch[]> {
+    try {
+      const response = await fetch(`${API_URL}/api/pitches/public/featured?limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.success ? (data.data?.pitches || []) : [];
+    } catch (error) {
+      console.error('Error fetching public featured pitches:', error);
+      return [];
+    }
+  }
+
+  // Search public pitches (no auth required)
+  static async searchPublicPitches(
+    searchTerm: string,
+    filters?: {
+      genre?: string;
+      format?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<{ pitches: Pitch[]; total: number; page: number; pageSize: number }> {
+    try {
+      const params = new URLSearchParams();
+      params.append('q', searchTerm);
+      
+      if (filters?.genre) params.append('genre', filters.genre);
+      if (filters?.format) params.append('format', filters.format);
+      if (filters?.page) params.append('page', filters.page.toString());
+      if (filters?.limit) params.append('limit', filters.limit.toString());
+
+      const response = await fetch(`${API_URL}/api/pitches/public/search?${params}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        return { pitches: [], total: 0, page: 1, pageSize: 20 };
+      }
+
+      return {
+        pitches: data.data?.pitches || [],
+        total: data.data?.total || 0,
+        page: data.data?.page || 1,
+        pageSize: data.data?.pageSize || 20
+      };
+    } catch (error) {
+      console.error('Error searching public pitches:', error);
+      return { pitches: [], total: 0, page: 1, pageSize: 20 };
+    }
+  }
+
+  // Get public pitch by ID (no auth required)
+  static async getPublicPitchById(pitchId: string): Promise<Pitch | null> {
+    try {
+      const response = await fetch(`${API_URL}/api/pitches/public/${pitchId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null; // Pitch not found or not public
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.success ? data.data?.pitch || null : null;
+    } catch (error) {
+      console.error('Error fetching public pitch by ID:', error);
+      return null;
+    }
+  }
+
+  // Enhanced public pitches method that uses the new endpoints
+  static async getPublicPitchesEnhanced(filters?: {
+    genre?: string;
+    format?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    tab?: 'trending' | 'new' | 'featured' | 'all';
+  }): Promise<{ pitches: Pitch[]; total: number }> {
+    try {
+      // Route to specific endpoint based on tab
+      if (filters?.tab === 'trending') {
+        const pitches = await this.getPublicTrendingPitches(filters.limit);
+        return { pitches, total: pitches.length };
+      }
+      
+      if (filters?.tab === 'new') {
+        const pitches = await this.getPublicNewPitches(filters.limit);
+        return { pitches, total: pitches.length };
+      }
+      
+      if (filters?.tab === 'featured') {
+        const pitches = await this.getPublicFeaturedPitches(filters.limit);
+        return { pitches, total: pitches.length };
+      }
+
+      // For search or general browsing
+      if (filters?.search) {
+        return this.searchPublicPitches(filters.search, filters);
+      }
+
+      // Fallback to original getPublicPitches method
+      return this.getPublicPitches(filters);
+    } catch (error) {
+      console.error('Error in getPublicPitchesEnhanced:', error);
+      return { pitches: [], total: 0 };
+    }
   }
 }
 

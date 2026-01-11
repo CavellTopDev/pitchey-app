@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Building2, Film, Award, TrendingUp, Globe,
   Search, Filter, MapPin, Calendar, Users,
   DollarSign, Star, BarChart3, Play, ChevronRight,
   Briefcase, Clock, CheckCircle, AlertCircle
 } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface ProductionCompany {
   id: string;
@@ -48,8 +46,7 @@ interface ProductionCompany {
 }
 
 export default function InvestorProductionCompanies() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'major' | 'independent' | 'boutique' | 'streaming'>('all');
@@ -346,12 +343,8 @@ export default function InvestorProductionCompanies() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="text-gray-600">Loading production companies...</div>
         </div>
       </div>
@@ -365,12 +358,8 @@ export default function InvestorProductionCompanies() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
@@ -600,7 +589,7 @@ export default function InvestorProductionCompanies() {
                 <div className="mt-6 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {company.connectionStatus === 'partner' ? (
-                      <button className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700">
+                      <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">
                         <Briefcase className="w-4 h-4 mr-2" />
                         View Opportunities
                       </button>
@@ -619,7 +608,7 @@ export default function InvestorProductionCompanies() {
                       </button>
                     )}
                   </div>
-                  <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                  <button className="text-green-600 hover:text-purple-700 text-sm font-medium">
                     View Full Profile →
                   </button>
                 </div>

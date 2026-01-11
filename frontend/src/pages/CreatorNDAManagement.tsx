@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import ComprehensiveNDAManagement from '../components/NDA/ComprehensiveNDAManagement';
 import BackButton from '../components/BackButton';
 
 export default function CreatorNDAManagement() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
 
   return (
     <div className="min-h-screen bg-gray-50">

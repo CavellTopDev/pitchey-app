@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { UserPlus, UserMinus, UserCheck } from 'lucide-react';
 import { followService } from '../../services/follow.service';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface FollowButtonProps {
   userId: string;
@@ -22,7 +22,7 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
   onFollowChange,
   className = ''
 }) => {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
   const [hover, setHover] = useState(false);
@@ -49,8 +49,8 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
 
   const handleFollow = async () => {
     if (!user) {
-      // Redirect to login or show login modal
-      window.location.href = '/login';
+      // Don't redirect - Better Auth handles authentication
+      toast.error('Please log in to follow users');
       return;
     }
 

@@ -10,14 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '@/store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { toast } from 'react-hot-toast';
 import { investorApi } from '@/services/investor.service';
 
 const InvestorWallet = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [notifications, setNotifications] = useState([]);
@@ -427,11 +426,7 @@ const InvestorWallet = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <InvestorNavigation 
-        userName={user?.username || user?.email || 'Investor'} 
-        onLogout={handleLogout}
-      />
-
+      
       <div className="container mx-auto px-4 py-8 mt-20">
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-8">

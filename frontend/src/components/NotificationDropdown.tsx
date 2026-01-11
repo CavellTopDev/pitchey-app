@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNotifications } from '../contexts/WebSocketContext';
 import { NotificationsService, type Notification as BackendNotification } from '../services/notifications.service';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { useToast } from './Toast/ToastProvider';
 
 interface NotificationAction {
@@ -146,7 +146,7 @@ interface NotificationDropdownProps {
 
 export function NotificationDropdown({ className = '' }: NotificationDropdownProps) {
   const { notifications: wsNotifications, markNotificationAsRead, clearAllNotifications } = useNotifications();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useBetterAuthStore();
   const toast = useToast();
   
   const [isOpen, setIsOpen] = useState(false);

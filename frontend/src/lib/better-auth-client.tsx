@@ -171,16 +171,31 @@ export function createPortalAuthMethods(): PortalAuthMethods {
 
     // Get current session
     async getSession() {
-      const response = await fetch(`${API_URL}/api/auth/session`, {
-        method: 'GET',
-        credentials: 'include' // Send cookies for Better Auth session
-      });
+      try {
+        const response = await fetch(`${API_URL}/api/auth/session`, {
+          method: 'GET',
+          credentials: 'include' // Send cookies for Better Auth session
+        });
 
-      if (!response.ok) {
+        if (!response.ok) {
+          // Don't throw on 401/403/404/429 - just return null
+          if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 429) {
+            if (response.status === 429) {
+              console.warn('Session check rate limited - treating as unauthenticated');
+            }
+            return null;
+          }
+          // For other errors, still return null but log them
+          console.warn(`Session check returned ${response.status}`);
+          return null;
+        }
+
+        return response.json();
+      } catch (error) {
+        // Network errors or other issues - treat as not authenticated
+        console.warn('Session check failed:', error);
         return null;
       }
-
-      return response.json();
     },
 
     // Sign out
@@ -307,9 +322,11 @@ export function withBetterAuth<T extends object>(
     }
 
     if (!isAuthed) {
-      const loginPath = requiredPortal ? `/login/${requiredPortal}` : '/login';
-      window.location.href = loginPath;
-      return <div>Redirecting to login...</div>;
+      // DISABLED: This was causing redirect loops and flickering
+      // Better Auth handles authentication via cookies
+      // const loginPath = requiredPortal ? `/login/${requiredPortal}` : '/login';
+      // window.location.href = loginPath;
+      return <div>Please log in to continue</div>;
     }
 
     return <WrappedComponent {...props} />;

@@ -57,6 +57,12 @@ export enum ErrorCode {
   // Rate limiting
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   
+  // File operations
+  UPLOAD_ERROR = 'UPLOAD_ERROR',
+  FILE_NOT_FOUND = 'FILE_NOT_FOUND',
+  FILE_TOO_LARGE = 'FILE_TOO_LARGE',
+  INVALID_FILE_TYPE = 'INVALID_FILE_TYPE',
+  
   // Business logic
   INSUFFICIENT_FUNDS = 'INSUFFICIENT_FUNDS',
   QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
@@ -82,6 +88,10 @@ const ErrorStatusMap: Record<ErrorCode, number> = {
   [ErrorCode.DATABASE_ERROR]: 500,
   [ErrorCode.SERVICE_UNAVAILABLE]: 503,
   [ErrorCode.RATE_LIMIT_EXCEEDED]: 429,
+  [ErrorCode.UPLOAD_ERROR]: 400,
+  [ErrorCode.FILE_NOT_FOUND]: 404,
+  [ErrorCode.FILE_TOO_LARGE]: 413,
+  [ErrorCode.INVALID_FILE_TYPE]: 415,
   [ErrorCode.INSUFFICIENT_FUNDS]: 402,
   [ErrorCode.QUOTA_EXCEEDED]: 403,
   [ErrorCode.OPERATION_NOT_ALLOWED]: 403

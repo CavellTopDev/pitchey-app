@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { GitBranch, ArrowRight, Clock, TrendingUp, DollarSign, Calendar, Users, Filter, BarChart3, CheckCircle, AlertCircle } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
 
 interface PipelineProject {
@@ -59,8 +57,7 @@ const riskColors = {
 const stageOrder = ['development', 'pre-production', 'production', 'post-production', 'delivery', 'release'];
 
 export default function ProductionPipeline() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [projects, setProjects] = useState<PipelineProject[]>([]);
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,7 +73,7 @@ export default function ProductionPipeline() {
   const fetchPipelineData = async () => {
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production/projects`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -220,14 +217,8 @@ export default function ProductionPipeline() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
-          user={user}
-          userType="production"
-          title="Production Pipeline"
-          onLogout={logout}
-        />
-        <div className="flex justify-center items-center h-64">
+      <div>
+                <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -235,14 +226,8 @@ export default function ProductionPipeline() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="Production Pipeline"
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">

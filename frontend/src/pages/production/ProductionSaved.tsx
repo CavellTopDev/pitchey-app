@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import DashboardHeader from '../../components/DashboardHeader';
 import { 
   Star, Filter, Search, Calendar, Clock, 
   MoreVertical, Eye, MessageSquare, FileText,
@@ -8,7 +7,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { useNavigate } from 'react-router-dom';
 import { pitchService } from '../../services/pitch.service';
 
@@ -29,7 +28,7 @@ interface SavedPitch {
 }
 
 export default function ProductionSaved() {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('all');
@@ -145,9 +144,8 @@ export default function ProductionSaved() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader user={user} userType="production" />
-      
+    <div>
+            
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>

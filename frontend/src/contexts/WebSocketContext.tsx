@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
 import { useWebSocketAdvanced } from '../hooks/useWebSocketAdvanced';
-import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus } from '../types/websocket';
-import { useAuthStore } from '../store/authStore';
+import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus, ConnectionQuality } from '../types/websocket';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { config } from '../config';
 import { presenceFallbackService } from '../services/presence-fallback.service';
 import { pollingService } from '../services/polling.service';
@@ -18,6 +18,20 @@ interface NotificationData {
     action: () => void;
     type?: 'primary' | 'secondary';
   }>;
+}
+
+interface NDAStatusUpdate {
+  ndaId: number;
+  pitchId: number;
+  status: 'pending' | 'approved' | 'rejected' | 'signed' | 'expired' | 'revoked';
+  previousStatus?: string;
+  creatorName?: string;
+  requesterName?: string;
+  pitchTitle?: string;
+  timestamp: Date;
+  reason?: string;
+  notes?: string;
+  read?: boolean;
 }
 
 interface DashboardMetrics {
@@ -63,10 +77,17 @@ interface PitchViewData {
 }
 
 interface WebSocketContextType {
-  // Connection state
+  // Enhanced connection state
   connectionStatus: ConnectionStatus;
   queueStatus: MessageQueueStatus;
   isConnected: boolean;
+  isReconnecting: boolean;
+  isDisconnecting: boolean;
+  
+  // Connection quality and reliability
+  connectionQuality: ConnectionQuality;
+  retryCount: number;
+  isHealthy: boolean;
   
   // Real-time data
   notifications: NotificationData[];
@@ -75,6 +96,7 @@ interface WebSocketContextType {
   typingIndicators: TypingData[];
   uploadProgress: UploadProgress[];
   pitchViews: Map<number, PitchViewData>;
+  ndaUpdates: NDAStatusUpdate[];
   
   // Actions
   sendMessage: (message: WebSocketMessage) => boolean;
@@ -85,9 +107,15 @@ interface WebSocketContextType {
   stopTyping: (conversationId: number) => void;
   trackPitchView: (pitchId: number) => void;
   
-  // Connection control
+  // NDA-specific actions
+  subscribeToNDAUpdates: (callback: (update: NDAStatusUpdate) => void) => () => void;
+  markNDAUpdateAsRead: (ndaId: number) => void;
+  clearNDAUpdates: () => void;
+  
+  // Enhanced connection control
   connect: () => void;
   disconnect: () => void;
+  manualReconnect: () => void;
   clearQueue: () => void;
   
   // Emergency controls
@@ -108,6 +136,9 @@ interface WebSocketContextType {
   
   // Notification permission (must be called from user interaction)
   requestNotificationPermission: () => Promise<NotificationPermission>;
+  
+  // Debug and monitoring
+  getConnectionStats: () => any;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -117,7 +148,24 @@ interface WebSocketProviderProps {
 }
 
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, loading } = useBetterAuthStore();
+  const [authStabilized, setAuthStabilized] = useState(false);
+  
+  // CRITICAL: Enhanced timing control to prevent premature WebSocket connections
+  // This addresses the "WebSocket is closed before connection is established" error
+  useEffect(() => {
+    if (!loading && isAuthenticated && user) {
+      // Only allow WebSocket connection after authentication is fully stable
+      const timer = setTimeout(() => {
+        setAuthStabilized(true);
+      }, 500); // Increased delay to ensure complete authentication stability
+      
+      return () => clearTimeout(timer);
+    } else if (!isAuthenticated) {
+      // Immediately disable WebSocket if user logs out
+      setAuthStabilized(false);
+    }
+  }, [loading, isAuthenticated, user]);
   
   // Emergency disable state - ENABLED by default to test new WebSocket service
   const [isWebSocketDisabled, setIsWebSocketDisabled] = useState(false);
@@ -131,6 +179,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const [onlineUsers, setOnlineUsers] = useState<PresenceData[]>([]);
   const [typingIndicators, setTypingIndicators] = useState<TypingData[]>([]);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [ndaUpdates, setNDAUpdates] = useState<NDAStatusUpdate[]>([]);
   const [pitchViews, setPitchViews] = useState<Map<number, PitchViewData>>(new Map());
   
   // Subscription callbacks
@@ -142,28 +191,54 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     uploads: new Set<(uploads: UploadProgress[]) => void>(),
     pitchViews: new Map<number, Set<(data: PitchViewData) => void>>(),
     messages: new Set<(message: WebSocketMessage) => void>(), // General message subscriptions
+    ndaUpdates: new Set<(update: NDAStatusUpdate) => void>(),
   });
   
   // Track previous user type for portal switching detection
   const previousUserType = useRef<string | null>(localStorage.getItem('userType'));
   
-  // WebSocket connection
+  // CRITICAL: Enhanced connection control - only connect when auth is completely stable
+  // This prevents the "WebSocket is closed before connection is established" error
+  const shouldAutoConnect = authStabilized && isAuthenticated && user && !isWebSocketDisabled && config.WEBSOCKET_ENABLED;
+  
+  // Enhanced WebSocket connection with comprehensive error handling
   const {
     connectionStatus,
     queueStatus,
     isConnected,
+    isReconnecting,
+    isDisconnecting,
+    connectionQuality,
+    retryCount,
+    isHealthy,
     sendMessage: wsSendMessage,
     connect,
     disconnect,
+    manualReconnect,
     clearQueue,
+    getStats,
   } = useWebSocketAdvanced({
     onMessage: handleMessage,
     onConnect: handleConnect,
     onDisconnect: handleDisconnect,
-    autoConnect: isAuthenticated && !isWebSocketDisabled && config.WEBSOCKET_ENABLED,
-    maxReconnectAttempts: 5,  // Reduced to prevent infinite loops
-    reconnectInterval: 5000,  // Increased initial delay
-    maxReconnectInterval: 30000,  // Reduced max interval
+    onError: handleError, // Add comprehensive error handler
+    onReconnect: handleReconnect, // Add reconnection handler
+    onConnectionQualityChange: handleConnectionQualityChange,
+    autoConnect: shouldAutoConnect,
+    reconnection: {
+      enabled: shouldAutoConnect, // Only enable reconnection if we should connect
+      maxAttempts: 10,
+      initialDelay: 1000,
+      maxDelay: 30000,
+      backoffFactor: 2,
+      jitter: true,
+    },
+    heartbeat: {
+      enabled: shouldAutoConnect, // Only enable heartbeat if we should connect
+      interval: 30000,
+      timeout: 10000,
+      maxMissed: 3,
+    },
     maxQueueSize: 100,
     enablePersistence: true,
     rateLimit: {
@@ -171,6 +246,14 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       windowMs: 60000,
     },
   });
+  
+  // CRITICAL: Handle authentication state changes
+  // Disconnect immediately when authentication is lost to prevent 400 errors
+  useEffect(() => {
+    if (!shouldAutoConnect && isConnected) {
+      disconnect();
+    }
+  }, [shouldAutoConnect, isConnected, disconnect]);
   
   // Handle incoming messages
   function handleMessage(message: WebSocketMessage) {
@@ -204,11 +287,19 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         // Legacy support - redirect to new handler
         handlePitchView(message);
         break;
+      case 'nda_status_update':
+        handleNDAStatusUpdate(message);
+        break;
+      case 'nda_update':
+        // Legacy support - redirect to new handler
+        handleNDAStatusUpdate(message);
+        break;
       case 'chat_message':
         handleChatMessage(message);
         break;
       case 'draft_sync':
-        // Handled by useDraftSync hook
+        // Forward to specific draft sync handlers via general message subscribers
+        // The useDraftSync hook subscribes via subscribeToMessages
         break;
       case 'connection':
         // Enhanced connection confirmation from real-time service
@@ -390,6 +481,124 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       pitchSubs.forEach(callback => callback(viewData));
     }
   }
+
+  function handleNDAStatusUpdate(message: WebSocketMessage) {
+    const updateData: NDAStatusUpdate = {
+      ndaId: message.data?.ndaId,
+      pitchId: message.data?.pitchId,
+      status: message.data?.status,
+      previousStatus: message.data?.previousStatus,
+      creatorName: message.data?.creatorName,
+      requesterName: message.data?.requesterName,
+      pitchTitle: message.data?.pitchTitle,
+      timestamp: message.data?.timestamp ? new Date(message.data.timestamp) : new Date(),
+      reason: message.data?.reason,
+      notes: message.data?.notes,
+      read: false,
+    };
+    
+    // Add to NDA updates list (keep only recent 50 updates)
+    setNDAUpdates(prev => {
+      const newUpdates = [updateData, ...prev];
+      return newUpdates.slice(0, 50);
+    });
+    
+    // Notify subscribers
+    subscriptions.ndaUpdates.forEach(callback => callback(updateData));
+    
+    // Create a user notification based on the update
+    const isCreator = user?.userType === 'creator';
+    const isRequester = !isCreator;
+    
+    let notificationTitle = '';
+    let notificationMessage = '';
+    let notificationType: 'info' | 'success' | 'warning' | 'error' = 'info';
+    
+    switch (updateData.status) {
+      case 'pending':
+        if (isCreator) {
+          notificationTitle = 'New NDA Request';
+          notificationMessage = `${updateData.requesterName || 'Someone'} requested access to "${updateData.pitchTitle}"`;
+          notificationType = 'info';
+        }
+        break;
+      case 'approved':
+        if (isRequester) {
+          notificationTitle = 'NDA Approved';
+          notificationMessage = `Your access request for "${updateData.pitchTitle}" has been approved`;
+          notificationType = 'success';
+        }
+        break;
+      case 'rejected':
+        if (isRequester) {
+          notificationTitle = 'NDA Rejected';
+          notificationMessage = `Your access request for "${updateData.pitchTitle}" was rejected`;
+          if (updateData.reason) {
+            notificationMessage += `: ${updateData.reason}`;
+          }
+          notificationType = 'error';
+        }
+        break;
+      case 'signed':
+        if (isCreator) {
+          notificationTitle = 'NDA Signed';
+          notificationMessage = `${updateData.requesterName} has signed the NDA for "${updateData.pitchTitle}"`;
+          notificationType = 'success';
+        }
+        break;
+      case 'expired':
+        notificationTitle = 'NDA Expired';
+        notificationMessage = `The NDA for "${updateData.pitchTitle}" has expired`;
+        notificationType = 'warning';
+        break;
+      case 'revoked':
+        if (isRequester) {
+          notificationTitle = 'NDA Revoked';
+          notificationMessage = `Your access to "${updateData.pitchTitle}" has been revoked`;
+          if (updateData.reason) {
+            notificationMessage += `: ${updateData.reason}`;
+          }
+          notificationType = 'warning';
+        }
+        break;
+    }
+    
+    // Add notification if relevant to this user
+    if (notificationTitle) {
+      const notification: NotificationData = {
+        id: `nda-${updateData.ndaId}-${Date.now()}`,
+        type: notificationType,
+        title: notificationTitle,
+        message: notificationMessage,
+        timestamp: updateData.timestamp,
+        read: false,
+        actions: updateData.status === 'approved' && isRequester ? [
+          {
+            label: 'View Details',
+            action: () => {
+              // Navigate to pitch detail
+              window.location.href = `/pitch/${updateData.pitchId}`;
+            },
+            type: 'primary'
+          }
+        ] : updateData.status === 'pending' && isCreator ? [
+          {
+            label: 'Review',
+            action: () => {
+              // Navigate to NDA management
+              window.location.href = `/creator/nda-management`;
+            },
+            type: 'primary'
+          }
+        ] : undefined
+      };
+      
+      setNotifications(prev => [notification, ...prev.slice(0, 49)]);
+      
+      // Notify notification subscribers
+      subscriptions.notifications.forEach(callback => callback(notification));
+    }
+  }
   
   function handleChatMessage(message: WebSocketMessage) {
     // Handle real-time chat messages
@@ -465,6 +674,14 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
           channelId: `presence_updates`
         }
       });
+      
+      // Subscribe to draft sync updates
+      wsSendMessage({
+        type: 'subscribe',
+        data: {
+          channelId: `user_${user.id}_drafts`
+        }
+      });
     }
     
     // Request initial data with enhanced format
@@ -477,7 +694,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         clientVersion: '2.0', // Indicate enhanced client
       },
     });
-    
   }
   
   function handleDisconnect() {
@@ -505,6 +721,75 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       if (!usingFallback) {
         setUsingFallback(true);
         pollingService.start();
+      }
+    }
+  }
+  
+  // Enhanced error handler
+  function handleError(error: Event) {
+    console.error('[WebSocketContext] WebSocket error:', error);
+    
+    // Create user-friendly error notification
+    const errorNotification: NotificationData = {
+      id: `error_${Date.now()}`,
+      type: 'error',
+      title: 'Connection Error',
+      message: 'Real-time connection encountered an error. Reconnecting automatically...',
+      timestamp: new Date(),
+      read: false,
+    };
+    
+    setNotifications(prev => [errorNotification, ...prev.slice(0, 49)]);
+    
+    // Notify subscribers
+    subscriptions.notifications.forEach(callback => callback(errorNotification));
+  }
+  
+  // Reconnection handler
+  function handleReconnect(attempt: number) {
+    
+    // Show reconnection notification for long reconnection attempts
+    if (attempt > 3) {
+      const reconnectNotification: NotificationData = {
+        id: `reconnect_${Date.now()}`,
+        type: 'warning',
+        title: 'Reconnecting',
+        message: `Attempting to reconnect... (attempt ${attempt})`,
+        timestamp: new Date(),
+        read: false,
+      };
+      
+      setNotifications(prev => [reconnectNotification, ...prev.slice(0, 49)]);
+      subscriptions.notifications.forEach(callback => callback(reconnectNotification));
+    }
+  }
+  
+  // Connection quality change handler
+  function handleConnectionQualityChange(quality: ConnectionQuality) {
+    // Provide user feedback for poor connection quality
+    if (quality.strength === 'poor' && quality.consecutiveFailures > 2) {
+      const qualityNotification: NotificationData = {
+        id: `quality_${Date.now()}`,
+        type: 'warning',
+        title: 'Poor Connection',
+        message: 'Real-time features may be delayed due to poor connection quality.',
+        timestamp: new Date(),
+        read: false,
+      };
+      
+      setNotifications(prev => [qualityNotification, ...prev.slice(0, 49)]);
+      subscriptions.notifications.forEach(callback => callback(qualityNotification));
+    }
+    
+    // Automatically enable fallback for consistently poor connections
+    if (quality.strength === 'poor' && quality.consecutiveFailures >= 5) {
+      console.warn('[WebSocketContext] Switching to fallback mode due to poor connection quality');
+      setUsingFallback(true);
+      
+      // Start fallback services
+      if (isAuthenticated) {
+        pollingService.start();
+        presenceFallbackService.start();
       }
     }
   }
@@ -567,6 +852,30 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       data: { pitchId },
     });
   }, [sendMessage]);
+  
+  // NDA-specific action methods
+  const subscribeToNDAUpdates = useCallback((callback: (update: NDAStatusUpdate) => void) => {
+    subscriptions.ndaUpdates.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      subscriptions.ndaUpdates.delete(callback);
+    };
+  }, [subscriptions.ndaUpdates]);
+  
+  const markNDAUpdateAsRead = useCallback((ndaId: number) => {
+    setNDAUpdates(prev => 
+      prev.map(update => 
+        update.ndaId === ndaId 
+          ? { ...update, read: true } 
+          : update
+      )
+    );
+  }, []);
+  
+  const clearNDAUpdates = useCallback(() => {
+    setNDAUpdates([]);
+  }, []);
   
   // Subscription methods
   const subscribeToNotifications = useCallback((callback: (notification: NotificationData) => void) => {
@@ -660,7 +969,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       
       // Allow time for cleanup before reconnecting
       setTimeout(() => {
-        if (isAuthenticated && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
+        if (authStabilized && isAuthenticated && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
           connect();
         }
       }, 1000);
@@ -668,7 +977,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     
     previousUserType.current = currentUserType;
     
-    if (isAuthenticated && !isConnected && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
+    if (authStabilized && isAuthenticated && !isConnected && !isWebSocketDisabled && config.WEBSOCKET_ENABLED) {
       connect();
     } else if (!isAuthenticated && isConnected) {
       disconnect();
@@ -709,7 +1018,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         pollingService.addMessageHandler(handleMessage);
       }
     }
-  }, [isAuthenticated, isConnected, isWebSocketDisabled, usingFallback]); // Added isWebSocketDisabled and usingFallback to deps
+  }, [authStabilized, isAuthenticated, isConnected, isWebSocketDisabled, usingFallback]); // Added authStabilized and other deps
   
   // Emergency control functions
   const disableWebSocket = useCallback(() => {
@@ -763,10 +1072,17 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   }, []);
   
   const contextValue: WebSocketContextType = {
-    // Connection state
+    // Enhanced connection state
     connectionStatus,
     queueStatus,
     isConnected,
+    isReconnecting,
+    isDisconnecting,
+    
+    // Connection quality and reliability
+    connectionQuality,
+    retryCount,
+    isHealthy,
     
     // Real-time data
     notifications,
@@ -775,6 +1091,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     typingIndicators,
     uploadProgress,
     pitchViews,
+    ndaUpdates,
     
     // Actions
     sendMessage,
@@ -785,9 +1102,15 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     stopTyping,
     trackPitchView,
     
-    // Connection control
+    // NDA-specific actions
+    subscribeToNDAUpdates,
+    markNDAUpdateAsRead,
+    clearNDAUpdates,
+    
+    // Enhanced connection control
     connect,
     disconnect,
+    manualReconnect,
     clearQueue,
     
     // Emergency controls
@@ -806,6 +1129,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
     
     // Notification permission
     requestNotificationPermission,
+    
+    // Debug and monitoring
+    getConnectionStats: getStats,
   };
   
   return (
@@ -875,5 +1201,36 @@ export function usePitchViews(pitchId: number) {
     pitchData, 
     trackView, 
     subscribeToViews: (callback: (data: any) => void) => subscribeToPitchViews(pitchId, callback)
+  };
+}
+
+export function useNDAUpdates() {
+  const { 
+    ndaUpdates, 
+    subscribeToNDAUpdates, 
+    markNDAUpdateAsRead, 
+    clearNDAUpdates 
+  } = useWebSocket();
+  
+  const unreadCount = useMemo(() => {
+    return ndaUpdates.filter(update => !update.read).length;
+  }, [ndaUpdates]);
+  
+  const getUpdatesForPitch = useCallback((pitchId: number) => {
+    return ndaUpdates.filter(update => update.pitchId === pitchId);
+  }, [ndaUpdates]);
+  
+  const getUpdatesForNDA = useCallback((ndaId: number) => {
+    return ndaUpdates.filter(update => update.ndaId === ndaId);
+  }, [ndaUpdates]);
+  
+  return {
+    ndaUpdates,
+    unreadCount,
+    subscribeToNDAUpdates,
+    markNDAUpdateAsRead,
+    clearNDAUpdates,
+    getUpdatesForPitch,
+    getUpdatesForNDA
   };
 }

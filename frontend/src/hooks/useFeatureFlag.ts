@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { config } from '../config';
-import { useAuth } from './useAuth';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface FeatureFlagCache {
   [key: string]: {
@@ -20,7 +20,7 @@ export function useFeatureFlag(flagKey: string): {
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const { user } = useAuth();
+  const { user } = useBetterAuthStore();
 
   useEffect(() => {
     const evaluateFlag = async () => {
@@ -78,7 +78,7 @@ export function useFeatureFlag(flagKey: string): {
 
 export function useFeatureFlags(flagKeys: string[]): Record<string, boolean> {
   const [flags, setFlags] = useState<Record<string, boolean>>({});
-  const { user } = useAuth();
+  const { user } = useBetterAuthStore();
 
   useEffect(() => {
     const evaluateFlags = async () => {

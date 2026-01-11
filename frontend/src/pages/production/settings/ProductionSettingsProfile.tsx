@@ -6,7 +6,7 @@ import {
   Twitter, Linkedin, Instagram, Youtube, Award
 } from 'lucide-react';
 import DashboardHeader from '../../../components/DashboardHeader';
-import { useAuthStore } from '../../../store/authStore';
+import { useBetterAuthStore } from '../../../store/betterAuthStore';
 import { getDashboardRoute } from '../../../utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { toast } from 'react-hot-toast';
@@ -38,7 +38,7 @@ interface CompanyProfileData {
 
 export default function ProductionSettingsProfile() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState<CompanyProfileData>({
     companyName: 'Stellar Productions',

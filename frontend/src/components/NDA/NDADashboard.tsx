@@ -192,7 +192,7 @@ export default function NDADashboard({ userId, userRole }: NDADashboardProps) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
+          <p className="text-3xl font-bold text-gray-900">{typeof value === 'number' ? value.toLocaleString() : (value || '0')}</p>
           {subtitle && (
             <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
           )}

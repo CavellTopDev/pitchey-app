@@ -6,7 +6,7 @@ import {
   Volume2, VolumeX, Clock, Star, Zap
 } from 'lucide-react';
 import DashboardHeader from '../../../components/DashboardHeader';
-import { useAuthStore } from '../../../store/authStore';
+import { useBetterAuthStore } from '../../../store/betterAuthStore';
 import { getDashboardRoute } from '../../../utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { toast } from 'react-hot-toast';
@@ -56,7 +56,7 @@ interface NotificationSettings {
 
 export default function ProductionSettingsNotifications() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
     email: {

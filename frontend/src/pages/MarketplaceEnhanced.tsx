@@ -4,7 +4,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../services/pitch.service';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import FollowButton from '../components/FollowButton';
 import { PitchCardSkeleton } from '../components/Loading/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -84,7 +84,7 @@ export default function MarketplaceEnhanced() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user } = useBetterAuthStore();
   const toast = useToast();
   const { isMobile, isTablet } = useResponsive();
   
@@ -161,30 +161,16 @@ export default function MarketplaceEnhanced() {
     try {
       setLoading(true);
       // Use the getAll method directly on pitchAPI (no browse object)
-      const response = await pitchAPI.getAll();
+      // pitchAPI.getAll() already returns a plain array after parsing the response
+      const pitchesData = await pitchAPI.getAll();
       
-      // Handle the response - API returns nested structure
-      let pitchesData: Pitch[] = [];
+      console.log('MarketplaceEnhanced received pitches:', pitchesData.length);
       
-      // Handle double-wrapped response {success: true, data: {success: true, data: [...]}}
-      if (response?.data?.data && Array.isArray(response.data.data)) {
-        pitchesData = response.data.data;
-      } else if (response?.data && Array.isArray(response.data)) {
-        // Single wrapped response format {success: true, data: [...]}
-        pitchesData = response.data;
-      } else if (Array.isArray(response)) {
-        // Direct array response
-        pitchesData = response;
-      } else if (response?.pitches && Array.isArray(response.pitches)) {
-        // Alternative format with pitches key
-        pitchesData = response.pitches;
-      } else {
-        console.warn('Unexpected response format:', response);
-        pitchesData = [];
-      }
+      // Ensure we have an array
+      const validPitches = Array.isArray(pitchesData) ? pitchesData : [];
       
-      setPitches(pitchesData);
-      calculateStats(pitchesData);
+      setPitches(validPitches);
+      calculateStats(validPitches);
     } catch (error) {
       console.error('Error fetching pitches:', error);
       toast.error('Failed to load pitches');
@@ -258,8 +244,22 @@ export default function MarketplaceEnhanced() {
 
     // Budget range filter
     filtered = filtered.filter(pitch => {
-      const budget = pitch.budget || 0;
-      return budget >= filters.budgetRange.min && budget <= filters.budgetRange.max;
+      // Parse budget if it's a string like "5-8 million"
+      let budgetValue = 0;
+      if (typeof pitch.budget === 'string') {
+        // Extract numeric value from strings like "5-8 million" or "15-25 million"
+        const match = pitch.budget.match(/(\d+)/);
+        if (match) {
+          budgetValue = parseInt(match[1]) * 1000000; // Convert to actual number
+        }
+      } else if (typeof pitch.budget === 'number') {
+        budgetValue = pitch.budget;
+      }
+      
+      // If no budget specified, don't filter it out
+      if (!pitch.budget) return true;
+      
+      return budgetValue >= filters.budgetRange.min && budgetValue <= filters.budgetRange.max;
     });
 
     // Status filter

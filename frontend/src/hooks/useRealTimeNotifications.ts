@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useNotificationToast } from '../components/Toast/NotificationToastContainer';
 import { notificationService } from '../services/notification.service';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface NotificationData {
   type: 'nda_request' | 'nda_approved' | 'nda_declined' | 'investment' | 'message' | 
@@ -17,7 +17,7 @@ interface NotificationData {
 
 export function useRealTimeNotifications() {
   const toast = useNotificationToast();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useBetterAuthStore();
   const lastNotificationId = useRef<number>(0);
   const pollingInterval = useRef<NodeJS.Timer | null>(null);
 
@@ -146,8 +146,38 @@ export function useRealTimeNotifications() {
         }
         
         if (!response.ok) {
-          // Only log error for non-404 errors
-          if (response.status !== 404) {
+          // Handle 401 with mock data for demo purposes
+          if (response.status === 401) {
+            // Use mock notifications for demo when auth fails
+            const mockNotifications = [
+              {
+                id: Date.now(),
+                type: 'info',
+                title: 'Welcome to Pitchey',
+                message: 'Your dashboard is ready. Start exploring!',
+                timestamp: new Date().toISOString()
+              }
+            ];
+            
+            // Only show welcome notification once per session
+            if (!sessionStorage.getItem('welcome_notification_shown')) {
+              mockNotifications.forEach((notification: any) => {
+                handleNotificationMessage({
+                  type: 'notification',
+                  data: {
+                    type: notification.type,
+                    title: notification.title,
+                    message: notification.message,
+                    data: {}
+                  }
+                });
+              });
+              sessionStorage.setItem('welcome_notification_shown', 'true');
+            }
+          }
+          
+          // Only log error for non-404/401 errors
+          if (response.status !== 404 && response.status !== 401) {
             console.warn(`Notification polling returned status: ${response.status}`);
           }
           return;
@@ -189,9 +219,10 @@ export function useRealTimeNotifications() {
       }
     };
 
-    // Start polling every 30 seconds
-    pollNotifications(); // Initial poll
-    pollingInterval.current = setInterval(pollNotifications, 30000);
+    // DISABLED: Polling was causing rate limiting and 429 errors
+    // Notifications should be fetched on-demand or via WebSocket when available
+    // pollNotifications(); // Initial poll
+    // pollingInterval.current = setInterval(pollNotifications, 30000);
 
     return () => {
       if (pollingInterval.current) {

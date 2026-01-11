@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Users, Film, Award, TrendingUp, Star,
   Search, Filter, MapPin, Calendar, Eye,
@@ -7,8 +6,7 @@ import {
   ChevronRight, UserPlus, Check, Clock,
   Video, Edit3, Camera, Zap, Target
 } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface Creator {
   id: string;
@@ -48,8 +46,7 @@ interface Creator {
 }
 
 export default function InvestorCreators() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<'all' | 'director' | 'writer' | 'producer'>('all');
@@ -418,12 +415,8 @@ export default function InvestorCreators() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="text-gray-600">Loading creators...</div>
         </div>
       </div>
@@ -435,12 +428,8 @@ export default function InvestorCreators() {
   const verifiedCount = creators.filter(c => c.verified).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-        user={user}
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
@@ -692,16 +681,16 @@ export default function InvestorCreators() {
                 {/* Actions */}
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3 text-sm">
-                    <button className="flex items-center text-gray-600 hover:text-purple-600">
+                    <button className="flex items-center text-gray-600 hover:text-green-600">
                       <Eye className="w-4 h-4 mr-1" />
                       {creator.stats.viewCount.toLocaleString()}
                     </button>
-                    <button className="flex items-center text-gray-600 hover:text-purple-600">
+                    <button className="flex items-center text-gray-600 hover:text-green-600">
                       <MessageSquare className="w-4 h-4 mr-1" />
                       Message
                     </button>
                   </div>
-                  <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                  <button className="text-green-600 hover:text-purple-700 text-sm font-medium">
                     View Profile →
                   </button>
                 </div>

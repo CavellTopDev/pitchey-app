@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Shield, Upload, FileText, AlertCircle, CheckCircle, User, Building2, DollarSign, Eye } from 'lucide-react';
 import { ndaService } from '../../services/nda.service';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface EnhancedNDARequestProps {
   isOpen: boolean;
@@ -37,7 +37,7 @@ export default function EnhancedNDARequest({
   creatorType,
   onSuccess 
 }: EnhancedNDARequestProps) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [step, setStep] = useState<'info' | 'details' | 'submit'>('info');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

@@ -6,7 +6,7 @@ import {
   AlertTriangle, Calendar, MapPin, Key
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { toast } from 'react-hot-toast';
 
 interface ProfileVisibility {
@@ -40,7 +40,7 @@ interface ActiveSession {
 
 export default function PrivacySettings() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [activeTab, setActiveTab] = useState<'privacy' | 'security' | 'data'>('privacy');

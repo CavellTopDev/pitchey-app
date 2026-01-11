@@ -21,17 +21,19 @@ export const AnalyticCard: React.FC<AnalyticCardProps> = ({
   format = 'number'
 }) => {
   const formatValue = () => {
+    const safeValue = value ?? 0;
+    
     switch (format) {
       case 'currency':
         return new Intl.NumberFormat('en-US', { 
           style: 'currency', 
           currency: 'USD',
           notation: 'compact'
-        }).format(Number(value));
+        }).format(Number(safeValue));
       case 'percentage':
-        return `${Number(value).toFixed(1)}%`;
+        return `${Number(safeValue).toFixed(1)}%`;
       default:
-        return String(value);
+        return String(safeValue);
     }
   };
 

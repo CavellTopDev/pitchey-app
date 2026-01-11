@@ -292,18 +292,27 @@ export class NDAService {
       `/api/ndas/${ndaId}/download-signed` : 
       `/api/ndas/${ndaId}/download`;
 
-    const response = await fetch(
-      `${API_BASE_URL}${endpoint}`, {
-        headers: {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}${endpoint}`, {
+          method: 'GET',
+          credentials: 'include', // Include cookies for Better Auth session
+          headers: {
+            'Accept': 'application/pdf, application/octet-stream'
           }
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to download NDA document: ${response.status} ${errorText}`);
       }
-    );
 
-    if (!response.ok) {
-      throw new Error('Failed to download NDA document');
+      return response.blob();
+    } catch (error) {
+      console.error('NDA download failed:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to download NDA document');
     }
-
-    return response.blob();
   }
 
   // Generate NDA preview
@@ -321,7 +330,7 @@ export class NDAService {
   }
 
   // Get NDA templates
-  static async getTemplates(): Promise<NDATemplate[]> {
+  static async getNDATemplates(): Promise<{ templates: NDATemplate[] }> {
     const response = await apiClient.get<ApiResponse<{ templates: NDATemplate[] }>>(
       '/api/ndas/templates'
     );
@@ -330,11 +339,19 @@ export class NDAService {
       throw new Error(response.error?.message || 'Failed to fetch NDA templates');
     }
 
-    return response.data?.templates || [];
+    return {
+      templates: response.data?.templates || []
+    };
+  }
+
+  // Legacy method for backward compatibility
+  static async getTemplates(): Promise<NDATemplate[]> {
+    const result = await this.getNDATemplates();
+    return result.templates;
   }
 
   // Get NDA template by ID
-  static async getTemplateById(templateId: number): Promise<NDATemplate> {
+  static async getNDATemplate(templateId: number): Promise<NDATemplate> {
     const response = await apiClient.get<ApiResponse<{ template: NDATemplate }>>(
       `/api/ndas/templates/${templateId}`
     );
@@ -346,8 +363,13 @@ export class NDAService {
     return response.data.template;
   }
 
+  // Legacy method for backward compatibility
+  static async getTemplateById(templateId: number): Promise<NDATemplate> {
+    return this.getNDATemplate(templateId);
+  }
+
   // Create NDA template (for admins/creators)
-  static async createTemplate(template: Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<NDATemplate> {
+  static async createNDATemplate(template: Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<NDATemplate> {
     const response = await apiClient.post<ApiResponse<{ template: NDATemplate }>>(
       '/api/ndas/templates',
       template
@@ -360,8 +382,13 @@ export class NDAService {
     return response.data.template;
   }
 
+  // Legacy method for backward compatibility
+  static async createTemplate(template: Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<NDATemplate> {
+    return this.createNDATemplate(template);
+  }
+
   // Update NDA template
-  static async updateTemplate(
+  static async updateNDATemplate(
     templateId: number, 
     updates: Partial<Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
   ): Promise<NDATemplate> {
@@ -377,8 +404,16 @@ export class NDAService {
     return response.data.template;
   }
 
+  // Legacy method for backward compatibility
+  static async updateTemplate(
+    templateId: number, 
+    updates: Partial<Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
+  ): Promise<NDATemplate> {
+    return this.updateNDATemplate(templateId, updates);
+  }
+
   // Delete NDA template
-  static async deleteTemplate(templateId: number): Promise<void> {
+  static async deleteNDATemplate(templateId: number): Promise<void> {
     const response = await apiClient.delete<ApiResponse<void>>(
       `/api/ndas/templates/${templateId}`
     );
@@ -386,6 +421,11 @@ export class NDAService {
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to delete NDA template');
     }
+  }
+
+  // Legacy method for backward compatibility
+  static async deleteTemplate(templateId: number): Promise<void> {
+    return this.deleteNDATemplate(templateId);
   }
 
   // Get NDA statistics
@@ -399,6 +439,23 @@ export class NDAService {
 
     // Handle both formats: data.stats (old) and direct data (new)
     return (response.data as any).stats || response.data;
+  }
+
+  // Get NDA analytics with timeframe
+  static async getNDAAnalytics(timeframe: string = '30d', pitchId?: number): Promise<any> {
+    const params = new URLSearchParams();
+    params.append('timeframe', timeframe);
+    if (pitchId) params.append('pitchId', pitchId.toString());
+
+    const response = await apiClient.get<ApiResponse<{ analytics: any }>>(
+      `/api/ndas/analytics?${params}`
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || 'Failed to fetch NDA analytics');
+    }
+
+    return response.data.analytics || response.data;
   }
 
   // Check if user can request NDA for pitch with business rule validation
@@ -521,6 +578,86 @@ export class NDAService {
       valid: response.data?.valid || false,
       signedBy: response.data?.signedBy,
       signedAt: response.data?.signedAt
+    };
+  }
+
+  // Get active NDAs - NEW ENDPOINT
+  static async getActiveNDAs(): Promise<{
+    ndaRequests: NDARequest[];
+    total: number;
+  }> {
+    const response = await apiClient.get<ApiResponse<{
+      ndaRequests: NDARequest[];
+      total?: number;
+    }>>('/api/ndas/active');
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch active NDAs');
+    }
+
+    return {
+      ndaRequests: response.data?.ndaRequests || [],
+      total: response.data?.total || response.data?.ndaRequests?.length || 0
+    };
+  }
+
+  // Get signed NDAs - NEW ENDPOINT
+  static async getSignedNDAs(): Promise<{
+    ndaRequests: NDARequest[];
+    total: number;
+  }> {
+    const response = await apiClient.get<ApiResponse<{
+      ndaRequests: NDARequest[];
+      total?: number;
+    }>>('/api/ndas/signed');
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch signed NDAs');
+    }
+
+    return {
+      ndaRequests: response.data?.ndaRequests || [],
+      total: response.data?.total || response.data?.ndaRequests?.length || 0
+    };
+  }
+
+  // Get incoming NDA requests - NEW ENDPOINT
+  static async getIncomingRequests(): Promise<{
+    ndaRequests: NDARequest[];
+    total: number;
+  }> {
+    const response = await apiClient.get<ApiResponse<{
+      ndaRequests: NDARequest[];
+      total?: number;
+    }>>('/api/ndas/incoming-requests');
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch incoming NDA requests');
+    }
+
+    return {
+      ndaRequests: response.data?.ndaRequests || [],
+      total: response.data?.total || response.data?.ndaRequests?.length || 0
+    };
+  }
+
+  // Get outgoing NDA requests - NEW ENDPOINT  
+  static async getOutgoingRequests(): Promise<{
+    ndaRequests: NDARequest[];
+    total: number;
+  }> {
+    const response = await apiClient.get<ApiResponse<{
+      ndaRequests: NDARequest[];
+      total?: number;
+    }>>('/api/ndas/outgoing-requests');
+
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to fetch outgoing NDA requests');
+    }
+
+    return {
+      ndaRequests: response.data?.ndaRequests || [],
+      total: response.data?.total || response.data?.ndaRequests?.length || 0
     };
   }
 }

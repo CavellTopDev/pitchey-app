@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { Film, Briefcase, DollarSign, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { loginCreator, loginInvestor, loginProduction, loading, error } = useAuthStore();
+  const { loginCreator, loginInvestor, loginProduction, loading, error } = useBetterAuthStore();
   const [selectedPortal, setSelectedPortal] = useState<'creator' | 'investor' | 'production' | null>(null);
   const [formData, setFormData] = useState({
     email: '',

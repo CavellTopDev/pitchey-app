@@ -7,7 +7,7 @@ import {
   Eye, Download, Settings
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface TeamMember {
   id: string;
@@ -41,7 +41,7 @@ const statuses = ['active', 'inactive', 'pending'];
 
 export default function TeamMembers() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);

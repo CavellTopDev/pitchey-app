@@ -13,7 +13,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { ndaService, type NDA } from '../services/nda.service';
 import { useToast } from './Toast/ToastProvider';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -35,7 +35,7 @@ interface NDANotificationsProps {
 }
 
 export default function NDANotifications({ className = '', compact = false }: NDANotificationsProps) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const { success, error: showError, info } = useToast();
   const [notifications, setNotifications] = useState<NDANotificationItem[]>([]);
   const [pendingRequests, setPendingRequests] = useState<NDA[]>([]);
@@ -377,7 +377,7 @@ export function NDANotificationBadge({ className = '' }: { className?: string })
 
 // Full notification panel for dashboard
 export function NDANotificationPanel({ className = '' }: { className?: string }) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [requests, setRequests] = useState<NDA[]>([]);
   const [loading, setLoading] = useState(false);
 

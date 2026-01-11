@@ -5,6 +5,7 @@
 
 import { getCorsHeaders } from '../utils/response';
 import { WorkerDatabase } from './worker-database';
+import { BetterAuthSessionHandler } from '../auth/better-auth-session-handler';
 
 interface RealtimeMessage {
   type: 'notification' | 'dashboard_update' | 'chat_message' | 'presence_update' | 'typing_indicator' | 'upload_progress' | 'pitch_view_update' | 'connection' | 'ping' | 'pong';
@@ -38,10 +39,19 @@ export class WorkerRealtimeService {
   private db: WorkerDatabase;
   private config: WorkerRealtimeConfig;
   private env: any;
+  private sessionHandler: BetterAuthSessionHandler;
 
   constructor(env: any, db: WorkerDatabase) {
     this.env = env;
     this.db = db;
+    
+    try {
+      this.sessionHandler = new BetterAuthSessionHandler(env);
+    } catch (error) {
+      console.error('Error initializing BetterAuthSessionHandler:', error);
+      // For now, we'll continue without session handler and fail gracefully
+    }
+    
     this.config = {
       heartbeatInterval: 30000, // 30 seconds
       sessionTimeout: 300000,  // 5 minutes
@@ -54,27 +64,50 @@ export class WorkerRealtimeService {
   }
 
   /**
+   * Validate session from request using Better Auth
+   */
+  private async validateSessionFromRequest(request: Request): Promise<{ valid: boolean; user?: any }> {
+    if (!this.sessionHandler) {
+      console.error('SessionHandler not available - WebSocket authentication disabled');
+      return { valid: false };
+    }
+    
+    try {
+      return await this.sessionHandler.validateSession(request);
+    } catch (error) {
+      console.error('Session validation error:', error);
+      return { valid: false };
+    }
+  }
+
+  /**
    * Handle WebSocket upgrade request
    */
   async handleWebSocketUpgrade(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const token = url.searchParams.get('token');
-    const userId = url.searchParams.get('userId');
-    const userType = url.searchParams.get('userType') as 'creator' | 'investor' | 'production';
+    
+    // Better Auth: Validate authentication via session cookies instead of URL parameters
+    try {
+      // Extract session from request headers (cookies)
+      const sessionResult = await this.validateSessionFromRequest(request);
+      
+      if (!sessionResult.valid || !sessionResult.user) {
+        return new Response(JSON.stringify({
+          error: 'Authentication required',
+          message: 'Please log in to use WebSocket features',
+          fallback: 'Use polling endpoints for non-authenticated access'
+        }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
 
-    // Validate authentication
-    if (!token || !userId || !userType) {
-      return new Response(JSON.stringify({
-        error: 'Missing authentication parameters',
-        required: ['token', 'userId', 'userType']
-      }), {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          ...getCorsHeaders(request.headers.get('Origin'))
-        }
-      });
-    }
+      const { user } = sessionResult;
+      const userId = user.id.toString();
+      const userType = user.userType || 'creator'; // Default fallback
 
     // Create WebSocket pair
     const webSocketPair = new WebSocketPair();
@@ -126,11 +159,26 @@ export class WorkerRealtimeService {
       await this.updateUserPresence(userId, 'online');
     }
 
-    // Return the WebSocket connection to the client
-    return new Response(null, {
-      status: 101,
-      webSocket: client
-    });
+      // Return the WebSocket connection to the client
+      return new Response(null, {
+        status: 101,
+        webSocket: client
+      });
+    } catch (error) {
+      console.error('WebSocket upgrade error:', error);
+      
+      return new Response(JSON.stringify({
+        error: 'WebSocket upgrade failed',
+        message: 'Unable to establish WebSocket connection',
+        fallback: 'Use polling endpoints instead'
+      }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    }
   }
 
   /**

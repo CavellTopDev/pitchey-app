@@ -19,9 +19,43 @@ export interface AuthResult {
 }
 
 /**
+ * Check if a request path is a public endpoint that doesn't require authentication
+ */
+export function isPublicEndpoint(path: string, method: string): boolean {
+  const publicPaths = [
+    '/api/health',
+    '/api/auth/',
+    '/api/search/',
+    '/api/browse',
+    '/api/pitches/public/',
+    '/api/trending'
+  ];
+
+  // Check exact matches and path prefixes
+  return publicPaths.some(publicPath => {
+    if (publicPath.endsWith('/')) {
+      return path.startsWith(publicPath);
+    }
+    return path === publicPath;
+  }) || (method === 'GET' && path === '/api/pitches');
+}
+
+/**
  * Verify authentication using Better Auth session or JWT token
+ * Returns early success for public endpoints
  */
 export async function verifyAuth(request: Request, env: Env): Promise<AuthResult> {
+  const url = new URL(request.url);
+  const path = url.pathname;
+  const method = request.method;
+
+  // Skip authentication for public endpoints
+  if (isPublicEndpoint(path, method)) {
+    return {
+      success: true,
+      user: undefined // No user for public access
+    };
+  }
   try {
     // First check for JWT token in Authorization header
     const authHeader = request.headers.get('Authorization');

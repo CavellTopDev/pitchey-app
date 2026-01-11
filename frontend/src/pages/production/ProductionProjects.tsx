@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Film, Clock, CheckCircle, AlertCircle, TrendingUp, DollarSign, Calendar, Users, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
 
 interface Project {
   id: string;
@@ -33,8 +30,7 @@ const riskColors = {
 };
 
 export default function ProductionProjects() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    
   const [projects, setProjects] = useState<Project[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -123,14 +119,8 @@ export default function ProductionProjects() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="Production Projects"
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

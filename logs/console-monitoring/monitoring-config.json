@@ -1,0 +1,124 @@
+{
+  "monitoring": {
+    "name": "Pitchey Portal Console Monitor",
+    "version": "1.0.0",
+    "baseline_date": "2026-01-11",
+    "baseline_metrics": {
+      "total_routes_tested": 2,
+      "routes_with_errors": 1,
+      "api_failure_rate": 100,
+      "component_crashes": 1,
+      "average_errors_per_route": 76
+    }
+  },
+  "environments": {
+    "local": {
+      "url": "http://127.0.0.1:5173",
+      "proxy_url": "http://localhost:8001",
+      "backend_status": "proxy_required"
+    },
+    "production": {
+      "url": "https://pitchey-5o8-66n.pages.dev",
+      "api_url": "https://pitchey-api-prod.ndlovucavelle.workers.dev",
+      "backend_status": "direct"
+    }
+  },
+  "schedule": {
+    "development": {
+      "frequency": "every_4_hours",
+      "during_hours": "09:00-18:00",
+      "routes": ["critical_only"]
+    },
+    "production": {
+      "frequency": "every_hour",
+      "during_hours": "24/7",
+      "routes": ["all"]
+    }
+  },
+  "thresholds": {
+    "error_count": {
+      "warning": 10,
+      "critical": 50
+    },
+    "component_crashes": {
+      "warning": 1,
+      "critical": 3
+    },
+    "api_failures": {
+      "warning": 5,
+      "critical": 20
+    },
+    "performance": {
+      "load_time_ms": 3000,
+      "render_time_ms": 1000
+    }
+  },
+  "routes": {
+    "critical": [
+      "/",
+      "/browse",
+      "/creator/dashboard",
+      "/investor/dashboard",
+      "/production/dashboard"
+    ],
+    "high_priority": [
+      "/marketplace",
+      "/search",
+      "/creator/pitches",
+      "/investor/discover",
+      "/production/submissions"
+    ],
+    "standard": [
+      "/browse/genres",
+      "/browse/top-rated",
+      "/creator/analytics",
+      "/investor/portfolio",
+      "/production/analytics"
+    ]
+  },
+  "error_patterns": {
+    "known_issues": [
+      {
+        "pattern": "Failed to fetch trending pitches",
+        "category": "api_failure",
+        "severity": "critical",
+        "component": "browse_section",
+        "tracking_since": "2026-01-11"
+      },
+      {
+        "pattern": "Maximum update depth exceeded",
+        "category": "render_loop",
+        "severity": "high",
+        "component": "BrowseTabsFixed",
+        "tracking_since": "2026-01-11"
+      }
+    ],
+    "categories": {
+      "api_failure": "Network/backend connectivity issues",
+      "render_loop": "React component infinite re-render",
+      "auth_error": "Authentication and authorization issues",
+      "data_type": "Type validation and data structure mismatches",
+      "network_timeout": "Request timeout and network delays"
+    }
+  },
+  "reporting": {
+    "formats": ["json", "markdown", "csv"],
+    "include_screenshots": true,
+    "include_network_logs": true,
+    "retention_days": 30
+  },
+  "notifications": {
+    "email": {
+      "enabled": false,
+      "recipients": []
+    },
+    "console": {
+      "enabled": true,
+      "colors": true
+    },
+    "file": {
+      "enabled": true,
+      "path": "./logs/console-monitoring/"
+    }
+  }
+}

@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { config } from '../config';
-import type { WebSocketMessage, ConnectionStatus, MessageQueueStatus } from '../types/websocket';
+import { useBetterAuthStore } from '../store/betterAuthStore';
+import type { 
+  WebSocketMessage, 
+  ConnectionStatus, 
+  MessageQueueStatus,
+  ConnectionQuality,
+  ReconnectionConfig,
+  HeartbeatConfig
+} from '../types/websocket';
 
 interface UseWebSocketAdvancedOptions {
   onMessage?: (message: WebSocketMessage) => void;
@@ -8,22 +16,43 @@ interface UseWebSocketAdvancedOptions {
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
   onReconnect?: (attempt: number) => void;
+  onConnectionQualityChange?: (quality: ConnectionQuality) => void;
   autoConnect?: boolean;
-  maxReconnectAttempts?: number;
-  reconnectInterval?: number;
-  maxReconnectInterval?: number;
+  reconnection?: Partial<ReconnectionConfig>;
+  heartbeat?: Partial<HeartbeatConfig>;
   maxQueueSize?: number;
   enablePersistence?: boolean;
   rateLimit?: {
     maxMessages: number;
     windowMs: number;
   };
+  // Legacy support (deprecated)
+  maxReconnectAttempts?: number;
+  reconnectInterval?: number;
+  maxReconnectInterval?: number;
 }
 
 interface QueuedMessage extends WebSocketMessage {
   queuedAt: number;
   attempts: number;
   retryAfter?: number;
+  persistenceKey?: string;
+  priority: 'low' | 'normal' | 'high' | 'critical';
+}
+
+interface ConnectionAttempt {
+  timestamp: number;
+  success: boolean;
+  latency?: number;
+  error?: string;
+}
+
+interface HeartbeatState {
+  lastPing: Date | null;
+  lastPong: Date | null;
+  missedCount: number;
+  intervalId: number | null;
+  timeoutId: number | null;
 }
 
 interface RateLimitState {
@@ -33,21 +62,34 @@ interface RateLimitState {
   nextReset: number;
 }
 
-const DEFAULT_OPTIONS: Required<UseWebSocketAdvancedOptions> = {
+const DEFAULT_RECONNECTION_CONFIG: ReconnectionConfig = {
+  enabled: true,
+  maxAttempts: 10,
+  initialDelay: 1000,  // Start at 1 second
+  maxDelay: 30000,     // Max 30 seconds
+  backoffFactor: 2,    // Exponential backoff
+  jitter: true         // Add randomness to prevent thundering herd
+};
+
+const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
+  enabled: true,
+  interval: 30000,     // 30 seconds
+  timeout: 10000,      // 10 second timeout
+  maxMissed: 3         // 3 missed heartbeats = disconnect
+};
+
+const DEFAULT_OPTIONS: Required<Omit<UseWebSocketAdvancedOptions, 'reconnection' | 'heartbeat' | 'onConnectionQualityChange' | 'maxReconnectAttempts' | 'reconnectInterval' | 'maxReconnectInterval'>> = {
   onMessage: () => {},
   onConnect: () => {},
   onDisconnect: () => {},
   onError: () => {},
   onReconnect: () => {},
-  autoConnect: true,
-  maxReconnectAttempts: 3,  // Further reduced to prevent API spam
-  reconnectInterval: 5000,  // Increased initial interval
-  maxReconnectInterval: 60000,  // Increased max interval (1 minute)
-  maxQueueSize: 50,  // Reduced queue size
+  autoConnect: false, // CRITICAL: Default to false for security - require explicit opt-in
+  maxQueueSize: 100,
   enablePersistence: true,
   rateLimit: {
-    maxMessages: 30,  // Reduced message rate
-    windowMs: 60000, // 1 minute
+    maxMessages: 60,
+    windowMs: 60000,
   },
 };
 
@@ -55,6 +97,9 @@ const STORAGE_KEYS = {
   QUEUE: 'pitchey_ws_queue',
   RATE_LIMIT: 'pitchey_ws_ratelimit',
   CIRCUIT_BREAKER: 'pitchey_ws_circuit_breaker',
+  PERSISTENT_QUEUE: 'pitchey_ws_persistent_queue',
+  CONNECTION_HISTORY: 'pitchey_ws_connection_history',
+  QUALITY_METRICS: 'pitchey_ws_quality_metrics',
 };
 
 interface CircuitBreakerState {
@@ -74,16 +119,44 @@ const CIRCUIT_BREAKER_CONFIG = {
 const WEBSOCKET_ENABLED = true;
 
 export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) {
+  // Get authentication state from Better Auth
+  const { user, isAuthenticated } = useBetterAuthStore();
+  
+  // Merge configs with legacy support
+  const reconnectionConfig: ReconnectionConfig = {
+    ...DEFAULT_RECONNECTION_CONFIG,
+    ...options.reconnection,
+    // Legacy support
+    ...(options.maxReconnectAttempts && { maxAttempts: options.maxReconnectAttempts }),
+    ...(options.reconnectInterval && { initialDelay: options.reconnectInterval }),
+    ...(options.maxReconnectInterval && { maxDelay: options.maxReconnectInterval }),
+  };
+  
+  const heartbeatConfig: HeartbeatConfig = {
+    ...DEFAULT_HEARTBEAT_CONFIG,
+    ...options.heartbeat,
+  };
+  
   const opts = { ...DEFAULT_OPTIONS, ...options };
   
-  // State
+  // Enhanced state with quality tracking
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     connected: false,
     connecting: false,
     reconnecting: false,
+    disconnecting: false,
     lastConnected: null,
+    lastDisconnected: null,
     reconnectAttempts: 0,
     error: null,
+    state: 'disconnected',
+    quality: {
+      strength: 'poor',
+      latency: null,
+      lastPing: null,
+      consecutiveFailures: 0,
+      successRate: 0,
+    },
   });
   
   const [queueStatus, setQueueStatus] = useState<MessageQueueStatus>({
@@ -91,15 +164,25 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     maxQueue: opts.maxQueueSize,
     dropped: 0,
     rateLimited: 0,
+    persistent: 0,
+    pending: 0,
   });
   
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   
-  // Refs
+  // Enhanced refs with reliability features
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const pingIntervalRef = useRef<NodeJS.Timeout>();
   const messageQueueRef = useRef<QueuedMessage[]>([]);
+  const persistentQueueRef = useRef<QueuedMessage[]>([]);
+  const connectionHistoryRef = useRef<ConnectionAttempt[]>([]);
+  const heartbeatStateRef = useRef<HeartbeatState>({
+    lastPing: null,
+    lastPong: null,
+    missedCount: 0,
+    intervalId: null,
+    timeoutId: null,
+  });
   const rateLimitRef = useRef<RateLimitState>({
     messages: 0,
     windowStart: Date.now(),
@@ -112,6 +195,254 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     state: 'closed',
     nextAttemptTime: 0,
   });
+  const reconnectAttemptRef = useRef<number>(0);
+  const lastReconnectTimeRef = useRef<number>(0);
+  const pingIntervalRef = useRef<number | undefined>();
+  
+  // Update queue status - moved up to fix initialization order
+  const updateQueueStatus = useCallback(() => {
+    setQueueStatus(prev => ({
+      ...prev,
+      queued: messageQueueRef.current.length,
+    }));
+  }, []);
+  
+  // Enhanced reliability functions
+  
+  // Connection quality assessment
+  const updateConnectionQuality = useCallback((success: boolean, latency?: number) => {
+    const history = connectionHistoryRef.current;
+    const now = Date.now();
+    
+    // Add to history
+    history.push({
+      timestamp: now,
+      success,
+      latency,
+    });
+    
+    // Keep only last 10 attempts
+    if (history.length > 10) {
+      history.shift();
+    }
+    
+    // Calculate success rate
+    const successCount = history.filter(attempt => attempt.success).length;
+    const successRate = history.length > 0 ? (successCount / history.length) * 100 : 0;
+    
+    // Calculate average latency
+    const latencyHistory = history
+      .filter(attempt => attempt.latency !== undefined)
+      .map(attempt => attempt.latency!);
+    const avgLatency = latencyHistory.length > 0 
+      ? latencyHistory.reduce((sum, lat) => sum + lat, 0) / latencyHistory.length 
+      : null;
+    
+    // Determine connection strength
+    let strength: ConnectionQuality['strength'] = 'poor';
+    if (successRate >= 90 && (avgLatency === null || avgLatency < 100)) {
+      strength = 'excellent';
+    } else if (successRate >= 80 && (avgLatency === null || avgLatency < 200)) {
+      strength = 'good';
+    } else if (successRate >= 60 && (avgLatency === null || avgLatency < 500)) {
+      strength = 'fair';
+    }
+    
+    const quality: ConnectionQuality = {
+      strength,
+      latency: avgLatency,
+      lastPing: heartbeatStateRef.current.lastPing,
+      consecutiveFailures: success ? 0 : connectionHistoryRef.current
+        .slice(-5)
+        .filter(attempt => !attempt.success).length,
+      successRate,
+    };
+    
+    setConnectionStatus(prev => ({
+      ...prev,
+      quality,
+    }));
+    
+    if (options.onConnectionQualityChange) {
+      options.onConnectionQualityChange(quality);
+    }
+    
+    // Persist quality metrics
+    if (opts.enablePersistence) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.QUALITY_METRICS, JSON.stringify(quality));
+        localStorage.setItem(STORAGE_KEYS.CONNECTION_HISTORY, JSON.stringify(history.slice(-20)));
+      } catch (error) {
+        console.warn('Failed to persist connection quality metrics:', error);
+      }
+    }
+  }, [opts.enablePersistence, options.onConnectionQualityChange]);
+  
+  // Enhanced exponential backoff with jitter
+  const calculateReconnectDelay = useCallback((attempt: number): number => {
+    const config = reconnectionConfig;
+    let delay = Math.min(
+      config.initialDelay * Math.pow(config.backoffFactor, attempt),
+      config.maxDelay
+    );
+    
+    // Add jitter to prevent thundering herd problem
+    if (config.jitter) {
+      const jitterAmount = delay * 0.1; // 10% jitter
+      delay += (Math.random() - 0.5) * 2 * jitterAmount;
+    }
+    
+    return Math.max(delay, config.initialDelay);
+  }, [reconnectionConfig]);
+  
+  // Heartbeat management
+  const startHeartbeat = useCallback(() => {
+    if (!heartbeatConfig.enabled || heartbeatStateRef.current.intervalId) {
+      return;
+    }
+    
+    const heartbeat = heartbeatStateRef.current;
+    
+    heartbeat.intervalId = window.setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        const pingTime = Date.now();
+        heartbeat.lastPing = new Date(pingTime);
+        
+        try {
+          wsRef.current.send(JSON.stringify({
+            type: 'ping',
+            timestamp: new Date(pingTime).toISOString(),
+            id: `ping_${pingTime}`,
+          }));
+          
+          // Set timeout for pong response
+          heartbeat.timeoutId = window.setTimeout(() => {
+            heartbeat.missedCount++;
+            updateConnectionQuality(false);
+            
+            if (heartbeat.missedCount >= heartbeatConfig.maxMissed) {
+              console.warn('Heartbeat timeout - connection appears dead');
+              disconnect();
+              if (reconnectionConfig.enabled) {
+                connect();
+              }
+            }
+          }, heartbeatConfig.timeout);
+          
+        } catch (error) {
+          console.error('Failed to send heartbeat:', error);
+          heartbeat.missedCount++;
+          updateConnectionQuality(false);
+        }
+      }
+    }, heartbeatConfig.interval);
+  }, [heartbeatConfig, reconnectionConfig.enabled, updateConnectionQuality]);
+  
+  const stopHeartbeat = useCallback(() => {
+    const heartbeat = heartbeatStateRef.current;
+    
+    if (heartbeat.intervalId) {
+      clearInterval(heartbeat.intervalId);
+      heartbeat.intervalId = null;
+    }
+    
+    if (heartbeat.timeoutId) {
+      clearTimeout(heartbeat.timeoutId);
+      heartbeat.timeoutId = null;
+    }
+  }, []);
+  
+  const handlePongReceived = useCallback(() => {
+    const heartbeat = heartbeatStateRef.current;
+    const now = new Date();
+    
+    if (heartbeat.lastPing) {
+      const latency = now.getTime() - heartbeat.lastPing.getTime();
+      updateConnectionQuality(true, latency);
+    }
+    
+    heartbeat.lastPong = now;
+    heartbeat.missedCount = 0;
+    
+    if (heartbeat.timeoutId) {
+      clearTimeout(heartbeat.timeoutId);
+      heartbeat.timeoutId = null;
+    }
+  }, [updateConnectionQuality]);
+  
+  // Persistent message queue management
+  const savePersistentQueue = useCallback(() => {
+    if (!opts.enablePersistence) return;
+    
+    try {
+      const queue = persistentQueueRef.current.map(msg => ({
+        ...msg,
+        persistenceKey: msg.persistenceKey || `persist_${Date.now()}_${Math.random()}`,
+      }));
+      
+      localStorage.setItem(STORAGE_KEYS.PERSISTENT_QUEUE, JSON.stringify(queue));
+      
+      setQueueStatus(prev => ({
+        ...prev,
+        persistent: queue.length,
+      }));
+    } catch (error) {
+      console.warn('Failed to save persistent queue:', error);
+    }
+  }, [opts.enablePersistence]);
+  
+  const loadPersistentQueue = useCallback(() => {
+    if (!opts.enablePersistence) return;
+    
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.PERSISTENT_QUEUE);
+      if (saved) {
+        const queue: QueuedMessage[] = JSON.parse(saved);
+        const now = Date.now();
+        
+        // Filter out messages older than 24 hours
+        const validMessages = queue.filter(msg => 
+          now - msg.queuedAt < 24 * 60 * 60 * 1000
+        );
+        
+        persistentQueueRef.current = validMessages;
+        
+        setQueueStatus(prev => ({
+          ...prev,
+          persistent: validMessages.length,
+        }));
+      }
+    } catch (error) {
+      console.warn('Failed to load persistent queue:', error);
+    }
+  }, [opts.enablePersistence]);
+  
+  const addToPersistentQueue = useCallback((message: WebSocketMessage) => {
+    const queuedMessage: QueuedMessage = {
+      ...message,
+      id: message.id || `msg_${Date.now()}_${Math.random()}`,
+      queuedAt: Date.now(),
+      attempts: 0,
+      priority: message.priority || 'normal',
+      persistenceKey: `persist_${Date.now()}_${Math.random()}`,
+    };
+    
+    persistentQueueRef.current.push(queuedMessage);
+    savePersistentQueue();
+  }, [savePersistentQueue]);
+  
+  // Enhanced state management
+  const updateConnectionState = useCallback((newState: ConnectionStatus['state'], additionalProps?: Partial<ConnectionStatus>) => {
+    setConnectionStatus(prev => ({
+      ...prev,
+      ...additionalProps,
+      state: newState,
+      connecting: newState === 'connecting',
+      connected: newState === 'connected',
+      reconnecting: newState === 'reconnecting',
+      disconnecting: newState === 'disconnecting',
+    }));
+  }, []);
   
   // Circuit breaker functions
   const checkCircuitBreakerState = useCallback(() => {
@@ -173,10 +504,11 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     }
   }, [opts.enablePersistence]);
 
-  // Load persisted data
+  // Load persisted data and initialize
   useEffect(() => {
     if (opts.enablePersistence) {
       try {
+        // Load regular message queue
         const saved = localStorage.getItem(STORAGE_KEYS.QUEUE);
         if (saved) {
           const parsed = JSON.parse(saved);
@@ -186,6 +518,26 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           updateQueueStatus();
         }
         
+        // Load persistent queue
+        loadPersistentQueue();
+        
+        // Load connection history
+        const historySaved = localStorage.getItem(STORAGE_KEYS.CONNECTION_HISTORY);
+        if (historySaved) {
+          const parsed = JSON.parse(historySaved);
+          connectionHistoryRef.current = parsed.filter((attempt: ConnectionAttempt) => 
+            Date.now() - attempt.timestamp < 24 * 60 * 60 * 1000 // Keep last 24 hours
+          ).slice(-20); // Keep last 20 attempts
+        }
+        
+        // Load quality metrics
+        const qualitySaved = localStorage.getItem(STORAGE_KEYS.QUALITY_METRICS);
+        if (qualitySaved) {
+          const parsed = JSON.parse(qualitySaved);
+          setConnectionStatus(prev => ({ ...prev, quality: parsed }));
+        }
+        
+        // Load rate limit state
         const rateLimitSaved = localStorage.getItem(STORAGE_KEYS.RATE_LIMIT);
         if (rateLimitSaved) {
           const parsed = JSON.parse(rateLimitSaved);
@@ -194,6 +546,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           }
         }
         
+        // Load circuit breaker state
         const circuitBreakerSaved = localStorage.getItem(STORAGE_KEYS.CIRCUIT_BREAKER);
         if (circuitBreakerSaved) {
           const parsed = JSON.parse(circuitBreakerSaved);
@@ -206,7 +559,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         console.warn('Failed to load persisted WebSocket data:', error);
       }
     }
-  }, [opts.enablePersistence, opts.rateLimit.windowMs]);
+  }, [opts.enablePersistence, opts.rateLimit.windowMs, loadPersistentQueue, updateQueueStatus]);
   
   // Rate limiting
   const isRateLimited = useCallback(() => {
@@ -231,13 +584,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     return false;
   }, [opts.rateLimit]);
   
-  // Update queue status
-  const updateQueueStatus = useCallback(() => {
-    setQueueStatus(prev => ({
-      ...prev,
-      queued: messageQueueRef.current.length,
-    }));
-  }, []);
+  // updateQueueStatus function moved up to fix initialization order
   
   // Persist data
   const persistData = useCallback(() => {
@@ -323,6 +670,16 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
   
   // Connect function with circuit breaker and bundling-loop protection
   const connect = useCallback(() => {
+    // CRITICAL: Authentication guard - prevent connection when user not authenticated
+    if (!isAuthenticated || !user) {
+      setConnectionStatus(prev => ({
+        ...prev,
+        connected: false,
+        error: null, // Clear any previous error
+      }));
+      return;
+    }
+    
     // CRITICAL: WebSocket disabled on free tier - use polling instead
     if (!WEBSOCKET_ENABLED) {
       setConnectionStatus(prev => ({
@@ -359,11 +716,8 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     }
     localStorage.setItem('pitchey_last_ws_attempt', now.toString());
     
-    const token = localStorage.getItem('authToken');
-    
-    if (!token) {
-      // Don't return early - allow unauthenticated connections
-    }
+    // Better Auth: No longer use JWT tokens - session cookies handle auth
+    // Remove legacy JWT token checks
     
     const isDemoMode = localStorage.getItem('demoMode') === 'true';
     if (isDemoMode) {
@@ -376,57 +730,39 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       return;
     }
     
-    setConnectionStatus(prev => ({ 
-      ...prev, 
-      connecting: true, 
-      error: null 
-    }));
+    // Update connection state to connecting
+    updateConnectionState('connecting', {
+      error: null,
+      lastDisconnected: connectionStatus.lastDisconnected,
+    });
     
     try {
       const wsUrl = config.WS_URL.replace(/^http/, 'ws');
       
-      // Try different authentication methods
-      let finalWsUrl: string;
-      const authHeaders: Record<string, string> = {};
-      
-      if (token) {
-        // Primary method: Query parameter (most compatible)
-        finalWsUrl = `${wsUrl}/ws?token=${token}`;
-      } else {
-        // Fallback: Connect without authentication (limited functionality)
-        finalWsUrl = `${wsUrl}/ws`;
-      }
+      // Better Auth: WebSocket authentication is handled via cookies
+      // No need to pass token in URL - session cookies are sent automatically
+      const finalWsUrl = `${wsUrl}/ws`;
       
       const ws = new WebSocket(finalWsUrl);
       
       ws.onopen = () => {
+        const connectTime = Date.now();
+        const connectionLatency = connectTime - now;
         
-        // Record successful connection in circuit breaker
+        // Record successful connection
+        updateConnectionQuality(true, connectionLatency);
         recordCircuitBreakerSuccess();
+        reconnectAttemptRef.current = 0;
         
-        // If we have a token but connected without it (fallback scenario), 
-        // try to authenticate via first message
-        if (token && !finalWsUrl.includes('token=')) {
-          try {
-            ws.send(JSON.stringify({
-              type: 'auth',
-              token: token,
-              timestamp: new Date().toISOString()
-            }));
-          } catch (error) {
-            console.warn('WebSocket: Failed to send auth message:', error);
-          }
-        }
-        
-        setConnectionStatus(prev => ({
-          ...prev,
-          connected: true,
-          connecting: false,
-          reconnecting: false,
-          lastConnected: new Date(),
+        // Update connection state to connected
+        updateConnectionState('connected', {
+          lastConnected: new Date(connectTime),
           reconnectAttempts: 0,
           error: null,
-        }));
+        });
+        
+        // Better Auth: Authentication is handled via session cookies
+        // No need to send auth messages - the server knows who we are from cookies
         
         opts.onConnect();
         
@@ -436,15 +772,18 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           reconnectTimeoutRef.current = undefined;
         }
         
-        // Start ping interval
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
+        // Start enhanced heartbeat system
+        startHeartbeat();
+        
+        // Load and process persistent queue
+        loadPersistentQueue();
+        if (persistentQueueRef.current.length > 0) {
+          // Move persistent messages to regular queue for processing
+          messageQueueRef.current.push(...persistentQueueRef.current);
+          persistentQueueRef.current = [];
+          savePersistentQueue();
+          updateQueueStatus();
         }
-        pingIntervalRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() }));
-          }
-        }, 30000);
         
         // Process queued messages
         setTimeout(processQueue, 1000);
@@ -463,7 +802,8 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
               ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
             }
           } else if (message.type === 'pong') {
-            // Connection health confirmed - no action needed
+            // Handle pong response for heartbeat
+            handlePongReceived();
           } else if (message.type === 'connected') {
             // Handle connection confirmation with authentication status
           } else if (message.type === 'auth_success') {
@@ -501,11 +841,12 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             
             // Handle specific error types
             if (errorCode === 2001 || errorCode === 2002) { // Auth token invalid/expired
-              // Clear token and redirect to login
+              // Clear token but DON'T redirect - Better Auth handles this
               localStorage.removeItem('authToken');
-              if (window.location.pathname !== '/login') {
-                window.location.href = '/login';
-              }
+              // DISABLED: This was causing redirect loops with Better Auth
+              // if (window.location.pathname !== '/login') {
+              //   window.location.href = '/login';
+              // }
             }
             
             // Update connection status with error info
@@ -520,20 +861,26 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       };
       
       ws.onclose = (event) => {
-        setConnectionStatus(prev => ({
-          ...prev,
-          connected: false,
-          connecting: false,
+        const disconnectTime = new Date();
+        
+        // Update connection state
+        updateConnectionState('disconnected', {
+          lastDisconnected: disconnectTime,
           error: event.reason || `Connection closed (${event.code})`,
-        }));
+        });
         
         wsRef.current = null;
         opts.onDisconnect();
         
-        // Clear ping interval
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-          pingIntervalRef.current = undefined;
+        // Stop heartbeat
+        stopHeartbeat();
+        
+        // Move pending messages to persistent storage
+        if (messageQueueRef.current.length > 0) {
+          persistentQueueRef.current.push(...messageQueueRef.current);
+          messageQueueRef.current = [];
+          savePersistentQueue();
+          updateQueueStatus();
         }
         
         // Attempt reconnect if not a clean close or auth failure
@@ -557,20 +904,19 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
           return;
         }
         
-        if (!isCleanClose && !isAuthFailure &&
-            connectionStatus.reconnectAttempts < opts.maxReconnectAttempts) {
+        if (!isCleanClose && !isAuthFailure && reconnectionConfig.enabled &&
+            reconnectAttemptRef.current < reconnectionConfig.maxAttempts) {
           
-          const attempt = connectionStatus.reconnectAttempts + 1;
-          const delay = Math.min(
-            opts.reconnectInterval * Math.pow(2, attempt - 1),
-            opts.maxReconnectInterval
-          );
+          const attempt = ++reconnectAttemptRef.current;
+          const delay = calculateReconnectDelay(attempt - 1);
           
-          setConnectionStatus(prev => ({
-            ...prev,
-            reconnecting: true,
+          // Update connection state for reconnecting
+          updateConnectionState('reconnecting', {
             reconnectAttempts: attempt,
-          }));
+          });
+          
+          // Record failed connection attempt
+          updateConnectionQuality(false);
           
           
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -591,14 +937,21 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
             localStorage.removeItem('authToken');
             localStorage.removeItem('userType');
           }
-        } else if (connectionStatus.reconnectAttempts >= opts.maxReconnectAttempts) {
+        } else if (reconnectAttemptRef.current >= reconnectionConfig.maxAttempts) {
           // Max attempts reached - stop trying and show user-friendly message
-          console.error(`WebSocket connection failed after ${opts.maxReconnectAttempts} attempts. Real-time features disabled.`);
-          setConnectionStatus(prev => ({
-            ...prev,
+          console.error(`WebSocket connection failed after ${reconnectionConfig.maxAttempts} attempts. Real-time features disabled.`);
+          updateConnectionState('disconnected', {
             reconnecting: false,
             error: 'Connection failed after multiple attempts. Real-time features temporarily unavailable.',
-          }));
+          });
+          
+          // Move all queued messages to persistent storage for later
+          if (messageQueueRef.current.length > 0) {
+            persistentQueueRef.current.push(...messageQueueRef.current);
+            messageQueueRef.current = [];
+            savePersistentQueue();
+            updateQueueStatus();
+          }
         }
       };
       
@@ -632,7 +985,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
         error: 'Failed to create connection',
       }));
     }
-  }, [opts, connectionStatus.reconnectAttempts, processQueue, checkCircuitBreakerState, recordCircuitBreakerSuccess, recordCircuitBreakerFailure]);
+  }, [opts, connectionStatus.reconnectAttempts, processQueue, checkCircuitBreakerState, recordCircuitBreakerSuccess, recordCircuitBreakerFailure, isAuthenticated, user]);
   
   // Disconnect function
   const disconnect = useCallback(() => {
@@ -688,7 +1041,13 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       }
     } else {
       // Queue for later if not connected
-      queueMessage(message);
+      if (message.priority === 'critical' || message.priority === 'high') {
+        // High priority messages go to regular queue for immediate processing when reconnected
+        queueMessage(message);
+      } else {
+        // Normal/low priority messages go to persistent storage
+        addToPersistentQueue(message);
+      }
       
       // Try to reconnect if not already connecting
       if (!connectionStatus.connecting && !connectionStatus.reconnecting) {
@@ -711,9 +1070,10 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     return [...messageQueueRef.current];
   }, []);
   
-  // Auto-connect on mount
+  // Auto-connect on mount and when authentication state changes
   useEffect(() => {
-    if (opts.autoConnect) {
+    // CRITICAL: Only auto-connect if explicitly enabled AND user is authenticated
+    if (opts.autoConnect && isAuthenticated && user) {
       // In development, React StrictMode causes double mounting
       // Delay WebSocket connection slightly to avoid race condition
       const isDev = import.meta.env.DEV;
@@ -725,14 +1085,28 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       
       return () => {
         clearTimeout(timer);
-        disconnect();
       };
+    }
+    
+    // CRITICAL: Disconnect immediately if not authenticated
+    if (!isAuthenticated || !user) {
+      if (connectionStatus.connected || connectionStatus.connecting) {
+        disconnect();
+      }
+      // Clear any connection state
+      setConnectionStatus(prev => ({
+        ...prev,
+        connected: false,
+        connecting: false,
+        reconnecting: false,
+        error: null
+      }));
     }
     
     return () => {
       disconnect();
     };
-  }, [opts.autoConnect]); // Don't include connect/disconnect to avoid reconnections
+  }, [opts.autoConnect, isAuthenticated, user, connectionStatus.connected, connectionStatus.connecting]); // Include connection state
   
   // Guard against browser extension message channel errors
   useEffect(() => {
@@ -774,11 +1148,15 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
   }, []);
   
   return {
-    // Connection state
+    // Enhanced connection state
     connectionStatus,
     isConnected: connectionStatus.connected,
     isConnecting: connectionStatus.connecting,
     isReconnecting: connectionStatus.reconnecting,
+    isDisconnecting: connectionStatus.disconnecting,
+    
+    // Connection quality
+    connectionQuality: connectionStatus.quality,
     
     // Message state
     lastMessage,
@@ -791,9 +1169,32 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     clearQueue,
     getQueuedMessages,
     
-    // Status helpers
+    // Manual reconnect function
+    manualReconnect: useCallback(() => {
+      if (wsRef.current) {
+        disconnect();
+      }
+      reconnectAttemptRef.current = 0; // Reset attempt counter
+      connect();
+    }, [connect, disconnect]),
+    
+    // Configuration access
+    reconnectionConfig,
+    heartbeatConfig,
+    
+    // Enhanced status helpers
     canSend: connectionStatus.connected && !rateLimitRef.current.blocked,
     nextRetry: rateLimitRef.current.blocked ? new Date(rateLimitRef.current.nextReset) : null,
+    retryCount: reconnectAttemptRef.current,
+    isHealthy: connectionStatus.quality.strength === 'excellent' || connectionStatus.quality.strength === 'good',
+    
+    // Debug information
+    getStats: useCallback(() => ({
+      connectionHistory: connectionHistoryRef.current,
+      heartbeatState: heartbeatStateRef.current,
+      persistentQueue: persistentQueueRef.current.length,
+      circuitBreaker: circuitBreakerRef.current,
+    }), []),
   };
 }
 

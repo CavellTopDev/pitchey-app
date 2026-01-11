@@ -1,26 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
-  BarChart3, Activity, TrendingUp, DollarSign, Eye, 
-  Film, Users, Clock, Calendar, FileText,
-  TrendingDown, Award, Target, Briefcase
+  BarChart3, Activity, TrendingUp, DollarSign
 } from 'lucide-react';
-import DashboardHeader from '../components/DashboardHeader';
-import { useAuthStore } from '../store/authStore';
 import ProductionAnalytics from './production/ProductionAnalytics';
 import ProductionActivity from './production/ProductionActivity';
 import ProductionStats from './production/ProductionStats';
 import ProductionRevenue from './production/ProductionRevenue';
 
 export default function ProductionAnalyticsPage() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'stats' | 'revenue'>('overview');
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -30,15 +18,13 @@ export default function ProductionAnalyticsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="Analytics & Performance"
-        onLogout={handleLogout}
-      />
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Analytics & Performance</h1>
+        <p className="text-gray-600 mt-1">Track your production metrics and project performance</p>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div>
         {/* Tab Navigation */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
           <div className="border-b border-gray-200">

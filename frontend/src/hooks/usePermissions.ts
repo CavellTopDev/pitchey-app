@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useAuth } from './useAuth';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { apiClient } from '../services/api-client';
 
 interface PermissionContextType {
@@ -31,7 +31,7 @@ interface PermissionProviderProps {
 }
 
 export function PermissionProvider({ children }: PermissionProviderProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useBetterAuthStore();
   const [roles, setRoles] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);

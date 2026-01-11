@@ -298,23 +298,157 @@ async function syncPitches() {
   // Implement sync logic
 }
 
-// Push notifications
+// Enhanced Push notifications with proper data handling
 self.addEventListener('push', (event) => {
+  console.log('[SW] Push event received:', event);
+
+  if (!event.data) {
+    console.log('[SW] Push event has no data');
+    return;
+  }
+
+  let notificationData;
+  try {
+    notificationData = event.data.json();
+    console.log('[SW] Push notification data:', notificationData);
+  } catch (error) {
+    console.error('[SW] Error parsing push notification data:', error);
+    notificationData = {
+      title: 'Pitchey Notification',
+      body: event.data.text() || 'You have a new notification',
+      icon: '/icon-192x192.png',
+      badge: '/badge-72x72.png',
+    };
+  }
+
   const options = {
-    body: event.data ? event.data.text() : 'New notification',
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
-    vibrate: [100, 50, 100],
+    body: notificationData.body || notificationData.message,
+    icon: notificationData.icon || '/icon-192x192.png',
+    badge: notificationData.badge || '/badge-72x72.png',
+    image: notificationData.image,
+    tag: notificationData.tag || `pitchey-${Date.now()}`,
     data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1,
+      url: notificationData.data?.url || notificationData.actionUrl || '/dashboard',
+      notificationId: notificationData.data?.notificationId || notificationData.id,
+      subscriptionId: notificationData.data?.subscriptionId,
+      timestamp: Date.now(),
+      category: notificationData.category,
+      priority: notificationData.priority,
+      ...notificationData.data,
     },
+    actions: notificationData.actions || [
+      {
+        action: 'view',
+        title: notificationData.actionText || 'View',
+        icon: '/icon-view.png',
+      },
+      {
+        action: 'dismiss',
+        title: 'Dismiss',
+        icon: '/icon-dismiss.png',
+      },
+    ],
+    requireInteraction: notificationData.requireInteraction || notificationData.priority === 'critical',
+    silent: notificationData.silent || false,
+    vibrate: notificationData.vibrate || [200, 100, 200],
+    timestamp: notificationData.timestamp || Date.now(),
   };
-  
+
   event.waitUntil(
-    self.registration.showNotification('Pitchey', options)
+    self.registration.showNotification(
+      notificationData.title || 'Pitchey Notification',
+      options
+    )
   );
 });
+
+// Notification click handling
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification click event:', event);
+
+  const notification = event.notification;
+  const action = event.action;
+  const data = notification.data || {};
+
+  // Close the notification
+  notification.close();
+
+  // Track the click event
+  if (data.notificationId && data.subscriptionId) {
+    trackNotificationEvent('clicked', data.notificationId, data.subscriptionId, action);
+  }
+
+  // Handle different actions
+  if (action === 'dismiss') {
+    // Just close the notification - already done above
+    return;
+  }
+
+  // Default action or 'view' action - open the app
+  const urlToOpen = data.url || '/dashboard';
+
+  event.waitUntil(
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    }).then((clientList) => {
+      // Check if there's already a window/tab open with this URL
+      for (const client of clientList) {
+        if (client.url.includes(urlToOpen.split('?')[0]) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+
+      // Check for any Pitchey window/tab
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.navigate(urlToOpen).then(() => client.focus());
+        }
+      }
+
+      // No suitable window found, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});
+
+// Notification close event
+self.addEventListener('notificationclose', (event) => {
+  console.log('[SW] Notification close event:', event);
+
+  const notification = event.notification;
+  const data = notification.data || {};
+
+  // Track the dismiss event
+  if (data.notificationId && data.subscriptionId) {
+    trackNotificationEvent('dismissed', data.notificationId, data.subscriptionId);
+  }
+});
+
+// Helper function to track notification events
+function trackNotificationEvent(eventType, notificationId, subscriptionId, action = null) {
+  const eventData = {
+    subscriptionId,
+    notificationId,
+    eventType,
+    action,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Try to send immediately
+  fetch('/api/notifications/push/track', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(eventData),
+  }).catch((error) => {
+    console.error('[SW] Failed to track notification event:', error);
+    // Could implement offline storage for retry later
+  });
+}
 
 // Message handler for cache management
 self.addEventListener('message', (event) => {

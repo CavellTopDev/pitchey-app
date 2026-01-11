@@ -1,10 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, Calendar, TrendingUp, DollarSign, BarChart3, PieChart, FileSpreadsheet } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '@/store/authStore';
 
 interface Report {
   id: string;
@@ -19,8 +16,7 @@ interface Report {
 }
 
 const InvestorReports = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
   
@@ -137,12 +133,8 @@ const InvestorReports = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation 
-        user={user}
-        onLogout={handleLogout}
-      />
-      <main className="container mx-auto px-4 py-6">
+    <div>
+            <main className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Investment Reports</h1>
@@ -353,7 +345,7 @@ const InvestorReports = () => {
                 <PieChart className="h-4 w-4 mr-2" />
                 Sector Analysis
               </Button>
-              <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Button className="bg-green-600 hover:bg-green-700 text-white">
                 Generate Report
               </Button>
             </div>

@@ -239,18 +239,24 @@ export class MFAClient {
    * Setup MFA for user
    */
   async setupMFA(userId: string, password: string): Promise<MFASetup> {
-    const response = await fetch(`${API_URL}/api/endpoint`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, password }),
-      credentials: 'include' // Send cookies for Better Auth session
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to setup MFA');
+    try {
+      const response = await fetch(`${API_URL}/api/endpoint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, password }),
+        credentials: 'include' // Send cookies for Better Auth session
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to setup MFA: ${response.status} ${errorText}`);
+      }
+      
+      return response.json();
+    } catch (error) {
+      console.error('MFA setup failed:', error);
+      throw new Error(error instanceof Error ? error.message : 'Failed to setup MFA');
     }
-    
-    return response.json();
   }
   
   /**

@@ -42,10 +42,14 @@ router.all("/api/(.*)", async (ctx) => {
     // Prepare headers with cookie forwarding
     const headers = new Headers();
     ctx.request.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'connection') {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== 'host' && lowerKey !== 'connection' && lowerKey !== 'accept-encoding') {
         headers.set(key, value);
       }
     });
+    
+    // Request uncompressed responses to avoid decompression issues
+    headers.set('Accept-Encoding', 'identity');
     
     // Ensure cookies are forwarded
     const cookieHeader = ctx.request.headers.get('cookie');
@@ -77,11 +81,13 @@ router.all("/api/(.*)", async (ctx) => {
       response.headers.get('set-cookie') ? 
         [response.headers.get('set-cookie')] : [];
     
-    // Copy response headers (except set-cookie which we'll handle separately)
+    // Copy response headers (except set-cookie and CORS headers which we'll handle separately)
     response.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== 'connection' && 
-          key.toLowerCase() !== 'content-encoding' && 
-          key.toLowerCase() !== 'set-cookie') {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== 'connection' && 
+          lowerKey !== 'content-encoding' && 
+          lowerKey !== 'set-cookie' &&
+          !lowerKey.startsWith('access-control-')) { // Don't copy CORS headers from worker
         ctx.response.headers.set(key, value);
       }
     });
@@ -95,7 +101,23 @@ router.all("/api/(.*)", async (ctx) => {
     
     // Set response
     ctx.response.status = response.status;
-    ctx.response.body = await response.text();
+    
+    // Handle response body - decompress if needed
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      // For JSON responses, parse and re-stringify to ensure proper format
+      try {
+        const jsonData = await response.json();
+        ctx.response.body = JSON.stringify(jsonData);
+        ctx.response.headers.set('content-type', 'application/json');
+      } catch (err) {
+        // If JSON parsing fails, return error
+        console.error('Failed to parse JSON response:', err);
+        ctx.response.body = JSON.stringify({ success: false, error: 'Invalid JSON response from server' });
+      }
+    } else {
+      ctx.response.body = await response.text();
+    }
     
   } catch (error) {
     console.error(`Error proxying request:`, error);

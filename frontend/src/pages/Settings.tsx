@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Bell, Eye, Mail, Smartphone, Lock, Key, Trash2, AlertCircle } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { API_URL } from '../config';
 
 interface NotificationSettings {
@@ -30,7 +30,7 @@ interface SecuritySettings {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [activeTab, setActiveTab] = useState<'notifications' | 'privacy' | 'security' | 'account'>('notifications');
   const [notifications, setNotifications] = useState<NotificationSettings>({
     emailNotifications: true,

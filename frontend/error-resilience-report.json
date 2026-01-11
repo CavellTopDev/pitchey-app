@@ -1,0 +1,179 @@
+{
+  "timestamp": "2026-01-11T16:42:58.201Z",
+  "resilienceScore": 96,
+  "summary": {
+    "passed": 26,
+    "failed": 0,
+    "warnings": 1,
+    "total": 27
+  },
+  "tests": [
+    {
+      "name": "Network Unavailable",
+      "status": "pass",
+      "message": "Gracefully handles unreachable API",
+      "details": null
+    },
+    {
+      "name": "Timeout Handling",
+      "status": "warn",
+      "message": "Timeout behavior needs verification",
+      "details": null
+    },
+    {
+      "name": "401 Handling: /api/notifications",
+      "status": "pass",
+      "message": "Returns 401 for unauthenticated requests (Better Auth)",
+      "details": null
+    },
+    {
+      "name": "401 Handling: /api/saved-pitches",
+      "status": "pass",
+      "message": "Returns 401 for unauthenticated requests (Better Auth)",
+      "details": null
+    },
+    {
+      "name": "401 Handling: /api/ndas/active",
+      "status": "pass",
+      "message": "Returns 401 for unauthenticated requests (Better Auth)",
+      "details": null
+    },
+    {
+      "name": "401 Handling: /api/user/profile",
+      "status": "pass",
+      "message": "Returns 401 for unauthenticated requests (Better Auth)",
+      "details": null
+    },
+    {
+      "name": "JSON Parse Protection",
+      "status": "pass",
+      "message": "API client has safeJsonParse protection against malformed responses",
+      "details": null
+    },
+    {
+      "name": "Invalid Token",
+      "status": "pass",
+      "message": "Correctly handles invalid authentication tokens",
+      "details": null
+    },
+    {
+      "name": "Session Management",
+      "status": "pass",
+      "message": "Better Auth handles session management via cookies",
+      "details": null
+    },
+    {
+      "name": "Error Boundary Implementation",
+      "status": "pass",
+      "message": "Complete error boundary with proper lifecycle methods",
+      "details": null
+    },
+    {
+      "name": "Error Logging",
+      "status": "pass",
+      "message": "Error boundary includes error logging",
+      "details": null
+    },
+    {
+      "name": "Error Recovery",
+      "status": "pass",
+      "message": "Error boundary provides retry mechanism",
+      "details": null
+    },
+    {
+      "name": "WebSocket Circuit Breaker",
+      "status": "pass",
+      "message": "Circuit breaker pattern implemented",
+      "details": null
+    },
+    {
+      "name": "WebSocket Reconnection",
+      "status": "pass",
+      "message": "Exponential backoff reconnection implemented",
+      "details": null
+    },
+    {
+      "name": "WebSocket Heartbeat",
+      "status": "pass",
+      "message": "Heartbeat mechanism implemented",
+      "details": null
+    },
+    {
+      "name": "WebSocket Message Queue",
+      "status": "pass",
+      "message": "Message queuing with retry logic",
+      "details": null
+    },
+    {
+      "name": "NDA Service Try/Catch",
+      "status": "pass",
+      "message": "NDA service has try/catch error handling",
+      "details": null
+    },
+    {
+      "name": "NDA Service Graceful Errors",
+      "status": "pass",
+      "message": "Returns error objects instead of throwing",
+      "details": null
+    },
+    {
+      "name": "NDA Service HTTP Error Handling",
+      "status": "pass",
+      "message": "Handles specific HTTP error codes",
+      "details": null
+    },
+    {
+      "name": "Notification Auth Check",
+      "status": "pass",
+      "message": "Checks authentication before API calls",
+      "details": null
+    },
+    {
+      "name": "Notification Empty Fallback",
+      "status": "pass",
+      "message": "Returns empty arrays on failure",
+      "details": null
+    },
+    {
+      "name": "Notification Error Handling",
+      "status": "pass",
+      "message": "Catches and handles errors appropriately",
+      "details": null
+    },
+    {
+      "name": "API Client Retry Logic",
+      "status": "pass",
+      "message": "Implements retry logic with max attempts",
+      "details": null
+    },
+    {
+      "name": "API Client Exponential Backoff",
+      "status": "pass",
+      "message": "Implements exponential backoff for retries",
+      "details": null
+    },
+    {
+      "name": "API Client JSON Safety",
+      "status": "pass",
+      "message": "Safe JSON parsing prevents crashes",
+      "details": null
+    },
+    {
+      "name": "API Client Timeout",
+      "status": "pass",
+      "message": "Request timeout protection",
+      "details": null
+    },
+    {
+      "name": "API Client Circuit Breaker",
+      "status": "pass",
+      "message": "Smart retry logic prevents cascade failures",
+      "details": null
+    }
+  ],
+  "recommendations": [
+    "Implement comprehensive error monitoring in production",
+    "Set up automated error resilience testing in CI/CD pipeline",
+    "Consider implementing error budgets and SLA monitoring"
+  ]
+}

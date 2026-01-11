@@ -6,7 +6,7 @@ import {
   Settings, UserCheck, AlertCircle, Crown, Star
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
 
 interface Permission {
@@ -74,7 +74,7 @@ const defaultPermissions: Permission[] = [
 
 export default function TeamRoles() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   
   const [roles, setRoles] = useState<Role[]>([]);

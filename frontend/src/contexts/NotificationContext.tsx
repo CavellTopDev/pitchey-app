@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { notificationService } from '../services/notification.service';
-import { useWebSocket } from './WebSocketContext';
+// WebSocket removed - was causing circular dependency and reload issues
+// import { useWebSocket } from './WebSocketContext';
 
 export interface Notification {
   id: string;
@@ -45,7 +46,8 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { notifications: wsNotifications } = useWebSocket();
+  // WebSocket notifications temporarily disabled to fix circular dependency
+  // const { notifications: wsNotifications } = useWebSocket();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -109,22 +111,22 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     setNotifications([]);
   }, []);
 
-  // Handle WebSocket notifications in real-time
-  useEffect(() => {
-    if (wsNotifications && wsNotifications.length > 0) {
-      // Transform WebSocket notifications to context format
-      const formattedNotifications: Notification[] = wsNotifications.map(n => ({
-        id: n.id.toString(),
-        type: n.type as Notification['type'],
-        title: n.title,
-        message: n.message,
-        timestamp: n.timestamp,
-        read: n.read,
-      }));
-      
-      setNotifications(formattedNotifications);
-    }
-  }, [wsNotifications]);
+  // WebSocket notifications disabled - was causing circular dependency
+  // useEffect(() => {
+  //   if (wsNotifications && wsNotifications.length > 0) {
+  //     // Transform WebSocket notifications to context format
+  //     const formattedNotifications: Notification[] = wsNotifications.map(n => ({
+  //       id: n.id.toString(),
+  //       type: n.type as Notification['type'],
+  //       title: n.title,
+  //       message: n.message,
+  //       timestamp: n.timestamp,
+  //       read: n.read,
+  //     }));
+  //     
+  //     setNotifications(formattedNotifications);
+  //   }
+  // }, [wsNotifications]);
 
   // Initial fetch only once on mount (no aggressive polling)
   useEffect(() => {

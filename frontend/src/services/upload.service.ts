@@ -1,6 +1,7 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
+// Export UploadProgress interface
 export interface UploadProgress {
   loaded: number;
   total: number;

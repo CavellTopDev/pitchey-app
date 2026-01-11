@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import DashboardHeader from '../../components/DashboardHeader';
 import { 
   DollarSign, TrendingUp, Calendar, Download, 
   Filter, ArrowUp, ArrowDown, FileText,
@@ -7,11 +6,11 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { pitchService } from '../../services/pitch.service';
 
 export default function ProductionRevenue() {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [timeRange, setTimeRange] = useState('month');
   const [revenueData, setRevenueData] = useState({
     totalRevenue: 0,
@@ -48,9 +47,8 @@ export default function ProductionRevenue() {
   }, [timeRange]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader user={user} userType="production" />
-      
+    <div>
+            
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>

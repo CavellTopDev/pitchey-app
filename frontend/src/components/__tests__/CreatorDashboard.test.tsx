@@ -5,15 +5,19 @@ import { getMockAuthStore } from '../../test/utils'
 
 // Mock the auth store with creator user
 const mockCreatorUser = {
-  id: '1',
+  id: 'mock-creator-uuid-' + Date.now(),
   email: 'creator@test.com',
   name: 'Test Creator',
+  portalType: 'creator',
   role: 'creator',
+  company: 'Test Creative Studio',
   subscription_tier: 'basic',
   avatar_url: null,
   bio: null,
   location: null,
   website: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
 }
 
 // Mock localStorage

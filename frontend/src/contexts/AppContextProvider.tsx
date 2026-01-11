@@ -1,7 +1,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 
 // Import all individual context providers
-import { AuthProvider } from './AuthContext';
+// AuthContext removed - using Better Auth hooks instead
 import { ThemeProvider } from './ThemeContext';
 import { NotificationProvider } from './NotificationContext';
 import { WebSocketProvider } from './WebSocketContext';
@@ -20,21 +20,19 @@ interface AppProviderProps {
  */
 export const AppContextProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
-    <AuthProvider>
-      <UserProvider>
-        <ThemeProvider>
-          <WebSocketProvider>
-            <PollingProvider defaultInterval={30000} enablePolling={true}>
-              <NotificationProvider>
-                <PitchProvider>
-                  {children}
-                </PitchProvider>
-              </NotificationProvider>
-            </PollingProvider>
-          </WebSocketProvider>
-        </ThemeProvider>
-      </UserProvider>
-    </AuthProvider>
+    <UserProvider>
+      <ThemeProvider>
+        <WebSocketProvider>
+          <PollingProvider defaultInterval={30000} enablePolling={true}>
+            <NotificationProvider>
+              <PitchProvider>
+                {children}
+              </PitchProvider>
+            </NotificationProvider>
+          </PollingProvider>
+        </WebSocketProvider>
+      </ThemeProvider>
+    </UserProvider>
   );
 };
 

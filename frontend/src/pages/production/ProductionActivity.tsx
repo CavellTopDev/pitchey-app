@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Activity, Clock, Users, Eye, Heart, MessageSquare, 
   FileText, Film, Star, ArrowRight, Bell, Filter,
@@ -7,8 +6,7 @@ import {
   User, Calendar, TrendingUp, Download, Share,
   Bookmark, ThumbsUp, Play, Upload, Edit, Trash2
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
 
 interface ActivityItem {
@@ -47,8 +45,7 @@ interface ActivityFilters {
 }
 
 export default function ProductionActivity() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -330,15 +327,8 @@ export default function ProductionActivity() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
-          user={user}
-          userType="production"
-          title="Activity Feed"
-          onLogout={logout}
-          useEnhancedNav={true}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="flex items-center space-x-2">
             <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
             <span className="text-gray-600">Loading activity feed...</span>
@@ -351,15 +341,8 @@ export default function ProductionActivity() {
   const unreadCount = activities.filter(a => !a.isRead).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="Activity Feed"
-        onLogout={logout}
-        useEnhancedNav={true}
-      />
-
+    <div>
+      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">

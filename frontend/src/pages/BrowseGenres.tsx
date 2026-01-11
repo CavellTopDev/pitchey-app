@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { PitchCardSkeleton } from '../components/Loading/Skeleton';
 import EmptyState from '../components/EmptyState';
 import { useToast } from '../components/Toast/ToastProvider';
@@ -45,7 +45,7 @@ interface GenreStats {
 export default function BrowseGenres() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user } = useBetterAuthStore();
   const toast = useToast();
   const userType = localStorage.getItem('userType');
   

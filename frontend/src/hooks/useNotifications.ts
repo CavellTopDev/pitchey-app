@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { notificationService } from '../services/notification.service';
 import { useWebSocket } from './useWebSocket';
-import { useAuth } from './useAuth';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface Notification {
   id: number;
@@ -42,13 +42,20 @@ export const useNotifications = (): UseNotificationsReturn => {
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
   
-  const { user } = useAuth();
+  const { user } = useBetterAuthStore();
   const { socket, isConnected } = useWebSocket();
   const limit = 20;
 
-  // Fetch notifications
+  // Fetch notifications with authentication guard
   const fetchNotifications = useCallback(async (reset = false) => {
-    if (!user) return;
+    // ✅ CRITICAL FIX: Check authentication first
+    if (!user || !user.id) {
+      setLoading(false);
+      setNotifications([]);
+      setUnreadCount(0);
+      setError(null);
+      return;
+    }
     
     try {
       setLoading(true);
@@ -71,6 +78,13 @@ export const useNotifications = (): UseNotificationsReturn => {
       setHasMore(data.hasMore);
       setUnreadCount(data.unreadCount);
     } catch (err) {
+      // ✅ Handle 401 errors gracefully
+      if (err?.response?.status === 401 || err?.status === 401) {
+        setNotifications([]);
+        setUnreadCount(0);
+        setError(null); // Don't show error for auth issues
+        return;
+      }
       console.error('Error fetching notifications:', err);
       setError('Failed to load notifications');
     } finally {

@@ -56,12 +56,12 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
       const token = localStorage.getItem('authToken');
       
       const endpoint = activeTab === 'incoming' 
-        ? `/api/nda/requests/incoming`
-        : `/api/nda/requests/outgoing`;
+        ? `/api/ndas/incoming-requests`
+        : `/api/ndas/outgoing-requests`;
       
       const params = filter !== 'all' ? `?status=${filter}` : '';
       
-    const response = await fetch(`${API_URL}/api/nda`, {
+    const response = await fetch(`${API_URL}${endpoint}${params}`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -86,16 +86,15 @@ const NDAManagement: React.FC<NDAManagementProps> = ({ userType, userId }) => {
     try {
       const token = localStorage.getItem('authToken');
       
-    const response = await fetch(`${API_URL}/api/nda/approve`, {
+    const response = await fetch(`${API_URL}/api/ndas/${selectedRequest.requestId}/${approvalForm.approved ? 'approve' : 'reject'}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Send cookies for Better Auth session
       body: JSON.stringify({
-        requestId: selectedRequest.id,
-        approved: approvalForm.approved,
-        notes: approvalForm.notes,
+        notes: approvalForm.message,
+        reason: approvalForm.approved ? undefined : approvalForm.message,
         customTerms: approvalForm.customTerms
-      }),
-      credentials: 'include' // Send cookies for Better Auth session
+      })
     });
 
       if (response.ok) {

@@ -13,7 +13,7 @@ import {
   Mail,
   Users
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { ndaService, type NDA } from '../services/nda.service';
 
 interface NDAWizardProps {
@@ -81,7 +81,7 @@ export default function NDAWizard({
   creatorName,
   onStatusChange
 }: NDAWizardProps) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [currentStep, setCurrentStep] = useState<WizardStep>('info');
   const [ndaData, setNDAData] = useState<NDA | null>(null);
   const [loading, setLoading] = useState(false);

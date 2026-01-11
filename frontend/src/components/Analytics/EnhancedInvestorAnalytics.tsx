@@ -18,7 +18,8 @@ import { AnalyticCard } from './AnalyticCard';
 import { TimeRangeFilter } from './TimeRangeFilter';
 import { PerformanceChart } from './PerformanceChart';
 import { AnalyticsExport } from './AnalyticsExport';
-import { analyticsService, TimeRange } from '../../services/analytics.service';
+import { analyticsService } from '../../services/analytics.service';
+import type { TimeRange } from '../../services/analytics.service';
 import { 
   LineChart, 
   BarChart, 

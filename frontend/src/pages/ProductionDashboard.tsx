@@ -8,7 +8,7 @@ import {
   X, AlertCircle, User, Trash2, CheckCircle, LogOut, CreditCard, Coins,
   Bookmark, Filter, Search
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { usePitchStore } from '../store/pitchStore';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
@@ -26,6 +26,17 @@ import InvestmentOpportunities from '../components/Investment/InvestmentOpportun
 import { EnhancedProductionAnalytics } from '../components/Analytics/EnhancedProductionAnalytics';
 import { withPortalErrorBoundary } from '../components/ErrorBoundary/PortalErrorBoundary';
 import { useSentryPortal } from '../hooks/useSentryPortal';
+import {
+  validateProductionStats,
+  safeArray,
+  safeMap,
+  safeAccess,
+  safeNumber,
+  safeString,
+  safeExecute,
+  safeBudgetCalc
+} from '../utils/defensive';
+import { formatCurrency, formatNumber, formatPercentage, formatDate } from '../utils/formatters';
 // import DashboardHeader from '../components/DashboardHeader';
 // EnhancedProductionNav is now handled by PortalLayout
 // import * as Sentry from '@sentry/react';
@@ -52,7 +63,7 @@ interface Activity {
 
 function ProductionDashboard() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const { getAllPitches, drafts } = usePitchStore();
   
   // Sentry portal integration
@@ -127,18 +138,36 @@ function ProductionDashboard() {
       // Track investment data fetch
       trackEvent('investment.data.fetch', { userId: user?.id });
       
-      // Fetch production investment metrics
+      // Fetch production investment metrics with defensive parsing
       const metricsResponse = await InvestmentService.getProductionInvestments();
-      if (metricsResponse.success) {
-        setInvestmentMetrics(metricsResponse.data);
+      if (safeAccess(metricsResponse, 'success', false)) {
+        const metricsData = safeAccess(metricsResponse, 'data', {});
+        const safeMetrics = validateProductionStats({
+          total_projects: safeAccess(metricsData, 'totalProjects', 0),
+          active_projects: safeAccess(metricsData, 'activeProjects', 0),
+          completed_projects: safeAccess(metricsData, 'completedProjects', 0),
+          total_revenue: safeAccess(metricsData, 'totalRevenue', 0),
+          average_budget: safeAccess(metricsData, 'averageBudget', 0),
+          success_rate: safeAccess(metricsData, 'successRate', 0),
+          upcoming_releases: safeAccess(metricsData, 'upcomingReleases', 0)
+        });
+        setInvestmentMetrics(safeMetrics);
       } else {
         trackApiError('/api/production/investments', { success: false });
       }
       
-      // Fetch investment opportunities for production companies
+      // Fetch investment opportunities with safe parsing
       const opportunitiesResponse = await InvestmentService.getInvestmentOpportunities({ limit: 8 });
-      if (opportunitiesResponse.success) {
-        setInvestmentOpportunities(opportunitiesResponse.data || []);
+      if (safeAccess(opportunitiesResponse, 'success', false)) {
+        const opportunitiesData = safeAccess(opportunitiesResponse, 'data', []);
+        const safeOpportunities = safeMap(opportunitiesData, (opp: any) => ({
+          id: safeAccess(opp, 'id', Math.random()),
+          title: safeString(safeAccess(opp, 'title', 'Unknown Opportunity')),
+          amount: safeNumber(safeAccess(opp, 'amount', 0)),
+          expectedROI: safeNumber(safeAccess(opp, 'expectedROI', 0)),
+          riskLevel: safeString(safeAccess(opp, 'riskLevel', 'Unknown'))
+        }));
+        setInvestmentOpportunities(safeOpportunities);
       } else {
         trackApiError('/api/investment-opportunities', { success: false });
       }
@@ -184,8 +213,19 @@ function ProductionDashboard() {
           paymentsAPI.getSubscriptionStatus()
         ]);
         
-        if (analyticsData.success) {
-          setAnalytics(analyticsData.analytics);
+        if (safeAccess(analyticsData, 'success', false)) {
+          const analyticsRaw = safeAccess(analyticsData, 'analytics', {});
+          const safeAnalytics = {
+            totalViews: safeNumber(safeAccess(analyticsRaw, 'totalViews', 0)),
+            totalLikes: safeNumber(safeAccess(analyticsRaw, 'totalLikes', 0)),
+            totalNDAs: safeNumber(safeAccess(analyticsRaw, 'totalNDAs', 0)),
+            viewsChange: safeNumber(safeAccess(analyticsRaw, 'viewsChange', 0)),
+            likesChange: safeNumber(safeAccess(analyticsRaw, 'likesChange', 0)),
+            ndasChange: safeNumber(safeAccess(analyticsRaw, 'ndasChange', 0)),
+            topPitch: safeAccess(analyticsRaw, 'topPitch', null),
+            recentActivity: safeArray(safeAccess(analyticsRaw, 'recentActivity', []))
+          };
+          setAnalytics(safeAnalytics);
         } else {
           trackApiError('/api/analytics/dashboard', analyticsData);
         }
@@ -206,37 +246,44 @@ function ProductionDashboard() {
           ndaAPI.getOutgoingSignedNDAs()
         ]);
         
-        if (incomingRequests && incomingRequests.success) {
-          setIncomingNDARequests(incomingRequests.requests || []);
+        if (safeAccess(incomingRequests, 'success', false)) {
+          const incomingData = safeArray(safeAccess(incomingRequests, 'requests', []));
+          setIncomingNDARequests(incomingData);
         }
-        if (outgoingRequests && outgoingRequests.success) {
-          setOutgoingNDARequests(outgoingRequests.requests || []);
+        if (safeAccess(outgoingRequests, 'success', false)) {
+          const outgoingData = safeArray(safeAccess(outgoingRequests, 'requests', []));
+          setOutgoingNDARequests(outgoingData);
         }
-        if (incomingSignedNDAs && incomingSignedNDAs.success) {
-          setIncomingSignedNDAs(incomingSignedNDAs.ndas || []);
+        if (safeAccess(incomingSignedNDAs, 'success', false)) {
+          const incomingSignedData = safeArray(safeAccess(incomingSignedNDAs, 'ndas', []));
+          setIncomingSignedNDAs(incomingSignedData);
         }
-        if (outgoingSignedNDAs && outgoingSignedNDAs.success) {
-          setSignedNDAs(outgoingSignedNDAs.ndas || []);
+        if (safeAccess(outgoingSignedNDAs, 'success', false)) {
+          const outgoingSignedData = safeArray(safeAccess(outgoingSignedNDAs, 'ndas', []));
+          setSignedNDAs(outgoingSignedData);
         }
       } catch (error) {
         console.error('Failed to fetch NDA data:', error);
       }
       
-      // Get pitches from store
-      const allStorePitches = getAllPitches();
+      // Get pitches from store with safe operations
+      const allStorePitches = safeArray(getAllPitches());
       
-      // Convert store pitches to dashboard format
-      const dashboardPitches = allStorePitches.map(p => ({
+      // Convert store pitches to dashboard format with defensive mapping
+      const dashboardPitches = safeMap(allStorePitches, (p: any) => ({
         ...p,
+        id: safeAccess(p, 'id', Math.random()),
+        title: safeString(safeAccess(p, 'title', 'Untitled Project')),
+        budget: safeNumber(safeAccess(p, 'budget', 0)),
         creator: { 
-          id: user?.id || 1, 
-          username: user?.username || 'production', 
+          id: safeAccess(user, 'id', 1), 
+          username: safeString(safeAccess(user, 'username', 'production')), 
           userType: 'production' as const, 
-          companyName: user?.companyName 
+          companyName: safeString(safeAccess(user, 'companyName', ''))
         }
       }));
       
-      setMyPitches(dashboardPitches as any);
+      setMyPitches(dashboardPitches);
       
       // Fetch following pitches from API
       try {
@@ -658,7 +705,9 @@ function ProductionDashboard() {
           </div>
         )}
       </div>
-      <h3 className="text-2xl font-bold text-gray-900">{typeof value === 'number' ? value.toLocaleString() : value}</h3>
+      <h3 className="text-2xl font-bold text-gray-900">
+        {typeof value === 'number' ? value.toLocaleString() : (value || '0')}
+      </h3>
       <p className="text-sm text-gray-600 mt-1">{title}</p>
     </div>
   );
@@ -675,35 +724,15 @@ function ProductionDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Main content - removed the flex wrapper and EnhancedProductionNav since it's handled by PortalLayout */}
-      <div className="w-full">
-        {/* Top header bar */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Production Dashboard</h1>
-            <div className="flex items-center gap-4">
-              <button className="p-2 text-gray-500 hover:text-gray-700">
-                <Bell className="w-5 h-5" />
-              </button>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="w-full">
+      {/* Page Title - simplified since PortalLayout provides header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Production Dashboard</h1>
+      </div>
 
       {/* Tab Navigation */}
-      <div className="border-t border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <nav className="-mb-px flex flex-wrap gap-x-4 sm:gap-x-8 px-4 sm:px-6 lg:px-8 overflow-x-auto">
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex flex-wrap gap-x-4 sm:gap-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab('overview')}
               className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
@@ -745,24 +774,21 @@ function ProductionDashboard() {
               NDAs
             </button>
           </nav>
-        </div>
       </div>
 
       {/* Verification Warning */}
       {verificationStatus === 'pending' && (
-        <div className="bg-yellow-50 border-b border-yellow-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-yellow-600" />
-              <p className="text-sm text-yellow-800">
-                Your company verification is pending. Some features may be limited until verification is complete (24-48 hours).
-              </p>
-            </div>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-yellow-600" />
+            <p className="text-sm text-yellow-800">
+              Your company verification is pending. Some features may be limited until verification is complete (24-48 hours).
+            </p>
           </div>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
         {activeTab === 'overview' && (
           <div className="space-y-8">
             {/* Enhanced Production Analytics */}
@@ -2268,7 +2294,6 @@ function ProductionDashboard() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@
 
 // Export all providers
 export { AppContextProvider } from './AppContextProvider';
-export { AuthProvider, useAuth } from './AuthContext';
+// AuthContext removed - use Better Auth hooks instead
 export { ThemeProvider, useTheme } from './ThemeContext';
 export { NotificationProvider, useNotifications } from './NotificationContext';
 export { WebSocketProvider } from './WebSocketContext';

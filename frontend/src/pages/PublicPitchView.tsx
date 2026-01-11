@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, Heart, Share2, Tag, Film, Clock, Calendar, User, Shield, Lock, DollarSign, Briefcase, LogIn, Building2, Wallet } from 'lucide-react';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { ndaAPI } from '../lib/apiServices';
 import { ndaService } from '../services/nda.service';
 import NDAWizard from '../components/NDAWizard';
@@ -12,7 +12,7 @@ import FormatDisplay from '../components/FormatDisplay';
 export default function PublicPitchView() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user, logout } = useBetterAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

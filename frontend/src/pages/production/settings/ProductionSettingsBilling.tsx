@@ -7,7 +7,7 @@ import {
   FileText, Star, Crown, Zap
 } from 'lucide-react';
 import DashboardHeader from '../../../components/DashboardHeader';
-import { useAuthStore } from '../../../store/authStore';
+import { useBetterAuthStore } from '../../../store/betterAuthStore';
 import { getDashboardRoute } from '../../../utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
@@ -57,7 +57,7 @@ interface BillingInfo {
 
 export default function ProductionSettingsBilling() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'methods' | 'billing' | 'invoices'>('overview');
 

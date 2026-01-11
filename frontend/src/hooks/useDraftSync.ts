@@ -45,7 +45,7 @@ const DEFAULT_OPTIONS: Required<Omit<DraftSyncOptions, 'onConflict' | 'onSave' |
 
 export function useDraftSync(options: DraftSyncOptions) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const { sendMessage, isConnected } = useWebSocket();
+  const { sendMessage, isConnected, subscribeToMessages } = useWebSocket();
   
   // State
   const [state, setState] = useState<DraftSyncState>({
@@ -62,9 +62,10 @@ export function useDraftSync(options: DraftSyncOptions) {
   
   // Refs
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
-  const pendingChangesRef = useRef<any>(null);
+  const pendingChangesRef = useRef<any>(null); // Enhanced to store operation type and retry info
   const isInitializedRef = useRef(false);
   const lastSyncedContentRef = useRef<any>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   
   // Local storage key
   const localStorageKey = `draft_${opts.draftType}_${opts.draftId}`;
@@ -126,12 +127,15 @@ export function useDraftSync(options: DraftSyncOptions) {
     return content !== null && content !== undefined;
   }, [opts]);
   
-  // Send save request
-  const sendSaveRequest = useCallback((content: any, version: number) => {
+  // Send save request with readyState checks and retry logic
+  const sendSaveRequest = useCallback((content: any, version: number, retryAttempt = 0) => {
+    // Check WebSocket connection state first
     if (!isConnected) {
+      // Queue the save request for when connection is restored
+      pendingChangesRef.current = { content, version, type: 'save', retryAttempt };
       setState(prev => ({ 
         ...prev, 
-        lastError: 'Not connected to server',
+        lastError: 'Not connected to server - will retry when connection is restored',
         isSaving: false 
       }));
       updateSyncStatus('error');
@@ -141,7 +145,7 @@ export function useDraftSync(options: DraftSyncOptions) {
     setState(prev => ({ ...prev, isSaving: true, lastError: null }));
     updateSyncStatus('saving');
     
-    sendMessage({
+    const success = sendMessage({
       type: 'draft_sync',
       data: {
         action: 'save',
@@ -150,16 +154,35 @@ export function useDraftSync(options: DraftSyncOptions) {
         content,
         version,
         timestamp: new Date().toISOString(),
+        retryAttempt,
       },
+      priority: retryAttempt > 0 ? 'high' : 'normal', // Higher priority for retries
     });
-  }, [isConnected, sendMessage, opts.draftId, opts.draftType, updateSyncStatus]);
-  
-  // Send load request
-  const sendLoadRequest = useCallback(() => {
-    if (!isConnected) {
+    
+    // If message failed to send (WebSocket not ready), implement retry logic
+    if (!success && retryAttempt < 3) {
+      const retryDelay = Math.min(1000 * Math.pow(2, retryAttempt), 10000); // Exponential backoff, max 10s
+      setTimeout(() => {
+        sendSaveRequest(content, version, retryAttempt + 1);
+      }, retryDelay);
+    } else if (!success) {
       setState(prev => ({ 
         ...prev, 
-        lastError: 'Not connected to server',
+        isSaving: false,
+        lastError: 'Failed to send save request after multiple attempts'
+      }));
+      updateSyncStatus('error');
+    }
+  }, [isConnected, sendMessage, opts.draftId, opts.draftType, updateSyncStatus]);
+  
+  // Send load request with readyState checks and retry logic
+  const sendLoadRequest = useCallback((retryAttempt = 0) => {
+    if (!isConnected) {
+      // Queue the load request for when connection is restored
+      pendingChangesRef.current = { type: 'load', retryAttempt };
+      setState(prev => ({ 
+        ...prev, 
+        lastError: 'Not connected to server - will retry when connection is restored',
         isLoading: false 
       }));
       updateSyncStatus('error');
@@ -169,14 +192,31 @@ export function useDraftSync(options: DraftSyncOptions) {
     setState(prev => ({ ...prev, isLoading: true, lastError: null }));
     updateSyncStatus('loading');
     
-    sendMessage({
+    const success = sendMessage({
       type: 'draft_sync',
       data: {
         action: 'load',
         draftId: opts.draftId,
         draftType: opts.draftType,
+        retryAttempt,
       },
+      priority: retryAttempt > 0 ? 'high' : 'normal',
     });
+    
+    // Retry logic for load requests
+    if (!success && retryAttempt < 3) {
+      const retryDelay = Math.min(1000 * Math.pow(2, retryAttempt), 10000);
+      setTimeout(() => {
+        sendLoadRequest(retryAttempt + 1);
+      }, retryDelay);
+    } else if (!success) {
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        lastError: 'Failed to load draft after multiple attempts'
+      }));
+      updateSyncStatus('error');
+    }
   }, [isConnected, sendMessage, opts.draftId, opts.draftType, updateSyncStatus]);
   
   // Handle auto-save
@@ -276,8 +316,13 @@ export function useDraftSync(options: DraftSyncOptions) {
     }
   }, [saveToLocalStorage, clearLocalStorage, state.version]);
   
+  // Enhanced WebSocket message subscription with error handling
+  const subscriptionRef = useRef<(() => void) | null>(null);
+  
   // Handle WebSocket messages
   useEffect(() => {
+    const { subscribeToMessages } = require('../contexts/WebSocketContext');
+    
     const handleMessage = (message: any) => {
       if (message.type === 'draft_sync' && message.data?.draftId === opts.draftId) {
         const { action, content, version, error, timestamp } = message.data;
@@ -383,10 +428,23 @@ export function useDraftSync(options: DraftSyncOptions) {
       }
     };
     
-    // This would be handled by the WebSocket context
-    // For now, we'll assume the context handles message routing
+    };
     
-  }, [opts, state.content, state.version, loadFromLocalStorage, resolveConflict, saveToLocalStorage, updateSyncStatus]);
+    // Subscribe to WebSocket messages via the context
+    try {
+      subscriptionRef.current = subscribeToMessages(handleMessage);
+    } catch (error) {
+      console.warn('[DraftSync] Failed to subscribe to WebSocket messages:', error);
+    }
+    
+    // Cleanup subscription on unmount or dependency change
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current();
+        subscriptionRef.current = null;
+      }
+    };
+  }, [opts, state.content, state.version, loadFromLocalStorage, resolveConflict, saveToLocalStorage, updateSyncStatus, subscribeToMessages]);
   
   // Initialize
   useEffect(() => {
@@ -414,22 +472,37 @@ export function useDraftSync(options: DraftSyncOptions) {
     }
   }, [isConnected, loadFromLocalStorage, sendLoadRequest, opts]);
   
-  // Cleanup
+  // Enhanced cleanup
   useEffect(() => {
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (subscriptionRef.current) {
+        subscriptionRef.current();
+      }
     };
   }, []);
   
-  // Auto-connect and auto-save on connection changes
+  // Auto-connect and auto-save on connection changes with improved retry logic
   useEffect(() => {
-    if (isConnected && pendingChangesRef.current && !state.isSaving) {
-      // Save pending changes when connection is restored
-      sendSaveRequest(pendingChangesRef.current, state.version + 1);
+    if (isConnected && pendingChangesRef.current && !state.isSaving && !state.isLoading) {
+      const pending = pendingChangesRef.current;
+      
+      // Process pending operations when connection is restored
+      if (pending.type === 'save' && pending.content) {
+        sendSaveRequest(pending.content, pending.version || state.version + 1, pending.retryAttempt || 0);
+      } else if (pending.type === 'load') {
+        sendLoadRequest(pending.retryAttempt || 0);
+      }
+      
+      // Clear pending changes after processing
+      pendingChangesRef.current = null;
     }
-  }, [isConnected, state.isSaving, state.version, sendSaveRequest]);
+  }, [isConnected, state.isSaving, state.isLoading, state.version, sendSaveRequest, sendLoadRequest]);
   
   return {
     // State

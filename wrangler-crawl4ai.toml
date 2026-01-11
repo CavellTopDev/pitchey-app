@@ -1,0 +1,56 @@
+name = "pitchey-crawl4ai"
+main = "src/workers/crawl4ai-worker.ts"
+compatibility_date = "2024-01-08"
+compatibility_flags = ["nodejs_compat"]
+
+# Account and environment settings
+account_id = "your-account-id"
+workers_dev = false
+
+# Production route
+routes = [
+  { pattern = "crawl.pitchey.com/*", zone_name = "pitchey.com" },
+  { pattern = "pitchey-api-prod.ndlovucavelle.workers.dev/api/crawl/*", zone_name = "" }
+]
+
+# KV Namespaces for caching
+kv_namespaces = [
+  { binding = "CRAWL_CACHE", id = "your-crawl-cache-id", preview_id = "your-crawl-cache-preview-id" },
+  { binding = "SCHEMA_CACHE", id = "your-schema-cache-id", preview_id = "your-schema-cache-preview-id" }
+]
+
+# R2 Bucket for reports
+r2_buckets = [
+  { binding = "REPORTS_BUCKET", bucket_name = "pitchey-crawl-reports" }
+]
+
+# Environment variables
+[vars]
+CACHE_TTL = "300"
+PYTHON_WORKER_URL = "https://crawl4ai.pitchey.com"
+
+# Secrets (set via wrangler secret put)
+# OPENAI_API_KEY = "your-openai-api-key"
+
+# Build configuration
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "modules"
+main = "./crawl4ai-worker.js"
+
+# Development environment
+[env.development]
+vars = { PYTHON_WORKER_URL = "http://localhost:8002" }
+
+# Staging environment  
+[env.staging]
+vars = { PYTHON_WORKER_URL = "https://crawl4ai-staging.pitchey.com" }
+
+# Production environment
+[env.production]
+vars = { 
+  PYTHON_WORKER_URL = "https://crawl4ai.pitchey.com",
+  CACHE_TTL = "600"
+}

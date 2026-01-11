@@ -76,10 +76,17 @@ export class ErrorBoundary extends Component<Props, State> {
     console.table(errorReport);
     console.groupEnd();
 
+    // Store error globally for debugging
+    (window as any).__errorBoundaryError = error;
+    (window as any).__errorBoundaryInfo = errorInfo;
+    (window as any).__errorBoundaryReport = errorReport;
+    
     // Send to error reporting service if enabled
     // Sentry reporting temporarily disabled to resolve initialization errors
     console.group('🚨 Error Boundary Report');
     console.error('Error caught by Error Boundary:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     console.table(errorReport);
     console.groupEnd();
 
@@ -148,7 +155,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      const showDetails = this.props.showErrorDetails ?? (config.IS_DEVELOPMENT || !import.meta.env.PROD);
+      const showDetails = this.props.showErrorDetails ?? (!import.meta.env.PROD || import.meta.env.MODE === 'development');
 
       // Enhanced error UI
       return (

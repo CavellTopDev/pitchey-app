@@ -1,7 +1,7 @@
 // React hooks for A/B testing
 import { API_URL } from '../config';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 // Types
 export interface ExperimentAssignment {
@@ -251,7 +251,7 @@ export function useExperiment(experimentId: number, options: {
   const [assignment, setAssignment] = useState<ExperimentAssignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useStore();
+  const { user } = useBetterAuthStore();
   const hasTrackedPageView = useRef(false);
 
   const client = getClient();
@@ -378,7 +378,7 @@ export function useFeatureFlag<T = any>(
   const [value, setValue] = useState<T>(defaultValue);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useStore();
+  const { user } = useBetterAuthStore();
 
   const client = getClient();
 
@@ -416,7 +416,7 @@ export function useFeatureFlag<T = any>(
 // Hook for A/B testing analytics
 export function useExperimentTracking() {
   const client = getClient();
-  const { user } = useStore();
+  const { user } = useBetterAuthStore();
 
   const getUserContext = useCallback((): UserContext => {
     return {

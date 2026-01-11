@@ -7,7 +7,7 @@ import {
   FileText, Star, Briefcase, Plus
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface TeamStats {
   totalMembers: number;
@@ -44,7 +44,7 @@ interface UpcomingEvent {
 
 export default function TeamOverview() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   
   const [stats, setStats] = useState<TeamStats>({

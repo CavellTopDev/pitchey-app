@@ -6,7 +6,7 @@ import {
   Twitter, Linkedin, Instagram, Youtube
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { toast } from 'react-hot-toast';
 
 interface ProfileData {
@@ -32,7 +32,7 @@ interface ProfileData {
 
 export default function SettingsProfile() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData>({
     firstName: user?.username?.split(' ')[0] || '',

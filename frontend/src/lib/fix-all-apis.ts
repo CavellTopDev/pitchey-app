@@ -7,7 +7,7 @@ let _WS_URL: string | null = null;
 
 function getAPIURL(): string {
   if (!_API_URL) {
-    _API_URL = API_URL;
+    _API_URL = config.API_URL;
   }
   return _API_URL;
 }
@@ -21,14 +21,31 @@ function getWSURL(): string {
 
 // Override fetch globally to replace localhost with ngrok URL
 const originalFetch = window.fetch;
-window.fetch = function(...args) {
-  let url = args[0];
-  if (typeof url === 'string' && url.includes('http://localhost:8001')) {
-    url = url.replace('http://localhost:8001', getAPIURL());
-    args[0] = url;
+window.fetch = function(...args: Parameters<typeof fetch>) {
+  let input = args[0];
+  
+  // Handle string URLs
+  if (typeof input === 'string' && input.includes('http://localhost:8001')) {
+    args[0] = input.replace('http://localhost:8001', getAPIURL());
   }
+  // Handle URL objects
+  else if (input instanceof URL) {
+    const urlString = input.toString();
+    if (urlString.includes('http://localhost:8001')) {
+      args[0] = new URL(urlString.replace('http://localhost:8001', getAPIURL()));
+    }
+  }
+  // Handle Request objects
+  else if (input instanceof Request) {
+    const urlString = input.url;
+    if (urlString.includes('http://localhost:8001')) {
+      const newUrl = urlString.replace('http://localhost:8001', getAPIURL());
+      args[0] = new Request(newUrl, input);
+    }
+  }
+  
   return originalFetch.apply(this, args);
-};
+} as typeof fetch;
 
 // Export lazy getters for components that import this
 export const API_URL = new Proxy({}, {

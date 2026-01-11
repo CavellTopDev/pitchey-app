@@ -598,7 +598,7 @@ const InvestorPitchView: React.FC = () => {
                   <span>Schedule Meeting</span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
-                <button className="w-full flex items-center justify-between px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <button className="w-full flex items-center justify-between px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
                   <span>Request More Info</span>
                   <ChevronRight className="h-4 w-4" />
                 </button>

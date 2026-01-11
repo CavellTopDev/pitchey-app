@@ -6,7 +6,7 @@ import {
   Copy, Download, Settings, MoreVertical, Eye
 } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface Invitation {
   id: string;
@@ -47,7 +47,7 @@ const availablePermissions = [
 
 export default function TeamInvite() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   
   const [invitations, setInvitations] = useState<Invitation[]>([]);

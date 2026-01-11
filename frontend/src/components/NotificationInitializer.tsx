@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { useRealTimeNotifications } from '../hooks/useRealTimeNotifications';
 import { useWebSocket } from '../contexts/WebSocketContext';
 
@@ -8,7 +8,7 @@ import { useWebSocket } from '../contexts/WebSocketContext';
  * Should be placed high in the component tree to ensure notifications work everywhere
  */
 export function NotificationInitializer() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user } = useBetterAuthStore();
   const { isConnected } = useWebSocket();
   const { requestNotificationPermission } = useRealTimeNotifications();
 
@@ -32,7 +32,7 @@ export function NotificationInitializer() {
   // Log notification system status in development
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('Notification system status:', {
+      console.info('🔔 Notification System Status:', {
         authenticated: isAuthenticated,
         webSocketConnected: isConnected,
         browserSupport: 'Notification' in window,

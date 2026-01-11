@@ -149,6 +149,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   // Upload a single file
   const uploadFile = async (file: FileWithProgress) => {
+    // For large files, use chunked upload
+    if (file.size > 10 * 1024 * 1024) { // > 10MB
+      await uploadChunked(file);
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('context', context);
@@ -165,12 +171,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
     try {
       const token = localStorage.getItem('authToken');
       const endpoint = context === 'nda' ? '/api/upload/nda' : '/api/upload';
-      
-      // For large files, use multipart upload
-      if (file.size > 10 * 1024 * 1024) { // > 10MB
-        await uploadMultipart(file);
-        return;
-      }
 
       // Regular upload for smaller files
       const xhr = new XMLHttpRequest();
@@ -246,7 +246,80 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
-  // Multipart upload for large files
+  // Chunked upload for large files using the new chunked upload service
+  const uploadChunked = async (file: FileWithProgress) => {
+    try {
+      // Import the chunked upload service
+      const { chunkedUploadService } = await import('../services/chunked-upload.service');
+      
+      // Map context to category
+      const categoryMap = {
+        document: 'document' as const,
+        image: 'image' as const,
+        video: 'video' as const,
+        nda: 'nda' as const
+      };
+      const category = categoryMap[context] || 'document' as const;
+
+      const result = await chunkedUploadService.uploadFile(file, category, {
+        pitchId: pitchId,
+        metadata: { 
+          requireNDA: requireNDA,
+          context: context 
+        },
+        onProgress: (progress) => {
+          setUploadProgress(prev => ({ ...prev, [file.name]: progress.percentage }));
+          setFiles(prev => prev.map(f => 
+            f === file ? { ...f, progress: progress.percentage } : f
+          ));
+        }
+      });
+
+      setFiles(prev => prev.map(f => 
+        f === file ? { 
+          ...f, 
+          status: 'completed' as const, 
+          progress: 100,
+          result: {
+            id: result.sessionId,
+            filename: result.fileName,
+            url: result.url,
+            size: result.fileSize,
+            mimeType: result.mimeType,
+            uploadedAt: result.uploadedAt
+          }
+        } : f
+      ));
+
+      // Notify parent component
+      if (onFilesUploaded) {
+        const uploadedFiles = files
+          .filter(f => f.status === 'completed' && f.result)
+          .map(f => f.result!);
+        uploadedFiles.push({
+          id: result.sessionId,
+          filename: result.fileName,
+          url: result.url,
+          size: result.fileSize,
+          mimeType: result.mimeType,
+          uploadedAt: result.uploadedAt
+        });
+        onFilesUploaded(uploadedFiles);
+      }
+
+    } catch (error) {
+      console.error('Chunked upload error:', error);
+      setFiles(prev => prev.map(f => 
+        f === file ? { 
+          ...f, 
+          status: 'error' as const, 
+          error: error.message || 'Chunked upload failed'
+        } : f
+      ));
+    }
+  };
+
+  // Multipart upload for large files (legacy fallback)
   const uploadMultipart = async (file: FileWithProgress) => {
     try {
       const token = localStorage.getItem('authToken');

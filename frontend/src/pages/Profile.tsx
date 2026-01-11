@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Camera, Mail, Phone, MapPin, Building2, Calendar, Edit3, Save, X } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { API_URL } from '../config';
 import { config } from '../config';
 
@@ -29,7 +29,7 @@ interface SocialStats {
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [socialStats, setSocialStats] = useState<SocialStats>({ followers: 0, following: 0 });
   const [loading, setLoading] = useState(true);

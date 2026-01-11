@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../lib/api';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { 
   Plus, TrendingUp, Eye, Heart, Shield, Search, 
   Film, Tv, Video, FileText, Grid, List 
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [pitches, setPitches] = useState<Pitch[]>([]);
   const [trending, setTrending] = useState<Pitch[]>([]);
   const [loading, setLoading] = useState(true);

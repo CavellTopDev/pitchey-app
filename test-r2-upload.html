@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R2 File Upload Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background-color: white;
+            margin-bottom: 20px;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .progress {
+            margin: 20px 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #28a745;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .file-info {
+            background-color: #e2e3e5;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>R2 File Upload Test</h1>
+    <p>Test the new R2 file upload integration for Pitchey platform.</p>
+
+    <div class="upload-area" id="uploadArea">
+        <h3>📁 Drag & Drop Files Here</h3>
+        <p>Or click to browse files</p>
+        <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.mov,.docx,.txt">
+    </div>
+
+    <div class="file-info" id="fileInfo" style="display: none;">
+        <h4>Selected File:</h4>
+        <div id="fileDetails"></div>
+    </div>
+
+    <button id="uploadBtn" onclick="uploadFile()" disabled>Upload File</button>
+    <button id="testEndpointBtn" onclick="testEndpoint()">Test API Connection</button>
+
+    <div class="progress" id="progressContainer">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div id="progressText">0%</div>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+        let selectedFile = null;
+
+        // Initialize drag and drop
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const result = document.getElementById('result');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            
+            document.getElementById('fileDetails').innerHTML = `
+                <strong>Name:</strong> ${file.name}<br>
+                <strong>Size:</strong> ${formatFileSize(file.size)}<br>
+                <strong>Type:</strong> ${file.type}<br>
+                <strong>Last Modified:</strong> ${new Date(file.lastModified).toLocaleString()}
+            `;
+            
+            document.getElementById('fileInfo').style.display = 'block';
+            uploadBtn.disabled = false;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function updateProgress(percentage) {
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = Math.round(percentage) + '%';
+        }
+
+        async function testEndpoint() {
+            showResult('Testing API connection...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult(`✅ API Connection successful! Status: ${data.status || 'healthy'}`, 'success');
+                } else {
+                    showResult(`⚠️ API responded with status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ API Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function uploadFile() {
+            if (!selectedFile) {
+                showResult('❌ Please select a file first', 'error');
+                return;
+            }
+
+            showResult('🚀 Starting upload...', 'info');
+            uploadBtn.disabled = true;
+            updateProgress(0);
+
+            try {
+                // First, try to authenticate with demo credentials
+                await authenticateDemo();
+                
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('category', getFileCategory(selectedFile.type));
+                formData.append('isPublic', 'true');
+                formData.append('description', 'Test upload via R2 integration');
+
+                updateProgress(25);
+
+                const response = await fetch(`${API_BASE}/api/upload/media/direct`, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include', // Include cookies for Better Auth
+                });
+
+                updateProgress(75);
+
+                const responseData = await response.json();
+                
+                updateProgress(100);
+
+                if (response.ok && responseData.success) {
+                    showResult(`✅ Upload successful!
+                        <br><strong>Media ID:</strong> ${responseData.data.mediaId}
+                        <br><strong>File Size:</strong> ${formatFileSize(responseData.data.fileSize)}
+                        <br><strong>Storage Key:</strong> ${responseData.data.storageKey}
+                        <br><strong>Download URL:</strong> <a href="${responseData.data.downloadUrl}" target="_blank">View File</a>`, 'success');
+                } else {
+                    showResult(`❌ Upload failed: ${responseData.error?.message || responseData.error || 'Unknown error'}`, 'error');
+                }
+
+            } catch (error) {
+                showResult(`❌ Upload error: ${error.message}`, 'error');
+                updateProgress(0);
+            } finally {
+                uploadBtn.disabled = false;
+                setTimeout(() => {
+                    document.getElementById('progressContainer').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        async function authenticateDemo() {
+            // Try to authenticate with demo creator account
+            const loginData = {
+                email: 'alex.creator@demo.com',
+                password: 'Demo123'
+            };
+
+            const loginResponse = await fetch(`${API_BASE}/api/auth/sign-in`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(loginData),
+                credentials: 'include'
+            });
+
+            if (!loginResponse.ok) {
+                throw new Error('Authentication failed. Please check demo credentials.');
+            }
+        }
+
+        function getFileCategory(mimeType) {
+            if (mimeType.startsWith('image/')) return 'image';
+            if (mimeType.startsWith('video/')) return 'video';
+            if (mimeType.startsWith('audio/')) return 'audio';
+            return 'document';
+        }
+
+        function showResult(message, type) {
+            result.innerHTML = message;
+            result.className = `result ${type}`;
+            result.style.display = 'block';
+        }
+
+        // Test API connection on page load
+        window.addEventListener('load', () => {
+            setTimeout(testEndpoint, 1000);
+        });
+    </script>
+</body>
+</html>

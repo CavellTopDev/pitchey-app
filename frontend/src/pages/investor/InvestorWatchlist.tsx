@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Eye, Bell, TrendingUp, TrendingDown, Calendar,
   Star, User, Building, DollarSign, Clock, AlertCircle,
   Search, Filter, RefreshCw, Plus, MoreVertical,
   CheckCircle, XCircle, Target, Activity, Globe
 } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface WatchlistItem {
   id: string;
@@ -49,8 +47,7 @@ interface WatchlistFilters {
 }
 
 export default function InvestorWatchlist() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<WatchlistItem[]>([]);
@@ -390,12 +387,8 @@ export default function InvestorWatchlist() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -403,12 +396,8 @@ export default function InvestorWatchlist() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-        user={user}
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
@@ -426,7 +415,7 @@ export default function InvestorWatchlist() {
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
               <Plus className="w-4 h-4 mr-2" />
               Add to Watchlist
             </button>
@@ -508,7 +497,7 @@ export default function InvestorWatchlist() {
                 : "No items match your current filters."
               }
             </p>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700">
+            <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
               <Plus className="w-4 h-4 mr-2" />
               Add First Item
             </button>
@@ -632,7 +621,7 @@ export default function InvestorWatchlist() {
                           </div>
                         ))}
                         {item.recentActivity.length > 2 && (
-                          <button className="text-sm text-purple-600 hover:text-purple-700">
+                          <button className="text-sm text-green-600 hover:text-purple-700">
                             View all {item.recentActivity.length} activities
                           </button>
                         )}
@@ -675,7 +664,7 @@ export default function InvestorWatchlist() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => navigate(`/${item.type}/${item.id}`)}
-                          className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                          className="text-green-600 hover:text-green-700 text-sm font-medium"
                         >
                           View Details
                         </button>

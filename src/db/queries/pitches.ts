@@ -563,3 +563,243 @@ export async function deletePitch(
   `;
   return result.length > 0;
 }
+
+// Public endpoint queries - no authentication required
+// These queries filter for public visibility and published status only
+
+export async function getPublicPitches(
+  sql: SqlQuery,
+  filters: {
+    genre?: string;
+    format?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<Pitch[]> {
+  const {
+    genre,
+    format,
+    search,
+    limit = 20,
+    offset = 0
+  } = filters;
+
+  const wb = new WhereBuilder();
+  wb.add('p.status = \'published\'');
+  wb.add('p.visibility = \'public\''); // Only truly public pitches
+  
+  // Optional filters
+  wb.addOptional('p.genre', '=', genre);
+  wb.addOptional('p.format', '=', format);
+  
+  // Text search (safe for public)
+  if (search) {
+    const searchPattern = `%${search}%`;
+    wb.add(`(
+      LOWER(p.title) LIKE LOWER($param) OR 
+      LOWER(p.tagline) LIKE LOWER($param) OR 
+      LOWER(p.logline) LIKE LOWER($param)
+    )`, searchPattern);
+  }
+  
+  const { where, params } = wb.build();
+  
+  const query = `
+    SELECT 
+      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
+      p.setting, p.time_period, p.logline, p.synopsis,
+      p.target_audience, p.comparable_works, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.published_at,
+      u.username as creator_username,
+      u.profile_image as creator_avatar,
+      u.company_name as creator_company
+    FROM pitches p
+    LEFT JOIN users u ON p.creator_id = u.id
+    ${where}
+    ORDER BY p.published_at DESC, p.view_count DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+  
+  const result = await sql(query, params);
+  return extractMany<Pitch>(result);
+}
+
+export async function getPublicTrendingPitches(
+  sql: SqlQuery,
+  limit: number = 20,
+  offset: number = 0
+): Promise<Pitch[]> {
+  const result = await sql`
+    SELECT 
+      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
+      p.setting, p.time_period, p.logline, p.synopsis,
+      p.target_audience, p.comparable_works, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.published_at,
+      u.username as creator_username,
+      u.profile_image as creator_avatar,
+      u.company_name as creator_company,
+      (p.view_count + (p.like_count * 2) + (p.investment_count * 5)) as engagement_score
+    FROM pitches p
+    LEFT JOIN users u ON p.creator_id = u.id
+    WHERE p.status = 'published' 
+      AND p.visibility = 'public'
+      AND p.view_count > 50
+      AND p.published_at > NOW() - INTERVAL '7 days'
+    ORDER BY engagement_score DESC, p.view_count DESC, p.published_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+  return extractMany<Pitch>(result);
+}
+
+export async function getPublicNewPitches(
+  sql: SqlQuery,
+  limit: number = 20,
+  offset: number = 0
+): Promise<Pitch[]> {
+  const result = await sql`
+    SELECT 
+      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
+      p.setting, p.time_period, p.logline, p.synopsis,
+      p.target_audience, p.comparable_works, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.published_at,
+      u.username as creator_username,
+      u.profile_image as creator_avatar,
+      u.company_name as creator_company
+    FROM pitches p
+    LEFT JOIN users u ON p.creator_id = u.id
+    WHERE p.status = 'published' 
+      AND p.visibility = 'public'
+      AND p.published_at > NOW() - INTERVAL '30 days'
+    ORDER BY p.published_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+  return extractMany<Pitch>(result);
+}
+
+export async function getPublicFeaturedPitches(
+  sql: SqlQuery,
+  limit: number = 6
+): Promise<Pitch[]> {
+  const result = await sql`
+    SELECT 
+      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
+      p.setting, p.time_period, p.logline, p.synopsis,
+      p.target_audience, p.comparable_works, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.published_at,
+      u.username as creator_username,
+      u.profile_image as creator_avatar,
+      u.company_name as creator_company,
+      (p.view_count + (p.like_count * 3) + (p.investment_count * 10)) as feature_score
+    FROM pitches p
+    LEFT JOIN users u ON p.creator_id = u.id
+    WHERE p.status = 'published' 
+      AND p.visibility = 'public'
+      AND p.view_count > 100
+    ORDER BY feature_score DESC, p.published_at DESC
+    LIMIT ${limit}
+  `;
+  return extractMany<Pitch>(result);
+}
+
+export async function getPublicPitchById(
+  sql: SqlQuery,
+  pitchId: string
+): Promise<Pitch | null> {
+  const result = await sql`
+    SELECT 
+      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
+      p.setting, p.time_period, p.logline, p.synopsis,
+      p.target_audience, p.comparable_works, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.published_at,
+      u.username as creator_username,
+      u.profile_image as creator_avatar,
+      u.company_name as creator_company
+    FROM pitches p
+    LEFT JOIN users u ON p.creator_id = u.id
+    WHERE p.id = ${pitchId} 
+      AND p.status = 'published' 
+      AND p.visibility = 'public'
+  `;
+  return extractFirst<Pitch>(result);
+}
+
+export async function searchPublicPitches(
+  sql: SqlQuery,
+  searchTerm: string,
+  filters: {
+    genre?: string;
+    format?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<Pitch[]> {
+  const {
+    genre,
+    format,
+    limit = 20,
+    offset = 0
+  } = filters;
+
+  const wb = new WhereBuilder();
+  wb.add('p.status = \'published\'');
+  wb.add('p.visibility = \'public\'');
+  
+  // Optional filters
+  wb.addOptional('p.genre', '=', genre);
+  wb.addOptional('p.format', '=', format);
+  
+  // Search terms - only search public fields
+  if (searchTerm) {
+    const searchPattern = `%${searchTerm}%`;
+    wb.add(`(
+      LOWER(p.title) LIKE LOWER($param) OR 
+      LOWER(p.tagline) LIKE LOWER($param) OR 
+      LOWER(p.logline) LIKE LOWER($param) OR
+      LOWER(p.genre) LIKE LOWER($param) OR
+      LOWER(p.format) LIKE LOWER($param)
+    )`, searchPattern);
+  }
+  
+  const { where, params } = wb.build();
+  
+  const query = `
+    SELECT 
+      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
+      p.setting, p.time_period, p.logline, p.synopsis,
+      p.target_audience, p.comparable_works, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.published_at,
+      u.username as creator_username,
+      u.profile_image as creator_avatar,
+      u.company_name as creator_company
+    FROM pitches p
+    LEFT JOIN users u ON p.creator_id = u.id
+    ${where}
+    ORDER BY 
+      CASE 
+        WHEN LOWER(p.title) = LOWER($1) THEN 1
+        WHEN LOWER(p.title) LIKE LOWER($1 || '%') THEN 2
+        ELSE 3
+      END,
+      p.view_count DESC,
+      p.published_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+  
+  const result = await sql(query, [searchTerm || '', ...params]);
+  return extractMany<Pitch>(result);
+}
+
+// Increment view count for public pitch (without user tracking)
+export async function incrementPublicPitchView(
+  sql: SqlQuery,
+  pitchId: string
+): Promise<void> {
+  await sql`
+    UPDATE pitches 
+    SET view_count = view_count + 1
+    WHERE id = ${pitchId} 
+      AND status = 'published' 
+      AND visibility = 'public'
+  `;
+}

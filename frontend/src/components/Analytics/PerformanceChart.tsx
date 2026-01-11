@@ -1,6 +1,6 @@
 import React from 'react';
-
-// Temporary placeholder component - chart functionality disabled to fix initialization errors
+import { Line, LineChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '../ui/chart';
 
 interface DataPoint {
   label: string;
@@ -22,22 +22,83 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
   datasets,
   currency = false 
 }) => {
-  // Temporary placeholder - chart functionality disabled to resolve JavaScript initialization errors
+  // Transform the data structure to work with Recharts
+  const transformedData = React.useMemo(() => {
+    if (!datasets.length || !datasets[0]?.data.length) {
+      return [];
+    }
+
+    // Get all unique labels
+    const labels = datasets[0].data.map(item => item.label);
+    
+    // Transform to chart data format
+    return labels.map(label => {
+      const dataPoint: any = { label };
+      datasets.forEach(dataset => {
+        const point = dataset.data.find(d => d.label === label);
+        dataPoint[dataset.label.toLowerCase()] = point?.value || 0;
+      });
+      return dataPoint;
+    });
+  }, [datasets]);
+
+  // Create chart config based on datasets
+  const chartConfig = React.useMemo(() => {
+    const config: ChartConfig = {};
+    datasets.forEach(dataset => {
+      config[dataset.label.toLowerCase()] = {
+        label: dataset.label,
+        color: dataset.color,
+      };
+    });
+    return config;
+  }, [datasets]);
+
   return (
-    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-      <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
-      <p className="text-gray-500 mb-4">Chart temporarily unavailable</p>
-      <div className="space-y-2">
-        {datasets.map((dataset, index) => (
-          <div key={index} className="text-sm text-gray-600">
-            <span className="font-medium">{dataset.label}:</span>{' '}
-            {dataset.data.length} data points
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-gray-400 mt-4">
-        Chart functionality will be restored in a future update
-      </p>
+    <div className="w-full">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+      <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+        <LineChart accessibilityLayer data={transformedData}>
+          <CartesianGrid vertical={false} />
+          <XAxis 
+            dataKey="label" 
+            tickLine={false} 
+            tickMargin={10} 
+            axisLine={false} 
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => 
+              currency 
+                ? `$${(value / 1000).toFixed(0)}k`
+                : value.toLocaleString()
+            }
+          />
+          <ChartTooltip 
+            content={
+              <ChartTooltipContent 
+                formatter={(value) => [
+                  currency 
+                    ? `$${Number(value).toLocaleString()}` 
+                    : Number(value).toLocaleString(),
+                  ""
+                ]}
+              />
+            } 
+          />
+          {datasets.map(dataset => (
+            <Line
+              key={dataset.label}
+              dataKey={dataset.label.toLowerCase()}
+              type="monotone"
+              stroke={dataset.color}
+              strokeWidth={2}
+              dot={false}
+            />
+          ))}
+        </LineChart>
+      </ChartContainer>
     </div>
   );
 };

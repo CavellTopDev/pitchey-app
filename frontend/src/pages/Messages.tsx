@@ -8,7 +8,7 @@ import {
 import { useMessaging } from '../hooks/useWebSocket';
 import { getUserId } from '../lib/apiServices';
 import { getCreditCost } from '../config/subscription-plans';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import type {
   MessageWithDetails,
   ConversationWithDetails,
@@ -45,7 +45,7 @@ interface EnhancedConversation extends ConversationWithDetails {
 
 export default function Messages() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   
   // Get messaging cost for creators
   const messageCost = getCreditCost('send_message');

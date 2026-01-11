@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import BackButton from '../components/BackButton';
 import NDAWizard from '../components/NDAWizard';
 import EnhancedNDARequest from '../components/NDA/EnhancedNDARequest';
@@ -12,7 +12,7 @@ import FormatDisplay from '../components/FormatDisplay';
 export default function PitchDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user } = useBetterAuthStore();
   const [pitch, setPitch] = useState<Pitch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -366,7 +366,7 @@ export default function PitchDetail() {
                   </div>
                 </div>
               </div>
-            ) : hasSignedNDA ? (
+            ) : hasSignedNDA && pitch.protectedContent ? (
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Enhanced Information</h3>
@@ -376,40 +376,98 @@ export default function PitchDetail() {
                   </span>
                 </div>
                 <div className="space-y-4">
-                  {pitch.budget && (
+                  {pitch.protectedContent.budgetBreakdown && (
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Budget</h4>
-                      <p className="text-gray-700">{pitch.budget}</p>
+                      <h4 className="font-medium text-gray-900 mb-1">Budget Breakdown</h4>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm font-semibold">Total Budget: ${pitch.protectedContent.budgetBreakdown.total?.toLocaleString()}</p>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <div className="text-sm text-gray-600">Production: ${pitch.protectedContent.budgetBreakdown.production?.toLocaleString()}</div>
+                          <div className="text-sm text-gray-600">Marketing: ${pitch.protectedContent.budgetBreakdown.marketing?.toLocaleString()}</div>
+                          <div className="text-sm text-gray-600">Distribution: ${pitch.protectedContent.budgetBreakdown.distribution?.toLocaleString()}</div>
+                          <div className="text-sm text-gray-600">Contingency: ${pitch.protectedContent.budgetBreakdown.contingency?.toLocaleString()}</div>
+                        </div>
+                      </div>
                     </div>
                   )}
-                  {pitch.targetAudience && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Target Audience</h4>
-                      <p className="text-gray-700">{pitch.targetAudience}</p>
-                    </div>
-                  )}
-                  {pitch.comparableTitles && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Comparable Titles</h4>
-                      <p className="text-gray-700">{pitch.comparableTitles}</p>
-                    </div>
-                  )}
-                  {pitch.productionTimeline && (
+                  {pitch.protectedContent.productionTimeline && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Production Timeline</h4>
-                      <p className="text-gray-700">{pitch.productionTimeline}</p>
+                      <p className="text-gray-700 whitespace-pre-line">{pitch.protectedContent.productionTimeline}</p>
                     </div>
                   )}
-                  {pitch.attachedTalent && (
+                  {pitch.protectedContent.attachedTalent && pitch.protectedContent.attachedTalent.length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-900 mb-1">Attached Talent</h4>
-                      <p className="text-gray-700">{pitch.attachedTalent}</p>
+                      <div className="space-y-2">
+                        {pitch.protectedContent.attachedTalent.map((talent, index) => (
+                          <div key={index} className="bg-gray-50 p-2 rounded">
+                            <p className="text-sm font-semibold">{talent.role}: {talent.name}</p>
+                            {talent.notable_works && <p className="text-xs text-gray-600">Notable: {talent.notable_works.join(', ')}</p>}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
-                  {pitch.distributionStrategy && (
+                  {pitch.protectedContent.financialProjections && (
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Distribution Strategy</h4>
-                      <p className="text-gray-700">{pitch.distributionStrategy}</p>
+                      <h4 className="font-medium text-gray-900 mb-1">Financial Projections</h4>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <p className="text-sm font-semibold">ROI: {pitch.protectedContent.financialProjections.roi}%</p>
+                        <p className="text-sm text-gray-600">Break-even: {pitch.protectedContent.financialProjections.break_even_months} months</p>
+                      </div>
+                    </div>
+                  )}
+                  {pitch.protectedContent.distributionPlan && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1">Distribution Plan</h4>
+                      <p className="text-gray-700">{pitch.protectedContent.distributionPlan}</p>
+                    </div>
+                  )}
+                  {pitch.protectedContent.marketingStrategy && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1">Marketing Strategy</h4>
+                      <p className="text-gray-700">{pitch.protectedContent.marketingStrategy}</p>
+                    </div>
+                  )}
+                  {pitch.protectedContent.revenueModel && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1">Revenue Model</h4>
+                      <p className="text-gray-700">{pitch.protectedContent.revenueModel}</p>
+                    </div>
+                  )}
+                  {pitch.protectedContent.privateAttachments && pitch.protectedContent.privateAttachments.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1">Private Documents</h4>
+                      <div className="space-y-2">
+                        {pitch.protectedContent.privateAttachments.map((doc, index) => (
+                          <a key={index} href={doc.url} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm">
+                            <FileText className="w-4 h-4" />
+                            {doc.name}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {pitch.protectedContent.contactDetails && (
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-1">Contact Information</h4>
+                      <div className="bg-gray-50 p-3 rounded">
+                        {pitch.protectedContent.contactDetails.producer && (
+                          <div className="mb-2">
+                            <p className="text-sm font-semibold">Producer</p>
+                            <p className="text-sm text-gray-600">{pitch.protectedContent.contactDetails.producer.name}</p>
+                            <p className="text-sm text-gray-600">{pitch.protectedContent.contactDetails.producer.email}</p>
+                          </div>
+                        )}
+                        {pitch.protectedContent.contactDetails.agent && (
+                          <div>
+                            <p className="text-sm font-semibold">Agent</p>
+                            <p className="text-sm text-gray-600">{pitch.protectedContent.contactDetails.agent.name}</p>
+                            <p className="text-sm text-gray-600">{pitch.protectedContent.contactDetails.agent.agency}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

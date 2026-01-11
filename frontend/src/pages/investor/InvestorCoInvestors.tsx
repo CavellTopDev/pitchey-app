@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Users, TrendingUp, DollarSign, Award,
   Search, Filter, Globe, Star, Building,
@@ -7,8 +6,7 @@ import {
   ChevronRight, UserPlus, Check, Eye,
   BarChart3, PieChart, Activity, Zap
 } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface CoInvestor {
   id: string;
@@ -37,8 +35,7 @@ interface CoInvestor {
 }
 
 export default function InvestorCoInvestors() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStyle, setFilterStyle] = useState<'all' | 'aggressive' | 'moderate' | 'conservative'>('all');
@@ -248,12 +245,8 @@ export default function InvestorCoInvestors() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="text-gray-600">Loading co-investors...</div>
         </div>
       </div>
@@ -265,12 +258,8 @@ export default function InvestorCoInvestors() {
   const avgCompatibility = Math.round(coInvestors.reduce((sum, i) => sum + i.compatibility, 0) / coInvestors.length);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-        user={user}
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header with Stats */}
         <div className="mb-8">
@@ -479,11 +468,11 @@ export default function InvestorCoInvestors() {
                       <div className="flex items-center space-x-3">
                         {investor.connectionStatus === 'connected' ? (
                           <>
-                            <button className="inline-flex items-center px-4 py-2 border border-purple-600 rounded-md text-sm font-medium text-purple-600 hover:bg-purple-50">
+                            <button className="inline-flex items-center px-4 py-2 border border-green-600 rounded-md text-sm font-medium text-green-600 hover:bg-green-50">
                               <Eye className="w-4 h-4 mr-2" />
                               View Shared Deals
                             </button>
-                            <button className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md text-sm font-medium hover:bg-purple-700">
+                            <button className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700">
                               <DollarSign className="w-4 h-4 mr-2" />
                               Propose Co-Investment
                             </button>
@@ -502,7 +491,7 @@ export default function InvestorCoInvestors() {
                           </button>
                         )}
                       </div>
-                      <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                      <button className="text-green-600 hover:text-purple-700 text-sm font-medium">
                         View Full Profile →
                       </button>
                     </div>

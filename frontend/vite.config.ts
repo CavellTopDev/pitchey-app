@@ -2,17 +2,21 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// SIMPLIFIED CONFIG TO FIX TDZ ERRORS
+// SIMPLIFIED CONFIG WITH PWA SUPPORT
 export default defineConfig(() => {
   return {
     plugins: [
       react({
-        // CRITICAL: Force production JSX runtime always
+        // Force production JSX runtime - completely disable development transforms
         jsxRuntime: 'automatic',
         jsxImportSource: 'react',
-        // Force production transform EVERYWHERE
-        jsxDev: false,
+        // Disable Fast Refresh in production builds to prevent dev transforms
         fastRefresh: false,
+        // Explicitly set Babel to not include development plugins
+        babel: {
+          compact: true,
+          minified: true,
+        },
       }),
     ],
   resolve: {
@@ -21,24 +25,10 @@ export default defineConfig(() => {
       // Force single React instance
       'react': path.resolve(__dirname, './node_modules/react'),
       'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
-      'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
-      'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
     },
     dedupe: ['react', 'react-dom'],
   },
   build: {
-    // CRITICAL: Disable minification to avoid TDZ issues
-    minify: false,
-    
-    // Let Vite handle chunking automatically
-    rollupOptions: {
-      output: {
-        // No manual chunks - let Rollup decide
-        manualChunks: undefined,
-      },
-    },
-    
-    // Standard settings
     target: 'es2020',
     sourcemap: false,
     chunkSizeWarningLimit: 2000,
@@ -46,11 +36,17 @@ export default defineConfig(() => {
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
   },
+  esbuild: {
+    // Force production JSX transform - no development helpers
+    jsx: 'automatic',
+    jsxDev: false,
+  },
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
     '__DEV__': 'false',
     'import.meta.env.DEV': 'false',
     'import.meta.env.PROD': 'true',
+    'import.meta.env.MODE': JSON.stringify('production'),
   },
   mode: 'production',
   }

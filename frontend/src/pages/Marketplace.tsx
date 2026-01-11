@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { pitchService } from '../services/pitch.service';
 import { pitchAPI } from '../lib/api';
 import type { Pitch } from '../services/pitch.service';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import FollowButton from '../components/FollowButton';
 import { PitchCardSkeleton } from '../components/Loading/Skeleton';
 import EmptyState from '../components/EmptyState';
@@ -42,17 +42,26 @@ import {
 export default function Marketplace() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user } = useBetterAuthStore();
   const toast = useToast();
   const userType = localStorage.getItem('userType');
-  const [pitches, setPitches] = useState<Pitch[]>([]);
-  const [filteredPitches, setFilteredPitches] = useState<Pitch[]>([]);
-  const [trendingPitches, setTrendingPitches] = useState<Pitch[]>([]);
-  const [newPitches, setNewPitches] = useState<Pitch[]>([]);
-  const [browsePitches, setBrowsePitches] = useState<Pitch[]>([]);
-  const [browseMetadata, setBrowseMetadata] = useState<any>(null);
+  
+  // Tab-specific state management to prevent content mixing
+  const [tabData, setTabData] = useState<{
+    all: { pitches: Pitch[]; filtered: Pitch[]; loading: boolean };
+    trending: { pitches: Pitch[]; filtered: Pitch[]; loading: boolean };
+    new: { pitches: Pitch[]; filtered: Pitch[]; loading: boolean };
+    browse: { pitches: Pitch[]; filtered: Pitch[]; loading: boolean; metadata: any };
+    genres: { pitches: Pitch[]; filtered: Pitch[]; loading: boolean };
+  }>({
+    all: { pitches: [], filtered: [], loading: true },
+    trending: { pitches: [], filtered: [], loading: true },
+    new: { pitches: [], filtered: [], loading: true },
+    browse: { pitches: [], filtered: [], loading: false, metadata: null },
+    genres: { pitches: [], filtered: [], loading: true }
+  });
+  
   const [loading, setLoading] = useState(true);
-  const [browseLoading, setBrowseLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<{
     related: Pitch[];
     trending: Pitch[];
@@ -64,11 +73,23 @@ export default function Marketplace() {
     similarGenre: [],
     newReleases: []
   });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('');
-  const [selectedFormat, setSelectedFormat] = useState('');
-  const [sortBy, setSortBy] = useState<'alphabetical' | 'date' | 'budget' | 'views' | 'likes' | 'investment_status'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  // Tab-specific filters to prevent spillover between tabs
+  const [tabFilters, setTabFilters] = useState<{
+    [key: string]: {
+      searchQuery: string;
+      selectedGenre: string;
+      selectedFormat: string;
+      sortBy: 'alphabetical' | 'date' | 'budget' | 'views' | 'likes' | 'investment_status';
+      sortOrder: 'asc' | 'desc';
+    }
+  }>({
+    all: { searchQuery: '', selectedGenre: '', selectedFormat: '', sortBy: 'date', sortOrder: 'desc' },
+    trending: { searchQuery: '', selectedGenre: '', selectedFormat: '', sortBy: 'views', sortOrder: 'desc' },
+    new: { searchQuery: '', selectedGenre: '', selectedFormat: '', sortBy: 'date', sortOrder: 'desc' },
+    browse: { searchQuery: '', selectedGenre: '', selectedFormat: '', sortBy: 'date', sortOrder: 'desc' },
+    genres: { searchQuery: '', selectedGenre: '', selectedFormat: '', sortBy: 'date', sortOrder: 'desc' }
+  });
+  
   const [currentView, setCurrentView] = useState('all');
   
   // Pagination state
@@ -98,6 +119,22 @@ export default function Marketplace() {
     'Web Series'
   ];
 
+  // Helper to get current tab's filters
+  const getCurrentFilters = () => {
+    return tabFilters[currentView] || tabFilters.all;
+  };
+  
+  // Helper to update current tab's filters
+  const updateCurrentFilters = (updates: Partial<typeof tabFilters.all>) => {
+    setTabFilters(prev => ({
+      ...prev,
+      [currentView]: {
+        ...prev[currentView],
+        ...updates
+      }
+    }));
+  };
+
   // Load configuration on mount
   useEffect(() => {
     const loadConfig = async () => {
@@ -118,34 +155,46 @@ export default function Marketplace() {
     const genreFromUrl = urlParams.get('genre');
     const formatFromUrl = urlParams.get('format');
     
-    if (searchFromUrl) {
-      setSearchQuery(searchFromUrl);
-    }
-    if (genreFromUrl) {
-      setSelectedGenre(genreFromUrl);
-    }
-    if (formatFromUrl) {
-      setSelectedFormat(formatFromUrl);
+    if (searchFromUrl || genreFromUrl || formatFromUrl) {
+      updateCurrentFilters({
+        searchQuery: searchFromUrl || '',
+        selectedGenre: genreFromUrl || '',
+        selectedFormat: formatFromUrl || ''
+      });
     }
   }, [location.search]);
 
   // Handle hash changes for different views
   useEffect(() => {
     const hash = location.hash.slice(1) || 'all';
+    const prevView = currentView;
     setCurrentView(hash);
     
-    // Clear all filters when switching to trending or new views to ensure pure data
+    // Reset page when switching tabs
+    if (prevView !== hash) {
+      setCurrentPage(1);
+    }
+    
+    // For trending and new tabs, ensure filters are always cleared
     if (hash === 'trending' || hash === 'new') {
-      setSelectedGenre('');
-      setSelectedFormat('');
-      setSearchQuery('');
+      setTabFilters(prev => ({
+        ...prev,
+        [hash]: {
+          ...prev[hash],
+          searchQuery: '',
+          selectedGenre: '',
+          selectedFormat: '',
+          sortBy: hash === 'trending' ? 'views' : 'date',
+          sortOrder: 'desc'
+        }
+      }));
     }
   }, [location.hash]);
   
-  // Apply filter whenever view, pitches, genre, format or search change
+  // Apply filters to the current tab's data when dependencies change
   useEffect(() => {
-    applyFilters();
-  }, [currentView, pitches, trendingPitches, newPitches, browsePitches, selectedGenre, selectedFormat, searchQuery]);
+    applyTabFilters();
+  }, [currentView, tabData[currentView]?.pitches, tabFilters[currentView]]);
 
   useEffect(() => {
     loadPitches();
@@ -185,128 +234,115 @@ export default function Marketplace() {
     }
   }, [currentView]);
 
-  const applyFilters = () => {
-    let filtered: Pitch[] = [];
+  const applyTabFilters = () => {
+    const currentTabData = tabData[currentView];
+    if (!currentTabData) return;
     
-    // Get the appropriate data source based on the current view
-    switch(currentView) {
-      case 'trending':
-        // ONLY trending pitches - no mixing with other content
-        filtered = [...trendingPitches];
-        
-        // Apply filters to trending data only
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          filtered = filtered.filter(p => 
-            p.title?.toLowerCase().includes(query) ||
-            p.logline?.toLowerCase().includes(query) ||
-            p.genre?.toLowerCase().includes(query)
-          );
+    let filtered: Pitch[] = [...currentTabData.pitches];
+    const filters = getCurrentFilters();
+    
+    // Trending and New tabs should not have any filtering
+    if (currentView === 'trending' || currentView === 'new') {
+      // Pure data, no filtering allowed
+      setTabData(prev => ({
+        ...prev,
+        [currentView]: {
+          ...prev[currentView],
+          filtered: filtered
         }
-        if (selectedGenre) {
-          filtered = filtered.filter(p => 
-            p.genre?.toLowerCase() === selectedGenre.toLowerCase()
-          );
-        }
-        if (selectedFormat) {
-          filtered = filtered.filter(p => 
-            p.format?.toLowerCase() === selectedFormat.toLowerCase()
-          );
-        }
-        break;
-        
-      case 'new':
-        // ONLY new releases - sorted by creation date, no trending mixing
-        filtered = [...newPitches];
-        
-        // Apply filters to new releases data only
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          filtered = filtered.filter(p => 
-            p.title?.toLowerCase().includes(query) ||
-            p.logline?.toLowerCase().includes(query) ||
-            p.genre?.toLowerCase().includes(query)
-          );
-        }
-        if (selectedGenre) {
-          filtered = filtered.filter(p => 
-            p.genre?.toLowerCase() === selectedGenre.toLowerCase()
-          );
-        }
-        if (selectedFormat) {
-          filtered = filtered.filter(p => 
-            p.format?.toLowerCase() === selectedFormat.toLowerCase()
-          );
-        }
-        break;
-        
-      case 'browse':
-        // Browse uses server-side sorting and pagination
-        filtered = [...browsePitches];
-        
-        // Apply client-side search filter if backend search isn't working
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          filtered = filtered.filter(p => 
-            p.title?.toLowerCase().includes(query) ||
-            p.logline?.toLowerCase().includes(query) ||
-            p.genre?.toLowerCase().includes(query)
-          );
-        }
-        break;
-        
-      case 'genres':
-      case 'formats':
-      case 'all':
-      default:
-        // General view uses browse pitches (or fallback to pitches array)
-        filtered = browsePitches.length > 0 ? [...browsePitches] : [...pitches];
-        
-        // Apply search filter
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          filtered = filtered.filter(p => 
-            p.title?.toLowerCase().includes(query) ||
-            p.logline?.toLowerCase().includes(query) ||
-            p.genre?.toLowerCase().includes(query)
-          );
-        }
-        
-        // Apply genre filter
-        if (selectedGenre) {
-          filtered = filtered.filter(p => 
-            p.genre?.toLowerCase() === selectedGenre.toLowerCase()
-          );
-        }
-        
-        // Apply format filter
-        if (selectedFormat) {
-          filtered = filtered.filter(p => 
-            p.format?.toLowerCase().replace(/\s+/g, '') === 
-            selectedFormat.toLowerCase().replace(/\s+/g, '')
-          );
-        }
-        
-        // Sort by date (newest first) for consistency
-        filtered = filtered.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        break;
+      }));
+      return;
     }
     
-    setFilteredPitches(filtered);
+    // Apply filters only for browse, all, and genres views
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.title?.toLowerCase().includes(query) ||
+        p.logline?.toLowerCase().includes(query) ||
+        p.genre?.toLowerCase().includes(query)
+      );
+    }
+    
+    if (filters.selectedGenre) {
+      filtered = filtered.filter(p => 
+        p.genre?.toLowerCase() === filters.selectedGenre.toLowerCase()
+      );
+    }
+    
+    if (filters.selectedFormat) {
+      filtered = filtered.filter(p => 
+        p.format?.toLowerCase().replace(/\s+/g, '') === 
+        filters.selectedFormat.toLowerCase().replace(/\s+/g, '')
+      );
+    }
+    
+    // Apply sorting based on sortBy and sortOrder
+    filtered = filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (filters.sortBy) {
+        case 'alphabetical':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'date':
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          break;
+        case 'views':
+          comparison = (b.viewCount || 0) - (a.viewCount || 0);
+          break;
+        case 'likes':
+          comparison = (b.likeCount || 0) - (a.likeCount || 0);
+          break;
+        case 'budget':
+          // Compare budget strings (need parsing logic)
+          comparison = 0;
+          break;
+        default:
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      
+      return filters.sortOrder === 'desc' ? comparison : -comparison;
+    });
+    
+    // Update the filtered data for the current tab
+    setTabData(prev => ({
+      ...prev,
+      [currentView]: {
+        ...prev[currentView],
+        filtered: filtered
+      }
+    }));
   };
 
   const loadPitches = async () => {
     try {
       setLoading(true);
       const { pitches: pitchesData } = await pitchService.getPublicPitches();
-      setPitches(Array.isArray(pitchesData) ? pitchesData : []);
+      const pitches = Array.isArray(pitchesData) ? pitchesData : [];
+      
+      // Update 'all' tab data
+      setTabData(prev => ({
+        ...prev,
+        all: {
+          pitches: pitches,
+          filtered: pitches,
+          loading: false
+        },
+        genres: {
+          pitches: pitches,
+          filtered: pitches,
+          loading: false
+        }
+      }));
     } catch (err) {
       console.error('Failed to load pitches:', err);
-      // Don't show error toast, just log it
       // Use empty array as fallback
-      setPitches([]);
+      setTabData(prev => ({
+        ...prev,
+        all: { pitches: [], filtered: [], loading: false },
+        genres: { pitches: [], filtered: [], loading: false }
+      }));
     } finally {
       setLoading(false);
     }
@@ -314,9 +350,22 @@ export default function Marketplace() {
 
   const loadTrendingPitches = async () => {
     try {
+      setTabData(prev => ({
+        ...prev,
+        trending: { ...prev.trending, loading: true }
+      }));
+      
       // Use the dedicated trending endpoint for proper trending data
       const trending = await pitchService.getTrendingPitches(20);
-      setTrendingPitches(trending);
+      
+      setTabData(prev => ({
+        ...prev,
+        trending: {
+          pitches: trending,
+          filtered: trending, // No filtering for trending
+          loading: false
+        }
+      }));
     } catch (err) {
       console.error('Failed to load trending pitches:', err);
       // Fallback: sort all pitches by view count for trending behavior
@@ -331,20 +380,45 @@ export default function Marketplace() {
             }
             return viewDiff;
           });
-          setTrendingPitches(trending.slice(0, 20));
+          const trendingSlice = trending.slice(0, 20);
+          
+          setTabData(prev => ({
+            ...prev,
+            trending: {
+              pitches: trendingSlice,
+              filtered: trendingSlice,
+              loading: false
+            }
+          }));
         }
       } catch (fallbackErr) {
         console.error('Trending fallback also failed:', fallbackErr);
-        setTrendingPitches([]);
+        setTabData(prev => ({
+          ...prev,
+          trending: { pitches: [], filtered: [], loading: false }
+        }));
       }
     }
   };
 
   const loadNewPitches = async () => {
     try {
+      setTabData(prev => ({
+        ...prev,
+        new: { ...prev.new, loading: true }
+      }));
+      
       // Use the dedicated new releases endpoint for proper chronological data
       const newReleases = await pitchService.getNewReleases(20);
-      setNewPitches(newReleases);
+      
+      setTabData(prev => ({
+        ...prev,
+        new: {
+          pitches: newReleases,
+          filtered: newReleases, // No filtering for new releases
+          loading: false
+        }
+      }));
     } catch (err) {
       console.error('Failed to load new pitches:', err);
       // Fallback: sort all pitches by creation date for new behavior
@@ -355,82 +429,111 @@ export default function Marketplace() {
           const newReleases = [...pitchesData].sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
-          setNewPitches(newReleases.slice(0, 20));
+          const newSlice = newReleases.slice(0, 20);
+          
+          setTabData(prev => ({
+            ...prev,
+            new: {
+              pitches: newSlice,
+              filtered: newSlice,
+              loading: false
+            }
+          }));
         }
       } catch (fallbackErr) {
         console.error('New pitches fallback also failed:', fallbackErr);
-        setNewPitches([]);
+        setTabData(prev => ({
+          ...prev,
+          new: { pitches: [], filtered: [], loading: false }
+        }));
       }
     }
   };
 
   const loadBrowsePitches = async () => {
     // Prevent multiple simultaneous requests
-    if (browseLoading) {
+    const browseTab = tabData.browse;
+    if (browseTab?.loading) {
       return;
     }
     
     try {
-      setBrowseLoading(true);
-      setLoading(true);
-      const offset = (currentPage - 1) * itemsPerPage;
+      setTabData(prev => ({
+        ...prev,
+        browse: { ...prev.browse, loading: true }
+      }));
       
+      const offset = (currentPage - 1) * itemsPerPage;
+      const filters = tabFilters.browse;
       
       const result = await pitchService.getGeneralBrowse({
-        sort: sortBy,
-        order: sortOrder,
-        genre: selectedGenre || undefined,
-        format: selectedFormat || undefined,
-        search: searchQuery || undefined,
+        sort: filters.sortBy,
+        order: filters.sortOrder,
+        genre: filters.selectedGenre || undefined,
+        format: filters.selectedFormat || undefined,
+        search: filters.searchQuery || undefined,
         limit: itemsPerPage,
         offset
       });
       
-      
-      // Store browse results directly (no search filtering here - done in applyFilters)
-      setBrowsePitches(result.pitches);
-      setBrowseMetadata(result);
+      // Store browse results in tab-specific data
+      setTabData(prev => ({
+        ...prev,
+        browse: {
+          pitches: result.pitches,
+          filtered: result.pitches, // Browse uses server-side filtering
+          loading: false,
+          metadata: result
+        }
+      }));
     } catch (err) {
       console.error('Failed to load browse pitches:', err);
-      setBrowsePitches([]);
-      setBrowseMetadata(null);
-    } finally {
-      setBrowseLoading(false);
-      setLoading(false);
+      setTabData(prev => ({
+        ...prev,
+        browse: { 
+          pitches: [], 
+          filtered: [], 
+          loading: false, 
+          metadata: null 
+        }
+      }));
     }
   };
 
   const loadRecommendations = async () => {
     try {
-      const allPitches = [...pitches];
+      const currentTabData = tabData[currentView];
+      const allPitches = currentTabData?.pitches || [];
       
       // Get related pitches based on search query or selected filters
+      const filters = getCurrentFilters();
+      const filteredPitches = currentTabData?.filtered || [];
       let relatedPitches: Pitch[] = [];
-      if (searchQuery || selectedGenre || selectedFormat) {
+      if (filters.searchQuery || filters.selectedGenre || filters.selectedFormat) {
         relatedPitches = allPitches.filter(pitch => {
           // Exclude pitches that match the current search to avoid duplicates
-          const matchesSearch = searchQuery && (
-            pitch.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            pitch.logline?.toLowerCase().includes(searchQuery.toLowerCase())
+          const matchesSearch = filters.searchQuery && (
+            pitch.title?.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+            pitch.logline?.toLowerCase().includes(filters.searchQuery.toLowerCase())
           );
-          const matchesGenre = selectedGenre && pitch.genre?.toLowerCase() === selectedGenre.toLowerCase();
-          const matchesFormat = selectedFormat && pitch.format?.toLowerCase() === selectedFormat.toLowerCase();
+          const matchesGenre = filters.selectedGenre && pitch.genre?.toLowerCase() === filters.selectedGenre.toLowerCase();
+          const matchesFormat = filters.selectedFormat && pitch.format?.toLowerCase() === filters.selectedFormat.toLowerCase();
           
           // Return pitches that are related but not exact matches
-          if (searchQuery && !matchesSearch) {
-            return pitch.genre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                   pitch.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+          if (filters.searchQuery && !matchesSearch) {
+            return pitch.genre?.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+                   pitch.tags?.some(tag => tag.toLowerCase().includes(filters.searchQuery.toLowerCase()));
           }
           return !matchesSearch && !matchesGenre && !matchesFormat &&
-                 (selectedGenre ? pitch.genre?.toLowerCase() === selectedGenre.toLowerCase() : true) &&
-                 (selectedFormat ? pitch.format?.toLowerCase() === selectedFormat.toLowerCase() : true);
+                 (filters.selectedGenre ? pitch.genre?.toLowerCase() === filters.selectedGenre.toLowerCase() : true) &&
+                 (filters.selectedFormat ? pitch.format?.toLowerCase() === filters.selectedFormat.toLowerCase() : true);
         }).slice(0, 6);
       }
       
       // Get similar genre pitches
       let similarGenrePitches: Pitch[] = [];
-      if (selectedGenre || filteredPitches.length > 0) {
-        const targetGenre = selectedGenre || filteredPitches[0]?.genre;
+      if (filters.selectedGenre || filteredPitches.length > 0) {
+        const targetGenre = filters.selectedGenre || filteredPitches[0]?.genre;
         if (targetGenre) {
           similarGenrePitches = allPitches
             .filter(pitch => 
@@ -442,11 +545,13 @@ export default function Marketplace() {
       }
       
       // Get trending recommendations
+      const trendingPitches = tabData.trending?.pitches || [];
       const trendingRecommendations = trendingPitches
         .filter(pitch => !filteredPitches.some(fp => fp.id === pitch.id))
         .slice(0, 4);
       
       // Get new release recommendations  
+      const newPitches = tabData.new?.pitches || [];
       const newReleaseRecommendations = newPitches
         .filter(pitch => !filteredPitches.some(fp => fp.id === pitch.id))
         .slice(0, 4);
@@ -468,30 +573,36 @@ export default function Marketplace() {
   };
 
   const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedGenre('');
-    setSelectedFormat('');
-    setSortBy('date');
-    setSortOrder('desc');
+    updateCurrentFilters({
+      searchQuery: '',
+      selectedGenre: '',
+      selectedFormat: '',
+      sortBy: 'date',
+      sortOrder: 'desc'
+    });
     setCurrentPage(1);
   };
 
   // Get paginated pitches - different logic for browse vs other views
   const getPaginatedPitches = () => {
+    const currentTabData = tabData[currentView];
+    if (!currentTabData) return [];
+    
     if (currentView === 'browse') {
       // Browse view uses backend pagination
-      return browsePitches;
+      return currentTabData.filtered;
     } else {
       // Other views use frontend pagination
       const startIndex = (currentPage - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
-      return filteredPitches.slice(startIndex, endIndex);
+      return currentTabData.filtered.slice(startIndex, endIndex);
     }
   };
 
+  const currentTabData = tabData[currentView];
   const totalPages = currentView === 'browse' 
-    ? (browseMetadata?.pagination?.totalPages || 1)
-    : Math.ceil(filteredPitches.length / itemsPerPage);
+    ? (currentTabData?.metadata?.pagination?.totalPages || 1)
+    : Math.ceil((currentTabData?.filtered?.length || 0) / itemsPerPage);
   const paginatedPitches = getPaginatedPitches();
 
   const handlePageChange = (page: number) => {
@@ -655,11 +766,11 @@ export default function Marketplace() {
                     currentView === 'new' ? "Search is disabled in New Releases view" :
                     "Search for films, genres, creators..."
                   }
-                  value={searchQuery}
+                  value={getCurrentFilters().searchQuery}
                   onChange={(e) => {
                     // Only allow search changes if not in trending/new views
                     if (currentView !== 'trending' && currentView !== 'new') {
-                      setSearchQuery(e.target.value);
+                      updateCurrentFilters({ searchQuery: e.target.value });
                     }
                   }}
                   disabled={currentView === 'trending' || currentView === 'new'}
@@ -686,14 +797,14 @@ export default function Marketplace() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Trending Section */}
-        {trendingPitches.length > 0 && (
+        {tabData.trending?.pitches?.length > 0 && (
           <div className="mb-12">
             <div className="flex items-center space-x-2 mb-6">
               <TrendingUp className="w-6 h-6 text-orange-500" />
               <h2 className="text-2xl font-bold text-gray-900">Trending Now</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {trendingPitches.slice(0, 4).map((pitch) => {
+              {tabData.trending.pitches.slice(0, 4).map((pitch) => {
                 const isProduction = pitch.creator?.userType === 'production';
                 const isInvestor = pitch.creator?.userType === 'investor';
                 const borderColor = 
@@ -775,8 +886,8 @@ export default function Marketplace() {
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
                   <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    value={tabFilters.browse.sortBy}
+                    onChange={(e) => updateCurrentFilters({ sortBy: e.target.value as any })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option value="date">Date</option>
@@ -792,26 +903,26 @@ export default function Marketplace() {
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
                   <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as any)}
+                    value={tabFilters.browse.sortOrder}
+                    onChange={(e) => updateCurrentFilters({ sortOrder: e.target.value as any })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
-                    {sortBy === 'alphabetical' ? (
+                    {tabFilters.browse.sortBy === 'alphabetical' ? (
                       <>
                         <option value="asc">A to Z</option>
                         <option value="desc">Z to A</option>
                       </>
-                    ) : sortBy === 'date' ? (
+                    ) : tabFilters.browse.sortBy === 'date' ? (
                       <>
                         <option value="desc">Newest First</option>
                         <option value="asc">Oldest First</option>
                       </>
-                    ) : sortBy === 'budget' ? (
+                    ) : tabFilters.browse.sortBy === 'budget' ? (
                       <>
                         <option value="desc">High to Low</option>
                         <option value="asc">Low to High</option>
                       </>
-                    ) : sortBy === 'investment_status' ? (
+                    ) : tabFilters.browse.sortBy === 'investment_status' ? (
                       <>
                         <option value="desc">Funded First</option>
                         <option value="asc">Seeking Funding First</option>
@@ -829,8 +940,8 @@ export default function Marketplace() {
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Genre</label>
                   <select
-                    value={selectedGenre}
-                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    value={tabFilters.browse.selectedGenre}
+                    onChange={(e) => updateCurrentFilters({ selectedGenre: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option value="">All Genres</option>
@@ -844,8 +955,8 @@ export default function Marketplace() {
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Format</label>
                   <select
-                    value={selectedFormat}
-                    onChange={(e) => setSelectedFormat(e.target.value)}
+                    value={tabFilters.browse.selectedFormat}
+                    onChange={(e) => updateCurrentFilters({ selectedFormat: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option value="">All Formats</option>
@@ -856,13 +967,15 @@ export default function Marketplace() {
                 </div>
 
                 {/* Clear Filters */}
-                {(selectedGenre || selectedFormat || sortBy !== 'date' || sortOrder !== 'desc') && (
+                {(tabFilters.browse.selectedGenre || tabFilters.browse.selectedFormat || tabFilters.browse.sortBy !== 'date' || tabFilters.browse.sortOrder !== 'desc') && (
                   <button
                     onClick={() => {
-                      setSelectedGenre('');
-                      setSelectedFormat('');
-                      setSortBy('date');
-                      setSortOrder('desc');
+                      updateCurrentFilters({
+                        selectedGenre: '',
+                        selectedFormat: '',
+                        sortBy: 'date',
+                        sortOrder: 'desc'
+                      });
                       setCurrentPage(1);
                     }}
                     className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
@@ -872,14 +985,14 @@ export default function Marketplace() {
                 )}
 
                 {/* Results Summary */}
-                {browseMetadata && (
+                {tabData.browse?.metadata && (
                   <div className="mt-6 pt-6 border-t border-gray-200">
                     <div className="text-sm text-gray-600">
                       <p className="font-medium">
-                        {browseMetadata.totalCount} results found
+                        {tabData.browse.metadata.totalCount} results found
                       </p>
                       <p>
-                        Page {browseMetadata.pagination.currentPage} of {browseMetadata.pagination.totalPages}
+                        Page {tabData.browse.metadata.pagination.currentPage} of {tabData.browse.metadata.pagination.totalPages}
                       </p>
                     </div>
                   </div>
@@ -892,11 +1005,11 @@ export default function Marketplace() {
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">
                   General Browse
-                  {selectedGenre && ` - ${selectedGenre}`}
-                  {selectedFormat && ` - ${selectedFormat}`}
+                  {tabFilters.browse.selectedGenre && ` - ${tabFilters.browse.selectedGenre}`}
+                  {tabFilters.browse.selectedFormat && ` - ${tabFilters.browse.selectedFormat}`}
                 </h2>
                 <div className="text-sm text-gray-500">
-                  {browseMetadata && `${browseMetadata.totalCount} pitches`}
+                  {tabData.browse?.metadata && `${tabData.browse.metadata.totalCount} pitches`}
                 </div>
               </div>
               
@@ -911,9 +1024,9 @@ export default function Marketplace() {
               {currentView === 'new' && 'New Releases'}
               {currentView === 'genres' && 'Browse by Genre'}
               {currentView === 'all' && 'All Pitches'}
-              {searchQuery && ` - "${searchQuery}"`}
-              {selectedGenre && ` - ${selectedGenre}`}
-              {selectedFormat && ` - ${selectedFormat}`}
+              {getCurrentFilters().searchQuery && ` - "${getCurrentFilters().searchQuery}"`}
+              {getCurrentFilters().selectedGenre && ` - ${getCurrentFilters().selectedGenre}`}
+              {getCurrentFilters().selectedFormat && ` - ${getCurrentFilters().selectedFormat}`}
             </h2>
             
             <div className="flex flex-wrap items-center space-x-4">
@@ -921,8 +1034,8 @@ export default function Marketplace() {
               {currentView !== 'trending' && currentView !== 'new' && (
                 <>
                   <select
-                    value={selectedGenre}
-                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    value={getCurrentFilters().selectedGenre}
+                    onChange={(e) => updateCurrentFilters({ selectedGenre: e.target.value })}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option value="">All Genres</option>
@@ -932,8 +1045,8 @@ export default function Marketplace() {
                   </select>
                   
                   <select
-                    value={selectedFormat}
-                    onChange={(e) => setSelectedFormat(e.target.value)}
+                    value={getCurrentFilters().selectedFormat}
+                    onChange={(e) => updateCurrentFilters({ selectedFormat: e.target.value })}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     <option value="">All Formats</option>
@@ -943,7 +1056,7 @@ export default function Marketplace() {
                   </select>
                   
                   {/* Show clear filters if any filters are active */}
-                  {(selectedGenre || selectedFormat || searchQuery) && (
+                  {(getCurrentFilters().selectedGenre || getCurrentFilters().selectedFormat || getCurrentFilters().searchQuery) && (
                     <button
                       onClick={clearFilters}
                       className="px-4 py-2 text-gray-600 hover:text-gray-800"
@@ -1191,15 +1304,15 @@ export default function Marketplace() {
                 </div>
                 
                 {/* Browse Pagination */}
-                {browseMetadata && browseMetadata.pagination.totalPages > 1 && (
+                {tabData.browse?.metadata && tabData.browse.metadata.pagination.totalPages > 1 && (
                   <div className="mt-8">
                     <Pagination
-                      currentPage={browseMetadata.pagination.currentPage}
-                      totalPages={browseMetadata.pagination.totalPages}
+                      currentPage={tabData.browse.metadata.pagination.currentPage}
+                      totalPages={tabData.browse.metadata.pagination.totalPages}
                       onPageChange={handlePageChange}
                       showTotal={true}
-                      totalItems={browseMetadata.totalCount}
-                      itemsPerPage={browseMetadata.pagination.limit}
+                      totalItems={tabData.browse.metadata.totalCount}
+                      itemsPerPage={tabData.browse.metadata.pagination.limit}
                       className="justify-center"
                     />
                   </div>
@@ -1447,11 +1560,11 @@ export default function Marketplace() {
             </div>
             
             {/* Recommendations Section */}
-            {(searchQuery || selectedGenre || selectedFormat) && (
+            {(getCurrentFilters().searchQuery || getCurrentFilters().selectedGenre || getCurrentFilters().selectedFormat) && (
               <div className="mt-12 space-y-8">
                 <div className="border-t pt-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    {searchQuery ? 'Recommendations Based on Your Search' : 'You Might Also Like'}
+                    {getCurrentFilters().searchQuery ? 'Recommendations Based on Your Search' : 'You Might Also Like'}
                   </h2>
                   
                   {/* Related Pitches */}
@@ -1511,7 +1624,7 @@ export default function Marketplace() {
                     <div className="mb-8">
                       <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                         <Film className="w-5 h-5 text-blue-600" />
-                        More in {selectedGenre || 'This Genre'}
+                        More in {getCurrentFilters().selectedGenre || 'This Genre'}
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {recommendations.similarGenre.map(pitch => (

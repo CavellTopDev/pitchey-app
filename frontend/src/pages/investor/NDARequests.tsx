@@ -6,7 +6,6 @@ import {
   AlertCircle, CheckCircle, XCircle, Clock, ChevronRight,
   MoreVertical, Send, Archive, Trash2
 } from 'lucide-react';
-import { InvestorNavigation } from '@/components/InvestorNavigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -47,8 +46,7 @@ interface NDARequest {
 }
 
 export default function NDARequests() {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedTab, setSelectedTab] = useState(searchParams.get('tab') || 'all');
@@ -163,9 +161,8 @@ export default function NDARequests() {
   }, [selectedTab]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation user={{ email: 'sarah.investor@demo.com' }} onLogout={handleLogout} />
-      
+    <div>
+            
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

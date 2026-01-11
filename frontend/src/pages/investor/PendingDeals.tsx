@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Clock, FileText, DollarSign, Calendar, AlertCircle,
   CheckCircle, XCircle, Info, ChevronRight, Filter,
@@ -8,8 +7,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '@/store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { investorApi } from '@/services/investor.service';
 
 interface PendingDeal {
@@ -56,8 +54,7 @@ interface PendingDeal {
 }
 
 const PendingDeals = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState<PendingDeal[]>([]);
   const [filteredDeals, setFilteredDeals] = useState<PendingDeal[]>([]);
@@ -242,12 +239,8 @@ const PendingDeals = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation 
-          user={user}
-          onLogout={handleLogout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -262,12 +255,8 @@ const PendingDeals = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation 
-        user={user}
-        onLogout={handleLogout}
-      />
-      <main className="container mx-auto px-4 py-6">
+    <div>
+            <main className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Pending Deals</h1>

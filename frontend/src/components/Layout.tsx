@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { 
   Home, Film, LogOut, Search, Menu, X, Plus 
 } from 'lucide-react';
@@ -14,7 +14,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Initialize real-time notifications

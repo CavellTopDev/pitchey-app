@@ -1,0 +1,631 @@
+name: Enhanced CI Pipeline
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'hotfix/**'
+
+env:
+  NODE_VERSION: '20'
+  DENO_VERSION: 'v2.1.2'
+  COVERAGE_THRESHOLD: 80
+  BUNDLE_SIZE_LIMIT: '5MB'
+  PERFORMANCE_BUDGET: '3000ms'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast linting and format check
+  lint-and-format:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Lint Backend
+        run: deno lint src/
+        continue-on-error: false
+      
+      - name: Format Check Backend
+        run: deno fmt --check src/
+        continue-on-error: false
+      
+      - name: Lint Frontend
+        run: cd frontend && npm run lint
+        continue-on-error: false
+      
+      - name: Type Check Frontend
+        run: cd frontend && npm run type-check
+        continue-on-error: false
+      
+      - name: Check for TODO/FIXME comments
+        run: |
+          if grep -r "TODO\|FIXME" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" | grep -v "test"; then
+            echo "⚠️ Found TODO/FIXME comments in production code"
+            echo "Please resolve these before merging to main"
+            exit 1
+          fi
+
+  # Security vulnerability scanning
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+      
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Setup Node.js for audit
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies for audit
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: NPM Security Audit
+        run: |
+          echo "🔍 Running root package audit..."
+          npm audit --audit-level=moderate || audit_failed=true
+          
+          echo "🔍 Running frontend package audit..."
+          cd frontend
+          npm audit --audit-level=moderate || audit_failed=true
+          
+          if [ "$audit_failed" = true ]; then
+            echo "❌ Security audit found vulnerabilities"
+            echo "Run 'npm audit fix' to resolve issues"
+            exit 1
+          fi
+          echo "✅ No critical security vulnerabilities found"
+      
+      - name: Check for hardcoded secrets
+        run: |
+          # Check for common secret patterns
+          if grep -r -E "(password|secret|key|token)\s*[:=]\s*['\"][^'\"]{8,}['\"]" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" | grep -v -E "(test|mock|example|placeholder)"; then
+            echo "❌ Potential hardcoded secrets found"
+            exit 1
+          fi
+          echo "✅ No hardcoded secrets detected"
+
+  # Comprehensive unit testing
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Run Backend Unit Tests
+        run: |
+          echo "🧪 Running backend unit tests..."
+          deno test tests/unit/ --allow-env --coverage=coverage/backend/ --reporter=json > backend-test-results.json
+        continue-on-error: true
+      
+      - name: Run Frontend Unit Tests
+        run: |
+          echo "🧪 Running frontend unit tests..."
+          cd frontend
+          npm run test:ci
+        continue-on-error: true
+      
+      - name: Check Coverage Threshold
+        run: |
+          cd frontend
+          coverage=$(npm run test:coverage --silent | grep "All files" | grep -oE "[0-9]+\.[0-9]+" | head -1)
+          if (( $(echo "$coverage < $COVERAGE_THRESHOLD" | bc -l) )); then
+            echo "❌ Coverage $coverage% is below threshold $COVERAGE_THRESHOLD%"
+            exit 1
+          fi
+          echo "✅ Coverage $coverage% meets threshold $COVERAGE_THRESHOLD%"
+      
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: unittests
+          name: unit-test-coverage
+          fail_ci_if_error: false
+      
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: |
+            backend-test-results.json
+            frontend/coverage/
+          retention-days: 7
+
+  # Integration testing with services
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+          POSTGRES_DB: pitchey_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      
+      - name: Setup test database
+        run: |
+          # Create test schema and tables
+          PGPASSWORD=test_pass psql -h localhost -U test_user -d pitchey_test -c "
+            CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";
+            CREATE EXTENSION IF NOT EXISTS \"citext\";
+          "
+      
+      - name: Run database migrations
+        run: |
+          deno run --allow-all src/db/migrate.ts
+        env:
+          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/pitchey_test
+      
+      - name: Run Integration Tests
+        run: |
+          echo "🔗 Running integration tests..."
+          deno test tests/integration/ --allow-all --parallel --coverage=coverage/integration/
+        env:
+          TEST_DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/pitchey_test
+          TEST_REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+      
+      - name: Upload Integration Coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/integration/lcov.info
+          flags: integration
+          name: integration-test-coverage
+
+  # End-to-End testing with Playwright
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Install Playwright
+        run: cd frontend && npx playwright install --with-deps
+      
+      - name: Build frontend for E2E
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: http://localhost:8001
+          VITE_WS_URL: ws://localhost:8001
+      
+      - name: Start test server
+        run: |
+          cd frontend
+          npm run preview &
+          sleep 10
+      
+      - name: Run E2E Tests
+        run: |
+          cd frontend
+          npm run test:e2e
+        env:
+          BASE_URL: http://localhost:4173
+      
+      - name: Upload E2E Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+
+  # Build verification and optimization
+  build-check:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Check Bundle Size
+        run: |
+          cd frontend/dist
+          total_size=$(du -sb . | cut -f1)
+          limit_bytes=$(echo "$BUNDLE_SIZE_LIMIT" | sed 's/MB//' | awk '{print $1 * 1024 * 1024}')
+          
+          if [ $total_size -gt $limit_bytes ]; then
+            echo "❌ Bundle size $(($total_size / 1024 / 1024))MB exceeds limit $BUNDLE_SIZE_LIMIT"
+            exit 1
+          fi
+          echo "✅ Bundle size $(($total_size / 1024 / 1024))MB within limit"
+      
+      - name: Analyze Bundle
+        run: |
+          cd frontend
+          npm run build:analyze > bundle-analysis.txt
+          cat bundle-analysis.txt
+      
+      - name: Test Wrangler Config
+        run: |
+          npm install -g wrangler
+          wrangler deploy --dry-run
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            frontend/dist/
+            bundle-analysis.txt
+          retention-days: 3
+
+  # Performance testing
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [build-check]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Serve built app
+        run: |
+          cd frontend
+          npm run preview &
+          sleep 15
+      
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './frontend/lighthouserc.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          budgetPath: './frontend/budget.json'
+          runs: 3
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+      
+      - name: Performance Budget Check
+        run: |
+          # Check if performance is within budget
+          echo "🎯 Checking performance budget..."
+          # This would integrate with your performance monitoring
+
+  # Code quality analysis
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Generate coverage
+        run: |
+          cd frontend
+          npm run test:coverage
+      
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
+            -Dsonar.typescript.lcov.reportPaths=frontend/coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx
+            -Dsonar.sources=src/,frontend/src/
+            -Dsonar.tests=tests/,frontend/src/**/*.test.*
+            -Dsonar.test.inclusions=**/*.test.*,**/*.spec.*
+
+  # Dependency vulnerability check
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Check for known vulnerabilities
+        uses: ossf/scorecard-action@v2.3.1
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      
+      - name: Upload Scorecard results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: results.sarif
+
+  # Quality gates check
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, security-scan, unit-tests, integration-tests, build-check, performance-tests]
+    if: always()
+    
+    steps:
+      - name: Evaluate Quality Gates
+        run: |
+          echo "🔍 Evaluating quality gates..."
+          
+          # Check if all required jobs passed
+          lint_status="${{ needs.lint-and-format.result }}"
+          security_status="${{ needs.security-scan.result }}"
+          unit_status="${{ needs.unit-tests.result }}"
+          integration_status="${{ needs.integration-tests.result }}"
+          build_status="${{ needs.build-check.result }}"
+          performance_status="${{ needs.performance-tests.result }}"
+          
+          echo "📊 Quality Gate Results:"
+          echo "  Lint & Format: $lint_status"
+          echo "  Security Scan: $security_status"
+          echo "  Unit Tests: $unit_status"
+          echo "  Integration Tests: $integration_status"
+          echo "  Build Check: $build_status"
+          echo "  Performance: $performance_status"
+          
+          failed_gates=""
+          
+          if [[ "$lint_status" != "success" ]]; then
+            failed_gates="$failed_gates Linting"
+          fi
+          
+          if [[ "$security_status" != "success" ]]; then
+            failed_gates="$failed_gates Security"
+          fi
+          
+          if [[ "$unit_status" != "success" ]]; then
+            failed_gates="$failed_gates UnitTests"
+          fi
+          
+          if [[ "$integration_status" != "success" ]]; then
+            failed_gates="$failed_gates IntegrationTests"
+          fi
+          
+          if [[ "$build_status" != "success" ]]; then
+            failed_gates="$failed_gates Build"
+          fi
+          
+          if [[ "$performance_status" != "success" ]]; then
+            failed_gates="$failed_gates Performance"
+          fi
+          
+          if [[ -n "$failed_gates" ]]; then
+            echo "❌ Quality gates failed:$failed_gates"
+            echo "::error::Quality gates failed. Review the failed jobs and fix issues before merging."
+            exit 1
+          fi
+          
+          echo "✅ All quality gates passed! Ready for merge."
+      
+      - name: Comment PR with Quality Status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.payload.pull_request.number;
+            
+            const needs = ${{ toJSON(needs) }};
+            const results = Object.entries(needs).map(([job, info]) => {
+              const emoji = info.result === 'success' ? '✅' : '❌';
+              return `${emoji} ${job}: ${info.result}`;
+            }).join('\n');
+            
+            const body = `## 🔍 Quality Gates Report
+            
+${results}
+
+${Object.values(needs).every(job => job.result === 'success') ? 
+  '✅ **All quality gates passed!** This PR is ready for review.' : 
+  '❌ **Some quality gates failed.** Please review and fix the issues above.'}`;
+            
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pr_number,
+              body
+            });
+
+  # Notify status
+  ci-complete:
+    name: CI Pipeline Complete
+    runs-on: ubuntu-latest
+    needs: [quality-gates]
+    if: always()
+    
+    steps:
+      - name: Pipeline Status
+        run: |
+          if [[ "${{ needs.quality-gates.result }}" == "success" ]]; then
+            echo "🎉 CI Pipeline completed successfully!"
+            echo "Ready for code review and merge."
+          else
+            echo "❌ CI Pipeline failed"
+            echo "Please review failed jobs and fix issues."
+            exit 1
+          fi

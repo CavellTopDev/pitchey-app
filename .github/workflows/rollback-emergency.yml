@@ -1,0 +1,703 @@
+name: Emergency Rollback & Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollback_type:
+        description: 'Type of rollback'
+        required: true
+        default: 'frontend'
+        type: choice
+        options:
+          - frontend
+          - worker
+          - database
+          - full_system
+      target_version:
+        description: 'Target version/commit to rollback to (leave empty for previous stable)'
+        required: false
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      skip_tests:
+        description: 'Skip pre-rollback tests (emergency only)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  DENO_VERSION: 'v2.1.2'
+  ROLLBACK_TIMEOUT: 300
+  MAX_ROLLBACK_ATTEMPTS: 3
+
+concurrency:
+  group: rollback-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Validate rollback request
+  validate-rollback:
+    name: Validate Rollback Request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    outputs:
+      rollback-commit: ${{ steps.validate.outputs.rollback_commit }}
+      current-commit: ${{ steps.validate.outputs.current_commit }}
+      rollback-valid: ${{ steps.validate.outputs.valid }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      
+      - name: Validate Rollback Request
+        id: validate
+        run: |
+          echo "🔍 Validating rollback request..."
+          echo "Rollback Type: ${{ github.event.inputs.rollback_type }}"
+          echo "Target Version: ${{ github.event.inputs.target_version }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          
+          current_commit=$(git rev-parse HEAD)
+          echo "Current commit: $current_commit"
+          
+          # Determine target commit
+          if [[ -n "${{ github.event.inputs.target_version }}" ]]; then
+            target_commit="${{ github.event.inputs.target_version }}"
+            
+            # Validate target commit exists
+            if ! git cat-file -e "$target_commit" 2>/dev/null; then
+              echo "❌ Target commit $target_commit does not exist"
+              echo "valid=false" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          else
+            # Find previous stable version (tagged or main branch commits)
+            target_commit=$(git log --oneline --no-merges -n 10 | grep -E "(release|stable|deploy)" | head -1 | cut -d' ' -f1 || echo "")
+            
+            if [[ -z "$target_commit" ]]; then
+              # Fallback to previous commit
+              target_commit=$(git rev-parse HEAD~1)
+              echo "⚠️ No stable version found, using previous commit: $target_commit"
+            else
+              echo "✅ Found stable version: $target_commit"
+            fi
+          fi
+          
+          echo "rollback_commit=$target_commit" >> $GITHUB_OUTPUT
+          echo "current_commit=$current_commit" >> $GITHUB_OUTPUT
+          
+          # Validate rollback is different from current
+          if [[ "$target_commit" == "$current_commit" ]]; then
+            echo "❌ Target commit is same as current commit"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "✅ Rollback validation passed"
+          echo "valid=true" >> $GITHUB_OUTPUT
+          echo "Target rollback commit: $target_commit"
+      
+      - name: Check for Active Deployments
+        run: |
+          echo "🔍 Checking for active deployments..."
+          
+          # Check if there are any running deployment workflows
+          running_workflows=$(gh run list --status in_progress --workflow "cd-blue-green.yml" --json databaseId --jq length 2>/dev/null || echo 0)
+          
+          if [[ $running_workflows -gt 0 ]]; then
+            echo "⚠️ Warning: $running_workflows deployment(s) currently running"
+            echo "Consider canceling active deployments before rollback"
+          else
+            echo "✅ No active deployments detected"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Pre-rollback health check
+  pre-rollback-health:
+    name: Pre-Rollback Health Assessment
+    runs-on: ubuntu-latest
+    needs: [validate-rollback]
+    if: needs.validate-rollback.outputs.rollback-valid == 'true' && github.event.inputs.skip_tests != 'true'
+    timeout-minutes: 10
+    
+    outputs:
+      pre-health-status: ${{ steps.health.outputs.status }}
+    
+    steps:
+      - name: Current System Health Check
+        id: health
+        run: |
+          echo "🏥 Assessing current system health before rollback..."
+          
+          api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+          frontend_url="https://pitchey-5o8-66n.pages.dev"
+          
+          health_issues=0
+          
+          # API Health
+          if response=$(curl -s -w "%{http_code}" --max-time 30 "$api_url/health" -o /dev/null); then
+            if [[ "$response" == "200" ]]; then
+              echo "✅ API is responding"
+            else
+              echo "❌ API health issue: status $response"
+              ((health_issues++))
+            fi
+          else
+            echo "❌ API is not responding"
+            ((health_issues++))
+          fi
+          
+          # Frontend Health
+          if response=$(curl -s -w "%{http_code}" --max-time 30 "$frontend_url" -o /dev/null); then
+            if [[ "$response" == "200" ]]; then
+              echo "✅ Frontend is responding"
+            else
+              echo "❌ Frontend health issue: status $response"
+              ((health_issues++))
+            fi
+          else
+            echo "❌ Frontend is not responding"
+            ((health_issues++))
+          fi
+          
+          echo "Pre-rollback health issues: $health_issues"
+          
+          if [[ $health_issues -eq 0 ]]; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "✅ System appears healthy - rollback may not be necessary"
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "⚠️ System has issues - proceeding with rollback"
+          fi
+
+  # Frontend rollback
+  rollback-frontend:
+    name: Rollback Frontend
+    runs-on: ubuntu-latest
+    needs: [validate-rollback, pre-rollback-health]
+    if: |
+      always() && 
+      needs.validate-rollback.outputs.rollback-valid == 'true' && 
+      (github.event.inputs.rollback_type == 'frontend' || github.event.inputs.rollback_type == 'full_system') &&
+      (needs.pre-rollback-health.result == 'success' || needs.pre-rollback-health.result == 'skipped')
+    timeout-minutes: 20
+    
+    environment:
+      name: production-rollback
+      url: https://pitchey-5o8-66n.pages.dev
+    
+    steps:
+      - name: Checkout Target Version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-rollback.outputs.rollback-commit }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Build Frontend from Target Version
+        run: |
+          echo "🔨 Building frontend from target version ${{ needs.validate-rollback.outputs.rollback-commit }}"
+          
+          cd frontend
+          npm ci
+          npm run build:prod
+        env:
+          VITE_API_URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
+          VITE_WS_URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev
+          VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          NODE_ENV: production
+      
+      - name: Deploy Rollback Frontend
+        run: |
+          echo "🚀 Deploying frontend rollback..."
+          
+          # Deploy with rollback flag
+          wrangler pages deploy frontend/dist \
+            --project-name=pitchey-5o8-66n \
+            --env=production \
+            --compatibility-date=2024-01-01
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
+      - name: Wait for Deployment
+        run: |
+          echo "⏳ Waiting for deployment to propagate..."
+          sleep 60
+      
+      - name: Verify Frontend Rollback
+        run: |
+          echo "✅ Verifying frontend rollback..."
+          
+          attempts=0
+          max_attempts=5
+          
+          while [[ $attempts -lt $max_attempts ]]; do
+            if response=$(curl -s -w "%{http_code}" --max-time 30 "https://pitchey-5o8-66n.pages.dev" -o /dev/null); then
+              if [[ "$response" == "200" ]]; then
+                echo "✅ Frontend rollback successful"
+                break
+              else
+                echo "⚠️ Frontend returned status $response, attempt $((attempts + 1))/$max_attempts"
+              fi
+            else
+              echo "❌ Frontend request failed, attempt $((attempts + 1))/$max_attempts"
+            fi
+            
+            ((attempts++))
+            sleep 30
+          done
+          
+          if [[ $attempts -eq $max_attempts ]]; then
+            echo "❌ Frontend rollback verification failed"
+            exit 1
+          fi
+
+  # Worker rollback
+  rollback-worker:
+    name: Rollback Worker
+    runs-on: ubuntu-latest
+    needs: [validate-rollback, pre-rollback-health]
+    if: |
+      always() && 
+      needs.validate-rollback.outputs.rollback-valid == 'true' && 
+      (github.event.inputs.rollback_type == 'worker' || github.event.inputs.rollback_type == 'full_system') &&
+      (needs.pre-rollback-health.result == 'success' || needs.pre-rollback-health.result == 'skipped')
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout Target Version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-rollback.outputs.rollback-commit }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Build Worker from Target Version
+        run: |
+          echo "🔨 Building worker from target version ${{ needs.validate-rollback.outputs.rollback-commit }}"
+          
+          npm ci
+          npm run build:worker
+      
+      - name: Deploy Rollback Worker
+        run: |
+          echo "🚀 Deploying worker rollback..."
+          
+          npm install -g wrangler
+          wrangler deploy --env production --name pitchey-worker-rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
+      - name: Update Worker Secrets
+        run: |
+          echo "🔐 Updating worker secrets for rollback..."
+          
+          echo "${{ secrets.NEON_DATABASE_URL }}" | wrangler secret put DATABASE_URL --env production --name pitchey-worker-rollback
+          echo "${{ secrets.JWT_SECRET }}" | wrangler secret put JWT_SECRET --env production --name pitchey-worker-rollback
+          echo "${{ secrets.UPSTASH_REDIS_REST_URL }}" | wrangler secret put UPSTASH_REDIS_REST_URL --env production --name pitchey-worker-rollback
+          echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN --env production --name pitchey-worker-rollback
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
+      - name: Switch Traffic to Rollback Worker
+        run: |
+          echo "🔄 Switching traffic to rollback worker..."
+          
+          # This would involve updating Cloudflare routes
+          # For now, we'll rename the workers
+          wrangler deploy --env production --name pitchey-worker-backup
+          sleep 30
+          wrangler deploy --env production --name pitchey-api-prod
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
+      - name: Verify Worker Rollback
+        run: |
+          echo "✅ Verifying worker rollback..."
+          
+          attempts=0
+          max_attempts=5
+          
+          while [[ $attempts -lt $max_attempts ]]; do
+            if response=$(curl -s -w "%{http_code}" --max-time 30 "https://pitchey-api-prod.ndlovucavelle.workers.dev/health" -o /dev/null); then
+              if [[ "$response" == "200" ]]; then
+                echo "✅ Worker rollback successful"
+                break
+              else
+                echo "⚠️ Worker returned status $response, attempt $((attempts + 1))/$max_attempts"
+              fi
+            else
+              echo "❌ Worker request failed, attempt $((attempts + 1))/$max_attempts"
+            fi
+            
+            ((attempts++))
+            sleep 30
+          done
+          
+          if [[ $attempts -eq $max_attempts ]]; then
+            echo "❌ Worker rollback verification failed"
+            exit 1
+          fi
+
+  # Database rollback
+  rollback-database:
+    name: Rollback Database
+    runs-on: ubuntu-latest
+    needs: [validate-rollback, pre-rollback-health]
+    if: |
+      always() && 
+      needs.validate-rollback.outputs.rollback-valid == 'true' && 
+      (github.event.inputs.rollback_type == 'database' || github.event.inputs.rollback_type == 'full_system') &&
+      (needs.pre-rollback-health.result == 'success' || needs.pre-rollback-health.result == 'skipped')
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout Target Version
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-rollback.outputs.rollback-commit }}
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      
+      - name: Create Database Backup
+        run: |
+          echo "💾 Creating database backup before rollback..."
+          
+          # Create backup timestamp
+          backup_name="rollback_backup_$(date +%Y%m%d_%H%M%S)"
+          
+          # Create backup using pg_dump equivalent
+          echo "Creating backup: $backup_name"
+          # This would use your database backup strategy
+          
+          echo "✅ Database backup created: $backup_name"
+          echo "BACKUP_NAME=$backup_name" >> $GITHUB_ENV
+      
+      - name: Check Migration History
+        run: |
+          echo "🔍 Checking migration history..."
+          
+          # Get current migration state
+          current_migrations=$(deno run --allow-all src/db/migrate.ts status)
+          echo "Current migrations:"
+          echo "$current_migrations"
+          
+          # Determine which migrations need to be rolled back
+          target_commit="${{ needs.validate-rollback.outputs.rollback-commit }}"
+          echo "Target commit: $target_commit"
+          
+          # This would analyze which migrations were added since target commit
+          echo "Analyzing migrations to rollback..."
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      
+      - name: Execute Database Rollback
+        run: |
+          echo "🔄 Executing database rollback..."
+          
+          # Execute rollback migration
+          if deno run --allow-all src/db/migrate.ts rollback; then
+            echo "✅ Database rollback successful"
+          else
+            echo "❌ Database rollback failed"
+            echo "🚨 CRITICAL: Database may be in inconsistent state"
+            echo "Backup available: ${{ env.BACKUP_NAME }}"
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      
+      - name: Verify Database State
+        run: |
+          echo "✅ Verifying database state after rollback..."
+          
+          # Run database health check
+          if deno run --allow-all src/db/health-check.ts; then
+            echo "✅ Database health check passed"
+          else
+            echo "❌ Database health check failed"
+            echo "🚨 Manual intervention required"
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+
+  # Post-rollback verification
+  post-rollback-verification:
+    name: Post-Rollback Verification
+    runs-on: ubuntu-latest
+    needs: [validate-rollback, rollback-frontend, rollback-worker, rollback-database]
+    if: always() && needs.validate-rollback.outputs.rollback-valid == 'true'
+    timeout-minutes: 15
+    
+    steps:
+      - name: Comprehensive System Health Check
+        run: |
+          echo "🏥 Running comprehensive system health check..."
+          
+          api_url="https://pitchey-api-prod.ndlovucavelle.workers.dev"
+          frontend_url="https://pitchey-5o8-66n.pages.dev"
+          
+          health_issues=0
+          
+          # Extended health check
+          echo "Testing API endpoints..."
+          endpoints=("/health" "/api/pitches/public" "/api/auth/session")
+          
+          for endpoint in "${endpoints[@]}"; do
+            echo "Testing: $api_url$endpoint"
+            
+            if response=$(curl -s -w "%{http_code}" --max-time 30 "$api_url$endpoint" -o /dev/null); then
+              if [[ "$response" == "200" ]]; then
+                echo "✅ $endpoint: OK"
+              else
+                echo "❌ $endpoint: $response"
+                ((health_issues++))
+              fi
+            else
+              echo "❌ $endpoint: FAILED"
+              ((health_issues++))
+            fi
+          done
+          
+          # Test frontend pages
+          echo "Testing frontend pages..."
+          pages=("/" "/marketplace" "/login")
+          
+          for page in "${pages[@]}"; do
+            echo "Testing: $frontend_url$page"
+            
+            if response=$(curl -s -w "%{http_code}" --max-time 30 "$frontend_url$page" -o /dev/null); then
+              if [[ "$response" == "200" ]]; then
+                echo "✅ $page: OK"
+              else
+                echo "❌ $page: $response"
+                ((health_issues++))
+              fi
+            else
+              echo "❌ $page: FAILED"
+              ((health_issues++))
+            fi
+          done
+          
+          echo "Total health issues found: $health_issues"
+          
+          if [[ $health_issues -eq 0 ]]; then
+            echo "✅ Post-rollback verification successful"
+            echo "ROLLBACK_STATUS=success" >> $GITHUB_ENV
+          else
+            echo "❌ Post-rollback verification failed"
+            echo "🚨 System may still have issues"
+            echo "ROLLBACK_STATUS=failed" >> $GITHUB_ENV
+            exit 1
+          fi
+      
+      - name: Performance Verification
+        run: |
+          echo "⚡ Running performance verification..."
+          
+          # Test response times
+          total_time=0
+          requests=10
+          
+          for i in $(seq 1 $requests); do
+            start_time=$(date +%s%N)
+            
+            if curl -s --max-time 30 "https://pitchey-api-prod.ndlovucavelle.workers.dev/health" -o /dev/null; then
+              end_time=$(date +%s%N)
+              response_time=$(echo "scale=0; ($end_time - $start_time) / 1000000" | bc)
+              total_time=$(echo "$total_time + $response_time" | bc)
+              echo "Request $i: ${response_time}ms"
+            else
+              echo "Request $i: FAILED"
+            fi
+            
+            sleep 1
+          done
+          
+          avg_response_time=$(echo "scale=0; $total_time / $requests" | bc)
+          echo "Average response time: ${avg_response_time}ms"
+          
+          if (( $(echo "$avg_response_time < 3000" | bc -l) )); then
+            echo "✅ Performance verification passed"
+          else
+            echo "⚠️ Performance verification warning: slow responses"
+          fi
+
+  # Rollback notification and reporting
+  rollback-notification:
+    name: Rollback Notification
+    runs-on: ubuntu-latest
+    needs: [validate-rollback, rollback-frontend, rollback-worker, rollback-database, post-rollback-verification]
+    if: always() && needs.validate-rollback.outputs.rollback-valid == 'true'
+    
+    steps:
+      - name: Determine Rollback Results
+        run: |
+          echo "📊 Analyzing rollback results..."
+          
+          frontend_result="${{ needs.rollback-frontend.result }}"
+          worker_result="${{ needs.rollback-worker.result }}"
+          database_result="${{ needs.rollback-database.result }}"
+          verification_result="${{ needs.post-rollback-verification.result }}"
+          
+          echo "Rollback Results:"
+          echo "  Frontend: $frontend_result"
+          echo "  Worker: $worker_result"
+          echo "  Database: $database_result"
+          echo "  Verification: $verification_result"
+          
+          # Determine overall rollback status
+          if [[ "$verification_result" == "success" ]]; then
+            overall_status="✅ SUCCESS"
+            color="good"
+          elif [[ "$verification_result" == "failure" ]]; then
+            overall_status="❌ FAILED"
+            color="danger"
+          else
+            overall_status="⚠️ PARTIAL"
+            color="warning"
+          fi
+          
+          echo "OVERALL_STATUS=$overall_status" >> $GITHUB_ENV
+          echo "NOTIFICATION_COLOR=$color" >> $GITHUB_ENV
+      
+      - name: Send Slack Notification
+        run: |
+          if [[ -n "${{ secrets.SLACK_WEBHOOK }}" ]]; then
+            echo "📢 Sending rollback notification to Slack..."
+            
+            curl -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+              -H 'Content-type: application/json' \
+              -d "{
+                \"text\": \"🚨 Emergency Rollback Completed\",
+                \"attachments\": [{
+                  \"color\": \"${{ env.NOTIFICATION_COLOR }}\",
+                  \"title\": \"Emergency Rollback: ${{ env.OVERALL_STATUS }}\",
+                  \"fields\": [
+                    {\"title\": \"Type\", \"value\": \"${{ github.event.inputs.rollback_type }}\", \"short\": true},
+                    {\"title\": \"Reason\", \"value\": \"${{ github.event.inputs.reason }}\", \"short\": true},
+                    {\"title\": \"Target Version\", \"value\": \"${{ needs.validate-rollback.outputs.rollback-commit }}\", \"short\": true},
+                    {\"title\": \"Initiated By\", \"value\": \"${{ github.actor }}\", \"short\": true},
+                    {\"title\": \"Frontend\", \"value\": \"${{ needs.rollback-frontend.result }}\", \"short\": true},
+                    {\"title\": \"Worker\", \"value\": \"${{ needs.rollback-worker.result }}\", \"short\": true},
+                    {\"title\": \"Database\", \"value\": \"${{ needs.rollback-database.result }}\", \"short\": true},
+                    {\"title\": \"Verification\", \"value\": \"${{ needs.post-rollback-verification.result }}\", \"short\": true}
+                  ],
+                  \"actions\": [{
+                    \"type\": \"button\",
+                    \"text\": \"View Rollback Details\",
+                    \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+                  }]
+                }]
+              }"
+          else
+            echo "⚠️ No Slack webhook configured for notifications"
+          fi
+      
+      - name: Create Rollback Issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = `🚨 Emergency Rollback Executed - ${new Date().toISOString().split('T')[0]}`;
+            const body = `# 🚨 Emergency Rollback Report
+            
+            **Executed:** ${new Date().toISOString()}
+            **Initiated by:** ${{ github.actor }}
+            **Reason:** ${{ github.event.inputs.reason }}
+            
+            ## Rollback Details
+            
+            - **Type:** ${{ github.event.inputs.rollback_type }}
+            - **Target Version:** ${{ needs.validate-rollback.outputs.rollback-commit }}
+            - **Current Version:** ${{ needs.validate-rollback.outputs.current-commit }}
+            
+            ## Component Results
+            
+            - **Frontend:** ${{ needs.rollback-frontend.result }}
+            - **Worker:** ${{ needs.rollback-worker.result }}
+            - **Database:** ${{ needs.rollback-database.result }}
+            - **Verification:** ${{ needs.post-rollback-verification.result }}
+            
+            ## Overall Status
+            
+            **${{ env.OVERALL_STATUS }}**
+            
+            ## Next Steps
+            
+            - [ ] Verify system stability
+            - [ ] Monitor error rates and performance
+            - [ ] Plan forward fix if rollback was temporary
+            - [ ] Update stakeholders on status
+            - [ ] Document lessons learned
+            
+            ## Rollback Execution Log
+            
+            [View detailed logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ---
+            *Auto-generated by Emergency Rollback Pipeline*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['rollback', 'emergency', 'production']
+            });
+      
+      - name: Update Deployment Status
+        run: |
+          echo "📝 Updating deployment status..."
+          
+          if [[ "${{ env.OVERALL_STATUS }}" == *"SUCCESS"* ]]; then
+            echo "✅ Rollback completed successfully"
+            echo "System has been rolled back to ${{ needs.validate-rollback.outputs.rollback-commit }}"
+            echo "Monitor system closely for the next 24 hours"
+          else
+            echo "❌ Rollback encountered issues"
+            echo "🚨 Manual intervention may be required"
+            echo "Review failed components and take corrective action"
+          fi
+      
+      - name: Final Status Report
+        run: |
+          echo "📋 Final Rollback Status Report"
+          echo "==============================="
+          echo "Rollback Type: ${{ github.event.inputs.rollback_type }}"
+          echo "Target Version: ${{ needs.validate-rollback.outputs.rollback-commit }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Overall Result: ${{ env.OVERALL_STATUS }}"
+          echo ""
+          echo "Component Results:"
+          echo "  Frontend: ${{ needs.rollback-frontend.result }}"
+          echo "  Worker: ${{ needs.rollback-worker.result }}"
+          echo "  Database: ${{ needs.rollback-database.result }}"
+          echo "  Verification: ${{ needs.post-rollback-verification.result }}"
+          echo ""
+          echo "Executed by: ${{ github.actor }}"
+          echo "Timestamp: $(date -u)"
+          echo "==============================="

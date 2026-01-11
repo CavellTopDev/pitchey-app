@@ -1,0 +1,831 @@
+name: Quality Gates & Compliance
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, develop]
+  schedule:
+    # Run compliance checks daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      compliance_type:
+        description: 'Type of compliance check'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - security
+          - quality
+          - performance
+          - dependencies
+          - full
+
+env:
+  COVERAGE_THRESHOLD: 80
+  SECURITY_THRESHOLD: 'medium'
+  PERFORMANCE_SCORE_MIN: 80
+  BUNDLE_SIZE_LIMIT_MB: 5
+  DEPENDENCY_AGE_LIMIT: 365 # days
+  TECHNICAL_DEBT_RATIO_MAX: 5 # percent
+
+concurrency:
+  group: quality-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Code coverage quality gate
+  coverage-gate:
+    name: Code Coverage Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    outputs:
+      coverage-status: ${{ steps.coverage.outputs.status }}
+      frontend-coverage: ${{ steps.coverage.outputs.frontend_coverage }}
+      backend-coverage: ${{ steps.coverage.outputs.backend_coverage }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.1.2
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Generate Frontend Coverage
+        run: |
+          cd frontend
+          npm run test:coverage
+          
+          # Extract coverage percentage
+          frontend_coverage=$(grep -oP 'All files.*?(\d+(?:\.\d+)?)%' coverage/lcov-report/index.html | grep -oP '\d+(?:\.\d+)?')
+          echo "Frontend coverage: ${frontend_coverage}%"
+          echo "frontend_coverage=$frontend_coverage" >> $GITHUB_ENV
+      
+      - name: Generate Backend Coverage
+        run: |
+          echo "🧪 Running backend tests with coverage..."
+          deno test tests/ --allow-all --coverage=coverage_backend/
+          deno coverage coverage_backend/ --lcov --output=coverage_backend/lcov.info
+          
+          # Calculate backend coverage
+          backend_coverage=$(deno coverage coverage_backend/ | grep -oP 'cover \K[0-9.]+')
+          echo "Backend coverage: ${backend_coverage}%"
+          echo "backend_coverage=$backend_coverage" >> $GITHUB_ENV
+      
+      - name: Evaluate Coverage Quality Gate
+        id: coverage
+        run: |
+          frontend_cov="${{ env.frontend_coverage }}"
+          backend_cov="${{ env.backend_coverage }}"
+          threshold="${{ env.COVERAGE_THRESHOLD }}"
+          
+          echo "📊 Coverage Quality Gate Evaluation:"
+          echo "  Frontend Coverage: ${frontend_cov}%"
+          echo "  Backend Coverage: ${backend_cov}%"
+          echo "  Required Threshold: ${threshold}%"
+          
+          coverage_passed=true
+          
+          if (( $(echo "$frontend_cov < $threshold" | bc -l) )); then
+            echo "❌ Frontend coverage ${frontend_cov}% below threshold ${threshold}%"
+            coverage_passed=false
+          fi
+          
+          if (( $(echo "$backend_cov < $threshold" | bc -l) )); then
+            echo "❌ Backend coverage ${backend_cov}% below threshold ${threshold}%"
+            coverage_passed=false
+          fi
+          
+          if [[ "$coverage_passed" == "true" ]]; then
+            echo "✅ Coverage quality gate passed!"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Coverage quality gate failed!"
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "frontend_coverage=$frontend_cov" >> $GITHUB_OUTPUT
+          echo "backend_coverage=$backend_cov" >> $GITHUB_OUTPUT
+      
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/lcov.info,./coverage_backend/lcov.info
+          flags: quality-gate
+          name: quality-gate-coverage
+          fail_ci_if_error: false
+      
+      - name: Generate Coverage Badge
+        run: |
+          overall_coverage=$(echo "scale=1; (${{ env.frontend_coverage }} + ${{ env.backend_coverage }}) / 2" | bc)
+          color="red"
+          if (( $(echo "$overall_coverage >= 80" | bc -l) )); then
+            color="green"
+          elif (( $(echo "$overall_coverage >= 60" | bc -l) )); then
+            color="yellow"
+          fi
+          
+          echo "Overall coverage: ${overall_coverage}%"
+          echo "Badge color: $color"
+
+  # Security quality gate
+  security-gate:
+    name: Security Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    
+    outputs:
+      security-status: ${{ steps.security.outputs.status }}
+      vulnerabilities-found: ${{ steps.security.outputs.vulnerabilities }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Run Trivy Security Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'json'
+          output: 'trivy-results.json'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          exit-code: '0'
+      
+      - name: Analyze Security Scan Results
+        id: security
+        run: |
+          echo "🔒 Analyzing security scan results..."
+          
+          if [[ ! -f "trivy-results.json" ]]; then
+            echo "❌ Security scan results not found"
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # Count vulnerabilities by severity
+          critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-results.json 2>/dev/null || echo 0)
+          high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-results.json 2>/dev/null || echo 0)
+          medium=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' trivy-results.json 2>/dev/null || echo 0)
+          low=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length' trivy-results.json 2>/dev/null || echo 0)
+          
+          total_vulns=$((critical + high + medium + low))
+          
+          echo "🔍 Security Scan Results:"
+          echo "  Critical: $critical"
+          echo "  High: $high"
+          echo "  Medium: $medium"
+          echo "  Low: $low"
+          echo "  Total: $total_vulns"
+          
+          # Apply security quality gate rules
+          security_passed=true
+          
+          if [[ $critical -gt 0 ]]; then
+            echo "❌ Critical vulnerabilities found: $critical"
+            security_passed=false
+          fi
+          
+          if [[ $high -gt 2 ]]; then
+            echo "❌ Too many high severity vulnerabilities: $high (max: 2)"
+            security_passed=false
+          fi
+          
+          if [[ $medium -gt 5 ]]; then
+            echo "❌ Too many medium severity vulnerabilities: $medium (max: 5)"
+            security_passed=false
+          fi
+          
+          if [[ "$security_passed" == "true" ]]; then
+            echo "✅ Security quality gate passed!"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Security quality gate failed!"
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "vulnerabilities=$total_vulns" >> $GITHUB_OUTPUT
+      
+      - name: Run npm audit
+        continue-on-error: true
+        run: |
+          echo "🔍 Running npm security audit..."
+          
+          # Run audit and capture results
+          npm audit --audit-level=moderate --json > npm-audit.json 2>/dev/null || true
+          cd frontend && npm audit --audit-level=moderate --json > ../npm-audit-frontend.json 2>/dev/null || true
+          
+          # Analyze npm audit results
+          if [[ -f "npm-audit.json" ]]; then
+            backend_vulns=$(jq '.metadata.vulnerabilities.total // 0' npm-audit.json)
+            echo "Backend npm vulnerabilities: $backend_vulns"
+          fi
+          
+          if [[ -f "npm-audit-frontend.json" ]]; then
+            frontend_vulns=$(jq '.metadata.vulnerabilities.total // 0' npm-audit-frontend.json)
+            echo "Frontend npm vulnerabilities: $frontend_vulns"
+          fi
+      
+      - name: Check for Secret Exposure
+        run: |
+          echo "🔐 Scanning for exposed secrets..."
+          
+          # Check for common secret patterns
+          secret_patterns=(
+            "password\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+            "secret\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+            "key\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+            "token\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+            "api[_-]?key\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+            "access[_-]?token\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+          )
+          
+          secrets_found=false
+          
+          for pattern in "${secret_patterns[@]}"; do
+            if grep -r -E "$pattern" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" | grep -v -E "(test|mock|example|placeholder|demo)" | head -5; then
+              echo "⚠️ Potential secret pattern found: $pattern"
+              secrets_found=true
+            fi
+          done
+          
+          if [[ "$secrets_found" == "true" ]]; then
+            echo "❌ Potential hardcoded secrets detected!"
+            exit 1
+          fi
+          
+          echo "✅ No hardcoded secrets detected"
+      
+      - name: Upload Security Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-scan-results
+          path: |
+            trivy-results.json
+            npm-audit*.json
+          retention-days: 7
+
+  # Code quality gate
+  code-quality-gate:
+    name: Code Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    outputs:
+      quality-status: ${{ steps.quality.outputs.status }}
+      debt-ratio: ${{ steps.quality.outputs.debt_ratio }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Run ESLint with Quality Metrics
+        run: |
+          cd frontend
+          
+          # Run ESLint with JSON output
+          npx eslint src/ --ext .ts,.tsx,.js,.jsx --format json > ../eslint-results.json || true
+          
+          # Count different types of issues
+          errors=$(jq '[.[].messages[] | select(.severity == 2)] | length' ../eslint-results.json)
+          warnings=$(jq '[.[].messages[] | select(.severity == 1)] | length' ../eslint-results.json)
+          
+          echo "ESLint Results:"
+          echo "  Errors: $errors"
+          echo "  Warnings: $warnings"
+          
+          echo "eslint_errors=$errors" >> $GITHUB_ENV
+          echo "eslint_warnings=$warnings" >> $GITHUB_ENV
+      
+      - name: Calculate Code Complexity
+        run: |
+          echo "📊 Calculating code complexity metrics..."
+          
+          # Count lines of code
+          total_lines=$(find src/ frontend/src/ -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | xargs wc -l | tail -1 | awk '{print $1}')
+          
+          # Count TODO/FIXME comments (technical debt indicators)
+          todo_count=$(grep -r "TODO\|FIXME" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" | wc -l || echo 0)
+          
+          # Calculate technical debt ratio
+          if [[ $total_lines -gt 0 ]]; then
+            debt_ratio=$(echo "scale=2; ($todo_count * 100) / $total_lines" | bc)
+          else
+            debt_ratio=0
+          fi
+          
+          echo "Code Metrics:"
+          echo "  Total Lines: $total_lines"
+          echo "  TODO/FIXME Comments: $todo_count"
+          echo "  Technical Debt Ratio: ${debt_ratio}%"
+          
+          echo "total_lines=$total_lines" >> $GITHUB_ENV
+          echo "todo_count=$todo_count" >> $GITHUB_ENV
+          echo "debt_ratio=$debt_ratio" >> $GITHUB_ENV
+      
+      - name: Run TypeScript Strict Mode Check
+        run: |
+          echo "🔍 Checking TypeScript strict mode compliance..."
+          cd frontend
+          
+          # Check if strict mode is enabled
+          strict_enabled=$(jq '.compilerOptions.strict // false' tsconfig.json)
+          
+          if [[ "$strict_enabled" != "true" ]]; then
+            echo "⚠️ TypeScript strict mode is not enabled"
+            echo "ts_strict=false" >> $GITHUB_ENV
+          else
+            echo "✅ TypeScript strict mode is enabled"
+            echo "ts_strict=true" >> $GITHUB_ENV
+          fi
+          
+          # Check for any compilation errors
+          npm run type-check 2>&1 | tee ../ts-check.log || true
+          
+          ts_errors=$(grep -c "error TS" ../ts-check.log || echo 0)
+          echo "TypeScript Errors: $ts_errors"
+          echo "ts_errors=$ts_errors" >> $GITHUB_ENV
+      
+      - name: Evaluate Code Quality Gate
+        id: quality
+        run: |
+          echo "📊 Evaluating code quality gate..."
+          
+          quality_passed=true
+          
+          # Check ESLint errors (should be 0)
+          if [[ ${{ env.eslint_errors }} -gt 0 ]]; then
+            echo "❌ ESLint errors found: ${{ env.eslint_errors }}"
+            quality_passed=false
+          fi
+          
+          # Check TypeScript errors (should be 0)
+          if [[ ${{ env.ts_errors }} -gt 0 ]]; then
+            echo "❌ TypeScript errors found: ${{ env.ts_errors }}"
+            quality_passed=false
+          fi
+          
+          # Check technical debt ratio
+          if (( $(echo "${{ env.debt_ratio }} > ${{ env.TECHNICAL_DEBT_RATIO_MAX }}" | bc -l) )); then
+            echo "❌ Technical debt ratio too high: ${{ env.debt_ratio }}% (max: ${{ env.TECHNICAL_DEBT_RATIO_MAX }}%)"
+            quality_passed=false
+          fi
+          
+          # Check TypeScript strict mode
+          if [[ "${{ env.ts_strict }}" != "true" ]]; then
+            echo "❌ TypeScript strict mode not enabled"
+            quality_passed=false
+          fi
+          
+          if [[ "$quality_passed" == "true" ]]; then
+            echo "✅ Code quality gate passed!"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Code quality gate failed!"
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "debt_ratio=${{ env.debt_ratio }}" >> $GITHUB_OUTPUT
+      
+      - name: Upload Quality Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-quality-results
+          path: |
+            eslint-results.json
+            ts-check.log
+          retention-days: 7
+
+  # Dependencies quality gate
+  dependencies-gate:
+    name: Dependencies Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    outputs:
+      dependencies-status: ${{ steps.deps.outputs.status }}
+      outdated-count: ${{ steps.deps.outputs.outdated_count }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd frontend && npm ci
+      
+      - name: Check for Outdated Dependencies
+        run: |
+          echo "📦 Checking for outdated dependencies..."
+          
+          # Check root dependencies
+          npm outdated --json > outdated-root.json 2>/dev/null || echo '{}' > outdated-root.json
+          
+          # Check frontend dependencies
+          cd frontend
+          npm outdated --json > ../outdated-frontend.json 2>/dev/null || echo '{}' > ../outdated-frontend.json
+          cd ..
+          
+          # Count outdated packages
+          root_outdated=$(jq 'keys | length' outdated-root.json)
+          frontend_outdated=$(jq 'keys | length' outdated-frontend.json)
+          total_outdated=$((root_outdated + frontend_outdated))
+          
+          echo "Outdated Dependencies:"
+          echo "  Root packages: $root_outdated"
+          echo "  Frontend packages: $frontend_outdated"
+          echo "  Total: $total_outdated"
+          
+          echo "total_outdated=$total_outdated" >> $GITHUB_ENV
+      
+      - name: Check for Deprecated Dependencies
+        run: |
+          echo "⚠️ Checking for deprecated dependencies..."
+          
+          # Check if any packages are deprecated
+          npm ls --depth=0 --json > root-deps.json
+          cd frontend && npm ls --depth=0 --json > ../frontend-deps.json && cd ..
+          
+          deprecated_count=0
+          
+          # This would require checking npm registry for deprecated packages
+          # For now, we'll check package.json for known deprecated packages
+          deprecated_packages=("request" "bower" "node-sass" "tslint")
+          
+          for pkg in "${deprecated_packages[@]}"; do
+            if grep -q "\"$pkg\"" package.json frontend/package.json 2>/dev/null; then
+              echo "⚠️ Deprecated package found: $pkg"
+              ((deprecated_count++))
+            fi
+          done
+          
+          echo "deprecated_count=$deprecated_count" >> $GITHUB_ENV
+      
+      - name: Check License Compliance
+        run: |
+          echo "⚖️ Checking license compliance..."
+          
+          # Check for packages with problematic licenses
+          problematic_licenses=("GPL-3.0" "AGPL-3.0" "LGPL-3.0" "SSPL-1.0")
+          license_issues=0
+          
+          # Generate license report
+          npx license-checker --json > license-report.json 2>/dev/null || echo '{}' > license-report.json
+          
+          for license in "${problematic_licenses[@]}"; do
+            if grep -q "$license" license-report.json; then
+              echo "⚠️ Potentially problematic license found: $license"
+              ((license_issues++))
+            fi
+          done
+          
+          echo "license_issues=$license_issues" >> $GITHUB_ENV
+      
+      - name: Evaluate Dependencies Quality Gate
+        id: deps
+        run: |
+          echo "📦 Evaluating dependencies quality gate..."
+          
+          deps_passed=true
+          
+          # Check outdated dependencies (should be fewer than 10)
+          if [[ ${{ env.total_outdated }} -gt 10 ]]; then
+            echo "❌ Too many outdated dependencies: ${{ env.total_outdated }} (max: 10)"
+            deps_passed=false
+          fi
+          
+          # Check deprecated packages (should be 0)
+          if [[ ${{ env.deprecated_count }} -gt 0 ]]; then
+            echo "❌ Deprecated dependencies found: ${{ env.deprecated_count }}"
+            deps_passed=false
+          fi
+          
+          # Check license issues (should be 0)
+          if [[ ${{ env.license_issues }} -gt 0 ]]; then
+            echo "❌ License compliance issues: ${{ env.license_issues }}"
+            deps_passed=false
+          fi
+          
+          if [[ "$deps_passed" == "true" ]]; then
+            echo "✅ Dependencies quality gate passed!"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Dependencies quality gate failed!"
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "outdated_count=${{ env.total_outdated }}" >> $GITHUB_OUTPUT
+      
+      - name: Upload Dependencies Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependencies-report
+          path: |
+            outdated-*.json
+            license-report.json
+          retention-days: 7
+
+  # Bundle size quality gate
+  bundle-size-gate:
+    name: Bundle Size Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    outputs:
+      bundle-status: ${{ steps.bundle.outputs.status }}
+      bundle-size: ${{ steps.bundle.outputs.size_mb }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          cd frontend && npm ci
+      
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm run build:prod
+        env:
+          NODE_ENV: production
+      
+      - name: Analyze Bundle Size
+        id: bundle
+        run: |
+          cd frontend/dist
+          
+          # Calculate total bundle size
+          total_size_bytes=$(du -sb . | cut -f1)
+          total_size_mb=$(echo "scale=2; $total_size_bytes / 1024 / 1024" | bc)
+          
+          # Get individual file sizes
+          js_size=$(find . -name "*.js" -exec du -sb {} + | awk '{sum+=$1} END {print sum/1024/1024}')
+          css_size=$(find . -name "*.css" -exec du -sb {} + | awk '{sum+=$1} END {print sum/1024/1024}')
+          
+          echo "📦 Bundle Size Analysis:"
+          echo "  Total Size: ${total_size_mb} MB"
+          echo "  JavaScript: ${js_size} MB"
+          echo "  CSS: ${css_size} MB"
+          echo "  Limit: ${{ env.BUNDLE_SIZE_LIMIT_MB }} MB"
+          
+          # Check against limit
+          if (( $(echo "$total_size_mb > ${{ env.BUNDLE_SIZE_LIMIT_MB }}" | bc -l) )); then
+            echo "❌ Bundle size ${total_size_mb} MB exceeds limit ${{ env.BUNDLE_SIZE_LIMIT_MB }} MB"
+            echo "status=failed" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Bundle size within limit!"
+            echo "status=passed" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "size_mb=$total_size_mb" >> $GITHUB_OUTPUT
+      
+      - name: Bundle Analysis Report
+        run: |
+          cd frontend
+          
+          # Generate detailed bundle analysis
+          npm run build:analyze > bundle-analysis.txt 2>&1 || true
+          
+          echo "📊 Bundle composition analysis generated"
+          head -50 bundle-analysis.txt
+      
+      - name: Upload Bundle Analysis
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundle-analysis
+          path: |
+            frontend/bundle-analysis.txt
+            frontend/dist/
+          retention-days: 7
+
+  # Overall quality gates evaluation
+  quality-gates-summary:
+    name: Quality Gates Summary
+    runs-on: ubuntu-latest
+    needs: [coverage-gate, security-gate, code-quality-gate, dependencies-gate, bundle-size-gate]
+    if: always()
+    
+    steps:
+      - name: Evaluate Overall Quality Gates
+        run: |
+          echo "📊 Overall Quality Gates Summary"
+          echo "================================"
+          
+          # Collect all gate results
+          coverage_status="${{ needs.coverage-gate.outputs.coverage-status }}"
+          security_status="${{ needs.security-gate.outputs.security-status }}"
+          quality_status="${{ needs.code-quality-gate.outputs.quality-status }}"
+          deps_status="${{ needs.dependencies-gate.outputs.dependencies-status }}"
+          bundle_status="${{ needs.bundle-size-gate.outputs.bundle-status }}"
+          
+          echo "📋 Quality Gate Results:"
+          echo "  Coverage Gate: $coverage_status"
+          echo "  Security Gate: $security_status"
+          echo "  Code Quality Gate: $quality_status"
+          echo "  Dependencies Gate: $deps_status"
+          echo "  Bundle Size Gate: $bundle_status"
+          
+          # Count passed gates
+          passed_gates=0
+          total_gates=5
+          
+          [[ "$coverage_status" == "passed" ]] && ((passed_gates++))
+          [[ "$security_status" == "passed" ]] && ((passed_gates++))
+          [[ "$quality_status" == "passed" ]] && ((passed_gates++))
+          [[ "$deps_status" == "passed" ]] && ((passed_gates++))
+          [[ "$bundle_status" == "passed" ]] && ((passed_gates++))
+          
+          echo ""
+          echo "📊 Summary: $passed_gates/$total_gates quality gates passed"
+          
+          # Detailed metrics
+          echo ""
+          echo "📈 Detailed Metrics:"
+          echo "  Frontend Coverage: ${{ needs.coverage-gate.outputs.frontend-coverage }}%"
+          echo "  Backend Coverage: ${{ needs.coverage-gate.outputs.backend-coverage }}%"
+          echo "  Security Vulnerabilities: ${{ needs.security-gate.outputs.vulnerabilities-found }}"
+          echo "  Technical Debt Ratio: ${{ needs.code-quality-gate.outputs.debt-ratio }}%"
+          echo "  Outdated Dependencies: ${{ needs.dependencies-gate.outputs.outdated-count }}"
+          echo "  Bundle Size: ${{ needs.bundle-size-gate.outputs.bundle-size }} MB"
+          
+          # Determine overall status
+          if [[ $passed_gates -eq $total_gates ]]; then
+            echo ""
+            echo "🎉 All quality gates passed! Ready for deployment."
+            echo "QUALITY_GATES_STATUS=passed" >> $GITHUB_ENV
+          elif [[ $passed_gates -ge 3 ]]; then
+            echo ""
+            echo "⚠️ Most quality gates passed, but some issues need attention."
+            echo "QUALITY_GATES_STATUS=warning" >> $GITHUB_ENV
+          else
+            echo ""
+            echo "❌ Multiple quality gates failed. Deployment blocked."
+            echo "QUALITY_GATES_STATUS=failed" >> $GITHUB_ENV
+            exit 1
+          fi
+      
+      - name: Generate Quality Report
+        run: |
+          cat > quality-report.md << 'EOF'
+          # 📊 Quality Gates Report
+          
+          **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          
+          ## 🎯 Quality Gates Summary
+          
+          | Gate | Status | Metric | Threshold | Result |
+          |------|---------|---------|-----------|--------|
+          | Coverage | ${{ needs.coverage-gate.outputs.coverage-status == 'passed' && '✅ PASS' || '❌ FAIL' }} | Code Coverage | ≥ ${{ env.COVERAGE_THRESHOLD }}% | F: ${{ needs.coverage-gate.outputs.frontend-coverage }}%, B: ${{ needs.coverage-gate.outputs.backend-coverage }}% |
+          | Security | ${{ needs.security-gate.outputs.security-status == 'passed' && '✅ PASS' || '❌ FAIL' }} | Vulnerabilities | 0 Critical, ≤ 2 High | ${{ needs.security-gate.outputs.vulnerabilities-found }} found |
+          | Code Quality | ${{ needs.code-quality-gate.outputs.quality-status == 'passed' && '✅ PASS' || '❌ FAIL' }} | Technical Debt | ≤ ${{ env.TECHNICAL_DEBT_RATIO_MAX }}% | ${{ needs.code-quality-gate.outputs.debt-ratio }}% |
+          | Dependencies | ${{ needs.dependencies-gate.outputs.dependencies-status == 'passed' && '✅ PASS' || '❌ FAIL' }} | Outdated Packages | ≤ 10 | ${{ needs.dependencies-gate.outputs.outdated-count }} |
+          | Bundle Size | ${{ needs.bundle-size-gate.outputs.bundle-status == 'passed' && '✅ PASS' || '❌ FAIL' }} | Total Size | ≤ ${{ env.BUNDLE_SIZE_LIMIT_MB }} MB | ${{ needs.bundle-size-gate.outputs.bundle-size }} MB |
+          
+          ## 📋 Recommendations
+          
+          EOF
+          
+          # Add specific recommendations based on failed gates
+          if [[ "${{ needs.coverage-gate.outputs.coverage-status }}" != "passed" ]]; then
+            echo "### 📊 Improve Test Coverage" >> quality-report.md
+            echo "- Add unit tests for uncovered code paths" >> quality-report.md
+            echo "- Increase integration test coverage" >> quality-report.md
+            echo "- Consider test-driven development practices" >> quality-report.md
+            echo "" >> quality-report.md
+          fi
+          
+          if [[ "${{ needs.security-gate.outputs.security-status }}" != "passed" ]]; then
+            echo "### 🔒 Address Security Issues" >> quality-report.md
+            echo "- Update vulnerable dependencies immediately" >> quality-report.md
+            echo "- Review and fix security vulnerabilities" >> quality-report.md
+            echo "- Implement security scanning in pre-commit hooks" >> quality-report.md
+            echo "" >> quality-report.md
+          fi
+          
+          if [[ "${{ needs.code-quality-gate.outputs.quality-status }}" != "passed" ]]; then
+            echo "### 🧹 Improve Code Quality" >> quality-report.md
+            echo "- Reduce technical debt by addressing TODO/FIXME comments" >> quality-report.md
+            echo "- Fix ESLint and TypeScript errors" >> quality-report.md
+            echo "- Enable and enforce TypeScript strict mode" >> quality-report.md
+            echo "" >> quality-report.md
+          fi
+          
+          echo "---" >> quality-report.md
+          echo "*Generated by Quality Gates Pipeline*" >> quality-report.md
+          
+          cat quality-report.md
+      
+      - name: Comment PR with Quality Gates Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            let reportContent = "## 📊 Quality Gates Report\n\n";
+            
+            try {
+              if (fs.existsSync('quality-report.md')) {
+                reportContent = fs.readFileSync('quality-report.md', 'utf8');
+              }
+            } catch (error) {
+              console.log('Could not read quality report:', error.message);
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: reportContent
+            });
+      
+      - name: Upload Quality Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: quality-gates-report
+          path: quality-report.md
+          retention-days: 30
+      
+      - name: Set PR Status Check
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const status = '${{ env.QUALITY_GATES_STATUS }}' === 'passed' ? 'success' : 'failure';
+            const description = '${{ env.QUALITY_GATES_STATUS }}' === 'passed' 
+              ? 'All quality gates passed' 
+              : 'Some quality gates failed';
+            
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: status,
+              target_url: `${context.payload.pull_request.html_url}/checks`,
+              description: description,
+              context: 'Quality Gates'
+            });

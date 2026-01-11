@@ -6,33 +6,30 @@ import {
   Tag, User, Film, DollarSign, Grid,
   List, MoreVertical, Plus, Check, X
 } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { savedPitchesService } from '../../lib/apiServices';
+import type { SavedPitch as SavedPitchType } from '../../services/saved-pitches.service';
 
 interface SavedPitch {
-  id: string;
-  title: string;
-  logline: string;
-  genre: string[];
-  budget: number;
-  creator: {
-    id: string;
-    name: string;
-    avatar?: string;
-    verified: boolean;
-  };
-  savedDate: string;
-  lastViewed?: string;
-  folder?: string;
-  tags: string[];
-  rating?: number;
+  id: number;
+  userId: number;
+  pitchId: number;
+  savedAt: string;
   notes?: string;
-  priority: 'low' | 'medium' | 'high';
-  status: 'saved' | 'under-review' | 'interested' | 'archived';
-  thumbnail?: string;
-  fundingStage: 'seed' | 'development' | 'production' | 'post-production';
-  targetAudience: string;
-  estimatedROI?: number;
+  pitch?: {
+    id: number;
+    title: string;
+    logline: string;
+    genre: string;
+    budgetBracket?: string;
+    creator?: {
+      id: number;
+      username: string;
+      name?: string;
+    };
+    titleImage?: string;
+    status: string;
+  };
 }
 
 interface SavedFilters {
@@ -45,7 +42,7 @@ interface SavedFilters {
 
 export default function InvestorSaved() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [savedPitches, setSavedPitches] = useState<SavedPitch[]>([]);
   const [filteredPitches, setFilteredPitches] = useState<SavedPitch[]>([]);
@@ -71,9 +68,31 @@ export default function InvestorSaved() {
 
   const loadSavedPitches = async () => {
     try {
-      // Simulate API call - replace with actual API
+      setLoading(true);
+      const response = await savedPitchesService.getSavedPitches({
+        limit: 50, // Load more pitches at once
+        page: 1
+      });
+
+      if (response.success && response.savedPitches) {
+        setSavedPitches(response.savedPitches);
+      } else {
+        console.error('Failed to load saved pitches:', response.error);
+        setSavedPitches([]);
+      }
+    } catch (error) {
+      console.error('Error loading saved pitches:', error);
+      setSavedPitches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Keep mock data as fallback for development
+  const loadMockPitches = () => {
+    try {
       setTimeout(() => {
-        const mockPitches: SavedPitch[] = [
+        const mockPitches: any[] = [
           {
             id: '1',
             title: 'The Quantum Paradox',
@@ -308,12 +327,8 @@ export default function InvestorSaved() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -321,12 +336,8 @@ export default function InvestorSaved() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-        user={user}
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
@@ -449,13 +460,13 @@ export default function InvestorSaved() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleBulkAction('folder')}
-                  className="text-sm px-3 py-1 text-purple-600 hover:text-purple-700"
+                  className="text-sm px-3 py-1 text-green-600 hover:text-green-700"
                 >
                   Move to Folder
                 </button>
                 <button
                   onClick={() => handleBulkAction('status')}
-                  className="text-sm px-3 py-1 text-purple-600 hover:text-purple-700"
+                  className="text-sm px-3 py-1 text-green-600 hover:text-green-700"
                 >
                   Change Status
                 </button>
@@ -687,7 +698,7 @@ export default function InvestorSaved() {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => navigate(`/pitch/${pitch.id}`)}
-                        className="text-purple-600 hover:text-purple-700"
+                        className="text-green-600 hover:text-green-700"
                       >
                         <Eye className="w-4 h-4" />
                       </button>

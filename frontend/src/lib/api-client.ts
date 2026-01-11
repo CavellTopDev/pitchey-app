@@ -3,7 +3,9 @@
 
 import { config } from '../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+// Use environment variable or default to localhost for development
+const isDev = import.meta.env.MODE === 'development';
+const API_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : 'https://pitchey-api-prod.ndlovucavelle.workers.dev');
 
 interface ApiError {
   message: string;
@@ -219,13 +221,15 @@ class ApiClient {
             localStorage.removeItem('user');
             localStorage.removeItem('userType');
             
-            if (typeof window !== 'undefined') {
-              // Redirect to appropriate login page based on user type
-              const loginPath = userType === 'creator' ? '/login/creator' : 
-                               userType === 'investor' ? '/login/investor' :
-                               userType === 'production' ? '/login/production' : '/';
-              window.location.href = loginPath;
-            }
+            // DISABLED: This was causing redirect loops with Better Auth
+            // Better Auth handles authentication via cookies, not this interceptor
+            // if (typeof window !== 'undefined') {
+            //   // Redirect to appropriate login page based on user type
+            //   const loginPath = userType === 'creator' ? '/login/creator' : 
+            //                    userType === 'investor' ? '/login/investor' :
+            //                    userType === 'production' ? '/login/production' : '/';
+            //   window.location.href = loginPath;
+            // }
           } catch (error) {
             console.warn('Failed to handle auth error:', error);
           }
@@ -381,6 +385,67 @@ export const ndaAPI = {
 
   async getNDAById(ndaId: number) {
     return apiClient.get(`/api/ndas/${ndaId}`);
+  },
+
+  // NEW ENDPOINTS - Updated to match backend structure
+  async getActiveNDAs() {
+    return apiClient.get('/api/ndas/active');
+  },
+
+  async getIncomingRequests() {
+    return apiClient.get('/api/ndas/incoming-requests');
+  },
+
+  async getOutgoingRequests() {
+    return apiClient.get('/api/ndas/outgoing-requests');
+  }
+};
+
+// Saved Pitches API functions
+export const savedPitchesAPI = {
+  async getSavedPitches(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    genre?: string;
+    format?: string;
+  }) {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.genre) searchParams.append('genre', params.genre);
+    if (params?.format) searchParams.append('format', params.format);
+
+    const queryString = searchParams.toString();
+    const endpoint = queryString ? `/api/saved-pitches?${queryString}` : '/api/saved-pitches';
+    
+    return apiClient.get(endpoint);
+  },
+
+  async savePitch(pitchId: number, notes?: string) {
+    return apiClient.post('/api/saved-pitches', {
+      pitchId,
+      notes
+    });
+  },
+
+  async unsavePitch(savedPitchId: number) {
+    return apiClient.delete(`/api/saved-pitches/${savedPitchId}`);
+  },
+
+  async isPitchSaved(pitchId: number) {
+    return apiClient.get(`/api/saved-pitches/check/${pitchId}`);
+  },
+
+  async updateSavedPitchNotes(savedPitchId: number, notes: string) {
+    return apiClient.put(`/api/saved-pitches/${savedPitchId}`, {
+      notes
+    });
+  },
+
+  async getSavedPitchStats() {
+    return apiClient.get('/api/saved-pitches/stats');
   }
 };
 

@@ -791,64 +791,19 @@ const workerHandler = {
       return phase2Response;
     }
     
-    // Handle WebSocket upgrade request
+    // WebSocket handling has been moved to the main backend Worker
+    // The frontend Worker should not handle WebSocket connections
+    // Better Auth sessions are handled by the backend Worker's WebSocket service
     if (url.pathname === '/ws' && request.headers.get('Upgrade') === 'websocket') {
-      try {
-        // Extract JWT token from query parameter or Authorization header
-        const token = url.searchParams.get('token') || 
-                     request.headers.get('Authorization')?.replace('Bearer ', '');
-        
-        if (!token) {
-          return new Response('Unauthorized: No token provided', { 
-            status: 401,
-            headers: corsHeaders
-          });
+      // WebSocket connections should go directly to the backend Worker
+      // This frontend Worker doesn't handle WebSocket - redirect to backend
+      return new Response('WebSocket connections should use the backend API directly', { 
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'X-WebSocket-Endpoint': 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws'
         }
-        
-        // Verify JWT token
-        try {
-          const payload = await verifyJWT(token, env.JWT_SECRET);
-          
-          // Create or get Durable Object instance
-          const roomName = 'global'; // Could be customized per user/room
-          const id = env.WEBSOCKET_ROOMS?.idFromName(roomName);
-          
-          if (!id || !env.WEBSOCKET_ROOMS) {
-            console.error('WebSocket Durable Object not configured');
-            return new Response('WebSocket service unavailable', { 
-              status: 503,
-              headers: corsHeaders 
-            });
-          }
-          
-          const room = env.WEBSOCKET_ROOMS.get(id);
-          
-          // Add auth info to the request
-          const authenticatedRequest = new Request(request.url, {
-            ...request,
-            headers: new Headers({
-              ...Object.fromEntries(request.headers),
-              'X-User-Id': String(payload.userId || payload.id || payload.sub),
-              'X-User-Type': payload.userType || 'creator'
-            })
-          });
-          
-          // Forward to Durable Object
-          return room.fetch(authenticatedRequest);
-        } catch (jwtError) {
-          console.error('JWT verification failed:', jwtError);
-          return new Response('HTTP Authentication failed; no valid credentials available', { 
-            status: 401,
-            headers: corsHeaders
-          });
-        }
-      } catch (error) {
-        console.error('WebSocket upgrade error:', error);
-        return new Response('WebSocket connection failed', { 
-          status: 500,
-          headers: corsHeaders
-        });
-      }
+      });
     }
     
     // Check WebSocket alternatives (SSE, polling, etc.)

@@ -35,11 +35,12 @@ api.interceptors.response.use(
                            url.includes('/api/trending') ||
                            url.includes('/api/search');
     
-    // Don't redirect for 404s (missing endpoints) or public endpoints
-    if (error.response?.status === 401 && !isPublicEndpoint) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
-    }
+    // DISABLED: This was causing redirect loops with Better Auth
+    // Better Auth handles authentication via cookies, not this interceptor
+    // if (error.response?.status === 401 && !isPublicEndpoint) {
+    //   localStorage.removeItem('authToken');
+    //   window.location.href = '/login';
+    // }
     return Promise.reject(error);
   }
 );
@@ -283,12 +284,17 @@ export const pitchAPI = {
       // Use the public endpoint which is what the marketplace needs
       const response = await api.get('/api/pitches/public', { params });
       
+      console.log('Raw API response:', response.data); // Debug log
+      
       // Handle various response formats from the backend
       // The backend may return data in different structures
       let pitches = [];
       
       if (response.data) {
-        if (Array.isArray(response.data)) {
+        // First check for the actual format: {success: true, data: [...]}
+        if (response.data.success && Array.isArray(response.data.data)) {
+          pitches = response.data.data;
+        } else if (Array.isArray(response.data)) {
           // Direct array response
           pitches = response.data;
         } else if (response.data.data && Array.isArray(response.data.data)) {
@@ -302,6 +308,8 @@ export const pitchAPI = {
           pitches = response.data.pitches;
         }
       }
+      
+      console.log('Extracted pitches count:', pitches.length); // Debug log
       
       return Array.isArray(pitches) ? pitches : [];
     } catch (error) {
@@ -417,7 +425,7 @@ export const ndaAPI = {
   },
 
   async signNDA(ndaId: number) {
-    const response = await api.post<NDA>(`/api/nda/${ndaId}/sign`);
+    const response = await api.post<NDA>(`/api/ndas/${ndaId}/sign`);
     return response.data;
   },
 
@@ -431,12 +439,12 @@ export const ndaAPI = {
   },
 
   async getMyNDAs() {
-    const response = await api.get<NDA[]>('/api/nda/my');
+    const response = await api.get<NDA[]>('/api/ndas/signed');
     return response.data;
   },
 
   async getPendingNDAs() {
-    const response = await api.get<NDA[]>('/api/nda/pending');
+    const response = await api.get<NDA[]>('/api/ndas/incoming-requests');
     return response.data;
   },
 };

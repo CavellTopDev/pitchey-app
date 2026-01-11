@@ -6,7 +6,7 @@ import {
   ArrowRight, Calendar, Users
 } from 'lucide-react';
 import { ndaService, type NDA } from '../../services/nda.service';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import NDAStatusBadge from '../NDAStatusBadge';
 
 interface NDADashboardStats {
@@ -38,7 +38,7 @@ export default function NDADashboardIntegration({
   showHeader = true 
 }: NDADashboardIntegrationProps) {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [stats, setStats] = useState<NDADashboardStats>({
     totalNDAs: 0,
     pendingRequests: 0,

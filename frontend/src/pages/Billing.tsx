@@ -13,7 +13,7 @@ import {
   Crown,
   ArrowLeft
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { paymentsAPI } from '../lib/apiServices';
 import SubscriptionCard from '../components/SubscriptionCard';
 import CreditPurchase from '../components/CreditPurchase';
@@ -24,7 +24,7 @@ import { getSubscriptionTier } from '../config/subscription-plans';
 export default function Billing() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { logout } = useAuthStore();
+  const { logout } = useBetterAuthStore();
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);

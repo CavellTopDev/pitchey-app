@@ -19,9 +19,10 @@ interface AppConfig {
  */
 function createConfig(): AppConfig {
   // Get environment variables from Vite's import.meta.env
-  // Force production API URL to fix caching issues
-  const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
-  const wsUrl = import.meta.env.VITE_WS_URL || 'wss://pitchey-api-prod.ndlovucavelle.workers.dev';
+  // Use localhost for development if not specified
+  const isDev = import.meta.env.MODE === 'development';
+  const apiUrl = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : 'https://pitchey-api-prod.ndlovucavelle.workers.dev');
+  const wsUrl = import.meta.env.VITE_WS_URL || (isDev ? 'ws://localhost:8001' : 'wss://pitchey-api-prod.ndlovucavelle.workers.dev');
   const nodeEnv = import.meta.env.VITE_NODE_ENV || import.meta.env.MODE || 'development';
   const mode = import.meta.env.MODE || 'development';
 
@@ -69,7 +70,7 @@ function createConfig(): AppConfig {
 
   // Log configuration in development
   if (config.IS_DEVELOPMENT) {
-    console.log('Configuration loaded:', {
+    console.info('🔧 Config loaded:', {
       API_URL: API_URL,
       WS_URL: config.WS_URL,
       NODE_ENV: config.NODE_ENV,

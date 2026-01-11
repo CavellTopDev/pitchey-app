@@ -1,12 +1,14 @@
 /**
- * Unified Notification Service - Orchestrates email, in-app, and push notifications
- * Handles notification preferences, queuing, batching, and delivery tracking
+ * Comprehensive Multi-Channel Notification Service
+ * Enterprise-grade notification system with intelligent routing, analytics, and delivery tracking
+ * Supports email, push, SMS, in-app notifications with preference management
  */
 
 import type { DatabaseService } from '../types/worker-types.ts';
 import { createEmailService, type EmailService } from './email.service.ts';
 import type { MessagingService } from './messaging.service.ts';
-import { eq, and, or, desc, asc, like, isNull, isNotNull, sql, inArray, gte, lte } from 'drizzle-orm';
+// Temporarily comment out drizzle imports for Worker compatibility
+// import { eq, and, or, desc, asc, like, isNull, isNotNull, sql, inArray, gte, lte } from 'drizzle-orm';
 
 // Redis integration for queuing and caching
 interface RedisService {

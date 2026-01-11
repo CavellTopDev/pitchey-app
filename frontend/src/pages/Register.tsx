@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { UserPlus, Mail, Lock, User, Briefcase, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function Register() {
   const navigate = useNavigate();
-  const { register, loading, error } = useAuthStore();
+  const { register, loading, error } = useBetterAuthStore();
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [formData, setFormData] = useState({
     email: '',

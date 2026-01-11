@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { TrendingUp, Star, Film, Search, Filter, Grid, List, ArrowLeft, Home } from 'lucide-react';
-import { InvestorNavigation } from '@/components/InvestorNavigation';
-import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 
 const InvestorDiscover = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuthStore();
+  
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
@@ -133,12 +131,8 @@ const InvestorDiscover = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation 
-        user={user}
-        onLogout={handleLogout}
-      />
-      
+    <div>
+            
       <div className="container mx-auto px-4 py-6">
         {/* Navigation Breadcrumb */}
         <div className="mb-4 flex items-center gap-4">
@@ -154,7 +148,7 @@ const InvestorDiscover = () => {
           
           <Link 
             to="/marketplace" 
-            className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+            className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1"
           >
             <Home className="w-4 h-4" />
             All Pitches

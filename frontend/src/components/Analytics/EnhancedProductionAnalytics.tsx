@@ -21,7 +21,8 @@ import { AnalyticCard } from './AnalyticCard';
 import { TimeRangeFilter } from './TimeRangeFilter';
 import { PerformanceChart } from './PerformanceChart';
 import { AnalyticsExport } from './AnalyticsExport';
-import { analyticsService, TimeRange } from '../../services/analytics.service';
+import { analyticsService } from '../../services/analytics.service';
+import type { TimeRange } from '../../services/analytics.service';
 import { 
   LineChart, 
   BarChart, 
@@ -88,20 +89,6 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  useEffect(() => {
-    fetchAnalyticsData();
-    
-    // Set up auto-refresh every 5 minutes if enabled
-    let interval: NodeJS.Timeout;
-    if (autoRefresh) {
-      interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timeRange, autoRefresh, fetchAnalyticsData]);
-
   const fetchAnalyticsData = useCallback(async () => {
     try {
       setLoading(true);
@@ -125,6 +112,20 @@ export const EnhancedProductionAnalytics: React.FC<ProductionAnalyticsProps> = (
       setLoading(false);
     }
   }, [timeRange]);
+
+  useEffect(() => {
+    fetchAnalyticsData();
+    
+    // Set up auto-refresh every 5 minutes if enabled
+    let interval: NodeJS.Timeout;
+    if (autoRefresh) {
+      interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timeRange, autoRefresh, fetchAnalyticsData]);
 
   const getMockData = (): ProductionAnalyticsData => ({
     kpis: {

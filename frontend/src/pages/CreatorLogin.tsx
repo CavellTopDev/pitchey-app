@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { Film, LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
 
 export default function CreatorLogin() {
   const navigate = useNavigate();
-  const { loginCreator, loading, error } = useAuthStore();
+  const { loginCreator, loading, error } = useBetterAuthStore();
   const [formData, setFormData] = useState({
     email: '',
     password: '',

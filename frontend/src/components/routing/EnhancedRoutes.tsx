@@ -1,6 +1,6 @@
 import React, { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 // Import route configurations
 import { CREATOR_ROUTES, INVESTOR_ROUTES, PRODUCTION_ROUTES } from '../../config/navigation.routes';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Shield, Copy, Check, AlertCircle, Key } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { api } from '../../services/api.service';
 
 interface MFASetupProps {
@@ -10,7 +10,7 @@ interface MFASetupProps {
 }
 
 export const MFASetup: React.FC<MFASetupProps> = ({ onComplete, onCancel }) => {
-  const { user } = useAuth();
+  const { user } = useBetterAuthStore();
   const [step, setStep] = useState<'intro' | 'qrcode' | 'verify' | 'complete'>('intro');
   const [qrCode, setQrCode] = useState<string>('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);

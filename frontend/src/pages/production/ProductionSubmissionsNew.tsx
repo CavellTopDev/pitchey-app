@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   FileText, Clock, Star, CheckCircle, XCircle, Archive, 
   Filter, Search, Calendar, User, DollarSign, TrendingUp,
   Eye, Download, MessageSquare, ThumbsUp, ThumbsDown, 
   AlertCircle, Bell, ArrowRight
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
 import { config } from '../../config';
 
 interface Submission {
@@ -29,8 +26,7 @@ interface Submission {
 }
 
 export default function ProductionSubmissionsNew() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -185,14 +181,8 @@ export default function ProductionSubmissionsNew() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="New Submissions"
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

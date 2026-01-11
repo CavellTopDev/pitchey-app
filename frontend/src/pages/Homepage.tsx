@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, TrendingUp, Search, Play, Star, Eye, Heart, Calendar, ArrowRight, Sparkles, User, Building2, Wallet } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { pitchService } from '../services/pitch.service';
 import type { Pitch } from '../services/pitch.service';
 import { getGenresSync, getFormatsSync } from '../constants/pitchConstants';
@@ -10,7 +10,7 @@ import FormatDisplay from '../components/FormatDisplay';
 
 export default function Homepage() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user } = useBetterAuthStore();
   const userType = user?.userType || localStorage.getItem('userType');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
@@ -30,17 +30,19 @@ export default function Homepage() {
 
   const fetchPitches = async () => {
     try {
-      // Fetch trending and new releases from dedicated endpoints
-      const [trending, newReleases] = await Promise.all([
-        pitchService.getTrendingPitches(4),
-        pitchService.getNewReleases(4)
+      // Use the new public endpoints that work without authentication
+      const [trending, newReleases, featured] = await Promise.all([
+        pitchService.getPublicTrendingPitches(4),
+        pitchService.getPublicNewPitches(4),
+        pitchService.getPublicFeaturedPitches(4)
       ]);
       
       setTrendingPitches(trending);
-      setNewReleases(newReleases);
+      // If no new releases, show featured pitches
+      setNewReleases(newReleases.length > 0 ? newReleases : featured);
     } catch (error) {
-      console.error('Failed to fetch from dedicated endpoints, using fallback:', error);
-      // Fallback to public endpoint if dedicated endpoints fail
+      console.error('Failed to fetch from new public endpoints, using fallback:', error);
+      // Fallback to original public endpoint if new endpoints fail
       try {
         const { pitches } = await pitchService.getPublicPitches();
         
@@ -428,6 +430,48 @@ export default function Homepage() {
           </div>
         </div>
       </section>
+
+      {/* Guest User CTA Section */}
+      {!isAuthenticated && (
+        <section className="py-16 bg-gradient-to-r from-purple-600 to-indigo-600">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+              <h2 className="text-3xl font-bold text-white mb-4">
+                Ready to Explore More?
+              </h2>
+              <p className="text-xl text-white/90 mb-8">
+                Join thousands of creators, investors, and production companies discovering amazing projects on Pitchey.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => navigate('/portals')}
+                  className="px-8 py-4 bg-white text-purple-600 rounded-xl hover:bg-gray-100 transition transform hover:scale-105 shadow-lg font-semibold"
+                >
+                  <User className="inline w-5 h-5 mr-2" />
+                  Join as Creator
+                </button>
+                <button
+                  onClick={() => navigate('/portals')}
+                  className="px-8 py-4 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/30 transition transform hover:scale-105 font-semibold"
+                >
+                  <Wallet className="inline w-5 h-5 mr-2" />
+                  Join as Investor
+                </button>
+                <button
+                  onClick={() => navigate('/portals')}
+                  className="px-8 py-4 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/30 transition transform hover:scale-105 font-semibold"
+                >
+                  <Building2 className="inline w-5 h-5 mr-2" />
+                  Join as Production
+                </button>
+              </div>
+              <p className="text-white/70 mt-6 text-sm">
+                Free to browse • Full access with account • No credit card required
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="py-12 bg-white border-t border-gray-200">

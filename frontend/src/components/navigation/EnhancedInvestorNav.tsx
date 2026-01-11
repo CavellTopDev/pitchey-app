@@ -92,6 +92,68 @@ export function EnhancedInvestorNav() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Define color schemes for different sections
+  const getSectionColorScheme = (sectionTitle: string, isActive: boolean) => {
+    switch(sectionTitle) {
+      case 'Dashboard':
+        // Portfolio, Analytics, Activity, Performance - Emerald shades
+        return {
+          active: 'bg-emerald-50 text-emerald-700 font-medium',
+          hover: 'hover:bg-emerald-50 hover:text-emerald-700',
+          icon: isActive ? 'text-emerald-600' : 'text-gray-500',
+          badge: 'bg-emerald-100 text-emerald-700'
+        };
+      case 'Investments':
+        // Deals, Pending Deals, All Investments - Teal shades
+        return {
+          active: 'bg-teal-50 text-teal-700 font-medium',
+          hover: 'hover:bg-teal-50 hover:text-teal-700',
+          icon: isActive ? 'text-teal-600' : 'text-gray-500',
+          badge: 'bg-teal-100 text-teal-700'
+        };
+      case 'Discover':
+        // Browse, Discover, Saved, Watchlist - Sky blue shades
+        return {
+          active: 'bg-sky-50 text-sky-700 font-medium',
+          hover: 'hover:bg-sky-50 hover:text-sky-700',
+          icon: isActive ? 'text-sky-600' : 'text-gray-500',
+          badge: 'bg-sky-100 text-sky-700'
+        };
+      case 'Financial':
+        // Financial routes - Green shades
+        return {
+          active: 'bg-green-50 text-green-700 font-medium',
+          hover: 'hover:bg-green-50 hover:text-green-700',
+          icon: isActive ? 'text-green-600' : 'text-gray-500',
+          badge: 'bg-green-100 text-green-700'
+        };
+      case 'Market':
+        // Market routes - Indigo shades
+        return {
+          active: 'bg-indigo-50 text-indigo-700 font-medium',
+          hover: 'hover:bg-indigo-50 hover:text-indigo-700',
+          icon: isActive ? 'text-indigo-600' : 'text-gray-500',
+          badge: 'bg-indigo-100 text-indigo-700'
+        };
+      case 'Network':
+        // Network routes - Purple shades
+        return {
+          active: 'bg-purple-50 text-purple-700 font-medium',
+          hover: 'hover:bg-purple-50 hover:text-purple-700',
+          icon: isActive ? 'text-purple-600' : 'text-gray-500',
+          badge: 'bg-purple-100 text-purple-700'
+        };
+      default:
+        // Account and others - Default green
+        return {
+          active: 'bg-green-50 text-green-600 font-medium',
+          hover: 'hover:bg-gray-50 hover:text-gray-900',
+          icon: isActive ? 'text-green-600' : 'text-gray-500',
+          badge: 'bg-green-100 text-green-700'
+        };
+    }
+  };
+
   return (
     <nav className="w-64 bg-white border-r border-gray-200 h-full overflow-y-auto">
       <div className="p-4">
@@ -106,6 +168,7 @@ export function EnhancedInvestorNav() {
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
+                const colorScheme = getSectionColorScheme(section.title, isActive);
                 
                 return (
                   <button
@@ -113,17 +176,17 @@ export function EnhancedInvestorNav() {
                     onClick={() => navigate(item.path)}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm
-                      transition-colors duration-200
+                      transition-all duration-200
                       ${isActive 
-                        ? 'bg-green-50 text-green-600 font-medium' 
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        ? colorScheme.active
+                        : `text-gray-700 ${colorScheme.hover}`
                       }
                     `}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className={`w-4 h-4 transition-colors ${colorScheme.icon}`} />
                     <span className="flex-1 text-left">{item.label}</span>
                     {item.isNew && (
-                      <span className="px-1.5 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
+                      <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${colorScheme.badge}`}>
                         NEW
                       </span>
                     )}

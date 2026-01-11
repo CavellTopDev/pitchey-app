@@ -1,242 +1,235 @@
-import React, { useState, useEffect, useRef, ImgHTMLAttributes } from 'react'
+import { useState, useEffect, useRef, ImgHTMLAttributes } from 'react'
+import { LazyLoadImage } from 'react-lazy-load-image-component'
+import 'react-lazy-load-image-component/src/effects/blur.css'
 
-interface OptimizedImageProps extends ImgHTMLAttributes<HTMLImageElement> {
+interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> {
   src: string
   alt: string
-  placeholder?: string
-  lazy?: boolean
-  fadeIn?: boolean
-  aspectRatio?: number
-  quality?: 'low' | 'medium' | 'high'
+  fallbackSrc?: string
+  sizes?: string
   priority?: boolean
+  onLoad?: () => void
+  onError?: () => void
+  aspectRatio?: string
+  objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down'
+  quality?: number
+  blur?: boolean
 }
 
-/**
- * OptimizedImage Component
- * 
- * Features:
- * - Lazy loading with Intersection Observer
- * - Progressive loading with placeholder
- * - Fade-in animation on load
- * - Responsive image support
- * - Automatic WebP format detection
- * - Error handling with fallback
- */
-export const OptimizedImage: React.FC<OptimizedImageProps> = ({
+// Cloudflare Image Resizing API parameters
+const generateCloudflareUrl = (
+  src: string,
+  options: {
+    width?: number
+    height?: number
+    quality?: number
+    format?: 'auto' | 'webp' | 'avif' | 'json'
+    fit?: 'scale-down' | 'contain' | 'cover' | 'crop' | 'pad'
+    blur?: number
+  }
+) => {
+  // If already a Cloudflare Images URL, modify it
+  if (src.includes('imagedelivery.net')) {
+    const params = new URLSearchParams()
+    if (options.width) params.append('w', options.width.toString())
+    if (options.height) params.append('h', options.height.toString())
+    if (options.quality) params.append('q', options.quality.toString())
+    if (options.format) params.append('f', options.format)
+    if (options.fit) params.append('fit', options.fit)
+    if (options.blur) params.append('blur', options.blur.toString())
+    
+    return `${src}?${params.toString()}`
+  }
+  
+  // For R2 URLs, use Cloudflare Image Resizing
+  if (src.includes('r2.cloudflarestorage.com') || src.includes('pitchey')) {
+    const params: string[] = []
+    if (options.width) params.push(`width=${options.width}`)
+    if (options.height) params.push(`height=${options.height}`)
+    if (options.quality) params.push(`quality=${options.quality}`)
+    if (options.format) params.push(`format=${options.format}`)
+    if (options.fit) params.push(`fit=${options.fit}`)
+    
+    return `/cdn-cgi/image/${params.join(',')}/${src}`
+  }
+  
+  return src
+}
+
+// Generate srcset for responsive images
+const generateSrcSet = (src: string, quality = 80) => {
+  const widths = [320, 640, 768, 1024, 1280, 1536, 1920]
+  return widths
+    .map(w => `${generateCloudflareUrl(src, { width: w, quality, format: 'auto' })} ${w}w`)
+    .join(', ')
+}
+
+export function OptimizedImage({
   src,
   alt,
-  placeholder,
-  lazy = true,
-  fadeIn = true,
-  aspectRatio,
-  quality = 'medium',
+  fallbackSrc = '/images/placeholder.png',
+  sizes = '100vw',
   priority = false,
-  className = '',
-  style = {},
   onLoad,
   onError,
-  ...rest
-}) => {
-  const [imageSrc, setImageSrc] = useState<string>(lazy && !priority ? (placeholder || '') : src)
-  const [isLoaded, setIsLoaded] = useState<boolean>(!lazy || priority)
-  const [isInView, setIsInView] = useState<boolean>(!lazy || priority)
-  const [hasError, setHasError] = useState<boolean>(false)
+  aspectRatio,
+  objectFit = 'cover',
+  quality = 80,
+  blur = true,
+  className = '',
+  ...props
+}: OptimizedImageProps) {
+  const [imageSrc, setImageSrc] = useState(src)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
-  const observerRef = useRef<IntersectionObserver | null>(null)
-
-  // Quality to dimension mapping for image optimization
-  const getImageUrl = (url: string): string => {
-    if (!url || url.startsWith('data:')) return url
-    
-    // If it's an external URL, return as is
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url
-    }
-    
-    // Add query params for optimization if it's a local image
-    const qualityParams = {
-      low: 'w=400&q=60',
-      medium: 'w=800&q=75',
-      high: 'w=1200&q=85'
-    }
-    
-    const separator = url.includes('?') ? '&' : '?'
-    return `${url}${separator}${qualityParams[quality]}`
-  }
-
+  
   useEffect(() => {
-    if (!lazy || priority) {
-      setImageSrc(src)
-      return
-    }
-
-    const handleIntersection = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          setIsInView(true)
-          if (observerRef.current && imgRef.current) {
-            observerRef.current.unobserve(imgRef.current)
-          }
-        }
-      })
-    }
-
-    // Create Intersection Observer
-    observerRef.current = new IntersectionObserver(handleIntersection, {
-      rootMargin: '50px', // Start loading 50px before the image enters viewport
-      threshold: 0.01
-    })
-
-    if (imgRef.current) {
-      observerRef.current.observe(imgRef.current)
-    }
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect()
-      }
-    }
-  }, [lazy, priority, src])
-
-  useEffect(() => {
-    if (isInView && !isLoaded) {
-      // Preload image
-      const img = new Image()
-      img.src = getImageUrl(src)
-      
-      img.onload = () => {
-        setImageSrc(src)
-        setIsLoaded(true)
-        setHasError(false)
-      }
-      
-      img.onerror = () => {
-        setHasError(true)
-        // Try fallback to original src without optimization
-        setImageSrc(src)
-      }
-    }
-  }, [isInView, isLoaded, src, quality])
-
-  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    setIsLoaded(true)
-    if (onLoad) onLoad(e)
+    setImageSrc(src)
+    setHasError(false)
+  }, [src])
+  
+  const handleLoad = () => {
+    setIsLoading(false)
+    onLoad?.()
   }
-
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  
+  const handleError = () => {
     setHasError(true)
-    if (onError) onError(e)
-    
-    // Fallback to placeholder or a default error image
-    if (placeholder) {
-      setImageSrc(placeholder)
+    setIsLoading(false)
+    if (fallbackSrc && imageSrc !== fallbackSrc) {
+      setImageSrc(fallbackSrc)
     }
+    onError?.()
   }
-
-  const imageClasses = `
-    ${className}
-    ${fadeIn && isLoaded ? 'opacity-100 transition-opacity duration-300' : ''}
-    ${fadeIn && !isLoaded ? 'opacity-0' : ''}
-    ${hasError ? 'filter grayscale' : ''}
-  `.trim()
-
-  const imageStyle = {
-    ...style,
-    ...(aspectRatio ? { aspectRatio: `${aspectRatio}` } : {})
-  }
-
-  return (
-    <>
-      {/* Placeholder/Loading state */}
-      {!isLoaded && placeholder && (
-        <div
-          className={`absolute inset-0 ${fadeIn ? 'transition-opacity duration-300' : ''}`}
-          style={{
-            backgroundImage: `url(${placeholder})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            filter: 'blur(8px)',
-            ...imageStyle
-          }}
+  
+  // Priority images should use native loading
+  if (priority) {
+    return (
+      <picture className={`relative block ${className}`}>
+        {/* WebP source */}
+        <source
+          type="image/webp"
+          srcSet={generateSrcSet(src, quality)}
+          sizes={sizes}
         />
-      )}
-      
-      {/* Main image */}
-      <img
-        ref={imgRef}
-        src={imageSrc}
+        
+        {/* AVIF source for modern browsers */}
+        <source
+          type="image/avif"
+          srcSet={generateSrcSet(src.replace(/\.[^.]+$/, '.avif'), quality)}
+          sizes={sizes}
+        />
+        
+        {/* Fallback image */}
+        <img
+          ref={imgRef}
+          src={generateCloudflareUrl(src, { quality, format: 'auto' })}
+          alt={alt}
+          onLoad={handleLoad}
+          onError={handleError}
+          loading="eager"
+          decoding="async"
+          style={{
+            aspectRatio,
+            objectFit,
+          }}
+          className={`${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+          {...props}
+        />
+        
+        {/* Loading placeholder */}
+        {isLoading && (
+          <div 
+            className="absolute inset-0 bg-gray-200 animate-pulse"
+            style={{ aspectRatio }}
+          />
+        )}
+      </picture>
+    )
+  }
+  
+  // Lazy loaded images
+  return (
+    <div 
+      className={`relative ${className}`}
+      style={{ aspectRatio }}
+    >
+      <LazyLoadImage
+        src={generateCloudflareUrl(imageSrc, { quality, format: 'auto' })}
         alt={alt}
-        className={imageClasses}
-        style={imageStyle}
-        onLoad={handleImageLoad}
-        onError={handleImageError}
-        loading={lazy && !priority ? 'lazy' : 'eager'}
-        decoding={priority ? 'sync' : 'async'}
-        {...rest}
+        effect={blur ? 'blur' : undefined}
+        onLoad={handleLoad}
+        onError={handleError}
+        threshold={100}
+        placeholderSrc={blur ? generateCloudflareUrl(src, { 
+          width: 40, 
+          quality: 10, 
+          blur: 20,
+          format: 'webp'
+        }) : undefined}
+        srcSet={generateSrcSet(imageSrc, quality)}
+        sizes={sizes}
+        style={{
+          objectFit,
+          width: '100%',
+          height: '100%',
+        }}
+        {...props}
       />
       
-      {/* Loading skeleton */}
-      {!isLoaded && !placeholder && (
-        <div
-          className={`${className} bg-gray-200 animate-pulse`}
-          style={imageStyle}
-        />
+      {/* Error state */}
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center p-4">
+            <svg className="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="text-sm text-gray-500">Failed to load image</p>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   )
 }
 
-// Picture component for responsive images
-interface OptimizedPictureProps {
-  sources: Array<{
-    srcSet: string
-    media?: string
-    type?: string
-  }>
-  fallback: OptimizedImageProps
+// Preload critical images
+export function preloadImage(src: string, options?: { quality?: number; width?: number }) {
+  const link = document.createElement('link')
+  link.rel = 'preload'
+  link.as = 'image'
+  link.href = generateCloudflareUrl(src, {
+    quality: options?.quality || 80,
+    width: options?.width,
+    format: 'auto'
+  })
+  link.type = 'image/webp'
+  document.head.appendChild(link)
 }
 
-export const OptimizedPicture: React.FC<OptimizedPictureProps> = ({
-  sources,
-  fallback
-}) => {
-  return (
-    <picture>
-      {sources.map((source, index) => (
-        <source
-          key={index}
-          srcSet={source.srcSet}
-          media={source.media}
-          type={source.type}
-        />
-      ))}
-      <OptimizedImage {...fallback} />
-    </picture>
-  )
-}
-
-// Hero image component for above-the-fold images
-export const HeroImage: React.FC<OptimizedImageProps> = (props) => {
-  return (
-    <OptimizedImage
-      {...props}
-      priority={true}
-      lazy={false}
-      quality="high"
-      fetchPriority="high"
-    />
-  )
-}
-
-// Thumbnail image component for small images
-export const ThumbnailImage: React.FC<OptimizedImageProps> = (props) => {
-  return (
-    <OptimizedImage
-      {...props}
-      quality="low"
-      fadeIn={false}
-    />
-  )
+// Background image optimization hook
+export function useOptimizedBackgroundImage(
+  src: string,
+  options: { quality?: number; width?: number } = {}
+) {
+  const [backgroundImage, setBackgroundImage] = useState('')
+  
+  useEffect(() => {
+    const optimizedUrl = generateCloudflareUrl(src, {
+      quality: options.quality || 80,
+      width: options.width || 1920,
+      format: 'webp'
+    })
+    
+    // Preload the image
+    const img = new Image()
+    img.src = optimizedUrl
+    img.onload = () => {
+      setBackgroundImage(`url(${optimizedUrl})`)
+    }
+  }, [src, options.quality, options.width])
+  
+  return backgroundImage
 }
 
 export default OptimizedImage

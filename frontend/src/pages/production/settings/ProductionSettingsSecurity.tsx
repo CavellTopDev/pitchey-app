@@ -7,7 +7,7 @@ import {
   RefreshCw, Download, Trash2, Plus, QrCode
 } from 'lucide-react';
 import DashboardHeader from '../../../components/DashboardHeader';
-import { useAuthStore } from '../../../store/authStore';
+import { useBetterAuthStore } from '../../../store/betterAuthStore';
 import { getDashboardRoute } from '../../../utils/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
@@ -44,7 +44,7 @@ interface SecurityLog {
 
 export default function ProductionSettingsSecurity() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'general' | 'sessions' | 'logs' | '2fa'>('general');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);

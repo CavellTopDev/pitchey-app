@@ -1,5 +1,14 @@
 // Analytics Service - Complete analytics and reporting with Drizzle integration
 import { apiClient } from '../lib/api-client';
+import {
+  safeAccess,
+  safeNumber,
+  safeString,
+  safeArray,
+  safeExecute,
+  isValidDate,
+  safeTimestamp
+} from '../utils/defensive';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
 
@@ -206,28 +215,28 @@ export class AnalyticsService {
         return this.getDefaultPitchAnalytics(pitchId);
       }
 
-      // Transform the API response to match the expected interface
-      const apiAnalytics = response.data.data.analytics;
+      // Transform the API response with defensive parsing
+      const apiAnalytics = safeAccess(response, 'data.data.analytics', {});
       return {
         pitchId,
-        title: apiAnalytics.title || 'Untitled Pitch',
-        views: apiAnalytics.views || 0,
-        uniqueViews: apiAnalytics.uniqueViews || 0,
-        likes: apiAnalytics.likes || 0,
-        shares: apiAnalytics.shares || 0,
-        ndaRequests: apiAnalytics.ndaRequests || 0,
-        ndaApproved: apiAnalytics.ndaApproved || 0,
-        messages: apiAnalytics.messages || 0,
-        avgViewDuration: apiAnalytics.avgViewDuration || 0,
-        bounceRate: apiAnalytics.bounceRate || 0,
-        conversionRate: apiAnalytics.conversionRate || 0,
-        engagementRate: apiAnalytics.engagementRate || 0,
-        viewsByDate: apiAnalytics.viewsByDate || [],
-        viewsBySource: apiAnalytics.viewsBySource || [],
-        viewsByLocation: apiAnalytics.viewsByLocation || [],
+        title: safeString(safeAccess(apiAnalytics, 'title', 'Untitled Pitch')),
+        views: safeNumber(safeAccess(apiAnalytics, 'views', 0)),
+        uniqueViews: safeNumber(safeAccess(apiAnalytics, 'uniqueViews', 0)),
+        likes: safeNumber(safeAccess(apiAnalytics, 'likes', 0)),
+        shares: safeNumber(safeAccess(apiAnalytics, 'shares', 0)),
+        ndaRequests: safeNumber(safeAccess(apiAnalytics, 'ndaRequests', 0)),
+        ndaApproved: safeNumber(safeAccess(apiAnalytics, 'ndaApproved', 0)),
+        messages: safeNumber(safeAccess(apiAnalytics, 'messages', 0)),
+        avgViewDuration: safeNumber(safeAccess(apiAnalytics, 'avgViewDuration', 0)),
+        bounceRate: safeNumber(safeAccess(apiAnalytics, 'bounceRate', 0)),
+        conversionRate: safeNumber(safeAccess(apiAnalytics, 'conversionRate', 0)),
+        engagementRate: safeNumber(safeAccess(apiAnalytics, 'engagementRate', 0)),
+        viewsByDate: safeArray(safeAccess(apiAnalytics, 'viewsByDate', [])),
+        viewsBySource: safeArray(safeAccess(apiAnalytics, 'viewsBySource', [])),
+        viewsByLocation: safeArray(safeAccess(apiAnalytics, 'viewsByLocation', [])),
         viewerDemographics: {
-          userType: apiAnalytics.viewerDemographics?.userType || [],
-          industry: apiAnalytics.viewerDemographics?.industry || [],
+          userType: safeArray(safeAccess(apiAnalytics, 'viewerDemographics.userType', [])),
+          industry: safeArray(safeAccess(apiAnalytics, 'viewerDemographics.industry', [])),
         }
       };
     } catch (error) {
@@ -257,25 +266,28 @@ export class AnalyticsService {
         return this.getDefaultUserAnalytics(userId || 1);
       }
 
-      // Transform the API response to match the expected interface
-      const apiAnalytics = response.data.data.analytics;
+      // Transform the API response with defensive parsing
+      const apiAnalytics = safeAccess(response, 'data.data.analytics', {});
       
       return {
         userId: userId || 1,
-        username: apiAnalytics.username || 'User',
-        totalPitches: apiAnalytics.totalPitches || 0,
-        publishedPitches: apiAnalytics.publishedPitches || 0,
-        totalViews: apiAnalytics.profileViews || apiAnalytics.pitchViews || 0,
-        totalLikes: apiAnalytics.totalLikes || 0,
-        totalFollowers: apiAnalytics.totalFollowers || 0,
-        totalNDAs: apiAnalytics.totalNDAs || 0,
-        avgEngagement: apiAnalytics.engagement || 0,
-        topPitches: apiAnalytics.topPitches || [],
-        growthMetrics: apiAnalytics.growthMetrics || [],
+        username: safeString(safeAccess(apiAnalytics, 'username', 'User')),
+        totalPitches: safeNumber(safeAccess(apiAnalytics, 'totalPitches', 0)),
+        publishedPitches: safeNumber(safeAccess(apiAnalytics, 'publishedPitches', 0)),
+        totalViews: safeNumber(
+          safeAccess(apiAnalytics, 'profileViews', 0) ||
+          safeAccess(apiAnalytics, 'pitchViews', 0)
+        ),
+        totalLikes: safeNumber(safeAccess(apiAnalytics, 'totalLikes', 0)),
+        totalFollowers: safeNumber(safeAccess(apiAnalytics, 'totalFollowers', 0)),
+        totalNDAs: safeNumber(safeAccess(apiAnalytics, 'totalNDAs', 0)),
+        avgEngagement: safeNumber(safeAccess(apiAnalytics, 'engagement', 0)),
+        topPitches: safeArray(safeAccess(apiAnalytics, 'topPitches', [])),
+        growthMetrics: safeArray(safeAccess(apiAnalytics, 'growthMetrics', [])),
         audienceInsights: {
-          topLocations: apiAnalytics.audienceInsights?.topLocations || [],
-          topUserTypes: apiAnalytics.audienceInsights?.topUserTypes || [],
-          peakActivity: apiAnalytics.audienceInsights?.peakActivity || [],
+          topLocations: safeArray(safeAccess(apiAnalytics, 'audienceInsights.topLocations', [])),
+          topUserTypes: safeArray(safeAccess(apiAnalytics, 'audienceInsights.topUserTypes', [])),
+          peakActivity: safeArray(safeAccess(apiAnalytics, 'audienceInsights.peakActivity', [])),
         }
       };
     } catch (error) {
@@ -303,30 +315,30 @@ export class AnalyticsService {
         return this.getDefaultDashboardMetrics();
       }
 
-      // Transform the API response to match the expected interface
-      const apiMetrics = response.data.metrics;
+      // Transform the API response with defensive parsing
+      const apiMetrics = safeAccess(response, 'data.metrics', {});
       
       return {
         overview: {
-          totalViews: apiMetrics.totalViews || 0,
-          totalLikes: apiMetrics.totalLikes || 0,
-          totalFollowers: apiMetrics.totalFollowers || 0,
-          totalPitches: apiMetrics.totalPitches || 0,
-          viewsChange: apiMetrics.viewsChange || 0,
-          likesChange: apiMetrics.likesChange || 0,
-          followersChange: apiMetrics.followersChange || 0,
-          pitchesChange: apiMetrics.pitchesChange || 0,
+          totalViews: safeNumber(safeAccess(apiMetrics, 'totalViews', 0)),
+          totalLikes: safeNumber(safeAccess(apiMetrics, 'totalLikes', 0)),
+          totalFollowers: safeNumber(safeAccess(apiMetrics, 'totalFollowers', 0)),
+          totalPitches: safeNumber(safeAccess(apiMetrics, 'totalPitches', 0)),
+          viewsChange: safeNumber(safeAccess(apiMetrics, 'viewsChange', 0)),
+          likesChange: safeNumber(safeAccess(apiMetrics, 'likesChange', 0)),
+          followersChange: safeNumber(safeAccess(apiMetrics, 'followersChange', 0)),
+          pitchesChange: safeNumber(safeAccess(apiMetrics, 'pitchesChange', 0)),
         },
         performance: {
-          topPitches: apiMetrics.topPitches || [],
-          recentActivity: apiMetrics.recentActivity || [],
-          engagementTrend: apiMetrics.engagementTrend || [],
+          topPitches: safeArray(safeAccess(apiMetrics, 'topPitches', [])),
+          recentActivity: safeArray(safeAccess(apiMetrics, 'recentActivity', [])),
+          engagementTrend: safeArray(safeAccess(apiMetrics, 'engagementTrend', [])),
         },
         revenue: {
-          total: apiMetrics.revenue || 0,
-          subscriptions: apiMetrics.subscriptions || 0,
-          transactions: apiMetrics.transactions || 0,
-          growth: apiMetrics.growth || 0,
+          total: safeNumber(safeAccess(apiMetrics, 'revenue', 0)),
+          subscriptions: safeNumber(safeAccess(apiMetrics, 'subscriptions', 0)),
+          transactions: safeNumber(safeAccess(apiMetrics, 'transactions', 0)),
+          growth: safeNumber(safeAccess(apiMetrics, 'growth', 0)),
         }
       };
     } catch (error) {
@@ -363,9 +375,15 @@ export class AnalyticsService {
         return { activities: [], total: 0 };
       }
 
-      // Handle both nested and flat response structures
-      const activities = response.data?.data?.activities || response.data?.activities || [];
-      const total = response.data?.data?.total || response.data?.total || 0;
+      // Handle both nested and flat response structures with safe access
+      const activities = safeArray(
+        safeAccess(response, 'data.data.activities', null) ||
+        safeAccess(response, 'data.activities', [])
+      );
+      const total = safeNumber(
+        safeAccess(response, 'data.data.total', null) ||
+        safeAccess(response, 'data.total', 0)
+      );
 
       return { activities, total };
     } catch (error) {
@@ -443,11 +461,17 @@ export class AnalyticsService {
       `${endpoint}?${params}`
     );
 
-    if (!response.success || !response.data?.comparison) {
-      throw new Error(response.error?.message || 'Failed to fetch comparison data');
+    if (!safeAccess(response, 'success', false) || !safeAccess(response, 'data.comparison', null)) {
+      throw new Error(safeAccess(response, 'error.message', 'Failed to fetch comparison data'));
     }
 
-    return response.data.comparison;
+    const comparison = safeAccess(response, 'data.comparison', {});
+    return {
+      current: safeAccess(comparison, 'current', null),
+      previous: safeAccess(comparison, 'previous', null),
+      change: safeNumber(safeAccess(comparison, 'change', 0)),
+      changePercentage: safeNumber(safeAccess(comparison, 'changePercentage', 0))
+    };
   }
 
   // Get trending pitches
@@ -473,8 +497,11 @@ export class AnalyticsService {
         return [];
       }
 
-      // Handle both nested and flat response structures
-      return response.data?.data?.pitches || response.data?.pitches || [];
+      // Handle both nested and flat response structures with safe access
+      return safeArray(
+        safeAccess(response, 'data.data.pitches', null) ||
+        safeAccess(response, 'data.pitches', [])
+      );
     } catch (error) {
       console.error('Failed to fetch trending pitches:', error);
       return [];
@@ -505,11 +532,20 @@ export class AnalyticsService {
       `/api/analytics/engagement?${params}`
     );
 
-    if (!response.success || !response.data?.metrics) {
-      throw new Error(response.error?.message || 'Failed to fetch engagement metrics');
+    if (!safeAccess(response, 'success', false) || !safeAccess(response, 'data.metrics', null)) {
+      throw new Error(safeAccess(response, 'error.message', 'Failed to fetch engagement metrics'));
     }
 
-    return response.data.metrics;
+    const metrics = safeAccess(response, 'data.metrics', {});
+    return {
+      engagementRate: safeNumber(safeAccess(metrics, 'engagementRate', 0)),
+      averageTimeSpent: safeNumber(safeAccess(metrics, 'averageTimeSpent', 0)),
+      bounceRate: safeNumber(safeAccess(metrics, 'bounceRate', 0)),
+      interactionRate: safeNumber(safeAccess(metrics, 'interactionRate', 0)),
+      shareRate: safeNumber(safeAccess(metrics, 'shareRate', 0)),
+      conversionRate: safeNumber(safeAccess(metrics, 'conversionRate', 0)),
+      trends: safeArray(safeAccess(metrics, 'trends', [])),
+    };
   }
 
   // Get funnel analytics
@@ -531,11 +567,27 @@ export class AnalyticsService {
       `/api/analytics/funnel/${pitchId}`
     );
 
-    if (!response.success || !response.data?.funnel) {
-      throw new Error(response.error?.message || 'Failed to fetch funnel analytics');
+    if (!safeAccess(response, 'success', false) || !safeAccess(response, 'data.funnel', null)) {
+      throw new Error(safeAccess(response, 'error.message', 'Failed to fetch funnel analytics'));
     }
 
-    return response.data.funnel;
+    const funnel = safeAccess(response, 'data.funnel', {});
+    const dropoffRates = safeAccess(funnel, 'dropoffRates', {});
+    
+    return {
+      views: safeNumber(safeAccess(funnel, 'views', 0)),
+      detailViews: safeNumber(safeAccess(funnel, 'detailViews', 0)),
+      ndaRequests: safeNumber(safeAccess(funnel, 'ndaRequests', 0)),
+      ndaSigned: safeNumber(safeAccess(funnel, 'ndaSigned', 0)),
+      messages: safeNumber(safeAccess(funnel, 'messages', 0)),
+      conversions: safeNumber(safeAccess(funnel, 'conversions', 0)),
+      dropoffRates: {
+        viewToDetail: safeNumber(safeAccess(dropoffRates, 'viewToDetail', 0)),
+        detailToNDA: safeNumber(safeAccess(dropoffRates, 'detailToNDA', 0)),
+        ndaToMessage: safeNumber(safeAccess(dropoffRates, 'ndaToMessage', 0)),
+        messageToConversion: safeNumber(safeAccess(dropoffRates, 'messageToConversion', 0))
+      }
+    };
   }
 
   // Get revenue analytics (for applicable accounts)
@@ -558,11 +610,22 @@ export class AnalyticsService {
       `/api/analytics/revenue?${params}`
     );
 
-    if (!response.success || !response.data?.revenue) {
-      throw new Error(response.error?.message || 'Failed to fetch revenue analytics');
+    if (!safeAccess(response, 'success', false) || !safeAccess(response, 'data.revenue', null)) {
+      throw new Error(safeAccess(response, 'error.message', 'Failed to fetch revenue analytics'));
     }
 
-    return response.data.revenue;
+    const revenue = safeAccess(response, 'data.revenue', {});
+    return {
+      totalRevenue: safeNumber(safeAccess(revenue, 'totalRevenue', 0)),
+      subscriptionRevenue: safeNumber(safeAccess(revenue, 'subscriptionRevenue', 0)),
+      transactionRevenue: safeNumber(safeAccess(revenue, 'transactionRevenue', 0)),
+      averageOrderValue: safeNumber(safeAccess(revenue, 'averageOrderValue', 0)),
+      customerLifetimeValue: safeNumber(safeAccess(revenue, 'customerLifetimeValue', 0)),
+      churnRate: safeNumber(safeAccess(revenue, 'churnRate', 0)),
+      growthRate: safeNumber(safeAccess(revenue, 'growthRate', 0)),
+      revenueByDate: safeArray(safeAccess(revenue, 'revenueByDate', [])),
+      revenueBySource: safeArray(safeAccess(revenue, 'revenueBySource', [])),
+    };
   }
 
   // Get real-time stats
@@ -636,3 +699,6 @@ export class AnalyticsService {
 
 // Export singleton instance
 export const analyticsService = AnalyticsService;
+
+// Re-export types for better module resolution
+export type { TimeRange };

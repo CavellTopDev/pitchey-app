@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Users, Plus, Search, Filter, Star, MapPin, Calendar, 
   Mail, Phone, Globe, ExternalLink, MessageCircle, FileText,
   CheckCircle, Clock, XCircle, AlertCircle, Eye, Edit2,
   Handshake, Building, Award, TrendingUp, DollarSign
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
 
 interface Collaboration {
@@ -59,8 +57,7 @@ const partnerTypes = [
 ];
 
 export default function ProductionCollaborations() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
@@ -468,14 +465,8 @@ export default function ProductionCollaborations() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType={userType as any}
-        title="Collaborations"
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">

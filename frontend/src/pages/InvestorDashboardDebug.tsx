@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search, Filter, CreditCard, Coins, Users, Heart, Shield, Building2, User } from 'lucide-react';
 
 // Import components one by one for testing
@@ -14,7 +14,7 @@ import { DollarSign, TrendingUp, PieChart, Eye, Star, Briefcase, LogOut, Search,
 
 export default function InvestorDashboardDebug() {
   const navigate = useNavigate();
-  const { logout } = useAuthStore();
+  const { logout } = useBetterAuthStore();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

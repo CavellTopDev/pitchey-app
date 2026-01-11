@@ -84,12 +84,13 @@ export default function Calendar() {
         // Filter out any null/undefined events
         const validEvents = eventsArray.filter(event => event && event.date);
         
-        console.log('Loaded events:', validEvents.map(e => ({
+        // Map events to the correct format
+        const formattedEvents = validEvents.map(e => ({
           title: e.title,
           date: e.date
-        })));
+        }));
         
-        setEvents(validEvents);
+        setEvents(formattedEvents);
       }
     } catch (error) {
       console.error('Failed to fetch events:', error);
@@ -116,7 +117,7 @@ export default function Calendar() {
       }
       
       // Log the values for debugging
-      console.log('Creating event:', {
+      console.info('Creating event:', {
         date: newEvent.date,
         time: newEvent.time,
         title: newEvent.title

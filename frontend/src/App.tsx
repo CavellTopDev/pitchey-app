@@ -1,16 +1,16 @@
 import React, { useEffect, useState, Suspense, lazy, startTransition } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 // React Query temporarily disabled to resolve JavaScript initialization errors
-import { useAuthStore } from './store/authStore';
-import { useAuth } from './contexts/AuthContext';
-import ErrorBoundary from './components/ErrorBoundary';
+// Using Better Auth store instead of legacy authStore
+import { useBetterAuthStore } from './store/betterAuthStore';
+import { GlobalErrorBoundary } from './components/ConsoleErrorBoundary';
 import ToastProvider from './components/Toast/ToastProvider';
 import { NotificationToastProvider } from './components/Toast/NotificationToastContainer';
 import LoadingSpinner from './components/Loading/LoadingSpinner';
-// Import unified context provider
-import { AppContextProvider } from './contexts/AppContextProvider';
+// Import safe context provider (without legacy AuthProvider)
+import { AppContextProviderSafe } from './contexts/AppContextProviderSafe';
 import { configService } from './services/config.service';
-import { config } from './config';
+import { config, API_URL } from './config';
 import { AuthService } from './services/auth.service';
 // Import enhanced route components
 import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './components/routing/AllEnhancedRoutes';
@@ -18,7 +18,7 @@ import { AllCreatorRoutes, AllInvestorRoutes, AllProductionRoutes } from './comp
 import { PortalLayout } from './components/layout/PortalLayout';
 
 // Log environment on app load
-console.log('App Environment:', {
+console.info('🚀 Pitchey App Environment:', {
   PROD: import.meta.env.PROD,
   DEV: import.meta.env.DEV,
   MODE: import.meta.env.MODE,
@@ -40,6 +40,10 @@ const Homepage = lazy(() =>
 const Login = lazy(() => import('./pages/Login' /* webpackPrefetch: true */));
 const Register = lazy(() => import('./pages/Register' /* webpackPrefetch: true */));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+
+// Onboarding Components
+import { OnboardingManager } from './components/Onboarding';
+const OnboardingSettings = lazy(() => import('./components/Onboarding/OnboardingSettings'));
 
 // Multi-Portal Pages
 const PortalSelect = lazy(() => import('./pages/PortalSelect'));
@@ -189,7 +193,15 @@ const SystemSettings = lazy(() => import('./pages/Admin/SystemSettings'));
 // Test Pages
 const TestNavigation = lazy(() => import('./pages/TestNavigation'));
 
+// Legal Pages
+const LegalDocumentWizard = lazy(() => import('./components/Legal/LegalDocumentWizard'));
+const LegalLibrary = lazy(() => import('./components/Legal/LegalLibrary'));
+const DocumentComparisonTool = lazy(() => import('./components/Legal/DocumentComparisonTool'));
+const TemplateEditor = lazy(() => import('./components/Legal/TemplateEditor'));
+const LegalDocumentDashboard = lazy(() => import('./components/Legal/LegalDocumentDashboard'));
+
 // Browse Pages
+const BrowseTabsFixed = lazy(() => import('./components/BrowseTabsFixed'));
 const BrowseGenres = lazy(() => import('./pages/BrowseGenres'));
 const BrowseTopRated = lazy(() => import('./pages/BrowseTopRated'));
 
@@ -206,9 +218,11 @@ function PitchRouter() {
 }
 
 function App() {
-  const { isAuthenticated, fetchProfile, user } = useAuthStore();
+  const { isAuthenticated, user, loading } = useBetterAuthStore();
   const [profileFetched, setProfileFetched] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   // Load configuration on app startup
   useEffect(() => {
@@ -228,46 +242,67 @@ function App() {
     loadConfig();
   }, []);
 
-  // Only check session for authenticated routes, not public pages like homepage
+  // Initialize app with proper sequencing to prevent reload loops
   useEffect(() => {
-    const path = location.pathname;
-    const isPublicRoute = ['/', '/how-it-works', '/about', '/contact', '/terms', '/privacy', '/portals'].includes(path) ||
-                         path.startsWith('/login/') || path.startsWith('/auth/');
+    let mounted = true;
     
-    // Skip auth session check for public routes
-    if (isPublicRoute) {
-      return;
-    }
-    
-    // For protected routes, check session with delay to prevent rate limiting
-    const checkSession = async () => {
-      try {
-        await fetchProfile();
-      } catch (error) {
-        // If auth fails, don't retry - just log the error
-        console.warn('Auth session check failed:', error);
+    const initApp = async () => {
+      // Skip session check on initial mount - rely on cached session from store
+      // This prevents rate limiting issues on page load
+      if (!sessionChecked && mounted) {
+        // Don't actually check session - just mark as checked
+        // The betterAuthStore already initializes from cache
+        setSessionChecked(true);
+        setProfileFetched(true);
+        
+        // Small delay to ensure state updates propagate
+        setTimeout(() => {
+          if (mounted) {
+            setInitializing(false);
+          }
+        }, 100);
       }
     };
     
-    const timer = setTimeout(() => {
-      checkSession();
-    }, 1000); // 1 second delay for protected routes only
+    // Initialize without session check
+    initApp().catch(error => {
+      console.error('[App] Initialization error:', error);
+      // Even if init fails, mark as initialized to prevent infinite loading
+      if (mounted) {
+        setSessionChecked(true);
+        setInitializing(false);
+      }
+    });
     
-    return () => clearTimeout(timer);
-  }, [fetchProfile, location.pathname]);
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty deps - only run once on mount
 
   // Removed redundant profile fetching - handled by session restoration above
 
   // Get userType from Better Auth user object, not localStorage
   const userType = user?.userType || null;
 
+  // Show loading state while initializing to prevent flicker and navigation loops
+  if (initializing || !sessionChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-center">
+          <LoadingSpinner size="lg" text="Loading..." />
+          <p className="mt-4 text-gray-600">Please wait...</p>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
-    <ErrorBoundary enableSentryReporting={true} showErrorDetails={!import.meta.env.PROD}>
-      <AppContextProvider>
+    <GlobalErrorBoundary>
+      {/* Using safe context provider without problematic providers */}
+      <AppContextProviderSafe>
         <NotificationToastProvider>
           <ToastProvider>
-            {/* TestSentry and TestNotifications components removed */}
-            <NotificationInitializer />
             <Router>
               <Suspense fallback={
                 <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
@@ -286,7 +321,7 @@ function App() {
           <Route path="/marketplace-old" element={<Marketplace />} />
           
           {/* Browse Route */}
-          <Route path="/browse" element={<Marketplace />} />
+          <Route path="/browse" element={<BrowseTabsFixed />} />
           <Route path="/test-marketplace" element={<TestMarketplace />} />
           
           {/* Info Pages */}
@@ -438,6 +473,7 @@ function App() {
           {/* Common Protected Routes - Available to all user types */}
           <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/portals" />} />
           <Route path="/settings" element={isAuthenticated ? <Settings /> : <Navigate to="/portals" />} />
+          <Route path="/settings/onboarding" element={isAuthenticated ? <OnboardingSettings /> : <Navigate to="/portals" />} />
           <Route path="/notifications" element={isAuthenticated ? <NotificationCenter /> : <Navigate to="/portals" />} />
           
           {/* Billing Routes - Available to all authenticated users */}
@@ -493,15 +529,30 @@ function App() {
           <Route path="/team/members" element={isAuthenticated ? <TeamMembers /> : <Navigate to="/portals" />} />
           <Route path="/team/invite" element={isAuthenticated ? <TeamInvite /> : <Navigate to="/portals" />} />
           
+          {/* Legal Document Automation Routes - Available to all authenticated users */}
+          <Route path="/legal" element={isAuthenticated ? <LegalDocumentDashboard /> : <Navigate to="/portals" />} />
+          <Route path="/legal/dashboard" element={isAuthenticated ? <LegalDocumentDashboard /> : <Navigate to="/portals" />} />
+          <Route path="/legal/wizard" element={isAuthenticated ? <LegalDocumentWizard /> : <Navigate to="/portals" />} />
+          <Route path="/legal/library" element={isAuthenticated ? <LegalLibrary /> : <Navigate to="/portals" />} />
+          <Route path="/legal/compare" element={isAuthenticated ? <DocumentComparisonTool /> : <Navigate to="/portals" />} />
+          <Route path="/legal/templates" element={isAuthenticated ? <TemplateEditor /> : <Navigate to="/portals" />} />
+          <Route path="/legal/templates/new" element={isAuthenticated ? <TemplateEditor /> : <Navigate to="/portals" />} />
+          <Route path="/legal/templates/:id" element={isAuthenticated ? <TemplateEditor /> : <Navigate to="/portals" />} />
+          
                 {/* 404 - Must be last */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              
+              {/* Global Onboarding Manager */}
+              <OnboardingManager 
+                showProgressWidget={isAuthenticated && window.location.pathname.includes('dashboard')}
+              />
             </Suspense>
           </Router>
-          </ToastProvider>
-        </NotificationToastProvider>
-      </AppContextProvider>
-    </ErrorBoundary>
+        </ToastProvider>
+      </NotificationToastProvider>
+      </AppContextProviderSafe>
+    </GlobalErrorBoundary>
   );
 }
 

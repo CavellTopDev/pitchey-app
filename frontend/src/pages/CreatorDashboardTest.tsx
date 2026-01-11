@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { TrendingUp, Eye, Upload, BarChart3, LogOut, Plus, Coins, Shield, Bell, Wifi, WifiOff } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { paymentsAPI } from '../lib/apiServices';
 import apiClient from '../lib/api-client';
 import { NotificationBell } from '../components/NotificationBell';
@@ -23,7 +23,7 @@ const styles = `
 
 export default function CreatorDashboardTest() {
   const navigate = useNavigate();
-  const { logout, user: authUser } = useAuthStore();
+  const { logout, user: authUser } = useBetterAuthStore();
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);

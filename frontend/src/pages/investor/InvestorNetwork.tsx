@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Users, Building2, UserCheck, TrendingUp, 
   Search, Filter, Globe, Award, Star,
@@ -7,8 +6,7 @@ import {
   Calendar, MapPin, Link2, Mail, Phone,
   ChevronRight, Plus, Check, X
 } from 'lucide-react';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface NetworkMember {
   id: string;
@@ -34,8 +32,7 @@ interface NetworkMember {
 }
 
 export default function InvestorNetwork() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'investor' | 'creator' | 'production'>('all');
@@ -222,12 +219,8 @@ export default function InvestorNetwork() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <InvestorNavigation
-          user={user}
-          onLogout={logout}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="text-gray-600">Loading network...</div>
         </div>
       </div>
@@ -238,15 +231,8 @@ export default function InvestorNetwork() {
   const pendingCount = networkMembers.filter(m => m.connectionStatus === 'pending').length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation
-        user={user}
-        userType="investor"
-        title="Network"
-        onLogout={logout}
-        useEnhancedNav={true}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
@@ -424,7 +410,7 @@ export default function InvestorNetwork() {
                         <span>Active {member.lastActive}</span>
                       )}
                     </div>
-                    <button className="text-purple-600 hover:text-purple-700 font-medium">
+                    <button className="text-green-600 hover:text-purple-700 font-medium">
                       View Profile
                     </button>
                   </div>

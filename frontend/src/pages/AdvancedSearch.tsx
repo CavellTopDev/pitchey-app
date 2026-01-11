@@ -7,7 +7,7 @@ import {
   X, RefreshCw, Download, ArrowUpDown, User
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'react-hot-toast';
@@ -53,7 +53,7 @@ interface SearchResult {
 export default function AdvancedSearch() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(true);

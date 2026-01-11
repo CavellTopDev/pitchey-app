@@ -6,8 +6,7 @@ import {
   Search, Calendar, User, ArrowRight, ChevronDown,
   ThumbsUp, ThumbsDown, Edit, ExternalLink, Download
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface PitchReview {
   id: string;
@@ -49,7 +48,7 @@ interface ReviewFilters {
 
 export default function CreatorPitchesReview() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<PitchReview[]>([]);
   const [filteredReviews, setFilteredReviews] = useState<PitchReview[]>([]);
@@ -337,15 +336,8 @@ export default function CreatorPitchesReview() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
-          user={user}
-          userType="creator"
-          title="Pitch Reviews"
-          onLogout={logout}
-          useEnhancedNav={true}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -353,15 +345,8 @@ export default function CreatorPitchesReview() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="creator"
-        title="Pitch Reviews"
-        onLogout={logout}
-        useEnhancedNav={true}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">

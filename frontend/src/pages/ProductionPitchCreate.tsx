@@ -6,7 +6,7 @@ import {
   Trash2, CheckCircle, AlertCircle, Loader2, Eye, EyeOff,
   ChevronRight, Save, Send, Shield
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { usePitchStore } from '../store/pitchStore';
 import { getGenresSync, getFormatsSync, getBudgetRangesSync } from '../constants/pitchConstants';
 
@@ -30,7 +30,7 @@ interface Character {
 export default function ProductionPitchCreate() {
   const navigate = useNavigate();
   const { draftId } = useParams();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const { saveDraft, publishDraft, loadDraft, addPitch, currentDraft, setCurrentDraft } = usePitchStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);

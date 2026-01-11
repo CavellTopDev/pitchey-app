@@ -18,7 +18,9 @@ import { AnalyticCard } from './AnalyticCard';
 import { TimeRangeFilter } from './TimeRangeFilter';
 import { PerformanceChart } from './PerformanceChart';
 import { AnalyticsExport } from './AnalyticsExport';
-import { analyticsService, TimeRange } from '../../services/analytics.service';
+import { analyticsService } from '../../services/analytics.service';
+import type { TimeRange } from '../../services/analytics.service';
+import { useAuthStore } from '../../store/authStore';
 import { 
   LineChart, 
   BarChart, 
@@ -83,31 +85,11 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   pitchPerformance,
   disableRemoteFetch = false,
 }) => {
+  const { user } = useAuthStore();
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [analyticsData, setAnalyticsData] = useState<CreatorAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-
-  useEffect(() => {
-    if (disableRemoteFetch) {
-      // Use mock data only and avoid network calls
-      setAnalyticsData(getMockData());
-      setLoading(false);
-      return;
-    }
-
-    fetchAnalyticsData();
-    
-    // Set up auto-refresh every 5 minutes if enabled
-    let interval: NodeJS.Timeout;
-    if (autoRefresh && !disableRemoteFetch) {
-      interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [timeRange, autoRefresh, disableRemoteFetch, fetchAnalyticsData]);
 
   const fetchAnalyticsData = useCallback(async () => {
     try {
@@ -119,9 +101,14 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                                          timeRange === '90d' ? 'quarter' : 'year';
       
       
+      // Only fetch analytics if user is loaded
+      if (!user?.id) {
+        return;
+      }
+
       const [dashboardMetrics, userAnalytics] = await Promise.all([
         analyticsService.getDashboardMetrics({ preset }),
-        analyticsService.getUserAnalytics(undefined, { preset })
+        analyticsService.getUserAnalytics(user.id, { preset })
       ]);
       
 
@@ -168,11 +155,15 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
           ndaChange: 15,
         },
         charts: {
-          pitchViews: (performance.engagementTrend || []).map((item, index) => ({
-            date: item?.date || new Date().toISOString(),
-            value: Math.floor(Math.random() * 200) + 100 + index * 10
-          })),
-          engagementTrends: performance.engagementTrend || [],
+          pitchViews: (performance.engagementTrend && performance.engagementTrend.length > 0) 
+            ? performance.engagementTrend.map((item, index) => ({
+                date: item?.date || new Date().toISOString(),
+                value: Math.floor(Math.random() * 200) + 100 + index * 10
+              }))
+            : getMockData().charts.pitchViews,
+          engagementTrends: (performance.engagementTrend && performance.engagementTrend.length > 0) 
+            ? performance.engagementTrend 
+            : getMockData().charts.engagementTrends,
           fundingProgress: Array.from({ length: 6 }, (_, i) => ({
             date: new Date(2024, i * 2, 1).toISOString().split('T')[0],
             value: Math.floor(Math.random() * 100000) + 50000 + i * 25000
@@ -190,12 +181,14 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
             { type: 'Directors', count: 15 },
             { type: 'Creators', count: 10 },
           ],
-          topPitches: (userAnalytics.topPitches || []).map(pitch => ({
-            title: pitch.title,
-            views: pitch.views,
-            engagement: pitch.engagement,
-            funding: Math.floor(Math.random() * 50000) + 10000
-          })),
+          topPitches: (userAnalytics?.topPitches && userAnalytics.topPitches.length > 0) 
+            ? userAnalytics.topPitches.map(pitch => ({
+                title: pitch.title,
+                views: pitch.views,
+                engagement: pitch.engagement,
+                funding: Math.floor(Math.random() * 50000) + 10000
+              }))
+            : getMockData().charts.topPitches,
           monthlyMetrics: Array.from({ length: 12 }, (_, i) => ({
             month: new Date(2024, i, 1).toLocaleDateString('en-US', { month: 'short' }),
             pitches: Math.floor(Math.random() * 3) + 1,
@@ -212,7 +205,28 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [timeRange, disableRemoteFetch]);
+  }, [timeRange, disableRemoteFetch, user?.id]);
+
+  useEffect(() => {
+    if (disableRemoteFetch) {
+      // Use mock data only and avoid network calls
+      setAnalyticsData(getMockData());
+      setLoading(false);
+      return;
+    }
+
+    fetchAnalyticsData();
+    
+    // Set up auto-refresh every 5 minutes if enabled
+    let interval: NodeJS.Timeout;
+    if (autoRefresh && !disableRemoteFetch) {
+      interval = setInterval(fetchAnalyticsData, 5 * 60 * 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timeRange, autoRefresh, disableRemoteFetch, fetchAnalyticsData]);
 
   const getMockData = (): CreatorAnalyticsData => ({
     kpis: {

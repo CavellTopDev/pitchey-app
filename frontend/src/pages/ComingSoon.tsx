@@ -4,12 +4,12 @@ import {
   Sparkles, Bell, Mail 
 } from 'lucide-react';
 import { useState } from 'react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 export default function ComingSoon() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [email, setEmail] = useState(user?.email || '');
   const [subscribed, setSubscribed] = useState(false);
 

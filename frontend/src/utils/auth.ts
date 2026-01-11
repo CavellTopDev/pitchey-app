@@ -85,11 +85,12 @@ export const switchPortal = (targetPortal: 'creator' | 'investor' | 'production'
   // Clear all auth state first
   clearAuthenticationState();
   
-  // Add a small delay to ensure cleanup completes
-  setTimeout(() => {
-    const redirectPath = `/login/${targetPortal}`;
-    window.location.replace(redirectPath);
-  }, 100);
+  // DISABLED: This was causing redirect loops with Better Auth
+  // Better Auth handles authentication, not this redirect
+  // setTimeout(() => {
+  //   const redirectPath = `/login/${targetPortal}`;
+  //   window.location.replace(redirectPath);
+  // }, 100);
 };
 
 /**

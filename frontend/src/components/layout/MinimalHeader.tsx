@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, CircleUser, Coins, Menu, X, LogOut } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
-import { AuthService } from '../../services/auth.service';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface MinimalHeaderProps {
   onMenuToggle?: () => void;
@@ -12,12 +11,12 @@ interface MinimalHeaderProps {
 
 export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: MinimalHeaderProps) {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const handleLogout = async () => {
-    await AuthService.logout();
+    await logout();
     navigate('/');
   };
 

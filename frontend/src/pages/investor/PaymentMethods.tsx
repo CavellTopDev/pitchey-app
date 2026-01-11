@@ -1,13 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, Plus, Trash2, Shield, Check,
   Building2, AlertCircle, Edit2, Star
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '@/store/authStore';
 import { toast } from 'react-hot-toast';
 
 interface PaymentMethod {
@@ -23,8 +20,7 @@ interface PaymentMethod {
 }
 
 const PaymentMethods = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedType, setSelectedType] = useState<'card' | 'bank' | 'wire'>('card');
@@ -73,11 +69,7 @@ const PaymentMethods = () => {
     }
   ]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
+  
   const handleSetDefault = (id: number) => {
     setLoading(true);
     setTimeout(() => {
@@ -148,11 +140,7 @@ const PaymentMethods = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <InvestorNavigation 
-        userName={user?.username || user?.email || 'Investor'} 
-        onLogout={handleLogout}
-      />
-
+      
       <div className="container mx-auto px-4 py-8 mt-20">
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-8">

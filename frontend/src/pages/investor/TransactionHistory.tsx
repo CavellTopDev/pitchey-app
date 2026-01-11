@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   History, Download, Filter, Search, ArrowUpRight,
   ArrowDownLeft, Calendar, DollarSign, RefreshCw, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { InvestorNavigation } from '../../components/InvestorNavigation';
-import { useAuthStore } from '@/store/authStore';
 import { investorApi } from '@/services/investor.service';
 
 interface Transaction {
@@ -29,8 +26,7 @@ interface TransactionStats {
 }
 
 const TransactionHistory = () => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    
   const [searchQuery, setSearchQuery] = useState('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);
@@ -109,12 +105,8 @@ const TransactionHistory = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <InvestorNavigation 
-        user={user}
-        onLogout={handleLogout}
-      />
-      <main className="container mx-auto px-4 py-6">
+    <div>
+            <main className="container mx-auto px-4 py-6">
         <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>

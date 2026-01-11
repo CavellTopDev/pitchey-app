@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Handshake, Star, Clock, CheckCircle, XCircle, 
   AlertCircle, Search, Filter, Calendar, User,
@@ -7,8 +6,7 @@ import {
   Building, Users, Award, TrendingUp, Download,
   Globe, Lock, Heart, Share2, Plus
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface Collaboration {
   id: string;
@@ -56,8 +54,7 @@ interface CollaborationFilters {
 }
 
 export default function CreatorCollaborations() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
   const [filteredCollaborations, setFilteredCollaborations] = useState<Collaboration[]>([]);
@@ -351,15 +348,8 @@ export default function CreatorCollaborations() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <DashboardHeader
-          user={user}
-          userType="creator"
-          title="Collaborations"
-          onLogout={logout}
-          useEnhancedNav={true}
-        />
-        <div className="flex items-center justify-center h-64">
+      <div>
+                <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -372,15 +362,8 @@ export default function CreatorCollaborations() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="creator"
-        title="Collaborations"
-        onLogout={logout}
-        useEnhancedNav={true}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">

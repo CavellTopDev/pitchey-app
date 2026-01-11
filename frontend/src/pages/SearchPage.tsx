@@ -6,7 +6,7 @@ import {
   Grid, List, SortAsc, SortDesc
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface SearchResult {
   id: string;
@@ -38,7 +38,7 @@ const searchFilters = {
 export default function SearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);

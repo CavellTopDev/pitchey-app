@@ -18,7 +18,7 @@ import {
 import { API_URL } from '../config';
 import { useToast } from './Toast/ToastProvider';
 import type { FilterState } from './FilterBar';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 
 interface SavedFilter {
   id: number;
@@ -42,7 +42,7 @@ export default function SavedFilters({
   onLoadFilter,
   className = '' 
 }: SavedFiltersProps) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const toast = useToast();
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [loading, setLoading] = useState(false);

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, Navigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { validatePortalAccess } from '../utils/auth';
 
 interface PortalGuardProps {
@@ -13,7 +13,7 @@ interface PortalGuardProps {
  */
 export const PortalGuard: React.FC<PortalGuardProps> = ({ children, requiredPortal }) => {
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout } = useBetterAuthStore();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -26,9 +26,9 @@ export const PortalGuard: React.FC<PortalGuardProps> = ({ children, requiredPort
     if (!validation.isValidPortal && userType && userType !== requiredPortal) {
       console.warn(`🚨 Portal mismatch detected: ${userType} user on ${requiredPortal} portal`);
       
-      // Clear auth state and redirect to correct portal
-      logout(false); // Don't auto-navigate
-      window.location.replace(`/login/${userType}`);
+      // DISABLED: This was causing redirect loops with Better Auth
+      // logout(false); // Don't auto-navigate
+      // window.location.replace(`/login/${userType}`);
     }
   }, [isAuthenticated, user, location.pathname, requiredPortal, logout]);
 

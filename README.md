@@ -47,12 +47,41 @@ All accounts use password: **Demo123**
 | Investor | sarah.investor@demo.com |
 | Production | stellar.production@demo.com |
 
+## Mock Data Synchronization Workflow
+
+When updating mock data, follow this workflow to ensure consistency:
+
+1. **Update Frontend Mock Data** (`frontend/e2e/fixtures/test-data.ts`)
+   - Modify test fixtures with new mock data
+   - Ensure IDs and relationships are consistent
+
+2. **Update Backend Mock Responses** 
+   - Update relevant service mocks in backend handlers
+   - Ensure response structure matches frontend expectations
+
+3. **Run Synchronization Check**
+   ```bash
+   # Check for mock data inconsistencies
+   npm run test:mock-sync
+   ```
+
+4. **Update E2E Tests**
+   - Update test assertions to match new mock data
+   - Run E2E test suite: `npm run test:e2e`
+
+5. **Document Changes**
+   - Update API documentation if response structure changed
+   - Note breaking changes in CHANGELOG.md
+
+For detailed testing procedures, see [docs/TESTING_CHECKLIST.md](docs/TESTING_CHECKLIST.md)
+
 ## Support & Issues
 
 - **Known Issues**: See [CLIENT_REQUIREMENTS_UPDATE_DEC10.md](CLIENT_REQUIREMENTS_UPDATE_DEC10.md)
 - **Architecture Questions**: Refer to [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **API Integration**: Check [docs/API_REFERENCE.md](docs/API_REFERENCE.md)
 - **Deployment Help**: Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- **Testing Guide**: See [docs/TESTING_CHECKLIST.md](docs/TESTING_CHECKLIST.md)
 
 ## License
 

@@ -7,8 +7,7 @@ import {
   MessageSquare, Calendar, ChevronRight,
   ExternalLink, Download, Upload
 } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface InviteMethod {
   id: 'email' | 'link' | 'bulk' | 'import';
@@ -49,7 +48,7 @@ interface RoleTemplate {
 
 export default function CreatorTeamInvite() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [activeMethod, setActiveMethod] = useState<'email' | 'link' | 'bulk' | 'import'>('email');
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
@@ -358,15 +357,8 @@ export default function CreatorTeamInvite() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="creator"
-        title="Invite Team Members"
-        onLogout={logout}
-        useEnhancedNav={true}
-      />
-
+    <div>
+      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">

@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { FileText, Clock, CheckCircle, AlertTriangle, TrendingUp, DollarSign, Calendar, Users, MoreVertical, Eye, Edit, Trash2, PlusCircle, Filter, Search } from 'lucide-react';
-import DashboardHeader from '../../components/DashboardHeader';
-import { useAuthStore } from '../../store/authStore';
 import { config } from '../../config';
 
 interface Project {
@@ -47,8 +44,7 @@ const phaseColors = {
 };
 
 export default function ProductionProjectsDevelopment() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+    
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,14 +176,8 @@ export default function ProductionProjectsDevelopment() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader
-        user={user}
-        userType="production"
-        title="Projects in Development"
-        onLogout={logout}
-      />
-
+    <div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

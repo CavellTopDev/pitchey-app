@@ -29,11 +29,22 @@ import {
   TrendingDown,
   History
 } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import api from '../lib/api';
 // Using the enhanced Investor-specific navigation
 // EnhancedInvestorNav is now handled by PortalLayout
-import { formatCurrency, formatPercentage, safeNumber } from '../utils/formatters';
+import { formatCurrency, formatPercentage, formatDate } from '../utils/formatters';
+import {
+  validatePortfolio,
+  safeArray,
+  safeMap,
+  safeAccess,
+  safeNumber,
+  safeString,
+  isValidDate,
+  safeExecute
+} from '../utils/defensive';
+import { PageErrorBoundary } from '../components/ConsoleErrorBoundary';
 
 interface PortfolioSummary {
   totalInvested: number;
@@ -70,9 +81,9 @@ interface NDARequest {
   signedAt?: string;
 }
 
-export default function InvestorDashboard() {
+function InvestorDashboard() {
   const navigate = useNavigate();
-  const { logout, user } = useAuthStore();
+  const { logout, user } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -97,7 +108,16 @@ export default function InvestorDashboard() {
     try {
       setLoading(true);
       
-      // Fetch all dashboard data in parallel
+      // Fetch all dashboard data in parallel with defensive error handling
+      const promises = [
+        api.get('/api/investor/portfolio/summary'),
+        api.get('/api/investor/investments'),
+        api.get('/api/saved-pitches'),
+        api.get('/api/nda/active'),
+        api.get('/api/notifications'),
+        api.get('/api/investment/recommendations')
+      ];
+      
       const [
         portfolioRes,
         investmentsRes,
@@ -105,58 +125,86 @@ export default function InvestorDashboard() {
         ndaRes,
         notificationsRes,
         recommendationsRes
-      ] = await Promise.allSettled([
-        api.get('/api/investor/portfolio/summary'),
-        api.get('/api/investor/investments'),
-        api.get('/api/saved-pitches'),
-        api.get('/api/nda/active'),
-        api.get('/api/notifications'),
-        api.get('/api/investment/recommendations')
-      ]);
+      ] = await Promise.allSettled(promises);
 
-      // Handle portfolio summary with safe data parsing
-      if (portfolioRes.status === 'fulfilled' && portfolioRes.value.data.success) {
-        const portfolioData = portfolioRes.value.data.data || {};
-        setPortfolio({
-          totalInvested: safeNumber(portfolioData.totalInvested, 0),
-          activeInvestments: safeNumber(portfolioData.activeInvestments, 0),
-          averageROI: safeNumber(portfolioData.averageROI, 0),
-          topPerformer: portfolioData.topPerformer || 'None yet'
-        });
+      // Handle portfolio summary with comprehensive defensive parsing
+      if (portfolioRes.status === 'fulfilled') {
+        const responseData = safeAccess(portfolioRes, 'value.data.data', {});
+        const validatedPortfolio = {
+          totalInvested: safeNumber(safeAccess(responseData, 'totalInvested', 0)),
+          activeInvestments: safeNumber(safeAccess(responseData, 'activeInvestments', 0)),
+          averageROI: safeNumber(safeAccess(responseData, 'averageROI', 0)),
+          topPerformer: safeString(safeAccess(responseData, 'topPerformer', 'None yet'))
+        };
+        setPortfolio(validatedPortfolio);
       }
 
-      // Handle investments with safe data parsing
-      if (investmentsRes.status === 'fulfilled' && investmentsRes.value.data.success) {
-        const investmentData = (investmentsRes.value.data.data || []).map((investment: any) => ({
-          ...investment,
-          amount: safeNumber(investment.amount, 0),
-          roi: safeNumber(investment.roi, 0),
-          id: investment.id || Math.random(),
-          pitchTitle: investment.pitchTitle || 'Unknown Project',
-          status: investment.status || 'unknown',
-          dateInvested: investment.dateInvested || new Date().toISOString()
+      // Handle investments with comprehensive defensive parsing
+      if (investmentsRes.status === 'fulfilled') {
+        const investmentsData = safeAccess(investmentsRes, 'value.data.data', []);
+        const safeInvestments = safeMap(investmentsData, (investment: any) => ({
+          id: safeNumber(safeAccess(investment, 'id', Math.floor(Math.random() * 10000))),
+          pitchTitle: safeString(safeAccess(investment, 'pitchTitle', 'Unknown Project')),
+          amount: safeNumber(safeAccess(investment, 'amount', 0)),
+          status: safeString(safeAccess(investment, 'status', 'unknown')),
+          roi: safeNumber(safeAccess(investment, 'roi', 0)),
+          dateInvested: isValidDate(safeAccess(investment, 'dateInvested', null)) 
+            ? safeAccess(investment, 'dateInvested', new Date().toISOString())
+            : new Date().toISOString(),
+          pitchId: safeNumber(safeAccess(investment, 'pitchId', 0), 0)
         }));
-        setInvestments(investmentData);
+        setInvestments(safeInvestments);
       }
 
-      // Handle saved pitches
+      // Handle saved pitches with defensive parsing
       if (savedRes.status === 'fulfilled') {
-        setSavedPitches(savedRes.value.data.data || []);
+        const savedData = safeAccess(savedRes, 'value.data.data', []);
+        const safePitches = safeMap(savedData, (pitch: any) => ({
+          id: safeNumber(safeAccess(pitch, 'id', Math.floor(Math.random() * 10000))),
+          title: safeString(safeAccess(pitch, 'title', 'Unknown Title')),
+          creator: safeString(safeAccess(pitch, 'creator', 'Unknown Creator')),
+          genre: safeString(safeAccess(pitch, 'genre', 'Unknown')),
+          budget: safeString(safeAccess(pitch, 'budget', 'TBD')),
+          status: safeString(safeAccess(pitch, 'status', 'Unknown')),
+          savedAt: isValidDate(safeAccess(pitch, 'savedAt', null))
+            ? safeAccess(pitch, 'savedAt', new Date().toISOString())
+            : new Date().toISOString()
+        }));
+        setSavedPitches(safePitches);
       }
 
-      // Handle NDAs
+      // Handle NDAs with defensive parsing
       if (ndaRes.status === 'fulfilled') {
-        setNdaRequests(ndaRes.value.data.data || []);
+        const ndaData = safeAccess(ndaRes, 'value.data.data', []);
+        const safeNDAs = safeMap(ndaData, (nda: any) => ({
+          id: safeNumber(safeAccess(nda, 'id', Math.floor(Math.random() * 10000))),
+          pitchTitle: safeString(safeAccess(nda, 'pitchTitle', 'Unknown Project')),
+          status: safeString(safeAccess(nda, 'status', 'pending')),
+          requestedAt: isValidDate(safeAccess(nda, 'requestedAt', null))
+            ? safeAccess(nda, 'requestedAt', new Date().toISOString())
+            : new Date().toISOString(),
+          signedAt: safeAccess(nda, 'signedAt', null)
+        }));
+        setNdaRequests(safeNDAs);
       }
 
-      // Handle notifications
+      // Handle notifications with defensive parsing
       if (notificationsRes.status === 'fulfilled') {
-        setNotifications(notificationsRes.value.data.data || []);
+        const notificationData = safeAccess(notificationsRes, 'value.data.data', []);
+        setNotifications(safeArray(notificationData));
       }
 
-      // Handle recommendations
+      // Handle recommendations with defensive parsing
       if (recommendationsRes.status === 'fulfilled') {
-        setRecommendations(recommendationsRes.value.data.data || []);
+        const recommendationData = safeAccess(recommendationsRes, 'value.data.data', []);
+        const safeRecommendations = safeMap(recommendationData, (rec: any) => ({
+          id: safeNumber(safeAccess(rec, 'id', Math.floor(Math.random() * 10000))),
+          title: safeString(safeAccess(rec, 'title', 'Unknown Title')),
+          genre: safeString(safeAccess(rec, 'genre', 'Unknown')),
+          tagline: safeString(safeAccess(rec, 'tagline', 'No description available')),
+          budget: safeString(safeAccess(rec, 'budget', 'TBD'))
+        }));
+        setRecommendations(safeRecommendations);
       }
 
     } catch (error) {
@@ -181,32 +229,13 @@ export default function InvestorDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Main content - removed the flex wrapper and EnhancedInvestorNav since it's handled by PortalLayout */}
-      <div className="w-full">
-        {/* Top header bar */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Investor Dashboard</h1>
-            <div className="flex items-center gap-4">
-              <button className="p-2 text-gray-500 hover:text-gray-700">
-                <Bell className="w-5 h-5" />
-              </button>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="w-full">
+      {/* Page Title - simplified since PortalLayout provides header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Investor Dashboard</h1>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
         {/* Portfolio Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
@@ -371,17 +400,17 @@ export default function InvestorDashboard() {
                     Recommended Opportunities
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {recommendations.slice(0, 3).map((pitch: any) => (
-                      <div key={pitch.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    {safeArray(recommendations).slice(0, 3).map((pitch: any) => (
+                      <div key={safeAccess(pitch, 'id', Math.random())} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between">
-                          <h4 className="font-medium text-gray-900">{pitch.title}</h4>
+                          <h4 className="font-medium text-gray-900">{safeString(safeAccess(pitch, 'title', 'Unknown Title'))}</h4>
                           <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
-                            {pitch.genre}
+                            {safeString(safeAccess(pitch, 'genre', 'Unknown'))}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{pitch.tagline}</p>
+                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{safeString(safeAccess(pitch, 'tagline', 'No description available'))}</p>
                         <div className="mt-4 flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900">{pitch.budget}</span>
+                          <span className="text-sm font-medium text-gray-900">{safeString(safeAccess(pitch, 'budget', 'TBD'))}</span>
                           <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
                             View Details →
                           </button>
@@ -432,7 +461,7 @@ export default function InvestorDashboard() {
                   </button>
                 </div>
                 
-                {investments.length > 0 ? (
+                {safeArray(investments).length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -458,34 +487,34 @@ export default function InvestorDashboard() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {investments.map((investment) => (
-                          <tr key={investment.id}>
+                        {safeArray(investments).map((investment) => (
+                          <tr key={safeAccess(investment, 'id', Math.random())}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
-                                {investment.pitchTitle}
+                                {safeString(safeAccess(investment, 'pitchTitle', 'Unknown Project'))}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{formatCurrency(investment.amount)}</div>
+                              <div className="text-sm text-gray-900">{formatCurrency(safeAccess(investment, 'amount', 0))}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                investment.status === 'active' 
+                                safeAccess(investment, 'status', '') === 'active' 
                                   ? 'bg-green-100 text-green-800'
                                   : 'bg-gray-100 text-gray-800'
                               }`}>
-                                {investment.status}
+                                {safeString(safeAccess(investment, 'status', 'Unknown'))}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className={`text-sm font-medium ${
-                                safeNumber(investment.roi) > 0 ? 'text-green-600' : 'text-gray-900'
+                                safeNumber(safeAccess(investment, 'roi', 0)) > 0 ? 'text-green-600' : 'text-gray-900'
                               }`}>
-                                {safeNumber(investment.roi) > 0 ? '+' : ''}{formatPercentage(investment.roi, 0)}
+                                {safeNumber(safeAccess(investment, 'roi', 0)) > 0 ? '+' : ''}{formatPercentage(safeAccess(investment, 'roi', 0), 0)}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(investment.dateInvested).toLocaleDateString()}
+                              {formatDate(safeAccess(investment, 'dateInvested', new Date().toISOString()))}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <button className="text-blue-600 hover:text-blue-900">View</button>
@@ -558,26 +587,26 @@ export default function InvestorDashboard() {
                 {/* Saved Pitches Section */}
                 <div className="mt-8">
                   <h4 className="text-md font-semibold text-gray-900 mb-3">Your Saved Pitches</h4>
-                  {savedPitches.length > 0 ? (
+                  {safeArray(savedPitches).length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {savedPitches.slice(0, 4).map((pitch) => (
-                        <div key={pitch.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      {safeArray(savedPitches).slice(0, 4).map((pitch) => (
+                        <div key={safeAccess(pitch, 'id', Math.random())} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-start justify-between">
-                            <h4 className="font-medium text-gray-900">{pitch.title}</h4>
+                            <h4 className="font-medium text-gray-900">{safeString(safeAccess(pitch, 'title', 'Unknown Title'))}</h4>
                             <Star className="w-4 h-4 text-yellow-500 fill-current" />
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">by {pitch.creator}</p>
+                          <p className="text-sm text-gray-600 mt-1">by {safeString(safeAccess(pitch, 'creator', 'Unknown Creator'))}</p>
                           <div className="mt-3 flex items-center gap-2 text-xs">
                             <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                              {pitch.genre}
+                              {safeString(safeAccess(pitch, 'genre', 'Unknown'))}
                             </span>
                             <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                              {pitch.budget}
+                              {safeString(safeAccess(pitch, 'budget', 'TBD'))}
                             </span>
                           </div>
                           <div className="mt-4 flex items-center justify-between">
                             <span className="text-xs text-gray-500">
-                              Saved {new Date(pitch.savedAt).toLocaleDateString()}
+                              Saved {formatDate(safeAccess(pitch, 'savedAt', new Date().toISOString()))}
                             </span>
                             <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
                               View →
@@ -612,7 +641,7 @@ export default function InvestorDashboard() {
                       Pending: 2
                     </span>
                     <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm">
-                      Active: {ndaRequests.length}
+                      Active: {safeArray(ndaRequests).length}
                     </span>
                   </div>
                 </div>
@@ -620,26 +649,26 @@ export default function InvestorDashboard() {
                 {/* NDA Management Section */}
                 <div className="mb-8">
                   <h4 className="text-md font-semibold text-gray-900 mb-3">Active NDAs</h4>
-                  {ndaRequests.length > 0 ? (
+                  {safeArray(ndaRequests).length > 0 ? (
                     <div className="space-y-3">
-                      {ndaRequests.slice(0, 5).map((nda) => (
-                        <div key={nda.id} className="border rounded-lg p-4">
+                      {safeArray(ndaRequests).slice(0, 5).map((nda) => (
+                        <div key={safeAccess(nda, 'id', Math.random())} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h4 className="font-medium text-gray-900">{nda.pitchTitle}</h4>
+                              <h4 className="font-medium text-gray-900">{safeString(safeAccess(nda, 'pitchTitle', 'Unknown Project'))}</h4>
                               <p className="text-sm text-gray-600 mt-1">
-                                Requested: {new Date(nda.requestedAt).toLocaleDateString()}
+                                Requested: {formatDate(safeAccess(nda, 'requestedAt', new Date().toISOString()))}
                               </p>
                             </div>
                             <div className="flex items-center gap-3">
                               <span className={`px-2 py-1 text-xs rounded-full ${
-                                nda.status === 'signed' 
+                                safeAccess(nda, 'status', '') === 'signed' 
                                   ? 'bg-green-100 text-green-700'
-                                  : nda.status === 'pending'
+                                  : safeAccess(nda, 'status', '') === 'pending'
                                   ? 'bg-yellow-100 text-yellow-700'
                                   : 'bg-gray-100 text-gray-700'
                               }`}>
-                                {nda.status}
+                                {safeString(safeAccess(nda, 'status', 'Unknown'))}
                               </span>
                               <button className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
                                 View Details
@@ -1025,7 +1054,14 @@ export default function InvestorDashboard() {
           </button>
         </div>
       </div>
-      </div>
     </div>
+  );
+}
+
+export default function WrappedInvestorDashboard() {
+  return (
+    <PageErrorBoundary>
+      <InvestorDashboard />
+    </PageErrorBoundary>
   );
 }

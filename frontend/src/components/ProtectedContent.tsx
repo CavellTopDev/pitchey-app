@@ -1,6 +1,6 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Lock, Shield, Eye, EyeOff } from 'lucide-react';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import { apiClient } from '../lib/api-client';
 import NDAModal from './NDAModal';
 
@@ -27,7 +27,7 @@ export default function ProtectedContent({
   fallback,
   className = ''
 }: ProtectedContentProps) {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [accessData, setAccessData] = useState<AccessData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNDAModal, setShowNDAModal] = useState(false);

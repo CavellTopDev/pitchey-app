@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { AuthHelper } from './utils/auth-helpers';
 import { PageHelper } from './utils/page-helpers';
-import { TEST_PITCH } from './fixtures/test-data';
+import { TEST_PITCHES } from './fixtures/test-data';
+
+// Use the first pitch for testing
+const TEST_PITCH = TEST_PITCHES.actionThriller;
 
 test.describe('Cross-Feature Integration Tests', () => {
   let authHelper: AuthHelper;

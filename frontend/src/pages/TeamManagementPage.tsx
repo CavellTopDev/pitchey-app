@@ -6,7 +6,7 @@ import {
   Award, Briefcase, Clock, Star, Handshake, GitBranch
 } from 'lucide-react';
 import DashboardHeader from '../components/DashboardHeader';
-import { useAuthStore } from '../store/authStore';
+import { useBetterAuthStore } from '../store/betterAuthStore';
 import CreatorCollaborations from './creator/CreatorCollaborations';
 import ProductionCollaborations from './production/ProductionCollaborations';
 
@@ -30,7 +30,7 @@ const roles = ['Producer', 'Director', 'Writer', 'Editor', 'Cinematographer', 'S
 
 export default function TeamManagementPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useBetterAuthStore();
   const userType = user?.userType || 'production';
   const [activeTab, setActiveTab] = useState<'members' | 'collaborations' | 'roles'>('members');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
