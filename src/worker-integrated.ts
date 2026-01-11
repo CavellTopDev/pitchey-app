@@ -1604,7 +1604,6 @@ class RouteRegistry {
     this.register('GET', '/api/pitches/public/new', this.getPublicNewPitches.bind(this));
     this.register('GET', '/api/pitches/public/featured', this.getPublicFeaturedPitches.bind(this));
     this.register('GET', '/api/pitches/public/search', this.searchPublicPitches.bind(this));
-    this.register('GET', '/api/pitches/public/:id', this.getPublicPitchById.bind(this));
     
     // Saved pitches endpoints
     this.register('GET', '/api/saved-pitches', this.getSavedPitches.bind(this));
@@ -5261,6 +5260,8 @@ class RouteRegistry {
     }
   }
 
+  // Deprecated - replaced by getPublicPitch which handles NDA protected content
+  /*
   private async getPublicPitchById(request: Request): Promise<Response> {
     try {
       const { RateLimiter, applyRateLimit } = await import('../utils/rate-limiter');
@@ -5310,6 +5311,7 @@ class RouteRegistry {
       return createPublicErrorResponse('Service error', 500);
     }
   }
+  */
 
   private async handleWebSocketUpgrade(request: Request): Promise<Response> {
     try {
