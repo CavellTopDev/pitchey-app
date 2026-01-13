@@ -92,10 +92,19 @@ export default function ComprehensiveNDAManagement({
   ];
 
   useEffect(() => {
-    fetchAllNDAData();
+    // Only fetch NDA data if we have a valid userId (meaning user is authenticated)
+    if (userId && userId > 0) {
+      fetchAllNDAData();
+    }
   }, [userType, userId]);
 
   const fetchAllNDAData = async () => {
+    // Skip if no userId - user not authenticated
+    if (!userId || userId <= 0) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -126,8 +135,17 @@ export default function ComprehensiveNDAManagement({
         monthlyTrends: [] // Would need additional API endpoint
       });
 
-    } catch (error) {
-      console.error('Failed to fetch NDA data:', error);
+    } catch (error: any) {
+      // Handle authentication errors silently - user might not be logged in yet
+      if (error?.response?.status === 401 || error?.message?.includes('401')) {
+        console.log('User not authenticated - skipping NDA data fetch');
+        // Clear any stale data
+        setIncomingNDAs([]);
+        setOutgoingNDAs([]);
+        setSignedNDAs([]);
+      } else {
+        console.error('Failed to fetch NDA data:', error);
+      }
     } finally {
       setLoading(false);
     }

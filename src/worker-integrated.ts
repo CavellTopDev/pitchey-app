@@ -439,8 +439,8 @@ class RouteRegistry {
           [sessionId]
         );
 
-        if (result.rows && result.rows.length > 0) {
-          const session = result.rows[0];
+        if (result && result.length > 0) {
+          const session = result[0];
 
           // Cache the session for future requests
           const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
@@ -2091,7 +2091,149 @@ class RouteRegistry {
   // Route Handlers
 
   private async handleLogin(request: Request): Promise<Response> {
-    // Simplified login
+    console.log('handleLogin called (generic)');
+
+    // First try Better Auth's raw SQL implementation if available
+    if (this.betterAuth && this.betterAuth.dbAdapter) {
+      try {
+        const body = await request.clone().json();
+        const { email, password } = body;
+
+        // Get user from database using Better Auth's adapter
+        const user = await this.betterAuth.dbAdapter.findUser(email);
+
+        if (!user) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: {
+                code: 'INVALID_CREDENTIALS',
+                message: 'Invalid credentials'
+              }
+            }),
+            {
+              status: 401,
+              headers: {
+                'Content-Type': 'application/json',
+                ...getCorsHeaders(request.headers.get('Origin'))
+              }
+            }
+          );
+        }
+
+        // For demo accounts, accept the demo password
+        const isDemoAccount = ['alex.creator@demo.com', 'sarah.investor@demo.com', 'stellar.production@demo.com'].includes(email);
+
+        // Password verification for demo accounts
+        if (isDemoAccount) {
+          if (password !== 'Demo123') {
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: {
+                  code: 'INVALID_CREDENTIALS',
+                  message: 'Invalid credentials'
+                }
+              }),
+              {
+                status: 401,
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...getCorsHeaders(request.headers.get('Origin'))
+                }
+              }
+            );
+          }
+        } else {
+          // For non-demo, fallback to plain text check (should use bcrypt in future)
+          if (user.password && user.password !== password) {
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: {
+                  code: 'INVALID_CREDENTIALS',
+                  message: 'Invalid credentials'
+                }
+              }),
+              {
+                status: 401,
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...getCorsHeaders(request.headers.get('Origin'))
+                }
+              }
+            );
+          }
+        }
+
+        // Create session
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        const sessionId = await this.betterAuth.dbAdapter.createSession(user.id, expiresAt);
+
+        // Store session in KV if available
+        const kvStore = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+        if (kvStore) {
+          await kvStore.put(
+            `session:${sessionId}`,
+            JSON.stringify({
+              id: sessionId,
+              userId: user.id,
+              userEmail: user.email,
+              userType: user.user_type,
+              expiresAt
+            }),
+            { expirationTtl: 604800 } // 7 days
+          );
+        }
+
+        // Generate JWT for backward compatibility
+        const jwtSecret = this.env.JWT_SECRET || 'test-secret-key-for-development';
+        const token = await createJWT(
+          {
+            sub: user.id.toString(),
+            email: user.email,
+            name: user.username || user.email.split('@')[0],
+            userType: user.user_type
+          },
+          jwtSecret,
+          7 * 24 * 60 * 60
+        );
+
+        // Return response with both session cookie and JWT
+        const origin = request.headers.get('Origin');
+        const corsHeaders = getCorsHeaders(origin);
+
+        return new Response(
+          JSON.stringify({
+            user: {
+              id: user.id.toString(),
+              email: user.email,
+              name: user.username || user.email.split('@')[0],
+              userType: user.user_type
+            },
+            session: {
+              id: sessionId,
+              expiresAt: expiresAt.toISOString()
+            },
+            token,
+            success: true
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`,
+              ...corsHeaders
+            }
+          }
+        );
+
+      } catch (error) {
+        console.error('Better Auth generic login error:', error);
+        // Fallback to simple handler
+      }
+    }
+    // Fallback to JWT-only login
     return this.handleLoginSimple(request, 'creator');
   }
 
@@ -8582,11 +8724,12 @@ pitchey_analytics_datapoints_per_minute 1250
         const deleteResult = await this.db.query(
           `UPDATE nda_templates 
            SET active = false, updated_at = $1
-           WHERE id = $2 AND created_by = $3 AND is_default = false`,
+           WHERE id = $2 AND created_by = $3 AND is_default = false
+           RETURNING id`,
           [new Date().toISOString(), templateId, authResult.user.id]
         );
 
-        if (deleteResult.rowCount === 0) {
+        if (deleteResult.length === 0) {
           return this.jsonResponse({
             success: false,
             error: { message: 'Template not found, access denied, or cannot delete default template' }
@@ -8639,11 +8782,12 @@ pitchey_analytics_datapoints_per_minute 1250
             const updateResult = await this.db.query(
               `UPDATE ndas 
                SET status = 'approved', notes = $1, approved_at = $2, approved_by = $3, updated_at = $4
-               WHERE id = $5 AND creator_id = $6 AND status = 'pending'`,
+               WHERE id = $5 AND creator_id = $6 AND status = 'pending'
+               RETURNING id`,
               [notes || '', new Date().toISOString(), authResult.user.id, new Date().toISOString(), ndaId, authResult.user.id]
             );
 
-            if (updateResult.rowCount > 0) {
+            if (updateResult.length > 0) {
               successful.push(ndaId);
             } else {
               failed.push({ id: ndaId, error: 'NDA not found or not pending' });
@@ -8702,11 +8846,12 @@ pitchey_analytics_datapoints_per_minute 1250
             const updateResult = await this.db.query(
               `UPDATE ndas 
                SET status = 'rejected', rejection_reason = $1, rejected_at = $2, updated_at = $3
-               WHERE id = $4 AND creator_id = $5 AND status = 'pending'`,
+               WHERE id = $4 AND creator_id = $5 AND status = 'pending'
+               RETURNING id`,
               [reason, new Date().toISOString(), new Date().toISOString(), ndaId, authResult.user.id]
             );
 
-            if (updateResult.rowCount > 0) {
+            if (updateResult.length > 0) {
               successful.push(ndaId);
             } else {
               failed.push({ id: ndaId, error: 'NDA not found or not pending' });
