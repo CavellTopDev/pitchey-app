@@ -128,15 +128,16 @@ dataset = "pitchey_trace_events"
 
 # ===== TRACE WORKERS CONFIGURATION =====
 # Note: Trace Workers API for distributed tracing
-[[unsafe.bindings]]
-name = "TRACE_WORKERS"
-type = "trace_workers"
+# Temporarily disabled due to experimental features
+# [[unsafe.bindings]]
+# name = "TRACE_WORKERS"
+# type = "trace_workers"
 
-# Trace Workers Service Binding
-[[services]]
-binding = "TRACE_SERVICE"
-service = "trace-worker"
-environment = "production"
+# Trace Workers Service Binding - commented out for now
+# [[services]]
+# binding = "TRACE_SERVICE"
+# service = "trace-worker"
+# environment = "production"
 
 # ===== AUDIT LOG STORAGE =====
 [[r2_buckets]]
@@ -217,10 +218,12 @@ invocation_logs = true
 persist = true
 
 # ===== TAIL WORKERS FOR TRACE PROCESSING =====
-[[tail_consumers]]
-environment = "production"
-namespace = "pitchey-traces"
-script_name = "pitchey-trace-processor"
+# Temporarily disabled - will configure after deployment
+# [[tail_consumers]]
+# service = "pitchey-api-prod"
+# environment = "production"
+# namespace = "pitchey-traces"
+# script_name = "pitchey-trace-processor"
 
 # Build Configuration
 [build]

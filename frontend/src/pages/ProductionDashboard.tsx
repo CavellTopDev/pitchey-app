@@ -867,6 +867,61 @@ function ProductionDashboard() {
               </div>
             )}
 
+            {/* Quick Actions */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                <Activity className="w-5 h-5 text-purple-500" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  onClick={() => navigate('/marketplace')}
+                  className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:shadow-lg hover:from-blue-100 hover:to-indigo-100 transition-all"
+                >
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Browse Marketplace</p>
+                    <p className="text-xs text-gray-500">Find new projects</p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => navigate('/production/search')}
+                  className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
+                >
+                  <Search className="w-6 h-6 text-gray-600" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Advanced Search</p>
+                    <p className="text-xs text-gray-500">Filter by criteria</p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => navigate('/production/ndas')}
+                  className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
+                >
+                  <Shield className="w-6 h-6 text-gray-600" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Manage NDAs</p>
+                    <p className="text-xs text-gray-500">View agreements</p>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => navigate('/production/analytics')}
+                  className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
+                >
+                  <BarChart3 className="w-6 h-6 text-gray-600" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Analytics</p>
+                    <p className="text-xs text-gray-500">View insights</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* Investment Opportunities */}
             {investmentOpportunities.length > 0 && (
               <InvestmentOpportunities 

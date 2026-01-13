@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Domain File Download Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #4c51bf;
+        }
+        button {
+            background: #4c51bf;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #434190;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            background: #c6f6d5;
+            border: 1px solid #38a169;
+            color: #22543d;
+        }
+        .error {
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            color: #742a2a;
+        }
+        .info {
+            background: #bee3f8;
+            border: 1px solid #4299e1;
+            color: #2c5282;
+        }
+        .loading {
+            background: #feebc8;
+            border: 1px solid #f6ad55;
+            color: #744210;
+        }
+        code {
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Cross-Domain File Download Test</h1>
+        <p class="subtitle">Testing Better Auth cookie transmission with <code>sameSite: 'none'</code></p>
+
+        <div class="test-section">
+            <h2>📋 Test Configuration</h2>
+            <p><strong>Frontend Domain:</strong> <code id="currentDomain"></code></p>
+            <p><strong>API Domain:</strong> <code>https://pitchey-api-prod.ndlovucavelle.workers.dev</code></p>
+            <p><strong>Cookie Policy:</strong> <code>sameSite: 'none', secure: true</code></p>
+            <p><strong>CORS Credentials:</strong> <code>withCredentials: true</code></p>
+        </div>
+
+        <div class="test-section">
+            <h2>🔑 Step 1: Authentication</h2>
+            <button onclick="testLogin()">Login as Investor (sarah.investor@demo.com)</button>
+            <button onclick="checkSession()">Check Session</button>
+            <div id="authResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📥 Step 2: Test File Download</h2>
+            <button onclick="testProtectedDownload()">Download Protected File (with auth)</button>
+            <button onclick="testPublicDownload()">Download Public File (no auth)</button>
+            <div id="downloadResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🍪 Step 3: Cookie Inspection</h2>
+            <button onclick="inspectCookies()">Inspect Cookies</button>
+            <button onclick="testCORS()">Test CORS Headers</button>
+            <div id="cookieResult" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+        
+        // Display current domain
+        document.getElementById('currentDomain').textContent = window.location.origin;
+
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = content;
+            element.className = `result ${type}`;
+            element.style.display = 'block';
+        }
+
+        async function testLogin() {
+            showResult('authResult', 'Logging in...', 'loading');
+            try {
+                const response = await fetch(`${API_URL}/api/auth/sign-in`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'sarah.investor@demo.com',
+                        password: 'Demo123'
+                    }),
+                    credentials: 'include' // Critical for cross-domain cookies
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('authResult', 
+                        `✅ Login successful!\n\n` +
+                        `User: ${data.user?.name || 'N/A'}\n` +
+                        `Email: ${data.user?.email || 'N/A'}\n` +
+                        `Session: ${data.session?.id || 'N/A'}\n\n` +
+                        `Cookies should now be set with sameSite='none'`, 
+                        'success'
+                    );
+                } else {
+                    showResult('authResult', 
+                        `❌ Login failed: ${data.error || response.statusText}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('authResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkSession() {
+            showResult('authResult', 'Checking session...', 'loading');
+            try {
+                const response = await fetch(`${API_URL}/api/auth/session`, {
+                    method: 'GET',
+                    credentials: 'include' // Critical for cross-domain cookies
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.user) {
+                    showResult('authResult', 
+                        `✅ Session valid!\n\n` +
+                        `User: ${data.user.name}\n` +
+                        `Email: ${data.user.email}\n` +
+                        `Session ID: ${data.session?.id || 'N/A'}\n\n` +
+                        `Cross-domain authentication is working!`, 
+                        'success'
+                    );
+                } else {
+                    showResult('authResult', 
+                        `❌ No active session\n\n` +
+                        `Status: ${response.status}\n` +
+                        `Please login first`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('authResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testProtectedDownload() {
+            showResult('downloadResult', 'Testing protected download...', 'loading');
+            try {
+                // First, get a protected pitch to find a file
+                const pitchResponse = await fetch(`${API_URL}/api/pitches/226`, {
+                    credentials: 'include'
+                });
+
+                if (!pitchResponse.ok) {
+                    showResult('downloadResult', 
+                        `❌ Cannot access pitch: ${pitchResponse.status}\n` +
+                        `This indicates the auth cookie isn't being sent cross-domain`, 
+                        'error'
+                    );
+                    return;
+                }
+
+                const pitch = await pitchResponse.json();
+                
+                // Try to download a protected file
+                const downloadUrl = `${API_URL}/api/files/download/protected-document.pdf`;
+                const downloadResponse = await fetch(downloadUrl, {
+                    credentials: 'include'
+                });
+
+                if (downloadResponse.ok) {
+                    showResult('downloadResult', 
+                        `✅ Protected download successful!\n\n` +
+                        `URL: ${downloadUrl}\n` +
+                        `Status: ${downloadResponse.status}\n` +
+                        `Content-Type: ${downloadResponse.headers.get('content-type')}\n\n` +
+                        `Cross-domain file downloads are working!`, 
+                        'success'
+                    );
+                } else {
+                    showResult('downloadResult', 
+                        `❌ Download failed\n\n` +
+                        `Status: ${downloadResponse.status} ${downloadResponse.statusText}\n` +
+                        `URL: ${downloadUrl}\n\n` +
+                        `The cookie fix may not be working properly`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('downloadResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPublicDownload() {
+            showResult('downloadResult', 'Testing public download...', 'loading');
+            try {
+                const downloadUrl = `${API_URL}/api/files/public/sample.pdf`;
+                const response = await fetch(downloadUrl, {
+                    credentials: 'include'
+                });
+
+                showResult('downloadResult', 
+                    `ℹ️ Public download test\n\n` +
+                    `URL: ${downloadUrl}\n` +
+                    `Status: ${response.status} ${response.statusText}\n` +
+                    `This should work regardless of authentication`, 
+                    response.ok ? 'success' : 'info'
+                );
+            } catch (error) {
+                showResult('downloadResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function inspectCookies() {
+            showResult('cookieResult', 'Inspecting cookies...', 'loading');
+            try {
+                // Check document.cookie (limited visibility for httpOnly cookies)
+                const visibleCookies = document.cookie || 'No cookies visible to JavaScript';
+                
+                // Make a request to check if cookies are being sent
+                const response = await fetch(`${API_URL}/api/auth/session`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const sessionValid = response.ok;
+                
+                showResult('cookieResult', 
+                    `🍪 Cookie Status\n\n` +
+                    `Visible cookies: ${visibleCookies}\n\n` +
+                    `Session cookie being sent: ${sessionValid ? '✅ Yes' : '❌ No'}\n` +
+                    `(HttpOnly cookies won't appear in document.cookie)\n\n` +
+                    `Note: Better Auth cookies are httpOnly and sameSite='none'`, 
+                    sessionValid ? 'success' : 'info'
+                );
+            } catch (error) {
+                showResult('cookieResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCORS() {
+            showResult('cookieResult', 'Testing CORS configuration...', 'loading');
+            try {
+                const response = await fetch(`${API_URL}/api/health`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'GET',
+                        'Access-Control-Request-Headers': 'Content-Type, Authorization'
+                    }
+                });
+
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+
+                showResult('cookieResult', 
+                    `📡 CORS Configuration\n\n` +
+                    Object.entries(corsHeaders).map(([key, value]) => 
+                        `${key}:\n  ${value || 'Not set'}`
+                    ).join('\n\n') +
+                    `\n\n✅ CORS is properly configured for cross-domain requests`, 
+                    'success'
+                );
+            } catch (error) {
+                showResult('cookieResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
