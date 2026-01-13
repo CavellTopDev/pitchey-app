@@ -27,6 +27,13 @@ export class WorkerDatabase {
   }
 
   /**
+   * Get the raw SQL client for direct queries
+   */
+  getSql() {
+    return this.sql;
+  }
+
+  /**
    * Execute a query with automatic retry logic
    */
   async query<T = any>(

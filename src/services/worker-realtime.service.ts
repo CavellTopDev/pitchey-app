@@ -79,6 +79,51 @@ export class WorkerRealtimeService {
       return { valid: false };
     }
   }
+  
+  /**
+   * Validate token for WebSocket connection (cross-origin fallback)
+   */
+  private async validateTokenForWebSocket(token: string): Promise<{ valid: boolean; user?: any }> {
+    if (!token) return { valid: false };
+    
+    try {
+      // Query the database directly to validate the session token
+      const sql = this.db.getSql();
+      
+      // Check if this is a valid session token
+      const sessions = await sql`
+        SELECT s.*, u.id as user_id, u.email, u.username, u.user_type, 
+               u.first_name, u.last_name, u.company_name, u.profile_image
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.id = ${token}
+        AND s.expires_at > NOW()
+        LIMIT 1
+      `;
+      
+      if (sessions && sessions.length > 0) {
+        const session = sessions[0];
+        return {
+          valid: true,
+          user: {
+            id: session.user_id,
+            email: session.email,
+            username: session.username,
+            userType: session.user_type,
+            firstName: session.first_name,
+            lastName: session.last_name,
+            companyName: session.company_name,
+            profileImage: session.profile_image
+          }
+        };
+      }
+      
+      return { valid: false };
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return { valid: false };
+    }
+  }
 
   /**
    * Handle WebSocket upgrade request
@@ -86,28 +131,63 @@ export class WorkerRealtimeService {
   async handleWebSocketUpgrade(request: Request): Promise<Response> {
     const url = new URL(request.url);
     
-    // Better Auth: Validate authentication via session cookies instead of URL parameters
+    // Check if WebSocketPair is available (not available on free tier)
+    if (typeof WebSocketPair === 'undefined') {
+      return new Response(JSON.stringify({
+        error: 'WebSocket not available on free tier',
+        alternative: 'Use polling endpoints instead',
+        endpoints: {
+          notifications: '/api/poll/notifications',
+          messages: '/api/poll/messages',
+          updates: '/api/poll/updates'
+        }
+      }), {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    }
+    
+    // Better Auth: Validate authentication via session cookies or token for cross-origin WebSocket
     try {
-      // Extract session from request headers (cookies)
+      let user = null;
+      let userId: string;
+      let userType: string;
+      
+      // First, try cookie-based authentication
       const sessionResult = await this.validateSessionFromRequest(request);
       
-      if (!sessionResult.valid || !sessionResult.user) {
-        return new Response(JSON.stringify({
-          error: 'Authentication required',
-          message: 'Please log in to use WebSocket features',
-          fallback: 'Use polling endpoints for non-authenticated access'
-        }), {
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCorsHeaders(request.headers.get('Origin'))
+      if (sessionResult.valid && sessionResult.user) {
+        user = sessionResult.user;
+        userId = user.id.toString();
+        userType = user.userType || 'creator';
+      } else {
+        // For cross-origin WebSocket connections where cookies aren't sent,
+        // allow token-based authentication as a fallback
+        const token = url.searchParams.get('token');
+        
+        if (token) {
+          // Validate the token using Better Auth's session verification
+          const tokenValidation = await this.validateTokenForWebSocket(token);
+          
+          if (tokenValidation.valid && tokenValidation.user) {
+            user = tokenValidation.user;
+            userId = user.id.toString();
+            userType = user.userType || 'creator';
           }
-        });
+        }
       }
-
-      const { user } = sessionResult;
-      const userId = user.id.toString();
-      const userType = user.userType || 'creator'; // Default fallback
+      
+      // If still no authentication, allow anonymous connection with limited features
+      if (!user) {
+        // Allow anonymous WebSocket connection for public notifications only
+        userId = `anonymous-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        userType = 'anonymous';
+        
+        console.log('Allowing anonymous WebSocket connection:', userId);
+      }
 
     // Create WebSocket pair
     const webSocketPair = new WebSocketPair();
@@ -116,14 +196,15 @@ export class WorkerRealtimeService {
     // Accept the WebSocket connection
     server.accept();
 
-    // Create user session
+    // Create user session with proper authentication status
+    const isAuthenticated = user !== null && userType !== 'anonymous';
     const session: UserSession = {
       userId,
       websocket: server,
-      userType,
+      userType: userType as 'creator' | 'investor' | 'production',
       channels: new Set(),
       lastActivity: new Date(),
-      authenticated: true
+      authenticated: isAuthenticated
     };
 
     this.sessions.set(userId, session);

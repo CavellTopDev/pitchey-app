@@ -632,21 +632,18 @@ export async function getPublicTrendingPitches(
 ): Promise<Pitch[]> {
   const result = await sql`
     SELECT 
-      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
-      p.setting, p.time_period, p.logline, p.synopsis,
-      p.target_audience, p.comparable_works, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.published_at,
+      p.id, p.title, p.genre, p.format, p.logline, p.synopsis,
+      p.target_audience, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.status, p.visibility,
       u.username as creator_username,
       u.profile_image as creator_avatar,
       u.company_name as creator_company,
-      (p.view_count + (p.like_count * 2) + (p.investment_count * 5)) as engagement_score
+      (COALESCE(p.view_count, 0) + (COALESCE(p.like_count, 0) * 2)) as engagement_score
     FROM pitches p
     LEFT JOIN users u ON p.creator_id = u.id
     WHERE p.status = 'published' 
       AND p.visibility = 'public'
-      AND p.view_count > 50
-      AND p.published_at > NOW() - INTERVAL '7 days'
-    ORDER BY engagement_score DESC, p.view_count DESC, p.published_at DESC
+    ORDER BY engagement_score DESC, p.view_count DESC, p.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
   return extractMany<Pitch>(result);
@@ -659,10 +656,9 @@ export async function getPublicNewPitches(
 ): Promise<Pitch[]> {
   const result = await sql`
     SELECT 
-      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
-      p.setting, p.time_period, p.logline, p.synopsis,
-      p.target_audience, p.comparable_works, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.published_at,
+      p.id, p.title, p.genre, p.format, p.logline, p.synopsis,
+      p.target_audience, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.status, p.visibility,
       u.username as creator_username,
       u.profile_image as creator_avatar,
       u.company_name as creator_company
@@ -670,8 +666,7 @@ export async function getPublicNewPitches(
     LEFT JOIN users u ON p.creator_id = u.id
     WHERE p.status = 'published' 
       AND p.visibility = 'public'
-      AND p.published_at > NOW() - INTERVAL '30 days'
-    ORDER BY p.published_at DESC
+    ORDER BY p.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `;
   return extractMany<Pitch>(result);
@@ -683,20 +678,18 @@ export async function getPublicFeaturedPitches(
 ): Promise<Pitch[]> {
   const result = await sql`
     SELECT 
-      p.id, p.title, p.tagline, p.genre, p.subgenre, p.format,
-      p.setting, p.time_period, p.logline, p.synopsis,
-      p.target_audience, p.comparable_works, p.view_count, p.like_count,
-      p.created_at, p.updated_at, p.published_at,
+      p.id, p.title, p.genre, p.format, p.logline, p.synopsis,
+      p.target_audience, p.view_count, p.like_count,
+      p.created_at, p.updated_at, p.status, p.visibility,
       u.username as creator_username,
       u.profile_image as creator_avatar,
       u.company_name as creator_company,
-      (p.view_count + (p.like_count * 3) + (p.investment_count * 10)) as feature_score
+      (COALESCE(p.view_count, 0) + (COALESCE(p.like_count, 0) * 3)) as feature_score
     FROM pitches p
     LEFT JOIN users u ON p.creator_id = u.id
     WHERE p.status = 'published' 
       AND p.visibility = 'public'
-      AND p.view_count > 100
-    ORDER BY feature_score DESC, p.published_at DESC
+    ORDER BY feature_score DESC, p.created_at DESC
     LIMIT ${limit}
   `;
   return extractMany<Pitch>(result);

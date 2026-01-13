@@ -739,9 +739,37 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     try {
       const wsUrl = config.WS_URL.replace(/^http/, 'ws');
       
-      // Better Auth: WebSocket authentication is handled via cookies
-      // No need to pass token in URL - session cookies are sent automatically
-      const finalWsUrl = `${wsUrl}/ws`;
+      // Better Auth: For cross-origin WebSocket connections, we need to get a token
+      // because browsers don't send cookies for cross-origin WebSocket upgrades
+      let finalWsUrl = `${wsUrl}/ws`;
+      
+      // Check if this is a cross-origin connection
+      const apiOrigin = new URL(config.API_URL).origin;
+      const currentOrigin = window.location.origin;
+      
+      if (apiOrigin !== currentOrigin) {
+        // Cross-origin: Need to fetch a WebSocket token
+        try {
+          const tokenResponse = await fetch(`${config.API_URL}/api/ws/token`, {
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
+          
+          if (tokenResponse.ok) {
+            const tokenData = await tokenResponse.json();
+            if (tokenData.token) {
+              // Add token as query parameter for cross-origin WebSocket
+              finalWsUrl = `${wsUrl}/ws?token=${tokenData.token}`;
+            }
+          } else {
+            console.warn('Could not get WebSocket token, connecting anonymously');
+          }
+        } catch (error) {
+          console.warn('Error fetching WebSocket token:', error);
+        }
+      }
       
       const ws = new WebSocket(finalWsUrl);
       

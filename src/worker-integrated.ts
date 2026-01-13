@@ -89,7 +89,7 @@ import { WorkerDatabase } from './services/worker-database';
 import { WorkerEmailService } from './services/worker-email';
 
 // Import distributed tracing service
-import { TraceService, handleAPIRequestWithTracing, type TraceSpan } from './services/trace-service';
+import { TraceService, handleAPIRequestWithTracing, TraceSpan } from './services/trace-service';
 
 // Import pitch validation handlers
 import { validationHandlers } from './handlers/pitch-validation';
@@ -115,7 +115,6 @@ import {
   AuditTrailService, 
   createAuditTrailService, 
   logNDAEvent, 
-  logSecurityEvent,
   AuditEventTypes,
   RiskLevels 
 } from './services/audit-trail.service';
@@ -1624,8 +1623,12 @@ class RouteRegistry {
       return productionCrewHireHandler(req, this.env);
     });
     
-    // NDA stats route - use resilient handler
+    // NDA routes
     this.register('GET', '/api/ndas/stats', (req) => ndaStatsHandler(req, this.env));
+    this.register('GET', '/api/ndas/incoming-signed', this.getIncomingSignedNDAs.bind(this));
+    this.register('GET', '/api/ndas/outgoing-signed', this.getOutgoingSignedNDAs.bind(this));
+    this.register('GET', '/api/ndas/incoming-requests', this.getIncomingNDARequests.bind(this));
+    this.register('GET', '/api/ndas/outgoing-requests', this.getOutgoingNDARequests.bind(this));
     
     // Public pitches for marketplace - no auth required
     this.register('GET', '/api/pitches/public', this.getPublicPitches.bind(this));
@@ -1641,6 +1644,7 @@ class RouteRegistry {
 
     // WebSocket upgrade (disabled on free tier, returns polling info instead)
     this.register('GET', '/ws', this.handleWebSocketUpgrade.bind(this));
+    this.register('GET', '/api/ws/token', this.handleWebSocketToken.bind(this));
     
     // Intelligence WebSocket for real-time intelligence updates
     this.register('GET', '/ws/intelligence', this.handleIntelligenceWebSocket.bind(this));
@@ -2620,6 +2624,53 @@ pitchey_analytics_datapoints_per_minute 1250
    * WebSocket Health Check Endpoint
    * Tests WebSocket upgrade capability
    */
+  /**
+   * Get a WebSocket authentication token for cross-origin connections
+   * Returns the current Better Auth session ID that can be used for WebSocket auth
+   */
+  private async handleWebSocketToken(request: Request): Promise<Response> {
+    try {
+      // Validate the user's session using Better Auth
+      const { BetterAuthSessionHandler } = await import('./auth/better-auth-session-handler');
+      const { createAuthErrorResponse, getCorsHeaders } = await import('./utils/response');
+      
+      const sessionHandler = new BetterAuthSessionHandler(this.env);
+      const sessionResult = await sessionHandler.validateSession(request);
+      
+      if (!sessionResult.valid || !sessionResult.user) {
+        return createAuthErrorResponse();
+      }
+      
+      // Get the session ID from cookies to use as WebSocket token
+      const cookieHeader = request.headers.get('Cookie');
+      const cookies = cookieHeader?.split(';').map(c => c.trim()) || [];
+      const sessionCookie = cookies.find(c => c.startsWith('better-auth-session='));
+      const sessionId = sessionCookie?.split('=')[1];
+      
+      if (!sessionId) {
+        return createAuthErrorResponse();
+      }
+      
+      // Return the session ID that can be used as a token for WebSocket
+      return new Response(JSON.stringify({
+        success: true,
+        token: sessionId,
+        expiresIn: 3600, // 1 hour
+        wsUrl: `${this.env.BACKEND_URL || 'wss://pitchey-api-prod.ndlovucavelle.workers.dev'}/ws`
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      console.error('WebSocket token generation error:', error);
+      const { createErrorResponse } = await import('./utils/response');
+      return createErrorResponse(error as Error, request);
+    }
+  }
+
   private async handleWebSocketHealth(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
     
@@ -5632,11 +5683,14 @@ pitchey_analytics_datapoints_per_minute 1250
 
   // Enhanced public endpoints with rate limiting and data filtering
   private async getPublicTrendingPitches(request: Request): Promise<Response> {
+    // Import error response function first to ensure it's available in catch block
+    const { createPublicErrorResponse } = await import('./utils/public-data-filter');
+    
     try {
       // Import utilities
-      const { RateLimiter, RATE_LIMIT_CONFIGS, applyRateLimit } = await import('../utils/rate-limiter');
-      const { filterPitchesForPublic, createPublicResponse, createPublicErrorResponse } = await import('../utils/public-data-filter');
-      const { getPublicTrendingPitches } = await import('../db/queries/pitches');
+      const { RateLimiter, RATE_LIMIT_CONFIGS, applyRateLimit } = await import('./utils/rate-limiter');
+      const { filterPitchesForPublic, createPublicResponse } = await import('./utils/public-data-filter');
+      const { getPublicTrendingPitches } = await import('./db/queries/pitches');
 
       // Apply rate limiting
       const rateLimiter = new RateLimiter(this.redis);
@@ -5647,7 +5701,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50); // Max 50 items
       const offset = parseInt(url.searchParams.get('offset') || '0');
 
-      const sql = this.getDbConnection();
+      const sql = this.db.getSql();
       if (!sql) {
         return createPublicErrorResponse('Database unavailable', 503);
       }
@@ -5663,15 +5717,20 @@ pitchey_analytics_datapoints_per_minute 1250
       });
     } catch (error) {
       console.error('Error in getPublicTrendingPitches:', error);
-      return createPublicErrorResponse('Service error', 500);
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
 
   private async getPublicNewPitches(request: Request): Promise<Response> {
+    // Import error response function first to ensure it's available in catch block
+    const { createPublicErrorResponse } = await import('./utils/public-data-filter');
+    
     try {
-      const { RateLimiter, RATE_LIMIT_CONFIGS, applyRateLimit } = await import('../utils/rate-limiter');
-      const { filterPitchesForPublic, createPublicResponse, createPublicErrorResponse } = await import('../utils/public-data-filter');
-      const { getPublicNewPitches } = await import('../db/queries/pitches');
+      const { RateLimiter, RATE_LIMIT_CONFIGS, applyRateLimit } = await import('./utils/rate-limiter');
+      const { filterPitchesForPublic, createPublicResponse } = await import('./utils/public-data-filter');
+      const { getPublicNewPitches } = await import('./db/queries/pitches');
 
       const rateLimiter = new RateLimiter(this.redis);
       const rateLimit = await applyRateLimit(request, rateLimiter, 'cached');
@@ -5681,7 +5740,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
       const offset = parseInt(url.searchParams.get('offset') || '0');
 
-      const sql = this.getDbConnection();
+      const sql = this.db.getSql();
       if (!sql) {
         return createPublicErrorResponse('Database unavailable', 503);
       }
@@ -5697,15 +5756,18 @@ pitchey_analytics_datapoints_per_minute 1250
       });
     } catch (error) {
       console.error('Error in getPublicNewPitches:', error);
-      return createPublicErrorResponse('Service error', 500);
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
 
   private async getPublicFeaturedPitches(request: Request): Promise<Response> {
+    // Import error response function first to ensure it's available in catch block
+    const { createPublicErrorResponse } = await import('./utils/public-data-filter');
     try {
-      const { RateLimiter, applyRateLimit } = await import('../utils/rate-limiter');
-      const { filterPitchesForPublic, createPublicResponse, createPublicErrorResponse } = await import('../utils/public-data-filter');
-      const { getPublicFeaturedPitches } = await import('../db/queries/pitches');
+      const { RateLimiter, applyRateLimit } = await import('./utils/rate-limiter');
+      const { filterPitchesForPublic, createPublicResponse } = await import('./utils/public-data-filter');
+      const { getPublicFeaturedPitches } = await import('./db/queries/pitches');
 
       const rateLimiter = new RateLimiter(this.redis);
       const rateLimit = await applyRateLimit(request, rateLimiter, 'cached');
@@ -5714,7 +5776,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const url = new URL(request.url);
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '6'), 12); // Max 12 featured
 
-      const sql = this.getDbConnection();
+      const sql = this.db.getSql();
       if (!sql) {
         return createPublicErrorResponse('Database unavailable', 503);
       }
@@ -5728,15 +5790,18 @@ pitchey_analytics_datapoints_per_minute 1250
       });
     } catch (error) {
       console.error('Error in getPublicFeaturedPitches:', error);
-      return createPublicErrorResponse('Service error', 500);
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
     }
   }
 
   private async searchPublicPitches(request: Request): Promise<Response> {
+    // Import error response function first to ensure it's available in catch block
+    const { createPublicErrorResponse } = await import('./utils/public-data-filter');
     try {
-      const { RateLimiter, applyRateLimit } = await import('../utils/rate-limiter');
-      const { filterPitchesForPublic, createPublicResponse, createPublicErrorResponse } = await import('../utils/public-data-filter');
-      const { searchPublicPitches } = await import('../db/queries/pitches');
+      const { RateLimiter, applyRateLimit } = await import('./utils/rate-limiter');
+      const { filterPitchesForPublic, createPublicResponse } = await import('./utils/public-data-filter');
+      const { searchPublicPitches } = await import('./db/queries/pitches');
 
       const rateLimiter = new RateLimiter(this.redis);
       const rateLimit = await applyRateLimit(request, rateLimiter, 'search');
@@ -5753,7 +5818,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
       const offset = parseInt(url.searchParams.get('offset') || '0');
 
-      const sql = this.getDbConnection();
+      const sql = this.db.getSql();
       if (!sql) {
         return createPublicErrorResponse('Database unavailable', 503);
       }
@@ -5783,10 +5848,12 @@ pitchey_analytics_datapoints_per_minute 1250
   // Deprecated - replaced by getPublicPitch which handles NDA protected content
   /*
   private async getPublicPitchById(request: Request): Promise<Response> {
+    // Import error response function first to ensure it's available in catch block
+    const { createPublicErrorResponse } = await import('./utils/public-data-filter');
     try {
-      const { RateLimiter, applyRateLimit } = await import('../utils/rate-limiter');
-      const { filterPitchForPublic, createPublicResponse, createPublicErrorResponse } = await import('../utils/public-data-filter');
-      const { getPublicPitchById, incrementPublicPitchView } = await import('../db/queries/pitches');
+      const { RateLimiter, applyRateLimit } = await import('./utils/rate-limiter');
+      const { filterPitchForPublic, createPublicResponse } = await import('./utils/public-data-filter');
+      const { getPublicPitchById, incrementPublicPitchView } = await import('./db/queries/pitches');
 
       const rateLimiter = new RateLimiter(this.redis);
       const rateLimit = await applyRateLimit(request, rateLimiter, 'pitchDetail');
@@ -5800,7 +5867,7 @@ pitchey_analytics_datapoints_per_minute 1250
         return createPublicErrorResponse('Invalid pitch ID', 400);
       }
 
-      const sql = this.getDbConnection();
+      const sql = this.db.getSql();
       if (!sql) {
         return createPublicErrorResponse('Database unavailable', 503);
       }
@@ -7842,6 +7909,198 @@ pitchey_analytics_datapoints_per_minute 1250
   // =================== NDA WORKFLOW HANDLERS ===================
 
   /**
+   * Get incoming signed NDAs for the authenticated user
+   */
+  private async getIncomingSignedNDAs(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authenticated) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        }), { 
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      const sql = this.db.getSql();
+      const result = await sql`
+        SELECT 
+          n.*,
+          p.title as pitch_title,
+          u.username as requester_name
+        FROM ndas n
+        JOIN pitches p ON n.pitch_id = p.id
+        JOIN users u ON n.user_id = u.id
+        WHERE p.creator_id = ${authResult.user.id}
+          AND n.status = 'signed'
+        ORDER BY n.signed_at DESC
+      `;
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: result
+      }), {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching incoming signed NDAs:', error);
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Get outgoing signed NDAs for the authenticated user
+   */
+  private async getOutgoingSignedNDAs(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authenticated) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        }), { 
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      const sql = this.db.getSql();
+      const result = await sql`
+        SELECT 
+          n.*,
+          p.title as pitch_title,
+          u.username as creator_name
+        FROM ndas n
+        JOIN pitches p ON n.pitch_id = p.id
+        JOIN users u ON p.creator_id = u.id
+        WHERE n.user_id = ${authResult.user.id}
+          AND n.status = 'signed'
+        ORDER BY n.signed_at DESC
+      `;
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: result
+      }), {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching outgoing signed NDAs:', error);
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Get incoming NDA requests for the authenticated user
+   */
+  private async getIncomingNDARequests(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authenticated) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        }), { 
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      const sql = this.db.getSql();
+      const result = await sql`
+        SELECT 
+          n.*,
+          p.title as pitch_title,
+          u.username as requester_name
+        FROM ndas n
+        JOIN pitches p ON n.pitch_id = p.id
+        JOIN users u ON n.user_id = u.id
+        WHERE p.creator_id = ${authResult.user.id}
+          AND n.status = 'pending'
+        ORDER BY n.created_at DESC
+      `;
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: result
+      }), {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching incoming NDA requests:', error);
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Get outgoing NDA requests for the authenticated user
+   */
+  private async getOutgoingNDARequests(request: Request): Promise<Response> {
+    try {
+      const authResult = await this.requireAuth(request);
+      if (!authResult.authenticated) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        }), { 
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+
+      const sql = this.db.getSql();
+      const result = await sql`
+        SELECT 
+          n.*,
+          p.title as pitch_title,
+          u.username as creator_name
+        FROM ndas n
+        JOIN pitches p ON n.pitch_id = p.id
+        JOIN users u ON p.creator_id = u.id
+        WHERE n.user_id = ${authResult.user.id}
+          AND n.status = 'pending'
+        ORDER BY n.created_at DESC
+      `;
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: result
+      }), {
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching outgoing NDA requests:', error);
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
    * Get NDA by ID
    */
   private async getNDAById(request: Request): Promise<Response> {
@@ -9404,104 +9663,45 @@ Signatures: [To be completed upon signing]
   /**
    * Get incoming NDA requests (for pitch creators)
    */
-  private async getIncomingNDARequests(request: Request): Promise<Response> {
-    try {
-      const authCheck = await this.requireAuth(request);
-      if (!authCheck.authorized) return authCheck.response;
-
-      const origin = request.headers.get('Origin');
-      
-      // Get NDAs requested for pitches owned by the current user
-      const incomingRequests = await this.db.query(`
-        SELECT n.*, p.title as pitch_title, p.creator_id,
-               requester.email as requester_email, requester.name as requester_name
-        FROM ndas n
-        JOIN pitches p ON p.id = n.pitch_id
-        JOIN users requester ON requester.id = n.requester_id
-        WHERE p.creator_id = $1 AND n.status = 'pending'
-        ORDER BY n.created_at DESC
-      `, [authCheck.user.id]);
-
-      return new Response(JSON.stringify({
-        success: true,
-        data: { requests: incomingRequests }
-      }), { headers: getCorsHeaders(origin) });
-      
-    } catch (error) {
-      return errorHandler(error, request);
-    }
-  }
-
   /**
-   * Get outgoing NDA requests (for investors)
+   * Save a pitch for the current user
    */
-  private async getOutgoingNDARequests(request: Request): Promise<Response> {
-    try {
-      const authCheck = await this.requireAuth(request);
-      if (!authCheck.authorized) return authCheck.response;
-
-      const origin = request.headers.get('Origin');
-      
-      // Get NDAs requested by the current user
-      const outgoingRequests = await this.db.query(`
-        SELECT n.*, p.title as pitch_title, p.creator_id,
-               creator.email as creator_email, creator.name as creator_name
-        FROM ndas n
-        JOIN pitches p ON p.id = n.pitch_id
-        JOIN users creator ON creator.id = p.creator_id
-        WHERE n.requester_id = $1
-        ORDER BY n.created_at DESC
-      `, [authCheck.user.id]);
-
-      return new Response(JSON.stringify({
-        success: true,
-        data: { requests: outgoingRequests }
-      }), { headers: getCorsHeaders(origin) });
-      
-    } catch (error) {
-      return errorHandler(error, request);
-    }
-  }
-
-  // ======= SAVED PITCHES ENDPOINTS IMPLEMENTATION =======
-
   /**
-   * Get saved pitches for the current user
+   * Get saved pitches for the authenticated user
    */
   private async getSavedPitches(request: Request): Promise<Response> {
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
 
-      const origin = request.headers.get('Origin');
-      
-      // Get saved pitches with pitch details
       const savedPitches = await this.db.query(`
-        SELECT sp.*, sp.saved_at as created_at, sp.notes,
-               p.id as pitch_id, p.title, p.description, p.status,
-               p.genre, p.budget_range, p.seeking_investment, p.created_at as pitch_created_at,
-               u.name as creator_name, u.email as creator_email,
-               u.company_name, u.avatar_url
+        SELECT sp.*, p.title, p.tagline, p.genre, p.status, p.thumbnail_url,
+               u.first_name, u.last_name, u.company_name
         FROM saved_pitches sp
         JOIN pitches p ON p.id = sp.pitch_id
         JOIN users u ON u.id = p.creator_id
         WHERE sp.user_id = $1
-        ORDER BY sp.saved_at DESC
+        ORDER BY sp.created_at DESC
       `, [authCheck.user.id]);
 
+      const { getCorsHeaders } = await import('./utils/response');
       return new Response(JSON.stringify({
         success: true,
-        data: { saved_pitches: savedPitches }
-      }), { headers: getCorsHeaders(origin) });
-      
+        data: savedPitches
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request.headers.get('Origin'))
+        }
+      });
     } catch (error) {
-      return errorHandler(error, request);
+      console.error('Get saved pitches error:', error);
+      const { createErrorResponse } = await import('./utils/response');
+      return createErrorResponse(error as Error, request);
     }
   }
 
-  /**
-   * Save a pitch for the current user
-   */
   private async savePitch(request: Request): Promise<Response> {
     try {
       const authCheck = await this.requireAuth(request);
