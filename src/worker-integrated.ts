@@ -76,9 +76,9 @@ import {
 } from './handlers/auth-password';
 
 // Import new services
-import { 
-  PasswordService, 
-  EnvironmentValidator, 
+import {
+  PasswordService,
+  EnvironmentValidator,
   addSecurityHeaders,
   ValidationSchemas,
   rateLimiters,
@@ -111,20 +111,20 @@ import { validationHandlers } from './handlers/pitch-validation';
 // } from './handlers/advanced-search';
 
 // Import audit trail service
-import { 
-  AuditTrailService, 
-  createAuditTrailService, 
-  logNDAEvent, 
+import {
+  AuditTrailService,
+  createAuditTrailService,
+  logNDAEvent,
   AuditEventTypes,
-  RiskLevels 
+  RiskLevels
 } from './services/audit-trail.service';
 
 // Import KV cache service
-import { 
-  createKVCache, 
-  KVCacheService, 
-  CacheKeys, 
-  CacheTTL 
+import {
+  createKVCache,
+  KVCacheService,
+  CacheKeys,
+  CacheTTL
 } from './services/kv-cache.service';
 
 // Import schema adapter for database alignment
@@ -186,12 +186,12 @@ import { ABTestingWebSocketHandler } from './handlers/ab-testing-websocket';
 class WebSocketDurableObject {
   state: any;
   env: any;
-  
+
   constructor(state: any, env: any) {
     this.state = state;
     this.env = env;
   }
-  
+
   async fetch(request: Request): Promise<Response> {
     return new Response('WebSocket support disabled on free plan', { status: 503 });
   }
@@ -201,11 +201,11 @@ export interface Env {
   // Database
   DATABASE_URL: string;
   READ_REPLICA_URLS?: string;
-  
+
   // Auth
   BETTER_AUTH_SECRET?: string;
   JWT_SECRET?: string;
-  
+
   // Cache
   KV: KVNamespace;
   CACHE: KVNamespace;
@@ -213,16 +213,16 @@ export interface Env {
   RATE_LIMIT_KV: KVNamespace;
   EMAIL_CACHE?: KVNamespace;
   NOTIFICATION_CACHE?: KVNamespace;
-  
+
   // Storage
   R2_BUCKET: R2Bucket;
   MESSAGE_ATTACHMENTS?: R2Bucket;
   EMAIL_ATTACHMENTS?: R2Bucket;
-  
+
   // Queues
   EMAIL_QUEUE?: Queue;
   NOTIFICATION_QUEUE?: Queue;
-  
+
   // Email Configuration
   SENDGRID_API_KEY?: string;
   SENDGRID_FROM_EMAIL?: string;
@@ -232,15 +232,15 @@ export interface Env {
   AWS_SES_REGION?: string;
   AWS_SES_FROM_EMAIL?: string;
   AWS_SES_FROM_NAME?: string;
-  
+
   // Redis
   UPSTASH_REDIS_REST_URL?: string;
   UPSTASH_REDIS_REST_TOKEN?: string;
-  
+
   // Configuration
   FRONTEND_URL: string;
   ENVIRONMENT: 'development' | 'staging' | 'production';
-  
+
   // Hyperdrive
   HYPERDRIVE?: Hyperdrive;
 }
@@ -272,21 +272,21 @@ class RouteRegistry {
 
   constructor(env: Env) {
     this.env = env;
-    
+
     try {
       // Check for required DATABASE_URL
       if (!env.DATABASE_URL) {
         console.error('DATABASE_URL is not configured');
         // Don't throw, just log the error
       }
-      
+
       // Initialize Neon database with the new service
       this.db = new WorkerDatabase({
         connectionString: env.DATABASE_URL || 'postgresql://dummy:dummy@localhost:5432/dummy',
         maxRetries: 3,
         retryDelay: 1000
       });
-      
+
       // Initialize email service if configured
       if (env.RESEND_API_KEY) {
         this.emailService = new WorkerEmailService({
@@ -295,26 +295,26 @@ class RouteRegistry {
           fromName: env.SENDGRID_FROM_NAME || 'Pitchey'
         });
       }
-      
+
       // Initialize file handler for free plan (needs adjustment for new db type)
       this.fileHandler = new WorkerFileHandler(this.db as any);
-      
+
       // Initialize realtime service for WebSocket support
       this.realtimeService = new WorkerRealtimeService(env, this.db);
-      
+
       // Initialize intelligence WebSocket service - TEMPORARILY DISABLED
       // this.intelligenceWebSocketService = getIntelligenceWebSocketService(env);
 
       // Initialize A/B testing services
       this.abTestingHandler = new ABTestingHandler(this.db);
       this.abTestingWebSocketHandler = new ABTestingWebSocketHandler(this.db);
-      
+
       // Initialize container integration
       this.containerIntegration = new ContainerWorkerIntegration(env);
-      
+
       // Initialize audit trail service
       this.auditService = createAuditTrailService(env);
-      
+
       // Initialize legal document handler
       if (this.db && this.enhancedR2Handler && this.auditService) {
         this.legalDocumentHandler = new LegalDocumentHandler(
@@ -323,7 +323,7 @@ class RouteRegistry {
           this.auditService
         );
       }
-      
+
       // Initialize notification system
       try {
         if (this.db) {
@@ -336,7 +336,7 @@ class RouteRegistry {
               subject: env.VAPID_SUBJECT || 'mailto:support@pitchey.com'
             } : undefined
           });
-          
+
           this.notificationRoutes = new NotificationRoutesHandler(
             this.db,
             this.notificationIntegration
@@ -346,7 +346,7 @@ class RouteRegistry {
         console.error('Failed to initialize notification system:', error);
         // Continue without notifications - they're not critical for basic functionality
       }
-      
+
       // Initialize Better Auth with Cloudflare integration
       // Check for SESSION_STORE (wrangler.toml binding) or SESSIONS_KV or KV
       if (env.DATABASE_URL && (env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE)) {
@@ -361,7 +361,7 @@ class RouteRegistry {
       } else {
         console.log('Better Auth not initialized - missing DATABASE_URL or KV namespace');
       }
-      
+
       // Initialize email and messaging routes if configuration is available
       if (env.SENDGRID_API_KEY || env.AWS_SES_ACCESS_KEY) {
         // this.emailMessagingRoutes = new EmailMessagingRoutes(env);
@@ -372,7 +372,7 @@ class RouteRegistry {
       this.db = new WorkerDatabase({
         connectionString: 'postgresql://dummy:dummy@localhost:5432/dummy'
       });
-      
+
       // Still initialize file handler with dummy db
       this.fileHandler = new WorkerFileHandler(this.db);
     }
@@ -405,7 +405,7 @@ class RouteRegistry {
     // First try Better Auth session validation via cookie
     const cookieHeader = request.headers.get('Cookie');
     const sessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
-    
+
     if (sessionId && this.db) {
       try {
         // Check KV cache first for performance (check all possible KV bindings)
@@ -424,7 +424,7 @@ class RouteRegistry {
             };
           }
         }
-        
+
         // Fallback to database lookup
         const result = await this.db.query(
           `SELECT s.id, s.user_id, s.expires_at,
@@ -438,10 +438,10 @@ class RouteRegistry {
            LIMIT 1`,
           [sessionId]
         );
-        
+
         if (result.rows && result.rows.length > 0) {
           const session = result.rows[0];
-          
+
           // Cache the session for future requests
           const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
           if (kv) {
@@ -457,7 +457,7 @@ class RouteRegistry {
               { expirationTtl: 3600 } // Cache for 1 hour
             );
           }
-          
+
           return {
             valid: true,
             user: {
@@ -477,25 +477,25 @@ class RouteRegistry {
         // Fall through to JWT validation
       }
     }
-    
+
     // Fallback to JWT validation for backward compatibility
     const authHeader = request.headers.get('Authorization');
     const token = extractJWT(authHeader);
-    
+
     if (!token) {
       return { valid: false };
     }
-    
+
     // Get JWT secret from environment
     const jwtSecret = this.env.JWT_SECRET || 'test-secret-key-for-development';
-    
+
     // Verify the token
     const payload = await verifyJWT(token, jwtSecret);
-    
+
     if (!payload) {
       return { valid: false };
     }
-    
+
     // Return user from JWT payload
     return {
       valid: true,
@@ -533,12 +533,12 @@ class RouteRegistry {
         }), { status: 401, headers: getCorsHeaders(request.headers.get('Origin')) })
       };
     }
-    
+
     // Check user type if portal is specified
     if (portal) {
       const allowedPortals = Array.isArray(portal) ? portal : [portal];
       const userType = result.user.userType || result.user.user_type;
-      
+
       if (!allowedPortals.includes(userType)) {
         return {
           authorized: false,
@@ -549,7 +549,7 @@ class RouteRegistry {
         };
       }
     }
-    
+
     return { authorized: true, user: result.user };
   }
 
@@ -557,7 +557,7 @@ class RouteRegistry {
   private async getUserProfile(request: Request): Promise<Response> {
     // Check if user was already attached by middleware
     const user = (request as any).user;
-    
+
     // If no user attached, validate manually (for backwards compatibility)
     let authUser = user;
     if (!authUser) {
@@ -579,7 +579,7 @@ class RouteRegistry {
       }
       authUser = authResult.user;
     }
-    
+
     // Try to fetch actual user profile from database
     try {
       const query = `
@@ -588,9 +588,9 @@ class RouteRegistry {
         WHERE id = $1
         LIMIT 1
       `;
-      
+
       const [userRecord] = await this.db.query(query, [authUser.id]);
-      
+
       if (userRecord) {
         return new Response(JSON.stringify({
           success: true,
@@ -616,7 +616,7 @@ class RouteRegistry {
     } catch (error) {
       console.error('Database query failed:', error);
     }
-    
+
     // Fallback to JWT data if database is unavailable
     return new Response(JSON.stringify({
       success: true,
@@ -790,7 +790,7 @@ class RouteRegistry {
   private async handleLoginSimple(request: Request, portal: string): Promise<Response> {
     const body = await request.json();
     const { email, password } = body;
-    
+
     try {
       // Query database for user (using raw SQL for now)
       const query = `
@@ -799,9 +799,9 @@ class RouteRegistry {
         WHERE email = $1 AND user_type = $2
         LIMIT 1
       `;
-      
+
       const [result] = await this.db.query(query, [email, portal]);
-      
+
       if (!result) {
         return new Response(JSON.stringify({
           success: false,
@@ -817,7 +817,7 @@ class RouteRegistry {
           }
         });
       }
-      
+
       // TODO: Verify password hash when bcrypt is available in Workers
       // For now, accept any password for demo accounts
       const isDemoAccount = ['alex.creator@demo.com', 'sarah.investor@demo.com', 'stellar.production@demo.com'].includes(email);
@@ -836,10 +836,10 @@ class RouteRegistry {
           }
         });
       }
-      
+
       // Get JWT secret from environment
       const jwtSecret = this.env.JWT_SECRET || 'test-secret-key-for-development';
-      
+
       // Create JWT token
       const token = await createJWT({
         sub: result.id.toString(),
@@ -847,7 +847,7 @@ class RouteRegistry {
         name: result.name || email.split('@')[0],
         userType: result.user_type || portal
       }, jwtSecret);
-      
+
       return new Response(JSON.stringify({
         success: true,
         data: {
@@ -868,7 +868,7 @@ class RouteRegistry {
       });
     } catch (error) {
       console.error('Login error:', error);
-      
+
       // If database is not available, return demo token for demo accounts
       if (['alex.creator@demo.com', 'sarah.investor@demo.com', 'stellar.production@demo.com'].includes(email)) {
         const jwtSecret = this.env.JWT_SECRET || 'test-secret-key-for-development';
@@ -878,7 +878,7 @@ class RouteRegistry {
           name: email.split('@')[0],
           userType: portal
         }, jwtSecret);
-        
+
         return new Response(JSON.stringify({
           success: true,
           data: {
@@ -898,7 +898,7 @@ class RouteRegistry {
           }
         });
       }
-      
+
       return new Response(JSON.stringify({
         success: false,
         error: {
@@ -918,7 +918,7 @@ class RouteRegistry {
   private async handleRegisterSimple(request: Request): Promise<Response> {
     const body = await request.json();
     const { email } = body;
-    
+
     return new Response(JSON.stringify({
       success: true,
       data: {
@@ -938,7 +938,7 @@ class RouteRegistry {
     // Clear the session cookie by setting it to expire immediately
     const origin = request.headers.get('Origin') || '';
     const corsHeaders = getCorsHeaders(origin);
-    
+
     return new Response(JSON.stringify({
       success: true,
       data: { message: 'Logged out successfully' }
@@ -960,31 +960,35 @@ class RouteRegistry {
     // Health check route
     this.register('GET', '/api/health', this.handleHealth.bind(this));
     this.register('GET', '/api/health/database', this.handleDatabaseHealth.bind(this));
-    
+
     // Monitoring endpoints for synthetic monitoring and dashboard
     this.register('GET', '/api/monitoring/dashboard', this.handleMonitoringDashboard.bind(this));
     this.register('GET', '/api/monitoring/metrics', this.handleMonitoringMetrics.bind(this));
     this.register('GET', '/api/monitoring/synthetic', this.handleSyntheticResults.bind(this));
     this.register('GET', '/api/ws/health', this.handleWebSocketHealth.bind(this));
-    
+
+    this.register('GET', '/ws', async (request) => {
+      return this.realtimeService.handleWebSocketUpgrade(request);
+    });
+
     // Authentication routes
     this.register('POST', '/api/auth/login', this.handleLogin.bind(this));
     this.register('POST', '/api/auth/register', this.handleRegister.bind(this));
     this.register('POST', '/api/auth/logout', this.handleLogout.bind(this));
     this.register('GET', '/api/auth/session', this.handleSession.bind(this));
-    
+
     // Portal-specific auth
     this.register('POST', '/api/auth/creator/login', (req) => this.handlePortalLogin(req, 'creator'));
     this.register('POST', '/api/auth/investor/login', (req) => this.handlePortalLogin(req, 'investor'));
     this.register('POST', '/api/auth/production/login', (req) => this.handlePortalLogin(req, 'production'));
-    
+
     // Better Auth routes (compatibility layer for frontend)
     this.register('POST', '/api/auth/sign-in', async (request) => {
       // Apply rate limiting
-      const clientIP = request.headers.get('CF-Connecting-IP') || 
-                      request.headers.get('X-Forwarded-For') || 
-                      'unknown';
-      
+      const clientIP = request.headers.get('CF-Connecting-IP') ||
+        request.headers.get('X-Forwarded-For') ||
+        'unknown';
+
       const canProceed = await rateLimiters.login.checkLimit(clientIP);
       if (!canProceed) {
         return new Response(JSON.stringify({
@@ -993,18 +997,18 @@ class RouteRegistry {
             code: 'RATE_LIMITED',
             message: 'Too many login attempts. Please try again later.'
           }
-        }), { 
+        }), {
           status: 429,
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Retry-After': '60'
           }
         });
       }
-      
+
       // Route Better Auth sign-in to our portal login handler
       const body = await request.json();
-      
+
       // Validate input
       try {
         ValidationSchemas.userLogin.parse(body);
@@ -1017,9 +1021,9 @@ class RouteRegistry {
           }
         }), { status: 400 });
       }
-      
+
       const portal = body.userType || 'production'; // Default to production for demo
-      
+
       // Transform the request to match our existing login format
       const transformedRequest = new Request(request.url, {
         method: 'POST',
@@ -1030,49 +1034,49 @@ class RouteRegistry {
           userType: portal
         })
       });
-      
+
       return this.handlePortalLogin(transformedRequest, portal as any);
     });
-    
+
     this.register('POST', '/api/auth/sign-up', async (request) => {
       // Route Better Auth sign-up to our register handler
       return this.handleRegister(request);
     });
-    
+
     this.register('POST', '/api/auth/sign-out', async (request) => {
       // Route Better Auth sign-out to our logout handler
       return this.handleLogout(request);
     });
-    
+
     this.register('POST', '/api/auth/session/refresh', async (request) => {
       // Session refresh - just return current session for now
       return this.handleSession(request);
     });
-    
+
     // Password management routes
     this.register('POST', '/api/auth/change-password', async (request) => {
       // Create a minimal execution context for the handler
       const ctx: ExecutionContext = {
-        waitUntil: (promise: Promise<any>) => {},
-        passThroughOnException: () => {}
+        waitUntil: (promise: Promise<any>) => { },
+        passThroughOnException: () => { }
       };
       return changePasswordHandler(request, this.env, ctx);
     });
-    
+
     this.register('POST', '/api/auth/request-reset', async (request) => {
       // Create a minimal execution context for the handler
       const ctx: ExecutionContext = {
-        waitUntil: (promise: Promise<any>) => {},
-        passThroughOnException: () => {}
+        waitUntil: (promise: Promise<any>) => { },
+        passThroughOnException: () => { }
       };
       return requestPasswordResetHandler(request, this.env, ctx);
     });
-    
+
     this.register('POST', '/api/auth/reset-password', async (request) => {
       // Create a minimal execution context for the handler
       const ctx: ExecutionContext = {
-        waitUntil: (promise: Promise<any>) => {},
-        passThroughOnException: () => {}
+        waitUntil: (promise: Promise<any>) => { },
+        passThroughOnException: () => { }
       };
       return resetPasswordHandler(request, this.env, ctx);
     });
@@ -1084,13 +1088,13 @@ class RouteRegistry {
     // this.register('GET', '/api/users/settings', (req) => userProfileRoutes.getSettings(req));
     // this.register('PUT', '/api/users/settings', (req) => userProfileRoutes.updateSettings(req));
     // this.register('DELETE', '/api/users/account', (req) => userProfileRoutes.deleteAccount(req));
-    
+
     // Temporary profile endpoint
     this.register('GET', '/api/users/profile', this.getUserProfile.bind(this));
-    
+
     // Profile route (for auth check) - use resilient handler
     this.register('GET', '/api/profile', (req) => profileHandler(req, this.env));
-    
+
     // Comprehensive Notification System Routes
     if (this.notificationRoutes) {
       // Core Notification Management
@@ -1100,55 +1104,55 @@ class RouteRegistry {
       this.register('PUT', '/api/notifications/read-multiple', this.handleNotificationRoute.bind(this, 'markMultipleAsRead'));
       this.register('DELETE', '/api/notifications/:id', this.handleNotificationRoute.bind(this, 'deleteNotification'));
       this.register('POST', '/api/notifications/bulk', this.handleNotificationRoute.bind(this, 'sendBulkNotifications'));
-      
+
       // User Preferences
       this.register('GET', '/api/notifications/preferences', this.handleNotificationRoute.bind(this, 'getPreferences'));
       this.register('POST', '/api/notifications/preferences', this.handleNotificationRoute.bind(this, 'updatePreferences'));
-      
+
       // Push Notifications
       this.register('POST', '/api/notifications/push/subscribe', this.handleNotificationRoute.bind(this, 'subscribePush'));
       this.register('DELETE', '/api/notifications/push/unsubscribe', this.handleNotificationRoute.bind(this, 'unsubscribePush'));
       this.register('GET', '/api/notifications/push/vapid-key', this.handleNotificationRoute.bind(this, 'getVapidKey'));
       this.register('POST', '/api/notifications/push/track', this.handleNotificationRoute.bind(this, 'trackPushEvent'));
       this.register('POST', '/api/notifications/push/test', this.handleNotificationRoute.bind(this, 'testPushNotification'));
-      
+
       // Email Templates & Management
       this.register('GET', '/api/notifications/templates', this.handleNotificationRoute.bind(this, 'getTemplates'));
       this.register('POST', '/api/notifications/templates', this.handleNotificationRoute.bind(this, 'createTemplate'));
       this.register('PUT', '/api/notifications/templates/:id', this.handleNotificationRoute.bind(this, 'updateTemplate'));
       this.register('DELETE', '/api/notifications/templates/:id', this.handleNotificationRoute.bind(this, 'deleteTemplate'));
       this.register('POST', '/api/notifications/templates/preview', this.handleNotificationRoute.bind(this, 'previewTemplate'));
-      
+
       // Email Management
       this.register('DELETE', '/api/notifications/unsubscribe', this.handleNotificationRoute.bind(this, 'processUnsubscribe'));
       this.register('GET', '/api/notifications/unsubscribe/token', this.handleNotificationRoute.bind(this, 'createUnsubscribeToken'));
-      
+
       // Digest & Batch Notifications
       this.register('POST', '/api/notifications/digest', this.handleNotificationRoute.bind(this, 'sendDigest'));
       this.register('GET', '/api/notifications/batches', this.handleNotificationRoute.bind(this, 'getBatches'));
       this.register('POST', '/api/notifications/batches/process', this.handleNotificationRoute.bind(this, 'processBatches'));
-      
+
       // Analytics & Reporting
       this.register('GET', '/api/notifications/analytics', this.handleNotificationRoute.bind(this, 'getAnalytics'));
       this.register('GET', '/api/notifications/analytics/delivery', this.handleNotificationRoute.bind(this, 'getDeliveryAnalytics'));
       this.register('GET', '/api/notifications/analytics/engagement', this.handleNotificationRoute.bind(this, 'getEngagementAnalytics'));
       this.register('GET', '/api/notifications/analytics/performance', this.handleNotificationRoute.bind(this, 'getPerformanceAnalytics'));
       this.register('POST', '/api/notifications/analytics/track-event', this.handleNotificationRoute.bind(this, 'trackAnalyticsEvent'));
-      
+
       // A/B Testing
       this.register('GET', '/api/notifications/ab-tests', this.handleNotificationRoute.bind(this, 'getABTests'));
       this.register('POST', '/api/notifications/ab-tests', this.handleNotificationRoute.bind(this, 'createABTest'));
       this.register('PUT', '/api/notifications/ab-tests/:id', this.handleNotificationRoute.bind(this, 'updateABTest'));
       this.register('GET', '/api/notifications/ab-tests/:id/results', this.handleNotificationRoute.bind(this, 'getABTestResults'));
     }
-    
+
     // Legacy notification routes (maintained for backward compatibility)
     this.register('GET', '/api/notifications/unread', this.getUnreadNotifications.bind(this));
     this.register('GET', '/api/user/notifications', this.getUserNotifications.bind(this));
-    
+
     // Polling endpoint for free tier (combines multiple data sources)
     this.register('GET', '/api/poll/all', this.handlePollAll.bind(this));
-    
+
     // Analytics realtime
     this.register('GET', '/api/analytics/realtime', this.getRealtimeAnalytics.bind(this));
 
@@ -1162,7 +1166,7 @@ class RouteRegistry {
     this.register('GET', '/api/trending', this.getTrending.bind(this));
     this.register('PUT', '/api/pitches/:id', this.updatePitch.bind(this));
     this.register('DELETE', '/api/pitches/:id', this.deletePitch.bind(this));
-    
+
     // File upload routes
     this.register('POST', '/api/upload', this.handleUpload.bind(this));
     this.register('POST', '/api/upload/document', this.handleDocumentUpload.bind(this));
@@ -1171,7 +1175,7 @@ class RouteRegistry {
     this.register('POST', '/api/upload/media/direct', this.handleDirectMediaUpload.bind(this));
     this.register('POST', '/api/upload/nda', this.handleNDAUpload.bind(this));
     this.register('DELETE', '/api/upload/:key', this.handleDeleteUpload.bind(this));
-    
+
     // Chunked upload routes
     this.register('POST', '/api/upload/chunked/init', this.initChunkedUpload.bind(this));
     this.register('PUT', '/api/upload/chunked/chunk', this.uploadChunk.bind(this));
@@ -1179,7 +1183,7 @@ class RouteRegistry {
     this.register('POST', '/api/upload/chunked/abort', this.abortChunkedUpload.bind(this));
     this.register('GET', '/api/upload/chunked/session/:sessionId', this.getUploadSession.bind(this));
     this.register('GET', '/api/upload/chunked/resume/:sessionId', this.resumeUploadSession.bind(this));
-    
+
     // File retrieval routes (free plan)
     this.register('GET', '/api/files/:id', this.getFile.bind(this));
     this.register('GET', '/api/files', this.listFiles.bind(this));
@@ -1210,32 +1214,32 @@ class RouteRegistry {
     this.register('POST', '/api/ndas/:id/revoke', this.revokeNDA.bind(this));
     this.register('POST', '/api/ndas/:id/sign', this.signNDA.bind(this));
     this.register('POST', '/api/ndas/sign', this.signNDA.bind(this));
-    
+
     // NDA Templates
     this.register('GET', '/api/ndas/templates', this.getNDATemplates.bind(this));
     this.register('GET', '/api/ndas/templates/:id', this.getNDATemplate.bind(this));
     this.register('POST', '/api/ndas/templates', this.createNDATemplate.bind(this));
     this.register('PUT', '/api/ndas/templates/:id', this.updateNDATemplate.bind(this));
     this.register('DELETE', '/api/ndas/templates/:id', this.deleteNDATemplate.bind(this));
-    
+
     // NDA Bulk Operations
     this.register('POST', '/api/ndas/bulk-approve', this.bulkApproveNDAs.bind(this));
     this.register('POST', '/api/ndas/bulk-reject', this.bulkRejectNDAs.bind(this));
-    
+
     // NDA Documents & Downloads
     this.register('GET', '/api/ndas/:id/download', this.downloadNDA.bind(this));
     this.register('GET', '/api/ndas/:id/download-signed', this.downloadSignedNDA.bind(this));
     this.register('POST', '/api/ndas/preview', this.generateNDAPreview.bind(this));
-    
+
     // NDA History & Analytics
     this.register('GET', '/api/ndas/history', this.getNDAHistory.bind(this));
     this.register('GET', '/api/ndas/history/:userId', this.getUserNDAHistory.bind(this));
     this.register('GET', '/api/ndas/analytics', this.getNDAAnalytics.bind(this));
-    
+
     // NDA Notifications & Reminders
     this.register('POST', '/api/ndas/:id/remind', this.sendNDAReminder.bind(this));
     this.register('GET', '/api/ndas/:id/verify', this.verifyNDASignature.bind(this));
-    
+
     // Missing NDA endpoints for frontend compatibility
     this.register('GET', '/api/ndas/active', this.getActiveNDAs.bind(this));
     this.register('GET', '/api/ndas/signed', this.getSignedNDAs.bind(this));
@@ -1314,47 +1318,47 @@ class RouteRegistry {
     // Financial Overview
     this.register('GET', '/api/investor/financial/summary', this.getFinancialSummary.bind(this));
     this.register('GET', '/api/investor/financial/recent-transactions', this.getRecentTransactions.bind(this));
-    
+
     // Transaction History  
     this.register('GET', '/api/investor/transactions', this.getTransactionHistory.bind(this));
     this.register('GET', '/api/investor/transactions/export', this.exportTransactions.bind(this));
     this.register('GET', '/api/investor/transactions/stats', this.getTransactionStats.bind(this));
-    
+
     // Budget Allocation
     this.register('GET', '/api/investor/budget/allocations', this.getBudgetAllocations.bind(this));
     this.register('POST', '/api/investor/budget/allocations', this.createBudgetAllocation.bind(this));
     this.register('PUT', '/api/investor/budget/allocations/:id', this.updateBudgetAllocation.bind(this));
-    
+
     // Tax Documents
     this.register('GET', '/api/investor/tax/documents', this.getTaxDocuments.bind(this));
     this.register('GET', '/api/investor/tax/documents/:id/download', this.downloadTaxDocument.bind(this));
     this.register('POST', '/api/investor/tax/generate', this.generateTaxDocument.bind(this));
-    
+
     // Pending Deals
     this.register('GET', '/api/investor/deals/pending', this.getPendingDeals.bind(this));
     this.register('PUT', '/api/investor/deals/:id/status', this.updateDealStatus.bind(this));
     this.register('GET', '/api/investor/deals/:id/timeline', this.getDealTimeline.bind(this));
-    
+
     // Completed Projects
     this.register('GET', '/api/investor/projects/completed', this.getCompletedProjects.bind(this));
     this.register('GET', '/api/investor/projects/:id/performance', this.getProjectPerformance.bind(this));
     this.register('GET', '/api/investor/projects/:id/documents', this.getProjectDocuments.bind(this));
-    
+
     // ROI Analysis
     this.register('GET', '/api/investor/analytics/roi/summary', this.getROISummary.bind(this));
     this.register('GET', '/api/investor/analytics/roi/by-category', this.getROIByCategory.bind(this));
     this.register('GET', '/api/investor/analytics/roi/timeline', this.getROITimeline.bind(this));
-    
+
     // Market Trends
     this.register('GET', '/api/investor/analytics/market/trends', this.getMarketTrends.bind(this));
     this.register('GET', '/api/investor/analytics/market/genres', this.getGenrePerformance.bind(this));
     this.register('GET', '/api/investor/analytics/market/forecast', this.getMarketForecast.bind(this));
-    
+
     // Risk Assessment
     this.register('GET', '/api/investor/analytics/risk/portfolio', this.getPortfolioRisk.bind(this));
     this.register('GET', '/api/investor/analytics/risk/projects', this.getProjectRisk.bind(this));
     this.register('GET', '/api/investor/analytics/risk/recommendations', this.getRiskRecommendations.bind(this));
-    
+
     // All Investments
     this.register('GET', '/api/investor/investments/all', this.getAllInvestments.bind(this));
     this.register('GET', '/api/investor/investments/summary', this.getInvestmentsSummary.bind(this));
@@ -1389,14 +1393,14 @@ class RouteRegistry {
     this.registerPortalRoute('GET', '/api/creator/dashboard', 'creator', (req) => creatorDashboardHandler(req, this.env));
     this.registerPortalRoute('GET', '/api/investor/dashboard', 'investor', (req) => investorDashboardHandler(req, this.env));
     this.registerPortalRoute('GET', '/api/production/dashboard', 'production', (req) => productionDashboardHandler(req, this.env));
-    
+
     // Team Management routes
     this.register('GET', '/api/teams', (req) => getTeamsHandler(req, this.env));
     this.register('POST', '/api/teams', (req) => createTeamHandler(req, this.env));
     this.register('GET', '/api/teams/invites', (req) => getInvitationsHandler(req, this.env));
     this.register('POST', '/api/teams/invites/:id/accept', (req) => acceptInvitationHandler(req, this.env));
     this.register('POST', '/api/teams/invites/:id/reject', (req) => rejectInvitationHandler(req, this.env));
-    
+
     // Settings Management routes
     this.register('GET', '/api/user/settings', (req) => getUserSettingsHandler(req, this.env));
     this.register('PUT', '/api/user/settings', (req) => updateUserSettingsHandler(req, this.env));
@@ -1405,7 +1409,7 @@ class RouteRegistry {
     this.register('POST', '/api/user/two-factor/enable', (req) => enableTwoFactorHandler(req, this.env));
     this.register('POST', '/api/user/two-factor/disable', (req) => disableTwoFactorHandler(req, this.env));
     this.register('DELETE', '/api/user/account', (req) => deleteAccountHandler(req, this.env));
-    
+
     // Multi-Factor Authentication (MFA) routes
     this.register('GET', '/api/mfa/status', (req) => this.handleMFARequest(req, 'status'));
     this.register('POST', '/api/mfa/setup/start', (req) => this.handleMFARequest(req, 'setup/start'));
@@ -1425,11 +1429,11 @@ class RouteRegistry {
     this.register('POST', '/api/teams/:id/invite', (req) => inviteToTeamHandler(req, this.env));
     this.register('PUT', '/api/teams/:teamId/members/:memberId', (req) => updateMemberRoleHandler(req, this.env));
     this.register('DELETE', '/api/teams/:teamId/members/:memberId', (req) => removeTeamMemberHandler(req, this.env));
-    
+
     // Analytics routes (missing endpoints)
     this.register('GET', '/api/analytics/dashboard', this.getAnalyticsDashboard.bind(this));
     this.register('GET', '/api/analytics/user', this.getUserAnalytics.bind(this));
-    
+
     // Database Performance Analytics (Cloudflare Analytics Engine)
     this.register('GET', '/api/analytics/database/performance', this.getDatabasePerformance.bind(this));
     this.register('GET', '/api/analytics/database/queries', this.getDatabaseQueryStats.bind(this));
@@ -1438,7 +1442,7 @@ class RouteRegistry {
     this.register('GET', '/api/analytics/database/errors', this.getDatabaseErrors.bind(this));
     this.register('GET', '/api/analytics/performance/endpoints', this.getEndpointPerformance.bind(this));
     this.register('GET', '/api/analytics/performance/overview', this.getPerformanceOverview.bind(this));
-    
+
     // Distributed Tracing Analytics
     this.register('GET', '/api/traces/search', this.searchTraces.bind(this));
     this.register('GET', '/api/traces/:traceId', this.getTraceDetails.bind(this));
@@ -1446,11 +1450,11 @@ class RouteRegistry {
     this.register('GET', '/api/traces/metrics/overview', this.getTraceMetrics.bind(this));
     this.register('GET', '/api/traces/metrics/performance', this.getTracePerformanceMetrics.bind(this));
     this.register('GET', '/api/traces/metrics/errors', this.getTraceErrorMetrics.bind(this));
-    
+
     // Payment routes (missing endpoints)
     this.register('GET', '/api/payments/credits/balance', this.getCreditsBalance.bind(this));
     this.register('GET', '/api/payments/subscription-status', this.getSubscriptionStatus.bind(this));
-    
+
     // Pitch Validation Routes
     this.register('POST', '/api/validation/analyze', (req) => validationHandlers.analyze(req));
     this.register('GET', '/api/validation/score/:pitchId', (req) => validationHandlers.getScore(req));
@@ -1462,22 +1466,22 @@ class RouteRegistry {
     this.register('GET', '/api/validation/progress/:pitchId', (req) => validationHandlers.getProgress(req));
     this.register('GET', '/api/validation/dashboard/:pitchId', (req) => validationHandlers.getDashboard(req));
     this.register('POST', '/api/validation/batch-analyze', (req) => validationHandlers.batchAnalyze(req));
-    
+
     // Follow routes - use resilient handlers
     this.register('GET', '/api/follows/followers', (req) => followersHandler(req, this.env));
     this.register('GET', '/api/follows/following', (req) => followingHandler(req, this.env));
-    
+
     // Enhanced follows endpoints
     this.register('POST', '/api/follows/action', (req) => followActionHandler(req, this.env));
     this.register('GET', '/api/follows/list', (req) => getFollowListHandler(req, this.env));
     this.register('GET', '/api/follows/stats', (req) => getFollowStatsHandler(req, this.env));
     this.register('GET', '/api/follows/suggestions', (req) => getFollowSuggestionsHandler(req, this.env));
-    
+
     // View tracking endpoints
     this.register('POST', '/api/views/track', (req) => trackViewHandler(req, this.env));
     this.register('GET', '/api/views/analytics', (req) => getViewAnalyticsHandler(req, this.env));
     this.register('GET', '/api/views/pitch/*', (req) => getPitchViewersHandler(req, this.env));
-    
+
     // === CREATOR PORTAL ROUTES (Phase 3) ===
     // Revenue Dashboard - Protected for creators only
     this.registerPortalRoute('GET', '/api/creator/revenue', 'creator', async (req) => {
@@ -1492,7 +1496,7 @@ class RouteRegistry {
       const { creatorRevenueBreakdownHandler } = await import('./handlers/creator-dashboard');
       return creatorRevenueBreakdownHandler(req, this.env);
     });
-    
+
     // Contract Management
     this.register('GET', '/api/creator/contracts', async (req) => {
       const { creatorContractsHandler } = await import('./handlers/creator-dashboard');
@@ -1506,7 +1510,7 @@ class RouteRegistry {
       const { creatorContractUpdateHandler } = await import('./handlers/creator-dashboard');
       return creatorContractUpdateHandler(req, this.env);
     });
-    
+
     // Pitch Analytics
     this.register('GET', '/api/creator/analytics/pitches', async (req) => {
       const { creatorPitchAnalyticsHandler } = await import('./handlers/creator-dashboard');
@@ -1520,7 +1524,7 @@ class RouteRegistry {
       const { creatorDemographicsHandler } = await import('./handlers/creator-dashboard');
       return creatorDemographicsHandler(req, this.env);
     });
-    
+
     // Investor Relations
     this.register('GET', '/api/creator/investors', async (req) => {
       const { creatorInvestorsHandler } = await import('./handlers/creator-dashboard');
@@ -1534,10 +1538,10 @@ class RouteRegistry {
       const { creatorMessageInvestorHandler } = await import('./handlers/creator-dashboard');
       return creatorMessageInvestorHandler(req, this.env);
     });
-    
+
     // Creator funding routes (existing)
     this.register('GET', '/api/creator/funding/overview', this.getFundingOverview.bind(this));
-    
+
     // === PRODUCTION PORTAL ROUTES (Phase 4) ===
     // Talent Discovery
     this.register('GET', '/api/production/talent/search', async (req) => {
@@ -1552,7 +1556,7 @@ class RouteRegistry {
       const { productionTalentContactHandler } = await import('./handlers/production-dashboard');
       return productionTalentContactHandler(req, this.env);
     });
-    
+
     // Project Pipeline
     this.register('GET', '/api/production/pipeline', async (req) => {
       const { productionPipelineHandler } = await import('./handlers/production-dashboard');
@@ -1566,7 +1570,7 @@ class RouteRegistry {
       const { productionProjectStatusHandler } = await import('./handlers/production-dashboard');
       return productionProjectStatusHandler(req, this.env);
     });
-    
+
     // Budget Management
     this.register('GET', '/api/production/budget/:projectId', async (req) => {
       const { productionBudgetHandler } = await import('./handlers/production-dashboard');
@@ -1580,7 +1584,7 @@ class RouteRegistry {
       const { productionBudgetVarianceHandler } = await import('./handlers/production-dashboard');
       return productionBudgetVarianceHandler(req, this.env);
     });
-    
+
     // Shooting Schedule
     this.register('GET', '/api/production/schedule/:projectId', async (req) => {
       const { productionScheduleHandler } = await import('./handlers/production-dashboard');
@@ -1594,7 +1598,7 @@ class RouteRegistry {
       const { productionScheduleConflictsHandler } = await import('./handlers/production-dashboard');
       return productionScheduleConflictsHandler(req, this.env);
     });
-    
+
     // Location Scouting
     this.register('GET', '/api/production/locations/search', async (req) => {
       const { productionLocationSearchHandler } = await import('./handlers/production-dashboard');
@@ -1608,7 +1612,7 @@ class RouteRegistry {
       const { productionLocationBookHandler } = await import('./handlers/production-dashboard');
       return productionLocationBookHandler(req, this.env);
     });
-    
+
     // Crew Assembly
     this.register('GET', '/api/production/crew/search', async (req) => {
       const { productionCrewSearchHandler } = await import('./handlers/production-dashboard');
@@ -1622,21 +1626,21 @@ class RouteRegistry {
       const { productionCrewHireHandler } = await import('./handlers/production-dashboard');
       return productionCrewHireHandler(req, this.env);
     });
-    
+
     // NDA routes
     this.register('GET', '/api/ndas/stats', (req) => ndaStatsHandler(req, this.env));
     this.register('GET', '/api/ndas/incoming-signed', this.getIncomingSignedNDAs.bind(this));
     this.register('GET', '/api/ndas/outgoing-signed', this.getOutgoingSignedNDAs.bind(this));
     this.register('GET', '/api/ndas/incoming-requests', this.getIncomingNDARequests.bind(this));
     this.register('GET', '/api/ndas/outgoing-requests', this.getOutgoingNDARequests.bind(this));
-    
+
     // Public pitches for marketplace - no auth required
     this.register('GET', '/api/pitches/public', this.getPublicPitches.bind(this));
     this.register('GET', '/api/pitches/public/trending', this.getPublicTrendingPitches.bind(this));
     this.register('GET', '/api/pitches/public/new', this.getPublicNewPitches.bind(this));
     this.register('GET', '/api/pitches/public/featured', this.getPublicFeaturedPitches.bind(this));
     this.register('GET', '/api/pitches/public/search', this.searchPublicPitches.bind(this));
-    
+
     // Saved pitches endpoints
     this.register('GET', '/api/saved-pitches', this.getSavedPitches.bind(this));
     this.register('POST', '/api/saved-pitches', this.savePitch.bind(this));
@@ -1645,27 +1649,27 @@ class RouteRegistry {
     // WebSocket upgrade (disabled on free tier, returns polling info instead)
     this.register('GET', '/ws', this.handleWebSocketUpgrade.bind(this));
     this.register('GET', '/api/ws/token', this.handleWebSocketToken.bind(this));
-    
+
     // Intelligence WebSocket for real-time intelligence updates
     this.register('GET', '/ws/intelligence', this.handleIntelligenceWebSocket.bind(this));
-    
+
     // === REAL-TIME MANAGEMENT ENDPOINTS ===
     this.register('GET', '/api/realtime/stats', this.getRealtimeStats.bind(this));
     this.register('POST', '/api/realtime/broadcast', this.broadcastMessage.bind(this));
     this.register('POST', '/api/realtime/subscribe', this.subscribeToChannel.bind(this));
     this.register('POST', '/api/realtime/unsubscribe', this.unsubscribeFromChannel.bind(this));
-    
+
     // === POLLING ROUTES FOR FREE TIER ===
     // Replaces WebSocket functionality with efficient polling
     this.register('GET', '/api/poll/notifications', this.handlePollNotifications.bind(this));
     this.register('GET', '/api/poll/messages', this.handlePollMessages.bind(this));
     this.register('GET', '/api/poll/dashboard', this.handlePollDashboard.bind(this));
-    
+
     // === MONITORING ROUTES FOR FREE TIER ===
     this.register('GET', '/api/admin/metrics', this.handleGetMetrics.bind(this));
     this.register('GET', '/api/admin/health', this.handleGetHealth.bind(this));
     this.register('GET', '/api/admin/metrics/history', this.handleGetMetricsHistory.bind(this));
-    
+
     // === EMAIL & MESSAGING ROUTES ===
     // Commented out to fix build errors with Drizzle ORM imports
     // if (this.emailMessagingRoutes) {
@@ -1734,25 +1738,25 @@ class RouteRegistry {
     // ===== INTELLIGENCE LAYER ROUTES ===== - TEMPORARILY DISABLED
     // Industry Data Enrichment
     // this.register('POST', '/api/enrichment/industry', (req) => industryEnrichmentHandler(req, this.env));
-    
+
     // Market Intelligence
     // this.register('GET', '/api/intelligence/market', (req) => marketIntelligenceHandler(req, this.env));
     // this.register('GET', '/api/intelligence/dashboard', (req) => intelligenceDashboardHandler(req, this.env));
     // this.register('GET', '/api/intelligence/trends', (req) => trendAnalysisHandler(req, this.env));
     // this.register('GET', '/api/intelligence/search', (req) => intelligenceSearchHandler(req, this.env));
     // this.register('GET', '/api/intelligence/status', (req) => intelligenceStatusHandler(req, this.env));
-    
+
     // Intelligence Monitoring & Health
     // this.register('GET', '/api/intelligence/health', (req) => intelligenceHealthHandler(req, this.env));
     // this.register('GET', '/api/intelligence/monitoring', (req) => intelligenceMonitoringHandler(req, this.env));
     // this.register('POST', '/api/intelligence/alerts/config', (req) => intelligenceAlertConfigHandler(req, this.env));
-    
+
     // Content Discovery
     // this.register('POST', '/api/discovery/content', (req) => contentDiscoveryHandler(req, this.env));
-    
+
     // Competitive Analysis
     // this.register('GET', '/api/analysis/competitive', (req) => competitiveAnalysisHandler(req, this.env));
-    
+
     // Cache Management - TEMPORARILY DISABLED  
     // this.register('POST', '/api/intelligence/cache', (req) => cacheManagementHandler(req, this.env));
 
@@ -1763,33 +1767,33 @@ class RouteRegistry {
     this.register('GET', '/api/experiments/:id', (req) => this.abTestingHandler?.getExperiment(req, this.env));
     this.register('PUT', '/api/experiments/:id', (req) => this.abTestingHandler?.updateExperiment(req, this.env));
     this.register('DELETE', '/api/experiments/:id', (req) => this.abTestingHandler?.deleteExperiment(req, this.env));
-    
+
     // Experiment Control
     this.register('POST', '/api/experiments/:id/start', (req) => this.abTestingHandler?.startExperiment(req, this.env));
     this.register('POST', '/api/experiments/:id/stop', (req) => this.abTestingHandler?.stopExperiment(req, this.env));
     this.register('POST', '/api/experiments/:id/archive', (req) => this.abTestingHandler?.archiveExperiment(req, this.env));
-    
+
     // User Assignment
     this.register('GET', '/api/experiments/:id/assignment', (req) => this.abTestingHandler?.getUserAssignment(req, this.env));
     this.register('POST', '/api/experiments/assign', (req) => this.abTestingHandler?.assignUser(req, this.env));
     this.register('POST', '/api/experiments/bulk-assign', (req) => this.abTestingHandler?.bulkAssignUsers(req, this.env));
-    
+
     // Event Tracking
     this.register('POST', '/api/experiments/track', (req) => this.abTestingHandler?.trackEvent(req, this.env));
     this.register('POST', '/api/experiments/:id/events', (req) => this.abTestingHandler?.getExperimentEvents(req, this.env));
-    
+
     // Results & Analytics
     this.register('GET', '/api/experiments/:id/results', (req) => this.abTestingHandler?.getResults(req, this.env));
     this.register('GET', '/api/experiments/:id/analytics', (req) => this.abTestingHandler?.getAnalytics(req, this.env));
     this.register('POST', '/api/experiments/:id/calculate-results', (req) => this.abTestingHandler?.calculateResults(req, this.env));
-    
+
     // Feature Flags
     this.register('GET', '/api/feature-flags', (req) => this.abTestingHandler?.getFeatureFlags(req, this.env));
     this.register('POST', '/api/feature-flags', (req) => this.abTestingHandler?.createFeatureFlag(req, this.env));
     this.register('GET', '/api/feature-flags/:key', (req) => this.abTestingHandler?.getFeatureFlag(req, this.env));
     this.register('PUT', '/api/feature-flags/:key', (req) => this.abTestingHandler?.updateFeatureFlag(req, this.env));
     this.register('DELETE', '/api/feature-flags/:key', (req) => this.abTestingHandler?.deleteFeatureFlag(req, this.env));
-    
+
     // A/B Testing WebSocket for real-time updates
     this.register('GET', '/ws/ab-testing', this.handleABTestingWebSocket.bind(this));
   }
@@ -1808,9 +1812,9 @@ class RouteRegistry {
    * Register a portal-protected route with access control
    */
   private registerPortalRoute(
-    method: string, 
-    path: string, 
-    portal: 'creator' | 'investor' | 'production', 
+    method: string,
+    path: string,
+    portal: 'creator' | 'investor' | 'production',
     handler: Function
   ) {
     const wrappedHandler = async (request: Request) => {
@@ -1820,9 +1824,9 @@ class RouteRegistry {
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        }), { 
-          status: 401, 
-          headers: { 
+        }), {
+          status: 401,
+          headers: {
             'Content-Type': 'application/json',
             ...getCorsHeaders(request.headers.get('Origin'))
           }
@@ -1831,14 +1835,14 @@ class RouteRegistry {
 
       // Create portal access controller
       const accessController = new PortalAccessController(this.env);
-      
+
       // Check portal access (note: parameters are request, portal, user)
       const accessResult = await accessController.validatePortalAccess(
         request,
         portal,
         authResult.user
       );
-      
+
       if (!accessResult.allowed) {
         return new Response(JSON.stringify({
           success: false,
@@ -1846,9 +1850,9 @@ class RouteRegistry {
             code: 'FORBIDDEN',
             message: accessResult.reason || `Access restricted to ${portal} portal users only`
           }
-        }), { 
-          status: 403, 
-          headers: { 
+        }), {
+          status: 403,
+          headers: {
             'Content-Type': 'application/json',
             ...getCorsHeaders(request.headers.get('Origin'))
           }
@@ -1857,7 +1861,7 @@ class RouteRegistry {
 
       // Attach user to request for handler use
       (request as any).user = authResult.user;
-      
+
       // Call the original handler
       return handler(request);
     };
@@ -1889,7 +1893,7 @@ class RouteRegistry {
     // Apply rate limiting
     const rateLimiter = getRateLimiter();
     const rateLimitMiddleware = createRateLimitMiddleware(rateLimiter);
-    
+
     // Determine rate limit config based on endpoint
     let rateLimitConfig = 'api'; // default
     if (path.startsWith('/api/auth/')) {
@@ -1899,7 +1903,7 @@ class RouteRegistry {
     } else if (path.includes('/investment') || path.includes('/nda')) {
       rateLimitConfig = 'strict';
     }
-    
+
     // Check rate limit
     const rateLimitResponse = await rateLimitMiddleware(request, rateLimitConfig);
     if (rateLimitResponse) {
@@ -1939,13 +1943,14 @@ class RouteRegistry {
       '/api/pitches/public/new',
       '/api/pitches/public/featured',
       '/api/pitches/public/search',
-      '/api/trending'  // Add trending endpoint as public
+      '/api/trending',  // Add trending endpoint as public
+      '/ws'             // WebSocket endpoint handles its own auth
     ];
-    
+
     // Check if endpoint requires authentication
     const isPublicEndpoint = publicEndpoints.some(endpoint => path === endpoint || path.startsWith(endpoint + '/'));
     const isGetPitches = method === 'GET' && path === '/api/pitches';
-    
+
     // Validate JWT for protected endpoints
     if (!isPublicEndpoint && !isGetPitches) {
       const authResult = await this.validateAuth(request);
@@ -1979,7 +1984,7 @@ class RouteRegistry {
 
     // Try exact match first
     let handler = methodRoutes.get(path);
-    
+
     // Try pattern matching for dynamic routes
     if (!handler) {
       for (const [pattern, routeHandler] of methodRoutes.entries()) {
@@ -2001,7 +2006,7 @@ class RouteRegistry {
       if (stubResponse) {
         return stubResponse;
       }
-      
+
       return new ApiResponseBuilder(request).error(
         ErrorCode.NOT_FOUND,
         'Endpoint not found'
@@ -2094,26 +2099,26 @@ class RouteRegistry {
     console.log('handlePortalLogin called for portal:', portal);
     console.log('Better Auth available:', !!this.betterAuth);
     console.log('Better Auth dbAdapter available:', !!(this.betterAuth && this.betterAuth.dbAdapter));
-    
+
     // First try Better Auth's raw SQL implementation
     if (this.betterAuth && this.betterAuth.dbAdapter) {
       try {
         const body = await request.clone().json();
         const { email, password } = body;
-        
+
         // Get user from database using Better Auth's adapter
         const user = await this.betterAuth.dbAdapter.findUser(email);
-        
+
         if (!user || user.user_type !== portal) {
           return new Response(
-            JSON.stringify({ 
-              success: false, 
-              error: { 
+            JSON.stringify({
+              success: false,
+              error: {
                 code: 'INVALID_CREDENTIALS',
-                message: 'Invalid credentials' 
-              } 
+                message: 'Invalid credentials'
+              }
             }),
-            { 
+            {
               status: 401,
               headers: {
                 'Content-Type': 'application/json',
@@ -2122,23 +2127,23 @@ class RouteRegistry {
             }
           );
         }
-        
+
         // For demo accounts, accept the demo password
         const isDemoAccount = ['alex.creator@demo.com', 'sarah.investor@demo.com', 'stellar.production@demo.com'].includes(email);
-        
+
         // Password verification for demo accounts
         if (isDemoAccount) {
           // Demo accounts use password "Demo123"
           if (password !== 'Demo123') {
             return new Response(
-              JSON.stringify({ 
-                success: false, 
-                error: { 
+              JSON.stringify({
+                success: false,
+                error: {
                   code: 'INVALID_CREDENTIALS',
-                  message: 'Invalid credentials' 
-                } 
+                  message: 'Invalid credentials'
+                }
               }),
-              { 
+              {
                 status: 401,
                 headers: {
                   'Content-Type': 'application/json',
@@ -2152,14 +2157,14 @@ class RouteRegistry {
           // For now, we'll check plain text password field as fallback
           if (user.password && user.password !== password) {
             return new Response(
-              JSON.stringify({ 
-                success: false, 
-                error: { 
+              JSON.stringify({
+                success: false,
+                error: {
                   code: 'INVALID_CREDENTIALS',
-                  message: 'Invalid credentials' 
-                } 
+                  message: 'Invalid credentials'
+                }
               }),
-              { 
+              {
                 status: 401,
                 headers: {
                   'Content-Type': 'application/json',
@@ -2169,11 +2174,11 @@ class RouteRegistry {
             );
           }
         }
-        
+
         // Create session
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
         const sessionId = await this.betterAuth.dbAdapter.createSession(user.id, expiresAt);
-        
+
         // Store session in KV if available (check for all possible KV bindings)
         const kvStore = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
         if (kvStore) {
@@ -2189,7 +2194,7 @@ class RouteRegistry {
             { expirationTtl: 604800 } // 7 days
           );
         }
-        
+
         // For backward compatibility, also generate a properly signed JWT token
         const jwtSecret = this.env.JWT_SECRET || 'test-secret-key-for-development';
         const token = await createJWT(
@@ -2202,11 +2207,11 @@ class RouteRegistry {
           jwtSecret,
           7 * 24 * 60 * 60 // 7 days in seconds
         );
-        
+
         // Return response with both session cookie and JWT token
         const origin = request.headers.get('Origin');
         const corsHeaders = getCorsHeaders(origin);
-        
+
         return new Response(
           JSON.stringify({
             user: {
@@ -2255,13 +2260,13 @@ class RouteRegistry {
 
   private async handleHealth(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       // Test database connection
       let dbStatus = 'error';
       let dbTime = null;
       let dbError = null;
-      
+
       if (this.db) {
         try {
           const result = await this.db.query('SELECT NOW() as time');
@@ -2274,7 +2279,7 @@ class RouteRegistry {
           console.error('Database health check failed:', err);
         }
       }
-      
+
       return builder.success({
         status: dbStatus === 'connected' ? 'ok' : 'degraded',
         timestamp: new Date().toISOString(),
@@ -2300,17 +2305,17 @@ class RouteRegistry {
 
   private async handleDatabaseHealth(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       const start = Date.now();
-      
+
       if (!this.db) {
         return builder.error(ErrorCode.INTERNAL_ERROR, 'Database connection not available');
       }
-      
+
       // Test 1: Basic connectivity with timestamp
       const connectivityTest = await this.db.query('SELECT NOW() as current_time, version() as pg_version');
-      
+
       // Test 2: Schema validation - count tables
       const schemaCheck = await this.db.query(`
         SELECT 
@@ -2319,7 +2324,7 @@ class RouteRegistry {
         FROM pg_tables 
         WHERE schemaname IN ('public', 'information_schema')
       `);
-      
+
       // Test 3: Core business tables validation
       const coreTablesCheck = await this.db.query(`
         SELECT 
@@ -2329,7 +2334,7 @@ class RouteRegistry {
         WHERE schemaname = 'public' 
         AND tablename IN ('users', 'pitches', 'ndas', 'investments', 'notifications', 'user_sessions')
       `);
-      
+
       // Test 4: Sample data validation
       const dataCheck = await this.db.query(`
         SELECT 
@@ -2339,7 +2344,7 @@ class RouteRegistry {
           (SELECT COUNT(*) FROM investments) as investment_count,
           (SELECT COUNT(*) FROM notifications) as notification_count
       `);
-      
+
       // Test 5: Index health check
       const indexCheck = await this.db.query(`
         SELECT 
@@ -2350,12 +2355,12 @@ class RouteRegistry {
         JOIN pg_namespace ON pg_class.relnamespace = pg_namespace.oid
         WHERE pg_namespace.nspname = 'public'
       `);
-      
+
       const latency = Date.now() - start;
       const coreTablesExpected = ['users', 'pitches', 'ndas', 'investments', 'notifications', 'user_sessions'];
       const foundTables = coreTablesCheck[0]?.found_tables || [];
       const missingTables = coreTablesExpected.filter(table => !foundTables.includes(table));
-      
+
       return builder.success({
         status: "healthy",
         database: {
@@ -2398,10 +2403,10 @@ class RouteRegistry {
         timestamp: new Date().toISOString(),
         api_version: "v1.0"
       });
-      
+
     } catch (error: any) {
       console.error('Database health check failed:', error);
-      
+
       return builder.error(ErrorCode.INTERNAL_ERROR, 'Database health check failed', {
         error: {
           message: error.message,
@@ -2414,18 +2419,18 @@ class RouteRegistry {
       });
     }
   }
-  
+
   private calculateDatabaseHealthScore(latency: number, missingTables: number, indexInfo: any): number {
     let score = 100;
-    
+
     // Latency penalties
     if (latency > 200) score -= 30;
     else if (latency > 100) score -= 15;
     else if (latency > 50) score -= 5;
-    
+
     // Missing tables penalties
     score -= missingTables * 10;
-    
+
     // Index health penalties
     if (indexInfo) {
       const totalIndexes = parseInt(indexInfo.total_indexes) || 0;
@@ -2434,7 +2439,7 @@ class RouteRegistry {
         score -= ((totalIndexes - validIndexes) / totalIndexes) * 20;
       }
     }
-    
+
     return Math.max(0, Math.min(100, score));
   }
 
@@ -2444,16 +2449,16 @@ class RouteRegistry {
    */
   private async handleMonitoringDashboard(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       // Get database health
       const dbHealthResponse = await this.handleDatabaseHealth(request);
       const dbHealthData = await dbHealthResponse.json();
-      
+
       // Get overall health
       const overallHealthResponse = await this.handleHealth(request);
       const overallHealthData = await overallHealthResponse.json();
-      
+
       // Get current metrics from Analytics Engine if available
       let analyticsData = {
         status: 'healthy',
@@ -2461,7 +2466,7 @@ class RouteRegistry {
         datasets: 3,
         storage: 'Active'
       };
-      
+
       // Calculate derived metrics
       const dashboard = {
         database: {
@@ -2487,9 +2492,9 @@ class RouteRegistry {
         environment: this.env.ENVIRONMENT || 'production',
         version: '1.0.0'
       };
-      
+
       return builder.success(dashboard);
-      
+
     } catch (error: any) {
       console.error('Monitoring dashboard failed:', error);
       return builder.error(ErrorCode.INTERNAL_ERROR, 'Failed to generate monitoring dashboard');
@@ -2505,11 +2510,11 @@ class RouteRegistry {
       // Get database health for metrics
       const dbHealthResponse = await this.handleDatabaseHealth(request);
       const dbHealthData = await dbHealthResponse.json();
-      
+
       const healthStatus = dbHealthData.data?.status === 'healthy' ? 1 : 0;
       const latency = dbHealthData.data?.performance?.latency_ms || 0;
       const healthScore = dbHealthData.data?.health_score || 0;
-      
+
       // Generate Prometheus-compatible metrics
       const metrics = `# HELP pitchey_health_status Overall health status (1=healthy, 0=unhealthy)
 # TYPE pitchey_health_status gauge
@@ -2551,7 +2556,7 @@ pitchey_analytics_datapoints_per_minute 1250
           ...getCorsHeaders(request.headers.get('Origin') || '')
         }
       });
-      
+
     } catch (error: any) {
       console.error('Metrics endpoint failed:', error);
       return new Response('# Error generating metrics\n', {
@@ -2567,7 +2572,7 @@ pitchey_analytics_datapoints_per_minute 1250
    */
   private async handleSyntheticResults(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       // Get recent synthetic test results from KV if available
       let testResults = {
@@ -2598,7 +2603,7 @@ pitchey_analytics_datapoints_per_minute 1250
           last_run: new Date().toISOString()
         }
       };
-      
+
       // If MONITORING_KV is available, get real results
       if (this.env.MONITORING_KV) {
         try {
@@ -2611,9 +2616,9 @@ pitchey_analytics_datapoints_per_minute 1250
           console.warn('Could not fetch synthetic results from KV:', e);
         }
       }
-      
+
       return builder.success(testResults);
-      
+
     } catch (error: any) {
       console.error('Synthetic results endpoint failed:', error);
       return builder.error(ErrorCode.INTERNAL_ERROR, 'Failed to fetch synthetic test results');
@@ -2633,24 +2638,24 @@ pitchey_analytics_datapoints_per_minute 1250
       // Validate the user's session using Better Auth
       const { BetterAuthSessionHandler } = await import('./auth/better-auth-session-handler');
       const { createAuthErrorResponse, getCorsHeaders } = await import('./utils/response');
-      
+
       const sessionHandler = new BetterAuthSessionHandler(this.env);
       const sessionResult = await sessionHandler.validateSession(request);
-      
+
       if (!sessionResult.valid || !sessionResult.user) {
         return createAuthErrorResponse();
       }
-      
+
       // Get the session ID from cookies to use as WebSocket token
       const cookieHeader = request.headers.get('Cookie');
       const cookies = cookieHeader?.split(';').map(c => c.trim()) || [];
       const sessionCookie = cookies.find(c => c.startsWith('better-auth-session='));
       const sessionId = sessionCookie?.split('=')[1];
-      
+
       if (!sessionId) {
         return createAuthErrorResponse();
       }
-      
+
       // Return the session ID that can be used as a token for WebSocket
       return new Response(JSON.stringify({
         success: true,
@@ -2673,15 +2678,15 @@ pitchey_analytics_datapoints_per_minute 1250
 
   private async handleWebSocketHealth(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       // Check if WebSocket upgrade is supported
       const upgradeHeader = request.headers.get('Upgrade');
       const connectionHeader = request.headers.get('Connection');
-      
-      const wsSupported = upgradeHeader === 'websocket' && 
-                         connectionHeader?.toLowerCase().includes('upgrade');
-      
+
+      const wsSupported = upgradeHeader === 'websocket' &&
+        connectionHeader?.toLowerCase().includes('upgrade');
+
       return builder.success({
         status: 'healthy',
         websocket: {
@@ -2695,7 +2700,7 @@ pitchey_analytics_datapoints_per_minute 1250
         },
         timestamp: new Date().toISOString()
       });
-      
+
     } catch (error: any) {
       console.error('WebSocket health check failed:', error);
       return builder.error(ErrorCode.INTERNAL_ERROR, 'WebSocket health check failed');
@@ -2708,7 +2713,7 @@ pitchey_analytics_datapoints_per_minute 1250
       try {
         const cookieHeader = request.headers.get('Cookie');
         const sessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
-        
+
         if (sessionId) {
           // Check KV cache first (check all possible KV bindings)
           const kv = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
@@ -2746,7 +2751,7 @@ pitchey_analytics_datapoints_per_minute 1250
               }
             }
           }
-          
+
           // Check database
           const session = await this.betterAuth.dbAdapter.findSession(sessionId);
           if (session) {
@@ -2779,13 +2784,13 @@ pitchey_analytics_datapoints_per_minute 1250
         console.error('Better Auth session check error:', error);
       }
     }
-    
+
     // Fallback to JWT validation
     const builder = new ApiResponseBuilder(request);
-    
+
     // Check if user was already attached by middleware
     const user = (request as any).user;
-    
+
     if (!user) {
       // If no user attached, validate manually
       const { valid, user: authUser } = await this.validateAuth(request);
@@ -2800,13 +2805,13 @@ pitchey_analytics_datapoints_per_minute 1250
 
   private async getPitches(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       const url = new URL(request.url);
       const page = parseInt(url.searchParams.get('page') || '1');
       const limit = parseInt(url.searchParams.get('limit') || '20');
       const offset = (page - 1) * limit;
-      
+
       // Search parameters
       const search = url.searchParams.get('search') || url.searchParams.get('q');
       const genre = url.searchParams.get('genre');
@@ -2856,8 +2861,8 @@ pitchey_analytics_datapoints_per_minute 1250
         nextParamNum++;
       }
 
-      const whereClause = whereConditions.length > 0 
-        ? `WHERE ${whereConditions.join(' AND ')}` 
+      const whereClause = whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(' AND ')}`
         : '';
 
       // Build ORDER BY clause safely
@@ -2868,7 +2873,7 @@ pitchey_analytics_datapoints_per_minute 1250
         'budget': 'p.budget_range',
         'date': 'p.created_at'
       };
-      
+
       const sortColumn = allowedSortColumns[sortBy] || 'p.created_at';
       const validSortOrder = sortOrder.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
       const orderByClause = `ORDER BY ${sortColumn} ${validSortOrder}`;
@@ -2949,17 +2954,17 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
     const pitchId = parseInt(params.id);
-    
+
     // Check if user is authenticated and has NDA access
     let hasNDAAccess = false;
     let userId: number | null = null;
-    
+
     // Check Better Auth session cookie first
     const cookies = request.headers.get('Cookie') || '';
     const sessionCookie = cookies.split(';')
       .find(c => c.trim().startsWith('better-auth-session='))
       ?.split('=')[1]?.trim();
-    
+
     if (sessionCookie) {
       // Verify session with Better Auth
       try {
@@ -2969,7 +2974,7 @@ pitchey_analytics_datapoints_per_minute 1250
           JOIN users u ON s.user_id = u.id
           WHERE s.id = $1 AND s.expires_at > NOW()
         `, [sessionCookie]);
-        
+
         if (sessionResult.length > 0) {
           userId = sessionResult[0].user_id;
         }
@@ -2987,7 +2992,7 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       }
     }
-    
+
     if (userId) {
       // Check if user has signed NDA for this pitch
       try {
@@ -2996,14 +3001,14 @@ pitchey_analytics_datapoints_per_minute 1250
           WHERE pitch_id = $1 AND signer_id = $2 
           AND (status = 'approved' OR status = 'signed')
         `, [pitchId, userId]);
-        
+
         hasNDAAccess = ndaCheck.length > 0;
-        
+
         // Also check if user is the owner
         const pitchOwnerCheck = await this.db.query(`
           SELECT user_id FROM pitches WHERE id = $1 AND user_id = $2
         `, [pitchId, userId]);
-        
+
         if (pitchOwnerCheck.length > 0) {
           hasNDAAccess = true; // Owner always has access
         }
@@ -3011,7 +3016,7 @@ pitchey_analytics_datapoints_per_minute 1250
         console.error('NDA check failed:', error);
       }
     }
-    
+
     // Try to fetch from database first
     try {
       const result = await this.db.query(`
@@ -3024,18 +3029,18 @@ pitchey_analytics_datapoints_per_minute 1250
         LEFT JOIN users u ON p.user_id = u.id
         WHERE p.id = $1 AND p.status = 'published'
       `, [pitchId]);
-      
+
       if (result.length > 0) {
         const pitch = result[0];
-        
+
         // Determine creator display based on NDA access
         let creatorInfo;
         if (hasNDAAccess) {
           // Show full creator info if NDA is signed
           creatorInfo = {
             id: pitch.user_id,
-            name: pitch.creator_type === 'production' && pitch.company_name 
-              ? pitch.company_name 
+            name: pitch.creator_type === 'production' && pitch.company_name
+              ? pitch.company_name
               : (pitch.creator_name || 'Unknown Creator'),
             type: pitch.creator_type,
             email: null // Still don't expose email publicly
@@ -3049,7 +3054,7 @@ pitchey_analytics_datapoints_per_minute 1250
             email: null
           };
         }
-        
+
         // Build response with conditional protected content
         const response: any = {
           id: pitch.id,
@@ -3069,7 +3074,7 @@ pitchey_analytics_datapoints_per_minute 1250
           hasSignedNDA: hasNDAAccess,
           requiresNDA: pitch.require_nda || false
         };
-        
+
         // Include protected content if user has NDA access
         if (hasNDAAccess) {
           response.protectedContent = {
@@ -3084,27 +3089,27 @@ pitchey_analytics_datapoints_per_minute 1250
             revenueModel: pitch.revenue_model
           };
         }
-        
+
         return builder.success(response);
       }
     } catch (error) {
       console.error('Database query failed:', error);
     }
-    
+
     // Fallback to mock data with proper titles
     const mockTitles: { [key: number]: { title: string, genre: string, logline: string } } = {
-      204: { 
-        title: 'Epic Space Adventure', 
+      204: {
+        title: 'Epic Space Adventure',
         genre: 'Sci-Fi',
         logline: 'A thrilling journey through the cosmos to save Earth from an alien invasion.'
       },
-      205: { 
-        title: 'Comedy Gold', 
+      205: {
+        title: 'Comedy Gold',
         genre: 'Comedy',
         logline: 'A hilarious misadventure of two friends trying to start a food truck business.'
       },
-      206: { 
-        title: 'Mystery Manor', 
+      206: {
+        title: 'Mystery Manor',
         genre: 'Mystery',
         logline: 'A detective investigates strange disappearances at an old English manor.'
       },
@@ -3114,13 +3119,13 @@ pitchey_analytics_datapoints_per_minute 1250
         logline: 'A space exploration epic following humanity first interstellar colony mission'
       }
     };
-    
+
     const pitchInfo = mockTitles[pitchId] || {
       title: `Untitled Project ${pitchId}`,
       genre: 'Drama',
       logline: 'A compelling story that will captivate audiences worldwide.'
     };
-    
+
     const mockPitch = {
       id: pitchId,
       title: pitchInfo.title,
@@ -3150,7 +3155,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getPitch(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
-    
+
     try {
       // First get the pitch data
       const pitchResult = await this.db.query(`
@@ -3177,7 +3182,7 @@ pitchey_analytics_datapoints_per_minute 1250
       `, [params.id]);
 
       const counts = countResult[0] || { view_count: 0, investment_count: 0 };
-      
+
       // Combine the data
       const fullPitch = {
         ...pitch,
@@ -3271,7 +3276,7 @@ pitchey_analytics_datapoints_per_minute 1250
           contentType: attachment.mimeType || 'application/octet-stream',
           size: attachment.size
         }
-      }), { 
+      }), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -3362,7 +3367,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const pitchIdStr = formData.get('pitchId') as string | null;
       const pitchId = pitchIdStr ? parseInt(pitchIdStr) : undefined;
       const type = (formData.get('type') as string) || 'attachment';
-      
+
       // Use the file handler for free plan
       const result = await this.fileHandler.handleUpload(
         formData,
@@ -3370,11 +3375,11 @@ pitchey_analytics_datapoints_per_minute 1250
         type as any,
         pitchId
       );
-      
+
       if (!result.success) {
         return builder.error(ErrorCode.VALIDATION_ERROR, result.error || 'Upload failed');
       }
-      
+
       return builder.success({
         key: result.file!.id,
         url: result.file!.url,
@@ -3403,7 +3408,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const formData = await request.formData();
       const pitchIdStr = formData.get('pitchId') as string | null;
       const pitchId = pitchIdStr ? parseInt(pitchIdStr) : undefined;
-      
+
       // Use the file handler with 'document' type
       const result = await this.fileHandler.handleUpload(
         formData,
@@ -3411,11 +3416,11 @@ pitchey_analytics_datapoints_per_minute 1250
         'document',
         pitchId
       );
-      
+
       if (!result.success) {
         return builder.error(ErrorCode.VALIDATION_ERROR, result.error || 'Document upload failed');
       }
-      
+
       return builder.success({
         key: result.file!.id,
         url: result.file!.url,
@@ -3464,7 +3469,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // Process each file sequentially to avoid overwhelming the system
       for (let i = 0; i < allFiles.length; i++) {
         const file = allFiles[i];
-        
+
         try {
           // Create a new FormData for each individual file
           const singleFileFormData = new FormData();
@@ -3532,7 +3537,7 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const formData = await request.formData();
       const file = formData.get('file') as File;
-      
+
       if (!file) {
         return builder.error(ErrorCode.VALIDATION_ERROR, 'No file provided');
       }
@@ -3547,18 +3552,18 @@ pitchey_analytics_datapoints_per_minute 1250
       try {
         // Create media handler with environment for R2 access
         const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
-        
+
         // Generate storage path
         const timestamp = Date.now();
         const storagePath = `media/${authResult.user.id}/${timestamp}_${file.name}`;
-        
+
         // Upload file directly to R2
         const uploadResult = await handler.uploadFileToR2(file, storagePath);
-        
+
         if (!uploadResult.success) {
           return builder.error(ErrorCode.UPLOAD_ERROR, uploadResult.error || 'Upload failed');
         }
-        
+
         // Create database record
         const mediaData = {
           fileName: file.name,
@@ -3571,13 +3576,13 @@ pitchey_analytics_datapoints_per_minute 1250
             originalName: file.name
           }
         };
-        
+
         const dbResult = await handler.uploadMedia(authResult.user.id, mediaData);
-        
+
         if (!dbResult.success) {
           return builder.error(ErrorCode.DATABASE_ERROR, 'Failed to create media record');
         }
-        
+
         const response = {
           key: storagePath,
           url: uploadResult.url,
@@ -3591,7 +3596,7 @@ pitchey_analytics_datapoints_per_minute 1250
             category: 'media'
           }
         };
-        
+
         return builder.success(response);
       } catch (error) {
         console.error('Media upload error:', error);
@@ -3615,14 +3620,14 @@ pitchey_analytics_datapoints_per_minute 1250
       const pitchId = formData.get('pitchId') ? parseInt(formData.get('pitchId') as string) : null;
       const isPublic = formData.get('isPublic') !== 'false';
       const description = formData.get('description') as string || '';
-      
+
       if (!file) {
         return builder.error(ErrorCode.VALIDATION_ERROR, 'No file provided');
       }
 
       // Create media handler with environment for R2 access
       const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
-      
+
       // Enhanced file validation
       const validation = handler.validateFile(file.name, file.size, file.type);
       if (!validation.valid) {
@@ -3633,14 +3638,14 @@ pitchey_analytics_datapoints_per_minute 1250
       const timestamp = Date.now();
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const storagePath = `media/${authResult.user.id}/${category}/${timestamp}_${sanitizedFileName}`;
-      
+
       // Upload file directly to R2
       const uploadResult = await handler.uploadFileToR2(file, storagePath);
-      
+
       if (!uploadResult.success) {
         return builder.error(ErrorCode.UPLOAD_ERROR, uploadResult.error || 'Upload failed');
       }
-      
+
       // Create database record with all metadata
       const mediaData = {
         fileName: file.name,
@@ -3656,16 +3661,16 @@ pitchey_analytics_datapoints_per_minute 1250
           r2Path: storagePath
         }
       };
-      
+
       const dbResult = await handler.uploadMedia(authResult.user.id, mediaData);
-      
+
       if (!dbResult.success) {
         // If database creation fails, we should clean up R2 file
         // For now, just log the error and continue
         console.error('Database record creation failed:', dbResult.error);
         return builder.error(ErrorCode.DATABASE_ERROR, 'Failed to create media record');
       }
-      
+
       const response = {
         success: true,
         mediaId: dbResult.data.media.id,
@@ -3681,7 +3686,7 @@ pitchey_analytics_datapoints_per_minute 1250
           description
         }
       };
-      
+
       return builder.success(response);
     } catch (error) {
       console.error('Direct media upload error:', error);
@@ -3700,7 +3705,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const file = formData.get('file') as File;
       const folder = formData.get('folder') as string || 'nda-documents';
       const isPublic = formData.get('isPublic') === 'false' ? false : true;
-      
+
       // Parse metadata if provided
       const metadataString = formData.get('metadata') as string;
       let metadata: any = {};
@@ -3711,7 +3716,7 @@ pitchey_analytics_datapoints_per_minute 1250
           console.error('Error parsing metadata:', e);
         }
       }
-      
+
       if (!file) {
         return builder.error(ErrorCode.VALIDATION_ERROR, 'No file provided');
       }
@@ -3768,7 +3773,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
     try {
       // Mock successful deletion
-      return builder.success({ 
+      return builder.success({
         message: 'File deleted successfully',
         key: key
       });
@@ -3813,7 +3818,7 @@ pitchey_analytics_datapoints_per_minute 1250
           if (!this.enhancedR2Handler) {
             this.enhancedR2Handler = new EnhancedR2UploadHandler(this.env.R2_BUCKET);
           }
-          
+
           session = await this.enhancedR2Handler.initializeChunkedUpload(
             fileName,
             fileSize,
@@ -3823,7 +3828,7 @@ pitchey_analytics_datapoints_per_minute 1250
             authResult.user.id,
             { pitchId, requireNDA, ...metadata }
           );
-          
+
           return builder.success({
             sessionId: session.sessionId,
             uploadId: session.uploadId,
@@ -4118,22 +4123,22 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getFile(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const fileId = url.pathname.split('/').pop();
-    
+
     if (!fileId) {
       return new Response('File ID required', { status: 400 });
     }
-    
+
     // Check authentication (optional - files might be public)
     const authResult = await this.validateAuth(request);
     const userId = authResult.valid ? authResult.user.id : undefined;
-    
+
     try {
       const result = await this.fileHandler.getFile(fileId, userId);
-      
+
       if (!result.success) {
         return new Response(result.error || 'File not found', { status: 404 });
       }
-      
+
       // Return the file as a response
       return createFileResponse(result.file!);
     } catch (error) {
@@ -4141,50 +4146,50 @@ pitchey_analytics_datapoints_per_minute 1250
       return new Response('Internal server error', { status: 500 });
     }
   }
-  
+
   private async listFiles(request: Request): Promise<Response> {
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     const url = new URL(request.url);
     const params = url.searchParams;
-    
+
     try {
       const pitchId = params.get('pitchId') ? parseInt(params.get('pitchId')!) : undefined;
       const type = params.get('type') as any;
-      
+
       const files = await this.fileHandler.listFiles(
         authResult.user.id,
         pitchId,
         type
       );
-      
+
       return builder.success({ files });
     } catch (error) {
       return errorHandler(error, request);
     }
   }
-  
+
   private async deleteFile(request: Request): Promise<Response> {
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     const url = new URL(request.url);
     const fileId = url.pathname.split('/').pop();
-    
+
     if (!fileId) {
       return builder.error(ErrorCode.VALIDATION_ERROR, 'File ID required');
     }
-    
+
     try {
       const result = await this.fileHandler.deleteFile(fileId, authResult.user.id);
-      
+
       if (!result.success) {
         return builder.error(ErrorCode.NOT_FOUND, result.error || 'File not found');
       }
-      
+
       return builder.success({ message: 'File deleted successfully' });
     } catch (error) {
       return errorHandler(error, request);
@@ -4344,7 +4349,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // Get pitch creator to ensure the pitch exists - try different column names
       let pitch = null;
       let creatorId = null;
-      
+
       try {
         // First try with both columns
         const result = await this.db.query(
@@ -4374,7 +4379,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // Insert NDA request into nda_requests table (not ndas table)
       // nda_requests table uses requester_id instead of signer_id
       let nda = null;
-      
+
       try {
         // Build the query properly based on demo account status
         if (isDemoAccount) {
@@ -4389,7 +4394,7 @@ pitchey_analytics_datapoints_per_minute 1250
               NOW(), NOW()
             ) RETURNING *
           `, [authResult.user.id, data.pitchId, creatorId, data.message || 'NDA Request']);
-          
+
           // Also create the actual NDA record for demo accounts
           await this.db.query(`
             INSERT INTO ndas (
@@ -4450,13 +4455,13 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Log audit event for NDA request
       const eventType = isDemoAccount ? AuditEventTypes.NDA_REQUEST_APPROVED : AuditEventTypes.NDA_REQUEST_CREATED;
-      const description = isDemoAccount 
-        ? `NDA request ${nda.id} auto-approved for demo account` 
+      const description = isDemoAccount
+        ? `NDA request ${nda.id} auto-approved for demo account`
         : `NDA request ${nda.id} created by user ${authResult.user.id}`;
 
-      await logNDAEvent(this.auditService, 
-        eventType, 
-        description, 
+      await logNDAEvent(this.auditService,
+        eventType,
+        description,
         {
           userId: authResult.user.id,
           ndaId: nda.id,
@@ -4473,7 +4478,7 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       );
 
-      return builder.success({ 
+      return builder.success({
         id: nda.id,
         status: nda.status,
         pitchId: nda.pitch_id,
@@ -4527,9 +4532,9 @@ pitchey_analytics_datapoints_per_minute 1250
       `, [ndaRequest.requester_id, ndaRequest.pitch_id, ndaRequest.expires_at]);
 
       // Log audit event for NDA approval
-      await logNDAEvent(this.auditService, 
-        AuditEventTypes.NDA_REQUEST_APPROVED, 
-        `NDA request ${params.id} approved by creator ${authResult.user.id}`, 
+      await logNDAEvent(this.auditService,
+        AuditEventTypes.NDA_REQUEST_APPROVED,
+        `NDA request ${params.id} approved by creator ${authResult.user.id}`,
         {
           userId: authResult.user.id,
           ndaId: parseInt(params.id),
@@ -4585,7 +4590,7 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
     const data = await request.json();
-    
+
     // Extract NDA ID from params or body
     const ndaId = params.id || data.ndaId;
     if (!ndaId) {
@@ -4602,11 +4607,11 @@ pitchey_analytics_datapoints_per_minute 1250
       if (!nda) {
         return builder.error(ErrorCode.NOT_FOUND, 'NDA not found or not authorized');
       }
-      
+
       // Auto-approve for demo accounts if still pending
       const userEmail = authResult.user.email || '';
       const isDemoAccount = userEmail.includes('@demo.com');
-      
+
       if (nda.status === 'pending' && isDemoAccount) {
         // Update to approved first for demo accounts
         await this.db.query(`
@@ -4618,7 +4623,7 @@ pitchey_analytics_datapoints_per_minute 1250
         `, [ndaId, authResult.user.id]);
         nda.status = 'approved';
       }
-      
+
       if (nda.status !== 'approved') {
         return builder.error(ErrorCode.BAD_REQUEST, 'NDA must be approved before signing');
       }
@@ -4643,9 +4648,9 @@ pitchey_analytics_datapoints_per_minute 1250
       })]);
 
       // Log audit event for NDA signing
-      await logNDAEvent(this.auditService, 
-        AuditEventTypes.NDA_SIGNED, 
-        `NDA ${ndaId} signed by user ${authResult.user.id}`, 
+      await logNDAEvent(this.auditService,
+        AuditEventTypes.NDA_SIGNED,
+        `NDA ${ndaId} signed by user ${authResult.user.id}`,
         {
           userId: authResult.user.id,
           ndaId: parseInt(ndaId),
@@ -4669,16 +4674,16 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
     const pitchId = parseInt(params.pitchId);
-    
+
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
-    
+
     try {
       // Initialize database if needed
       if (!this.db) {
         await this.initializeDatabase();
       }
-      
+
       // Check if database is available
       if (!this.db) {
         // Return demo/mock response if database is not available
@@ -4688,7 +4693,7 @@ pitchey_analytics_datapoints_per_minute 1250
           canAccess: false
         });
       }
-      
+
       // Check if user has an NDA for this pitch
       // Note: ndas table uses signer_id, not requester_id
       const ndaResult = await this.db.query(`
@@ -4697,11 +4702,11 @@ pitchey_analytics_datapoints_per_minute 1250
         ORDER BY created_at DESC 
         LIMIT 1
       `, [pitchId, authResult.user.id]);
-      
+
       const hasNDA = ndaResult.length > 0;
       const nda = hasNDA ? ndaResult[0] : null;
       const canAccess = hasNDA && nda?.status === 'signed';
-      
+
       return builder.success({
         hasNDA,
         nda,
@@ -4722,16 +4727,16 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
     const pitchId = parseInt(params.pitchId);
-    
+
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
-    
+
     try {
       // Initialize database if needed
       if (!this.db) {
         await this.initializeDatabase();
       }
-      
+
       // Check if database is available
       if (!this.db) {
         // Return demo/mock response if database is not available
@@ -4741,13 +4746,13 @@ pitchey_analytics_datapoints_per_minute 1250
           existingNDA: null
         });
       }
-      
+
       // Check if pitch exists
       const pitchResult = await this.db.query(
         `SELECT id FROM pitches WHERE id = $1`,
         [pitchId]
       );
-      
+
       if (!pitchResult || pitchResult.length === 0) {
         // For demo purposes, allow requesting NDA even if pitch doesn't exist in DB
         return builder.success({
@@ -4756,7 +4761,7 @@ pitchey_analytics_datapoints_per_minute 1250
           existingNDA: null
         });
       }
-      
+
       // Check if user already has an NDA for this pitch
       // Note: ndas table uses signer_id, not requester_id
       const existingNDA = await this.db.query(`
@@ -4765,7 +4770,7 @@ pitchey_analytics_datapoints_per_minute 1250
         AND status NOT IN ('rejected', 'expired', 'revoked')
         LIMIT 1
       `, [pitchId, authResult.user.id]);
-      
+
       if (existingNDA.length > 0) {
         return builder.success({
           canRequest: false,
@@ -4773,7 +4778,7 @@ pitchey_analytics_datapoints_per_minute 1250
           existingNDA: existingNDA[0]
         });
       }
-      
+
       return builder.success({
         canRequest: true,
         reason: null,
@@ -4855,7 +4860,7 @@ pitchey_analytics_datapoints_per_minute 1250
       `, params);
 
       // Get total count - use params without pagination
-      const countParams = params.slice(0, -2); 
+      const countParams = params.slice(0, -2);
       const [{ total }] = await this.db.query(`
         SELECT COUNT(*) as total 
         FROM pitches p
@@ -4973,11 +4978,11 @@ pitchey_analytics_datapoints_per_minute 1250
         FROM pitches p
         ${whereClause}
       `;
-      
+
       const [{ total }] = await this.db.query(countSql);
 
       // Return the response in the expected format
-      return builder.success({ 
+      return builder.success({
         success: true,
         items: pitches || [],
         tab: tab,
@@ -4992,7 +4997,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // Fallback to mock data when database is unavailable
       const selectedTab = tab as keyof typeof mockPitches;
       const mockData = mockPitches[selectedTab] || mockPitches.trending;
-      
+
       return builder.success({
         success: true,
         items: mockData.slice(offset, offset + limit),
@@ -5033,7 +5038,7 @@ pitchey_analytics_datapoints_per_minute 1250
           `;
           params = [`%${query.toLowerCase()}%`, limit];
           break;
-          
+
         case 'creator':
           sql = `
             SELECT DISTINCT u.name as value, COUNT(p.id) as count
@@ -5046,7 +5051,7 @@ pitchey_analytics_datapoints_per_minute 1250
           `;
           params = [`%${query.toLowerCase()}%`, limit];
           break;
-          
+
         default: // title
           sql = `
             SELECT DISTINCT title as value, view_count as count
@@ -5072,7 +5077,7 @@ pitchey_analytics_datapoints_per_minute 1250
         { value: 'Romantic Comedy', count: 38 },
         { value: 'Science Fiction', count: 32 }
       ].filter(s => s.value.toLowerCase().includes(query.toLowerCase()));
-      
+
       return builder.success({ suggestions: mockSuggestions });
     }
   }
@@ -5105,7 +5110,7 @@ pitchey_analytics_datapoints_per_minute 1250
         LIMIT $2
       `, [windowDate.toISOString(), limit]);
 
-      return builder.success({ 
+      return builder.success({
         trending,
         timeWindow,
         generated: new Date().toISOString()
@@ -5132,8 +5137,8 @@ pitchey_analytics_datapoints_per_minute 1250
           trending_score: 38.5
         }
       ];
-      
-      return builder.success({ 
+
+      return builder.success({
         trending: mockTrending,
         timeWindow,
         generated: new Date().toISOString()
@@ -5143,7 +5148,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
   private async getFacets(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       // Get genre facets
       const genres = await this.db.query(`
@@ -5423,7 +5428,7 @@ pitchey_analytics_datapoints_per_minute 1250
       return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
     }
 
-    return new ApiResponseBuilder(request).success({ 
+    return new ApiResponseBuilder(request).success({
       credits: 100,
       currency: 'USD'
     });
@@ -5447,7 +5452,7 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
     const url = new URL(request.url);
     const creatorId = url.searchParams.get('creatorId');
-    
+
     if (!creatorId) {
       return builder.success({ followers: [] });
     }
@@ -5597,7 +5602,7 @@ pitchey_analytics_datapoints_per_minute 1250
       if (conditions.length > 0) {
         sql += ` AND ` + conditions.join(' AND ');
       }
-      
+
       // Add ordering and pagination
       sql += ` ORDER BY p.created_at DESC`;
       sql += ` LIMIT $${nextParamNum} OFFSET $${nextParamNum + 1}`;
@@ -5620,14 +5625,14 @@ pitchey_analytics_datapoints_per_minute 1250
         FROM pitches p
         WHERE p.status = 'published'
       `;
-      
+
       // Reuse the same conditions but without pagination
       if (conditions.length > 0) {
         // Reset parameter numbering for count query
         const countParams: any[] = [];
         const countConditions: string[] = [];
         let countParamNum = 1;
-        
+
         if (genre) {
           countConditions.push(`p.genre = $${countParamNum}`);
           countParams.push(genre);
@@ -5645,7 +5650,7 @@ pitchey_analytics_datapoints_per_minute 1250
           countConditions.push(`(p.title ILIKE ${searchParam} OR p.logline ILIKE ${searchParam})`);
           countParams.push(`%${search}%`);
         }
-        
+
         if (countConditions.length > 0) {
           countSql += ` AND ` + countConditions.join(' AND ');
         }
@@ -5685,7 +5690,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getPublicTrendingPitches(request: Request): Promise<Response> {
     // Import error response function first to ensure it's available in catch block
     const { createPublicErrorResponse } = await import('./utils/public-data-filter');
-    
+
     try {
       // Import utilities
       const { RateLimiter, RATE_LIMIT_CONFIGS, applyRateLimit } = await import('./utils/rate-limiter');
@@ -5726,7 +5731,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getPublicNewPitches(request: Request): Promise<Response> {
     // Import error response function first to ensure it's available in catch block
     const { createPublicErrorResponse } = await import('./utils/public-data-filter');
-    
+
     try {
       const { RateLimiter, RATE_LIMIT_CONFIGS, applyRateLimit } = await import('./utils/rate-limiter');
       const { filterPitchesForPublic, createPublicResponse } = await import('./utils/public-data-filter');
@@ -5829,7 +5834,7 @@ pitchey_analytics_datapoints_per_minute 1250
         limit,
         offset
       });
-      
+
       const filteredPitches = filterPitchesForPublic(pitches);
 
       return createPublicResponse({
@@ -5916,7 +5921,7 @@ pitchey_analytics_datapoints_per_minute 1250
             all: '/api/poll/all'
           },
           pollInterval: 30000 // Recommended polling interval: 30 seconds
-        }), { 
+        }), {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
@@ -5929,7 +5934,7 @@ pitchey_analytics_datapoints_per_minute 1250
       return await this.realtimeService.handleWebSocketUpgrade(request);
     } catch (error) {
       console.error('WebSocket upgrade error:', error);
-      
+
       // Fallback to polling information on error
       return new Response(JSON.stringify({
         error: 'WebSocket upgrade failed',
@@ -5937,12 +5942,12 @@ pitchey_analytics_datapoints_per_minute 1250
         alternative: 'Use polling endpoints instead',
         endpoints: {
           notifications: '/api/poll/notifications',
-          messages: '/api/poll/messages', 
+          messages: '/api/poll/messages',
           dashboard: '/api/poll/dashboard',
           all: '/api/poll/all'
         },
         pollInterval: 30000
-      }), { 
+      }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
@@ -5959,7 +5964,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
     try {
       const stats = this.realtimeService.getStats();
-      
+
       return new Response(JSON.stringify({
         success: true,
         data: stats,
@@ -6100,7 +6105,7 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const polling = new PollingService(this.env);
       const response = await polling.pollNotifications(authResult.user.id);
-      
+
       return new Response(JSON.stringify(response), {
         status: 200,
         headers: {
@@ -6121,13 +6126,13 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const url = new URL(request.url);
       const conversationId = url.searchParams.get('conversation');
-      
+
       const polling = new PollingService(this.env);
       const response = await polling.pollMessages(
-        authResult.user.id, 
+        authResult.user.id,
         conversationId || undefined
       );
-      
+
       return new Response(JSON.stringify(response), {
         status: 200,
         headers: {
@@ -6151,7 +6156,7 @@ pitchey_analytics_datapoints_per_minute 1250
         authResult.user.id,
         authResult.user.role
       );
-      
+
       return new Response(JSON.stringify(response), {
         status: 200,
         headers: {
@@ -6170,7 +6175,7 @@ pitchey_analytics_datapoints_per_minute 1250
     // Admin only endpoint
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
-    
+
     // Check for admin role (you may want to implement proper admin check)
     if (!authResult.user.email?.includes('admin')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -6182,7 +6187,7 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const monitor = new FreeTierMonitor(this.env.KV);
       const metrics = await monitor.getMetrics();
-      
+
       return new Response(JSON.stringify(metrics), {
         status: 200,
         headers: {
@@ -6199,7 +6204,7 @@ pitchey_analytics_datapoints_per_minute 1250
     // Admin only endpoint
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
-    
+
     if (!authResult.user.email?.includes('admin')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 403,
@@ -6210,7 +6215,7 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const monitor = new FreeTierMonitor(this.env.KV);
       const health = await monitor.getHealthStatus();
-      
+
       return new Response(JSON.stringify(health), {
         status: 200,
         headers: {
@@ -6227,7 +6232,7 @@ pitchey_analytics_datapoints_per_minute 1250
     // Admin only endpoint
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
-    
+
     if (!authResult.user.email?.includes('admin')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 403,
@@ -6238,10 +6243,10 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const url = new URL(request.url);
       const days = parseInt(url.searchParams.get('days') || '7');
-      
+
       const monitor = new FreeTierMonitor(this.env.KV);
       const history = await monitor.exportMetrics(days);
-      
+
       return new Response(JSON.stringify(history), {
         status: 200,
         headers: {
@@ -6255,7 +6260,7 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   // ========== INVESTOR PORTAL ENDPOINTS ==========
-  
+
   // Financial Overview Endpoints
   private async getFinancialSummary(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
@@ -6287,7 +6292,7 @@ pitchey_analytics_datapoints_per_minute 1250
           AND status = 'completed'
       `, [authResult.user.id]);
 
-      const ytdGrowth = ytdData.ytd_investments > 0 
+      const ytdGrowth = ytdData.ytd_investments > 0
         ? ((ytdData.ytd_returns / ytdData.ytd_investments) * 100).toFixed(2)
         : '0';
 
@@ -6405,7 +6410,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Generate CSV
       const csv = this.generateCSV(transactions);
-      
+
       return new Response(csv, {
         headers: {
           'Content-Type': 'text/csv',
@@ -6494,7 +6499,7 @@ pitchey_analytics_datapoints_per_minute 1250
         data.category,
         data.allocated_amount,
         data.period_start || new Date().toISOString().split('T')[0],
-        data.period_end || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]
+        data.period_end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       ]);
 
       return builder.success({ allocation });
@@ -6532,20 +6537,20 @@ pitchey_analytics_datapoints_per_minute 1250
   // Helper method for CSV generation
   private generateCSV(data: any[]): string {
     if (data.length === 0) return '';
-    
+
     const headers = Object.keys(data[0]);
     const csv = [
       headers.join(','),
-      ...data.map(row => 
+      ...data.map(row =>
         headers.map(header => {
           const value = row[header];
-          return typeof value === 'string' && value.includes(',') 
-            ? `"${value}"` 
+          return typeof value === 'string' && value.includes(',')
+            ? `"${value}"`
             : value;
         }).join(',')
       )
     ].join('\n');
-    
+
     return csv;
   }
 
@@ -6571,7 +6576,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getPendingDeals(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     try {
       const deals = await this.db.query(`
@@ -6588,7 +6593,7 @@ pitchey_analytics_datapoints_per_minute 1250
           AND id.status IN ('negotiating', 'pending', 'due_diligence')
         ORDER BY id.updated_at DESC
       `, [authResult.user.id]);
-      
+
       return builder.success({ deals });
     } catch (error) {
       return errorHandler(error, request);
@@ -6610,7 +6615,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getCompletedProjects(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     try {
       const projects = await this.db.query(`
@@ -6627,7 +6632,7 @@ pitchey_analytics_datapoints_per_minute 1250
         WHERE i.user_id = $1
         ORDER BY cp.completion_date DESC
       `, [authResult.user.id]);
-      
+
       return builder.success({ projects });
     } catch (error) {
       return errorHandler(error, request);
@@ -6649,7 +6654,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getROISummary(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     try {
       // Return mock data for now - investment_performance table doesn't exist yet
@@ -6664,10 +6669,10 @@ pitchey_analytics_datapoints_per_minute 1250
         profit: 130000,
         performance_trend: 'positive'
       };
-      
+
       return builder.success({ summary: mockSummary });
     } catch (error) {
-      return builder.success({ 
+      return builder.success({
         summary: {
           total_investments: 0,
           average_roi: 0,
@@ -6682,7 +6687,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getROIByCategory(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     try {
       // Return mock data for now - investment_performance table doesn't exist yet
@@ -6694,7 +6699,7 @@ pitchey_analytics_datapoints_per_minute 1250
         { category: 'Action', avg_roi: 2.5, count: 2, total_profit: 50000 },
         { category: 'Sci-Fi', avg_roi: 2.1, count: 1, total_profit: -15000 }
       ];
-      
+
       return builder.success({ categories: mockCategories });
     } catch (error) {
       return builder.success({ categories: [] });
@@ -6746,11 +6751,11 @@ pitchey_analytics_datapoints_per_minute 1250
           marketGrowth: 0.15
         }
       };
-      
+
       return builder.success(mockTrends);
     } catch (error) {
       // If there's an error, return empty trends
-      return builder.success({ 
+      return builder.success({
         trends: [],
         genres: [],
         summary: {
@@ -6775,7 +6780,7 @@ pitchey_analytics_datapoints_per_minute 1250
         { genre: 'Sci-Fi', avg_roi: 2.1, total_projects: 28, avg_budget: 8000000, success_rate: 0.58 },
         { genre: 'Thriller', avg_roi: 3.0, total_projects: 35, avg_budget: 2500000, success_rate: 0.70 }
       ];
-      
+
       return builder.success({ genres: mockGenres });
     } catch (error) {
       return builder.success({ genres: [] });
@@ -6789,7 +6794,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getPortfolioRisk(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     try {
       // Return mock data for now - investment_risk_analysis table doesn't exist yet
@@ -6810,10 +6815,10 @@ pitchey_analytics_datapoints_per_minute 1250
           'Review high-budget sci-fi investments for potential risk mitigation'
         ]
       };
-      
+
       return builder.success({ risk: mockRisk });
     } catch (error) {
-      return builder.success({ 
+      return builder.success({
         risk: {
           portfolio_risk: 0,
           high_risk_count: 0,
@@ -6840,13 +6845,13 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getAllInvestments(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     const url = new URL(request.url);
     const status = url.searchParams.get('status');
     const genre = url.searchParams.get('genre');
     const sort = url.searchParams.get('sort') || 'date';
-    
+
     try {
       let sql = `
         SELECT 
@@ -6860,23 +6865,23 @@ pitchey_analytics_datapoints_per_minute 1250
         LEFT JOIN investment_performance ip ON i.id = ip.investment_id
         WHERE i.user_id = $1
       `;
-      
+
       const params = [authResult.user.id];
-      
+
       if (status && status !== 'all') {
         params.push(status);
         sql += ` AND i.status = $${params.length}`;
       }
-      
+
       if (genre && genre !== 'all') {
         params.push(genre);
         sql += ` AND p.genre = $${params.length}`;
       }
-      
+
       sql += sort === 'roi' ? ' ORDER BY current_roi DESC' : ' ORDER BY i.created_at DESC';
-      
+
       const investments = await this.db.query(sql, params);
-      
+
       return builder.success({ investments });
     } catch (error) {
       return errorHandler(error, request);
@@ -6886,7 +6891,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getInvestmentsSummary(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    
+
     const builder = new ApiResponseBuilder(request);
     try {
       const [summary] = await this.db.query(`
@@ -6898,7 +6903,7 @@ pitchey_analytics_datapoints_per_minute 1250
         FROM investments
         WHERE user_id = $1
       `, [authResult.user.id]);
-      
+
       return builder.success({ summary });
     } catch (error) {
       return errorHandler(error, request);
@@ -7000,23 +7005,23 @@ pitchey_analytics_datapoints_per_minute 1250
         `SELECT COUNT(*) as count FROM pitches WHERE creator_id = $1`,
         [authResult.user.id]
       );
-      
+
       const followingCountResult = await this.db.query(
         `SELECT COUNT(*) as count FROM follows WHERE follower_id = $1`,
         [authResult.user.id]
       );
-      
+
       const followersCountResult = await this.db.query(
         `SELECT COUNT(*) as count FROM follows WHERE following_id = $1`,
         [authResult.user.id]
       );
-      
+
       const savedCountResult = await this.db.query(
         `SELECT COUNT(*) as count FROM saved_pitches WHERE user_id = $1`,
         [authResult.user.id]
       );
 
-      return builder.success({ 
+      return builder.success({
         profile: {
           ...user,
           pitch_count: parseInt(pitchCountResult[0]?.count || '0'),
@@ -7095,7 +7100,7 @@ pitchey_analytics_datapoints_per_minute 1250
     const authResult = await this.requireAuth(request);
     if (!authResult.authorized) return authResult.response!;
     const builder = new ApiResponseBuilder(request);
-    
+
     try {
       // Fetch multiple data sources in parallel
       const [notifications, unreadCount, dashboardStats] = await Promise.all([
@@ -7107,14 +7112,14 @@ pitchey_analytics_datapoints_per_minute 1250
           ORDER BY created_at DESC
           LIMIT 10
         `, [authResult.user.id]).catch(() => []),
-        
+
         // Get unread notification count
         this.db.query(`
           SELECT COUNT(*) as count
           FROM notifications
           WHERE user_id = $1 AND read = false
         `, [authResult.user.id]).then(([result]) => result?.count || 0).catch(() => 0),
-        
+
         // Get basic dashboard stats based on user type
         this.getDashboardStatsForUser(authResult.user)
       ]);
@@ -7151,11 +7156,11 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getDashboardStatsForUser(user: any): Promise<any> {
     try {
       const userType = user.userType || user.user_type;
-      
+
       // Use SchemaAdapter for consistent stats queries
       const { query, params } = SchemaAdapter.getDashboardStatsQuery(user.id, userType || 'creator');
       const [stats] = await this.db.query(query, params);
-      
+
       if (userType === 'creator') {
         return {
           type: 'creator',
@@ -7190,7 +7195,7 @@ pitchey_analytics_datapoints_per_minute 1250
           lastUpdated: new Date().toISOString()
         };
       }
-      
+
       return {
         type: userType || 'unknown',
         lastUpdated: new Date().toISOString()
@@ -7426,9 +7431,9 @@ pitchey_analytics_datapoints_per_minute 1250
       if (!authResult.authorized) return authResult.response!;
 
       const builder = new ApiResponseBuilder(request);
-      
+
       // Import MFA service dynamically to avoid circular dependencies
-      const { 
+      const {
         setupMFA,
         verifyTOTP,
         verifyBackupCode,
@@ -7456,11 +7461,11 @@ pitchey_analytics_datapoints_per_minute 1250
             FROM user_mfa um
             WHERE um.user_id = $1
           `, [authResult.user.id]);
-          
+
           if (!result.length) {
             return builder.success({ enabled: false });
           }
-          
+
           const mfa = result[0];
           return builder.success({
             enabled: mfa.enabled,
@@ -7477,16 +7482,16 @@ pitchey_analytics_datapoints_per_minute 1250
             `SELECT enabled FROM user_mfa WHERE user_id = $1`,
             [authResult.user.id]
           );
-          
+
           if (existing.length && existing[0].enabled) {
             return builder.error(ErrorCode.ALREADY_EXISTS, 'MFA already enabled');
           }
-          
+
           const setup = await setupMFA(authResult.user.id, authResult.user.email);
           const hashedBackupCodes = await Promise.all(
             setup.backupCodes.map(code => hashBackupCode(code))
           );
-          
+
           await this.db.query(`
             INSERT INTO user_mfa (
               user_id, enabled, method, secret, backup_codes
@@ -7499,7 +7504,7 @@ pitchey_analytics_datapoints_per_minute 1250
               backup_codes = $3,
               updated_at = CURRENT_TIMESTAMP
           `, [authResult.user.id, setup.secret, hashedBackupCodes]);
-          
+
           return builder.success({
             qrCode: setup.qrCode,
             backupCodes: setup.backupCodes
@@ -7509,44 +7514,44 @@ pitchey_analytics_datapoints_per_minute 1250
         case 'setup/verify': {
           // Verify TOTP and complete setup
           const { code } = await request.json();
-          
+
           if (!code || !/^\d{6}$/.test(code)) {
             return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code format');
           }
-          
+
           const [mfaData] = await this.db.query(
             `SELECT secret, enabled FROM user_mfa WHERE user_id = $1`,
             [authResult.user.id]
           );
-          
+
           if (!mfaData) {
             return builder.error(ErrorCode.NOT_FOUND, 'MFA setup not started');
           }
-          
+
           if (mfaData.enabled) {
             return builder.error(ErrorCode.ALREADY_EXISTS, 'MFA already enabled');
           }
-          
+
           const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
-          
+
           if (!verification.valid) {
             return builder.error(ErrorCode.INVALID_REQUEST, verification.reason || 'Invalid code');
           }
-          
+
           // Enable MFA
           await this.db.query(`
             UPDATE user_mfa 
             SET enabled = true, enrolled_at = CURRENT_TIMESTAMP
             WHERE user_id = $1
           `, [authResult.user.id]);
-          
+
           await this.db.query(`
             UPDATE users 
             SET mfa_enabled = true, mfa_method = 'totp'
             WHERE id = $1
           `, [authResult.user.id]);
-          
-          return builder.success({ 
+
+          return builder.success({
             success: true,
             message: 'MFA enabled successfully'
           });
@@ -7555,34 +7560,34 @@ pitchey_analytics_datapoints_per_minute 1250
         case 'verify': {
           // Verify MFA code
           const { code, method = 'totp' } = await request.json();
-          
+
           if (!code) {
             return builder.error(ErrorCode.INVALID_REQUEST, 'Code required');
           }
-          
+
           const [mfaData] = await this.db.query(
             `SELECT secret, backup_codes, backup_codes_used
              FROM user_mfa
              WHERE user_id = $1 AND enabled = true`,
             [authResult.user.id]
           );
-          
+
           if (!mfaData) {
             return builder.error(ErrorCode.NOT_FOUND, 'MFA not enabled');
           }
-          
+
           let verified = false;
-          
+
           if (method === 'totp') {
             const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
             verified = verification.valid;
-            
+
             if (!verified) {
               return builder.error(ErrorCode.INVALID_REQUEST, verification.reason || 'Invalid code');
             }
           } else if (method === 'backup') {
             verified = await verifyBackupCode(code, mfaData.backup_codes);
-            
+
             if (verified) {
               await this.db.query(
                 `UPDATE user_mfa
@@ -7592,16 +7597,16 @@ pitchey_analytics_datapoints_per_minute 1250
               );
             }
           }
-          
+
           if (!verified) {
             return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code');
           }
-          
+
           await this.db.query(
             `UPDATE user_mfa SET last_used_at = CURRENT_TIMESTAMP WHERE user_id = $1`,
             [authResult.user.id]
           );
-          
+
           return builder.success({
             success: true,
             mfaToken: crypto.randomUUID()
@@ -7611,32 +7616,32 @@ pitchey_analytics_datapoints_per_minute 1250
         case 'disable': {
           // Disable MFA
           const { code } = await request.json();
-          
+
           const [mfaData] = await this.db.query(
             `SELECT secret FROM user_mfa WHERE user_id = $1 AND enabled = true`,
             [authResult.user.id]
           );
-          
+
           if (!mfaData) {
             return builder.error(ErrorCode.NOT_FOUND, 'MFA not enabled');
           }
-          
+
           const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
-          
+
           if (!verification.valid) {
             return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code');
           }
-          
+
           await this.db.query(
             `UPDATE user_mfa SET enabled = false WHERE user_id = $1`,
             [authResult.user.id]
           );
-          
+
           await this.db.query(
             `UPDATE users SET mfa_enabled = false, mfa_method = NULL WHERE id = $1`,
             [authResult.user.id]
           );
-          
+
           return builder.success({
             success: true,
             message: 'MFA disabled successfully'
@@ -7815,10 +7820,10 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Create WebSocket pair for intelligence updates
       const [client, server] = Object.values(new WebSocketPair());
-      
+
       // Generate unique client ID
       const clientId = `intelligence_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Register client with intelligence WebSocket service - TEMPORARILY DISABLED
       // if (this.intelligenceWebSocketService) {
       //   this.intelligenceWebSocketService.registerClient(clientId, server, userId);
@@ -7849,7 +7854,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // Authentication is optional for A/B testing - can work for anonymous users
       let userId: number | undefined;
       let userType: string | undefined;
-      
+
       try {
         const authResult = await this.requireAuth(request);
         if (authResult.authorized && authResult.user) {
@@ -7889,7 +7894,7 @@ pitchey_analytics_datapoints_per_minute 1250
         const url = new URL(request.url);
         if (userId) url.searchParams.set('userId', userId.toString());
         if (userType) url.searchParams.set('userType', userType);
-        
+
         const wsRequest = new Request(url.toString(), request);
         this.abTestingWebSocketHandler.handleConnection(server, wsRequest);
       }
@@ -7918,9 +7923,9 @@ pitchey_analytics_datapoints_per_minute 1250
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        }), { 
+        }), {
           status: 401,
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             ...getCorsHeaders(request.headers.get('Origin'))
           }
@@ -7945,7 +7950,7 @@ pitchey_analytics_datapoints_per_minute 1250
         success: true,
         data: result
       }), {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...getCorsHeaders(request.headers.get('Origin'))
         }
@@ -7966,9 +7971,9 @@ pitchey_analytics_datapoints_per_minute 1250
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        }), { 
+        }), {
           status: 401,
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             ...getCorsHeaders(request.headers.get('Origin'))
           }
@@ -7993,7 +7998,7 @@ pitchey_analytics_datapoints_per_minute 1250
         success: true,
         data: result
       }), {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...getCorsHeaders(request.headers.get('Origin'))
         }
@@ -8014,9 +8019,9 @@ pitchey_analytics_datapoints_per_minute 1250
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        }), { 
+        }), {
           status: 401,
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             ...getCorsHeaders(request.headers.get('Origin'))
           }
@@ -8041,7 +8046,7 @@ pitchey_analytics_datapoints_per_minute 1250
         success: true,
         data: result
       }), {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...getCorsHeaders(request.headers.get('Origin'))
         }
@@ -8062,9 +8067,9 @@ pitchey_analytics_datapoints_per_minute 1250
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        }), { 
+        }), {
           status: 401,
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             ...getCorsHeaders(request.headers.get('Origin'))
           }
@@ -8089,7 +8094,7 @@ pitchey_analytics_datapoints_per_minute 1250
         success: true,
         data: result
       }), {
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           ...getCorsHeaders(request.headers.get('Origin'))
         }
@@ -8130,9 +8135,9 @@ pitchey_analytics_datapoints_per_minute 1250
           LEFT JOIN users u2 ON n.creator_id = u2.id
           WHERE n.id = $1 AND (n.requester_id = $2 OR n.creator_id = $2)
         `;
-        
+
         const results = await this.db.query(query, [ndaId, authResult.user.id]);
-        
+
         if (results.length === 0) {
           return this.jsonResponse({
             success: false,
@@ -8240,7 +8245,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getNDATemplates(request: Request): Promise<Response> {
     try {
       // Templates are public - no auth required for GET
-      
+
       // Try database first
       try {
         const results = await this.db.query(
@@ -8740,7 +8745,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // For demo, return a download URL
       return this.jsonResponse({
         success: true,
-        data: { 
+        data: {
           downloadUrl: `https://demo.com/nda-${ndaId}.pdf`,
           message: 'NDA document ready for download'
         },
@@ -8766,7 +8771,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // For demo, return a download URL
       return this.jsonResponse({
         success: true,
-        data: { 
+        data: {
           downloadUrl: `https://demo.com/nda-${ndaId}-signed.pdf`,
           message: 'Signed NDA document ready for download'
         },
@@ -9158,13 +9163,13 @@ Signatures: [To be completed upon signing]
       updatedAt: row.updated_at,
       // Related data
       pitch: row.pitch_title ? { title: row.pitch_title } : null,
-      requester: row.requester_name ? { 
+      requester: row.requester_name ? {
         username: row.requester_name,
-        name: row.requester_name 
+        name: row.requester_name
       } : null,
-      creator: row.creator_name ? { 
+      creator: row.creator_name ? {
         username: row.creator_name,
-        name: row.creator_name 
+        name: row.creator_name
       } : null
     };
   }
@@ -9219,9 +9224,9 @@ Signatures: [To be completed upon signing]
       const result = await this.auditService.getAuditLogs(filters);
 
       // Log this audit query for security purposes
-      await logSecurityEvent(this.auditService, 
-        AuditEventTypes.DATA_EXPORT, 
-        'Audit logs queried', 
+      await logSecurityEvent(this.auditService,
+        AuditEventTypes.DATA_EXPORT,
+        'Audit logs queried',
         RiskLevels.LOW,
         {
           userId: authResult.user.id,
@@ -9287,9 +9292,9 @@ Signatures: [To be completed upon signing]
       const csv = await this.auditService.exportAuditLogs(filters);
 
       // Log this export for security purposes
-      await logSecurityEvent(this.auditService, 
-        AuditEventTypes.DATA_EXPORT, 
-        'Audit logs exported to CSV', 
+      await logSecurityEvent(this.auditService,
+        AuditEventTypes.DATA_EXPORT,
+        'Audit logs exported to CSV',
         RiskLevels.MEDIUM,
         {
           userId: authResult.user.id,
@@ -9374,7 +9379,7 @@ Signatures: [To be completed upon signing]
           'SELECT id FROM ndas WHERE id = $1 AND (requester_id = $2 OR creator_id = $2)',
           [entityId, authResult.user.id]
         );
-        
+
         if (ndaCheck.length === 0 && authResult.user.userType !== 'admin') {
           return this.jsonResponse({
             success: false,
@@ -9601,7 +9606,7 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const origin = request.headers.get('Origin');
-      
+
       // Get active NDAs where user is either requester or pitch owner
       const activeNDAs = await this.db.query(`
         SELECT n.*, p.title as pitch_title, p.creator_id,
@@ -9620,7 +9625,7 @@ Signatures: [To be completed upon signing]
         success: true,
         data: { ndas: activeNDAs }
       }), { headers: getCorsHeaders(origin) });
-      
+
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -9635,7 +9640,7 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const origin = request.headers.get('Origin');
-      
+
       // Get signed NDAs where user is either requester or pitch owner
       const signedNDAs = await this.db.query(`
         SELECT n.*, p.title as pitch_title, p.creator_id,
@@ -9654,7 +9659,7 @@ Signatures: [To be completed upon signing]
         success: true,
         data: { ndas: signedNDAs }
       }), { headers: getCorsHeaders(origin) });
-      
+
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -9709,14 +9714,14 @@ Signatures: [To be completed upon signing]
 
       const origin = request.headers.get('Origin');
       const body = await request.json();
-      
+
       if (!body.pitch_id) {
         return new Response(JSON.stringify({
           success: false,
           error: { message: 'pitch_id is required' }
-        }), { 
+        }), {
           status: 400,
-          headers: getCorsHeaders(origin) 
+          headers: getCorsHeaders(origin)
         });
       }
 
@@ -9730,9 +9735,9 @@ Signatures: [To be completed upon signing]
         return new Response(JSON.stringify({
           success: false,
           error: { message: 'Pitch not found' }
-        }), { 
+        }), {
           status: 404,
-          headers: getCorsHeaders(origin) 
+          headers: getCorsHeaders(origin)
         });
       }
 
@@ -9748,7 +9753,7 @@ Signatures: [To be completed upon signing]
         success: true,
         data: { message: 'Pitch saved successfully' }
       }), { headers: getCorsHeaders(origin) });
-      
+
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -9766,14 +9771,14 @@ Signatures: [To be completed upon signing]
       const url = new URL(request.url);
       const pathParts = url.pathname.split('/');
       const pitchId = pathParts[pathParts.length - 1];
-      
+
       if (!pitchId || pitchId === '') {
         return new Response(JSON.stringify({
           success: false,
           error: { message: 'Pitch ID is required' }
-        }), { 
+        }), {
           status: 400,
-          headers: getCorsHeaders(origin) 
+          headers: getCorsHeaders(origin)
         });
       }
 
@@ -9787,7 +9792,7 @@ Signatures: [To be completed upon signing]
         success: true,
         data: { message: 'Pitch unsaved successfully' }
       }), { headers: getCorsHeaders(origin) });
-      
+
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -9805,9 +9810,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getPortfolioSummary(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -9823,9 +9828,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getPortfolioPerformance(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -9841,9 +9846,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getInvestments(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -9859,12 +9864,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const investmentId = parseInt(url.pathname.split('/').pop() || '0');
-      
+
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getInvestmentById(authCheck.user.id, investmentId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -9879,12 +9884,12 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.createInvestment(authCheck.user.id, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 201 : 400
       });
@@ -9901,12 +9906,12 @@ Signatures: [To be completed upon signing]
       const url = new URL(request.url);
       const investmentId = parseInt(url.pathname.split('/').pop() || '0');
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.updateInvestment(authCheck.user.id, investmentId, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -9922,12 +9927,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const investmentId = parseInt(url.pathname.split('/').pop() || '0');
-      
+
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.deleteInvestment(authCheck.user.id, investmentId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -9943,9 +9948,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getWatchlist(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -9960,12 +9965,12 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.addToWatchlist(authCheck.user.id, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 201 : 400
       });
@@ -9981,12 +9986,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const itemId = parseInt(url.pathname.split('/').pop() || '0');
-      
+
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.removeFromWatchlist(authCheck.user.id, itemId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10002,9 +10007,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getActivity(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10020,9 +10025,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getTransactions(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10038,9 +10043,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getAnalytics(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10056,9 +10061,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getRecommendations(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10074,15 +10079,15 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const pitchId = url.searchParams.get('pitch_id');
-      
+
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.getRiskAssessment(
-        authCheck.user.id, 
+        authCheck.user.id,
         pitchId ? parseInt(pitchId) : undefined
       );
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10100,9 +10105,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getAnalyticsOverview(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10118,9 +10123,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getPitchAnalytics(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10136,9 +10141,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getEngagementMetrics(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10154,9 +10159,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getInvestorInterest(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10172,9 +10177,9 @@ Signatures: [To be completed upon signing]
 
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getRevenueAnalytics(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10190,12 +10195,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const pitchId = parseInt(url.pathname.split('/')[4] || '0');
-      
+
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getPitchDetailedAnalytics(authCheck.user.id, pitchId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10211,12 +10216,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const pitchId = parseInt(url.pathname.split('/')[4] || '0');
-      
+
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getPitchViewers(authCheck.user.id, pitchId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10232,12 +10237,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const pitchId = parseInt(url.pathname.split('/')[4] || '0');
-      
+
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getPitchEngagement(authCheck.user.id, pitchId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10253,12 +10258,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const pitchId = parseInt(url.pathname.split('/')[4] || '0');
-      
+
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getPitchFeedback(authCheck.user.id, pitchId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10274,12 +10279,12 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const pitchId = parseInt(url.pathname.split('/')[4] || '0');
-      
+
       const handler = new (await import('./handlers/creator-analytics')).CreatorAnalyticsHandler(this.db);
       const result = await handler.getPitchComparisons(authCheck.user.id, pitchId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10289,21 +10294,21 @@ Signatures: [To be completed upon signing]
   }
 
   // ======= PHASE 2: MESSAGING SYSTEM ENDPOINTS IMPLEMENTATION =======
-  
+
   private async getMessages(request: Request): Promise<Response> {
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const limit = parseInt(url.searchParams.get('limit') || '50');
       const offset = parseInt(url.searchParams.get('offset') || '0');
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.getMessages(authCheck.user.id, limit, offset);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10316,15 +10321,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const messageId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.getMessageById(authCheck.user.id, messageId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10337,14 +10342,14 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.sendMessage(authCheck.user.id, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 201 : 400
       });
@@ -10357,15 +10362,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const messageId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.markMessageAsRead(authCheck.user.id, messageId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -10378,15 +10383,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const messageId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.deleteMessage(authCheck.user.id, messageId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10399,12 +10404,12 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.getConversations(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10417,15 +10422,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const conversationId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.getConversationById(authCheck.user.id, conversationId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10438,16 +10443,16 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const conversationId = parseInt(url.pathname.split('/')[3] || '0');
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.sendMessageToConversation(authCheck.user.id, conversationId, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 201 : 400
       });
@@ -10457,20 +10462,20 @@ Signatures: [To be completed upon signing]
   }
 
   // ======= PHASE 3: MEDIA ACCESS ENDPOINTS IMPLEMENTATION =======
-  
+
   private async getMediaById(request: Request): Promise<Response> {
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const mediaId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
       const result = await handler.getMediaById(authCheck.user.id, mediaId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10483,15 +10488,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const mediaId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
       const result = await handler.getMediaDownloadUrl(authCheck.user.id, mediaId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10504,14 +10509,14 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
       const result = await handler.uploadMedia(authCheck.user.id, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 201 : 400
       });
@@ -10524,15 +10529,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const mediaId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
       const result = await handler.deleteMedia(authCheck.user.id, mediaId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10545,15 +10550,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const targetUserId = parseInt(url.pathname.split('/')[4] || '0');
-      
+
       const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
       const result = await handler.getUserMedia(authCheck.user.id, targetUserId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -10563,12 +10568,12 @@ Signatures: [To be completed upon signing]
   }
 
   // ======= PHASE 3: SEARCH AND FILTER ENDPOINTS IMPLEMENTATION =======
-  
+
   private async search(request: Request): Promise<Response> {
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const query = url.searchParams.get('q') || '';
       const filters = {
@@ -10581,12 +10586,12 @@ Signatures: [To be completed upon signing]
         limit: parseInt(url.searchParams.get('limit') || '20'),
         offset: parseInt(url.searchParams.get('offset') || '0')
       };
-      
+
       const handler = new (await import('./handlers/search-filters')).SearchFiltersHandler(this.db);
       const result = await handler.search(authCheck.user.id, query, filters);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -10599,17 +10604,17 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
-      const criteria = request.method === 'POST' 
+      const criteria = request.method === 'POST'
         ? await request.json()
         : Object.fromEntries(url.searchParams.entries());
-      
+
       const handler = new (await import('./handlers/search-filters')).SearchFiltersHandler(this.db);
       const result = await handler.advancedSearch(authCheck.user.id, criteria);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -10622,12 +10627,12 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const handler = new (await import('./handlers/search-filters')).SearchFiltersHandler(this.db);
       const result = await handler.getFilters(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -10640,14 +10645,14 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/search-filters')).SearchFiltersHandler(this.db);
       const result = await handler.saveSearch(authCheck.user.id, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 201 : 400
       });
@@ -10660,12 +10665,12 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const handler = new (await import('./handlers/search-filters')).SearchFiltersHandler(this.db);
       const result = await handler.getSavedSearches(authCheck.user.id);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -10678,15 +10683,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const searchId = parseInt(url.pathname.split('/')[4] || '0');
-      
+
       const handler = new (await import('./handlers/search-filters')).SearchFiltersHandler(this.db);
       const result = await handler.deleteSavedSearch(authCheck.user.id, searchId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10696,12 +10701,12 @@ Signatures: [To be completed upon signing]
   }
 
   // ======= PHASE 3: TRANSACTION ENDPOINTS IMPLEMENTATION =======
-  
+
   private async getTransactions(request: Request): Promise<Response> {
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const filters = {
         type: url.searchParams.get('type'),
@@ -10713,12 +10718,12 @@ Signatures: [To be completed upon signing]
         limit: parseInt(url.searchParams.get('limit') || '50'),
         offset: parseInt(url.searchParams.get('offset') || '0')
       };
-      
+
       const handler = new (await import('./handlers/transactions')).TransactionsHandler(this.db);
       const result = await handler.getTransactions(authCheck.user.id, filters);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: 200
       });
@@ -10731,15 +10736,15 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const transactionId = parseInt(url.pathname.split('/')[3] || '0');
-      
+
       const handler = new (await import('./handlers/transactions')).TransactionsHandler(this.db);
       const result = await handler.getTransactionById(authCheck.user.id, transactionId);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 404
       });
@@ -10752,14 +10757,14 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const data = await request.json();
-      
+
       const handler = new (await import('./handlers/transactions')).TransactionsHandler(this.db);
       const result = await handler.createTransaction(authCheck.user.id, data);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 201 : 400
       });
@@ -10772,16 +10777,16 @@ Signatures: [To be completed upon signing]
     try {
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
-      
+
       const url = new URL(request.url);
       const transactionId = parseInt(url.pathname.split('/')[3] || '0');
       const { status } = await request.json();
-      
+
       const handler = new (await import('./handlers/transactions')).TransactionsHandler(this.db);
       const result = await handler.updateTransactionStatus(authCheck.user.id, transactionId, status);
-      
+
       const origin = request.headers.get('Origin');
-      return new Response(JSON.stringify(result), { 
+      return new Response(JSON.stringify(result), {
         headers: getCorsHeaders(origin),
         status: result.success ? 200 : 400
       });
@@ -10791,7 +10796,7 @@ Signatures: [To be completed upon signing]
   }
 
   // =================== DATABASE ANALYTICS ENDPOINTS ===================
-  
+
   /**
    * Get database performance metrics from Analytics Engine
    */
@@ -11043,37 +11048,37 @@ Signatures: [To be completed upon signing]
           throughput_rps: 45
         },
         endpoints: [
-          { 
-            path: '/api/pitches', 
-            method: 'GET', 
-            requests: 0, 
+          {
+            path: '/api/pitches',
+            method: 'GET',
+            requests: 0,
             avg_response_time: 89,
             p95_response_time: 156,
-            error_rate: 0.2 
+            error_rate: 0.2
           },
-          { 
-            path: '/api/auth/session', 
-            method: 'GET', 
-            requests: 0, 
+          {
+            path: '/api/auth/session',
+            method: 'GET',
+            requests: 0,
             avg_response_time: 45,
             p95_response_time: 78,
-            error_rate: 0.1 
+            error_rate: 0.1
           },
-          { 
-            path: '/api/dashboard/creator', 
-            method: 'GET', 
-            requests: 0, 
+          {
+            path: '/api/dashboard/creator',
+            method: 'GET',
+            requests: 0,
             avg_response_time: 125,
             p95_response_time: 245,
-            error_rate: 0.3 
+            error_rate: 0.3
           },
-          { 
-            path: '/api/investments', 
-            method: 'POST', 
-            requests: 0, 
+          {
+            path: '/api/investments',
+            method: 'POST',
+            requests: 0,
             avg_response_time: 167,
             p95_response_time: 289,
-            error_rate: 0.8 
+            error_rate: 0.8
           }
         ],
         slowest_endpoints: [
@@ -11168,23 +11173,23 @@ Signatures: [To be completed upon signing]
       const duration_max = url.searchParams.get('duration_max');
       const limit = parseInt(url.searchParams.get('limit') || '100');
       const offset = parseInt(url.searchParams.get('offset') || '0');
-      
+
       // Build query for Analytics Engine
       let query = 'SELECT * FROM pitchey_trace_events WHERE 1=1';
       const filters = [];
-      
+
       if (operation) filters.push(`operation = '${operation}'`);
       if (status) filters.push(`status = '${status}'`);
       if (service) filters.push(`service = '${service}'`);
       if (duration_min) filters.push(`duration >= ${duration_min}`);
       if (duration_max) filters.push(`duration <= ${duration_max}`);
-      
+
       if (filters.length > 0) {
         query += ' AND ' + filters.join(' AND ');
       }
-      
+
       query += ` ORDER BY timestamp DESC LIMIT ${limit} OFFSET ${offset}`;
-      
+
       // Mock data for now - in real implementation, query Analytics Engine
       const traces = [
         {
@@ -11204,7 +11209,7 @@ Signatures: [To be completed upon signing]
           service: 'pitchey-api'
         }
       ];
-      
+
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: true,
@@ -11229,7 +11234,7 @@ Signatures: [To be completed upon signing]
     try {
       const params = (request as any).params;
       const traceId = params.traceId;
-      
+
       if (!traceId) {
         return new Response(JSON.stringify({
           success: false,
@@ -11240,7 +11245,7 @@ Signatures: [To be completed upon signing]
       // Initialize trace service and get trace details
       const traceService = new TraceService(this.env);
       const spans = await traceService.getTrace(traceId);
-      
+
       if (spans.length === 0) {
         return new Response(JSON.stringify({
           success: false,
@@ -11252,7 +11257,7 @@ Signatures: [To be completed upon signing]
       const rootSpan = spans.find(s => !s.parentSpanId);
       const totalDuration = rootSpan?.duration || 0;
       const errorCount = spans.filter(s => s.status === 'error').length;
-      
+
       const traceData = {
         traceId,
         spans: spans.map(span => ({
@@ -11276,7 +11281,7 @@ Signatures: [To be completed upon signing]
           operations: [...new Set(spans.map(s => s.operation))]
         }
       };
-      
+
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: true,
@@ -11297,7 +11302,7 @@ Signatures: [To be completed upon signing]
     try {
       const params = (request as any).params;
       const traceId = params.traceId;
-      
+
       if (!traceId) {
         return new Response(JSON.stringify({
           success: false,
@@ -11308,7 +11313,7 @@ Signatures: [To be completed upon signing]
       // Initialize trace service and analyze performance
       const traceService = new TraceService(this.env);
       const analysis = await traceService.analyzeTracePerformance(traceId);
-      
+
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: true,
@@ -11329,7 +11334,7 @@ Signatures: [To be completed upon signing]
     try {
       const url = new URL(request.url);
       const timeRange = url.searchParams.get('timeRange') || '24h';
-      
+
       // Mock metrics data - in real implementation, query Analytics Engine
       const metrics = {
         totalTraces: 15420,
@@ -11350,7 +11355,7 @@ Signatures: [To be completed upon signing]
         timeRange,
         generatedAt: new Date().toISOString()
       };
-      
+
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: true,
@@ -11372,7 +11377,7 @@ Signatures: [To be completed upon signing]
       const url = new URL(request.url);
       const timeRange = url.searchParams.get('timeRange') || '24h';
       const operation = url.searchParams.get('operation');
-      
+
       // Mock performance data - in real implementation, query Analytics Engine
       const performanceData = {
         timeRange,
@@ -11397,7 +11402,7 @@ Signatures: [To be completed upon signing]
           { operation: 'file.upload', avgDuration: 678, count: 234 }
         ]
       };
-      
+
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: true,
@@ -11418,7 +11423,7 @@ Signatures: [To be completed upon signing]
     try {
       const url = new URL(request.url);
       const timeRange = url.searchParams.get('timeRange') || '24h';
-      
+
       // Mock error data - in real implementation, query Analytics Engine
       const errorData = {
         timeRange,
@@ -11459,7 +11464,7 @@ Signatures: [To be completed upon signing]
           { service: 'database', errorCount: 42, errorRate: 0.5 }
         ]
       };
-      
+
       const origin = request.headers.get('Origin');
       return new Response(JSON.stringify({
         success: true,
@@ -11491,170 +11496,170 @@ export default {
           console.error('Environment validation failed:', error);
           // Log but don't fail - some endpoints might work without all vars
         }
-        
+
         // Initialize KV cache service
         let cache: KVCacheService | null = null;
         if (env.KV) {
           cache = createKVCache(env.KV, 'pitchey');
         }
-        
+
         const url = new URL(request.url);
-      
-      // Enhanced health check with comprehensive monitoring
-      if (url.pathname === '/health') {
-        const response = await enhancedHealthHandler(request, env, ctx);
-        return addSecurityHeaders(response);
-      }
-      
-      // Admin metrics endpoint for monitoring dashboard
-      if (url.pathname === '/api/admin/metrics' && request.method === 'GET') {
-        const response = await getErrorMetricsHandler(request, env, ctx);
-        return addSecurityHeaders(response);
-      }
-      
-      // Handle CORS preflight
-      if (request.method === 'OPTIONS') {
+
+        // Enhanced health check with comprehensive monitoring
+        if (url.pathname === '/health') {
+          const response = await enhancedHealthHandler(request, env, ctx);
+          return addSecurityHeaders(response);
+        }
+
+        // Admin metrics endpoint for monitoring dashboard
+        if (url.pathname === '/api/admin/metrics' && request.method === 'GET') {
+          const response = await getErrorMetricsHandler(request, env, ctx);
+          return addSecurityHeaders(response);
+        }
+
+        // Handle CORS preflight
+        if (request.method === 'OPTIONS') {
+          const origin = request.headers.get('Origin') || '';
+
+          // Use the imported getCorsHeaders function for consistency
+          return new Response(null, {
+            status: 204,
+            headers: getCorsHeaders(origin)
+          });
+        }
+
+        // Helper function for CORS headers - use the imported getCorsHeaders
+        const getCorsHeadersLocal = (request: Request) => {
+          const origin = request.headers.get('Origin') || '';
+
+          // Use the imported getCorsHeaders function which properly handles all origins
+          const corsHeaders = getCorsHeaders(origin);
+
+          return {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          };
+        }
+
+        // Mock trending pitches endpoint for testing
+        if (url.pathname === '/api/pitches/trending') {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                pitches: [],
+                message: 'Database connection pending - mock response'
+              }
+            }),
+            {
+              status: 200,
+              headers: getCorsHeadersLocal(request)
+            }
+          );
+        }
+
+        // Mock new pitches endpoint for testing
+        if (url.pathname === '/api/pitches/new') {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                pitches: [],
+                message: 'Database connection pending - mock response'
+              }
+            }),
+            {
+              status: 200,
+              headers: getCorsHeadersLocal(request)
+            }
+          );
+        }
+
+        // Removed mock response - now handled by real database operations
+        // The /api/pitches endpoint is handled by registered routes above
+
+        // Mock genres endpoint
+        if (url.pathname === '/api/genres') {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                genres: ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Thriller', 'Romance', 'Documentary']
+              }
+            }),
+            {
+              status: 200,
+              headers: getCorsHeadersLocal(request)
+            }
+          );
+        }
+
+        // Skip config validation for now - directly initialize router
+        // const config = getEnvConfig(env);
+
+        // Initialize route registry
+        const router = new RouteRegistry(env);
+
+        // Track request start time for performance monitoring
+        const startTime = Date.now();
+        let userId: string | undefined;
+
+        // Extract user ID from session if available (for logging)
+        try {
+          const cookies = request.headers.get('cookie') || '';
+          const sessionCookie = cookies.split(';')
+            .find(c => c.trim().startsWith('better-auth-session='));
+          if (sessionCookie) {
+            // This is just for logging - actual auth is handled by Better Auth
+            // We don't decode the session here, just mark that a session exists
+            userId = 'authenticated-user';
+          }
+        } catch (e) {
+          // Ignore session extraction errors for logging
+        }
+
+        // Handle request and ensure CORS headers are always added
+        let response = await router.handle(request);
+
+        // Log request metrics (fire and forget)
+        const responseTime = Date.now() - startTime;
+        ctx.waitUntil(
+          logRequestMetrics(request, response, responseTime, env, userId)
+        );
+
+        // Add security headers to all responses
+        response = addSecurityHeaders(response);
+
+        // CRITICAL: Always add CORS headers to ALL responses
         const origin = request.headers.get('Origin') || '';
-        
-        // Use the imported getCorsHeaders function for consistency
-        return new Response(null, {
-          status: 204,
-          headers: getCorsHeaders(origin)
-        });
-      }
-      
-      // Helper function for CORS headers - use the imported getCorsHeaders
-      const getCorsHeadersLocal = (request: Request) => {
-        const origin = request.headers.get('Origin') || '';
-        
-        // Use the imported getCorsHeaders function which properly handles all origins
         const corsHeaders = getCorsHeaders(origin);
-        
-        return {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        };
-      }
-      
-      // Mock trending pitches endpoint for testing
-      if (url.pathname === '/api/pitches/trending') {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: {
-              pitches: [],
-              message: 'Database connection pending - mock response'
-            }
-          }),
-          { 
-            status: 200,
-            headers: getCorsHeadersLocal(request)
+        const newHeaders = new Headers(response.headers);
+
+        // Add CORS headers if they're not already present
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          if (!newHeaders.has(key)) {
+            newHeaders.set(key, value);
           }
-        );
-      }
-      
-      // Mock new pitches endpoint for testing
-      if (url.pathname === '/api/pitches/new') {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: {
-              pitches: [],
-              message: 'Database connection pending - mock response'
-            }
-          }),
-          { 
-            status: 200,
-            headers: getCorsHeadersLocal(request)
-          }
-        );
-      }
-      
-      // Removed mock response - now handled by real database operations
-      // The /api/pitches endpoint is handled by registered routes above
-      
-      // Mock genres endpoint
-      if (url.pathname === '/api/genres') {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: {
-              genres: ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Thriller', 'Romance', 'Documentary']
-            }
-          }),
-          { 
-            status: 200,
-            headers: getCorsHeadersLocal(request)
-          }
-        );
-      }
-      
-      // Skip config validation for now - directly initialize router
-      // const config = getEnvConfig(env);
-      
-      // Initialize route registry
-      const router = new RouteRegistry(env);
-      
-      // Track request start time for performance monitoring
-      const startTime = Date.now();
-      let userId: string | undefined;
-      
-      // Extract user ID from session if available (for logging)
-      try {
-        const cookies = request.headers.get('cookie') || '';
-        const sessionCookie = cookies.split(';')
-          .find(c => c.trim().startsWith('better-auth-session='));
-        if (sessionCookie) {
-          // This is just for logging - actual auth is handled by Better Auth
-          // We don't decode the session here, just mark that a session exists
-          userId = 'authenticated-user';
-        }
-      } catch (e) {
-        // Ignore session extraction errors for logging
-      }
-      
-      // Handle request and ensure CORS headers are always added
-      let response = await router.handle(request);
-      
-      // Log request metrics (fire and forget)
-      const responseTime = Date.now() - startTime;
-      ctx.waitUntil(
-        logRequestMetrics(request, response, responseTime, env, userId)
-      );
-      
-      // Add security headers to all responses
-      response = addSecurityHeaders(response);
-      
-      // CRITICAL: Always add CORS headers to ALL responses
-      const origin = request.headers.get('Origin') || '';
-      const corsHeaders = getCorsHeaders(origin);
-      const newHeaders = new Headers(response.headers);
-      
-      // Add CORS headers if they're not already present
-      Object.entries(corsHeaders).forEach(([key, value]) => {
-        if (!newHeaders.has(key)) {
-          newHeaders.set(key, value);
-        }
-      });
-      
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: newHeaders
-      });
-      
+        });
+
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders
+        });
+
       } catch (error) {
         console.error('Worker initialization error:', error);
-        
+
         // Log error to database (fire and forget)
         ctx.waitUntil(
           logError(error, request, env)
         );
-        
+
         // Provide more detailed error information
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         const errorStack = error instanceof Error && env.ENVIRONMENT !== 'production' ? error.stack : undefined;
-        
+
         return new Response(
           JSON.stringify({
             success: false,
@@ -11695,7 +11700,7 @@ export async function scheduled(
   try {
     const cron = controller.cron;
     console.log(`Executing scheduled task: ${cron}`);
-    
+
     // Route scheduled tasks based on cron pattern
     switch (cron) {
       case "*/5 * * * *": // Every 5 minutes
@@ -11704,33 +11709,33 @@ export async function scheduled(
           checkContainerHealth(env, ctx)
         ]);
         break;
-        
+
       case "*/10 * * * *": // Every 10 minutes  
         await monitorJobQueues(env, ctx);
         break;
-        
+
       case "0 * * * *": // Hourly
         await Promise.all([
           sendDigestEmails(env, ctx),
           aggregateMetrics(env, ctx)
         ]);
         break;
-        
+
       case "0 0 * * *": // Daily
         await Promise.all([
           exportAuditLogs(env, ctx),
           archiveOldJobs(env, ctx)
         ]);
         break;
-        
+
       case "0 2 * * 1": // Weekly (Monday 2 AM)
         await cleanupDatabase(env, ctx);
         break;
-        
+
       case "*/15 * * * *": // Every 15 minutes
         await updateTrendingAlgorithm(env, ctx);
         break;
-        
+
       default:
         console.warn(`Unknown cron pattern: ${cron}`);
     }

@@ -6,7 +6,7 @@ import {
   Calendar, MessageSquare, Star, Globe, PlayCircle, Upload,
   FolderOpen, UserPlus, Layers, Target, Activity, Award,
   DollarSign, PieChart, Clock, CheckCircle, AlertCircle,
-  ChevronRight, Building
+  ChevronRight, Building, ShoppingCart
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
@@ -391,6 +391,19 @@ export function EnhancedNavigationShadcn({
                 </button>
               )}
 
+              {/* Shopping Cart/Basket */}
+              <button 
+                onClick={() => navigate('/cart')}
+                className="relative p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                title="Shopping Cart"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {/* Optional: Add a badge for cart items count */}
+                {/*<span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  3
+                </span>*/}
+              </button>
+
               {/* NDA Notifications */}
               <NDANotificationBadge />
 
@@ -652,6 +665,14 @@ export function EnhancedNavigationShadcn({
 
           {/* Right Section */}
           <div className="flex items-center gap-2">
+            {/* Shopping Cart */}
+            <button 
+              onClick={() => navigate('/cart')}
+              className="relative p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              title="Shopping Cart"
+            >
+              <ShoppingCart className="w-5 h-5" />
+            </button>
             <NotificationBell />
             <NDANotificationBadge />
           </div>

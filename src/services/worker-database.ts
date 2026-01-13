@@ -21,7 +21,7 @@ export class WorkerDatabase {
     this.connectionString = config.connectionString;
     this.maxRetries = config.maxRetries || 3;
     this.retryDelay = config.retryDelay || 1000;
-    
+
     // Initialize Neon serverless client
     this.sql = neon(this.connectionString);
   }
@@ -41,40 +41,40 @@ export class WorkerDatabase {
     values?: any[]
   ): Promise<T[]> {
     let lastError: Error | null = null;
-    
+
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
         let result: any[];
-        
-        // Use Neon's correct API based on the error message guidance
+
+        // Use Neon's correct API - the sql client is a callable function
         if (values && values.length > 0) {
-          // For parameterized queries with $1, $2, etc., use sql.query()
-          result = await (this.sql as any).query(text, values);
+          // For parameterized queries with $1, $2, etc., use the callable directly
+          result = await (this.sql as any)(text, values);
         } else {
-          // For queries without parameters, can also use sql.query()
-          result = await (this.sql as any).query(text);
+          // For queries without parameters
+          result = await (this.sql as any)(text);
         }
-        
+
         return result as T[];
       } catch (error) {
         console.error(`Database query attempt ${attempt + 1} failed:`, error);
         lastError = error as Error;
-        
+
         // Check if it's a client error (4xx) - don't retry
-        if (error instanceof Error && 
-            (error.message.includes('syntax error') || 
-             error.message.includes('does not exist') ||
-             error.message.includes('invalid'))) {
+        if (error instanceof Error &&
+          (error.message.includes('syntax error') ||
+            error.message.includes('does not exist') ||
+            error.message.includes('invalid'))) {
           throw error;
         }
-        
+
         // Wait before retrying with exponential backoff
         if (attempt < this.maxRetries - 1) {
           await new Promise(resolve => setTimeout(resolve, this.retryDelay * Math.pow(2, attempt)));
         }
       }
     }
-    
+
     throw lastError || new Error('Database query failed after all retries');
   }
 

@@ -39,7 +39,7 @@ echo ""
 echo -e "${BLUE}Step 3: Deploying frontend to Cloudflare Pages${NC}"
 
 cd frontend
-wrangler pages deploy dist --project-name=pitchey-5o8-66n
+wrangler pages deploy dist --project-name=pitchey-5o8
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Frontend deployed successfully${NC}"
@@ -54,7 +54,7 @@ echo ""
 echo -e "${GREEN}🎉 WebSocket deployment complete!${NC}"
 echo ""
 echo "Production URLs:"
-echo "  Frontend: https://pitchey-5o8-66n.pages.dev"
+echo "  Frontend: https://pitchey-5o8.pages.dev"
 echo "  API: https://pitchey-api-prod.ndlovucavelle.workers.dev"
 echo "  WebSocket: wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws"
 echo ""

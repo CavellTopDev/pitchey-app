@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Configuration
 WORKER_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
-FRONTEND_URL="https://pitchey-5o8-66n.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 TIMESTAMP=$(date +"%Y%m%d%H%M%S")
 REPORT_FILE="verification-results-$(date -Iseconds).json"
 

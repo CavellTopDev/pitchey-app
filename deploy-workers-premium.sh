@@ -6,14 +6,14 @@
 
 echo "🚀 Deploying Pitchey with Workers Premium Features"
 echo "=================================================="
-echo "Frontend: https://pitchey-5o8-66n.pages.dev"
+echo "Frontend: https://pitchey-5o8.pages.dev"
 echo "Backend:  https://pitchey-api-prod.ndlovucavelle.workers.dev"
 echo ""
 
 # Configuration
 ACCOUNT_ID="02967e39e44b6266e7873829e94849f5"
 WORKER_NAME="pitchey-api-prod"
-FRONTEND_URL="https://pitchey-5o8-66n.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 BACKEND_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Step 1: Update wrangler.toml with premium features
@@ -295,7 +295,7 @@ echo "-------------------------------------"
 
 cd frontend
 npm run build
-wrangler pages deploy dist --project-name=pitchey --branch=main
+wrangler pages deploy dist --project-name=pitchey-5o8 --branch=main
 cd ..
 
 # Step 11: Test deployment

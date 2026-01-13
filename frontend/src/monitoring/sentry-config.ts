@@ -11,17 +11,17 @@ const TRACES_SAMPLE_RATE = import.meta.env.PROD ? 0.1 : 1.0
 // Initialize Sentry
 export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN
-  
+
   if (!dsn) {
     console.warn('Sentry DSN not configured')
     return
   }
-  
+
   Sentry.init({
     dsn,
     environment: import.meta.env.MODE,
     release: import.meta.env.VITE_APP_VERSION || 'unknown',
-    
+
     // Performance Monitoring
     integrations: [
       // Browser tracing for performance monitoring
@@ -29,37 +29,37 @@ export function initSentry() {
         // Set sampling rate for performance monitoring
         tracingOrigins: [
           'localhost',
-          'pitchey-5o8-66n.pages.dev',
+          'pitchey-5o8.pages.dev',
           'pitchey-api-prod.ndlovucavelle.workers.dev',
           /^\//
         ],
-        
+
         // Capture interactions
         routingInstrumentation: Sentry.reactRouterV6Instrumentation(
           window.history
         ),
-        
+
         // Track Web Vitals
         _experiments: {
           enableInteractions: true,
           enableLongTask: true
         }
       }),
-      
+
       // Session replay for debugging
       new Replay({
         maskAllText: false,
         maskAllInputs: true,
         blockAllMedia: false,
-        
+
         // Sampling rates
         sessionSampleRate: REPLAY_SAMPLE_RATE,
         errorSampleRate: 1.0, // Always record on errors
-        
+
         // Privacy settings
         maskTextSelector: '[data-sentry-mask]',
         ignoreSelector: '[data-sentry-ignore]',
-        
+
         // Network recording
         networkDetailAllowUrls: [
           'pitchey-api-prod.ndlovucavelle.workers.dev'
@@ -68,69 +68,69 @@ export function initSentry() {
         networkRequestHeaders: ['X-Request-ID'],
         networkResponseHeaders: ['X-Response-Time']
       }),
-      
+
       // Capture console errors
       new CaptureConsole({
         levels: ['error', 'warn']
       })
     ],
-    
+
     // Performance monitoring sample rate
     tracesSampleRate: TRACES_SAMPLE_RATE,
-    
+
     // Session tracking
     autoSessionTracking: true,
-    
+
     // Release tracking
     attachStacktrace: true,
-    
+
     // Error filtering
     ignoreErrors: [
       // Browser extensions
       'Non-Error promise rejection captured',
       'ResizeObserver loop limit exceeded',
       'ResizeObserver loop completed with undelivered notifications',
-      
+
       // Network errors
       'NetworkError',
       'Network request failed',
       'Failed to fetch',
-      
+
       // Known third-party errors
       'top.GLOBALS',
       'Script error',
       'Cross-Origin',
-      
+
       // Ignore specific error messages
       /401/,
       /403/,
       /404/
     ],
-    
+
     denyUrls: [
       // Chrome extensions
       /extensions\//i,
       /^chrome:\/\//i,
       /^chrome-extension:\/\//i,
-      
+
       // Other browsers
       /^moz-extension:\/\//i,
       /^safari-extension:\/\//i
     ],
-    
+
     // User context
     beforeSend(event, hint) {
       // Add custom context
       if (event.exception) {
         const error = hint.originalException
-        
+
         // Add custom error tags
         event.tags = {
           ...event.tags,
           component: error?.component || 'unknown',
           portal: window.location.pathname.split('/')[1] || 'public'
         }
-        
+
         // Add breadcrumbs for better debugging
         event.breadcrumbs = [
           ...(event.breadcrumbs || []),
@@ -147,22 +147,22 @@ export function initSentry() {
           }
         ]
       }
-      
+
       // Filter sensitive data
       if (event.request?.cookies) {
         delete event.request.cookies
       }
-      
+
       return event
     },
-    
+
     // Breadcrumb filtering
     beforeBreadcrumb(breadcrumb) {
       // Filter out noisy breadcrumbs
       if (breadcrumb.category === 'console' && breadcrumb.level === 'debug') {
         return null
       }
-      
+
       // Enhance navigation breadcrumbs
       if (breadcrumb.category === 'navigation') {
         breadcrumb.data = {
@@ -170,11 +170,11 @@ export function initSentry() {
           timestamp: new Date().toISOString()
         }
       }
-      
+
       return breadcrumb
     }
   })
-  
+
   // Set initial user context
   const user = getUserFromStorage()
   if (user) {
@@ -199,7 +199,7 @@ export const SentryPerformance = {
       }
     })
   },
-  
+
   // Measure component render time
   measureComponent(componentName: string) {
     const transaction = Sentry.getCurrentHub().getScope()?.getTransaction()
@@ -211,11 +211,11 @@ export const SentryPerformance = {
     }
     return null
   },
-  
+
   // Track API calls
   trackAPICall(url: string, method: string, startTime: number) {
     const duration = Date.now() - startTime
-    
+
     Sentry.addBreadcrumb({
       category: 'api',
       message: `${method} ${url}`,
@@ -227,13 +227,13 @@ export const SentryPerformance = {
         status: 'success'
       }
     })
-    
+
     // Track slow API calls
     if (duration > 3000) {
       Sentry.captureMessage(`Slow API call: ${method} ${url} took ${duration}ms`, 'warning')
     }
   },
-  
+
   // Track user interactions
   trackInteraction(action: string, category: string, label?: string) {
     Sentry.addBreadcrumb({
@@ -247,7 +247,7 @@ export const SentryPerformance = {
       }
     })
   },
-  
+
   // Track custom metrics
   trackMetric(name: string, value: number, unit: string = 'ms') {
     const transaction = Sentry.getCurrentHub().getScope()?.getTransaction()
@@ -295,30 +295,30 @@ export function trackWebVitals() {
     const lcpObserver = new PerformanceObserver((list) => {
       const entries = list.getEntries()
       const lastEntry = entries[entries.length - 1]
-      
+
       SentryPerformance.trackMetric('lcp', lastEntry.startTime, 'ms')
-      
+
       if (lastEntry.startTime > 2500) {
         Sentry.captureMessage(`Poor LCP: ${lastEntry.startTime}ms`, 'warning')
       }
     })
-    
+
     lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
-    
+
     // Track First Input Delay (FID)
     const fidObserver = new PerformanceObserver((list) => {
       const entries = list.getEntries()
       entries.forEach((entry: any) => {
         SentryPerformance.trackMetric('fid', entry.processingStart - entry.startTime, 'ms')
-        
+
         if (entry.processingStart - entry.startTime > 100) {
           Sentry.captureMessage(`Poor FID: ${entry.processingStart - entry.startTime}ms`, 'warning')
         }
       })
     })
-    
+
     fidObserver.observe({ entryTypes: ['first-input'] })
-    
+
     // Track Cumulative Layout Shift (CLS)
     let clsValue = 0
     const clsObserver = new PerformanceObserver((list) => {
@@ -327,14 +327,14 @@ export function trackWebVitals() {
           clsValue += (entry as any).value
         }
       }
-      
+
       SentryPerformance.trackMetric('cls', clsValue, 'score')
-      
+
       if (clsValue > 0.1) {
         Sentry.captureMessage(`Poor CLS: ${clsValue}`, 'warning')
       }
     })
-    
+
     clsObserver.observe({ entryTypes: ['layout-shift'] })
   }
 }
@@ -356,7 +356,7 @@ export function monitorResourceTiming() {
       for (const entry of list.getEntries()) {
         if (entry.entryType === 'resource') {
           const resource = entry as PerformanceResourceTiming
-          
+
           // Track slow resources
           if (resource.duration > 1000) {
             Sentry.addBreadcrumb({
@@ -373,7 +373,7 @@ export function monitorResourceTiming() {
         }
       }
     })
-    
+
     observer.observe({ entryTypes: ['resource'] })
   }
 }
@@ -383,12 +383,12 @@ export function monitorMemory() {
   if ('memory' in performance) {
     setInterval(() => {
       const memory = (performance as any).memory
-      
+
       // Check for memory leaks
       if (memory.usedJSHeapSize / memory.jsHeapSizeLimit > 0.9) {
         Sentry.captureMessage('High memory usage detected', 'warning')
       }
-      
+
       SentryPerformance.trackMetric('memory.used', memory.usedJSHeapSize, 'bytes')
       SentryPerformance.trackMetric('memory.limit', memory.jsHeapSizeLimit, 'bytes')
     }, 30000) // Check every 30 seconds

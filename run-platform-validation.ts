@@ -33,7 +33,7 @@ const args = parseArgs(Deno.args, {
 
 // Configuration
 const VALIDATION_CONFIG = {
-  DASHBOARD_URL: 'https://pitchey-5o8-66n.pages.dev',
+  DASHBOARD_URL: 'https://pitchey-5o8.pages.dev',
   API_URL: 'https://pitchey-api-prod.ndlovucavelle.workers.dev',
   OUTPUT_DIR: args.output || '/home/supremeisbeing/pitcheymovie/pitchey_v0.2/validation/reports'
 };
@@ -42,15 +42,15 @@ async function main() {
   console.log('🎯 Pitchey Platform Validation Suite');
   console.log('====================================');
   console.log('Comprehensive Production Readiness Assessment\n');
-  
+
   if (args.help) {
     showHelp();
     return;
   }
-  
+
   // Display environment information
   await displayEnvironmentInfo();
-  
+
   // Run the appropriate validation suite
   if (args.quick) {
     await runQuickValidation();
@@ -68,7 +68,7 @@ async function displayEnvironmentInfo(): Promise<void> {
   console.log(`🚀 API URL: ${VALIDATION_CONFIG.API_URL}`);
   console.log(`📁 Output Directory: ${VALIDATION_CONFIG.OUTPUT_DIR}`);
   console.log(`⏰ Start Time: ${new Date().toISOString()}`);
-  
+
   // Test basic connectivity
   console.log('\n🔍 Testing Basic Connectivity...');
   await testConnectivity();
@@ -78,7 +78,7 @@ async function displayEnvironmentInfo(): Promise<void> {
 async function testConnectivity(): Promise<void> {
   try {
     // Test frontend connectivity
-    const frontendResponse = await fetch(VALIDATION_CONFIG.DASHBOARD_URL, { 
+    const frontendResponse = await fetch(VALIDATION_CONFIG.DASHBOARD_URL, {
       method: 'HEAD',
       signal: AbortSignal.timeout(5000)
     });
@@ -86,7 +86,7 @@ async function testConnectivity(): Promise<void> {
   } catch (error) {
     console.log(`❌ Frontend: Connection failed - ${error.message}`);
   }
-  
+
   try {
     // Test API connectivity
     const apiResponse = await fetch(`${VALIDATION_CONFIG.API_URL}/api/health`, {
@@ -103,27 +103,27 @@ async function runQuickValidation(): Promise<void> {
   console.log('⚡ Running Quick Validation Suite...');
   console.log('====================================');
   console.log('This quick validation runs essential tests only (5-10 minutes)\n');
-  
+
   try {
     // Quick validation focuses on critical functionality
     const orchestrator = new FinalValidationOrchestrator();
-    
+
     // Mock quick validation for now - would need to implement quick mode
     console.log('🔍 Quick health checks...');
     await testBasicFunctionality();
-    
+
     console.log('🛡️ Essential security checks...');
     await testEssentialSecurity();
-    
+
     console.log('⚡ Performance baseline...');
     await testPerformanceBaseline();
-    
+
     console.log('💼 Critical business logic...');
     await testCriticalBusinessLogic();
-    
+
     console.log('\n✅ Quick validation completed!');
     console.log('📊 For comprehensive assessment, run the full validation suite.');
-    
+
   } catch (error) {
     console.error(`❌ Quick validation failed: ${error.message}`);
     Deno.exit(1);
@@ -133,42 +133,42 @@ async function runQuickValidation(): Promise<void> {
 async function runSpecificValidation(): Promise<void> {
   console.log('🎯 Running Specific Validation...');
   console.log('=================================\n');
-  
+
   if (args.security) {
     console.log('🔐 Running Security Validation Only...');
     const { SecurityValidationFramework } = await import('./tests/security/security-validation-framework.ts');
     const framework = new SecurityValidationFramework();
     await framework.runComprehensiveSecurityValidation();
   }
-  
+
   if (args.performance) {
     console.log('⚡ Running Performance Validation Only...');
     const { PerformanceValidationSuite } = await import('./tests/performance/performance-validation-suite.ts');
     const suite = new PerformanceValidationSuite();
     await suite.runComprehensivePerformanceValidation();
   }
-  
+
   if (args.business) {
     console.log('💼 Running Business Logic Validation Only...');
     const { BusinessLogicVerificationSuite } = await import('./tests/business-logic/business-logic-verification.ts');
     const suite = new BusinessLogicVerificationSuite();
     await suite.runComprehensiveBusinessLogicValidation();
   }
-  
+
   if (args.integration) {
     console.log('🔧 Running Integration Validation Only...');
     const { IntegrationVerificationSuite } = await import('./tests/integration/integration-verification-suite.ts');
     const suite = new IntegrationVerificationSuite();
     await suite.runAllIntegrationTests();
   }
-  
+
   if (args.e2e) {
     console.log('🔄 Running End-to-End Validation Only...');
     const { WorkflowValidator } = await import('./tests/e2e/complete-workflow-validation.ts');
     const validator = new WorkflowValidator();
     await validator.runAllValidations();
   }
-  
+
   console.log('\n✅ Specific validation completed!');
 }
 
@@ -177,19 +177,19 @@ async function runFullValidation(): Promise<void> {
   console.log('=============================================');
   console.log('This comprehensive validation assesses all aspects of production readiness.');
   console.log('Estimated duration: 15-20 minutes\n');
-  
+
   const confirmResponse = prompt('Continue with full validation? (y/N): ');
   if (confirmResponse?.toLowerCase() !== 'y' && confirmResponse?.toLowerCase() !== 'yes') {
     console.log('Validation cancelled.');
     return;
   }
-  
+
   try {
     const orchestrator = new FinalValidationOrchestrator();
     const report = await orchestrator.runCompleteValidationSuite();
-    
+
     console.log('\n🎉 Full validation completed successfully!');
-    
+
     if (args.dashboard) {
       await openDashboard();
     } else {
@@ -198,10 +198,10 @@ async function runFullValidation(): Promise<void> {
       console.log(`   Report: ${VALIDATION_CONFIG.OUTPUT_DIR}/final-validation-report.json`);
       console.log(`   Summary: ${VALIDATION_CONFIG.OUTPUT_DIR}/validation-summary.txt`);
     }
-    
+
     // Exit with appropriate code
     Deno.exit(report.deployment_ready ? 0 : 1);
-    
+
   } catch (error) {
     console.error(`❌ Full validation failed: ${error.message}`);
     Deno.exit(1);
@@ -215,7 +215,7 @@ async function testBasicFunctionality(): Promise<void> {
     '/api/auth/session',
     '/api/pitches'
   ];
-  
+
   for (const endpoint of endpoints) {
     try {
       const response = await fetch(`${VALIDATION_CONFIG.API_URL}${endpoint}`, {
@@ -233,14 +233,14 @@ async function testEssentialSecurity(): Promise<void> {
     // Test HTTPS enforcement
     const httpsResponse = await fetch(VALIDATION_CONFIG.API_URL);
     console.log(`  ✓ HTTPS: ${httpsResponse.url.startsWith('https://') ? 'Enforced' : 'Warning'}`);
-    
+
     // Test security headers
     const headers = httpsResponse.headers;
     const hasCSP = headers.has('content-security-policy');
     const hasHSTS = headers.has('strict-transport-security');
-    
+
     console.log(`  ✓ Security Headers: CSP=${hasCSP}, HSTS=${hasHSTS}`);
-    
+
   } catch (error) {
     console.log(`  ❌ Security tests failed: ${error.message}`);
   }
@@ -251,10 +251,10 @@ async function testPerformanceBaseline(): Promise<void> {
     const start = performance.now();
     const response = await fetch(`${VALIDATION_CONFIG.API_URL}/api/health`);
     const duration = performance.now() - start;
-    
+
     console.log(`  ✓ API Response Time: ${duration.toFixed(2)}ms`);
     console.log(`  ✓ Status: ${response.status === 200 ? 'Healthy' : 'Warning'}`);
-    
+
   } catch (error) {
     console.log(`  ❌ Performance test failed: ${error.message}`);
   }
@@ -270,12 +270,12 @@ async function testCriticalBusinessLogic(): Promise<void> {
 
 async function openDashboard(): Promise<void> {
   const dashboardPath = `${VALIDATION_CONFIG.OUTPUT_DIR}/validation-dashboard.html`;
-  
+
   try {
     // Try to open the dashboard in the default browser
     const isWindows = Deno.build.os === "windows";
     const isMac = Deno.build.os === "darwin";
-    
+
     if (isWindows) {
       await new Deno.Command("cmd", {
         args: ["/c", "start", dashboardPath]
@@ -290,9 +290,9 @@ async function openDashboard(): Promise<void> {
         args: [dashboardPath]
       }).output();
     }
-    
+
     console.log(`🌐 Dashboard opened in browser: ${dashboardPath}`);
-    
+
   } catch (error) {
     console.log(`📊 Dashboard available at: file://${dashboardPath}`);
   }
@@ -342,7 +342,7 @@ Reports Generated:
   📝 validation-summary.txt       - Text summary for executives and stakeholders
 
 Platform Information:
-  Frontend: https://pitchey-5o8-66n.pages.dev (Cloudflare Pages)
+  Frontend: https://pitchey-5o8.pages.dev (Cloudflare Pages)
   Backend:  https://pitchey-api-prod.ndlovucavelle.workers.dev (Cloudflare Workers)
   Database: Neon PostgreSQL with connection pooling
   Cache:    Upstash Redis for distributed caching

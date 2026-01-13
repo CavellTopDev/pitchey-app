@@ -27,7 +27,7 @@ LOG_FILE="$PROJECT_ROOT/deployment-containers.log"
 DEPLOY_ENV="production"
 
 # URLs
-FRONTEND_URL="https://pitchey-5o8-66n.pages.dev"
+FRONTEND_URL="https://pitchey-5o8.pages.dev"
 API_URL="https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
 # Colors for output
@@ -198,7 +198,7 @@ deploy_frontend() {
     # Deploy to Cloudflare Pages (existing URL)
     log INFO "Deploying to Cloudflare Pages (existing production URL)..."
     npx wrangler pages deploy dist \
-        --project-name=pitchey \
+        --project-name=pitchey-5o8 \
         --branch=main \
         --compatibility-date=2024-11-01
     

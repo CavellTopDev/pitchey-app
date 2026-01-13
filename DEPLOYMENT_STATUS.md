@@ -5,7 +5,7 @@ Date: January 3, 2026
 
 ### Production Environment
 - **Worker URL**: https://pitchey-api-prod.ndlovucavelle.workers.dev
-- **Frontend URL**: https://pitchey.pages.dev
+- **Frontend URL**: https://pitchey-5o8.pages.dev
 - **Version ID**: eeed810a-7d51-4739-a27e-ac024d131238
 - **Deployment Time**: January 3, 2026 14:02 UTC
 - **Status**: ✅ OPERATIONAL
@@ -109,7 +109,7 @@ wrangler deploy
 ```bash
 cd frontend
 npm run build
-wrangler pages deploy dist --project-name=pitchey
+wrangler pages deploy dist --project-name=pitchey-5o8
 ```
 
 ### To Run Tests

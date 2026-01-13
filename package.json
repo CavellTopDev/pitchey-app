@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "deploy": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n",
-    "deploy:staging": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n --env staging",
-    "deploy:production": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8-66n --env production",
+    "deploy": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8",
+    "deploy:staging": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8 --env staging",
+    "deploy:production": "wrangler pages deploy frontend/dist --project-name=pitchey-5o8 --env production",
     "deploy:worker": "wrangler deploy --config wrangler.toml",
     "deploy:worker:production": "wrangler deploy --config wrangler.toml --env production",
     "deploy:local": "./deploy-cloudflare.sh",
