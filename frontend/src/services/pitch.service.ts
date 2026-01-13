@@ -220,7 +220,12 @@ export class PitchService {
     }
     
     console.log('🔐 [PitchService] Authenticated endpoint response:', response.data);
-    return response.data;
+    
+    // Extract the pitch object from the response
+    const pitch = response.data?.pitch || response.data;
+    console.log('🔐 [PitchService] Extracted pitch object:', pitch);
+    
+    return pitch;
   }
 
   // Get all pitches for current creator

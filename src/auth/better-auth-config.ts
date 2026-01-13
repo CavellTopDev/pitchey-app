@@ -102,8 +102,8 @@ export function createAuth(env: any) {
     // Cookie configuration for multi-domain support
     cookies: {
       name: env.SESSION_COOKIE_NAME || "pitchey-auth",
-      secure: env.ENVIRONMENT === 'production',
-      sameSite: "lax",
+      secure: true, // Must be true when sameSite: 'none'
+      sameSite: "none", // Allow cross-domain cookie sending
       httpOnly: true,
       // Support subdomains
       domain: env.ENVIRONMENT === 'production' 
@@ -116,6 +116,8 @@ export function createAuth(env: any) {
     // CORS and trusted origins
     trustedOrigins: [
       "https://pitchey-5o8.pages.dev",
+      "https://*.pitchey-5o8.pages.dev", // All Pages preview deployments
+      "https://pitchey-5o8-66n.pages.dev",
       "https://pitchey-api-prod.ndlovucavelle.workers.dev",
       "http://localhost:5173", // Vite dev server
       "http://localhost:8001", // Local proxy

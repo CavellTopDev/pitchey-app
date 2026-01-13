@@ -210,15 +210,21 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Query client temporarily disabled to resolve JavaScript initialization errors
 
-// Component to handle pitch routing - now always shows public view
+// Component to handle pitch routing - conditionally shows authenticated vs public view
 function PitchRouter() {
-  // Always show the public pitch view when accessing /pitch/:id
-  // Users can navigate to their portal-specific views if needed
-  return <PublicPitchView />;
+  const { isAuthenticated } = useBetterAuthStore();
+  
+  // Show authenticated PitchDetail for logged in users, PublicPitchView for guests
+  // This ensures authenticated users get access to protected content when they have signed NDAs
+  if (isAuthenticated) {
+    return <PitchDetail />;
+  } else {
+    return <PublicPitchView />;
+  }
 }
 
 function App() {
-  const { isAuthenticated, user, loading } = useBetterAuthStore();
+  const { isAuthenticated, user, loading, checkSession } = useBetterAuthStore();
   const [profileFetched, setProfileFetched] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -242,29 +248,45 @@ function App() {
     loadConfig();
   }, []);
 
-  // Initialize app with proper sequencing to prevent reload loops
+  // Initialize app with proper session verification
   useEffect(() => {
     let mounted = true;
     
     const initApp = async () => {
-      // Skip session check on initial mount - rely on cached session from store
-      // This prevents rate limiting issues on page load
       if (!sessionChecked && mounted) {
-        // Don't actually check session - just mark as checked
-        // The betterAuthStore already initializes from cache
-        setSessionChecked(true);
-        setProfileFetched(true);
-        
-        // Small delay to ensure state updates propagate
-        setTimeout(() => {
-          if (mounted) {
-            setInitializing(false);
-          }
-        }, 100);
+        try {
+          console.log('🔐 [App] Performing initial session check...');
+          
+          // CRITICAL FIX: Actually check session to ensure authentication state is correct
+          // The session manager handles rate limiting, so this is safe to call
+          await checkSession();
+          
+          console.log('✅ [App] Session check completed');
+          setSessionChecked(true);
+          setProfileFetched(true);
+          
+          // Small delay to ensure state updates propagate
+          setTimeout(() => {
+            if (mounted) {
+              setInitializing(false);
+            }
+          }, 100);
+        } catch (error) {
+          console.error('[App] Session check failed:', error);
+          // Even if session check fails, mark as checked to prevent infinite loading
+          // The user will just appear as not authenticated
+          setSessionChecked(true);
+          setProfileFetched(true);
+          setTimeout(() => {
+            if (mounted) {
+              setInitializing(false);
+            }
+          }, 100);
+        }
       }
     };
     
-    // Initialize without session check
+    // Initialize with proper session check
     initApp().catch(error => {
       console.error('[App] Initialization error:', error);
       // Even if init fails, mark as initialized to prevent infinite loading

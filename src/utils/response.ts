@@ -32,7 +32,10 @@ const ALLOWED_ORIGINS = [
   'https://pitchey.pages.dev',         // Primary production (Cloudflare Pages) 
   'https://pitchey-main.pages.dev',    // Main branch deployment
   'https://pitchey-5o8.pages.dev',     // Specific deployment version
+  'https://pitchey-5o8-66n.pages.dev', // Alternative deployment
   'https://pitchey-frontend-ndlovu.pages.dev', // ndlovucavelle's deployment
+  'https://c0d6a5ee.pitchey-5o8.pages.dev', // Specific preview deployment
+  'https://ae40158f.pitchey-5o8.pages.dev', // Latest deployment
   'https://pitchey.com',           // Custom domain (future)
   'http://localhost:5173',         // Local development (Vite)
   'http://127.0.0.1:5173',        // Local development (Vite via IP)

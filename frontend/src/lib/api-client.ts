@@ -142,6 +142,8 @@ class ApiClient {
         ...options.headers,
       };
 
+      // CRITICAL: Better Auth uses session cookies, not JWT tokens
+      // Only add Authorization header if token exists (for backward compatibility)
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Share2, Eye, Calendar, User, Clock, Tag, Film, Heart, LogIn, FileText, Lock, Shield, Briefcase, DollarSign } from 'lucide-react';
 import { pitchService } from '../services/pitch.service';
+import { createDownloadClickHandler } from '../utils/fileDownloads';
 import type { Pitch } from '../services/pitch.service';
 import { useBetterAuthStore } from '../store/betterAuthStore';
 import BackButton from '../components/BackButton';
@@ -137,8 +138,47 @@ export default function PitchDetail() {
       console.log('🔍 [PitchDetail] protectedContent from API:', pitch.protectedContent);
       console.log('🔍 [PitchDetail] isOwner from API:', pitch.isOwner);
       
+      // Check if protected content fields are present (indicates NDA access)
+      const hasProtectedFields = !!(
+        pitch.budget_breakdown ||
+        pitch.attached_talent ||
+        pitch.financial_projections ||
+        pitch.distribution_plan ||
+        pitch.marketing_strategy ||
+        pitch.private_attachments ||
+        pitch.contact_details ||
+        pitch.revenue_model
+      );
+      
+      console.log('🔍 [PitchDetail] Checking for protected content fields:');
+      console.log('🔍 [PitchDetail] budget_breakdown:', !!pitch.budget_breakdown);
+      console.log('🔍 [PitchDetail] attached_talent:', !!pitch.attached_talent);
+      console.log('🔍 [PitchDetail] financial_projections:', !!pitch.financial_projections);
+      console.log('🔍 [PitchDetail] distribution_plan:', !!pitch.distribution_plan);
+      console.log('🔍 [PitchDetail] marketing_strategy:', !!pitch.marketing_strategy);
+      console.log('🔍 [PitchDetail] private_attachments:', !!pitch.private_attachments);
+      console.log('🔍 [PitchDetail] contact_details:', !!pitch.contact_details);
+      console.log('🔍 [PitchDetail] revenue_model:', !!pitch.revenue_model);
+      console.log('🔍 [PitchDetail] hasProtectedFields:', hasProtectedFields);
+      
+      // If protected fields are present, wrap them in protectedContent structure that frontend expects
+      if (hasProtectedFields) {
+        pitch.protectedContent = {
+          budgetBreakdown: pitch.budget_breakdown,
+          attachedTalent: pitch.attached_talent,
+          financialProjections: pitch.financial_projections,
+          distributionPlan: pitch.distribution_plan,
+          marketingStrategy: pitch.marketing_strategy,
+          privateAttachments: pitch.private_attachments,
+          contactDetails: pitch.contact_details,
+          revenueModel: pitch.revenue_model,
+          productionTimeline: pitch.production_timeline
+        };
+        console.log('🎉 [PitchDetail] Created protectedContent wrapper:', pitch.protectedContent);
+      }
+      
       setPitch(pitch);
-      const ndaStatus = pitch.hasSignedNDA || pitch.hasNDA || false;
+      const ndaStatus = pitch.hasSignedNDA || pitch.hasNDA || hasProtectedFields;
       console.log('🔍 [PitchDetail] Setting hasSignedNDA to:', ndaStatus);
       setHasSignedNDA(ndaStatus);
       setIsLiked(pitch.isLiked || false);
@@ -585,10 +625,14 @@ export default function PitchDetail() {
                       <h4 className="font-medium text-gray-900 mb-1">Private Documents</h4>
                       <div className="space-y-2">
                         {pitch.protectedContent.privateAttachments.map((doc, index) => (
-                          <a key={index} href={doc?.url} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm">
+                          <button 
+                            key={index} 
+                            onClick={createDownloadClickHandler(doc?.url, doc?.name)}
+                            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm hover:underline cursor-pointer border-none bg-transparent p-0"
+                          >
                             <FileText className="w-4 h-4" />
                             {doc?.name || `Document ${index + 1}`}
-                          </a>
+                          </button>
                         ))}
                       </div>
                     </div>

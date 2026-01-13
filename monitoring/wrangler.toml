@@ -1,0 +1,47 @@
+# Wrangler configuration for Pitchey Synthetic Monitoring Worker
+
+name = "pitchey-synthetic-monitor"
+main = "synthetic-worker.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron schedule for synthetic tests
+[triggers]
+crons = [
+  "*/5 * * * *",  # Every 5 minutes
+]
+
+# Environment variables
+[vars]
+API_BASE_URL = "https://pitchey-api-prod.ndlovucavelle.workers.dev"
+ENVIRONMENT = "production"
+
+# KV namespace for storing test results
+[[kv_namespaces]]
+binding = "MONITORING_KV"
+id = "your_kv_namespace_id"
+preview_id = "your_preview_kv_namespace_id"
+
+# Analytics Engine binding for metrics
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "pitchey_synthetic_monitoring"
+
+# Development environment overrides
+[env.development]
+name = "pitchey-synthetic-monitor-dev"
+
+[env.development.vars]
+API_BASE_URL = "http://localhost:8001"
+ENVIRONMENT = "development"
+
+# Staging environment
+[env.staging]
+name = "pitchey-synthetic-monitor-staging"
+
+[env.staging.vars]
+API_BASE_URL = "https://pitchey-api-staging.workers.dev"
+ENVIRONMENT = "staging"
+
+# Resource limits
+limits = { cpu_ms = 30000 }  # 30 second timeout for comprehensive testing

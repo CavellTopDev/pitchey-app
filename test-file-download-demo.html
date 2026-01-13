@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Download Fix Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .success { color: #10B981; }
+        .error { color: #EF4444; }
+        .warning { color: #F59E0B; }
+        .code { background: #F3F4F6; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+        .test-section { background: #F9FAFB; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        button { 
+            background: #3B82F6; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px;
+        }
+        button:hover { background: #2563EB; }
+        button:disabled { background: #9CA3AF; cursor: not-allowed; }
+        .attachment { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            padding: 8px; 
+            background: white; 
+            border: 1px solid #D1D5DB; 
+            border-radius: 4px; 
+            margin: 5px 0;
+        }
+        .icon { width: 16px; height: 16px; }
+        .download-btn { 
+            background: #3B82F6; 
+            color: white; 
+            border: none; 
+            padding: 4px 12px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 12px;
+        }
+        .download-btn:hover { background: #2563EB; }
+    </style>
+</head>
+<body>
+    <h1>🔧 File Download Fix Demo</h1>
+    
+    <div class="test-section">
+        <h2>Problem Summary</h2>
+        <p><span class="error">❌ Issue:</span> Private attachments showed raw R2 URLs like <span class="code">r2://pitches/226/script_final.pdf</span> that couldn't be accessed by browsers.</p>
+        <p><span class="success">✅ Solution:</span> Convert R2 URLs to secure API endpoints that generate presigned download URLs.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Implementation Details</h2>
+        <ul>
+            <li><strong>Backend:</strong> New API endpoint <span class="code">GET /api/pitches/:id/attachments/:filename</span></li>
+            <li><strong>Security:</strong> Requires authentication and NDA approval</li>
+            <li><strong>Frontend:</strong> Utility functions to convert R2 URLs to downloadable endpoints</li>
+            <li><strong>Audit:</strong> Logs all file access attempts for compliance</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>URL Conversion Test</h2>
+        <p>The utility function converts R2 URLs to API endpoints:</p>
+        <div id="conversion-tests"></div>
+        <button onclick="testUrlConversion()">Test URL Conversion</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Download UI Simulation</h2>
+        <p>Before: Broken links that didn't work</p>
+        <div class="attachment">
+            <span class="icon">📄</span>
+            <a href="r2://pitches/226/script_final.pdf" class="error">script_final.pdf (Broken)</a>
+        </div>
+
+        <p>After: Working download buttons</p>
+        <div class="attachment">
+            <span class="icon">📄</span>
+            <span>script_final.pdf</span>
+            <button class="download-btn" onclick="simulateDownload('script_final.pdf')">Download</button>
+        </div>
+        <div class="attachment">
+            <span class="icon">📊</span>
+            <span>budget_detailed.xlsx</span>
+            <button class="download-btn" onclick="simulateDownload('budget_detailed.xlsx')">Download</button>
+        </div>
+        <div class="attachment">
+            <span class="icon">🎬</span>
+            <span>storyboard.pdf</span>
+            <button class="download-btn" onclick="simulateDownload('storyboard.pdf')">Download</button>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>API Endpoint Test</h2>
+        <p>Test the backend endpoint (requires authentication):</p>
+        <button onclick="testEndpoint()">Test API Endpoint</button>
+        <div id="endpoint-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Testing Steps</h2>
+        <ol>
+            <li>Open <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></li>
+            <li>Login as investor: <span class="code">sarah.investor@demo.com</span> / <span class="code">Demo123</span></li>
+            <li>Navigate to a pitch with protected content</li>
+            <li>Sign the NDA if required</li>
+            <li>Click on document download buttons</li>
+            <li>Verify files download correctly</li>
+        </ol>
+    </div>
+
+    <script>
+        // URL conversion utility function (same as frontend)
+        function convertToDownloadableUrl(url, fileName) {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                return url;
+            }
+
+            if (url.startsWith('r2://')) {
+                try {
+                    const storagePath = url.replace('r2://', '');
+                    const pathParts = storagePath.split('/');
+                    
+                    if (pathParts.length >= 3 && pathParts[0] === 'pitches') {
+                        const pitchId = pathParts[1];
+                        const filename = pathParts.slice(2).join('/');
+                        return `/api/pitches/${pitchId}/attachments/${filename}`;
+                    }
+                } catch (error) {
+                    console.warn('Failed to convert R2 URL:', url, error);
+                }
+            }
+
+            return url;
+        }
+
+        function testUrlConversion() {
+            const tests = [
+                { input: 'r2://pitches/226/script_final.pdf', expected: '/api/pitches/226/attachments/script_final.pdf' },
+                { input: 'https://example.com/file.pdf', expected: 'https://example.com/file.pdf' },
+                { input: 'r2://pitches/226/documents/budget.xlsx', expected: '/api/pitches/226/attachments/documents/budget.xlsx' }
+            ];
+
+            const results = tests.map(test => {
+                const result = convertToDownloadableUrl(test.input);
+                const passed = result === test.expected;
+                return `<div class="${passed ? 'success' : 'error'}">
+                    ${passed ? '✅' : '❌'} ${test.input} → ${result}
+                    ${!passed ? `<br>&nbsp;&nbsp;&nbsp;&nbsp;Expected: ${test.expected}` : ''}
+                </div>`;
+            }).join('');
+
+            document.getElementById('conversion-tests').innerHTML = results;
+        }
+
+        function simulateDownload(filename) {
+            const originalUrl = `r2://pitches/226/${filename}`;
+            const downloadUrl = convertToDownloadableUrl(originalUrl);
+            
+            // In real implementation, this would fetch the presigned URL and open it
+            alert(`Download simulated!\n\nOriginal: ${originalUrl}\nAPI Endpoint: ${downloadUrl}\n\nIn the real app, this would fetch a presigned URL from the backend and open it for download.`);
+        }
+
+        async function testEndpoint() {
+            const resultDiv = document.getElementById('endpoint-result');
+            resultDiv.innerHTML = '<p class="warning">⏳ Testing endpoint...</p>';
+            
+            try {
+                const response = await fetch('/api/pitches/226/attachments/script_final.pdf', {
+                    credentials: 'include'
+                });
+                
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch {
+                    result = { text };
+                }
+                
+                let message;
+                if (response.status === 401) {
+                    message = '<p class="warning">⚠️ Endpoint responds correctly (401 - Authentication required)</p>';
+                } else if (response.status === 403) {
+                    message = '<p class="warning">⚠️ Endpoint responds correctly (403 - NDA approval required)</p>';
+                } else if (response.status === 200) {
+                    message = '<p class="success">✅ Endpoint working! Download URL generated.</p>';
+                } else {
+                    message = `<p class="error">❌ Unexpected response: ${response.status}</p>`;
+                }
+                
+                resultDiv.innerHTML = `
+                    ${message}
+                    <details>
+                        <summary>Response Details</summary>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    </details>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Network error: ${error.message}</p>`;
+            }
+        }
+
+        // Initialize page
+        testUrlConversion();
+    </script>
+</body>
+</html>

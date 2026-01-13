@@ -108,6 +108,45 @@ dataset = "pitchey_container_metrics"
 binding = "JOB_ANALYTICS"
 dataset = "pitchey_job_analytics"
 
+# Database Performance Analytics
+[[analytics_engine_datasets]]
+binding = "PITCHEY_ANALYTICS"
+dataset = "pitchey_database_metrics"
+
+[[analytics_engine_datasets]]
+binding = "PITCHEY_PERFORMANCE"
+dataset = "pitchey_performance_metrics"
+
+[[analytics_engine_datasets]]
+binding = "PITCHEY_ERRORS"
+dataset = "pitchey_error_tracking"
+
+# Distributed Tracing Analytics
+[[analytics_engine_datasets]]
+binding = "TRACE_ANALYTICS"
+dataset = "pitchey_trace_events"
+
+# ===== TRACE WORKERS CONFIGURATION =====
+# Note: Trace Workers API for distributed tracing
+[[unsafe.bindings]]
+name = "TRACE_WORKERS"
+type = "trace_workers"
+
+# Trace Workers Service Binding
+[[services]]
+binding = "TRACE_SERVICE"
+service = "trace-worker"
+environment = "production"
+
+# ===== AUDIT LOG STORAGE =====
+[[r2_buckets]]
+binding = "AUDIT_LOGS"
+bucket_name = "pitchey-audit-logs"
+
+[[r2_buckets]]
+binding = "TRACE_LOGS"
+bucket_name = "pitchey-trace-logs"
+
 # ===== CRON TRIGGERS =====
 [triggers]
 crons = [
@@ -159,6 +198,14 @@ ENABLE_EDGE_CACHING = "true"
 # Authentication Configuration
 BETTER_AUTH_URL = "https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
+# Distributed Tracing Configuration
+ENABLE_DISTRIBUTED_TRACING = "true"
+TRACE_SAMPLING_RATE = "0.1"
+TRACE_RETENTION_DAYS = "30"
+ENABLE_AUDIT_LOGGING = "true"
+AUDIT_LOG_RETENTION_DAYS = "90"
+TRACE_CORRELATION_ENABLED = "true"
+
 # ===== OBSERVABILITY CONFIGURATION =====
 [observability]
 enabled = true
@@ -168,6 +215,12 @@ enabled = false
 head_sampling_rate = 1.0
 invocation_logs = true
 persist = true
+
+# ===== TAIL WORKERS FOR TRACE PROCESSING =====
+[[tail_consumers]]
+environment = "production"
+namespace = "pitchey-traces"
+script_name = "pitchey-trace-processor"
 
 # Build Configuration
 [build]
