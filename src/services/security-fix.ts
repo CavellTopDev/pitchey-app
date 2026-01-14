@@ -12,19 +12,19 @@ import { z } from 'zod';
 export class PasswordService {
   private static readonly ITERATIONS = 100000;
   private static readonly KEY_LENGTH = 32;
-  
+
   static async hashPassword(password: string): Promise<string> {
     if (!password || password.length < 8) {
       throw new Error("Password must be at least 8 characters");
     }
-    
+
     // Generate a random salt
     const salt = crypto.getRandomValues(new Uint8Array(16));
-    
+
     // Encode the password
     const encoder = new TextEncoder();
     const passwordBuffer = encoder.encode(password);
-    
+
     // Import the password as a key
     const passwordKey = await crypto.subtle.importKey(
       'raw',
@@ -33,7 +33,7 @@ export class PasswordService {
       false,
       ['deriveBits']
     );
-    
+
     // Derive the hash
     const hashBuffer = await crypto.subtle.deriveBits(
       {
@@ -45,13 +45,13 @@ export class PasswordService {
       passwordKey,
       this.KEY_LENGTH * 8
     );
-    
+
     // Combine salt and hash, then encode as base64
     const hashArray = new Uint8Array(hashBuffer);
     const combined = new Uint8Array(salt.length + hashArray.length);
     combined.set(salt);
     combined.set(hashArray, salt.length);
-    
+
     // Convert to base64
     return btoa(String.fromCharCode(...combined));
   }
@@ -60,15 +60,15 @@ export class PasswordService {
     try {
       // Decode the stored hash
       const combined = Uint8Array.from(atob(hashedPassword), c => c.charCodeAt(0));
-      
+
       // Extract salt and hash
       const salt = combined.slice(0, 16);
       const storedHash = combined.slice(16);
-      
+
       // Hash the input password with the same salt
       const encoder = new TextEncoder();
       const passwordBuffer = encoder.encode(inputPassword);
-      
+
       const passwordKey = await crypto.subtle.importKey(
         'raw',
         passwordBuffer,
@@ -76,7 +76,7 @@ export class PasswordService {
         false,
         ['deriveBits']
       );
-      
+
       const hashBuffer = await crypto.subtle.deriveBits(
         {
           name: 'PBKDF2',
@@ -87,9 +87,9 @@ export class PasswordService {
         passwordKey,
         this.KEY_LENGTH * 8
       );
-      
+
       const hashArray = new Uint8Array(hashBuffer);
-      
+
       // Compare hashes
       return hashArray.every((byte, index) => byte === storedHash[index]);
     } catch {
@@ -112,7 +112,7 @@ export class EnvironmentValidator {
     ];
 
     const missing = required.filter(key => !env[key]);
-    
+
     if (missing.length > 0) {
       throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
     }
@@ -130,11 +130,11 @@ export class EnvironmentValidator {
  * 3. SECURITY HEADERS
  * Add comprehensive security headers to all responses
  */
-export function addSecurityHeaders(response: Response): Response {
+export function addSecurityHeaders(response: Response, environment?: string): Response {
   const headers = new Headers(response.headers);
-  
+
   // Content Security Policy
-  headers.set('Content-Security-Policy', 
+  headers.set('Content-Security-Policy',
     "default-src 'self'; " +
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; " +
     "style-src 'self' 'unsafe-inline'; " +
@@ -145,19 +145,23 @@ export function addSecurityHeaders(response: Response): Response {
     "base-uri 'self'; " +
     "form-action 'self'"
   );
-  
+
   // Additional security headers
   headers.set('X-Frame-Options', 'DENY');
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('X-XSS-Protection', '1; mode=block');
   headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  
-  // HSTS only for production
-  if (response.url?.startsWith('https://')) {
+
+  // HSTS - Enforce in production or if URL is HTTPS
+  // response.url is often empty in Workers, so we rely on the environment flag
+  const isProduction = environment === 'production' || environment === 'staging';
+  const isHttps = response.url?.startsWith('https://');
+
+  if (isProduction || isHttps) {
     headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
-  
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -228,7 +232,7 @@ export class RateLimiter {
   constructor(
     private maxAttempts: number,
     private windowMs: number
-  ) {}
+  ) { }
 
   async checkLimit(identifier: string): Promise<boolean> {
     const now = Date.now();
@@ -314,10 +318,10 @@ export const secureSessionConfig = {
     path: '/',
     domain: undefined // Let browser handle domain
   },
-  
+
   sessionDuration: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
   refreshThreshold: 24 * 60 * 60 * 1000, // Refresh if < 1 day left
-  
+
   generateSessionId(): string {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);

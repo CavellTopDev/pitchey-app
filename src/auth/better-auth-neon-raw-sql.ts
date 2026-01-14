@@ -7,6 +7,7 @@ import { betterAuth } from "better-auth";
 import { withCloudflare } from "better-auth-cloudflare";
 import { neon } from "@neondatabase/serverless";
 import type { KVNamespace } from "@cloudflare/workers-types";
+import { getCorsHeaders } from "../utils/response";
 
 // Define environment interface
 interface AuthEnv {
@@ -126,8 +127,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
               status: 401,
               headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': request.headers.get('Origin') || 'https://pitchey-5o8.pages.dev',
-                'Access-Control-Allow-Credentials': 'true'
+                ...getCorsHeaders(request.headers.get('Origin'))
               }
             }
           );
@@ -155,13 +155,9 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
           );
         }
 
-        // Get proper CORS headers for the request origin
+        // Get proper CORS headers for the request origin using centralized function
         const origin = request.headers.get('Origin');
-        const corsOrigin = origin && (
-          origin.includes('pitchey-5o8.pages.dev') ||
-          origin.includes('pitchey-5o8-66n.pages.dev') ||
-          origin.includes('localhost')
-        ) ? origin : 'https://pitchey-5o8.pages.dev';
+        const corsHeaders = getCorsHeaders(origin);
 
         // Return response with session cookie
         return new Response(
@@ -185,10 +181,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
             headers: {
               'Content-Type': 'application/json',
               'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`,
-              'Access-Control-Allow-Origin': corsOrigin,
-              'Access-Control-Allow-Credentials': 'true',
-              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+              ...corsHeaders
             }
           }
         );
@@ -215,8 +208,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
             headers: {
               'Content-Type': 'application/json',
               'Set-Cookie': 'better-auth-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
-              'Access-Control-Allow-Origin': request.headers.get('Origin') || 'https://pitchey-5o8.pages.dev',
-              'Access-Control-Allow-Credentials': 'true'
+              ...getCorsHeaders(request.headers.get('Origin'))
             }
           }
         );
@@ -234,8 +226,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
               status: 401,
               headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': request.headers.get('Origin') || 'https://pitchey-5o8.pages.dev',
-                'Access-Control-Allow-Credentials': 'true'
+                ...getCorsHeaders(request.headers.get('Origin'))
               }
             }
           );
@@ -254,8 +245,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
                   status: 200,
                   headers: {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': request.headers.get('Origin') || 'https://pitchey-5o8.pages.dev',
-                    'Access-Control-Allow-Credentials': 'true'
+                    ...getCorsHeaders(request.headers.get('Origin'))
                   }
                 }
               );
@@ -272,8 +262,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
               status: 401,
               headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': request.headers.get('Origin') || 'https://pitchey-5o8.pages.dev',
-                'Access-Control-Allow-Credentials': 'true'
+                ...getCorsHeaders(request.headers.get('Origin'))
               }
             }
           );
@@ -297,8 +286,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
             status: 200,
             headers: {
               'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': request.headers.get('Origin') || 'https://pitchey-5o8.pages.dev',
-              'Access-Control-Allow-Credentials': 'true'
+              ...getCorsHeaders(request.headers.get('Origin'))
             }
           }
         );
@@ -311,7 +299,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
           status: 404,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            ...getCorsHeaders(null)
           }
         }
       );

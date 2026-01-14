@@ -1161,6 +1161,7 @@ class RouteRegistry {
     this.register('POST', '/api/pitches', this.createPitch.bind(this));
     this.register('GET', '/api/pitches/public/:id', this.getPublicPitch.bind(this));
     this.register('GET', '/api/pitches/following', this.getPitchesFollowing.bind(this));
+    this.register('GET', '/api/pitches/search', this.searchPitches.bind(this));  // Add search BEFORE :id
     this.register('GET', '/api/pitches/:id', this.getPitch.bind(this));
     this.register('GET', '/api/pitches/:id/attachments/:filename', this.getPitchAttachment.bind(this));
     this.register('GET', '/api/trending', this.getTrending.bind(this));
@@ -1943,37 +1944,12 @@ class RouteRegistry {
       '/api/pitches/public/new',
       '/api/pitches/public/featured',
       '/api/pitches/public/search',
+      '/api/pitches/search',  // Add pitches search as public
       '/api/trending',  // Add trending endpoint as public
       '/ws'             // WebSocket endpoint handles its own auth
     ];
 
-    // Check if endpoint requires authentication
-    const isPublicEndpoint = publicEndpoints.some(endpoint => path === endpoint || path.startsWith(endpoint + '/'));
-    const isGetPitches = method === 'GET' && path === '/api/pitches';
-
-    // Validate JWT for protected endpoints
-    if (!isPublicEndpoint && !isGetPitches) {
-      const authResult = await this.validateAuth(request);
-      if (!authResult.valid) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Authentication required'
-          }
-        }), {
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCorsHeaders(request.headers.get('Origin'))
-          }
-        });
-      }
-      // Attach user to request for handlers to use
-      (request as any).user = authResult.user;
-    }
-
-    // Find handler
+    // Find handler FIRST (before auth check)
     const methodRoutes = this.routes.get(method);
     if (!methodRoutes) {
       return new ApiResponseBuilder(request).error(
@@ -2007,10 +1983,37 @@ class RouteRegistry {
         return stubResponse;
       }
 
+      // Return 404 for non-existent routes (not 401)
       return new ApiResponseBuilder(request).error(
         ErrorCode.NOT_FOUND,
         'Endpoint not found'
       );
+    }
+
+    // NOW check if endpoint requires authentication (after confirming route exists)
+    const isPublicEndpoint = publicEndpoints.some(endpoint => path === endpoint || path.startsWith(endpoint + '/'));
+    const isGetPitches = method === 'GET' && path === '/api/pitches';
+
+    // Validate JWT for protected endpoints
+    if (!isPublicEndpoint && !isGetPitches) {
+      const authResult = await this.validateAuth(request);
+      if (!authResult.valid) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required'
+          }
+        }), {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(request.headers.get('Origin'))
+          }
+        });
+      }
+      // Attach user to request for handlers to use
+      (request as any).user = authResult.user;
     }
 
     try {
@@ -11653,13 +11656,13 @@ export default {
         // Enhanced health check with comprehensive monitoring
         if (url.pathname === '/health') {
           const response = await enhancedHealthHandler(request, env, ctx);
-          return addSecurityHeaders(response);
+          return addSecurityHeaders(response, env.ENVIRONMENT);
         }
 
         // Admin metrics endpoint for monitoring dashboard
         if (url.pathname === '/api/admin/metrics' && request.method === 'GET') {
           const response = await getErrorMetricsHandler(request, env, ctx);
-          return addSecurityHeaders(response);
+          return addSecurityHeaders(response, env.ENVIRONMENT);
         }
 
         // Handle CORS preflight
@@ -11773,7 +11776,7 @@ export default {
         );
 
         // Add security headers to all responses
-        response = addSecurityHeaders(response);
+        response = addSecurityHeaders(response, env.ENVIRONMENT);
 
         // CRITICAL: Always add CORS headers to ALL responses
         const origin = request.headers.get('Origin') || '';

@@ -47,12 +47,13 @@ export class WorkerDatabase {
         let result: any[];
 
         // Use Neon's correct API - the sql client is a callable function
+        // Fix: Use .query() for conventional function calls with placeholders as per error message
         if (values && values.length > 0) {
-          // For parameterized queries with $1, $2, etc., use the callable directly
-          result = await (this.sql as any)(text, values);
+          // For parameterized queries with $1, $2, etc.
+          result = await (this.sql as any).query(text, values);
         } else {
           // For queries without parameters
-          result = await (this.sql as any)(text);
+          result = await (this.sql as any).query(text);
         }
 
         return result as T[];
