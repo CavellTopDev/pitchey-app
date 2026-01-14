@@ -63,7 +63,7 @@ interface Activity {
 
 function ProductionDashboard() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
+  const { user, logout, isAuthenticated } = useBetterAuthStore();
   const { getAllPitches, drafts } = usePitchStore();
   
   // Sentry portal integration
@@ -237,33 +237,46 @@ function ProductionDashboard() {
         reportError(error as Error, { context: 'fetchAnalyticsData' });
       }
 
-      // Fetch NDA requests using new categorized endpoints
-      try {
-        const [incomingRequests, outgoingRequests, incomingSignedNDAs, outgoingSignedNDAs] = await Promise.all([
-          ndaAPI.getIncomingRequests(),
-          ndaAPI.getOutgoingRequests(),
-          ndaAPI.getIncomingSignedNDAs(),
-          ndaAPI.getOutgoingSignedNDAs()
-        ]);
-        
-        if (safeAccess(incomingRequests, 'success', false)) {
-          const incomingData = safeArray(safeAccess(incomingRequests, 'requests', []));
-          setIncomingNDARequests(incomingData);
+      // Fetch NDA requests using new categorized endpoints - only if authenticated
+      if (isAuthenticated && user?.id) {
+        try {
+          const [incomingRequests, outgoingRequests, incomingSignedNDAs, outgoingSignedNDAs] = await Promise.all([
+            ndaAPI.getIncomingRequests(),
+            ndaAPI.getOutgoingRequests(),
+            ndaAPI.getIncomingSignedNDAs(),
+            ndaAPI.getOutgoingSignedNDAs()
+          ]);
+          
+          if (safeAccess(incomingRequests, 'success', false)) {
+            const incomingData = safeArray(safeAccess(incomingRequests, 'requests', []));
+            setIncomingNDARequests(incomingData);
+          }
+          if (safeAccess(outgoingRequests, 'success', false)) {
+            const outgoingData = safeArray(safeAccess(outgoingRequests, 'requests', []));
+            setOutgoingNDARequests(outgoingData);
+          }
+          if (safeAccess(incomingSignedNDAs, 'success', false)) {
+            const incomingSignedData = safeArray(safeAccess(incomingSignedNDAs, 'ndas', []));
+            setIncomingSignedNDAs(incomingSignedData);
+          }
+          if (safeAccess(outgoingSignedNDAs, 'success', false)) {
+            const outgoingSignedData = safeArray(safeAccess(outgoingSignedNDAs, 'ndas', []));
+            setSignedNDAs(outgoingSignedData);
+          }
+        } catch (error) {
+          console.error('Failed to fetch NDA data:', error);
+          // Clear NDA data on error
+          setIncomingNDARequests([]);
+          setOutgoingNDARequests([]);
+          setIncomingSignedNDAs([]);
+          setSignedNDAs([]);
         }
-        if (safeAccess(outgoingRequests, 'success', false)) {
-          const outgoingData = safeArray(safeAccess(outgoingRequests, 'requests', []));
-          setOutgoingNDARequests(outgoingData);
-        }
-        if (safeAccess(incomingSignedNDAs, 'success', false)) {
-          const incomingSignedData = safeArray(safeAccess(incomingSignedNDAs, 'ndas', []));
-          setIncomingSignedNDAs(incomingSignedData);
-        }
-        if (safeAccess(outgoingSignedNDAs, 'success', false)) {
-          const outgoingSignedData = safeArray(safeAccess(outgoingSignedNDAs, 'ndas', []));
-          setSignedNDAs(outgoingSignedData);
-        }
-      } catch (error) {
-        console.error('Failed to fetch NDA data:', error);
+      } else {
+        // Clear NDA data if not authenticated
+        setIncomingNDARequests([]);
+        setOutgoingNDARequests([]);
+        setIncomingSignedNDAs([]);
+        setSignedNDAs([]);
       }
       
       // Get pitches from store with safe operations

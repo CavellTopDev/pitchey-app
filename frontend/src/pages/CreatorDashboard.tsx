@@ -31,7 +31,7 @@ import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatt
 
 function CreatorDashboard() {
   const navigate = useNavigate();
-  const { logout, user: authUser } = useBetterAuthStore();
+  const { logout, user: authUser, isAuthenticated } = useBetterAuthStore();
   const { reportError, trackEvent, trackApiError } = useSentryPortal({
     portalType: 'creator',
     componentName: 'CreatorDashboard',
@@ -104,6 +104,14 @@ function CreatorDashboard() {
     try {
       setLoading(true);
       setError(null);
+      
+      // Only fetch data if authenticated
+      if (!isAuthenticated || !authUser?.id) {
+        console.log('User not authenticated, skipping dashboard data fetch');
+        setLoading(false);
+        return;
+      }
+      
       const token = localStorage.getItem('authToken');
       const userId = user?.id || authUser?.id;
       

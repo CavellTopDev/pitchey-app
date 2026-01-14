@@ -83,7 +83,7 @@ interface NDARequest {
 
 function InvestorDashboard() {
   const navigate = useNavigate();
-  const { logout, user } = useBetterAuthStore();
+  const { logout, user, isAuthenticated } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   
@@ -107,6 +107,13 @@ function InvestorDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // Only fetch data if authenticated
+      if (!isAuthenticated || !user?.id) {
+        console.log('User not authenticated, skipping dashboard data fetch');
+        setLoading(false);
+        return;
+      }
       
       // Fetch all dashboard data in parallel with defensive error handling
       const promises = [
