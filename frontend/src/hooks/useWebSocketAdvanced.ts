@@ -669,7 +669,7 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
   }, [isRateLimited, updateQueueStatus, persistData]);
   
   // Connect function with circuit breaker and bundling-loop protection
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     // CRITICAL: Authentication guard - prevent connection when user not authenticated
     if (!isAuthenticated || !user) {
       setConnectionStatus(prev => ({
