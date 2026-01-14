@@ -6,7 +6,7 @@ import BackButton from '../components/BackButton';
 
 export default function InvestorNDAHistory() {
   const navigate = useNavigate();
-  const { user } = useBetterAuthStore();
+  const { user, isAuthenticated } = useBetterAuthStore();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -29,10 +29,19 @@ export default function InvestorNDAHistory() {
       </header>
 
       {/* Main Content */}
-      <ComprehensiveNDAManagement 
-        userType="investor" 
-        userId={user?.id || 0}
-      />
+      {isAuthenticated && user?.id ? (
+        <ComprehensiveNDAManagement 
+          userType="investor" 
+          userId={user.id}
+        />
+      ) : (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Please log in to view your NDAs</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

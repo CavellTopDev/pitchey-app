@@ -9,6 +9,7 @@ import { ndaService } from '../../services/nda.service';
 import type { NDA, NDARequest } from '../../types/nda.types';
 import NDAManagementPanel from '../NDAManagementPanel';
 import NDAStatusBadge from '../NDAStatusBadge';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface ComprehensiveNDAManagementProps {
   userType: 'creator' | 'investor' | 'production';
@@ -38,6 +39,7 @@ export default function ComprehensiveNDAManagement({
   userType, 
   userId 
 }: ComprehensiveNDAManagementProps) {
+  const { isAuthenticated } = useBetterAuthStore();
   const [activeTab, setActiveTab] = useState<'overview' | 'incoming' | 'outgoing' | 'signed' | 'analytics'>('overview');
   const [incomingNDAs, setIncomingNDAs] = useState<NDARequest[]>([]);
   const [outgoingNDAs, setOutgoingNDAs] = useState<NDARequest[]>([]);
@@ -92,15 +94,22 @@ export default function ComprehensiveNDAManagement({
   ];
 
   useEffect(() => {
-    // Only fetch NDA data if we have a valid userId (meaning user is authenticated)
-    if (userId && userId > 0) {
+    // Only fetch NDA data if we have a valid userId AND user is authenticated
+    if (isAuthenticated && userId && userId > 0) {
       fetchAllNDAData();
+    } else {
+      // Clear data if not authenticated
+      setIncomingNDAs([]);
+      setOutgoingNDAs([]);
+      setSignedNDAs([]);
+      setAnalytics(null);
+      setLoading(false);
     }
-  }, [userType, userId]);
+  }, [userType, userId, isAuthenticated]);
 
   const fetchAllNDAData = async () => {
-    // Skip if no userId - user not authenticated
-    if (!userId || userId <= 0) {
+    // Double-check authentication before making API calls
+    if (!isAuthenticated || !userId || userId <= 0) {
       setLoading(false);
       return;
     }
