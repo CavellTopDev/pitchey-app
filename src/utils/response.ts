@@ -47,8 +47,11 @@ const ALLOWED_ORIGINS = [
 function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return false;
   
+  // Remove trailing period if present (some browsers add it)
+  const cleanOrigin = origin.endsWith('.') ? origin.slice(0, -1) : origin;
+  
   // Check exact matches first
-  if (ALLOWED_ORIGINS.includes(origin)) {
+  if (ALLOWED_ORIGINS.includes(cleanOrigin)) {
     return true;
   }
   
@@ -58,13 +61,13 @@ function isOriginAllowed(origin: string | null): boolean {
   // Pattern 3: pitchey-[anything].pages.dev (e.g., pitchey-frontend.pages.dev)
   // Pattern 4: [anything].pitchey.pages.dev (e.g., preview.pitchey.pages.dev)
   // Pattern 5: Main deployments (pitchey.pages.dev, pitchey-5o8.pages.dev)
-  if (origin.match(/^https:\/\/[a-f0-9]+\.pitchey\.pages\.dev$/) ||           // Hash-based preview
-      origin.match(/^https:\/\/[a-f0-9]+\.pitchey-[a-z0-9-]+\.pages\.dev$/) || // Hash with project ID
-      origin.match(/^https:\/\/pitchey-[a-zA-Z0-9-]+\.pages\.dev$/) ||       // Named deployments
-      origin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/) ||      // Subdomains
-      origin === 'https://pitchey.pages.dev' ||                              // Main deployment
-      origin === 'https://pitchey-main.pages.dev' ||                         // Main branch
-      origin === 'https://pitchey-5o8.pages.dev') {                          // Legacy deployment
+  if (cleanOrigin.match(/^https:\/\/[a-f0-9]+\.pitchey\.pages\.dev$/) ||           // Hash-based preview
+      cleanOrigin.match(/^https:\/\/[a-f0-9]+\.pitchey-[a-z0-9-]+\.pages\.dev$/) || // Hash with project ID
+      cleanOrigin.match(/^https:\/\/pitchey-[a-zA-Z0-9-]+\.pages\.dev$/) ||       // Named deployments
+      cleanOrigin.match(/^https:\/\/[a-zA-Z0-9-]+\.pitchey\.pages\.dev$/) ||      // Subdomains
+      cleanOrigin === 'https://pitchey.pages.dev' ||                              // Main deployment
+      cleanOrigin === 'https://pitchey-main.pages.dev' ||                         // Main branch
+      cleanOrigin === 'https://pitchey-5o8.pages.dev') {                          // Legacy deployment
     return true;
   }
   
@@ -87,7 +90,13 @@ export function setRequestOrigin(origin: string | null) {
  */
 export function getCorsHeaders(origin?: string | null): Record<string, string> {
   // Use provided origin, or fall back to current request origin, or default
-  const requestOrigin = origin || currentRequestOrigin;
+  let requestOrigin = origin || currentRequestOrigin;
+  
+  // Remove trailing period if present (some browsers add it)
+  if (requestOrigin && requestOrigin.endsWith('.')) {
+    requestOrigin = requestOrigin.slice(0, -1);
+  }
+  
   const isAllowedOrigin = isOriginAllowed(requestOrigin);
   
   // If origin is allowed, use it; otherwise use the wildcard for public endpoints
