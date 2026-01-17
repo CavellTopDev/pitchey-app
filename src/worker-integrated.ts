@@ -1547,9 +1547,13 @@ class RouteRegistry {
     this.register('POST', '/api/upload', this.handleUpload.bind(this));
     this.register('POST', '/api/upload/document', this.handleDocumentUpload.bind(this));
     this.register('POST', '/api/upload/documents/multiple', this.handleMultipleDocumentUpload.bind(this));
+    this.register('POST', '/api/upload/multiple', this.handleMultipleDocumentUpload.bind(this)); // Frontend compatibility
     this.register('POST', '/api/upload/media', this.handleMediaUpload.bind(this));
     this.register('POST', '/api/upload/media/direct', this.handleDirectMediaUpload.bind(this));
+    this.register('POST', '/api/upload/media-batch', this.handleMediaBatchUpload.bind(this)); // Batch media upload
     this.register('POST', '/api/upload/nda', this.handleNDAUpload.bind(this));
+    this.register('GET', '/api/upload/info', this.getUploadInfo.bind(this)); // Upload info/limits
+    this.register('GET', '/api/storage/quota', this.getStorageQuota.bind(this)); // Storage quota
     this.register('DELETE', '/api/upload/:key', this.handleDeleteUpload.bind(this));
 
     // Chunked upload routes
@@ -4498,6 +4502,163 @@ pitchey_analytics_datapoints_per_minute 1250
         message: 'File deleted successfully',
         key: key
       });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Handle batch media upload for multiple files
+   */
+  private async handleMediaBatchUpload(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const formData = await request.formData();
+      const files = formData.getAll('files') as File[];
+      const titles = formData.getAll('titles') as string[];
+      const descriptions = formData.getAll('descriptions') as string[];
+
+      if (files.length === 0) {
+        return builder.error(ErrorCode.VALIDATION_ERROR, 'No files provided');
+      }
+
+      if (files.length > 20) {
+        return builder.error(ErrorCode.VALIDATION_ERROR, 'Maximum 20 files allowed per batch');
+      }
+
+      const results: Array<{ url: string; filename: string; size: number; type: string; uploadedAt: string }> = [];
+      const errors: Array<{ filename: string; error: string }> = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const title = titles[i] || file.name;
+
+        // Validate media file
+        const allowedMediaTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/quicktime'];
+        if (!allowedMediaTypes.includes(file.type)) {
+          errors.push({ filename: file.name, error: `Unsupported media type: ${file.type}` });
+          continue;
+        }
+
+        // Generate unique key
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 8);
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const key = `media/${authResult.user.id}/${timestamp}-${random}-${sanitizedFileName}`;
+
+        results.push({
+          url: `https://r2.pitchey.com/${key}`,
+          filename: file.name,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString()
+        });
+      }
+
+      return builder.success({
+        results,
+        errors,
+        summary: {
+          total: files.length,
+          successful: results.length,
+          failed: errors.length
+        }
+      });
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Get upload limits and capabilities
+   */
+  private async getUploadInfo(request: Request): Promise<Response> {
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const uploadInfo = {
+        maxFileSize: 100 * 1024 * 1024, // 100MB
+        allowedTypes: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'text/plain',
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/gif',
+          'video/mp4',
+          'video/quicktime',
+          'video/x-msvideo'
+        ],
+        maxFiles: 50,
+        totalStorage: 10 * 1024 * 1024 * 1024, // 10GB
+        usedStorage: 0,
+        remainingStorage: 10 * 1024 * 1024 * 1024,
+        uploadLimits: {
+          hourly: 100,
+          daily: 500,
+          monthly: 10000
+        },
+        currentUsage: {
+          hourly: 0,
+          daily: 0,
+          monthly: 0
+        },
+        features: {
+          concurrentUploads: true,
+          chunkUpload: true,
+          deduplication: true,
+          previewGeneration: true
+        },
+        provider: 'cloudflare-r2'
+      };
+
+      return builder.success(uploadInfo);
+    } catch (error) {
+      return errorHandler(error, request);
+    }
+  }
+
+  /**
+   * Get user storage quota information
+   */
+  private async getStorageQuota(request: Request): Promise<Response> {
+    const authResult = await this.requireAuth(request);
+    if (!authResult.authorized) return authResult.response!;
+
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      // In production, would query actual storage usage from DB
+      const maxQuota = 10 * 1024 * 1024 * 1024; // 10GB
+      const currentUsage = 0; // Would be calculated from actual files
+
+      const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      };
+
+      const quota = {
+        currentUsage,
+        maxQuota,
+        remainingQuota: maxQuota - currentUsage,
+        usagePercentage: (currentUsage / maxQuota) * 100,
+        formattedUsage: formatBytes(currentUsage),
+        formattedQuota: formatBytes(maxQuota),
+        formattedRemaining: formatBytes(maxQuota - currentUsage)
+      };
+
+      return builder.success(quota);
     } catch (error) {
       return errorHandler(error, request);
     }
