@@ -11,8 +11,8 @@ import LegalDocumentEngine, {
   GenerationContext,
   GeneratedDocument,
   DocumentVariable
-} from '../services/legal-document-engine.service.ts';
-import LegalPDFGenerator, { PDFGenerationOptions } from '../services/legal-pdf-generator.service.ts';
+} from '../services/legal-document-engine.service';
+import LegalPDFGenerator, { PDFGenerationOptions } from '../services/legal-pdf-generator.service';
 
 const generateDocumentSchema = z.object({
   template_id: z.string().uuid(),
@@ -235,7 +235,7 @@ export class LegalDocumentHandler {
    */
   async generateDocument(request: Request): Promise<Response> {
     try {
-      const body = await request.json();
+      const body = await request.json() as Record<string, unknown>;
       const userId = request.headers.get('x-user-id');
       
       if (!userId) {
@@ -474,7 +474,7 @@ export class LegalDocumentHandler {
    */
   async validateDocument(request: Request): Promise<Response> {
     try {
-      const body = await request.json();
+      const body = await request.json() as Record<string, unknown>;
       
       const validation = validateDocumentSchema.safeParse(body);
       if (!validation.success) {
@@ -734,7 +734,7 @@ export class LegalDocumentHandler {
    * Advanced document comparison with change tracking
    */
   async compareDocuments(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { document1_id, document2_id, comparison_settings } = data;
 
     try {
@@ -827,7 +827,7 @@ export class LegalDocumentHandler {
    * Export comparison results as PDF
    */
   async exportComparison(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { document1_id, document2_id, comparison_result, export_format } = data;
 
     try {
@@ -877,7 +877,7 @@ export class LegalDocumentHandler {
   async cloneTemplate(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const templateId = url.pathname.split('/')[3]; // /legal/templates/{id}/clone
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { new_name, new_description } = data;
 
     try {
@@ -932,7 +932,7 @@ export class LegalDocumentHandler {
    * Advanced validation with compliance checking
    */
   async advancedValidation(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { template_id, variables, jurisdiction, validation_level } = data;
 
     try {
@@ -980,7 +980,7 @@ export class LegalDocumentHandler {
    * AI-powered clause recommendations
    */
   async getClauseRecommendations(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { document_type, jurisdiction, deal_context } = data;
 
     try {
@@ -1017,7 +1017,7 @@ export class LegalDocumentHandler {
    * Document risk assessment
    */
   async assessDocumentRisk(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { document_id, industry } = data;
 
     try {
@@ -1054,7 +1054,7 @@ export class LegalDocumentHandler {
    * Document translation
    */
   async translateDocument(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { document_id, target_language, legal_terminology } = data;
 
     try {
@@ -1092,7 +1092,7 @@ export class LegalDocumentHandler {
    * Initiate electronic signatures
    */
   async initiateSignatures(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { document_id, signers, signature_method } = data;
 
     try {

@@ -3,11 +3,11 @@
  * Integrates the comprehensive notification system with existing platform features
  */
 
-import type { DatabaseService } from '../types/worker-types.ts';
-import { NotificationService, type NotificationData } from './notification.service.ts';
-import { EmailTemplateService } from './email-template.service.ts';
-import { PushNotificationService } from './push-notification.service.ts';
-import { IntelligentNotificationService } from './intelligent-notification.service.ts';
+import type { DatabaseService } from '../types/worker-types';
+import { NotificationService, type NotificationData } from './notification.service';
+import { EmailTemplateService } from './email-template.service';
+import { PushNotificationService } from './push-notification.service';
+import { IntelligentNotificationService } from './intelligent-notification.service';
 
 export interface NotificationIntegrationConfig {
   database: DatabaseService;
@@ -48,18 +48,15 @@ export class NotificationIntegrationService {
     investorName: string;
   }): Promise<void> {
     const notificationData: NotificationData = {
-      userId: data.pitchOwnerId,
-      templateId: undefined, // Will use template by name
-      type: 'email',
+      userId: parseInt(data.pitchOwnerId, 10) || 0,
+      type: 'investment',
       category: 'investment',
       priority: 'high',
       title: `New investor interest in ${data.pitchTitle}`,
       message: `${data.investorName} has shown interest in your pitch "${data.pitchTitle}". They would like to review your project materials.`,
-      contextType: 'pitch',
-      contextId: data.pitchId,
+      relatedPitchId: parseInt(data.pitchId, 10) || undefined,
       actionUrl: `/dashboard/pitches/${data.pitchId}/investors`,
-      actionText: 'View Investor Profile',
-      variables: {
+      metadata: {
         pitch_title: data.pitchTitle,
         investor_name: data.investorName,
         action_url: `/dashboard/pitches/${data.pitchId}/investors`,
@@ -81,8 +78,8 @@ export class NotificationIntegrationService {
     approverName: string;
   }): Promise<void> {
     const notificationData: NotificationData = {
-      userId: data.requesterId,
-      type: 'email',
+      userId: parseInt(data.requesterId, 10) || 0,
+      type: 'nda_approval',
       category: 'project',
       priority: 'high',
       title: `NDA Approved for ${data.pitchTitle}`,
@@ -113,17 +110,15 @@ export class NotificationIntegrationService {
     investorCount: number;
   }): Promise<void> {
     const notificationData: NotificationData = {
-      userId: data.pitchOwnerId,
-      type: 'email',
+      userId: parseInt(data.pitchOwnerId, 10) || 0,
+      type: 'investment',
       category: 'investment',
       priority: 'high',
       title: `Congratulations! ${data.pitchTitle} reached ${data.milestone}% funding`,
       message: `Exciting news! Your pitch "${data.pitchTitle}" has reached ${data.milestone}% of its funding goal. Total raised: ${data.amountRaised}.`,
-      contextType: 'pitch',
-      contextId: data.pitchId,
+      relatedPitchId: parseInt(data.pitchId, 10) || undefined,
       actionUrl: `/dashboard/pitches/${data.pitchId}/analytics`,
-      actionText: 'View Campaign Progress',
-      variables: {
+      metadata: {
         pitch_title: data.pitchTitle,
         milestone: data.milestone,
         amount_raised: data.amountRaised,
@@ -146,19 +141,19 @@ export class NotificationIntegrationService {
     newStatus: string;
     statusMessage?: string;
   }): Promise<void> {
-    const priorityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
+    const priorityMap: Record<string, 'low' | 'normal' | 'high' | 'urgent'> = {
       approved: 'high',
       rejected: 'high',
-      under_review: 'medium',
+      under_review: 'normal',
       published: 'high',
       draft: 'low',
     };
 
     const notificationData: NotificationData = {
-      userId: data.pitchOwnerId,
-      type: 'email',
+      userId: parseInt(data.pitchOwnerId, 10) || 0,
+      type: 'pitch_update',
       category: 'project',
-      priority: priorityMap[data.newStatus] || 'medium',
+      priority: priorityMap[data.newStatus] || 'normal',
       title: `Status Update: ${data.pitchTitle} is now ${data.newStatus}`,
       message: data.statusMessage || `Your pitch "${data.pitchTitle}" status has been updated to ${data.newStatus}.`,
       contextType: 'pitch',
@@ -187,17 +182,14 @@ export class NotificationIntegrationService {
     userAgent?: string;
   }): Promise<void> {
     const notificationData: NotificationData = {
-      userId: data.userId,
-      type: 'email',
+      userId: parseInt(data.userId, 10) || 0,
+      type: 'system',
       category: 'system',
-      priority: 'critical',
+      priority: 'urgent',
       title: `Security Alert: ${data.alertType} detected`,
       message: `We detected ${data.alertType} on your account. ${data.alertMessage} Please review your account security.`,
-      contextType: 'security',
-      contextId: crypto.randomUUID(),
       actionUrl: '/settings/security',
-      actionText: 'Review Account Security',
-      variables: {
+      metadata: {
         alert_type: data.alertType,
         alert_message: data.alertMessage,
         action_url: '/settings/security',
@@ -219,10 +211,10 @@ export class NotificationIntegrationService {
     dashboardUrl: string;
   }): Promise<void> {
     const notificationData: NotificationData = {
-      userId: data.userId,
-      type: 'email',
+      userId: parseInt(data.userId, 10) || 0,
+      type: 'system',
       category: 'analytics',
-      priority: 'medium',
+      priority: 'normal',
       title: `Performance Milestone: ${data.metricName} reached ${data.threshold}`,
       message: `Congratulations! Your ${data.metricName} has reached ${data.threshold}. ${data.milestoneDetails}`,
       contextType: 'analytics',
@@ -250,10 +242,10 @@ export class NotificationIntegrationService {
     actionUrl: string;
   }): Promise<void> {
     const notificationData: NotificationData = {
-      userId: data.userId,
-      type: 'email',
+      userId: parseInt(data.userId, 10) || 0,
+      type: 'system',
       category: 'market',
-      priority: 'medium',
+      priority: 'normal',
       title: `Market Opportunity: ${data.opportunityTitle}`,
       message: `New market opportunity identified: ${data.opportunityTitle}. ${data.opportunityDescription}`,
       contextType: 'market',
@@ -285,10 +277,10 @@ export class NotificationIntegrationService {
     };
 
     const notificationData: NotificationData = {
-      userId: data.userId,
-      type: 'email',
+      userId: parseInt(data.userId, 10) || 0,
+      type: 'system',
       category: 'system',
-      priority: 'medium',
+      priority: 'normal',
       title: 'Welcome to Pitchey!',
       message: `Welcome to Pitchey, ${data.userName}! Complete your profile to get started with pitch creation and investment opportunities.`,
       contextType: 'user',
@@ -316,8 +308,8 @@ export class NotificationIntegrationService {
     invitationId: string;
   }): Promise<void> {
     const notificationData: NotificationData = {
-      userId: data.inviteeId,
-      type: 'email',
+      userId: parseInt(data.inviteeId, 10) || 0,
+      type: 'system',
       category: 'system',
       priority: 'high',
       title: `Team Invitation: ${data.teamName}`,
@@ -350,9 +342,9 @@ export class NotificationIntegrationService {
   }): Promise<void> {
     const notifications: NotificationData[] = data.userIds.map(userId => ({
       userId,
-      type: 'email',
+      type: 'system',
       category: 'system',
-      priority: 'medium',
+      priority: 'normal',
       title: `Scheduled Maintenance: ${data.maintenanceDate}`,
       message: `Pitchey will undergo scheduled maintenance on ${data.maintenanceDate} from ${data.startTime} to ${data.endTime}. ${data.maintenanceDetails}`,
       contextType: 'system',

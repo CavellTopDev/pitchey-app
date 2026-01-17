@@ -218,14 +218,14 @@ export class ABTestingWebSocketHandler {
         SELECT * FROM experiments WHERE id = $1
       `, [experimentId]);
 
-      if (experimentResult.rows.length === 0) {
+      if (experimentResult.length === 0) {
         this.sendError(connectionId, 'Experiment not found');
         return;
       }
 
       // Get current metrics
       const metricsResult = await this.db.query(`
-        SELECT 
+        SELECT
           ev.variant_id,
           ev.name as variant_name,
           ev.is_control,
@@ -238,14 +238,14 @@ export class ABTestingWebSocketHandler {
         ORDER BY ev.is_control DESC, ev.variant_id
       `, [experimentId]);
 
-      const experiment = experimentResult.rows[0];
-      const metrics = metricsResult.rows.map(row => ({
+      const experiment = experimentResult[0];
+      const metrics = metricsResult.map((row) => ({
         variantId: row.variant_id,
         variantName: row.variant_name,
         isControl: row.is_control,
-        participants: parseInt(row.participants) || 0,
-        conversions: parseInt(row.conversions) || 0,
-        conversionRate: parseInt(row.participants) > 0 ? (parseInt(row.conversions) || 0) / (parseInt(row.participants) || 1) : 0
+        participants: parseInt(String(row.participants)) || 0,
+        conversions: parseInt(String(row.conversions)) || 0,
+        conversionRate: parseInt(String(row.participants)) > 0 ? (parseInt(String(row.conversions)) || 0) / (parseInt(String(row.participants)) || 1) : 0
       }));
 
       this.sendMessage(connectionId, {
@@ -334,17 +334,18 @@ export class ABTestingWebSocketHandler {
         ORDER BY ev.is_control DESC, ev.variant_id
       `, [experimentId]);
 
-      const metrics = metricsResult.rows.map(row => ({
+      const metrics = metricsResult.map((row) => ({
         variantId: row.variant_id,
         variantName: row.variant_name,
         isControl: row.is_control,
-        participants: parseInt(row.participants) || 0,
-        conversions: parseInt(row.conversions) || 0,
-        conversionRate: parseInt(row.participants) > 0 ? (parseInt(row.conversions) || 0) / (parseInt(row.participants) || 1) : 0
+        participants: parseInt(String(row.participants)) || 0,
+        conversions: parseInt(String(row.conversions)) || 0,
+        conversionRate: parseInt(String(row.participants)) > 0 ? (parseInt(String(row.conversions)) || 0) / (parseInt(String(row.participants)) || 1) : 0
       }));
 
+      // Broadcast metrics update using experiment-update type
       this.broadcastToExperiment(experimentId, {
-        type: 'metrics-update',
+        type: 'experiment-update' as const,
         experimentId,
         data: {
           metrics,

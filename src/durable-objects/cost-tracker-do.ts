@@ -3,6 +3,8 @@
  * Monitors resource usage costs and enforces budget limits across all services
  */
 
+import type { Env } from '../worker-integrated';
+
 export interface CostEntry {
   id: string;
   timestamp: Date;
@@ -166,9 +168,9 @@ export class CostTrackerDO implements DurableObject {
       }
     } catch (error) {
       console.error('CostTrackerDO error:', error);
-      return new Response(JSON.stringify({ 
-        error: error.message 
-      }), { 
+      return new Response(JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -179,11 +181,22 @@ export class CostTrackerDO implements DurableObject {
    * Record a cost entry
    */
   private async recordCost(request: Request): Promise<Response> {
-    const data = await request.json();
-    
+    const data = await request.json() as {
+      resourceId?: string;
+      resource?: string;
+      operation?: string;
+      amount?: string | number;
+      currency?: string;
+      unit?: string;
+      usage?: string | number;
+      tags?: Record<string, string>;
+      metadata?: Record<string, any>;
+    };
+
     // Rate limiting check
     const now = new Date();
-    const lastUpdate = this.lastUpdate.get(data.resourceId);
+    const resourceId = data.resourceId || 'unknown';
+    const lastUpdate = this.lastUpdate.get(resourceId);
     if (lastUpdate && (now.getTime() - lastUpdate.getTime()) < this.updateInterval) {
       // Aggregate with previous entry instead of creating new one
       return this.aggregateCost(data);
@@ -192,19 +205,19 @@ export class CostTrackerDO implements DurableObject {
     const costEntry: CostEntry = {
       id: crypto.randomUUID(),
       timestamp: now,
-      resource: data.resource,
-      resourceId: data.resourceId,
-      operation: data.operation,
-      amount: parseFloat(data.amount),
+      resource: data.resource || 'unknown',
+      resourceId: resourceId,
+      operation: data.operation || 'unknown',
+      amount: parseFloat(String(data.amount || '0')),
       currency: data.currency || 'USD',
-      unit: data.unit,
-      usage: parseFloat(data.usage),
+      unit: data.unit || 'units',
+      usage: parseFloat(String(data.usage || '0')),
       tags: data.tags || {},
       metadata: data.metadata || {}
     };
 
     await this.saveCostEntry(costEntry);
-    this.lastUpdate.set(data.resourceId, now);
+    this.lastUpdate.set(resourceId, now);
 
     // Check budget limits
     const budgetCheck = await this.checkResourceBudgets(costEntry);
@@ -224,7 +237,7 @@ export class CostTrackerDO implements DurableObject {
    * Record multiple cost entries in batch
    */
   private async recordCostBatch(request: Request): Promise<Response> {
-    const { costs } = await request.json();
+    const { costs = [] } = await request.json() as { costs?: any[] };
     const results = [];
     let totalAmount = 0;
 
@@ -264,10 +277,10 @@ export class CostTrackerDO implements DurableObject {
    * Get cost entries with filtering
    */
   private async getCosts(params: URLSearchParams): Promise<Response> {
-    const resource = params.get('resource');
-    const resourceId = params.get('resourceId');
-    const startDate = params.get('startDate') ? new Date(params.get('startDate')!) : null;
-    const endDate = params.get('endDate') ? new Date(params.get('endDate')!) : null;
+    const resource = params.get('resource') || undefined;
+    const resourceId = params.get('resourceId') || undefined;
+    const startDate = params.get('startDate') ? new Date(params.get('startDate')!) : undefined;
+    const endDate = params.get('endDate') ? new Date(params.get('endDate')!) : undefined;
     const limit = parseInt(params.get('limit') || '100');
 
     const costs = await this.loadCosts({
@@ -293,7 +306,7 @@ export class CostTrackerDO implements DurableObject {
    */
   private async getCostSummary(params: URLSearchParams): Promise<Response> {
     const period = params.get('period') || 'daily';
-    const resource = params.get('resource');
+    const resource = params.get('resource') || undefined;
 
     const summary = await this.generateCostSummary(period, resource);
 
@@ -307,22 +320,32 @@ export class CostTrackerDO implements DurableObject {
    * Create a budget
    */
   private async createBudget(request: Request): Promise<Response> {
-    const data = await request.json();
-    
+    const data = await request.json() as {
+      id?: string;
+      name?: string;
+      limit?: string | number;
+      period?: string;
+      startDate?: string;
+      endDate?: string;
+      resource?: string;
+      resourceId?: string;
+      thresholds?: { percentage: number; notifyEmail?: string }[];
+    };
+
     const budget: Budget = {
       id: data.id || crypto.randomUUID(),
-      name: data.name,
-      limit: parseFloat(data.limit),
-      period: data.period,
-      startDate: new Date(data.startDate),
+      name: data.name || 'Unnamed Budget',
+      limit: parseFloat(String(data.limit || '0')),
+      period: (data.period || 'monthly') as Budget['period'],
+      startDate: data.startDate ? new Date(data.startDate) : new Date(),
       endDate: data.endDate ? new Date(data.endDate) : undefined,
       spent: 0,
-      remaining: parseFloat(data.limit),
+      remaining: parseFloat(String(data.limit || '0')),
       percentage: 0,
-      resources: data.resources || [],
-      alerts: data.alerts || [],
+      resources: (data as any).resources || [],
+      alerts: (data as any).alerts || [],
       status: 'active',
-      enforcement: data.enforcement || 'warn'
+      enforcement: ((data as any).enforcement || 'warn') as Budget['enforcement']
     };
 
     await this.saveBudget(budget);
@@ -363,14 +386,14 @@ export class CostTrackerDO implements DurableObject {
       return new Response('Budget not found', { status: 404 });
     }
 
-    const updates = await request.json();
-    
+    const updates = await request.json() as Partial<Budget>;
+
     if (updates.limit !== undefined) {
-      budget.limit = parseFloat(updates.limit);
+      budget.limit = updates.limit;
       budget.remaining = budget.limit - budget.spent;
       budget.percentage = (budget.spent / budget.limit) * 100;
     }
-    
+
     if (updates.alerts) budget.alerts = updates.alerts;
     if (updates.enforcement) budget.enforcement = updates.enforcement;
     if (updates.resources) budget.resources = updates.resources;
@@ -423,20 +446,25 @@ export class CostTrackerDO implements DurableObject {
    * Check if operation would exceed budget limits
    */
   private async checkBudgetLimits(request: Request): Promise<Response> {
-    const { resource, resourceId, estimatedCost } = await request.json();
+    const { resource, resourceId, estimatedCost } = await request.json() as {
+      resource?: string;
+      resourceId?: string;
+      estimatedCost?: number;
+    };
     
-    const relevantBudgets = Array.from(this.budgets.values()).filter(budget => 
-      budget.status === 'active' && 
-      (budget.resources.length === 0 || budget.resources.includes(resource))
+    const relevantBudgets = Array.from(this.budgets.values()).filter(budget =>
+      budget.status === 'active' &&
+      (budget.resources.length === 0 || (resource && budget.resources.includes(resource)))
     );
 
     const checks = [];
     let allowOperation = true;
+    const estCost = estimatedCost || 0;
 
     for (const budget of relevantBudgets) {
       await this.refreshBudgetCalculations(budget);
-      
-      const projectedSpend = budget.spent + estimatedCost;
+
+      const projectedSpend = budget.spent + estCost;
       const wouldExceed = projectedSpend > budget.limit;
       
       checks.push({
@@ -496,8 +524,9 @@ export class CostTrackerDO implements DurableObject {
     // Load existing budgets
     const storedBudgets = await this.storage.list({ prefix: 'budget:' });
     
-    for (const [key, budget] of storedBudgets) {
-      this.budgets.set(budget.id, budget as Budget);
+    for (const [, budget] of storedBudgets) {
+      const b = budget as Budget;
+      this.budgets.set(b.id, b);
     }
 
     // Load daily totals
@@ -1032,8 +1061,11 @@ export class CostTrackerDO implements DurableObject {
    * Test alert functionality
    */
   private async testAlert(request: Request): Promise<Response> {
-    const { budgetId, alertType } = await request.json();
+    const { budgetId, alertType } = await request.json() as { budgetId?: string; alertType?: string };
     
+    if (!budgetId) {
+      return new Response('Budget ID required', { status: 400 });
+    }
     const budget = await this.loadBudget(budgetId);
     if (!budget) {
       return new Response('Budget not found', { status: 404 });
@@ -1043,7 +1075,7 @@ export class CostTrackerDO implements DurableObject {
       id: 'test',
       threshold: 50,
       triggered: true,
-      type: alertType || 'warning',
+      type: (alertType === 'critical' ? 'critical' : 'warning') as BudgetAlert['type'],
       actions: ['email', 'webhook']
     };
 

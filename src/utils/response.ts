@@ -18,6 +18,7 @@ export interface StandardResponse<T = any> {
       hasNext: boolean;
       hasPrev: boolean;
     };
+    details?: any;
   };
 }
 
@@ -162,7 +163,7 @@ export const corsHeaders = getCorsHeaders();
 export function successResponse<T>(
   data: T,
   message?: string,
-  metadata?: StandardResponse["metadata"],
+  metadata?: Partial<NonNullable<StandardResponse["metadata"]>>,
   origin?: string
 ): Response {
   const response: StandardResponse<T> = {
@@ -192,7 +193,7 @@ export function successResponse<T>(
 export function createdResponse<T>(
   data: T,
   message?: string,
-  metadata?: StandardResponse["metadata"],
+  metadata?: Partial<NonNullable<StandardResponse["metadata"]>>,
   origin?: string
 ): Response {
   const response: StandardResponse<T> = {
@@ -387,6 +388,24 @@ export function corsPreflightResponse(origin?: string): Response {
       ...getSecurityHeaders()
     }
   });
+}
+
+/**
+ * Create authentication error response (convenience wrapper)
+ * Use this for quick auth error responses without parameters
+ */
+export function createAuthErrorResponse(message = "Authentication required", origin?: string): Response {
+  return authErrorResponse(message, origin);
+}
+
+/**
+ * Create error response from Error object (convenience wrapper)
+ * Handles Error objects and extracts message for response
+ */
+export function createErrorResponse(error: Error | unknown, request?: Request, status = 500): Response {
+  const origin = request?.headers.get('Origin');
+  const message = error instanceof Error ? error.message : "Internal server error";
+  return serverErrorResponse(message, undefined, origin ?? undefined);
 }
 
 /**

@@ -1,8 +1,8 @@
-import { Env } from '../types';
+import type { Env } from '../worker-integrated';
 import postgres from 'postgres';
 import { z } from 'zod';
 import { getAuthUser } from '../utils/auth';
-import { corsHeaders } from '../utils/cors';
+import { corsHeaders } from '../utils/response';
 
 // Schema for tracking a view
 const TrackViewSchema = z.object({
@@ -26,7 +26,7 @@ const ViewAnalyticsSchema = z.object({
  */
 export async function trackViewHandler(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { pitchId, duration, referrer, userAgent } = TrackViewSchema.parse(body);
     
     // Get viewer info (may be null for anonymous views)
@@ -229,7 +229,7 @@ export async function getViewAnalyticsHandler(request: Request, env: Env): Promi
     `;
     
     // Get top viewers for creator's pitches
-    let topViewers = [];
+    let topViewers: postgres.Row[] = [];
     if (user.userType === 'creator') {
       topViewers = await sql`
         SELECT 

@@ -188,11 +188,10 @@ export function errorToResponse(error: unknown, fallbackMessage: string = 'An er
     code: serialized.code,
     type: serialized.type,
     // Only include technical details in development (never in production Workers)
-    ...(false && {  // Always false for production Workers
-      detail: serialized.detail,
-      sqlState: serialized.sqlState,
-      originalType: serialized.originalType
-    })
+    // Note: Technical details are never included in production
+    // detail: serialized.detail,
+    // sqlState: serialized.sqlState,
+    // originalType: serialized.originalType
   };
 }
 

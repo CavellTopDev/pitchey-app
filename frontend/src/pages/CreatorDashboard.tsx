@@ -31,13 +31,14 @@ import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatt
 
 function CreatorDashboard() {
   const navigate = useNavigate();
-  const { logout, user: authUser, isAuthenticated } = useBetterAuthStore();
+  const { logout, user: authUser, isAuthenticated, checkSession } = useBetterAuthStore();
   const { reportError, trackEvent, trackApiError } = useSentryPortal({
     portalType: 'creator',
     componentName: 'CreatorDashboard',
     trackPerformance: true
   });
-  
+
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -50,12 +51,37 @@ function CreatorDashboard() {
   const [avgRating, setAvgRating] = useState<number>(0);
   const [totalViews, setTotalViews] = useState<number>(0);
   const [followers, setFollowers] = useState<number>(0);
-  
+
   // Investment tracking state
   const [fundingMetrics, setFundingMetrics] = useState<any>(null);
   const [investmentLoading, setInvestmentLoading] = useState(true);
 
+  // Check session on mount and redirect if not authenticated
   useEffect(() => {
+    const validateSession = async () => {
+      try {
+        await checkSession();
+        setSessionChecked(true);
+      } catch {
+        setSessionChecked(true);
+      }
+    };
+    validateSession();
+  }, [checkSession]);
+
+  // Redirect to login if not authenticated after session check
+  useEffect(() => {
+    if (sessionChecked && !isAuthenticated) {
+      navigate('/login/creator');
+    }
+  }, [sessionChecked, isAuthenticated, navigate]);
+
+  useEffect(() => {
+    // Only fetch data after session is verified
+    if (!sessionChecked || !isAuthenticated) {
+      return;
+    }
+
     // Load user data immediately on mount
     const userData = localStorage.getItem('user');
     if (userData) {
@@ -68,12 +94,11 @@ function CreatorDashboard() {
     } else if (authUser) {
       // Fallback to auth store user if localStorage doesn't have it
       setUser(authUser);
-    } else {
     }
-    
+
     fetchDashboardData();
     fetchFundingData(); // Fetch funding data in parallel
-  }, [authUser]);
+  }, [authUser, sessionChecked, isAuthenticated]);
 
   const fetchFundingData = async () => {
     try {

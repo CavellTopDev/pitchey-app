@@ -10,6 +10,7 @@ import { getCorsHeaders } from '../utils/response';
 import { createBetterAuthInstance } from '../auth/better-auth-neon-raw-sql';
 import { PortalAccessController } from '../middleware/portal-access-control';
 import { KVCacheService } from '../services/kv-cache.service';
+import type { Env } from '../db/connection';
 
 export interface ContainerWorkerConfig {
   enableRateLimit: boolean;
@@ -191,7 +192,7 @@ export class ContainerWorkerIntegration {
 
       case 'POST':
         // POST /api/containers/jobs
-        const jobData = await request.json();
+        const jobData = await request.json() as Record<string, unknown>;
         return this.createJob(jobData, user);
 
       case 'DELETE':
@@ -220,7 +221,7 @@ export class ContainerWorkerIntegration {
       return this.errorResponse('Method not allowed', 405);
     }
 
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
 
     // Validate portal access for processing type
     const hasAccess = await this.accessController.validatePortalAccess(

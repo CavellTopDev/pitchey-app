@@ -83,7 +83,7 @@ interface DealTemplate {
   standard_terms: any;
 }
 
-const PRODUCTION_DEAL_TEMPLATES: Record<ProductionDealType, DealTemplate> = {
+export const PRODUCTION_DEAL_TEMPLATES: Record<ProductionDealType, DealTemplate> = {
   [ProductionDealType.OPTION]: {
     deal_type: ProductionDealType.OPTION,
     typical_option_period: '18 months',
@@ -328,7 +328,7 @@ export class CreatorProductionWorkflow {
           })},
           'medium'
         ) RETURNING id
-      `.then(result => result[0]?.id);
+      `.then((result: Array<{ id?: number }>) => result[0]?.id);
 
       // Create notification for creator
       await this.db`
@@ -499,7 +499,7 @@ export class CreatorProductionWorkflow {
 
       // Build dynamic query
       let whereConditions = ['p.status = $1', '(p.seeking_production = true OR p.rights_available = true)'];
-      let params = ['published'];
+      let params: (string | string[] | number)[] = ['published'];
       let paramIndex = 2;
 
       if (filters.genre && filters.genre.length > 0) {
@@ -711,7 +711,7 @@ export class CreatorProductionWorkflow {
         WHERE d.${this.db(userIdField)} = ${user.id}
         GROUP BY d.id
         LIMIT 1
-      `.then(result => result[0] || {
+      `.then((result: Array<Record<string, unknown>>) => result[0] || {
         total_deals: 0,
         active_deals: 0,
         completed_deals: 0,
@@ -884,7 +884,7 @@ export class CreatorProductionWorkflow {
         ${deal.pitch_id}, ${deal.production_company_id}, ${deal.creator_id}, ${dealId},
         'enhanced', 'full_access', 'pending'
       ) RETURNING id
-    `.then(result => result[0]?.id);
+    `.then((result: Array<{ id?: number }>) => result[0]?.id);
 
     // Update deal state
     await this.db`
@@ -993,7 +993,7 @@ export class CreatorProductionWorkflow {
         WHERE d.production_company_id = ${userId}
         GROUP BY d.id
         LIMIT 1
-      `.then(result => result[0] || {});
+      `.then((result: Array<Record<string, unknown>>) => result[0] || {});
     } else {
       return await this.db`
         SELECT 
@@ -1008,9 +1008,9 @@ export class CreatorProductionWorkflow {
         WHERE d.creator_id = ${userId}
         GROUP BY d.id
         LIMIT 1
-      `.then(result => result[0] || {});
+      `.then((result: Array<Record<string, unknown>>) => result[0] || {});
     }
   }
 }
 
-export { CreatorProductionWorkflow, PRODUCTION_DEAL_TEMPLATES, ProductionDealType, ProductionDealState };
+// All exports are inline above

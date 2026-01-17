@@ -16,9 +16,9 @@ import type {
 } from '../types/pitch-validation.types.js';
 
 import { pitchValidationService } from '../services/pitch-validation.service.js';
-import { logger } from '../lib/logger.js';
-import { getRedis } from '../lib/redis.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { logger } from '../lib/logger';
+import { getRedis } from '../lib/redis';
+import { requireAuth, requireRole } from '../middleware/auth';
 
 /**
  * POST /api/validation/analyze
@@ -26,7 +26,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
  */
 export async function analyzeHandler(request: Request): Promise<Response> {
   try {
-    const data: ValidationAnalysisRequest = await request.json();
+    const data: ValidationAnalysisRequest = await request.json() as Record<string, unknown>;
     
     // Validate required fields
     if (!data.pitchData?.title || !data.pitchData?.genre || !data.pitchData?.budget) {
@@ -36,12 +36,14 @@ export async function analyzeHandler(request: Request): Promise<Response> {
       }, { status: 400 });
     }
     
-    // Set default options
+    // Set default options, then spread user options to override defaults
     const options = {
-      depth: 'standard' as const,
-      include_market_data: true,
-      include_comparables: true,
-      include_predictions: true,
+      ...{
+        depth: 'standard' as const,
+        include_market_data: true,
+        include_comparables: true,
+        include_predictions: true
+      },
       ...data.options
     };
     
@@ -79,10 +81,11 @@ export async function analyzeHandler(request: Request): Promise<Response> {
     return Response.json(response);
     
   } catch (error) {
-    logger.error('Pitch validation analysis failed', { error: error.message });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Pitch validation analysis failed', { error: message });
     return Response.json({
       success: false,
-      error: `Analysis failed: ${error.message}`
+      error: `Analysis failed: ${message}`
     }, { status: 500 });
   }
 }
@@ -127,10 +130,11 @@ export async function getScoreHandler(request: Request): Promise<Response> {
     }, { status: 404 });
     
   } catch (error) {
-    logger.error('Failed to retrieve validation score', { error: error.message });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Failed to retrieve validation score', { error: message });
     return Response.json({
       success: false,
-      error: `Failed to retrieve score: ${error.message}`
+      error: `Failed to retrieve score: ${message}`
     }, { status: 500 });
   }
 }
@@ -139,11 +143,25 @@ export async function getScoreHandler(request: Request): Promise<Response> {
  * PUT /api/validation/update/:pitchId
  * Update pitch data and re-score
  */
+interface PitchUpdateData {
+  title?: string;
+  logline?: string;
+  synopsis?: string;
+  genre?: string;
+  budget?: number;
+  director?: string;
+  producer?: string;
+  cast?: string[];
+  script_pages?: number;
+  target_audience?: string;
+  release_strategy?: string;
+}
+
 export async function updateScoreHandler(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
     const pitchId = url.pathname.split('/').pop();
-    const updateData = await request.json();
+    const updateData = await request.json() as PitchUpdateData;
     
     if (!pitchId) {
       return Response.json({
@@ -196,10 +214,11 @@ export async function updateScoreHandler(request: Request): Promise<Response> {
     });
     
   } catch (error) {
-    logger.error('Failed to update validation score', { error: error.message });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Failed to update validation score', { error: message });
     return Response.json({
       success: false,
-      error: `Failed to update score: ${error.message}`
+      error: `Failed to update score: ${message}`
     }, { status: 500 });
   }
 }
@@ -267,10 +286,10 @@ export async function getRecommendationsHandler(request: Request): Promise<Respo
     });
     
   } catch (error) {
-    logger.error('Failed to get recommendations', { error: error.message });
+    logger.error('Failed to get recommendations', { error: error instanceof Error ? error.message : 'Unknown error' });
     return Response.json({
       success: false,
-      error: `Failed to get recommendations: ${error.message}`
+      error: `Failed to get recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`
     }, { status: 500 });
   }
 }
@@ -375,10 +394,10 @@ export async function getComparablesHandler(request: Request): Promise<Response>
     });
     
   } catch (error) {
-    logger.error('Failed to get comparable projects', { error: error.message });
+    logger.error('Failed to get comparable projects', { error: error instanceof Error ? error.message : 'Unknown error' });
     return Response.json({
       success: false,
-      error: `Failed to get comparables: ${error.message}`
+      error: `Failed to get comparables: ${error instanceof Error ? error.message : 'Unknown error'}`
     }, { status: 500 });
   }
 }
@@ -389,7 +408,7 @@ export async function getComparablesHandler(request: Request): Promise<Response>
  */
 export async function benchmarkHandler(request: Request): Promise<Response> {
   try {
-    const data: BenchmarkRequest = await request.json();
+    const data: BenchmarkRequest = await request.json() as Record<string, unknown>;
     
     if (!data.pitchId || !data.categories || data.categories.length === 0) {
       return Response.json({
@@ -460,12 +479,18 @@ export async function benchmarkHandler(request: Request): Promise<Response> {
     });
     
   } catch (error) {
-    logger.error('Failed to generate benchmark analysis', { error: error.message });
+    logger.error('Failed to generate benchmark analysis', { error: error instanceof Error ? error.message : 'Unknown error' });
     return Response.json({
       success: false,
-      error: `Benchmark analysis failed: ${error.message}`
+      error: `Benchmark analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     }, { status: 500 });
   }
+}
+
+interface RealTimeValidationData {
+  pitchId: string;
+  field: 'title' | 'logline' | 'synopsis' | 'budget';
+  content: string;
 }
 
 /**
@@ -474,7 +499,7 @@ export async function benchmarkHandler(request: Request): Promise<Response> {
  */
 export async function realTimeValidationHandler(request: Request): Promise<Response> {
   try {
-    const data = await request.json();
+    const data = await request.json() as RealTimeValidationData;
     
     if (!data.pitchId || !data.field || !data.content) {
       return Response.json({
@@ -557,10 +582,10 @@ export async function realTimeValidationHandler(request: Request): Promise<Respo
     });
     
   } catch (error) {
-    logger.error('Real-time validation failed', { error: error.message });
+    logger.error('Real-time validation failed', { error: error instanceof Error ? error.message : 'Unknown error' });
     return Response.json({
       success: false,
-      error: `Real-time validation failed: ${error.message}`
+      error: `Real-time validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     }, { status: 500 });
   }
 }
@@ -651,10 +676,10 @@ export async function getProgressHandler(request: Request): Promise<Response> {
     });
     
   } catch (error) {
-    logger.error('Failed to get validation progress', { error: error.message });
+    logger.error('Failed to get validation progress', { error: error instanceof Error ? error.message : 'Unknown error' });
     return Response.json({
       success: false,
-      error: `Failed to get progress: ${error.message}`
+      error: `Failed to get progress: ${error instanceof Error ? error.message : 'Unknown error'}`
     }, { status: 500 });
   }
 }
@@ -681,8 +706,8 @@ export async function getDashboardHandler(request: Request): Promise<Response> {
       getProgressHandler(new Request(`${request.url.replace('/dashboard', '/progress')}`))
     ]);
     
-    const scoreData = await scoreResponse.json();
-    const progressData = await progressResponse.json();
+    const scoreData = await scoreResponse.json() as { success: boolean; data?: ValidationScore };
+    const progressData = await progressResponse.json() as { success: boolean; data?: ValidationProgress };
     
     if (!scoreData.success || !progressData.success) {
       return Response.json({
@@ -742,10 +767,10 @@ export async function getDashboardHandler(request: Request): Promise<Response> {
     });
     
   } catch (error) {
-    logger.error('Failed to get validation dashboard', { error: error.message });
+    logger.error('Failed to get validation dashboard', { error: error instanceof Error ? error.message : 'Unknown error' });
     return Response.json({
       success: false,
-      error: `Failed to load dashboard: ${error.message}`
+      error: `Failed to load dashboard: ${error instanceof Error ? error.message : 'Unknown error'}`
     }, { status: 500 });
   }
 }
@@ -756,7 +781,7 @@ export async function getDashboardHandler(request: Request): Promise<Response> {
  */
 export async function batchAnalyzeHandler(request: Request): Promise<Response> {
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     
     if (!data.pitches || !Array.isArray(data.pitches) || data.pitches.length === 0) {
       return Response.json({
@@ -828,10 +853,10 @@ export async function batchAnalyzeHandler(request: Request): Promise<Response> {
     });
     
   } catch (error) {
-    logger.error('Batch analysis failed', { error: error.message });
+    logger.error('Batch analysis failed', { error: error instanceof Error ? error.message : 'Unknown error' });
     return Response.json({
       success: false,
-      error: `Batch analysis failed: ${error.message}`
+      error: `Batch analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     }, { status: 500 });
   }
 }

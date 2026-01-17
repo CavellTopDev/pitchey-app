@@ -46,7 +46,7 @@ interface NDATemplate {
   restrictions: string[];
 }
 
-const NDA_TEMPLATES: Record<string, NDATemplate> = {
+export const NDA_TEMPLATES: Record<string, NDATemplate> = {
   'basic_investor': {
     type: NDAType.BASIC,
     access_level: NDAAccessLevel.BASIC,
@@ -254,7 +254,7 @@ export class NDAStateMachine {
           ${template.type}::nda_type,
           ${template.access_level}
         ) as nda_id
-      `.then(result => result[0]?.nda_id);
+      `.then((result: Array<{ nda_id?: number }>) => result[0]?.nda_id);
 
       // Update with template-specific details
       await this.db`
@@ -794,7 +794,7 @@ export class NDAStateMachine {
           ` : 'NULL'} as avg_response_hours
         FROM enhanced_ndas
         WHERE ${userType === 'creator' ? 'creator_id' : 'requester_id'} = ${user.id}
-      `.then(result => result[0] || {});
+      `.then((result: Array<Record<string, unknown>>) => result[0] || {});
 
       return new Response(JSON.stringify({
         success: true,
@@ -918,7 +918,7 @@ export class NDAStateMachine {
             true,
             ${reason || 'NDA approved'}
           ) as success
-        `.then(result => result[0]?.success);
+        `.then((result: Array<{ success?: boolean }>) => result[0]?.success);
 
         return {
           nda_state: 'approved',
@@ -1011,4 +1011,4 @@ export class NDAStateMachine {
   }
 }
 
-export { NDAStateMachine, NDA_TEMPLATES, NDAState, NDAType, NDAAccessLevel };
+// All exports are inline above

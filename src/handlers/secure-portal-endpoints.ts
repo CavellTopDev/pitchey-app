@@ -296,7 +296,7 @@ export class SecurePortalEndpoints {
    */
   @requirePortalAccess('investor')
   async expressInvestmentInterest(request: Request): Promise<Response> {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { pitch_id, investment_amount, equity_percentage, terms, message } = body;
 
     if (!pitch_id || !investment_amount) {
@@ -310,11 +310,11 @@ export class SecurePortalEndpoints {
       });
     }
 
-    return this.investorWorkflow.expressInvestmentInterest(request, pitch_id, {
-      amount: investment_amount,
-      equity_percentage,
-      terms,
-      message
+    return this.investorWorkflow.expressInvestmentInterest(request, pitch_id as number, {
+      amount: investment_amount as number,
+      equity_percentage: equity_percentage as number | undefined,
+      terms: terms as string | undefined,
+      message: message as string | undefined
     });
   }
 
@@ -370,7 +370,7 @@ export class SecurePortalEndpoints {
         performanceMetrics
       ] = await Promise.allSettled([
         this.getProductionPipelineOverview(user.id),
-        this.getProductionOpportunities(user.id),
+        this.getProductionOpportunitiesForUser(user.id),
         this.getProductionActiveDeals(user.id),
         this.getProductionTalentSearch(user.id),
         this.getProductionProjectsInDevelopment(user.id),
@@ -450,7 +450,7 @@ export class SecurePortalEndpoints {
    */
   @requirePortalAccess('production')
   async expressProductionInterest(request: Request): Promise<Response> {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { pitch_id, deal_type, offer_amount, option_period, proposed_rights, production_timeline, message } = body;
 
     if (!pitch_id || !deal_type || !offer_amount) {
@@ -464,13 +464,13 @@ export class SecurePortalEndpoints {
       });
     }
 
-    return this.productionWorkflow.expressProductionInterest(request, pitch_id, {
-      deal_type,
-      offer_amount,
-      option_period,
-      proposed_rights: proposed_rights || {},
-      production_timeline,
-      message
+    return this.productionWorkflow.expressProductionInterest(request, pitch_id as number, {
+      deal_type: deal_type as string,
+      offer_amount: offer_amount as number,
+      option_period: option_period as number | undefined,
+      proposed_rights: (proposed_rights || {}) as Record<string, unknown>,
+      production_timeline: production_timeline as string | undefined,
+      message: message as string | undefined
     });
   }
 
@@ -505,10 +505,10 @@ export class SecurePortalEndpoints {
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { pitch_id, template_name = 'basic_investor', custom_terms } = body;
 
-    return this.ndaStateMachine.createNDARequest(request, pitch_id, template_name, custom_terms);
+    return this.ndaStateMachine.createNDARequest(request, pitch_id as number, template_name as string, custom_terms);
   }
 
   /**
@@ -517,7 +517,16 @@ export class SecurePortalEndpoints {
   async signNDA(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const ndaId = parseInt(url.pathname.split('/')[3]);
-    const body = await request.json();
+    const body = await request.json() as {
+      full_name: string;
+      title?: string;
+      company?: string;
+      date: string;
+      signature: string;
+      terms_accepted: boolean;
+      ip_address?: string;
+      user_agent?: string;
+    };
 
     return this.ndaStateMachine.signNDA(request, ndaId, body);
   }
@@ -540,10 +549,10 @@ export class SecurePortalEndpoints {
 
     const url = new URL(request.url);
     const ndaId = parseInt(url.pathname.split('/')[3]);
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { decision, reason } = body;
 
-    return this.ndaStateMachine.processNDADecision(request, ndaId, decision, reason);
+    return this.ndaStateMachine.processNDADecision(request, ndaId, decision as 'approve' | 'reject', reason as string | undefined);
   }
 
   /**
@@ -576,7 +585,7 @@ export class SecurePortalEndpoints {
         COUNT(*) FILTER (WHERE seeking_production = true) as seeking_production
       FROM pitches 
       WHERE user_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getCreatorInvestmentDeals(userId: number): Promise<any> {
@@ -587,9 +596,9 @@ export class SecurePortalEndpoints {
         COUNT(*) FILTER (WHERE deal_state = 'completed') as completed_deals,
         COALESCE(SUM(investment_amount), 0) as total_investment_amount,
         COUNT(DISTINCT investor_id) as unique_investors
-      FROM investment_deals 
+      FROM investment_deals
       WHERE creator_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getCreatorProductionDeals(userId: number): Promise<any> {
@@ -601,9 +610,9 @@ export class SecurePortalEndpoints {
         COALESCE(SUM(option_amount), 0) as total_option_amount,
         COALESCE(SUM(purchase_price), 0) as total_purchase_amount,
         COUNT(DISTINCT production_company_id) as unique_production_companies
-      FROM production_deals 
+      FROM production_deals
       WHERE creator_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getCreatorNDARequests(userId: number): Promise<any> {
@@ -614,9 +623,9 @@ export class SecurePortalEndpoints {
         COUNT(*) FILTER (WHERE nda_state = 'signed') as signed_ndas,
         COUNT(*) FILTER (WHERE nda_state = 'approved') as approved_ndas,
         COUNT(*) FILTER (WHERE nda_state = 'rejected') as rejected_ndas
-      FROM enhanced_ndas 
+      FROM enhanced_ndas
       WHERE creator_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getCreatorRecentActivity(userId: number): Promise<any> {
@@ -680,7 +689,7 @@ export class SecurePortalEndpoints {
       LEFT JOIN investment_deals i ON p.id = i.pitch_id AND i.deal_state = 'completed'
       LEFT JOIN production_deals pd ON p.id = pd.pitch_id AND pd.deal_state = 'completed'
       WHERE p.user_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getCreatorAnalytics(userId: number): Promise<any> {
@@ -695,7 +704,7 @@ export class SecurePortalEndpoints {
       LEFT JOIN pitch_views pv ON p.id = pv.pitch_id
       WHERE p.user_id = ${userId}
       AND pv.viewed_at > now() - interval '30 days'
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getDetailedRevenueMetrics(userId: number): Promise<any> {
@@ -761,7 +770,7 @@ export class SecurePortalEndpoints {
           WHERE p.user_id = ${userId}
           AND pd.deal_state IN ('negotiation', 'term_sheet', 'legal_review')
         ) pipeline
-      `.then(result => result[0] || {})
+      `.then((result: Record<string, unknown>[]) => result[0] || {})
     ]);
 
     return {
@@ -785,7 +794,7 @@ export class SecurePortalEndpoints {
         COUNT(DISTINCT pitch_id) as unique_projects
       FROM investment_deals 
       WHERE investor_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getInvestorOpportunities(userId: number): Promise<any> {
@@ -798,7 +807,7 @@ export class SecurePortalEndpoints {
         SELECT 1 FROM investment_deals i 
         WHERE i.pitch_id = p.id AND i.investor_id = ${userId}
       )
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getInvestorActiveDeals(userId: number): Promise<any> {
@@ -822,7 +831,7 @@ export class SecurePortalEndpoints {
         COUNT(*) FILTER (WHERE nda_state = 'pending') as pending_ndas
       FROM enhanced_ndas 
       WHERE requester_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getInvestorSavedPitches(userId: number): Promise<any> {
@@ -830,7 +839,7 @@ export class SecurePortalEndpoints {
       SELECT COUNT(*) as saved_count
       FROM saved_pitches 
       WHERE user_id = ${userId}
-    `.then(result => result[0]?.saved_count || 0);
+    `.then((result: Record<string, unknown>[]) => (result[0] as Record<string, unknown>)?.saved_count || 0);
   }
 
   private async getInvestorPerformanceMetrics(userId: number): Promise<any> {
@@ -842,7 +851,7 @@ export class SecurePortalEndpoints {
       FROM investment_deals 
       WHERE investor_id = ${userId}
       AND deal_state IN ('completed', 'cancelled')
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   // Production company helper methods
@@ -857,7 +866,7 @@ export class SecurePortalEndpoints {
         COUNT(DISTINCT pitch_id) as unique_projects
       FROM production_deals 
       WHERE production_company_id = ${userId}
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getProductionActiveDeals(userId: number): Promise<any> {
@@ -887,21 +896,33 @@ export class SecurePortalEndpoints {
       FROM production_deals 
       WHERE production_company_id = ${userId}
       AND deal_state IN ('legal_review', 'funding', 'completed')
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 
   private async getProductionPerformanceMetrics(userId: number): Promise<any> {
     return await this.db`
-      SELECT 
+      SELECT
         COUNT(*) FILTER (WHERE deal_state = 'completed') as successful_deals,
         COUNT(*) FILTER (WHERE deal_state = 'cancelled') as cancelled_deals,
         COALESCE(AVG(EXTRACT(EPOCH FROM (state_changed_at - created_at)) / 86400), 0) as avg_deal_duration_days,
         COUNT(DISTINCT deal_type) as deal_types_used
-      FROM production_deals 
+      FROM production_deals
       WHERE production_company_id = ${userId}
       AND deal_state IN ('completed', 'cancelled')
-    `.then(result => result[0] || {});
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
+  }
+
+  // Private helper method for production opportunities by userId (used in dashboard)
+  private async getProductionOpportunitiesForUser(userId: number): Promise<any> {
+    return await this.db`
+      SELECT
+        COUNT(*) as total_opportunities,
+        COUNT(*) FILTER (WHERE status = 'available') as available,
+        COUNT(*) FILTER (WHERE status = 'reviewing') as under_review
+      FROM production_deals
+      WHERE production_company_id = ${userId}
+    `.then((result: Record<string, unknown>[]) => result[0] || {});
   }
 }
 
-export { SecurePortalEndpoints };
+// Class is already exported via 'export class' declaration above

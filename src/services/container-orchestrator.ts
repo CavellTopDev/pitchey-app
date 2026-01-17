@@ -4,6 +4,7 @@
  */
 
 import { DatabaseConnectionManager } from '../config/hyperdrive-config';
+import type { Env } from '../worker-integrated';
 
 export interface ContainerJob {
   id: string;

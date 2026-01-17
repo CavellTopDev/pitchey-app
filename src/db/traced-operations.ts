@@ -223,7 +223,7 @@ export async function searchPitchesWithTracing(
         await env.PITCHEY_PERFORMANCE.writeDataPoint({
           blobs: ['slow_query', 'pitch_search', filters.query || 'none'],
           doubles: [queryDuration, result.results.length],
-          indexes: ['slow_query', 'search']
+          indexes: ['slow_query:search'] // Single combined index
         });
       }
     }
@@ -450,7 +450,7 @@ export async function trackUserActivityWithTracing(
       await env.ANALYTICS.writeDataPoint({
         blobs: [userId, activity.type, activity.resource],
         doubles: [Date.now()],
-        indexes: [activity.type, 'user_activity']
+        indexes: [`${activity.type}:user_activity`] // Single combined index
       });
     }
     

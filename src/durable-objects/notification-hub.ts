@@ -3,6 +3,8 @@
  * Handles real-time notifications across all three portals
  */
 
+import type { Env } from '../worker-integrated';
+
 export interface NotificationSession {
   id: string;
   userId: string;
@@ -294,16 +296,17 @@ export class NotificationHub implements DurableObject {
    * Send message to specific user
    */
   private async handleSendToUser(request: Request): Promise<Response> {
-    const { userId, message } = await request.json();
-    
+    const body = await request.json() as { userId?: string; message?: any };
+    const { userId = '', message } = body;
+
     const userWebSockets = this.userSessions.get(userId);
-    
+
     if (!userWebSockets || userWebSockets.size === 0) {
       // User offline, queue message
       await this.queueMessage(userId, message);
-      return Response.json({ 
+      return Response.json({
         status: 'queued',
-        userId 
+        userId
       });
     }
     
@@ -329,8 +332,9 @@ export class NotificationHub implements DurableObject {
    * Handle presence update
    */
   private async handlePresenceUpdate(request: Request): Promise<Response> {
-    const { userId, status } = await request.json();
-    
+    const body = await request.json() as { userId?: string; status?: 'online' | 'offline' | 'away' };
+    const { userId = '', status = 'online' } = body;
+
     this.presenceTracking.set(userId, status);
     await this.broadcastPresence(userId, status);
     
@@ -420,7 +424,7 @@ export class NotificationHub implements DurableObject {
     
     if (!targetWebSockets || targetWebSockets.size === 0) {
       // Queue for offline user
-      await this.queueMessage(targetUserId, message as NotificationMessage);
+      await this.queueMessage(targetUserId, message as unknown as NotificationMessage);
     } else {
       // Deliver to online user
       for (const ws of targetWebSockets) {

@@ -38,31 +38,33 @@ export enum ErrorCode {
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
   INVALID_TOKEN = 'INVALID_TOKEN',
-  
+
   // Validation
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   INVALID_INPUT = 'INVALID_INPUT',
   MISSING_FIELD = 'MISSING_FIELD',
-  
+  BAD_REQUEST = 'BAD_REQUEST',
+
   // Resource errors
   NOT_FOUND = 'NOT_FOUND',
   ALREADY_EXISTS = 'ALREADY_EXISTS',
   CONFLICT = 'CONFLICT',
-  
+
   // Server errors
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   DATABASE_ERROR = 'DATABASE_ERROR',
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
-  
+  NOT_IMPLEMENTED = 'NOT_IMPLEMENTED',
+
   // Rate limiting
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  
+
   // File operations
   UPLOAD_ERROR = 'UPLOAD_ERROR',
   FILE_NOT_FOUND = 'FILE_NOT_FOUND',
   FILE_TOO_LARGE = 'FILE_TOO_LARGE',
   INVALID_FILE_TYPE = 'INVALID_FILE_TYPE',
-  
+
   // Business logic
   INSUFFICIENT_FUNDS = 'INSUFFICIENT_FUNDS',
   QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
@@ -81,12 +83,14 @@ const ErrorStatusMap: Record<ErrorCode, number> = {
   [ErrorCode.VALIDATION_ERROR]: 400,
   [ErrorCode.INVALID_INPUT]: 400,
   [ErrorCode.MISSING_FIELD]: 400,
+  [ErrorCode.BAD_REQUEST]: 400,
   [ErrorCode.NOT_FOUND]: 404,
   [ErrorCode.ALREADY_EXISTS]: 409,
   [ErrorCode.CONFLICT]: 409,
   [ErrorCode.INTERNAL_ERROR]: 500,
   [ErrorCode.DATABASE_ERROR]: 500,
   [ErrorCode.SERVICE_UNAVAILABLE]: 503,
+  [ErrorCode.NOT_IMPLEMENTED]: 501,
   [ErrorCode.RATE_LIMIT_EXCEEDED]: 429,
   [ErrorCode.UPLOAD_ERROR]: 400,
   [ErrorCode.FILE_NOT_FOUND]: 404,
@@ -231,6 +235,35 @@ export class ApiResponseBuilder {
         'X-Request-Id': this.requestId || ''
       }
     });
+  }
+
+  // Static convenience methods for common responses
+  static rateLimited(message: string = 'Rate limit exceeded'): Response {
+    return new ApiResponseBuilder().error(ErrorCode.RATE_LIMIT_EXCEEDED, message);
+  }
+
+  static unauthorized(message: string = 'Unauthorized'): Response {
+    return new ApiResponseBuilder().error(ErrorCode.UNAUTHORIZED, message);
+  }
+
+  static badRequest(message: string = 'Bad request'): Response {
+    return new ApiResponseBuilder().error(ErrorCode.VALIDATION_ERROR, message);
+  }
+
+  static internalServerError(message: string = 'Internal server error'): Response {
+    return new ApiResponseBuilder().error(ErrorCode.INTERNAL_ERROR, message);
+  }
+
+  static notFound(message: string = 'Resource not found'): Response {
+    return new ApiResponseBuilder().error(ErrorCode.NOT_FOUND, message);
+  }
+
+  static success<T>(data: T): Response {
+    return new ApiResponseBuilder().success(data);
+  }
+
+  static error(code: ErrorCode, message: string): Response {
+    return new ApiResponseBuilder().error(code, message);
   }
 }
 

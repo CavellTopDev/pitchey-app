@@ -15,7 +15,7 @@ export async function handleNDARequest(request: Request, env: any, authResult: a
   const builder = new ApiResponseBuilder(request);
   
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const ndaService = new NDAWorkflowService(env);
     
     // Parse and validate request data
@@ -51,7 +51,7 @@ export async function handleNDAApproval(request: Request, env: any, authResult: 
   const params = (request as any).params;
   
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const ndaService = new NDAWorkflowService(env);
     
     // Parse and validate approval data
@@ -88,7 +88,7 @@ export async function handleNDARejection(request: Request, env: any, authResult:
   const params = (request as any).params;
   
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const ndaService = new NDAWorkflowService(env);
     
     // Parse and validate rejection data
@@ -122,7 +122,7 @@ export async function handleNDASignature(request: Request, env: any, authResult:
   const params = (request as any).params;
   
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const ndaService = new NDAWorkflowService(env);
     
     // Get IP address from request headers
@@ -166,7 +166,7 @@ export async function handleNDARevocation(request: Request, env: any, authResult
   const params = (request as any).params;
   
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const ndaService = new NDAWorkflowService(env);
     
     // Revoke NDA

@@ -4,7 +4,7 @@
  */
 
 import { neon } from '@neondatabase/serverless';
-import type { Env } from '../types';
+import type { Env } from '../db/connection';
 import * as pitchQueries from '../db/queries/pitches';
 import * as userQueries from '../db/queries/users';
 import * as investmentQueries from '../db/queries/investments';
@@ -266,7 +266,7 @@ export async function productionTalentHandler(request: Request, env: Env) {
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    const talent = await sql(talentQuery, params);
+    const talent = await sql.query(talentQuery, params);
 
     // Get talent categories for filters
     const categories = await sql`
@@ -319,16 +319,16 @@ export async function productionPipelineHandler(request: Request, env: Env) {
       const stage = url.searchParams.get('stage');
       const status = url.searchParams.get('status') || 'active';
       
-      let whereConditions = [`pp.production_company_id = $1`, `pp.status = $2`];
-      const params: any[] = [user.id, status];
-      
+      const whereConditions = [`pp.production_company_id = $1`, `pp.status = $2`];
+      const params: unknown[] = [user.id, status];
+
       if (stage) {
         whereConditions.push(`pp.stage = $3`);
         params.push(stage);
       }
-      
-      const pipeline = await sql(`
-        SELECT 
+
+      const pipeline = await sql.query(`
+        SELECT
           pp.*,
           p.title as pitch_title,
           p.genre as pitch_genre,
@@ -359,7 +359,7 @@ export async function productionPipelineHandler(request: Request, env: Env) {
     
     if (request.method === 'POST') {
       // Add project to pipeline
-      const body = await request.json();
+      const body = await request.json() as Record<string, unknown>;
       const {
         pitch_id,
         stage = 'development',
@@ -408,12 +408,12 @@ export async function productionPipelineHandler(request: Request, env: Env) {
     if (request.method === 'PUT') {
       // Update pipeline project
       const projectId = url.pathname.split('/').pop();
-      const body = await request.json();
-      
-      const updateFields = [];
-      const params = [];
+      const body = await request.json() as Record<string, unknown>;
+
+      const updateFields: string[] = [];
+      const params: unknown[] = [];
       let paramIndex = 1;
-      
+
       Object.entries(body).forEach(([key, value]) => {
         if (value !== undefined && key !== 'id') {
           updateFields.push(`${key} = $${paramIndex}`);
@@ -421,15 +421,17 @@ export async function productionPipelineHandler(request: Request, env: Env) {
           paramIndex++;
         }
       });
-      
+
       params.push(projectId, user.id);
-      
-      const updated = await sql(`
-        UPDATE production_pipeline 
-        SET ${updateFields.join(', ')}, updated_at = NOW()
-        WHERE id = $${paramIndex} AND production_company_id = $${paramIndex + 1}
-        RETURNING *
-      `, params);
+
+      // Use sql.query() for dynamic updates
+      const updated = await sql.query(
+        `UPDATE production_pipeline
+         SET ${updateFields.join(', ')}, updated_at = NOW()
+         WHERE id = $${paramIndex} AND production_company_id = $${paramIndex + 1}
+         RETURNING *`,
+        params
+      );
       
       return new Response(JSON.stringify({
         success: true,
@@ -573,7 +575,7 @@ export async function productionBudgetHandler(request: Request, env: Env) {
     
     if (request.method === 'POST') {
       // Add new expense
-      const body = await request.json();
+      const body = await request.json() as Record<string, unknown>;
       const {
         category,
         subcategory,
@@ -737,7 +739,7 @@ export async function productionScheduleHandler(request: Request, env: Env) {
     
     if (request.method === 'POST') {
       // Create shooting day
-      const body = await request.json();
+      const body = await request.json() as Record<string, unknown>;
       const {
         shoot_date,
         call_time,
@@ -815,21 +817,21 @@ export async function productionLocationsHandler(request: Request, env: Env) {
     
     if (request.method === 'GET') {
       // Get scouted locations
-      let whereConditions = [];
-      const params = [];
+      const whereConditions: string[] = [];
+      const params: unknown[] = [];
       let paramIndex = 1;
-      
+
       if (projectId) {
         whereConditions.push(`ls.project_id = $${paramIndex}`);
         params.push(projectId);
         paramIndex++;
       }
-      
+
       whereConditions.push(`ls.production_company_id = $${paramIndex}`);
       params.push(user.id);
-      
-      const locations = await sql(`
-        SELECT 
+
+      const locations = await sql.query(`
+        SELECT
           ls.*,
           pp.title as project_title,
           COUNT(DISTINCT lp.id) as photo_count,
@@ -869,7 +871,7 @@ export async function productionLocationsHandler(request: Request, env: Env) {
     
     if (request.method === 'POST') {
       // Add scouted location
-      const body = await request.json();
+      const body = await request.json() as Record<string, unknown>;
       const {
         project_id,
         location_name,
@@ -910,20 +912,21 @@ export async function productionLocationsHandler(request: Request, env: Env) {
       `;
       
       // Add photos if provided
-      if (photos && photos.length > 0) {
-        const photoValues = photos.map((photo: any, i: number) => {
-          const base = i * 5;
+      const photosArray = photos as Array<{ url: string; caption?: string; is_primary?: boolean }> | undefined;
+      if (photosArray && photosArray.length > 0) {
+        const photoValues = photosArray.map((_photo, i: number) => {
+          const base = i * 4;
           return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, NOW())`;
         }).join(', ');
-        
-        const photoParams = photos.flatMap((photo: any) => [
-          location[0].id,
+
+        const photoParams = photosArray.flatMap((photo) => [
+          (location[0] as Record<string, unknown>).id,
           photo.url,
-          photo.caption,
+          photo.caption || '',
           photo.is_primary || false
         ]);
-        
-        await sql(`
+
+        await sql.query(`
           INSERT INTO location_photos (
             location_id, photo_url, caption, is_primary, uploaded_at
           ) VALUES ${photoValues}
@@ -1042,7 +1045,7 @@ export async function productionCrewHandler(request: Request, env: Env) {
     
     if (request.method === 'POST') {
       // Assign crew member to project
-      const body = await request.json();
+      const body = await request.json() as Record<string, unknown>;
       const {
         project_id,
         crew_member_id,
@@ -1057,7 +1060,7 @@ export async function productionCrewHandler(request: Request, env: Env) {
       // Create or get crew member
       let crewMemberId = crew_member_id;
       if (!crewMemberId && body.new_crew_member) {
-        const newMember = body.new_crew_member;
+        const newMember = body.new_crew_member as Record<string, unknown>;
         const created = await sql`
           INSERT INTO crew_members (
             full_name, email, phone, role_specialization,
@@ -1073,7 +1076,7 @@ export async function productionCrewHandler(request: Request, env: Env) {
           )
           RETURNING id
         `;
-        crewMemberId = created[0].id;
+        crewMemberId = (created[0] as Record<string, unknown>).id;
       }
       
       // Assign to project

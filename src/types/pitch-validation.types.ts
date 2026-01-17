@@ -506,63 +506,7 @@ export interface LegalIntegration {
   riskFactors: string[];
 }
 
-// Export all types for use across the application
-export type {
-  // Core types
-  ValidationScore,
-  ValidationCategories,
-  CategoryScore,
-  ScoreFactor,
-  
-  // Analysis types
-  StoryAnalysis,
-  MarketAnalysis,
-  FinancialAnalysis,
-  TeamAnalysis,
-  ProductionAnalysis,
-  
-  // Specialized analysis
-  GenreTrend,
-  AudienceDemand,
-  SeasonalAnalysis,
-  CompetitiveAnalysis,
-  DistributionAnalysis,
-  
-  // Risk and prediction
-  RiskAssessment,
-  RiskFactor,
-  MitigationStrategy,
-  SuccessPrediction,
-  PredictionScenario,
-  
-  // Recommendations
-  ValidationRecommendation,
-  ActionItem,
-  BenchmarkData,
-  
-  // API types
-  ValidationRequest,
-  ValidationResponse,
-  ValidationAnalysisRequest,
-  RecommendationsRequest,
-  ComparablesRequest,
-  BenchmarkRequest,
-  
-  // Real-time and dashboard
-  RealTimeValidation,
-  ValidationProgress,
-  ValidationDashboard,
-  CompetitivePosition,
-  ValidationMilestone,
-  
-  // Workflow
-  ValidationWorkflow,
-  ValidationStep,
-  
-  // Integration
-  CrawlAIIntegration,
-  LegalIntegration
-};
+// All types are already exported via 'export interface' declarations above
 
 // Helper types for complex data structures
 export interface SensitivityData {

@@ -2,30 +2,16 @@
  * Comprehensive Real-Time Messaging Service
  * Features: Real-time WebSocket messaging, E2E encryption, file attachments,
  * read receipts, typing indicators, message search, and offline support
+ *
+ * Refactored to use raw SQL queries via WorkerDatabase
  */
 
-import type { DatabaseService } from '../types/worker-types';
-import { eq, and, or, desc, asc, like, isNull, isNotNull, sql, inArray } from 'drizzle-orm';
-import type { 
-  ConversationType, 
-  NewConversationType, 
-  MessageType, 
-  NewMessageType,
-  MessageAttachmentType,
-  NewMessageAttachmentType,
-  MessageReadReceiptType,
-  NewMessageReadReceiptType,
-  TypingIndicatorType,
-  NewTypingIndicatorType,
-  MessageReactionType,
-  NewMessageReactionType,
-  ConversationParticipantType,
-  NewConversationParticipantType,
-  BlockedUserType,
-  NewBlockedUserType,
-  ConversationSettingsType,
-  NewConversationSettingsType
-} from '../db/schema/messaging.schema';
+import { WorkerDatabase } from './worker-database';
+import type {
+  ConversationSettings,
+  ConversationWithDetails,
+  MessageWithDetails
+} from '../types/messaging.types';
 
 // Redis integration for caching and real-time features
 interface RedisService {
@@ -48,13 +34,13 @@ interface EmailService {
     to: string;
     subject: string;
     template: string;
-    data: Record<string, any>;
+    data: Record<string, unknown>;
   }) => Promise<void>;
 }
 
 // R2 storage service for file attachments
 interface StorageService {
-  uploadFile: (file: File | Buffer, key: string, metadata?: Record<string, any>) => Promise<string>;
+  uploadFile: (file: File | Buffer, key: string, metadata?: Record<string, unknown>) => Promise<string>;
   deleteFile: (key: string) => Promise<void>;
   getSignedUrl: (key: string, expiresIn?: number) => Promise<string>;
   generateUploadUrl: (key: string, contentType: string) => Promise<{ url: string; fields: Record<string, string> }>;
@@ -63,7 +49,7 @@ interface StorageService {
 // WebSocket message types for real-time communication
 export interface WebSocketMessage {
   type: 'message' | 'typing' | 'read_receipt' | 'presence' | 'reaction' | 'conversation_update' | 'user_blocked';
-  data: any;
+  data: unknown;
   conversationId?: number;
   userId: number;
   timestamp: string;
@@ -121,65 +107,182 @@ export interface SendMessageInput {
   attachments?: File[];
   isEncrypted?: boolean;
   expiresAt?: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
-// Enhanced conversation data with participants and statistics
-export interface ConversationWithDetails extends ConversationType {
-  participants: Array<ConversationParticipantType & { 
-    user: { 
-      id: number; 
-      name: string; 
-      username: string; 
-      userType: string; 
-      isOnline: boolean; 
-    } 
-  }>;
-  lastMessage?: MessageType;
-  unreadCount: number;
-  totalMessages: number;
-  settings?: ConversationSettingsType;
-  pitch?: { id: number; title: string };
+// Row types for raw SQL queries (with index signature for DatabaseRow compatibility)
+interface ConversationRow {
+  [key: string]: unknown;
+  id: number;
+  title: string | null;
+  is_group: boolean;
+  created_by_id: number;
+  pitch_id: number | null;
+  last_message_id: number | null;
+  last_message_at: Date | null;
+  encryption_key: string | null;
+  is_encrypted: boolean;
+  archived: boolean;
+  muted: boolean;
+  metadata: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
-// Enhanced message data with all related information
-export interface MessageWithDetails extends MessageType {
-  sender: { 
-    id: number; 
-    name: string; 
-    username: string; 
-    userType: string; 
-  };
-  recipient?: { 
-    id: number; 
-    name: string; 
-    username: string; 
-    userType: string; 
-  };
-  conversation: ConversationType;
-  attachments: MessageAttachmentType[];
-  reactions: Array<MessageReactionType & { user: { name: string; username: string } }>;
-  readReceipts: Array<MessageReadReceiptType & { user: { name: string; username: string } }>;
-  replies?: MessageWithDetails[];
-  parentMessage?: MessageWithDetails;
-  isReadByCurrentUser: boolean;
-  reactionCounts: Record<string, number>;
+interface MessageRow {
+  [key: string]: unknown;
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  recipient_id: number | null;
+  parent_message_id: number | null;
+  content: string;
+  encrypted_content: string | null;
+  content_type: string;
+  message_type: string;
+  subject: string | null;
+  priority: string;
+  is_edited: boolean;
+  is_deleted: boolean;
+  is_forwarded: boolean;
+  delivered_at: Date | null;
+  edited_at: Date | null;
+  deleted_at: Date | null;
+  expires_at: Date | null;
+  metadata: Record<string, unknown> | null;
+  search_vector: string | null;
+  sent_at: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ParticipantRow {
+  [key: string]: unknown;
+  id: number;
+  conversation_id: number;
+  user_id: number;
+  role: string;
+  is_active: boolean;
+  joined_at: Date;
+  left_at: Date | null;
+  mute_notifications: boolean;
+  last_read_at: Date | null;
+  encryption_public_key: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface UserRow {
+  [key: string]: unknown;
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  user_type: string;
+}
+
+interface AttachmentRow {
+  [key: string]: unknown;
+  id: number;
+  message_id: number;
+  filename: string;
+  original_name: string;
+  mime_type: string;
+  file_size: number;
+  file_url: string;
+  thumbnail_url: string | null;
+  encrypted_url: string | null;
+  is_encrypted: boolean;
+  uploaded_by_id: number;
+  virus_scan_status: string;
+  virus_scan_result: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ReactionRow {
+  [key: string]: unknown;
+  id: number;
+  message_id: number;
+  user_id: number;
+  reaction_type: string;
+  created_at: Date;
+  user_name?: string;
+  user_username?: string;
+}
+
+interface ReadReceiptRow {
+  [key: string]: unknown;
+  id: number;
+  message_id: number;
+  user_id: number;
+  delivered_at: Date;
+  read_at: Date | null;
+  receipt_type: string;
+  device_info: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
+  user_name?: string;
+  user_username?: string;
+}
+
+interface CountRow {
+  [key: string]: unknown;
+  count: string | number;
+}
+
+interface UnreadCountRow {
+  [key: string]: unknown;
+  unread: string | number;
+}
+
+interface IdRow {
+  [key: string]: unknown;
+  id: number;
+}
+
+interface ConversationSettingsRow {
+  [key: string]: unknown;
+  id: number;
+  conversation_id: number;
+  user_id: number;
+  notifications: boolean;
+  sound_notifications: boolean;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  theme: string;
+  message_preview: boolean;
+  read_receipts: boolean;
+  typing_indicators: boolean;
+  auto_delete_after: number | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface TypingIndicatorRow {
+  [key: string]: unknown;
+  user_id: number;
+  is_typing: boolean;
+  last_typed: Date;
 }
 
 export class MessagingService {
+  private db: WorkerDatabase;
   private redis: RedisService;
   private email: EmailService;
   private storage: StorageService;
   private encryption: EncryptionService;
-  private webSocketConnections: Map<number, Set<any>> = new Map();
+  private webSocketConnections: Map<number, Set<WebSocket>> = new Map();
 
   constructor(
-    private db: DatabaseService,
+    connectionString: string,
     redis: RedisService,
     email: EmailService,
     storage: StorageService,
     encryption: EncryptionService
   ) {
+    this.db = new WorkerDatabase({ connectionString });
     this.redis = redis;
     this.email = email;
     this.storage = storage;
@@ -199,7 +302,7 @@ export class MessagingService {
     unreadTotal: number;
   }> {
     const cacheKey = `user:${filters.userId}:conversations:${JSON.stringify(filters)}`;
-    
+
     // Try cache first
     const cached = await this.redis.get(cacheKey);
     if (cached) {
@@ -207,98 +310,86 @@ export class MessagingService {
     }
 
     try {
-      // Build query with filters
-      let baseQuery = this.db
-        .select()
-        .from('conversation_participants cp')
-        .innerJoin('conversations c', eq('cp.conversation_id', 'c.id'))
-        .where(
-          and(
-            eq('cp.user_id', filters.userId),
-            eq('cp.is_active', true),
-            isNull('cp.left_at')
-          )
-        );
+      // Build query parts
+      const whereClauses: string[] = [
+        'cp.user_id = $1',
+        'cp.is_active = true',
+        'cp.left_at IS NULL'
+      ];
+      const params: (string | number | boolean | null)[] = [filters.userId];
+      let paramIndex = 2;
 
-      // Apply filters
       if (filters.pitchId) {
-        baseQuery = baseQuery.where(eq('c.pitch_id', filters.pitchId));
+        whereClauses.push(`c.pitch_id = $${paramIndex++}`);
+        params.push(filters.pitchId);
       }
       if (filters.isGroup !== undefined) {
-        baseQuery = baseQuery.where(eq('c.is_group', filters.isGroup));
+        whereClauses.push(`c.is_group = $${paramIndex++}`);
+        params.push(filters.isGroup);
       }
       if (filters.archived !== undefined) {
-        baseQuery = baseQuery.where(eq('c.archived', filters.archived));
+        whereClauses.push(`c.archived = $${paramIndex++}`);
+        params.push(filters.archived);
       }
       if (filters.muted !== undefined) {
-        baseQuery = baseQuery.where(eq('c.muted', filters.muted));
+        whereClauses.push(`c.muted = $${paramIndex++}`);
+        params.push(filters.muted);
       }
       if (filters.search) {
-        baseQuery = baseQuery.where(
-          or(
-            like('c.title', `%${filters.search}%`),
-            // Search in latest message content would require a join
-          )
-        );
+        whereClauses.push(`c.title ILIKE $${paramIndex++}`);
+        params.push(`%${filters.search}%`);
       }
 
-      // Order by last message date
-      baseQuery = baseQuery.orderBy(desc('c.last_message_at'));
+      const limit = filters.limit || 20;
+      const offset = filters.offset || 0;
 
-      // Apply pagination
-      if (filters.limit) {
-        baseQuery = baseQuery.limit(filters.limit);
-      }
-      if (filters.offset) {
-        baseQuery = baseQuery.offset(filters.offset);
-      }
+      const query = `
+        SELECT c.*
+        FROM conversation_participants cp
+        INNER JOIN conversations c ON cp.conversation_id = c.id
+        WHERE ${whereClauses.join(' AND ')}
+        ORDER BY c.last_message_at DESC NULLS LAST
+        LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      `;
+      params.push(limit, offset);
 
-      const conversations = await baseQuery.execute();
+      const conversations = await this.db.query<ConversationRow>(query, params);
 
       // Enhance each conversation with additional data
       const enhancedConversations = await Promise.all(
-        conversations.map(async (conv) => await this.enhanceConversationData(conv.c, filters.userId))
+        conversations.map(async (conv) => await this.enhanceConversationData(conv, filters.userId))
       );
 
-      // Get total counts
-      const totalQuery = await this.db
-        .select({ count: sql`count(*)` })
-        .from('conversation_participants cp')
-        .innerJoin('conversations c', eq('cp.conversation_id', 'c.id'))
-        .where(
-          and(
-            eq('cp.user_id', filters.userId),
-            eq('cp.is_active', true),
-            isNull('cp.left_at')
-          )
-        )
-        .execute();
-
-      const total = totalQuery[0]?.count || 0;
+      // Get total count
+      const countQuery = `
+        SELECT COUNT(*) as count
+        FROM conversation_participants cp
+        INNER JOIN conversations c ON cp.conversation_id = c.id
+        WHERE cp.user_id = $1 AND cp.is_active = true AND cp.left_at IS NULL
+      `;
+      const totalResult = await this.db.query<CountRow>(countQuery, [filters.userId]);
+      const total = Number(totalResult[0]?.count || 0);
 
       // Get total unread count
-      const unreadQuery = await this.db
-        .select({ 
-          unread: sql`sum(case when m.id > coalesce(cp.last_read_message_id, 0) then 1 else 0 end)` 
-        })
-        .from('conversation_participants cp')
-        .innerJoin('conversations c', eq('cp.conversation_id', 'c.id'))
-        .leftJoin('messages m', eq('m.conversation_id', 'c.id'))
-        .where(
-          and(
-            eq('cp.user_id', filters.userId),
-            eq('cp.is_active', true),
-            eq('m.is_deleted', false)
-          )
-        )
-        .execute();
-
-      const unreadTotal = unreadQuery[0]?.unread || 0;
+      const unreadQuery = `
+        SELECT COALESCE(SUM(
+          CASE WHEN m.id > COALESCE(
+            (SELECT MAX(id) FROM message_read_receipts WHERE user_id = $1 AND message_id = m.id),
+            0
+          ) AND m.sender_id != $1 THEN 1 ELSE 0 END
+        ), 0) as unread
+        FROM conversation_participants cp
+        INNER JOIN conversations c ON cp.conversation_id = c.id
+        LEFT JOIN messages m ON m.conversation_id = c.id AND m.is_deleted = false
+        WHERE cp.user_id = $1 AND cp.is_active = true
+      `;
+      const unreadResult = await this.db.query<UnreadCountRow>(unreadQuery, [filters.userId]);
+      const unreadTotal = Number(unreadResult[0]?.unread || 0);
 
       const result = {
         conversations: enhancedConversations,
-        total: Number(total),
-        unreadTotal: Number(unreadTotal)
+        total,
+        unreadTotal
       };
 
       // Cache the result for 2 minutes
@@ -312,6 +403,281 @@ export class MessagingService {
   }
 
   /**
+   * Enhance conversation data with participants, last message, and stats
+   */
+  private async enhanceConversationData(
+    conv: ConversationRow,
+    currentUserId: number
+  ): Promise<ConversationWithDetails> {
+    // Get participants with user info
+    const participantsQuery = `
+      SELECT cp.*, u.name, u.username, u.user_type, u.email
+      FROM conversation_participants cp
+      INNER JOIN users u ON cp.user_id = u.id
+      WHERE cp.conversation_id = $1 AND cp.is_active = true
+    `;
+    const participantsResult = await this.db.query<ParticipantRow & UserRow>(participantsQuery, [conv.id]);
+
+    // Check online status from Redis
+    const participants = await Promise.all(
+      participantsResult.map(async (p) => {
+        const isOnline = await this.redis.get(`user:${p.user_id}:online`) === 'true';
+        return {
+          id: p.id,
+          conversationId: p.conversation_id,
+          userId: p.user_id,
+          role: p.role as 'admin' | 'member' | 'viewer',
+          isActive: p.is_active,
+          joinedAt: p.joined_at,
+          leftAt: p.left_at || undefined,
+          muteNotifications: p.mute_notifications,
+          lastReadAt: p.last_read_at || undefined,
+          encryptionPublicKey: p.encryption_public_key || undefined,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+          user: {
+            id: p.user_id,
+            name: p.name,
+            username: p.username,
+            userType: p.user_type as 'creator' | 'investor' | 'production',
+            isOnline
+          }
+        };
+      })
+    );
+
+    // Get last message
+    let lastMessage: MessageWithDetails | undefined;
+    if (conv.last_message_id) {
+      const messageResult = await this.db.query<MessageRow>(
+        'SELECT * FROM messages WHERE id = $1',
+        [conv.last_message_id]
+      );
+      if (messageResult[0]) {
+        lastMessage = await this.enhanceMessageData(messageResult[0], currentUserId);
+      }
+    }
+
+    // Get unread count for current user
+    const unreadQuery = `
+      SELECT COUNT(*) as count
+      FROM messages m
+      WHERE m.conversation_id = $1
+        AND m.is_deleted = false
+        AND m.sender_id != $2
+        AND NOT EXISTS (
+          SELECT 1 FROM message_read_receipts mrr
+          WHERE mrr.message_id = m.id AND mrr.user_id = $2
+        )
+    `;
+    const unreadResult = await this.db.query<CountRow>(unreadQuery, [conv.id, currentUserId]);
+    const unreadCount = Number(unreadResult[0]?.count || 0);
+
+    // Get total messages count
+    const totalQuery = `
+      SELECT COUNT(*) as count
+      FROM messages
+      WHERE conversation_id = $1 AND is_deleted = false
+    `;
+    const totalResult = await this.db.query<CountRow>(totalQuery, [conv.id]);
+    const totalMessages = Number(totalResult[0]?.count || 0);
+
+    // Get conversation settings for current user
+    const settingsResult = await this.db.query<ConversationSettingsRow>(
+      'SELECT * FROM conversation_settings WHERE conversation_id = $1 AND user_id = $2',
+      [conv.id, currentUserId]
+    );
+
+    return {
+      id: conv.id,
+      title: conv.title || undefined,
+      isGroup: conv.is_group,
+      createdById: conv.created_by_id,
+      pitchId: conv.pitch_id || undefined,
+      lastMessageId: conv.last_message_id || undefined,
+      lastMessageAt: conv.last_message_at || undefined,
+      encryptionKey: conv.encryption_key || undefined,
+      isEncrypted: conv.is_encrypted,
+      archived: conv.archived,
+      muted: conv.muted,
+      metadata: conv.metadata || undefined,
+      createdAt: conv.created_at,
+      updatedAt: conv.updated_at,
+      participants,
+      lastMessage,
+      unreadCount,
+      totalMessages,
+      settings: settingsResult[0] ? this.convertSettingsRow(settingsResult[0]) : undefined
+    };
+  }
+
+  /**
+   * Enhance message data with sender, attachments, reactions, etc.
+   */
+  private async enhanceMessageData(
+    msg: MessageRow,
+    currentUserId: number
+  ): Promise<MessageWithDetails> {
+    // Get sender info
+    const senderResult = await this.db.query<UserRow>(
+      'SELECT id, name, username, email, user_type FROM users WHERE id = $1',
+      [msg.sender_id]
+    );
+    const sender = senderResult[0] || { id: msg.sender_id, name: 'Unknown', username: 'unknown', email: '', user_type: 'creator' };
+
+    // Get recipient info if exists
+    let recipient: { id: number; name: string; username: string; userType: 'creator' | 'investor' | 'production' } | undefined;
+    if (msg.recipient_id) {
+      const recipientResult = await this.db.query<UserRow>(
+        'SELECT id, name, username, email, user_type FROM users WHERE id = $1',
+        [msg.recipient_id]
+      );
+      if (recipientResult[0]) {
+        recipient = {
+          id: recipientResult[0].id,
+          name: recipientResult[0].name,
+          username: recipientResult[0].username,
+          userType: recipientResult[0].user_type as 'creator' | 'investor' | 'production'
+        };
+      }
+    }
+
+    // Get conversation
+    const convResult = await this.db.query<ConversationRow>(
+      'SELECT * FROM conversations WHERE id = $1',
+      [msg.conversation_id]
+    );
+
+    // Get attachments
+    const attachments = await this.db.query<AttachmentRow>(
+      'SELECT * FROM message_attachments WHERE message_id = $1',
+      [msg.id]
+    );
+
+    // Get reactions with user info
+    const reactionsResult = await this.db.query<ReactionRow>(
+      `SELECT mr.*, u.name as user_name, u.username as user_username
+       FROM message_reactions mr
+       INNER JOIN users u ON mr.user_id = u.id
+       WHERE mr.message_id = $1`,
+      [msg.id]
+    );
+
+    // Calculate reaction counts
+    const reactionCounts: Record<string, number> = {};
+    for (const r of reactionsResult) {
+      reactionCounts[r.reaction_type] = (reactionCounts[r.reaction_type] || 0) + 1;
+    }
+
+    // Get read receipts with user info
+    const readReceiptsResult = await this.db.query<ReadReceiptRow>(
+      `SELECT mrr.*, u.name as user_name, u.username as user_username
+       FROM message_read_receipts mrr
+       INNER JOIN users u ON mrr.user_id = u.id
+       WHERE mrr.message_id = $1`,
+      [msg.id]
+    );
+
+    // Check if read by current user
+    const isReadByCurrentUser = readReceiptsResult.some(r => r.user_id === currentUserId);
+
+    return {
+      id: msg.id,
+      conversationId: msg.conversation_id,
+      senderId: msg.sender_id,
+      recipientId: msg.recipient_id || undefined,
+      parentMessageId: msg.parent_message_id || undefined,
+      content: msg.content,
+      encryptedContent: msg.encrypted_content || undefined,
+      contentType: msg.content_type as 'text' | 'image' | 'file' | 'audio' | 'video',
+      messageType: msg.message_type as 'text' | 'system' | 'nda' | 'investment' | 'announcement',
+      subject: msg.subject || undefined,
+      priority: msg.priority as 'low' | 'normal' | 'high' | 'urgent',
+      isEdited: msg.is_edited,
+      isDeleted: msg.is_deleted,
+      isForwarded: msg.is_forwarded,
+      deliveredAt: msg.delivered_at || undefined,
+      editedAt: msg.edited_at || undefined,
+      deletedAt: msg.deleted_at || undefined,
+      expiresAt: msg.expires_at || undefined,
+      metadata: msg.metadata || undefined,
+      searchVector: msg.search_vector || undefined,
+      sentAt: msg.sent_at,
+      createdAt: msg.created_at,
+      updatedAt: msg.updated_at,
+      sender: {
+        id: sender.id,
+        name: sender.name,
+        username: sender.username,
+        userType: sender.user_type as 'creator' | 'investor' | 'production'
+      },
+      recipient,
+      conversation: {
+        id: convResult[0]?.id || msg.conversation_id,
+        title: convResult[0]?.title || undefined,
+        isGroup: convResult[0]?.is_group || false,
+        createdById: convResult[0]?.created_by_id || 0,
+        pitchId: convResult[0]?.pitch_id || undefined,
+        lastMessageId: convResult[0]?.last_message_id || undefined,
+        lastMessageAt: convResult[0]?.last_message_at || undefined,
+        encryptionKey: convResult[0]?.encryption_key || undefined,
+        isEncrypted: convResult[0]?.is_encrypted || false,
+        archived: convResult[0]?.archived || false,
+        muted: convResult[0]?.muted || false,
+        metadata: convResult[0]?.metadata || undefined,
+        createdAt: convResult[0]?.created_at || new Date(),
+        updatedAt: convResult[0]?.updated_at || new Date()
+      },
+      attachments: attachments.map(a => ({
+        id: a.id,
+        messageId: a.message_id,
+        filename: a.filename,
+        originalName: a.original_name,
+        mimeType: a.mime_type,
+        fileSize: a.file_size,
+        fileUrl: a.file_url,
+        thumbnailUrl: a.thumbnail_url || undefined,
+        encryptedUrl: a.encrypted_url || undefined,
+        isEncrypted: a.is_encrypted,
+        uploadedById: a.uploaded_by_id,
+        virusScanStatus: a.virus_scan_status as 'pending' | 'clean' | 'infected' | 'error',
+        virusScanResult: a.virus_scan_result || undefined,
+        metadata: a.metadata || undefined,
+        createdAt: a.created_at,
+        updatedAt: a.updated_at
+      })),
+      reactions: reactionsResult.map(r => ({
+        id: r.id,
+        messageId: r.message_id,
+        userId: r.user_id,
+        reactionType: r.reaction_type,
+        createdAt: r.created_at,
+        user: {
+          name: r.user_name || 'Unknown',
+          username: r.user_username || 'unknown'
+        }
+      })),
+      readReceipts: readReceiptsResult.map(r => ({
+        id: r.id,
+        messageId: r.message_id,
+        userId: r.user_id,
+        deliveredAt: r.delivered_at,
+        readAt: r.read_at || undefined,
+        receiptType: r.receipt_type as 'delivered' | 'read',
+        deviceInfo: r.device_info || undefined,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        user: {
+          name: r.user_name || 'Unknown',
+          username: r.user_username || 'unknown'
+        }
+      })),
+      isReadByCurrentUser,
+      reactionCounts
+    };
+  }
+
+  /**
    * Create or get existing conversation between users
    */
   async createOrGetConversation(
@@ -321,92 +687,90 @@ export class MessagingService {
     title?: string
   ): Promise<ConversationWithDetails> {
     try {
-      // Check if conversation already exists
+      // Check if conversation already exists for direct messages
       if (participantIds.length === 1) {
-        // Direct message - check for existing conversation
-        const existingConv = await this.db
-          .select({ id: 'c.id' })
-          .from('conversations c')
-          .innerJoin('conversation_participants cp1', eq('cp1.conversation_id', 'c.id'))
-          .innerJoin('conversation_participants cp2', eq('cp2.conversation_id', 'c.id'))
-          .where(
-            and(
-              eq('c.is_group', false),
-              eq('cp1.user_id', createdById),
-              eq('cp2.user_id', participantIds[0]),
-              eq('cp1.is_active', true),
-              eq('cp2.is_active', true),
-              pitchId ? eq('c.pitch_id', pitchId) : isNull('c.pitch_id')
-            )
-          )
-          .limit(1)
-          .execute();
+        const existingQuery = pitchId
+          ? `SELECT c.id
+             FROM conversations c
+             INNER JOIN conversation_participants cp1 ON cp1.conversation_id = c.id
+             INNER JOIN conversation_participants cp2 ON cp2.conversation_id = c.id
+             WHERE c.is_group = false
+               AND cp1.user_id = $1 AND cp1.is_active = true
+               AND cp2.user_id = $2 AND cp2.is_active = true
+               AND c.pitch_id = $3
+             LIMIT 1`
+          : `SELECT c.id
+             FROM conversations c
+             INNER JOIN conversation_participants cp1 ON cp1.conversation_id = c.id
+             INNER JOIN conversation_participants cp2 ON cp2.conversation_id = c.id
+             WHERE c.is_group = false
+               AND cp1.user_id = $1 AND cp1.is_active = true
+               AND cp2.user_id = $2 AND cp2.is_active = true
+               AND c.pitch_id IS NULL
+             LIMIT 1`;
 
-        if (existingConv.length > 0) {
-          return await this.getConversationById(existingConv[0].id, createdById);
+        const params = pitchId
+          ? [createdById, participantIds[0], pitchId]
+          : [createdById, participantIds[0]];
+
+        const existing = await this.db.query<IdRow>(existingQuery, params);
+
+        if (existing[0]) {
+          return await this.getConversationById(existing[0].id, createdById);
         }
       }
 
       // Create new conversation
-      const [newConversation] = await this.db
-        .insert('conversations')
-        .values({
-          title: title || (participantIds.length === 1 ? null : 'Group Chat'),
-          isGroup: participantIds.length > 1,
-          createdById,
-          pitchId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning()
-        .execute();
+      const insertQuery = `
+        INSERT INTO conversations (title, is_group, created_by_id, pitch_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+        RETURNING *
+      `;
+      const newConvResult = await this.db.query<ConversationRow>(insertQuery, [
+        title || (participantIds.length === 1 ? null : 'Group Chat'),
+        participantIds.length > 1,
+        createdById,
+        pitchId || null
+      ]);
+      const newConversation = newConvResult[0];
 
       // Add participants
-      const allParticipants = [createdById, ...participantIds];
-      const participantInserts = allParticipants.map(userId => ({
-        conversationId: newConversation.id,
-        userId,
-        role: userId === createdById ? 'admin' : 'member',
-        joinedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }));
+      const allParticipants = [createdById, ...participantIds.filter(id => id !== createdById)];
+      for (const userId of allParticipants) {
+        await this.db.query(
+          `INSERT INTO conversation_participants
+           (conversation_id, user_id, role, joined_at, created_at, updated_at)
+           VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
+          [newConversation.id, userId, userId === createdById ? 'admin' : 'member']
+        );
 
-      await this.db
-        .insert('conversation_participants')
-        .values(participantInserts)
-        .execute();
-
-      // Initialize conversation settings for all participants
-      const settingsInserts = allParticipants.map(userId => ({
-        conversationId: newConversation.id,
-        userId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }));
-
-      await this.db
-        .insert('conversation_settings')
-        .values(settingsInserts)
-        .execute();
+        // Initialize conversation settings
+        await this.db.query(
+          `INSERT INTO conversation_settings
+           (conversation_id, user_id, created_at, updated_at)
+           VALUES ($1, $2, NOW(), NOW())
+           ON CONFLICT (conversation_id, user_id) DO NOTHING`,
+          [newConversation.id, userId]
+        );
+      }
 
       // Clear conversations cache for all participants
       await Promise.all(
-        allParticipants.map(userId => 
-          this.redis.del(`user:${userId}:conversations:*`)
-        )
+        allParticipants.map(userId => this.redis.del(`user:${userId}:conversations:*`))
       );
 
-      // Notify participants via WebSocket
-      await this.broadcastConversationUpdate({
+      // Notify participants of new conversation
+      await this.broadcastToConversation(newConversation.id, {
         type: 'conversation_update',
-        data: { action: 'created', conversation: newConversation },
-        conversationId: newConversation.id,
+        data: {
+          action: 'created',
+          conversationId: newConversation.id
+        },
         userId: createdById,
         timestamp: new Date().toISOString()
       });
 
-      return await this.enhanceConversationData(newConversation, createdById);
+      return await this.getConversationById(newConversation.id, createdById);
     } catch (error) {
       console.error('Error creating conversation:', error);
       throw error;
@@ -414,55 +778,33 @@ export class MessagingService {
   }
 
   /**
-   * Get conversation by ID with enhanced data
+   * Get conversation by ID with full details
    */
-  async getConversationById(conversationId: number, userId: number): Promise<ConversationWithDetails> {
-    const cacheKey = `conversation:${conversationId}:user:${userId}`;
-    
-    // Try cache first
-    const cached = await this.redis.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
+  async getConversationById(
+    conversationId: number,
+    currentUserId: number
+  ): Promise<ConversationWithDetails> {
+    // Check if user is participant
+    const participantCheck = await this.db.query<ParticipantRow>(
+      `SELECT * FROM conversation_participants
+       WHERE conversation_id = $1 AND user_id = $2 AND is_active = true`,
+      [conversationId, currentUserId]
+    );
+
+    if (!participantCheck[0]) {
+      throw new Error('Access denied: User is not a participant of this conversation');
     }
 
-    try {
-      const [conversation] = await this.db
-        .select()
-        .from('conversations')
-        .where(eq('id', conversationId))
-        .execute();
+    const convResult = await this.db.query<ConversationRow>(
+      'SELECT * FROM conversations WHERE id = $1',
+      [conversationId]
+    );
 
-      if (!conversation) {
-        throw new Error('Conversation not found');
-      }
-
-      // Check if user is participant
-      const [participant] = await this.db
-        .select()
-        .from('conversation_participants')
-        .where(
-          and(
-            eq('conversation_id', conversationId),
-            eq('user_id', userId),
-            eq('is_active', true)
-          )
-        )
-        .execute();
-
-      if (!participant) {
-        throw new Error('Access denied');
-      }
-
-      const enhanced = await this.enhanceConversationData(conversation, userId);
-      
-      // Cache for 5 minutes
-      await this.redis.set(cacheKey, JSON.stringify(enhanced), 300);
-      
-      return enhanced;
-    } catch (error) {
-      console.error('Error fetching conversation:', error);
-      throw error;
+    if (!convResult[0]) {
+      throw new Error('Conversation not found');
     }
+
+    return await this.enhanceConversationData(convResult[0], currentUserId);
   }
 
   // ============================================================================
@@ -470,13 +812,16 @@ export class MessagingService {
   // ============================================================================
 
   /**
-   * Send a message with real-time delivery and offline support
+   * Send a message in a conversation
    */
-  async sendMessage(input: SendMessageInput, senderId: number): Promise<MessageWithDetails> {
+  async sendMessage(
+    senderId: number,
+    input: SendMessageInput
+  ): Promise<MessageWithDetails> {
     try {
       let conversationId = input.conversationId;
 
-      // Create conversation if needed
+      // If no conversationId but recipientId, create/get conversation
       if (!conversationId && input.recipientId) {
         const conversation = await this.createOrGetConversation(
           senderId,
@@ -487,147 +832,132 @@ export class MessagingService {
       }
 
       if (!conversationId) {
-        throw new Error('Conversation ID or recipient ID required');
+        throw new Error('Either conversationId or recipientId must be provided');
       }
 
-      // Check if sender is participant and not blocked
-      await this.validateMessagePermissions(conversationId, senderId, input.recipientId);
+      // Check if sender is participant
+      const participantCheck = await this.db.query<ParticipantRow>(
+        `SELECT * FROM conversation_participants
+         WHERE conversation_id = $1 AND user_id = $2 AND is_active = true`,
+        [conversationId, senderId]
+      );
+
+      if (!participantCheck[0]) {
+        throw new Error('Access denied: User is not a participant');
+      }
+
+      // Check if recipient is blocked
+      if (input.recipientId) {
+        const blockedCheck = await this.db.query<IdRow>(
+          `SELECT id FROM blocked_users
+           WHERE blocker_id = $1 AND blocked_id = $2`,
+          [input.recipientId, senderId]
+        );
+        if (blockedCheck[0]) {
+          throw new Error('Cannot send message: You are blocked by this user');
+        }
+      }
+
+      // Handle encryption if enabled
+      let encryptedContent: string | null = null;
+      if (input.isEncrypted) {
+        const convResult = await this.db.query<ConversationRow>(
+          'SELECT encryption_key FROM conversations WHERE id = $1',
+          [conversationId]
+        );
+        if (convResult[0]?.encryption_key) {
+          const encrypted = await this.encryption.encryptMessage(
+            input.content,
+            convResult[0].encryption_key
+          );
+          encryptedContent = JSON.stringify(encrypted);
+        }
+      }
+
+      // Insert message
+      const insertQuery = `
+        INSERT INTO messages
+        (conversation_id, sender_id, recipient_id, parent_message_id, content, encrypted_content,
+         content_type, message_type, subject, priority, expires_at, metadata, sent_at, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW(), NOW())
+        RETURNING *
+      `;
+      const messageResult = await this.db.query<MessageRow>(insertQuery, [
+        conversationId,
+        senderId,
+        input.recipientId || null,
+        input.parentMessageId || null,
+        input.content,
+        encryptedContent,
+        input.contentType || 'text',
+        input.messageType || 'text',
+        input.subject || null,
+        input.priority || 'normal',
+        input.expiresAt || null,
+        input.metadata ? JSON.stringify(input.metadata) : null
+      ]);
+      const message = messageResult[0];
 
       // Handle file attachments
-      let attachmentIds: number[] = [];
       if (input.attachments && input.attachments.length > 0) {
-        attachmentIds = await this.uploadMessageAttachments(input.attachments, senderId);
+        for (const file of input.attachments) {
+          const key = `messages/${conversationId}/${message.id}/${file.name}`;
+          const fileUrl = await this.storage.uploadFile(file, key);
+
+          await this.db.query(
+            `INSERT INTO message_attachments
+             (message_id, filename, original_name, mime_type, file_size, file_url, uploaded_by_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+            [message.id, file.name, file.name, file.type, file.size, fileUrl, senderId]
+          );
+        }
       }
 
-      // Prepare message content (encrypt if needed)
-      let finalContent = input.content;
-      let encryptedContent = null;
-      let encryptionKeys: Array<{ userId: number; encryptedKey: string }> = [];
-
-      if (input.isEncrypted) {
-        // Generate message encryption key and encrypt content
-        const messageKey = await this.encryption.generateSymmetricKey();
-        const encrypted = await this.encryption.encryptMessage(input.content, messageKey);
-        encryptedContent = encrypted.encrypted;
-        finalContent = '[Encrypted Message]';
-
-        // Get conversation participants for key distribution
-        const participants = await this.db
-          .select({ userId: 'user_id', encryptionPublicKey: 'encryption_public_key' })
-          .from('conversation_participants')
-          .where(
-            and(
-              eq('conversation_id', conversationId),
-              eq('is_active', true),
-              isNotNull('encryption_public_key')
-            )
-          )
-          .execute();
-
-        // Encrypt message key for each participant
-        encryptionKeys = await Promise.all(
-          participants.map(async (p) => ({
-            userId: p.userId,
-            encryptedKey: await this.encryption.encryptKey(messageKey, p.encryptionPublicKey!)
-          }))
-        );
-      }
-
-      // Create message
-      const [newMessage] = await this.db
-        .insert('messages')
-        .values({
-          conversationId,
-          senderId,
-          recipientId: input.recipientId,
-          parentMessageId: input.parentMessageId,
-          content: finalContent,
-          encryptedContent,
-          subject: input.subject,
-          messageType: input.messageType || 'text',
-          contentType: input.contentType || 'text',
-          priority: input.priority || 'normal',
-          expiresAt: input.expiresAt,
-          metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-          sentAt: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning()
-        .execute();
-
-      // Store encryption keys if message is encrypted
-      if (encryptionKeys.length > 0) {
-        await this.db
-          .insert('message_encryption_keys')
-          .values(
-            encryptionKeys.map(key => ({
-              messageId: newMessage.id,
-              userId: key.userId,
-              encryptedKey: key.encryptedKey,
-              createdAt: new Date()
-            }))
-          )
-          .execute();
-      }
-
-      // Link attachments to message
-      if (attachmentIds.length > 0) {
-        await this.db
-          .update('message_attachments')
-          .set({ messageId: newMessage.id, updatedAt: new Date() })
-          .where(inArray('id', attachmentIds))
-          .execute();
-      }
-
-      // Update conversation last message
-      await this.db
-        .update('conversations')
-        .set({ 
-          lastMessageId: newMessage.id,
-          lastMessageAt: newMessage.sentAt,
-          updatedAt: new Date()
-        })
-        .where(eq('id', conversationId))
-        .execute();
+      // Update conversation's last message
+      await this.db.query(
+        `UPDATE conversations
+         SET last_message_id = $1, last_message_at = NOW(), updated_at = NOW()
+         WHERE id = $2`,
+        [message.id, conversationId]
+      );
 
       // Create read receipt for sender
-      await this.db
-        .insert('message_read_receipts')
-        .values({
-          messageId: newMessage.id,
-          userId: senderId,
-          deliveredAt: new Date(),
-          readAt: new Date(),
-          receiptType: 'read',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .execute();
+      await this.db.query(
+        `INSERT INTO message_read_receipts (message_id, user_id, delivered_at, read_at, receipt_type, created_at, updated_at)
+         VALUES ($1, $2, NOW(), NOW(), 'read', NOW(), NOW())
+         ON CONFLICT (message_id, user_id) DO NOTHING`,
+        [message.id, senderId]
+      );
 
-      // Clear conversation caches
-      await this.clearConversationCaches(conversationId);
+      // Clear relevant caches
+      await this.redis.del(`conversation:${conversationId}:messages:*`);
 
-      // Get enhanced message data
-      const messageWithDetails = await this.getMessageById(newMessage.id, senderId);
+      // Notify all participants
+      const participants = await this.db.query<ParticipantRow>(
+        `SELECT user_id FROM conversation_participants
+         WHERE conversation_id = $1 AND is_active = true`,
+        [conversationId]
+      );
 
-      // Real-time delivery via WebSocket
-      await this.broadcastMessage({
+      for (const p of participants) {
+        await this.redis.del(`user:${p.user_id}:conversations:*`);
+      }
+
+      // Broadcast message to WebSocket connections
+      const enhancedMessage = await this.enhanceMessageData(message, senderId);
+      await this.broadcastToConversation(conversationId, {
         type: 'message',
-        data: messageWithDetails,
+        data: enhancedMessage,
         conversationId,
         userId: senderId,
         timestamp: new Date().toISOString(),
-        messageId: newMessage.id.toString()
+        messageId: message.id.toString()
       });
 
-      // Handle offline notifications
-      await this.handleOfflineNotifications(conversationId, messageWithDetails, senderId);
+      // Send push/email notifications to offline users
+      await this.notifyOfflineUsers(conversationId, senderId, enhancedMessage);
 
-      // Update search index
-      await this.updateMessageSearchIndex(newMessage.id, finalContent, conversationId);
-
-      return messageWithDetails;
+      return enhancedMessage;
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
@@ -635,1184 +965,925 @@ export class MessagingService {
   }
 
   /**
-   * Get messages in a conversation with pagination and search
+   * Get messages for a conversation with pagination
    */
-  async getMessages(filters: MessageFilters, userId: number): Promise<{
+  async getMessages(
+    conversationId: number,
+    currentUserId: number,
+    filters: MessageFilters = {}
+  ): Promise<{
     messages: MessageWithDetails[];
-    hasMore: boolean;
     total: number;
+    hasMore: boolean;
   }> {
-    if (!filters.conversationId) {
-      throw new Error('Conversation ID is required');
+    // Check if user is participant
+    const participantCheck = await this.db.query<ParticipantRow>(
+      `SELECT * FROM conversation_participants
+       WHERE conversation_id = $1 AND user_id = $2 AND is_active = true`,
+      [conversationId, currentUserId]
+    );
+
+    if (!participantCheck[0]) {
+      throw new Error('Access denied: User is not a participant');
     }
 
-    try {
-      // Verify user access
-      await this.validateUserAccess(filters.conversationId, userId);
+    const cacheKey = `conversation:${conversationId}:messages:${JSON.stringify(filters)}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
 
-      const limit = filters.limit || 50;
-      const offset = filters.offset || 0;
+    const whereClauses: string[] = [
+      'conversation_id = $1',
+      'is_deleted = false'
+    ];
+    const params: (string | number | boolean | Date | null)[] = [conversationId];
+    let paramIndex = 2;
 
-      // Build query
-      let baseQuery = this.db
-        .select()
-        .from('messages')
-        .where(
-          and(
-            eq('conversation_id', filters.conversationId),
-            eq('is_deleted', false)
-          )
-        );
+    if (filters.senderId) {
+      whereClauses.push(`sender_id = $${paramIndex++}`);
+      params.push(filters.senderId);
+    }
+    if (filters.messageType) {
+      whereClauses.push(`message_type = $${paramIndex++}`);
+      params.push(filters.messageType);
+    }
+    if (filters.contentType) {
+      whereClauses.push(`content_type = $${paramIndex++}`);
+      params.push(filters.contentType);
+    }
+    if (filters.beforeDate) {
+      whereClauses.push(`sent_at < $${paramIndex++}`);
+      params.push(filters.beforeDate);
+    }
+    if (filters.afterDate) {
+      whereClauses.push(`sent_at > $${paramIndex++}`);
+      params.push(filters.afterDate);
+    }
+    if (filters.search) {
+      whereClauses.push(`content ILIKE $${paramIndex++}`);
+      params.push(`%${filters.search}%`);
+    }
 
-      // Apply filters
-      if (filters.senderId) {
-        baseQuery = baseQuery.where(eq('sender_id', filters.senderId));
-      }
-      if (filters.messageType) {
-        baseQuery = baseQuery.where(eq('message_type', filters.messageType));
-      }
-      if (filters.contentType) {
-        baseQuery = baseQuery.where(eq('content_type', filters.contentType));
-      }
-      if (filters.beforeDate) {
-        baseQuery = baseQuery.where(sql`sent_at < ${filters.beforeDate.toISOString()}`);
-      }
-      if (filters.afterDate) {
-        baseQuery = baseQuery.where(sql`sent_at > ${filters.afterDate.toISOString()}`);
-      }
-      if (filters.hasAttachments) {
-        baseQuery = baseQuery.where(
-          sql`EXISTS (SELECT 1 FROM message_attachments WHERE message_id = messages.id)`
-        );
-      }
-      if (filters.search) {
-        baseQuery = baseQuery.where(
-          or(
-            like('content', `%${filters.search}%`),
-            like('subject', `%${filters.search}%`)
-          )
-        );
-      }
+    const limit = filters.limit || 50;
+    const offset = filters.offset || 0;
 
-      // Order by sent date (newest first)
-      baseQuery = baseQuery.orderBy(desc('sent_at'));
+    const query = `
+      SELECT * FROM messages
+      WHERE ${whereClauses.join(' AND ')}
+      ORDER BY sent_at DESC
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+    `;
+    params.push(limit, offset);
 
-      // Apply pagination
-      const messages = await baseQuery
-        .limit(limit + 1) // Get one extra to check if there are more
-        .offset(offset)
-        .execute();
+    const messages = await this.db.query<MessageRow>(query, params);
 
-      const hasMore = messages.length > limit;
-      if (hasMore) {
-        messages.pop(); // Remove the extra message
-      }
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as count FROM messages
+      WHERE ${whereClauses.slice(0, -2).join(' AND ') || 'conversation_id = $1 AND is_deleted = false'}
+    `;
+    const countParams = params.slice(0, -2);
+    const totalResult = await this.db.query<CountRow>(countQuery, countParams.length ? countParams : [conversationId]);
+    const total = Number(totalResult[0]?.count || 0);
 
-      // Enhance messages with related data
-      const enhancedMessages = await Promise.all(
-        messages.map(async (msg) => await this.enhanceMessageData(msg, userId))
+    // Enhance messages with full data
+    const enhancedMessages = await Promise.all(
+      messages.map(msg => this.enhanceMessageData(msg, currentUserId))
+    );
+
+    const result = {
+      messages: enhancedMessages,
+      total,
+      hasMore: offset + messages.length < total
+    };
+
+    // Cache for 1 minute
+    await this.redis.set(cacheKey, JSON.stringify(result), 60);
+
+    return result;
+  }
+
+  /**
+   * Edit a message
+   */
+  async editMessage(
+    messageId: number,
+    userId: number,
+    newContent: string
+  ): Promise<MessageWithDetails> {
+    // Verify ownership
+    const messageResult = await this.db.query<MessageRow>(
+      'SELECT * FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (!messageResult[0]) {
+      throw new Error('Message not found');
+    }
+
+    if (messageResult[0].sender_id !== userId) {
+      throw new Error('Access denied: Can only edit your own messages');
+    }
+
+    // Update message
+    await this.db.query(
+      `UPDATE messages
+       SET content = $1, is_edited = true, edited_at = NOW(), updated_at = NOW()
+       WHERE id = $2`,
+      [newContent, messageId]
+    );
+
+    // Get updated message
+    const updatedResult = await this.db.query<MessageRow>(
+      'SELECT * FROM messages WHERE id = $1',
+      [messageId]
+    );
+    const updatedMessage = await this.enhanceMessageData(updatedResult[0], userId);
+
+    // Broadcast update
+    await this.broadcastToConversation(updatedMessage.conversationId, {
+      type: 'message',
+      data: { action: 'edited', message: updatedMessage },
+      conversationId: updatedMessage.conversationId,
+      userId,
+      timestamp: new Date().toISOString(),
+      messageId: messageId.toString()
+    });
+
+    // Clear cache
+    await this.redis.del(`conversation:${updatedMessage.conversationId}:messages:*`);
+
+    return updatedMessage;
+  }
+
+  /**
+   * Delete a message (soft delete)
+   */
+  async deleteMessage(
+    messageId: number,
+    userId: number
+  ): Promise<void> {
+    const messageResult = await this.db.query<MessageRow>(
+      'SELECT * FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (!messageResult[0]) {
+      throw new Error('Message not found');
+    }
+
+    // Check if user is sender or conversation admin
+    if (messageResult[0].sender_id !== userId) {
+      const adminCheck = await this.db.query<ParticipantRow>(
+        `SELECT * FROM conversation_participants
+         WHERE conversation_id = $1 AND user_id = $2 AND role = 'admin' AND is_active = true`,
+        [messageResult[0].conversation_id, userId]
       );
+      if (!adminCheck[0]) {
+        throw new Error('Access denied: Can only delete your own messages or be admin');
+      }
+    }
 
-      // Get total count
-      const totalQuery = await this.db
-        .select({ count: sql`count(*)` })
-        .from('messages')
-        .where(
-          and(
-            eq('conversation_id', filters.conversationId),
-            eq('is_deleted', false)
-          )
-        )
-        .execute();
+    // Soft delete
+    await this.db.query(
+      `UPDATE messages
+       SET is_deleted = true, deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [messageId]
+    );
 
-      const total = totalQuery[0]?.count || 0;
+    // Broadcast deletion
+    await this.broadcastToConversation(messageResult[0].conversation_id, {
+      type: 'message',
+      data: { action: 'deleted', messageId },
+      conversationId: messageResult[0].conversation_id,
+      userId,
+      timestamp: new Date().toISOString(),
+      messageId: messageId.toString()
+    });
 
-      // Mark messages as read
-      await this.markMessagesAsRead(
-        enhancedMessages.map(m => m.id),
+    // Clear cache
+    await this.redis.del(`conversation:${messageResult[0].conversation_id}:messages:*`);
+  }
+
+  // ============================================================================
+  // TYPING INDICATORS
+  // ============================================================================
+
+  /**
+   * Update typing indicator for a user in a conversation
+   */
+  async setTypingIndicator(
+    conversationId: number,
+    userId: number,
+    isTyping: boolean
+  ): Promise<void> {
+    await this.db.query(
+      `INSERT INTO typing_indicators (conversation_id, user_id, is_typing, last_typed, updated_at)
+       VALUES ($1, $2, $3, NOW(), NOW())
+       ON CONFLICT (conversation_id, user_id)
+       DO UPDATE SET is_typing = $3, last_typed = NOW(), updated_at = NOW()`,
+      [conversationId, userId, isTyping]
+    );
+
+    // Broadcast typing indicator
+    await this.broadcastToConversation(conversationId, {
+      type: 'typing',
+      data: { userId, isTyping },
+      conversationId,
+      userId,
+      timestamp: new Date().toISOString()
+    }, [userId]); // Exclude the typing user from receiving their own indicator
+  }
+
+  /**
+   * Get users currently typing in a conversation
+   */
+  async getTypingUsers(conversationId: number): Promise<number[]> {
+    // Only consider typing indicators from the last 5 seconds
+    const result = await this.db.query<TypingIndicatorRow>(
+      `SELECT user_id FROM typing_indicators
+       WHERE conversation_id = $1
+         AND is_typing = true
+         AND last_typed > NOW() - INTERVAL '5 seconds'`,
+      [conversationId]
+    );
+    return result.map(r => r.user_id);
+  }
+
+  // ============================================================================
+  // READ RECEIPTS
+  // ============================================================================
+
+  /**
+   * Mark messages as read
+   */
+  async markMessagesAsRead(
+    messageIds: number[],
+    userId: number
+  ): Promise<void> {
+    if (messageIds.length === 0) return;
+
+    for (const messageId of messageIds) {
+      await this.db.query(
+        `INSERT INTO message_read_receipts (message_id, user_id, delivered_at, read_at, receipt_type, created_at, updated_at)
+         VALUES ($1, $2, NOW(), NOW(), 'read', NOW(), NOW())
+         ON CONFLICT (message_id, user_id)
+         DO UPDATE SET read_at = NOW(), receipt_type = 'read', updated_at = NOW()`,
+        [messageId, userId]
+      );
+    }
+
+    // Get conversation ID for broadcast
+    const messageResult = await this.db.query<MessageRow>(
+      'SELECT conversation_id FROM messages WHERE id = $1',
+      [messageIds[0]]
+    );
+
+    if (messageResult[0]) {
+      // Broadcast read receipts
+      await this.broadcastToConversation(messageResult[0].conversation_id, {
+        type: 'read_receipt',
+        data: { messageIds, userId },
+        conversationId: messageResult[0].conversation_id,
         userId,
-        filters.conversationId
-      );
+        timestamp: new Date().toISOString()
+      });
 
-      return {
-        messages: enhancedMessages,
-        hasMore,
-        total: Number(total)
-      };
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      throw error;
+      // Clear cache
+      await this.redis.del(`conversation:${messageResult[0].conversation_id}:messages:*`);
+    }
+  }
+
+  // ============================================================================
+  // REACTIONS
+  // ============================================================================
+
+  /**
+   * Add a reaction to a message
+   */
+  async addReaction(
+    messageId: number,
+    userId: number,
+    reactionType: string
+  ): Promise<void> {
+    const messageResult = await this.db.query<MessageRow>(
+      'SELECT conversation_id FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (!messageResult[0]) {
+      throw new Error('Message not found');
+    }
+
+    await this.db.query(
+      `INSERT INTO message_reactions (message_id, user_id, reaction_type, created_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (message_id, user_id, reaction_type) DO NOTHING`,
+      [messageId, userId, reactionType]
+    );
+
+    // Broadcast reaction
+    await this.broadcastToConversation(messageResult[0].conversation_id, {
+      type: 'reaction',
+      data: { messageId, userId, reactionType, action: 'added' },
+      conversationId: messageResult[0].conversation_id,
+      userId,
+      timestamp: new Date().toISOString(),
+      messageId: messageId.toString()
+    });
+
+    // Clear cache
+    await this.redis.del(`conversation:${messageResult[0].conversation_id}:messages:*`);
+  }
+
+  /**
+   * Remove a reaction from a message
+   */
+  async removeReaction(
+    messageId: number,
+    userId: number,
+    reactionType: string
+  ): Promise<void> {
+    const messageResult = await this.db.query<MessageRow>(
+      'SELECT conversation_id FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (!messageResult[0]) {
+      throw new Error('Message not found');
+    }
+
+    await this.db.query(
+      'DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND reaction_type = $3',
+      [messageId, userId, reactionType]
+    );
+
+    // Broadcast reaction removal
+    await this.broadcastToConversation(messageResult[0].conversation_id, {
+      type: 'reaction',
+      data: { messageId, userId, reactionType, action: 'removed' },
+      conversationId: messageResult[0].conversation_id,
+      userId,
+      timestamp: new Date().toISOString(),
+      messageId: messageId.toString()
+    });
+
+    // Clear cache
+    await this.redis.del(`conversation:${messageResult[0].conversation_id}:messages:*`);
+  }
+
+  // ============================================================================
+  // USER BLOCKING
+  // ============================================================================
+
+  /**
+   * Block a user
+   */
+  async blockUser(
+    blockerId: number,
+    blockedId: number,
+    reason?: string
+  ): Promise<void> {
+    await this.db.query(
+      `INSERT INTO blocked_users (blocker_id, blocked_id, reason, blocked_at, created_at)
+       VALUES ($1, $2, $3, NOW(), NOW())
+       ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+      [blockerId, blockedId, reason || null]
+    );
+
+    // Notify the blocked user (through WebSocket if online)
+    await this.broadcastToUser(blockedId, {
+      type: 'user_blocked',
+      data: { blockerId },
+      userId: blockerId,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Unblock a user
+   */
+  async unblockUser(
+    blockerId: number,
+    blockedId: number
+  ): Promise<void> {
+    await this.db.query(
+      'DELETE FROM blocked_users WHERE blocker_id = $1 AND blocked_id = $2',
+      [blockerId, blockedId]
+    );
+  }
+
+  /**
+   * Check if a user is blocked
+   */
+  async isUserBlocked(
+    blockerId: number,
+    blockedId: number
+  ): Promise<boolean> {
+    const result = await this.db.query<IdRow>(
+      'SELECT id FROM blocked_users WHERE blocker_id = $1 AND blocked_id = $2',
+      [blockerId, blockedId]
+    );
+    return result.length > 0;
+  }
+
+  // ============================================================================
+  // PRESENCE & WEBSOCKET MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Register a WebSocket connection for a user
+   */
+  registerConnection(userId: number, ws: WebSocket): void {
+    if (!this.webSocketConnections.has(userId)) {
+      this.webSocketConnections.set(userId, new Set());
+    }
+    this.webSocketConnections.get(userId)!.add(ws);
+
+    // Mark user as online
+    this.redis.set(`user:${userId}:online`, 'true');
+  }
+
+  /**
+   * Unregister a WebSocket connection
+   */
+  unregisterConnection(userId: number, ws: WebSocket): void {
+    const connections = this.webSocketConnections.get(userId);
+    if (connections) {
+      connections.delete(ws);
+      if (connections.size === 0) {
+        this.webSocketConnections.delete(userId);
+        // Mark user as offline
+        this.redis.del(`user:${userId}:online`);
+      }
     }
   }
 
   /**
-   * Search messages across all conversations
+   * Broadcast a message to all participants in a conversation
+   */
+  private async broadcastToConversation(
+    conversationId: number,
+    message: WebSocketMessage,
+    excludeUserIds: number[] = []
+  ): Promise<void> {
+    const participants = await this.db.query<ParticipantRow>(
+      `SELECT user_id FROM conversation_participants
+       WHERE conversation_id = $1 AND is_active = true`,
+      [conversationId]
+    );
+
+    for (const participant of participants) {
+      if (excludeUserIds.includes(participant.user_id)) continue;
+      await this.broadcastToUser(participant.user_id, message);
+    }
+  }
+
+  /**
+   * Broadcast a message to a specific user's connections
+   */
+  private async broadcastToUser(userId: number, message: WebSocketMessage): Promise<void> {
+    const connections = this.webSocketConnections.get(userId);
+    if (connections) {
+      const messageStr = JSON.stringify(message);
+      for (const ws of connections) {
+        try {
+          ws.send(messageStr);
+        } catch (error) {
+          console.error(`Failed to send message to user ${userId}:`, error);
+        }
+      }
+    }
+
+    // Also publish to Redis for cross-instance delivery
+    await this.redis.publish(`user:${userId}:messages`, JSON.stringify(message));
+  }
+
+  /**
+   * Notify offline users about new messages via email/push
+   */
+  private async notifyOfflineUsers(
+    conversationId: number,
+    senderId: number,
+    message: MessageWithDetails
+  ): Promise<void> {
+    const participants = await this.db.query<ParticipantRow & UserRow>(
+      `SELECT cp.user_id, u.email, u.name
+       FROM conversation_participants cp
+       INNER JOIN users u ON cp.user_id = u.id
+       WHERE cp.conversation_id = $1
+         AND cp.is_active = true
+         AND cp.user_id != $2
+         AND cp.mute_notifications = false`,
+      [conversationId, senderId]
+    );
+
+    for (const participant of participants) {
+      const isOnline = await this.redis.get(`user:${participant.user_id}:online`) === 'true';
+
+      if (!isOnline) {
+        // Check notification settings
+        const settingsResult = await this.db.query<ConversationSettingsRow>(
+          `SELECT * FROM conversation_settings
+           WHERE conversation_id = $1 AND user_id = $2`,
+          [conversationId, participant.user_id]
+        );
+        const settings = settingsResult[0];
+
+        if (settings?.email_notifications !== false) {
+          // Send email notification
+          try {
+            await this.email.sendEmail({
+              to: participant.email,
+              subject: `New message from ${message.sender.name}`,
+              template: 'new_message',
+              data: {
+                recipientName: participant.name,
+                senderName: message.sender.name,
+                messagePreview: message.content.substring(0, 100),
+                conversationId
+              }
+            });
+          } catch (error) {
+            console.error(`Failed to send email to ${participant.email}:`, error);
+          }
+        }
+      }
+    }
+  }
+
+  // ============================================================================
+  // SEARCH
+  // ============================================================================
+
+  /**
+   * Search messages across all user's conversations
    */
   async searchMessages(
-    query: string,
     userId: number,
+    query: string,
     options: {
       conversationId?: number;
-      messageType?: string;
       limit?: number;
       offset?: number;
     } = {}
   ): Promise<{
     messages: MessageWithDetails[];
     total: number;
-    highlights: Record<number, string[]>;
   }> {
-    try {
-      const limit = options.limit || 20;
-      const offset = options.offset || 0;
-
-      // Get user's accessible conversation IDs
-      const accessibleConversations = await this.db
-        .select({ conversationId: 'conversation_id' })
-        .from('conversation_participants')
-        .where(
-          and(
-            eq('user_id', userId),
-            eq('is_active', true)
-          )
-        )
-        .execute();
-
-      const conversationIds = accessibleConversations.map(c => c.conversationId);
-
-      if (conversationIds.length === 0) {
-        return { messages: [], total: 0, highlights: {} };
-      }
-
-      // Build search query
-      let searchQuery = this.db
-        .select()
-        .from('messages')
-        .where(
-          and(
-            inArray('conversation_id', conversationIds),
-            eq('is_deleted', false),
-            or(
-              like('content', `%${query}%`),
-              like('subject', `%${query}%`)
-            )
-          )
-        );
-
-      // Apply additional filters
-      if (options.conversationId) {
-        searchQuery = searchQuery.where(eq('conversation_id', options.conversationId));
-      }
-      if (options.messageType) {
-        searchQuery = searchQuery.where(eq('message_type', options.messageType));
-      }
-
-      // Order by relevance (sent date for now, could be enhanced with search scoring)
-      searchQuery = searchQuery.orderBy(desc('sent_at'));
-
-      // Get total count
-      const totalQuery = await searchQuery.execute();
-      const total = totalQuery.length;
-
-      // Apply pagination
-      const messages = await searchQuery
-        .limit(limit)
-        .offset(offset)
-        .execute();
-
-      // Enhance messages
-      const enhancedMessages = await Promise.all(
-        messages.map(async (msg) => await this.enhanceMessageData(msg, userId))
-      );
-
-      // Generate highlights
-      const highlights: Record<number, string[]> = {};
-      enhancedMessages.forEach(msg => {
-        const contentHighlights = this.extractHighlights(msg.content, query);
-        const subjectHighlights = msg.subject ? this.extractHighlights(msg.subject, query) : [];
-        highlights[msg.id] = [...contentHighlights, ...subjectHighlights];
-      });
-
-      return {
-        messages: enhancedMessages,
-        total,
-        highlights
-      };
-    } catch (error) {
-      console.error('Error searching messages:', error);
-      throw error;
-    }
-  }
-
-  // ============================================================================
-  // REAL-TIME FEATURES
-  // ============================================================================
-
-  /**
-   * Handle typing indicators
-   */
-  async startTyping(conversationId: number, userId: number): Promise<void> {
-    try {
-      await this.validateUserAccess(conversationId, userId);
-
-      // Update typing indicator
-      await this.db
-        .insert('typing_indicators')
-        .values({
-          conversationId,
-          userId,
-          isTyping: true,
-          lastTyped: new Date(),
-          updatedAt: new Date()
-        })
-        .onConflictDoUpdate({
-          target: ['conversation_id', 'user_id'],
-          set: {
-            isTyping: true,
-            lastTyped: new Date(),
-            updatedAt: new Date()
-          }
-        })
-        .execute();
-
-      // Cache typing status
-      await this.redis.hset(`typing:${conversationId}`, userId.toString(), new Date().toISOString());
-      
-      // Set expiration for auto-cleanup
-      await this.redis.set(`typing:${conversationId}:${userId}`, 'typing', 5);
-
-      // Broadcast typing indicator
-      await this.broadcastTyping({
-        type: 'typing',
-        data: { isTyping: true, userId },
-        conversationId,
-        userId,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error starting typing indicator:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Stop typing indicator
-   */
-  async stopTyping(conversationId: number, userId: number): Promise<void> {
-    try {
-      // Update database
-      await this.db
-        .update('typing_indicators')
-        .set({
-          isTyping: false,
-          updatedAt: new Date()
-        })
-        .where(
-          and(
-            eq('conversation_id', conversationId),
-            eq('user_id', userId)
-          )
-        )
-        .execute();
-
-      // Remove from cache
-      await this.redis.hdel(`typing:${conversationId}`, userId.toString());
-      await this.redis.del(`typing:${conversationId}:${userId}`);
-
-      // Broadcast stop typing
-      await this.broadcastTyping({
-        type: 'typing',
-        data: { isTyping: false, userId },
-        conversationId,
-        userId,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error stopping typing indicator:', error);
-      // Don't throw - this shouldn't break the user experience
-    }
-  }
-
-  /**
-   * Get current typing users in a conversation
-   */
-  async getTypingUsers(conversationId: number, userId: number): Promise<Array<{ userId: number; name: string; lastTyped: Date }>> {
-    try {
-      await this.validateUserAccess(conversationId, userId);
-
-      // Get recent typing indicators (within last 10 seconds)
-      const cutoffTime = new Date(Date.now() - 10000);
-      
-      const typingUsers = await this.db
-        .select({
-          userId: 'ti.user_id',
-          lastTyped: 'ti.last_typed',
-          name: sql`COALESCE(u.first_name || ' ' || u.last_name, u.username, 'Unknown User')`,
-        })
-        .from('typing_indicators ti')
-        .innerJoin('users u', eq('ti.user_id', 'u.id'))
-        .where(
-          and(
-            eq('ti.conversation_id', conversationId),
-            eq('ti.is_typing', true),
-            sql`ti.last_typed > ${cutoffTime.toISOString()}`,
-            sql`ti.user_id != ${userId}` // Exclude current user
-          )
-        )
-        .execute();
-
-      return typingUsers.map(user => ({
-        userId: user.userId,
-        name: user.name,
-        lastTyped: new Date(user.lastTyped)
-      }));
-    } catch (error) {
-      console.error('Error fetching typing users:', error);
-      return [];
-    }
-  }
-
-  // ============================================================================
-  // READ RECEIPTS AND DELIVERY
-  // ============================================================================
-
-  /**
-   * Mark messages as read
-   */
-  async markMessagesAsRead(messageIds: number[], userId: number, conversationId: number): Promise<void> {
-    try {
-      // Validate access
-      await this.validateUserAccess(conversationId, userId);
-
-      const now = new Date();
-
-      // Update read receipts
-      await Promise.all(
-        messageIds.map(async (messageId) => {
-          await this.db
-            .insert('message_read_receipts')
-            .values({
-              messageId,
-              userId,
-              deliveredAt: now,
-              readAt: now,
-              receiptType: 'read',
-              createdAt: now,
-              updatedAt: now
-            })
-            .onConflictDoUpdate({
-              target: ['message_id', 'user_id'],
-              set: {
-                readAt: now,
-                receiptType: 'read',
-                updatedAt: now
-              }
-            })
-            .execute();
-        })
-      );
-
-      // Update participant's last read message
-      await this.db
-        .update('conversation_participants')
-        .set({
-          lastReadAt: now,
-          updatedAt: now
-        })
-        .where(
-          and(
-            eq('conversation_id', conversationId),
-            eq('user_id', userId)
-          )
-        )
-        .execute();
-
-      // Clear conversation cache
-      await this.clearConversationCaches(conversationId);
-
-      // Broadcast read receipts
-      await this.broadcastReadReceipts({
-        type: 'read_receipt',
-        data: { messageIds, userId, readAt: now.toISOString() },
-        conversationId,
-        userId,
-        timestamp: now.toISOString()
-      });
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get read receipts for messages
-   */
-  async getReadReceipts(messageIds: number[], userId: number): Promise<Record<number, MessageReadReceiptType[]>> {
-    try {
-      const receipts = await this.db
-        .select({
-          messageId: 'mrr.message_id',
-          userId: 'mrr.user_id',
-          deliveredAt: 'mrr.delivered_at',
-          readAt: 'mrr.read_at',
-          receiptType: 'mrr.receipt_type',
-          userName: sql`COALESCE(u.first_name || ' ' || u.last_name, u.username, 'Unknown User')`,
-          userUsername: 'u.username'
-        })
-        .from('message_read_receipts mrr')
-        .innerJoin('users u', eq('mrr.user_id', 'u.id'))
-        .where(
-          and(
-            inArray('mrr.message_id', messageIds),
-            sql`mrr.user_id != ${userId}` // Exclude sender's own receipt
-          )
-        )
-        .execute();
-
-      // Group by message ID
-      const grouped: Record<number, MessageReadReceiptType[]> = {};
-      receipts.forEach(receipt => {
-        if (!grouped[receipt.messageId]) {
-          grouped[receipt.messageId] = [];
-        }
-        grouped[receipt.messageId].push({
-          id: 0, // Not needed for this response
-          messageId: receipt.messageId,
-          userId: receipt.userId,
-          deliveredAt: receipt.deliveredAt,
-          readAt: receipt.readAt,
-          receiptType: receipt.receiptType as 'delivered' | 'read',
-          deviceInfo: null,
-          createdAt: receipt.deliveredAt,
-          updatedAt: receipt.readAt || receipt.deliveredAt,
-          user: {
-            name: receipt.userName,
-            username: receipt.userUsername
-          }
-        } as any);
-      });
-
-      return grouped;
-    } catch (error) {
-      console.error('Error fetching read receipts:', error);
-      return {};
-    }
-  }
-
-  // ============================================================================
-  // FILE ATTACHMENTS
-  // ============================================================================
-
-  /**
-   * Upload message attachments to R2 storage
-   */
-  async uploadMessageAttachments(files: File[], uploadedById: number): Promise<number[]> {
-    try {
-      const attachmentIds: number[] = [];
-
-      await Promise.all(
-        files.map(async (file) => {
-          // Generate unique filename
-          const extension = file.name.split('.').pop();
-          const filename = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
-          const key = `attachments/${filename}`;
-
-          // Upload to R2
-          const fileUrl = await this.storage.uploadFile(file, key, {
-            originalName: file.name,
-            mimeType: file.type,
-            uploadedBy: uploadedById.toString()
-          });
-
-          // Generate thumbnail for images/videos if needed
-          let thumbnailUrl = null;
-          if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-            // This would be implemented based on your thumbnail generation service
-            // thumbnailUrl = await this.generateThumbnail(fileUrl, file.type);
-          }
-
-          // Create attachment record
-          const [attachment] = await this.db
-            .insert('message_attachments')
-            .values({
-              messageId: 0, // Will be updated when message is created
-              filename,
-              originalName: file.name,
-              mimeType: file.type,
-              fileSize: file.size,
-              fileUrl,
-              thumbnailUrl,
-              uploadedById,
-              virusScanStatus: 'pending',
-              createdAt: new Date(),
-              updatedAt: new Date()
-            })
-            .returning({ id: 'id' })
-            .execute();
-
-          attachmentIds.push(attachment.id);
-
-          // Queue virus scan (implement based on your virus scanning service)
-          // await this.queueVirusScan(attachment.id, fileUrl);
-        })
-      );
-
-      return attachmentIds;
-    } catch (error) {
-      console.error('Error uploading attachments:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get attachment with signed URL for download
-   */
-  async getAttachment(attachmentId: number, userId: number): Promise<MessageAttachmentType & { signedUrl: string }> {
-    try {
-      const [attachment] = await this.db
-        .select({
-          id: 'ma.id',
-          messageId: 'ma.message_id',
-          filename: 'ma.filename',
-          originalName: 'ma.original_name',
-          mimeType: 'ma.mime_type',
-          fileSize: 'ma.file_size',
-          fileUrl: 'ma.file_url',
-          thumbnailUrl: 'ma.thumbnail_url',
-          conversationId: 'm.conversation_id'
-        })
-        .from('message_attachments ma')
-        .innerJoin('messages m', eq('ma.message_id', 'm.id'))
-        .where(eq('ma.id', attachmentId))
-        .execute();
-
-      if (!attachment) {
-        throw new Error('Attachment not found');
-      }
-
-      // Verify user has access to the conversation
-      await this.validateUserAccess(attachment.conversationId, userId);
-
-      // Generate signed URL for secure download
-      const signedUrl = await this.storage.getSignedUrl(attachment.fileUrl, 3600); // 1 hour expiry
-
-      return {
-        ...attachment,
-        signedUrl,
-        uploadedById: 0,
-        isEncrypted: false,
-        encryptedUrl: null,
-        virusScanStatus: 'clean',
-        virusScanResult: null,
-        metadata: null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } as MessageAttachmentType & { signedUrl: string };
-    } catch (error) {
-      console.error('Error fetching attachment:', error);
-      throw error;
-    }
-  }
-
-  // ============================================================================
-  // USER BLOCKING AND MODERATION
-  // ============================================================================
-
-  /**
-   * Block a user from messaging
-   */
-  async blockUser(blockerId: number, blockedId: number, reason?: string): Promise<void> {
-    try {
-      // Insert block record
-      await this.db
-        .insert('blocked_users')
-        .values({
-          blockerId,
-          blockedId,
-          reason,
-          blockedAt: new Date(),
-          createdAt: new Date()
-        })
-        .onConflictDoNothing()
-        .execute();
-
-      // Cache the block status
-      await this.redis.sadd(`blocked:${blockerId}`, blockedId.toString());
-
-      // Clear conversation caches
-      await Promise.all([
-        this.redis.del(`user:${blockerId}:conversations:*`),
-        this.redis.del(`user:${blockedId}:conversations:*`)
-      ]);
-
-      // Notify via WebSocket
-      await this.broadcastUserBlocked({
-        type: 'user_blocked',
-        data: { blockedUserId: blockedId, reason },
-        conversationId: 0,
-        userId: blockerId,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error blocking user:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Unblock a user
-   */
-  async unblockUser(blockerId: number, blockedId: number): Promise<void> {
-    try {
-      // Remove block record
-      await this.db
-        .delete('blocked_users')
-        .where(
-          and(
-            eq('blocker_id', blockerId),
-            eq('blocked_id', blockedId)
-          )
-        )
-        .execute();
-
-      // Remove from cache
-      await this.redis.srem(`blocked:${blockerId}`, blockedId.toString());
-
-      // Clear conversation caches
-      await Promise.all([
-        this.redis.del(`user:${blockerId}:conversations:*`),
-        this.redis.del(`user:${blockedId}:conversations:*`)
-      ]);
-    } catch (error) {
-      console.error('Error unblocking user:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Check if a user is blocked
-   */
-  async isUserBlocked(blockerId: number, blockedId: number): Promise<boolean> {
-    try {
-      // Check cache first
-      const cached = await this.redis.sismember(`blocked:${blockerId}`, blockedId.toString());
-      if (cached !== null) {
-        return cached === 1;
-      }
-
-      // Check database
-      const [blocked] = await this.db
-        .select({ id: 'id' })
-        .from('blocked_users')
-        .where(
-          and(
-            eq('blocker_id', blockerId),
-            eq('blocked_id', blockedId)
-          )
-        )
-        .limit(1)
-        .execute();
-
-      const isBlocked = !!blocked;
-
-      // Cache the result
-      if (isBlocked) {
-        await this.redis.sadd(`blocked:${blockerId}`, blockedId.toString());
-      }
-
-      return isBlocked;
-    } catch (error) {
-      console.error('Error checking block status:', error);
-      return false;
-    }
-  }
-
-  // ============================================================================
-  // PRIVATE HELPER METHODS
-  // ============================================================================
-
-  private async enhanceConversationData(conversation: ConversationType, userId: number): Promise<ConversationWithDetails> {
-    // Get participants with user details
-    const participants = await this.db
-      .select({
-        id: 'cp.id',
-        conversationId: 'cp.conversation_id',
-        userId: 'cp.user_id',
-        role: 'cp.role',
-        isActive: 'cp.is_active',
-        joinedAt: 'cp.joined_at',
-        leftAt: 'cp.left_at',
-        muteNotifications: 'cp.mute_notifications',
-        lastReadAt: 'cp.last_read_at',
-        encryptionPublicKey: 'cp.encryption_public_key',
-        createdAt: 'cp.created_at',
-        updatedAt: 'cp.updated_at',
-        userName: sql`COALESCE(u.first_name || ' ' || u.last_name, u.username, 'Unknown User')`,
-        username: 'u.username',
-        userType: 'u.user_type',
-      })
-      .from('conversation_participants cp')
-      .innerJoin('users u', eq('cp.user_id', 'u.id'))
-      .where(
-        and(
-          eq('cp.conversation_id', conversation.id),
-          eq('cp.is_active', true)
-        )
-      )
-      .execute();
-
-    // Get last message
-    const lastMessage = conversation.lastMessageId 
-      ? await this.getMessageById(conversation.lastMessageId, userId)
-      : null;
-
-    // Get unread count for current user
-    const [unreadResult] = await this.db
-      .select({ 
-        count: sql`COUNT(*)` 
-      })
-      .from('messages m')
-      .leftJoin('message_read_receipts mrr', 
-        and(
-          eq('mrr.message_id', 'm.id'),
-          eq('mrr.user_id', userId)
-        )
-      )
-      .where(
-        and(
-          eq('m.conversation_id', conversation.id),
-          eq('m.is_deleted', false),
-          sql`m.sender_id != ${userId}`,
-          isNull('mrr.read_at')
-        )
-      )
-      .execute();
-
-    // Get total message count
-    const [totalResult] = await this.db
-      .select({ count: sql`COUNT(*)` })
-      .from('messages')
-      .where(
-        and(
-          eq('conversation_id', conversation.id),
-          eq('is_deleted', false)
-        )
-      )
-      .execute();
-
-    // Get user's conversation settings
-    const [settings] = await this.db
-      .select()
-      .from('conversation_settings')
-      .where(
-        and(
-          eq('conversation_id', conversation.id),
-          eq('user_id', userId)
-        )
-      )
-      .execute();
-
-    // Get pitch details if linked
-    let pitch = null;
-    if (conversation.pitchId) {
-      const [pitchResult] = await this.db
-        .select({ id: 'id', title: 'title' })
-        .from('pitches')
-        .where(eq('id', conversation.pitchId))
-        .execute();
-      pitch = pitchResult || null;
+    const limit = options.limit || 20;
+    const offset = options.offset || 0;
+
+    let searchQuery: string;
+    let params: (string | number)[];
+
+    if (options.conversationId) {
+      searchQuery = `
+        SELECT m.* FROM messages m
+        WHERE m.conversation_id = $1
+          AND m.is_deleted = false
+          AND m.content ILIKE $2
+        ORDER BY m.sent_at DESC
+        LIMIT $3 OFFSET $4
+      `;
+      params = [options.conversationId, `%${query}%`, limit, offset];
+    } else {
+      searchQuery = `
+        SELECT m.* FROM messages m
+        INNER JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
+        WHERE cp.user_id = $1 AND cp.is_active = true
+          AND m.is_deleted = false
+          AND m.content ILIKE $2
+        ORDER BY m.sent_at DESC
+        LIMIT $3 OFFSET $4
+      `;
+      params = [userId, `%${query}%`, limit, offset];
     }
 
-    // Check online status for participants (implement based on your presence system)
-    const enhancedParticipants = participants.map(p => ({
-      ...p,
-      user: {
-        id: p.userId,
-        name: p.userName,
-        username: p.username,
-        userType: p.userType,
-        isOnline: false // Would be populated from presence service
-      }
-    }));
+    const messages = await this.db.query<MessageRow>(searchQuery, params);
 
-    return {
-      ...conversation,
-      participants: enhancedParticipants,
-      lastMessage: lastMessage || undefined,
-      unreadCount: Number(unreadResult?.count || 0),
-      totalMessages: Number(totalResult?.count || 0),
-      settings: settings || undefined,
-      pitch
-    };
-  }
+    // Get total count
+    const countQuery = options.conversationId
+      ? `SELECT COUNT(*) as count FROM messages m
+         WHERE m.conversation_id = $1 AND m.is_deleted = false AND m.content ILIKE $2`
+      : `SELECT COUNT(*) as count FROM messages m
+         INNER JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
+         WHERE cp.user_id = $1 AND cp.is_active = true AND m.is_deleted = false AND m.content ILIKE $2`;
 
-  private async enhanceMessageData(message: MessageType, userId: number): Promise<MessageWithDetails> {
-    // Get sender and recipient details
-    const [sender] = await this.db
-      .select({
-        id: 'id',
-        name: sql`COALESCE(first_name || ' ' || last_name, username, 'Unknown User')`,
-        username: 'username',
-        userType: 'user_type'
-      })
-      .from('users')
-      .where(eq('id', message.senderId))
-      .execute();
+    const countParams = options.conversationId
+      ? [options.conversationId, `%${query}%`]
+      : [userId, `%${query}%`];
 
-    let recipient = null;
-    if (message.recipientId) {
-      const [recipientResult] = await this.db
-        .select({
-          id: 'id',
-          name: sql`COALESCE(first_name || ' ' || last_name, username, 'Unknown User')`,
-          username: 'username',
-          userType: 'user_type'
-        })
-        .from('users')
-        .where(eq('id', message.recipientId))
-        .execute();
-      recipient = recipientResult || null;
-    }
+    const totalResult = await this.db.query<CountRow>(countQuery, countParams);
+    const total = Number(totalResult[0]?.count || 0);
 
-    // Get conversation
-    const [conversation] = await this.db
-      .select()
-      .from('conversations')
-      .where(eq('id', message.conversationId))
-      .execute();
-
-    // Get attachments
-    const attachments = await this.db
-      .select()
-      .from('message_attachments')
-      .where(eq('message_id', message.id))
-      .execute();
-
-    // Get reactions with user details
-    const reactions = await this.db
-      .select({
-        id: 'mr.id',
-        messageId: 'mr.message_id',
-        userId: 'mr.user_id',
-        reactionType: 'mr.reaction_type',
-        createdAt: 'mr.created_at',
-        userName: sql`COALESCE(u.first_name || ' ' || u.last_name, u.username, 'Unknown User')`,
-        username: 'u.username'
-      })
-      .from('message_reactions mr')
-      .innerJoin('users u', eq('mr.user_id', 'u.id'))
-      .where(eq('mr.message_id', message.id))
-      .execute();
-
-    // Get read receipts
-    const readReceipts = await this.db
-      .select({
-        id: 'mrr.id',
-        messageId: 'mrr.message_id',
-        userId: 'mrr.user_id',
-        deliveredAt: 'mrr.delivered_at',
-        readAt: 'mrr.read_at',
-        receiptType: 'mrr.receipt_type',
-        deviceInfo: 'mrr.device_info',
-        createdAt: 'mrr.created_at',
-        updatedAt: 'mrr.updated_at',
-        userName: sql`COALESCE(u.first_name || ' ' || u.last_name, u.username, 'Unknown User')`,
-        username: 'u.username'
-      })
-      .from('message_read_receipts mrr')
-      .innerJoin('users u', eq('mrr.user_id', 'u.id'))
-      .where(eq('mrr.message_id', message.id))
-      .execute();
-
-    // Check if current user has read the message
-    const userReadReceipt = readReceipts.find(r => r.userId === userId);
-    const isReadByCurrentUser = !!userReadReceipt?.readAt;
-
-    // Calculate reaction counts
-    const reactionCounts: Record<string, number> = {};
-    reactions.forEach(reaction => {
-      reactionCounts[reaction.reactionType] = (reactionCounts[reaction.reactionType] || 0) + 1;
-    });
-
-    // Get replies if this is a parent message
-    let replies: MessageWithDetails[] = [];
-    if (message.parentMessageId === null) {
-      const replyMessages = await this.db
-        .select()
-        .from('messages')
-        .where(
-          and(
-            eq('parent_message_id', message.id),
-            eq('is_deleted', false)
-          )
-        )
-        .orderBy(asc('sent_at'))
-        .limit(5) // Limit to first 5 replies
-        .execute();
-
-      // Recursively enhance reply messages (but avoid infinite recursion)
-      replies = await Promise.all(
-        replyMessages.map(async (reply) => await this.enhanceMessageData(reply, userId))
-      );
-    }
-
-    // Get parent message if this is a reply
-    let parentMessage: MessageWithDetails | undefined;
-    if (message.parentMessageId) {
-      const [parentMsg] = await this.db
-        .select()
-        .from('messages')
-        .where(eq('id', message.parentMessageId))
-        .execute();
-      
-      if (parentMsg) {
-        parentMessage = await this.enhanceMessageData(parentMsg, userId);
-      }
-    }
-
-    return {
-      ...message,
-      sender: sender || { id: message.senderId, name: 'Unknown User', username: 'unknown', userType: 'creator' },
-      recipient,
-      conversation: conversation!,
-      attachments: attachments || [],
-      reactions: reactions.map(r => ({
-        ...r,
-        user: { name: r.userName, username: r.username }
-      })) as any,
-      readReceipts: readReceipts.map(r => ({
-        ...r,
-        user: { name: r.userName, username: r.username }
-      })) as any,
-      replies: replies || [],
-      parentMessage,
-      isReadByCurrentUser,
-      reactionCounts
-    };
-  }
-
-  private async validateUserAccess(conversationId: number, userId: number): Promise<void> {
-    const [participant] = await this.db
-      .select({ id: 'id' })
-      .from('conversation_participants')
-      .where(
-        and(
-          eq('conversation_id', conversationId),
-          eq('user_id', userId),
-          eq('is_active', true),
-          isNull('left_at')
-        )
-      )
-      .limit(1)
-      .execute();
-
-    if (!participant) {
-      throw new Error('Access denied to conversation');
-    }
-  }
-
-  private async validateMessagePermissions(
-    conversationId: number, 
-    senderId: number, 
-    recipientId?: number
-  ): Promise<void> {
-    // Check if sender is participant
-    await this.validateUserAccess(conversationId, senderId);
-
-    // Check if recipient is blocked
-    if (recipientId) {
-      const blocked = await this.isUserBlocked(recipientId, senderId);
-      const blockedBy = await this.isUserBlocked(senderId, recipientId);
-      
-      if (blocked || blockedBy) {
-        throw new Error('Cannot send message to blocked user');
-      }
-    }
-  }
-
-  private async clearConversationCaches(conversationId: number): Promise<void> {
-    // Get all participants
-    const participants = await this.db
-      .select({ userId: 'user_id' })
-      .from('conversation_participants')
-      .where(eq('conversation_id', conversationId))
-      .execute();
-
-    // Clear caches for all participants
-    await Promise.all(
-      participants.map(async (p) => {
-        await this.redis.del(`user:${p.userId}:conversations:*`);
-        await this.redis.del(`conversation:${conversationId}:user:${p.userId}`);
-      })
+    const enhancedMessages = await Promise.all(
+      messages.map(msg => this.enhanceMessageData(msg, userId))
     );
+
+    return {
+      messages: enhancedMessages,
+      total
+    };
   }
 
-  private extractHighlights(text: string, query: string): string[] {
-    const highlights: string[] = [];
-    const queryLower = query.toLowerCase();
-    const textLower = text.toLowerCase();
-    
-    let index = textLower.indexOf(queryLower);
-    while (index !== -1) {
-      const start = Math.max(0, index - 20);
-      const end = Math.min(text.length, index + query.length + 20);
-      highlights.push(text.substring(start, end));
-      index = textLower.indexOf(queryLower, index + 1);
+  // ============================================================================
+  // CONVERSATION SETTINGS
+  // ============================================================================
+
+  /**
+   * Convert database row to ConversationSettings type
+   */
+  private convertSettingsRow(row: ConversationSettingsRow): ConversationSettings {
+    return {
+      id: row.id,
+      conversationId: row.conversation_id,
+      userId: row.user_id,
+      notifications: row.notifications,
+      soundNotifications: row.sound_notifications,
+      emailNotifications: row.email_notifications,
+      pushNotifications: row.push_notifications,
+      theme: row.theme as 'default' | 'dark' | 'light',
+      messagePreview: row.message_preview,
+      readReceipts: row.read_receipts,
+      typingIndicators: row.typing_indicators,
+      autoDeleteAfter: row.auto_delete_after ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  /**
+   * Update conversation settings for a user
+   */
+  async updateConversationSettings(
+    conversationId: number,
+    userId: number,
+    settings: Partial<ConversationSettings>
+  ): Promise<ConversationSettings> {
+    const updates: string[] = [];
+    const params: (string | number | boolean | null)[] = [];
+    let paramIndex = 1;
+
+    if (settings.notifications !== undefined) {
+      updates.push(`notifications = $${paramIndex++}`);
+      params.push(settings.notifications);
     }
-    
-    return highlights;
-  }
-
-  private async updateMessageSearchIndex(messageId: number, content: string, conversationId: number): Promise<void> {
-    try {
-      // Insert or update search index
-      await this.db
-        .insert('message_search_index')
-        .values({
-          messageId,
-          conversationId,
-          content,
-          searchTokens: content.toLowerCase(), // Simple tokenization
-          language: 'en',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .onConflictDoUpdate({
-          target: ['message_id'],
-          set: {
-            content,
-            searchTokens: content.toLowerCase(),
-            updatedAt: new Date()
-          }
-        })
-        .execute();
-    } catch (error) {
-      console.error('Error updating search index:', error);
-      // Don't throw - search indexing shouldn't break messaging
+    if (settings.soundNotifications !== undefined) {
+      updates.push(`sound_notifications = $${paramIndex++}`);
+      params.push(settings.soundNotifications);
     }
-  }
-
-  private async getMessageById(messageId: number, userId: number): Promise<MessageWithDetails> {
-    const [message] = await this.db
-      .select()
-      .from('messages')
-      .where(eq('id', messageId))
-      .execute();
-
-    if (!message) {
-      throw new Error('Message not found');
+    if (settings.emailNotifications !== undefined) {
+      updates.push(`email_notifications = $${paramIndex++}`);
+      params.push(settings.emailNotifications);
+    }
+    if (settings.pushNotifications !== undefined) {
+      updates.push(`push_notifications = $${paramIndex++}`);
+      params.push(settings.pushNotifications);
+    }
+    if (settings.theme !== undefined) {
+      updates.push(`theme = $${paramIndex++}`);
+      params.push(settings.theme);
+    }
+    if (settings.messagePreview !== undefined) {
+      updates.push(`message_preview = $${paramIndex++}`);
+      params.push(settings.messagePreview);
+    }
+    if (settings.readReceipts !== undefined) {
+      updates.push(`read_receipts = $${paramIndex++}`);
+      params.push(settings.readReceipts);
+    }
+    if (settings.typingIndicators !== undefined) {
+      updates.push(`typing_indicators = $${paramIndex++}`);
+      params.push(settings.typingIndicators);
+    }
+    if (settings.autoDeleteAfter !== undefined) {
+      updates.push(`auto_delete_after = $${paramIndex++}`);
+      params.push(settings.autoDeleteAfter ?? null);
     }
 
-    return await this.enhanceMessageData(message, userId);
-  }
-
-  private async handleOfflineNotifications(
-    conversationId: number, 
-    message: MessageWithDetails, 
-    senderId: number
-  ): Promise<void> {
-    try {
-      // Get offline participants (implement based on your presence system)
-      const participants = await this.db
-        .select({ 
-          userId: 'cp.user_id',
-          email: 'u.email',
-          firstName: 'u.first_name',
-          muteNotifications: 'cs.email_notifications'
-        })
-        .from('conversation_participants cp')
-        .innerJoin('users u', eq('cp.user_id', 'u.id'))
-        .leftJoin('conversation_settings cs', 
-          and(
-            eq('cs.conversation_id', conversationId),
-            eq('cs.user_id', 'cp.user_id')
-          )
-        )
-        .where(
-          and(
-            eq('cp.conversation_id', conversationId),
-            eq('cp.is_active', true),
-            sql`cp.user_id != ${senderId}`
-          )
-        )
-        .execute();
-
-      // Send email notifications to offline users
-      await Promise.all(
-        participants
-          .filter(p => p.muteNotifications !== false) // Default to true if not set
-          .map(async (participant) => {
-            await this.email.sendEmail({
-              to: participant.email,
-              subject: `New message from ${message.sender.name}`,
-              template: 'message-notification',
-              data: {
-                recipientName: participant.firstName,
-                senderName: message.sender.name,
-                messagePreview: message.content.substring(0, 100),
-                conversationTitle: message.conversation.title,
-                messageUrl: `${process.env.FRONTEND_URL}/messages?conversation=${conversationId}`
-              }
-            });
-          })
+    if (updates.length === 0) {
+      const existing = await this.db.query<ConversationSettingsRow>(
+        'SELECT * FROM conversation_settings WHERE conversation_id = $1 AND user_id = $2',
+        [conversationId, userId]
       );
-    } catch (error) {
-      console.error('Error sending offline notifications:', error);
-      // Don't throw - offline notifications shouldn't break messaging
+      return this.convertSettingsRow(existing[0]);
     }
+
+    updates.push(`updated_at = NOW()`);
+    params.push(conversationId, userId);
+
+    const query = `
+      UPDATE conversation_settings
+      SET ${updates.join(', ')}
+      WHERE conversation_id = $${paramIndex++} AND user_id = $${paramIndex++}
+      RETURNING *
+    `;
+
+    const result = await this.db.query<ConversationSettingsRow>(query, params);
+    return this.convertSettingsRow(result[0]);
   }
 
   // ============================================================================
-  // WEBSOCKET BROADCASTING METHODS
+  // ARCHIVE & MUTE
   // ============================================================================
 
-  private async broadcastMessage(message: WebSocketMessage): Promise<void> {
-    try {
-      await this.redis.publish(`conversation:${message.conversationId}`, JSON.stringify(message));
-    } catch (error) {
-      console.error('Error broadcasting message:', error);
+  /**
+   * Archive a conversation for a user
+   */
+  async archiveConversation(
+    conversationId: number,
+    userId: number
+  ): Promise<void> {
+    // Check if user is participant
+    const participantCheck = await this.db.query<ParticipantRow>(
+      `SELECT * FROM conversation_participants
+       WHERE conversation_id = $1 AND user_id = $2 AND is_active = true`,
+      [conversationId, userId]
+    );
+
+    if (!participantCheck[0]) {
+      throw new Error('Access denied');
     }
+
+    await this.db.query(
+      'UPDATE conversations SET archived = true, updated_at = NOW() WHERE id = $1',
+      [conversationId]
+    );
+
+    // Clear cache
+    await this.redis.del(`user:${userId}:conversations:*`);
   }
 
-  private async broadcastTyping(message: WebSocketMessage): Promise<void> {
-    try {
-      await this.redis.publish(`conversation:${message.conversationId}:typing`, JSON.stringify(message));
-    } catch (error) {
-      console.error('Error broadcasting typing:', error);
-    }
+  /**
+   * Mute a conversation for a user
+   */
+  async muteConversation(
+    conversationId: number,
+    userId: number,
+    muted: boolean = true
+  ): Promise<void> {
+    await this.db.query(
+      `UPDATE conversation_participants
+       SET mute_notifications = $1, updated_at = NOW()
+       WHERE conversation_id = $2 AND user_id = $3`,
+      [muted, conversationId, userId]
+    );
+
+    // Clear cache
+    await this.redis.del(`user:${userId}:conversations:*`);
   }
 
-  private async broadcastReadReceipts(message: WebSocketMessage): Promise<void> {
-    try {
-      await this.redis.publish(`conversation:${message.conversationId}:receipts`, JSON.stringify(message));
-    } catch (error) {
-      console.error('Error broadcasting read receipts:', error);
+  // ============================================================================
+  // PARTICIPANT MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Add participants to a group conversation
+   */
+  async addParticipants(
+    conversationId: number,
+    requesterId: number,
+    userIds: number[]
+  ): Promise<void> {
+    // Verify requester is admin
+    const adminCheck = await this.db.query<ParticipantRow>(
+      `SELECT * FROM conversation_participants
+       WHERE conversation_id = $1 AND user_id = $2 AND role = 'admin' AND is_active = true`,
+      [conversationId, requesterId]
+    );
+
+    if (!adminCheck[0]) {
+      throw new Error('Access denied: Only admins can add participants');
     }
+
+    for (const userId of userIds) {
+      await this.db.query(
+        `INSERT INTO conversation_participants
+         (conversation_id, user_id, role, joined_at, created_at, updated_at)
+         VALUES ($1, $2, 'member', NOW(), NOW(), NOW())
+         ON CONFLICT (conversation_id, user_id)
+         DO UPDATE SET is_active = true, left_at = NULL, updated_at = NOW()`,
+        [conversationId, userId]
+      );
+
+      // Initialize settings
+      await this.db.query(
+        `INSERT INTO conversation_settings (conversation_id, user_id, created_at, updated_at)
+         VALUES ($1, $2, NOW(), NOW())
+         ON CONFLICT (conversation_id, user_id) DO NOTHING`,
+        [conversationId, userId]
+      );
+
+      // Clear cache for new participant
+      await this.redis.del(`user:${userId}:conversations:*`);
+    }
+
+    // Broadcast update
+    await this.broadcastToConversation(conversationId, {
+      type: 'conversation_update',
+      data: { action: 'participant_added', userIds },
+      conversationId,
+      userId: requesterId,
+      timestamp: new Date().toISOString()
+    });
   }
 
-  private async broadcastConversationUpdate(message: WebSocketMessage): Promise<void> {
-    try {
-      await this.redis.publish(`conversation:${message.conversationId}:update`, JSON.stringify(message));
-    } catch (error) {
-      console.error('Error broadcasting conversation update:', error);
+  /**
+   * Remove a participant from a conversation
+   */
+  async removeParticipant(
+    conversationId: number,
+    requesterId: number,
+    userId: number
+  ): Promise<void> {
+    // Allow self-removal or admin removal
+    if (requesterId !== userId) {
+      const adminCheck = await this.db.query<ParticipantRow>(
+        `SELECT * FROM conversation_participants
+         WHERE conversation_id = $1 AND user_id = $2 AND role = 'admin' AND is_active = true`,
+        [conversationId, requesterId]
+      );
+
+      if (!adminCheck[0]) {
+        throw new Error('Access denied: Only admins can remove other participants');
+      }
     }
+
+    await this.db.query(
+      `UPDATE conversation_participants
+       SET is_active = false, left_at = NOW(), updated_at = NOW()
+       WHERE conversation_id = $1 AND user_id = $2`,
+      [conversationId, userId]
+    );
+
+    // Clear cache
+    await this.redis.del(`user:${userId}:conversations:*`);
+
+    // Broadcast update
+    await this.broadcastToConversation(conversationId, {
+      type: 'conversation_update',
+      data: { action: 'participant_removed', userId },
+      conversationId,
+      userId: requesterId,
+      timestamp: new Date().toISOString()
+    });
   }
 
-  private async broadcastUserBlocked(message: WebSocketMessage): Promise<void> {
-    try {
-      await this.redis.publish(`user:${message.userId}:blocked`, JSON.stringify(message));
-    } catch (error) {
-      console.error('Error broadcasting user blocked:', error);
+  // ============================================================================
+  // ATTACHMENTS
+  // ============================================================================
+
+  /**
+   * Get a signed URL for an attachment download
+   */
+  async getAttachmentDownloadUrl(
+    attachmentId: number,
+    userId: number
+  ): Promise<{ url: string; expiresAt: Date }> {
+    // Verify user has access
+    const attachment = await this.db.query<AttachmentRow>(
+      `SELECT ma.* FROM message_attachments ma
+       INNER JOIN messages m ON ma.message_id = m.id
+       INNER JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
+       WHERE ma.id = $1 AND cp.user_id = $2 AND cp.is_active = true`,
+      [attachmentId, userId]
+    );
+
+    if (!attachment[0]) {
+      throw new Error('Attachment not found or access denied');
     }
+
+    const url = await this.storage.getSignedUrl(attachment[0].file_url, 3600); // 1 hour expiry
+    const expiresAt = new Date(Date.now() + 3600 * 1000);
+
+    return { url, expiresAt };
+  }
+
+  /**
+   * Delete an attachment
+   */
+  async deleteAttachment(
+    attachmentId: number,
+    userId: number
+  ): Promise<void> {
+    // Verify ownership
+    const attachment = await this.db.query<AttachmentRow>(
+      `SELECT ma.* FROM message_attachments ma
+       WHERE ma.id = $1 AND ma.uploaded_by_id = $2`,
+      [attachmentId, userId]
+    );
+
+    if (!attachment[0]) {
+      throw new Error('Attachment not found or access denied');
+    }
+
+    // Delete from storage
+    await this.storage.deleteFile(attachment[0].file_url);
+
+    // Delete from database
+    await this.db.query('DELETE FROM message_attachments WHERE id = $1', [attachmentId]);
   }
 }
-
-export { MessagingService };
-export type { 
-  WebSocketMessage,
-  ConversationWithDetails,
-  MessageWithDetails,
-  SendMessageInput,
-  ConversationFilters,
-  MessageFilters
-};

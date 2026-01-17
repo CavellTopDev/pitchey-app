@@ -36,7 +36,7 @@ export async function advancedSearchHandler(request: Request, env: any): Promise
     let params: SearchParams;
     
     if (request.method === 'POST') {
-      params = await request.json();
+      params = await request.json() as Record<string, unknown>;
     } else {
       const url = new URL(request.url);
       params = {
@@ -166,7 +166,7 @@ export async function searchExportHandler(request: Request, env: any): Promise<R
   const builder = new ApiResponseBuilder(request);
 
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { 
       searchResults, 
       query, 
@@ -212,7 +212,7 @@ export async function createSavedSearchHandler(request: Request, env: any): Prom
   const builder = new ApiResponseBuilder(request);
 
   try {
-    const data = await request.json();
+    const data = await request.json() as Record<string, unknown>;
     const { name, description, search_query, filters, is_public, notify_on_results, alert_frequency } = data;
 
     if (!name || !search_query) {
@@ -299,7 +299,7 @@ export async function updateSavedSearchHandler(request: Request, env: any): Prom
   try {
     const params = (request as any).params;
     const searchId = parseInt(params.id);
-    const updateData = await request.json();
+    const updateData = await request.json() as Record<string, unknown>;
 
     if (isNaN(searchId)) {
       return builder.error(ErrorCode.VALIDATION_ERROR, 'Invalid search ID');

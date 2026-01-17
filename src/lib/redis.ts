@@ -7,6 +7,10 @@ export const redis = {
   async set(key: string, value: string, options?: any): Promise<string> {
     return 'OK';
   },
+
+  async setex(key: string, seconds: number, value: string): Promise<string> {
+    return 'OK';
+  },
   
   async del(key: string): Promise<number> {
     return 1;

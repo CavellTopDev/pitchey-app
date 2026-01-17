@@ -41,7 +41,7 @@ export async function industryEnrichmentHandler(request: Request, env: Env): Pro
   }
 
   try {
-    const body: EnrichmentRequest = await request.json();
+    const body: EnrichmentRequest = await request.json() as Record<string, unknown>;
     
     // Validate request
     if (!body.pitchId || !body.pitchData) {
@@ -171,7 +171,7 @@ export async function contentDiscoveryHandler(request: Request, env: Env): Promi
   }
 
   try {
-    const body: ContentDiscoveryRequest = await request.json();
+    const body: ContentDiscoveryRequest = await request.json() as Record<string, unknown>;
     
     // Validate request
     if (!body.action) {
@@ -378,7 +378,7 @@ export async function cacheManagementHandler(request: Request, env: Env): Promis
   }
 
   try {
-    const { action } = await request.json();
+    const { action } = await request.json() as Record<string, unknown>;
     const cache = getCacheService(env);
 
     switch (action) {
@@ -702,7 +702,7 @@ export async function intelligenceAlertConfigHandler(request: Request, env: Env)
   const monitoringService = getIntelligenceMonitoringService(env);
 
   try {
-    const alertConfig = await request.json();
+    const alertConfig = await request.json() as Record<string, unknown>;
     
     // Validate alert configuration
     if (typeof alertConfig !== 'object') {

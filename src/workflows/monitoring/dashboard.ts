@@ -111,7 +111,7 @@ export class WorkflowMonitoringDashboard {
 
     // Send transition event to Analytics
     this.analytics.writeDataPoint({
-      indexes: [metric.workflow_type, fromState, toState],
+      indexes: [`${metric.workflow_type}:${fromState}:${toState}`], // Single combined index
       doubles: [duration, Date.now()],
       blobs: [workflowId],
       event: 'state_transition'
@@ -152,7 +152,7 @@ export class WorkflowMonitoringDashboard {
 
     // Send completion event
     this.analytics.writeDataPoint({
-      indexes: [metric.workflow_type, success ? 'success' : 'failure'],
+      indexes: [`${metric.workflow_type}:${success ? 'success' : 'failure'}`], // Single combined index
       doubles: [totalDuration, Date.now()],
       blobs: [workflowId, finalState],
       event: 'workflow_complete'
@@ -197,7 +197,7 @@ export class WorkflowMonitoringDashboard {
 
     // Send error event
     this.analytics.writeDataPoint({
-      indexes: [metric.workflow_type, 'error', state],
+      indexes: [`${metric.workflow_type}:error:${state}`], // Single combined index
       blobs: [workflowId, error.message, error.stack || ''],
       doubles: [Date.now()],
       event: 'workflow_error'

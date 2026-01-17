@@ -3,6 +3,8 @@
  * Handles persistent container sessions with automatic scaling and resource management
  */
 
+import type { Env } from '../worker-integrated';
+
 export interface ContainerSession {
   id: string;
   userId: string;
@@ -288,9 +290,9 @@ export class SessionManagerDO implements DurableObject {
       }
     } catch (error) {
       console.error('SessionManagerDO error:', error);
-      return new Response(JSON.stringify({ 
-        error: error.message 
-      }), { 
+      return new Response(JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -301,19 +303,30 @@ export class SessionManagerDO implements DurableObject {
    * Create a new container session
    */
   private async createSession(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as {
+      id?: string;
+      userId?: string;
+      containerId?: string;
+      sessionType?: ContainerSession['sessionType'];
+      expiresAt?: string;
+      configuration?: Partial<SessionConfiguration>;
+      resources?: Partial<ResourceAllocation>;
+      persistence?: Partial<SessionPersistence>;
+      scaling?: Partial<AutoScalingConfig>;
+      security?: Partial<SessionSecurity>;
+    };
     const sessionId = data.id || crypto.randomUUID();
-    
+
     const session: ContainerSession = {
       id: sessionId,
-      userId: data.userId,
-      containerId: data.containerId,
+      userId: data.userId || '',
+      containerId: data.containerId || '',
       sessionType: data.sessionType || 'interactive',
       status: 'initializing',
       createdAt: new Date(),
       lastActivity: new Date(),
       expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
-      configuration: { ...this.defaultConfig, ...data.configuration },
+      configuration: { ...this.defaultConfig, ...(data.configuration || {}) },
       resources: this.initializeResources(data.resources),
       metrics: this.initializeMetrics(),
       connections: [],
@@ -384,18 +397,22 @@ export class SessionManagerDO implements DurableObject {
       return new Response('Session not found', { status: 404 });
     }
 
-    const updates = await request.json();
-    
+    const updates = await request.json() as {
+      configuration?: Partial<SessionConfiguration>;
+      resources?: Partial<ResourceAllocation>;
+      scaling?: Partial<AutoScalingConfig>;
+    };
+
     // Update configuration
     if (updates.configuration) {
       session.configuration = { ...session.configuration, ...updates.configuration };
     }
-    
+
     // Update resources if needed
     if (updates.resources) {
       await this.updateResources(session, updates.resources);
     }
-    
+
     // Update scaling configuration
     if (updates.scaling) {
       session.scaling = { ...session.scaling, ...updates.scaling };
@@ -534,7 +551,8 @@ export class SessionManagerDO implements DurableObject {
       return new Response('Session not found', { status: 404 });
     }
 
-    const { action, replicas } = await request.json();
+    const body = await request.json() as { action?: string; replicas?: number };
+    const { action, replicas } = body;
     
     const decision = await this.makeScalingDecision(session, action, replicas);
     
@@ -586,7 +604,7 @@ export class SessionManagerDO implements DurableObject {
       id: crypto.randomUUID(),
       type: 'websocket',
       clientIP: request.headers.get('CF-Connecting-IP') || 'unknown',
-      userAgent: request.headers.get('User-Agent'),
+      userAgent: request.headers.get('User-Agent') || undefined,
       connectedAt: new Date(),
       lastActivity: new Date(),
       bytesTransferred: 0,
@@ -661,7 +679,7 @@ export class SessionManagerDO implements DurableObject {
       if (status && session.status !== status) continue;
       if (sessionType && session.sessionType !== sessionType) continue;
       
-      sessions.push(this.sanitizeSession(session));
+      sessions.push(this.sanitizeSession(session) as ContainerSession);
     }
 
     // Sort by last activity
@@ -1200,7 +1218,8 @@ export class SessionManagerDO implements DurableObject {
   }
 
   private async restoreSession(sessionId: string, request: Request): Promise<Response> {
-    const { snapshotId } = await request.json();
+    const body = await request.json() as { snapshotId?: string };
+    const { snapshotId } = body;
     const session = await this.loadSession(sessionId);
     
     if (!session) {

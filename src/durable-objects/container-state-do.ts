@@ -3,6 +3,8 @@
  * Manages the complete state of container instances with persistence and recovery
  */
 
+import type { Env } from '../worker-integrated';
+
 export interface ContainerState {
   id: string;
   name: string;
@@ -129,9 +131,9 @@ export class ContainerStateDO implements DurableObject {
       }
     } catch (error) {
       console.error('ContainerStateDO error:', error);
-      return new Response(JSON.stringify({ 
-        error: error.message 
-      }), { 
+      return new Response(JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -142,12 +144,12 @@ export class ContainerStateDO implements DurableObject {
    * Create new container instance
    */
   private async createContainer(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as { id?: string; name?: string; configuration?: any };
     const containerId = data.id || crypto.randomUUID();
-    
+
     const container: ContainerState = {
       id: containerId,
-      name: data.name,
+      name: data.name || 'unnamed',
       status: 'pending',
       createdAt: new Date(),
       health: {
@@ -166,7 +168,7 @@ export class ContainerStateDO implements DurableObject {
         errors: 0,
         lastUpdated: new Date()
       },
-      configuration: data.configuration,
+      configuration: data.configuration || { image: '', cpu: 0, memory: 0, disk: 0, env: {}, ports: [], labels: {} },
       events: []
     };
 
@@ -180,8 +182,9 @@ export class ContainerStateDO implements DurableObject {
     });
 
     // Setup health checks if configured
-    if (data.healthCheck) {
-      await this.setupHealthCheck(containerId, data.healthCheck);
+    const extData = data as { healthCheck?: HealthCheckRequest };
+    if (extData.healthCheck) {
+      await this.setupHealthCheck(containerId, extData.healthCheck);
     }
 
     return Response.json({
@@ -216,12 +219,12 @@ export class ContainerStateDO implements DurableObject {
       return new Response('Container not found', { status: 404 });
     }
 
-    const updates = await request.json();
-    
+    const updates = await request.json() as Partial<ContainerState>;
+
     // Update configuration if provided
     if (updates.configuration) {
       container.configuration = { ...container.configuration, ...updates.configuration };
-      
+
       await this.addEvent(containerId, {
         id: crypto.randomUUID(),
         timestamp: new Date(),
@@ -235,7 +238,7 @@ export class ContainerStateDO implements DurableObject {
     if (updates.status && updates.status !== container.status) {
       const oldStatus = container.status;
       container.status = updates.status;
-      
+
       if (updates.status === 'running' && !container.startedAt) {
         container.startedAt = new Date();
       } else if (['stopped', 'failed', 'terminated'].includes(updates.status)) {
@@ -376,19 +379,19 @@ export class ContainerStateDO implements DurableObject {
       return new Response('Container not found', { status: 404 });
     }
 
-    const healthData = await request.json();
+    const healthData = await request.json() as { healthy?: boolean; response?: { statusCode: number; responseTime: number } };
     const now = new Date();
-    
+
     container.health = {
       status: healthData.healthy ? 'healthy' : 'unhealthy',
       lastCheck: now,
       checkCount: container.health.checkCount + 1,
-      failureCount: healthData.healthy ? 
-        Math.max(0, container.health.failureCount - 1) : 
+      failureCount: healthData.healthy ?
+        Math.max(0, container.health.failureCount - 1) :
         container.health.failureCount + 1,
       response: healthData.response
     };
-    
+
     container.lastHealthCheck = now;
 
     await this.saveContainer(container);
@@ -400,7 +403,7 @@ export class ContainerStateDO implements DurableObject {
         timestamp: now,
         type: 'warning',
         message: `Health check failed`,
-        data: { 
+        data: {
           failureCount: container.health.failureCount,
           response: healthData.response
         }
@@ -423,12 +426,12 @@ export class ContainerStateDO implements DurableObject {
       return new Response('Container not found', { status: 404 });
     }
 
-    const metricsData = await request.json();
+    const metricsData = await request.json() as Partial<ContainerState['metrics']>;
     const now = new Date();
-    
+
     container.metrics = {
       ...container.metrics,
-      ...metricsData,
+      ...(metricsData || {}),
       lastUpdated: now
     };
 
@@ -453,15 +456,15 @@ export class ContainerStateDO implements DurableObject {
     const offset = parseInt(params.get('offset') || '0');
 
     const allContainers = await this.storage.list({ prefix: 'container:' });
-    const containers: ContainerState[] = [];
+    const containers: Partial<ContainerState>[] = [];
 
-    for (const [key, value] of allContainers) {
+    for (const [, value] of allContainers) {
       const container = value as ContainerState;
-      
+
       // Apply filters
       if (status && container.status !== status) continue;
       if (name && !container.name.includes(name)) continue;
-      
+
       containers.push(await this.sanitizeContainer(container));
     }
 

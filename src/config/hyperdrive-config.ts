@@ -5,6 +5,7 @@
 
 // import postgres from 'postgres'; // Commented out to avoid bundling issues
 import { neon } from '@neondatabase/serverless';
+import type { Env } from '../worker-integrated';
 
 export interface HyperdriveConfig {
   binding: string;

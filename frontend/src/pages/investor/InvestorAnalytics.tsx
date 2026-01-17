@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   BarChart3, TrendingUp, TrendingDown, PieChart, 
   Target, DollarSign, Users, Calendar, Download, 
@@ -64,16 +64,16 @@ export default function InvestorAnalytics() {
   const [investmentFlows, setInvestmentFlows] = useState<InvestmentFlow[]>([]);
   const [creatorInsights, setCreatorInsights] = useState<CreatorInsight[]>([]);
 
-  useEffect(() => {
-    loadAnalyticsData();
-  }, [timeRange, filterType]);
-
-  const loadAnalyticsData = async () => {
+  const loadAnalyticsData = useCallback(async () => {
+    let cancelled = false;
+    
     try {
       setLoading(true);
       
-      // Simulate API call
-      setTimeout(() => {
+      // Simulate API call with timeout
+      const timeoutId = setTimeout(() => {
+        if (cancelled) return;
+        
         // Mock analytics metrics
         setAnalyticsMetrics([
           {
@@ -213,11 +213,24 @@ export default function InvestorAnalytics() {
 
         setLoading(false);
       }, 1200);
+      
+      // Return cleanup function
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
     } catch (error) {
-      console.error('Failed to load analytics data:', error);
-      setLoading(false);
+      if (!cancelled) {
+        console.error('Failed to load analytics data:', error);
+        setLoading(false);
+      }
     }
-  };
+  }, [timeRange, filterType]);
+
+  useEffect(() => {
+    const cleanup = loadAnalyticsData();
+    return cleanup;
+  }, [loadAnalyticsData]);
 
   // Chart data for Recharts
   const marketTrendChartData = marketTrends.map(trend => ({
@@ -344,7 +357,10 @@ export default function InvestorAnalytics() {
               Export Analytics
             </button>
             
-            <button onClick={loadAnalyticsData} className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button 
+              onClick={() => void loadAnalyticsData()} 
+              className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
               <RefreshCw className="w-4 h-4" />
             </button>
           </div>

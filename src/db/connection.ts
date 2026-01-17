@@ -6,7 +6,7 @@
 import { neon } from '@neondatabase/serverless';
 
 export interface Env {
-  DATABASE_URL?: string;
+  DATABASE_URL: string;
   JWT_SECRET?: string;
   SESSIONS_KV?: KVNamespace;
   KV?: KVNamespace;
@@ -24,9 +24,7 @@ export function getDb(env: Env) {
   
   try {
     // Use HTTP connection for Cloudflare Workers free tier
-    return neon(env.DATABASE_URL, {
-      fetchConnectionCache: true
-    });
+    return neon(env.DATABASE_URL);
   } catch (error) {
     console.error('Database connection error:', error);
     return null;

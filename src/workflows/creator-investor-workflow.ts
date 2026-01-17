@@ -211,7 +211,7 @@ export class CreatorInvestorWorkflow {
           ${investmentDetails.amount}::numeric,
           ${JSON.stringify(investmentDetails)}::jsonb
         ) as deal_id
-      `.then(result => result[0]?.deal_id);
+      `.then((result: Array<{ deal_id?: number }>) => result[0]?.deal_id);
 
       if (!dealId) {
         throw new Error('Failed to create investment inquiry');
@@ -370,7 +370,7 @@ export class CreatorInvestorWorkflow {
       // Advance deal state using database function
       const advanced = await this.db`
         SELECT advance_deal_state(${dealId}::integer, ${user.id}::integer, ${metadata?.reason || null}) as advanced
-      `.then(result => result[0]?.advanced);
+      `.then((result: Array<{ advanced?: boolean }>) => result[0]?.advanced);
 
       if (!advanced) {
         return new Response(JSON.stringify({
@@ -447,7 +447,7 @@ export class CreatorInvestorWorkflow {
 
       // Build dynamic query based on filters
       let whereConditions = ['p.status = $1', 'p.seeking_investment = true'];
-      let params = ['published'];
+      let params: (string | string[] | number)[] = ['published'];
       let paramIndex = 2;
 
       if (filters.genre && filters.genre.length > 0) {
@@ -570,7 +570,7 @@ export class CreatorInvestorWorkflow {
       // Get comprehensive deal summary
       const summary = await this.db`
         SELECT get_user_deal_summary(${user.id}::integer, ${userType}) as summary
-      `.then(result => result[0]?.summary || {});
+      `.then((result: Array<{ summary?: Record<string, unknown> }>) => result[0]?.summary || {});
 
       // Get active deals with full details
       const userIdField = userType === 'creator' ? 'creator_id' : 'investor_id';
@@ -750,7 +750,7 @@ export class CreatorInvestorWorkflow {
     // Use database validation function
     const result = await this.db`
       SELECT validate_investment_deal(${deal.id}::integer) as validation
-    `.then(result => result[0]?.validation || { valid: false, violations: [] });
+    `.then((result: Array<{ validation?: { valid: boolean; violations: string[] } }>) => result[0]?.validation || { valid: false, violations: [] });
 
     return {
       valid: result.valid,
@@ -822,7 +822,7 @@ export class CreatorInvestorWorkflow {
           COUNT(*) FILTER (WHERE deal_state IN ('inquiry', 'due_diligence', 'negotiation')) as active_deals
         FROM investment_deals
         WHERE investor_id = ${userId}
-      `.then(result => result[0] || {});
+      `.then((result: Array<Record<string, unknown>>) => result[0] || {});
     } else {
       return await this.db`
         SELECT 
@@ -833,14 +833,14 @@ export class CreatorInvestorWorkflow {
           COUNT(DISTINCT d.pitch_id) as pitched_projects
         FROM investment_deals d
         WHERE d.creator_id = ${userId}
-      `.then(result => result[0] || {});
+      `.then((result: Array<Record<string, unknown>>) => result[0] || {});
     }
   }
 
   private async approveDealAdvancement(dealId: number, userId: number, message?: string): Promise<any> {
     const advanced = await this.db`
       SELECT advance_deal_state(${dealId}::integer, ${userId}::integer, ${message || 'Deal approved'}) as advanced
-    `.then(result => result[0]?.advanced);
+    `.then((result: Array<{ advanced?: boolean }>) => result[0]?.advanced);
 
     return {
       advanced,
@@ -875,7 +875,7 @@ export class CreatorInvestorWorkflow {
         'enhanced'::nda_type,
         'full_access'
       ) as nda_id
-    `.then(result => result[0]?.nda_id);
+    `.then((result: Array<{ nda_id?: number }>) => result[0]?.nda_id);
 
     // Update deal state to nda_required
     await this.db`
@@ -911,4 +911,4 @@ export class CreatorInvestorWorkflow {
   }
 }
 
-export { CreatorInvestorWorkflow };
+// Class is already exported via 'export class' declaration above

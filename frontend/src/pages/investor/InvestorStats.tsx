@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, DollarSign, PieChart, Calendar, 
   Award, Target, BarChart3, Activity, Clock,
@@ -44,16 +44,16 @@ export default function InvestorStats() {
   const [stats, setStats] = useState<QuickStat[]>([]);
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
 
-  useEffect(() => {
-    loadStats();
-  }, [timeRange]);
-
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
+    let cancelled = false;
+    
     try {
       setLoading(true);
       
       // Simulate loading stats - replace with actual API
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
+        if (cancelled) return;
+        
         setMetrics({
           portfolioValue: 8750000,
           totalInvested: 6200000,
@@ -125,11 +125,24 @@ export default function InvestorStats() {
         ]);
         setLoading(false);
       }, 1000);
+      
+      // Return cleanup function
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
     } catch (error) {
-      console.error('Failed to load stats:', error);
-      setLoading(false);
+      if (!cancelled) {
+        console.error('Failed to load stats:', error);
+        setLoading(false);
+      }
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    const cleanup = loadStats();
+    return cleanup;
+  }, [loadStats]);
 
   // Chart data
   const portfolioPerformanceData = [
@@ -262,7 +275,7 @@ export default function InvestorStats() {
               
               {/* Refresh Button */}
               <button 
-                onClick={loadStats}
+                onClick={() => void loadStats()}
                 className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
               >
                 <RefreshCw className="w-4 h-4" />

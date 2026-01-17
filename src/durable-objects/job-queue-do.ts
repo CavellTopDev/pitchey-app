@@ -3,6 +3,8 @@
  * Provides durable job queue management with priority scheduling and batch processing
  */
 
+import type { Env } from '../worker-integrated';
+
 export interface Job {
   id: string;
   type: string;
@@ -163,9 +165,9 @@ export class JobQueueDO implements DurableObject {
       }
     } catch (error) {
       console.error('JobQueueDO error:', error);
-      return new Response(JSON.stringify({ 
-        error: error.message 
-      }), { 
+      return new Response(JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -176,12 +178,25 @@ export class JobQueueDO implements DurableObject {
    * Add a new job to the queue
    */
   private async addJob(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as {
+      id?: string;
+      type?: string;
+      priority?: Job['priority'];
+      data?: Record<string, any>;
+      maxAttempts?: number;
+      timeout?: number;
+      delay?: number;
+      retryBackoff?: Job['retryBackoff'];
+      retryDelay?: number;
+      tags?: string[];
+      dependencies?: string[];
+      metadata?: Record<string, any>;
+    };
     const jobId = data.id || crypto.randomUUID();
-    
+
     const job: Job = {
       id: jobId,
-      type: data.type,
+      type: data.type || '',
       priority: data.priority || 'normal',
       status: 'pending',
       data: data.data || {},
@@ -224,7 +239,8 @@ export class JobQueueDO implements DurableObject {
    * Add multiple jobs in batch
    */
   private async addJobBatch(request: Request): Promise<Response> {
-    const { jobs: jobData } = await request.json();
+    const body = await request.json() as { jobs?: any[] };
+    const jobData = body.jobs || [];
     const jobs: Job[] = [];
 
     for (const data of jobData) {
@@ -361,14 +377,14 @@ export class JobQueueDO implements DurableObject {
 
     for (const [key, value] of allJobs) {
       const job = value as Job;
-      
+
       // Apply filters
       if (status && job.status !== status) continue;
       if (type && job.type !== type) continue;
       if (priority && job.priority !== priority) continue;
       if (tag && !job.tags.includes(tag)) continue;
-      
-      jobs.push(this.sanitizeJob(job));
+
+      jobs.push(this.sanitizeJob(job) as Job);
     }
 
     // Sort by priority and creation time
@@ -416,11 +432,17 @@ export class JobQueueDO implements DurableObject {
    * Register a job processor
    */
   private async registerProcessor(request: Request): Promise<Response> {
-    const data = await request.json();
-    
+    const data = await request.json() as {
+      type?: string;
+      handler?: (job: Job) => Promise<any>;
+      concurrency?: number;
+      timeout?: number;
+      retryPolicy?: JobProcessor['retryPolicy'];
+    };
+
     const processor: JobProcessor = {
-      type: data.type,
-      handler: data.handler, // This would be a function reference
+      type: data.type || '',
+      handler: data.handler || (async () => ({})),
       concurrency: data.concurrency || 1,
       timeout: data.timeout || 300000,
       retryPolicy: data.retryPolicy
@@ -478,8 +500,8 @@ export class JobQueueDO implements DurableObject {
    * Configure batch processing
    */
   private async configureBatch(request: Request): Promise<Response> {
-    const config = await request.json();
-    
+    const config = await request.json() as Partial<BatchConfig>;
+
     this.defaultBatchConfig = {
       ...this.defaultBatchConfig,
       ...config
@@ -510,9 +532,10 @@ export class JobQueueDO implements DurableObject {
   private async initializeQueue(): Promise<void> {
     // Load existing jobs
     const storedJobs = await this.storage.list({ prefix: 'job:' });
-    
-    for (const [key, job] of storedJobs) {
-      this.jobs.set(job.id, job as Job);
+
+    for (const [key, value] of storedJobs) {
+      const job = value as Job;
+      this.jobs.set(job.id, job);
     }
 
     // Load batch configuration
@@ -583,9 +606,14 @@ export class JobQueueDO implements DurableObject {
     const processor = this.processors.get(job.type);
     if (!processor) return false;
 
-    const runningJobsOfType = Array.from(this.runningJobs.values()).filter(
-      runningJob => runningJob.type === job.type
-    ).length;
+    // Count running jobs of this type
+    let runningJobsOfType = 0;
+    for (const runningJobId of this.runningJobs.keys()) {
+      const runningJob = this.jobs.get(runningJobId);
+      if (runningJob && runningJob.type === job.type) {
+        runningJobsOfType++;
+      }
+    }
 
     return runningJobsOfType < processor.concurrency;
   }
@@ -627,8 +655,8 @@ export class JobQueueDO implements DurableObject {
       
     } catch (error) {
       job.error = {
-        message: error.message,
-        stack: error.stack,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
         timestamp: new Date()
       };
 
@@ -808,7 +836,7 @@ export class JobQueueDO implements DurableObject {
         job.status = 'failed';
         job.failedAt = new Date();
         job.error = {
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
           timestamp: new Date()
         };
         await this.saveJob(job);

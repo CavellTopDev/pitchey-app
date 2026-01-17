@@ -1,19 +1,24 @@
+/// <reference types="@cloudflare/workers-types" />
 /**
  * Integrated Cloudflare Worker with Complete Infrastructure
  * Combines authentication, database, file upload, and WebSocket support
  */
+
+// Sentry Error Tracking
+import * as Sentry from '@sentry/cloudflare';
 
 // import { createAuthAdapter } from './auth/auth-adapter';
 import { createDatabase } from './db/raw-sql-connection';
 // import { UserProfileRoutes } from './routes/user-profile';
 import { ApiResponseBuilder, ErrorCode, errorHandler } from './utils/api-response';
 // import { getEnvConfig } from './utils/env-config';
-import { getCorsHeaders } from './utils/response';
+import { getCorsHeaders, setRequestOrigin, errorResponse } from './utils/response';
 import { createJWT, verifyJWT, extractJWT } from './utils/worker-jwt';
-import { createBetterAuthInstance, createPortalAuth } from './auth/better-auth-neon-raw-sql';
+import { createBetterAuthInstance, createPortalAuth, AuthEnv } from './auth/better-auth-neon-raw-sql';
 import { PortalAccessController, createPortalAccessMiddleware } from './middleware/portal-access-control';
 import { CreatorInvestorWorkflow } from './workflows/creator-investor-workflow';
 import { CreatorProductionWorkflow } from './workflows/creator-production-workflow';
+import { matchValidatedRoute } from './handlers/validated-endpoints';
 import { NDAStateMachine } from './workflows/nda-state-machine';
 import { SecurePortalEndpoints } from './handlers/secure-portal-endpoints';
 
@@ -27,6 +32,49 @@ import { investorDashboardHandler } from './handlers/investor-dashboard';
 import { productionDashboardHandler } from './handlers/production-dashboard';
 import { followersHandler, followingHandler } from './handlers/follows';
 import { ndaHandler, ndaStatsHandler } from './handlers/nda';
+
+// Import follow and view tracking handlers
+import { 
+  followActionHandler, 
+  getFollowListHandler, 
+  getFollowStatsHandler, 
+  getFollowSuggestionsHandler 
+} from './handlers/follows-enhanced';
+import { 
+  trackViewHandler, 
+  getViewAnalyticsHandler, 
+  getPitchViewersHandler 
+} from './handlers/views';
+
+// Import extended dashboard handlers
+import {
+  creatorRevenueTrendsHandler,
+  creatorRevenueBreakdownHandler,
+  creatorContractDetailsHandler,
+  creatorContractUpdateHandler,
+  creatorEngagementHandler,
+  creatorDemographicsHandler,
+  creatorInvestorCommunicationHandler,
+  creatorMessageInvestorHandler
+} from './handlers/creator-dashboard-extended';
+
+import {
+  productionTalentSearchHandler,
+  productionTalentDetailsHandler,
+  productionTalentContactHandler,
+  productionProjectDetailsHandler,
+  productionProjectStatusHandler,
+  productionBudgetUpdateHandler,
+  productionBudgetVarianceHandler,
+  productionScheduleUpdateHandler,
+  productionScheduleConflictsHandler,
+  productionLocationSearchHandler,
+  productionLocationDetailsHandler,
+  productionLocationBookHandler,
+  productionCrewSearchHandler,
+  productionCrewDetailsHandler,
+  productionCrewHireHandler
+} from './handlers/production-dashboard-extended';
 
 // Import legal document automation handler
 import LegalDocumentHandler from './handlers/legal-document-automation';
@@ -82,8 +130,7 @@ import {
   addSecurityHeaders,
   ValidationSchemas,
   rateLimiters,
-  Sanitizer,
-  logSecurityEvent
+  Sanitizer
 } from './services/security-fix';
 import { WorkerDatabase } from './services/worker-database';
 import { WorkerEmailService } from './services/worker-email';
@@ -115,8 +162,12 @@ import {
   AuditTrailService,
   createAuditTrailService,
   logNDAEvent,
+  logSecurityEvent,
   AuditEventTypes,
-  RiskLevels
+  RiskLevels,
+  AuditLogFilters,
+  AuditEventType,
+  RiskLevel
 } from './services/audit-trail.service';
 
 // Import KV cache service
@@ -178,24 +229,223 @@ import { WorkerRealtimeService } from './services/worker-realtime.service';
 // import { getIntelligenceWebSocketService } from './services/intelligence-websocket.service';
 
 // Import A/B testing handlers
-import { ABTestingHandler } from './handlers/ab-testing';
+import { ABTestingHandler, ABTestingRequest } from './handlers/ab-testing';
 import { ABTestingWebSocketHandler } from './handlers/ab-testing-websocket';
 
-// WebSocket handler - Stub for free plan
-// import { WebSocketDurableObject } from './websocket-durable-object';
-class WebSocketDurableObject {
-  state: any;
-  env: any;
+// WebSocket Durable Object - Using real implementation for paid plan
+import { WebSocketRoom as WebSocketDurableObject } from './durable-objects/websocket-room';
 
-  constructor(state: any, env: any) {
-    this.state = state;
-    this.env = env;
-  }
+// ============================================================================
+// Request Body Interfaces - Type definitions for API request payloads
+// ============================================================================
 
-  async fetch(request: Request): Promise<Response> {
-    return new Response('WebSocket support disabled on free plan', { status: 503 });
-  }
+/** Authentication request bodies */
+interface LoginBody {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
 }
+
+/** Database result types */
+interface UserRecord {
+  id: number;
+  email: string;
+  name?: string;
+  username?: string;
+  user_type?: string;
+  userType?: string;
+  password?: string;
+  password_hash?: string;
+  [key: string]: unknown;
+}
+
+interface DatabaseRow {
+  [key: string]: unknown;
+}
+
+/** Health check response data */
+interface HealthResponseData {
+  success?: boolean;
+  data?: {
+    status?: string;
+    health_score?: number;
+    performance?: {
+      latency_ms?: number;
+      connection_pool?: string;
+    };
+    database?: {
+      version?: string;
+      connection?: {
+        status?: string;
+        latency_ms?: number;
+      };
+    };
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+interface RegisterBody {
+  email: string;
+  password: string;
+  name: string;
+  userType?: 'creator' | 'investor' | 'writer';
+}
+
+interface PasswordResetBody {
+  email?: string;
+  token?: string;
+  newPassword?: string;
+}
+
+/** Pitch-related request bodies */
+interface CreatePitchBody {
+  title: string;
+  logline?: string;
+  synopsis?: string;
+  genre?: string;
+  budget?: number;
+  status?: string;
+  seeking_investment?: boolean;
+  investment_amount?: number;
+  [key: string]: unknown;
+}
+
+interface UpdatePitchBody {
+  title?: string;
+  logline?: string;
+  synopsis?: string;
+  genre?: string;
+  budget?: number;
+  status?: string;
+  seeking_investment?: boolean;
+  investment_amount?: number;
+  [key: string]: unknown;
+}
+
+/** NDA-related request bodies */
+interface NDARequestBody {
+  pitchId?: string;
+  templateId?: string;
+  purpose?: string;
+  reason?: string;
+  notes?: string;
+}
+
+interface NDAApproveBody {
+  ndaIds: number[];
+  notes?: string;
+}
+
+interface NDARejectBody {
+  ndaIds: number[];
+  reason?: string;
+}
+
+/** File upload request bodies */
+interface FileUploadInitBody {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  category?: string;
+  chunkSize?: number;
+  metadata?: Record<string, unknown>;
+  pitchId?: string;
+  requireNDA?: boolean;
+}
+
+interface FileUploadChunkBody {
+  sessionId: string;
+  chunks?: unknown[];
+}
+
+interface FileUploadAbortBody {
+  sessionId: string;
+  reason?: string;
+}
+
+/** Template request bodies */
+interface TemplateBody {
+  name: string;
+  description?: string;
+  content?: string;
+  variables?: Record<string, unknown>;
+  isDefault?: boolean;
+}
+
+interface TemplateUpdateBody {
+  name?: string;
+  description?: string;
+  content?: string;
+  variables?: Record<string, unknown>;
+  isDefault?: boolean;
+}
+
+/** Notification/Settings request bodies */
+interface NotificationSettingsBody {
+  emailNotifications?: boolean;
+  pushNotifications?: boolean;
+  smsNotifications?: boolean;
+  notificationFrequency?: string;
+  marketingEmails?: boolean;
+  [key: string]: unknown;
+}
+
+/** Verification code request body */
+interface VerificationCodeBody {
+  code: string;
+  method?: string;
+}
+
+/** Health check data interfaces */
+interface DbHealthData {
+  status: string;
+  latency: number;
+  pool: unknown;
+  connections: number;
+}
+
+interface OverallHealthData {
+  status: string;
+  services: Record<string, unknown>;
+}
+
+/** Pitch analytics data */
+interface PitchAnalyticsData {
+  pitchId: string;
+  views: number;
+  uniqueViews: number;
+  saves: number;
+  shares: number;
+  ndaRequests: number;
+  ndaRequestsApproved: number;
+  ndaRequestsRejected: number;
+  investorInterest: number;
+  conversionRate: number;
+  [key: string]: unknown;
+}
+
+/** Investment request body */
+interface InvestmentBody {
+  pitchId: string;
+  amount: number;
+  notes?: string;
+  status?: string;
+}
+
+/** A/B Testing request bodies */
+interface ABTestBody {
+  name: string;
+  description?: string;
+  variants?: unknown[];
+  targetPercentage?: number;
+}
+
+/** Auth check result - discriminated union for type narrowing */
+type AuthCheckResult =
+  | { authorized: true; user: UserRecord }
+  | { authorized: false; response: Response };
+
 
 export interface Env {
   // Database
@@ -243,6 +493,31 @@ export interface Env {
 
   // Hyperdrive
   HYPERDRIVE?: Hyperdrive;
+
+  // Additional Required Properties
+  RESEND_API_KEY?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
+  SESSION_STORE?: KVNamespace;
+  MONITORING_KV?: KVNamespace;
+  BACKEND_URL?: string;
+  MEDIA_STORAGE?: R2Bucket;
+  NDA_STORAGE?: R2Bucket;
+  PITCH_STORAGE?: R2Bucket;
+  PROCESSED_STORAGE?: R2Bucket;
+  TEMP_STORAGE?: R2Bucket;
+  AUDIT_LOGS?: R2Bucket;
+  TRACE_LOGS?: R2Bucket;
+
+  // Sentry Error Tracking
+  SENTRY_DSN?: string;
+  SENTRY_ENVIRONMENT?: string;
+  SENTRY_TRACES_SAMPLE_RATE?: string;
+  CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
+
+  // Index signature for compatibility with handler Env types
+  [key: string]: any;
 }
 
 /**
@@ -250,25 +525,26 @@ export interface Env {
  */
 class RouteRegistry {
   private routes: Map<string, Map<string, Function>> = new Map();
-  private db: WorkerDatabase;
+  private db!: WorkerDatabase;
   private emailService: WorkerEmailService | null = null;
-  private auditService: AuditTrailService;
+  private auditService!: AuditTrailService;
   // private authAdapter: ReturnType<typeof createAuthAdapter>;
   // private uploadHandler: R2UploadHandler;
   // private emailMessagingRoutes?: EmailMessagingRoutes;
-  private fileHandler: WorkerFileHandler;
+  private fileHandler!: WorkerFileHandler;
   private enhancedR2Handler?: any;
   private env: Env;
   private betterAuth?: ReturnType<typeof createBetterAuthInstance>;
   private portalAuth?: ReturnType<typeof createPortalAuth>;
-  private realtimeService: WorkerRealtimeService;
-  private containerIntegration: ContainerWorkerIntegration;
+  private realtimeService!: WorkerRealtimeService;
+  private containerIntegration!: ContainerWorkerIntegration;
   private intelligenceWebSocketService?: any;
   private abTestingHandler?: ABTestingHandler;
   private abTestingWebSocketHandler?: ABTestingWebSocketHandler;
   private legalDocumentHandler?: LegalDocumentHandler;
   private notificationIntegration?: NotificationIntegrationService;
   private notificationRoutes?: NotificationRoutesHandler;
+  private redis: any = undefined; // Optional Redis client for rate limiting
 
   constructor(env: Env) {
     this.env = env;
@@ -352,10 +628,16 @@ class RouteRegistry {
       if (env.DATABASE_URL && (env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE)) {
         console.log('Initializing Better Auth with Cloudflare integration');
         // Pass the correct KV binding to Better Auth
+        // Use type assertion to handle KVNamespace type variations between imports
         const authEnv = {
-          ...env,
-          SESSIONS_KV: env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE
-        };
+          DATABASE_URL: env.DATABASE_URL,
+          BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
+          JWT_SECRET: env.JWT_SECRET,
+          SESSIONS_KV: env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE,
+          KV: env.KV,
+          FRONTEND_URL: env.FRONTEND_URL,
+          ENVIRONMENT: env.ENVIRONMENT
+        } as AuthEnv;
         this.betterAuth = createBetterAuthInstance(authEnv);
         this.portalAuth = createPortalAuth(this.betterAuth);
       } else {
@@ -396,6 +678,19 @@ class RouteRegistry {
     // });
 
     this.registerRoutes();
+  }
+
+  /**
+   * Initialize or reinitialize the database connection
+   */
+  private async initializeDatabase(): Promise<void> {
+    if (!this.db && this.env.DATABASE_URL) {
+      this.db = new WorkerDatabase({
+        connectionString: this.env.DATABASE_URL,
+        maxRetries: 3,
+        retryDelay: 1000
+      });
+    }
   }
 
   /**
@@ -508,7 +803,7 @@ class RouteRegistry {
     };
   }
 
-  private async requireAuth(request: Request): Promise<{ authorized: boolean; user?: any; response?: Response }> {
+  private async requireAuth(request: Request): Promise<AuthCheckResult> {
     const result = await this.validateAuth(request);
     if (!result.valid) {
       return {
@@ -519,10 +814,10 @@ class RouteRegistry {
         }), { status: 401, headers: getCorsHeaders(request.headers.get('Origin')) })
       };
     }
-    return { authorized: true, user: result.user };
+    return { authorized: true, user: result.user as UserRecord };
   }
 
-  private async requirePortalAuth(request: Request, portal: string | string[]): Promise<{ authorized: boolean; user?: any; response?: Response }> {
+  private async requirePortalAuth(request: Request, portal: string | string[]): Promise<AuthCheckResult> {
     const result = await this.validateAuth(request);
     if (!result.valid) {
       return {
@@ -550,7 +845,47 @@ class RouteRegistry {
       }
     }
 
-    return { authorized: true, user: result.user };
+    return { authorized: true, user: result.user as UserRecord };
+  }
+
+  /**
+   * Helper method to create JSON responses with proper headers
+   */
+  private jsonResponse(data: any, status: number = 200, headers: Record<string, string> = {}): Response {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+        ...getCorsHeaders(),
+        ...headers
+      }
+    });
+  }
+
+  /**
+   * Safely parse an unknown database value to integer
+   */
+  private safeParseInt(value: unknown, defaultValue: number = 0): number {
+    if (value === null || value === undefined) return defaultValue;
+    const parsed = parseInt(String(value), 10);
+    return isNaN(parsed) ? defaultValue : parsed;
+  }
+
+  /**
+   * Safely parse an unknown database value to float
+   */
+  private safeParseFloat(value: unknown, defaultValue: number = 0): number {
+    if (value === null || value === undefined) return defaultValue;
+    const parsed = parseFloat(String(value));
+    return isNaN(parsed) ? defaultValue : parsed;
+  }
+
+  /**
+   * Safely convert unknown to string
+   */
+  private safeString(value: unknown, defaultValue: string = ''): string {
+    if (value === null || value === undefined) return defaultValue;
+    return String(value);
   }
 
   // User profile handler with proper JWT validation
@@ -694,7 +1029,7 @@ class RouteRegistry {
 
       // Set the user in the mock context
       (mockContext as any).user = authResult.user;
-      mockContext.get = (key: string) => {
+      (mockContext as any).get = (key: string) => {
         if (key === 'user') return authResult.user;
         return null;
       };
@@ -788,7 +1123,7 @@ class RouteRegistry {
 
   // JWT auth handler methods
   private async handleLoginSimple(request: Request, portal: string): Promise<Response> {
-    const body = await request.json();
+    const body = await request.json() as LoginBody;
     const { email, password } = body;
 
     try {
@@ -800,7 +1135,7 @@ class RouteRegistry {
         LIMIT 1
       `;
 
-      const [result] = await this.db.query(query, [email, portal]);
+      const [result] = await this.db.query(query, [email, portal]) as UserRecord[];
 
       if (!result) {
         return new Response(JSON.stringify({
@@ -842,10 +1177,10 @@ class RouteRegistry {
 
       // Create JWT token
       const token = await createJWT({
-        sub: result.id.toString(),
-        email: result.email,
-        name: result.name || email.split('@')[0],
-        userType: result.user_type || portal
+        sub: String(result.id),
+        email: String(result.email),
+        name: String(result.name || email.split('@')[0]),
+        userType: String(result.user_type || portal)
       }, jwtSecret);
 
       return new Response(JSON.stringify({
@@ -916,7 +1251,7 @@ class RouteRegistry {
   }
 
   private async handleRegisterSimple(request: Request): Promise<Response> {
-    const body = await request.json();
+    const body = await request.json() as RegisterBody;
     const { email } = body;
 
     return new Response(JSON.stringify({
@@ -967,10 +1302,6 @@ class RouteRegistry {
     this.register('GET', '/api/monitoring/synthetic', this.handleSyntheticResults.bind(this));
     this.register('GET', '/api/ws/health', this.handleWebSocketHealth.bind(this));
 
-    this.register('GET', '/ws', async (request) => {
-      return this.realtimeService.handleWebSocketUpgrade(request);
-    });
-
     // Authentication routes
     this.register('POST', '/api/auth/login', this.handleLogin.bind(this));
     this.register('POST', '/api/auth/register', this.handleRegister.bind(this));
@@ -978,12 +1309,12 @@ class RouteRegistry {
     this.register('GET', '/api/auth/session', this.handleSession.bind(this));
 
     // Portal-specific auth
-    this.register('POST', '/api/auth/creator/login', (req) => this.handlePortalLogin(req, 'creator'));
-    this.register('POST', '/api/auth/investor/login', (req) => this.handlePortalLogin(req, 'investor'));
-    this.register('POST', '/api/auth/production/login', (req) => this.handlePortalLogin(req, 'production'));
+    this.register('POST', '/api/auth/creator/login', (req: Request) => this.handlePortalLogin(req, 'creator'));
+    this.register('POST', '/api/auth/investor/login', (req: Request) => this.handlePortalLogin(req, 'investor'));
+    this.register('POST', '/api/auth/production/login', (req: Request) => this.handlePortalLogin(req, 'production'));
 
     // Better Auth routes (compatibility layer for frontend)
-    this.register('POST', '/api/auth/sign-in', async (request) => {
+    this.register('POST', '/api/auth/sign-in', async (request: Request) => {
       // Apply rate limiting
       const clientIP = request.headers.get('CF-Connecting-IP') ||
         request.headers.get('X-Forwarded-For') ||
@@ -1007,7 +1338,7 @@ class RouteRegistry {
       }
 
       // Route Better Auth sign-in to our portal login handler
-      const body = await request.json();
+      const body = await request.json() as { email?: string; password?: string; userType?: string; };
 
       // Validate input
       try {
@@ -1038,27 +1369,28 @@ class RouteRegistry {
       return this.handlePortalLogin(transformedRequest, portal as any);
     });
 
-    this.register('POST', '/api/auth/sign-up', async (request) => {
+    this.register('POST', '/api/auth/sign-up', async (request: Request) => {
       // Route Better Auth sign-up to our register handler
       return this.handleRegister(request);
     });
 
-    this.register('POST', '/api/auth/sign-out', async (request) => {
+    this.register('POST', '/api/auth/sign-out', async (request: Request) => {
       // Route Better Auth sign-out to our logout handler
       return this.handleLogout(request);
     });
 
-    this.register('POST', '/api/auth/session/refresh', async (request) => {
+    this.register('POST', '/api/auth/session/refresh', async (request: Request) => {
       // Session refresh - just return current session for now
       return this.handleSession(request);
     });
 
     // Password management routes
-    this.register('POST', '/api/auth/change-password', async (request) => {
+    this.register('POST', '/api/auth/change-password', async (request: Request) => {
       // Create a minimal execution context for the handler
       const ctx: ExecutionContext = {
-        waitUntil: (promise: Promise<any>) => { },
-        passThroughOnException: () => { }
+        waitUntil: (promise: Promise<any>) => { /* no-op */ },
+        passThroughOnException: () => { /* no-op */ },
+        props: {} as any
       };
       return changePasswordHandler(request, this.env, ctx);
     });
@@ -1066,8 +1398,9 @@ class RouteRegistry {
     this.register('POST', '/api/auth/request-reset', async (request) => {
       // Create a minimal execution context for the handler
       const ctx: ExecutionContext = {
-        waitUntil: (promise: Promise<any>) => { },
-        passThroughOnException: () => { }
+        waitUntil: (promise: Promise<any>) => { /* no-op */ },
+        passThroughOnException: () => { /* no-op */ },
+        props: {} as any
       };
       return requestPasswordResetHandler(request, this.env, ctx);
     });
@@ -1075,8 +1408,9 @@ class RouteRegistry {
     this.register('POST', '/api/auth/reset-password', async (request) => {
       // Create a minimal execution context for the handler
       const ctx: ExecutionContext = {
-        waitUntil: (promise: Promise<any>) => { },
-        passThroughOnException: () => { }
+        waitUntil: (promise: Promise<any>) => { /* no-op */ },
+        passThroughOnException: () => { /* no-op */ },
+        props: {} as any
       };
       return resetPasswordHandler(request, this.env, ctx);
     });
@@ -1162,6 +1496,8 @@ class RouteRegistry {
     this.register('GET', '/api/pitches/public/:id', this.getPublicPitch.bind(this));
     this.register('GET', '/api/pitches/following', this.getPitchesFollowing.bind(this));
     this.register('GET', '/api/pitches/search', this.searchPitches.bind(this));  // Add search BEFORE :id
+    this.register('GET', '/api/pitches/browse', this.browsePitches.bind(this));  // Add browse BEFORE :id
+    this.register('GET', '/api/pitches/trending', this.getTrending.bind(this));  // Add trending BEFORE :id
     this.register('GET', '/api/pitches/:id', this.getPitch.bind(this));
     this.register('GET', '/api/pitches/:id/attachments/:filename', this.getPitchAttachment.bind(this));
     this.register('GET', '/api/trending', this.getTrending.bind(this));
@@ -1489,147 +1825,124 @@ class RouteRegistry {
       const { creatorRevenueHandler } = await import('./handlers/creator-dashboard');
       return creatorRevenueHandler(req, this.env);
     });
-    this.registerPortalRoute('GET', '/api/creator/revenue/trends', 'creator', async (req) => {
-      const { creatorRevenueTrendsHandler } = await import('./handlers/creator-dashboard');
-      return creatorRevenueTrendsHandler(req, this.env);
-    });
-    this.registerPortalRoute('GET', '/api/creator/revenue/breakdown', 'creator', async (req) => {
-      const { creatorRevenueBreakdownHandler } = await import('./handlers/creator-dashboard');
-      return creatorRevenueBreakdownHandler(req, this.env);
-    });
+    this.registerPortalRoute('GET', '/api/creator/revenue/trends', 'creator', (req) => 
+      creatorRevenueTrendsHandler(req, this.env)
+    );
+    this.registerPortalRoute('GET', '/api/creator/revenue/breakdown', 'creator', (req) => 
+      creatorRevenueBreakdownHandler(req, this.env)
+    );
 
     // Contract Management
     this.register('GET', '/api/creator/contracts', async (req) => {
       const { creatorContractsHandler } = await import('./handlers/creator-dashboard');
       return creatorContractsHandler(req, this.env);
     });
-    this.register('GET', '/api/creator/contracts/:id', async (req) => {
-      const { creatorContractDetailsHandler } = await import('./handlers/creator-dashboard');
-      return creatorContractDetailsHandler(req, this.env);
-    });
-    this.register('PUT', '/api/creator/contracts/:id', async (req) => {
-      const { creatorContractUpdateHandler } = await import('./handlers/creator-dashboard');
-      return creatorContractUpdateHandler(req, this.env);
-    });
+    this.register('GET', '/api/creator/contracts/:id', (req) => 
+      creatorContractDetailsHandler(req, this.env)
+    );
+    this.register('PUT', '/api/creator/contracts/:id', (req) => 
+      creatorContractUpdateHandler(req, this.env)
+    );
 
     // Pitch Analytics
     this.register('GET', '/api/creator/analytics/pitches', async (req) => {
       const { creatorPitchAnalyticsHandler } = await import('./handlers/creator-dashboard');
       return creatorPitchAnalyticsHandler(req, this.env);
     });
-    this.register('GET', '/api/creator/analytics/engagement', async (req) => {
-      const { creatorEngagementHandler } = await import('./handlers/creator-dashboard');
-      return creatorEngagementHandler(req, this.env);
-    });
-    this.register('GET', '/api/creator/analytics/demographics', async (req) => {
-      const { creatorDemographicsHandler } = await import('./handlers/creator-dashboard');
-      return creatorDemographicsHandler(req, this.env);
-    });
+    this.register('GET', '/api/creator/analytics/engagement', (req) => 
+      creatorEngagementHandler(req, this.env)
+    );
+    this.register('GET', '/api/creator/analytics/demographics', (req) => 
+      creatorDemographicsHandler(req, this.env)
+    );
 
     // Investor Relations
     this.register('GET', '/api/creator/investors', async (req) => {
       const { creatorInvestorsHandler } = await import('./handlers/creator-dashboard');
       return creatorInvestorsHandler(req, this.env);
     });
-    this.register('GET', '/api/creator/investors/:id/communication', async (req) => {
-      const { creatorInvestorCommunicationHandler } = await import('./handlers/creator-dashboard');
-      return creatorInvestorCommunicationHandler(req, this.env);
-    });
-    this.register('POST', '/api/creator/investors/:id/message', async (req) => {
-      const { creatorMessageInvestorHandler } = await import('./handlers/creator-dashboard');
-      return creatorMessageInvestorHandler(req, this.env);
-    });
+    this.register('GET', '/api/creator/investors/:id/communication', (req) => 
+      creatorInvestorCommunicationHandler(req, this.env)
+    );
+    this.register('POST', '/api/creator/investors/:id/message', (req) => 
+      creatorMessageInvestorHandler(req, this.env)
+    );
 
     // Creator funding routes (existing)
     this.register('GET', '/api/creator/funding/overview', this.getFundingOverview.bind(this));
 
     // === PRODUCTION PORTAL ROUTES (Phase 4) ===
     // Talent Discovery
-    this.register('GET', '/api/production/talent/search', async (req) => {
-      const { productionTalentSearchHandler } = await import('./handlers/production-dashboard');
-      return productionTalentSearchHandler(req, this.env);
-    });
-    this.register('GET', '/api/production/talent/:id', async (req) => {
-      const { productionTalentDetailsHandler } = await import('./handlers/production-dashboard');
-      return productionTalentDetailsHandler(req, this.env);
-    });
-    this.register('POST', '/api/production/talent/:id/contact', async (req) => {
-      const { productionTalentContactHandler } = await import('./handlers/production-dashboard');
-      return productionTalentContactHandler(req, this.env);
-    });
+    this.register('GET', '/api/production/talent/search', (req) => 
+      productionTalentSearchHandler(req, this.env)
+    );
+    this.register('GET', '/api/production/talent/:id', (req) => 
+      productionTalentDetailsHandler(req, this.env)
+    );
+    this.register('POST', '/api/production/talent/:id/contact', (req) => 
+      productionTalentContactHandler(req, this.env)
+    );
 
     // Project Pipeline
     this.register('GET', '/api/production/pipeline', async (req) => {
       const { productionPipelineHandler } = await import('./handlers/production-dashboard');
       return productionPipelineHandler(req, this.env);
     });
-    this.register('GET', '/api/production/pipeline/:id', async (req) => {
-      const { productionProjectDetailsHandler } = await import('./handlers/production-dashboard');
-      return productionProjectDetailsHandler(req, this.env);
-    });
-    this.register('PUT', '/api/production/pipeline/:id/status', async (req) => {
-      const { productionProjectStatusHandler } = await import('./handlers/production-dashboard');
-      return productionProjectStatusHandler(req, this.env);
-    });
+    this.register('GET', '/api/production/pipeline/:id', (req) => 
+      productionProjectDetailsHandler(req, this.env)
+    );
+    this.register('PUT', '/api/production/pipeline/:id/status', (req) => 
+      productionProjectStatusHandler(req, this.env)
+    );
 
     // Budget Management
     this.register('GET', '/api/production/budget/:projectId', async (req) => {
       const { productionBudgetHandler } = await import('./handlers/production-dashboard');
       return productionBudgetHandler(req, this.env);
     });
-    this.register('PUT', '/api/production/budget/:projectId', async (req) => {
-      const { productionBudgetUpdateHandler } = await import('./handlers/production-dashboard');
-      return productionBudgetUpdateHandler(req, this.env);
-    });
-    this.register('GET', '/api/production/budget/:projectId/variance', async (req) => {
-      const { productionBudgetVarianceHandler } = await import('./handlers/production-dashboard');
-      return productionBudgetVarianceHandler(req, this.env);
-    });
+    this.register('PUT', '/api/production/budget/:projectId', (req) => 
+      productionBudgetUpdateHandler(req, this.env)
+    );
+    this.register('GET', '/api/production/budget/:projectId/variance', (req) => 
+      productionBudgetVarianceHandler(req, this.env)
+    );
 
     // Shooting Schedule
     this.register('GET', '/api/production/schedule/:projectId', async (req) => {
       const { productionScheduleHandler } = await import('./handlers/production-dashboard');
       return productionScheduleHandler(req, this.env);
     });
-    this.register('PUT', '/api/production/schedule/:projectId', async (req) => {
-      const { productionScheduleUpdateHandler } = await import('./handlers/production-dashboard');
-      return productionScheduleUpdateHandler(req, this.env);
-    });
-    this.register('GET', '/api/production/schedule/:projectId/conflicts', async (req) => {
-      const { productionScheduleConflictsHandler } = await import('./handlers/production-dashboard');
-      return productionScheduleConflictsHandler(req, this.env);
-    });
+    this.register('PUT', '/api/production/schedule/:projectId', (req) => 
+      productionScheduleUpdateHandler(req, this.env)
+    );
+    this.register('GET', '/api/production/schedule/:projectId/conflicts', (req) => 
+      productionScheduleConflictsHandler(req, this.env)
+    );
 
     // Location Scouting
-    this.register('GET', '/api/production/locations/search', async (req) => {
-      const { productionLocationSearchHandler } = await import('./handlers/production-dashboard');
-      return productionLocationSearchHandler(req, this.env);
-    });
-    this.register('GET', '/api/production/locations/:id', async (req) => {
-      const { productionLocationDetailsHandler } = await import('./handlers/production-dashboard');
-      return productionLocationDetailsHandler(req, this.env);
-    });
-    this.register('POST', '/api/production/locations/:id/book', async (req) => {
-      const { productionLocationBookHandler } = await import('./handlers/production-dashboard');
-      return productionLocationBookHandler(req, this.env);
-    });
+    this.register('GET', '/api/production/locations/search', (req) => 
+      productionLocationSearchHandler(req, this.env)
+    );
+    this.register('GET', '/api/production/locations/:id', (req) => 
+      productionLocationDetailsHandler(req, this.env)
+    );
+    this.register('POST', '/api/production/locations/:id/book', (req) => 
+      productionLocationBookHandler(req, this.env)
+    );
 
     // Crew Assembly
-    this.register('GET', '/api/production/crew/search', async (req) => {
-      const { productionCrewSearchHandler } = await import('./handlers/production-dashboard');
-      return productionCrewSearchHandler(req, this.env);
-    });
-    this.register('GET', '/api/production/crew/:id', async (req) => {
-      const { productionCrewDetailsHandler } = await import('./handlers/production-dashboard');
-      return productionCrewDetailsHandler(req, this.env);
-    });
-    this.register('POST', '/api/production/crew/:id/hire', async (req) => {
-      const { productionCrewHireHandler } = await import('./handlers/production-dashboard');
-      return productionCrewHireHandler(req, this.env);
-    });
+    this.register('GET', '/api/production/crew/search', (req: Request) => 
+      productionCrewSearchHandler(req, this.env)
+    );
+    this.register('GET', '/api/production/crew/:id', (req: Request) => 
+      productionCrewDetailsHandler(req, this.env)
+    );
+    this.register('POST', '/api/production/crew/:id/hire', (req: Request) => 
+      productionCrewHireHandler(req, this.env)
+    );
 
     // NDA routes
-    this.register('GET', '/api/ndas/stats', (req) => ndaStatsHandler(req, this.env));
+    this.register('GET', '/api/ndas/stats', (req: Request) => ndaStatsHandler(req, this.env));
     this.register('GET', '/api/ndas/incoming-signed', this.getIncomingSignedNDAs.bind(this));
     this.register('GET', '/api/ndas/outgoing-signed', this.getOutgoingSignedNDAs.bind(this));
     this.register('GET', '/api/ndas/incoming-requests', this.getIncomingNDARequests.bind(this));
@@ -1647,7 +1960,7 @@ class RouteRegistry {
     this.register('POST', '/api/saved-pitches', this.savePitch.bind(this));
     this.register('DELETE', '/api/saved-pitches/:id', this.unsavePitch.bind(this));
 
-    // WebSocket upgrade (disabled on free tier, returns polling info instead)
+    // WebSocket upgrade - paid plan with Durable Objects
     this.register('GET', '/ws', this.handleWebSocketUpgrade.bind(this));
     this.register('GET', '/api/ws/token', this.handleWebSocketToken.bind(this));
 
@@ -1736,6 +2049,82 @@ class RouteRegistry {
     // WebSocket endpoint for real-time container updates
     this.register('GET', '/api/containers/ws', this.handleContainerWebSocket.bind(this));
 
+    // === STUB ENDPOINTS FOR MISSING FRONTEND ROUTES ===
+    // These are temporary implementations to prevent frontend crashes
+    // TODO: Replace with full implementations
+    
+    // CSRF Protection (stub)
+    this.register('GET', '/api/csrf/token', async (req: Request) => {
+      const { csrfTokenHandler } = await import('./handlers/stub-endpoints');
+      return csrfTokenHandler(req);
+    });
+    
+    // Error Logging (stub)
+    this.register('POST', '/api/errors/log', async (req: Request) => {
+      const { errorLogHandler } = await import('./handlers/stub-endpoints');
+      return errorLogHandler(req);
+    });
+    this.register('POST', '/api/monitoring/console-error', async (req: Request) => {
+      const { consoleErrorHandler } = await import('./handlers/stub-endpoints');
+      return consoleErrorHandler(req);
+    });
+    
+    // Dashboard Stats (stub)
+    this.register('GET', '/api/dashboard/stats', async (req: Request) => {
+      const { dashboardStatsHandler } = await import('./handlers/stub-endpoints');
+      return dashboardStatsHandler(req);
+    });
+    
+    // Metrics (stub)
+    this.register('GET', '/api/metrics/current', async (req: Request) => {
+      const { currentMetricsHandler } = await import('./handlers/stub-endpoints');
+      return currentMetricsHandler(req);
+    });
+    this.register('GET', '/api/metrics/historical', async (req: Request) => {
+      const { historicalMetricsHandler } = await import('./handlers/stub-endpoints');
+      return historicalMetricsHandler(req);
+    });
+    
+    // GDPR Compliance (stub)
+    this.register('GET', '/api/gdpr/metrics', async (req: Request) => {
+      const { gdprMetricsHandler } = await import('./handlers/stub-endpoints');
+      return gdprMetricsHandler(req);
+    });
+    this.register('GET', '/api/gdpr/requests', async (req: Request) => {
+      const { gdprRequestsHandler } = await import('./handlers/stub-endpoints');
+      return gdprRequestsHandler(req);
+    });
+    this.register('GET', '/api/gdpr/consent-metrics', async (req: Request) => {
+      const { gdprConsentHandler } = await import('./handlers/stub-endpoints');
+      return gdprConsentHandler(req);
+    });
+
+    // Categories endpoint (stub)
+    this.register('GET', '/api/categories', async (req: Request) => {
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          categories: [
+            { id: 'drama', name: 'Drama', count: 45 },
+            { id: 'comedy', name: 'Comedy', count: 32 },
+            { id: 'action', name: 'Action', count: 28 },
+            { id: 'thriller', name: 'Thriller', count: 24 },
+            { id: 'horror', name: 'Horror', count: 18 },
+            { id: 'sci-fi', name: 'Sci-Fi', count: 22 },
+            { id: 'documentary', name: 'Documentary', count: 15 },
+            { id: 'romance', name: 'Romance', count: 20 }
+          ]
+        },
+        meta: { timestamp: new Date().toISOString() }
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(req.headers.get('Origin'))
+        }
+      });
+    });
+
     // ===== INTELLIGENCE LAYER ROUTES ===== - TEMPORARILY DISABLED
     // Industry Data Enrichment
     // this.register('POST', '/api/enrichment/industry', (req) => industryEnrichmentHandler(req, this.env));
@@ -1762,38 +2151,48 @@ class RouteRegistry {
     // this.register('POST', '/api/intelligence/cache', (req) => cacheManagementHandler(req, this.env));
 
     // ===== A/B TESTING ROUTES =====
+    // Helper to handle AB testing routes with proper null checking
+    const abRoute = (handler: (req: ABTestingRequest) => Promise<Response>) => {
+      return (req: Request): Promise<Response> => {
+        if (!this.abTestingHandler) {
+          return Promise.resolve(errorResponse('A/B Testing not configured', 503));
+        }
+        return handler(req as unknown as ABTestingRequest);
+      };
+    };
+
     // Experiment Management
-    this.register('GET', '/api/experiments', (req) => this.abTestingHandler?.getExperiments(req, this.env));
-    this.register('POST', '/api/experiments', (req) => this.abTestingHandler?.createExperiment(req, this.env));
-    this.register('GET', '/api/experiments/:id', (req) => this.abTestingHandler?.getExperiment(req, this.env));
-    this.register('PUT', '/api/experiments/:id', (req) => this.abTestingHandler?.updateExperiment(req, this.env));
-    this.register('DELETE', '/api/experiments/:id', (req) => this.abTestingHandler?.deleteExperiment(req, this.env));
+    this.register('GET', '/api/experiments', abRoute((req) => this.abTestingHandler!.getExperiments(req)));
+    this.register('POST', '/api/experiments', abRoute((req) => this.abTestingHandler!.createExperiment(req)));
+    this.register('GET', '/api/experiments/:id', abRoute((req) => this.abTestingHandler!.getExperiment(req)));
+    this.register('PUT', '/api/experiments/:id', abRoute((req) => this.abTestingHandler!.updateExperiment(req)));
+    this.register('DELETE', '/api/experiments/:id', abRoute((req) => this.abTestingHandler!.deleteExperiment(req)));
 
     // Experiment Control
-    this.register('POST', '/api/experiments/:id/start', (req) => this.abTestingHandler?.startExperiment(req, this.env));
-    this.register('POST', '/api/experiments/:id/stop', (req) => this.abTestingHandler?.stopExperiment(req, this.env));
-    this.register('POST', '/api/experiments/:id/archive', (req) => this.abTestingHandler?.archiveExperiment(req, this.env));
+    this.register('POST', '/api/experiments/:id/start', abRoute((req) => this.abTestingHandler!.startExperiment(req)));
+    this.register('POST', '/api/experiments/:id/stop', abRoute((req) => this.abTestingHandler!.stopExperiment(req)));
+    this.register('POST', '/api/experiments/:id/archive', abRoute((req) => this.abTestingHandler!.archiveExperiment(req)));
 
     // User Assignment
-    this.register('GET', '/api/experiments/:id/assignment', (req) => this.abTestingHandler?.getUserAssignment(req, this.env));
-    this.register('POST', '/api/experiments/assign', (req) => this.abTestingHandler?.assignUser(req, this.env));
-    this.register('POST', '/api/experiments/bulk-assign', (req) => this.abTestingHandler?.bulkAssignUsers(req, this.env));
+    this.register('GET', '/api/experiments/:id/assignment', abRoute((req) => this.abTestingHandler!.getUserAssignment(req)));
+    this.register('POST', '/api/experiments/assign', abRoute((req) => this.abTestingHandler!.assignUser(req)));
+    this.register('POST', '/api/experiments/bulk-assign', abRoute((req) => this.abTestingHandler!.bulkAssignUsers(req)));
 
     // Event Tracking
-    this.register('POST', '/api/experiments/track', (req) => this.abTestingHandler?.trackEvent(req, this.env));
-    this.register('POST', '/api/experiments/:id/events', (req) => this.abTestingHandler?.getExperimentEvents(req, this.env));
+    this.register('POST', '/api/experiments/track', abRoute((req) => this.abTestingHandler!.trackEvent(req)));
+    this.register('POST', '/api/experiments/:id/events', abRoute((req) => this.abTestingHandler!.getExperimentEvents(req)));
 
     // Results & Analytics
-    this.register('GET', '/api/experiments/:id/results', (req) => this.abTestingHandler?.getResults(req, this.env));
-    this.register('GET', '/api/experiments/:id/analytics', (req) => this.abTestingHandler?.getAnalytics(req, this.env));
-    this.register('POST', '/api/experiments/:id/calculate-results', (req) => this.abTestingHandler?.calculateResults(req, this.env));
+    this.register('GET', '/api/experiments/:id/results', abRoute((req) => this.abTestingHandler!.getResults(req)));
+    this.register('GET', '/api/experiments/:id/analytics', abRoute((req) => this.abTestingHandler!.getAnalytics(req)));
+    this.register('POST', '/api/experiments/:id/calculate-results', abRoute((req) => this.abTestingHandler!.calculateResults(req)));
 
     // Feature Flags
-    this.register('GET', '/api/feature-flags', (req) => this.abTestingHandler?.getFeatureFlags(req, this.env));
-    this.register('POST', '/api/feature-flags', (req) => this.abTestingHandler?.createFeatureFlag(req, this.env));
-    this.register('GET', '/api/feature-flags/:key', (req) => this.abTestingHandler?.getFeatureFlag(req, this.env));
-    this.register('PUT', '/api/feature-flags/:key', (req) => this.abTestingHandler?.updateFeatureFlag(req, this.env));
-    this.register('DELETE', '/api/feature-flags/:key', (req) => this.abTestingHandler?.deleteFeatureFlag(req, this.env));
+    this.register('GET', '/api/feature-flags', abRoute((req) => this.abTestingHandler!.getFeatureFlags(req)));
+    this.register('POST', '/api/feature-flags', abRoute((req) => this.abTestingHandler!.createFeatureFlag(req)));
+    this.register('GET', '/api/feature-flags/:key', abRoute((req) => this.abTestingHandler!.getFeatureFlag(req)));
+    this.register('PUT', '/api/feature-flags/:key', abRoute((req) => this.abTestingHandler!.updateFeatureFlag(req)));
+    this.register('DELETE', '/api/feature-flags/:key', abRoute((req) => this.abTestingHandler!.deleteFeatureFlag(req)));
 
     // A/B Testing WebSocket for real-time updates
     this.register('GET', '/ws/ab-testing', this.handleABTestingWebSocket.bind(this));
@@ -1802,7 +2201,7 @@ class RouteRegistry {
   /**
    * Register a route handler
    */
-  private register(method: string, path: string, handler: Function) {
+  private register(method: string, path: string, handler: (request: Request) => Promise<Response> | Response) {
     if (!this.routes.has(method)) {
       this.routes.set(method, new Map());
     }
@@ -1816,7 +2215,7 @@ class RouteRegistry {
     method: string,
     path: string,
     portal: 'creator' | 'investor' | 'production',
-    handler: Function
+    handler: (request: Request) => Promise<Response> | Response
   ) {
     const wrappedHandler = async (request: Request) => {
       // First validate authentication
@@ -1884,6 +2283,39 @@ class RouteRegistry {
         status: 204,
         headers: getCorsHeaders(request.headers.get('Origin'))
       });
+    }
+
+    // Handle WebSocket upgrade EARLY - before any middleware that might interfere
+    // WebSocket connections need special handling and bypass normal request flow
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
+      console.log('Early WebSocket detection for path:', path);
+
+      // Simple WebSocket test endpoint - minimal implementation
+      if (path === '/ws/test') {
+        try {
+          console.log('Creating simple WebSocket test connection');
+          const pair = new WebSocketPair();
+          const [client, server] = Object.values(pair);
+          server.accept();
+          server.addEventListener('message', (event) => {
+            server.send(`Echo: ${event.data}`);
+          });
+          console.log('WebSocket test pair created, returning 101 response');
+          return new Response(null, { status: 101, webSocket: client });
+        } catch (error) {
+          console.error('Simple WebSocket test error:', error);
+          return new Response('WebSocket test failed: ' + (error as Error).message, { status: 500 });
+        }
+      }
+
+      if (path === '/ws') {
+        return this.handleWebSocketUpgrade(request);
+      } else if (path === '/ws/intelligence') {
+        return this.handleIntelligenceWebSocket(request);
+      } else if (path === '/ws/ab-testing') {
+        return this.handleABTestingWebSocket(request);
+      }
     }
 
     // Start performance tracking for this request
@@ -2099,11 +2531,11 @@ class RouteRegistry {
     // First try Better Auth's raw SQL implementation if available
     if (this.betterAuth && this.betterAuth.dbAdapter) {
       try {
-        const body = await request.clone().json();
+        const body = await request.clone().json() as LoginBody;
         const { email, password } = body;
 
         // Get user from database using Better Auth's adapter
-        const user = await this.betterAuth.dbAdapter.findUser(email);
+        const user = await this.betterAuth.dbAdapter.findUser(email) as UserRecord | undefined;
 
         if (!user) {
           return new Response(
@@ -2171,7 +2603,7 @@ class RouteRegistry {
 
         // Create session
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        const sessionId = await this.betterAuth.dbAdapter.createSession(user.id, expiresAt);
+        const sessionId = await this.betterAuth.dbAdapter.createSession(String(user.id), expiresAt);
 
         // Store session in KV if available
         const kvStore = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
@@ -2191,12 +2623,13 @@ class RouteRegistry {
 
         // Generate JWT for backward compatibility
         const jwtSecret = this.env.JWT_SECRET || 'test-secret-key-for-development';
+        const userName = user.username || user.name || user.email.split('@')[0] || 'User';
         const token = await createJWT(
           {
             sub: user.id.toString(),
             email: user.email,
-            name: user.username || user.email.split('@')[0],
-            userType: user.user_type
+            name: userName,
+            userType: user.user_type || 'creator'
           },
           jwtSecret,
           7 * 24 * 60 * 60
@@ -2211,8 +2644,8 @@ class RouteRegistry {
             user: {
               id: user.id.toString(),
               email: user.email,
-              name: user.username || user.email.split('@')[0],
-              userType: user.user_type
+              name: userName,
+              userType: user.user_type || 'creator'
             },
             session: {
               id: sessionId,
@@ -2248,11 +2681,11 @@ class RouteRegistry {
     // First try Better Auth's raw SQL implementation
     if (this.betterAuth && this.betterAuth.dbAdapter) {
       try {
-        const body = await request.clone().json();
+        const body = await request.clone().json() as LoginBody;
         const { email, password } = body;
 
         // Get user from database using Better Auth's adapter
-        const user = await this.betterAuth.dbAdapter.findUser(email);
+        const user = await this.betterAuth.dbAdapter.findUser(email) as UserRecord | undefined;
 
         if (!user || user.user_type !== portal) {
           return new Response(
@@ -2322,7 +2755,7 @@ class RouteRegistry {
 
         // Create session
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        const sessionId = await this.betterAuth.dbAdapter.createSession(user.id, expiresAt);
+        const sessionId = await this.betterAuth.dbAdapter.createSession(String(user.id), expiresAt);
 
         // Store session in KV if available (check for all possible KV bindings)
         const kvStore = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
@@ -2391,7 +2824,7 @@ class RouteRegistry {
   }
 
   private async handleRegister(request: Request): Promise<Response> {
-    const body = await request.json();
+    const body = await request.json() as RegisterBody;
     const portal = body.userType || 'creator';
     // Simplified register
     return this.handleRegisterSimple(request);
@@ -2409,15 +2842,15 @@ class RouteRegistry {
     try {
       // Test database connection
       let dbStatus = 'error';
-      let dbTime = null;
-      let dbError = null;
+      let dbTime: string | null = null;
+      let dbError: string | null = null;
 
       if (this.db) {
         try {
-          const result = await this.db.query('SELECT NOW() as time');
+          const result = await this.db.query('SELECT NOW() as time') as DatabaseRow[];
           if (result && result.length > 0) {
             dbStatus = 'connected';
-            dbTime = result[0].time;
+            dbTime = result[0].time as string;
           }
         } catch (err: any) {
           dbError = err.message;
@@ -2458,48 +2891,55 @@ class RouteRegistry {
         return builder.error(ErrorCode.INTERNAL_ERROR, 'Database connection not available');
       }
 
+      // Type definitions for database health check results
+      interface ConnectivityResult { current_time: string; pg_version: string; }
+      interface SchemaResult { table_count: string; public_tables: string; }
+      interface CoreTablesResult { existing_count: string; found_tables: string[]; }
+      interface DataCheckResult { user_count: string; pitch_count: string; nda_count: string; investment_count: string; notification_count: string; }
+      interface IndexCheckResult { total_indexes: string; valid_indexes: string; }
+
       // Test 1: Basic connectivity with timestamp
-      const connectivityTest = await this.db.query('SELECT NOW() as current_time, version() as pg_version');
+      const connectivityTest = await this.db.query('SELECT NOW() as current_time, version() as pg_version') as unknown as ConnectivityResult[];
 
       // Test 2: Schema validation - count tables
       const schemaCheck = await this.db.query(`
-        SELECT 
+        SELECT
           COUNT(*) as table_count,
           COUNT(CASE WHEN schemaname = 'public' THEN 1 END) as public_tables
-        FROM pg_tables 
+        FROM pg_tables
         WHERE schemaname IN ('public', 'information_schema')
-      `);
+      `) as unknown as SchemaResult[];
 
       // Test 3: Core business tables validation
       const coreTablesCheck = await this.db.query(`
-        SELECT 
+        SELECT
           COUNT(*) as existing_count,
           array_agg(tablename) as found_tables
-        FROM pg_tables 
-        WHERE schemaname = 'public' 
+        FROM pg_tables
+        WHERE schemaname = 'public'
         AND tablename IN ('users', 'pitches', 'ndas', 'investments', 'notifications', 'user_sessions')
-      `);
+      `) as unknown as CoreTablesResult[];
 
       // Test 4: Sample data validation
       const dataCheck = await this.db.query(`
-        SELECT 
+        SELECT
           (SELECT COUNT(*) FROM users) as user_count,
           (SELECT COUNT(*) FROM pitches) as pitch_count,
           (SELECT COUNT(*) FROM ndas) as nda_count,
           (SELECT COUNT(*) FROM investments) as investment_count,
           (SELECT COUNT(*) FROM notifications) as notification_count
-      `);
+      `) as unknown as DataCheckResult[];
 
       // Test 5: Index health check
       const indexCheck = await this.db.query(`
-        SELECT 
+        SELECT
           COUNT(*) as total_indexes,
           COUNT(CASE WHEN indisvalid THEN 1 END) as valid_indexes
-        FROM pg_index 
+        FROM pg_index
         JOIN pg_class ON pg_index.indexrelid = pg_class.oid
         JOIN pg_namespace ON pg_class.relnamespace = pg_namespace.oid
         WHERE pg_namespace.nspname = 'public'
-      `);
+      `) as unknown as IndexCheckResult[];
 
       const latency = Date.now() - start;
       const coreTablesExpected = ['users', 'pitches', 'ndas', 'investments', 'notifications', 'user_sessions'];
@@ -2598,11 +3038,11 @@ class RouteRegistry {
     try {
       // Get database health
       const dbHealthResponse = await this.handleDatabaseHealth(request);
-      const dbHealthData = await dbHealthResponse.json();
+      const dbHealthData = await dbHealthResponse.json() as HealthResponseData;
 
       // Get overall health
       const overallHealthResponse = await this.handleHealth(request);
-      const overallHealthData = await overallHealthResponse.json();
+      const overallHealthData = await overallHealthResponse.json() as HealthResponseData;
 
       // Get current metrics from Analytics Engine if available
       let analyticsData = {
@@ -2654,7 +3094,7 @@ class RouteRegistry {
     try {
       // Get database health for metrics
       const dbHealthResponse = await this.handleDatabaseHealth(request);
-      const dbHealthData = await dbHealthResponse.json();
+      const dbHealthData = await dbHealthResponse.json() as HealthResponseData;
 
       const healthStatus = dbHealthData.data?.status === 'healthy' ? 1 : 0;
       const latency = dbHealthData.data?.performance?.latency_ms || 0;
@@ -2867,20 +3307,20 @@ pitchey_analytics_datapoints_per_minute 1250
             if (cached) {
               const session = cached as any;
               if (new Date(session.expiresAt) > new Date()) {
-                const user = await this.betterAuth.dbAdapter.findUserById(session.userId);
-                if (user) {
+                const userResult = await this.betterAuth.dbAdapter.findUserById(session.userId) as UserRecord | undefined;
+                if (userResult) {
                   return new Response(
                     JSON.stringify({
                       user: {
-                        id: user.id.toString(),
-                        email: user.email,
-                        username: user.username,
-                        userType: user.user_type,
-                        firstName: user.first_name,
-                        lastName: user.last_name,
-                        companyName: user.company_name,
-                        profileImage: user.profile_image,
-                        subscriptionTier: user.subscription_tier
+                        id: String(userResult.id),
+                        email: userResult.email,
+                        username: userResult.username,
+                        userType: userResult.user_type,
+                        firstName: userResult.first_name,
+                        lastName: userResult.last_name,
+                        companyName: userResult.company_name,
+                        profileImage: userResult.profile_image,
+                        subscriptionTier: userResult.subscription_tier
                       },
                       success: true
                     }),
@@ -2898,20 +3338,20 @@ pitchey_analytics_datapoints_per_minute 1250
           }
 
           // Check database
-          const session = await this.betterAuth.dbAdapter.findSession(sessionId);
-          if (session) {
+          const sessionData = await this.betterAuth.dbAdapter.findSession(sessionId) as Record<string, unknown> | undefined;
+          if (sessionData) {
             return new Response(
               JSON.stringify({
                 user: {
-                  id: session.user_id.toString(),
-                  email: session.email,
-                  username: session.username,
-                  userType: session.user_type,
-                  firstName: session.first_name,
-                  lastName: session.last_name,
-                  companyName: session.company_name,
-                  profileImage: session.profile_image,
-                  subscriptionTier: session.subscription_tier
+                  id: String(sessionData.user_id),
+                  email: sessionData.email,
+                  username: sessionData.username,
+                  userType: sessionData.user_type,
+                  firstName: sessionData.first_name,
+                  lastName: sessionData.last_name,
+                  companyName: sessionData.company_name,
+                  profileImage: sessionData.profile_image,
+                  subscriptionTier: sessionData.subscription_tier
                 },
                 success: true
               }),
@@ -3048,11 +3488,12 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Get total count with same filters
       const countParams = params.slice(0, -2); // Remove limit and offset
-      const [{ total }] = await this.db.query(`
-        SELECT COUNT(DISTINCT p.id) as total 
+      const countResult = await this.db.query(`
+        SELECT COUNT(DISTINCT p.id) as total
         FROM pitches p
         ${whereClause}
-      `, countParams);
+      `, countParams) as DatabaseRow[];
+      const total = parseInt(String(countResult[0]?.total || 0));
 
       return builder.paginated(pitches, page, limit, total);
     } catch (error) {
@@ -3065,12 +3506,26 @@ pitchey_analytics_datapoints_per_minute 1250
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
-    const data = await request.json();
+    interface PitchCreateData {
+      title?: string;
+      logline?: string;
+      genre?: string;
+      format?: string;
+      budget_range?: string;
+      budgetRange?: string;
+      target_audience?: string;
+      targetAudience?: string;
+      short_synopsis?: string;
+      long_synopsis?: string;
+      synopsis?: string;
+      require_nda?: boolean;
+    }
+    const data = await request.json() as PitchCreateData;
 
     try {
       const [pitch] = await this.db.query(`
         INSERT INTO pitches (
-          user_id, title, logline, genre, format, 
+          user_id, title, logline, genre, format,
           budget_range, target_audience, short_synopsis, long_synopsis,
           status, created_at, updated_at, require_nda
         ) VALUES (
@@ -3078,16 +3533,16 @@ pitchey_analytics_datapoints_per_minute 1250
         ) RETURNING *
       `, [
         authResult.user.id,
-        data.title,
-        data.logline,
-        data.genre,
-        data.format,
-        data.budget_range || data.budgetRange,
-        data.target_audience || data.targetAudience,
-        data.short_synopsis || data.synopsis || data.logline,
-        data.long_synopsis || data.synopsis || data.logline,
-        data.require_nda || false
-      ]);
+        data.title ?? null,
+        data.logline ?? null,
+        data.genre ?? null,
+        data.format ?? null,
+        data.budget_range || data.budgetRange || null,
+        data.target_audience || data.targetAudience || null,
+        data.short_synopsis || data.synopsis || data.logline || null,
+        data.long_synopsis || data.synopsis || data.logline || null,
+        data.require_nda ?? false
+      ]) as unknown as DatabaseRow[];
 
       return builder.success({ pitch });
     } catch (error) {
@@ -3121,7 +3576,7 @@ pitchey_analytics_datapoints_per_minute 1250
         `, [sessionCookie]);
 
         if (sessionResult.length > 0) {
-          userId = sessionResult[0].user_id;
+          userId = (sessionResult[0] as { user_id: number }).user_id;
         }
       } catch (error) {
         console.error('Session verification failed:', error);
@@ -3130,9 +3585,8 @@ pitchey_analytics_datapoints_per_minute 1250
       // Fallback to JWT for backward compatibility
       const authHeader = request.headers.get('Authorization');
       if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        const authResult = await this.verifyAuth(token);
-        if (authResult.isValid && authResult.user) {
+        const authResult = await this.validateAuth(request);
+        if (authResult.valid && authResult.user) {
           userId = authResult.user.id;
         }
       }
@@ -3343,7 +3797,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
   private async getPitchAttachment(request: Request): Promise<Response> {
     const authCheck = await this.requireAuth(request);
-    if (!authCheck.authorized) return authCheck.response;
+    if (!authCheck.authorized) return authCheck.response!;
 
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
@@ -3379,8 +3833,8 @@ pitchey_analytics_datapoints_per_minute 1250
       }
 
       // Find the attachment in the private_attachments JSON
-      const privateAttachments = pitch.private_attachments || [];
-      const attachment = privateAttachments.find((att: any) => {
+      const privateAttachments = (pitch.private_attachments || []) as Array<{ url?: string; [key: string]: unknown }>;
+      const attachment = privateAttachments.find((att) => {
         const attachmentFilename = att.url?.split('/').pop();
         return attachmentFilename === filename;
       });
@@ -3436,7 +3890,15 @@ pitchey_analytics_datapoints_per_minute 1250
 
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
-    const data = await request.json();
+    const data = await request.json() as {
+      title?: string;
+      logline?: string;
+      genre?: string;
+      format?: string;
+      budgetRange?: string;
+      targetAudience?: string;
+      synopsis?: string;
+    };
 
     try {
       // Verify ownership
@@ -3608,8 +4070,8 @@ pitchey_analytics_datapoints_per_minute 1250
         return builder.error(ErrorCode.VALIDATION_ERROR, 'Maximum 10 files allowed per upload');
       }
 
-      const uploadResults = [];
-      const errors = [];
+      const uploadResults: Array<{ index: number; fileName: string; success: boolean; fileId: string; url: string | undefined; size: number; mimeType: string }> = [];
+      const errors: Array<{ index: number; fileName: string; error: string }> = [];
 
       // Process each file sequentially to avoid overwhelming the system
       for (let i = 0; i < allFiles.length; i++) {
@@ -3724,7 +4186,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
         const dbResult = await handler.uploadMedia(authResult.user.id, mediaData);
 
-        if (!dbResult.success) {
+        if (!dbResult.success || !dbResult.data) {
           return builder.error(ErrorCode.DATABASE_ERROR, 'Failed to create media record');
         }
 
@@ -3809,7 +4271,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const dbResult = await handler.uploadMedia(authResult.user.id, mediaData);
 
-      if (!dbResult.success) {
+      if (!dbResult.success || !dbResult.data) {
         // If database creation fails, we should clean up R2 file
         // For now, just log the error and continue
         console.error('Database record creation failed:', dbResult.error);
@@ -3935,7 +4397,16 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
 
     try {
-      const body = await request.json();
+      const body = await request.json() as {
+        fileName?: string;
+        fileSize?: number;
+        mimeType?: string;
+        category?: 'document' | 'image' | 'video' | 'nda';
+        chunkSize?: number;
+        metadata?: Record<string, unknown>;
+        pitchId?: string;
+        requireNDA?: boolean;
+      };
       const { fileName, fileSize, mimeType, category, chunkSize, metadata, pitchId, requireNDA } = body;
 
       // Validate required fields
@@ -4088,7 +4559,10 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
 
     try {
-      const body = await request.json();
+      const body = await request.json() as {
+        sessionId?: string;
+        chunks?: Array<{ chunkIndex: number; size?: number; [key: string]: unknown }>;
+      };
       const { sessionId, chunks } = body;
 
       if (!sessionId || !chunks || !Array.isArray(chunks)) {
@@ -4147,7 +4621,7 @@ pitchey_analytics_datapoints_per_minute 1250
     const builder = new ApiResponseBuilder(request);
 
     try {
-      const body = await request.json();
+      const body = await request.json() as { sessionId?: string; reason?: string };
       const { sessionId, reason } = body;
 
       if (!sessionId) {
@@ -4371,12 +4845,17 @@ pitchey_analytics_datapoints_per_minute 1250
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
-    const data = await request.json();
+    const data = await request.json() as {
+      pitchId?: string;
+      amount?: number;
+      investmentType?: string;
+      terms?: Record<string, unknown>;
+    };
 
     try {
       const [investment] = await this.db.query(`
         INSERT INTO investments (
-          investor_id, pitch_id, amount, 
+          investor_id, pitch_id, amount,
           investment_type, terms, status,
           created_at, updated_at
         ) VALUES (
@@ -4384,11 +4863,11 @@ pitchey_analytics_datapoints_per_minute 1250
         ) RETURNING *
       `, [
         authResult.user.id,
-        data.pitchId,
-        data.amount,
+        data.pitchId ?? null,
+        data.amount ?? null,
         data.investmentType || 'equity',
-        data.terms || {}
-      ]);
+        JSON.stringify(data.terms || {})
+      ]) as DatabaseRow[];
 
       return builder.success({ investment });
     } catch (error) {
@@ -4470,16 +4949,22 @@ pitchey_analytics_datapoints_per_minute 1250
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
-    const data = await request.json();
+    const data = await request.json() as { pitchId?: string; reason?: string; [key: string]: unknown };
+
+    if (!data.pitchId) {
+      return builder.error(ErrorCode.VALIDATION_ERROR, 'pitchId is required');
+    }
+
+    const pitchId = data.pitchId;
 
     try {
       // Check if NDA already exists - use signer_id which is the correct column
       const existingQuery = `
-        SELECT id FROM ndas 
-        WHERE signer_id = $1 
+        SELECT id FROM ndas
+        WHERE signer_id = $1
         AND pitch_id = $2
       `;
-      const [existing] = await this.db.query(existingQuery, [authResult.user.id, data.pitchId]);
+      const [existing] = await this.db.query(existingQuery, [authResult.user.id, pitchId]) as DatabaseRow[];
 
       if (existing) {
         return builder.error(ErrorCode.ALREADY_EXISTS, 'NDA request already exists');
@@ -4492,23 +4977,23 @@ pitchey_analytics_datapoints_per_minute 1250
       console.log(`NDA request from ${userEmail}, isDemoAccount: ${isDemoAccount}, status: ${ndaStatus}`);
 
       // Get pitch creator to ensure the pitch exists - try different column names
-      let pitch = null;
-      let creatorId = null;
+      let pitch: DatabaseRow | null = null;
+      let creatorId: number = 0;
 
       try {
         // First try with both columns
         const result = await this.db.query(
           `SELECT created_by, creator_id, user_id FROM pitches WHERE id = $1`,
-          [data.pitchId]
-        );
+          [pitchId]
+        ) as DatabaseRow[];
         pitch = result[0];
       } catch (e) {
         // Try with just user_id column
         try {
           const result = await this.db.query(
             `SELECT user_id FROM pitches WHERE id = $1`,
-            [data.pitchId]
-          );
+            [pitchId]
+          ) as DatabaseRow[];
           pitch = result[0];
         } catch (e2) {
           console.error('Failed to query pitch:', e2);
@@ -4519,26 +5004,37 @@ pitchey_analytics_datapoints_per_minute 1250
         return builder.error(ErrorCode.NOT_FOUND, 'Pitch not found');
       }
 
-      creatorId = pitch.creator_id || pitch.created_by || pitch.user_id || 1;
+      creatorId = this.safeParseInt(pitch.creator_id) || this.safeParseInt(pitch.created_by) || this.safeParseInt(pitch.user_id) || 1;
 
       // Insert NDA request into nda_requests table (not ndas table)
       // nda_requests table uses requester_id instead of signer_id
-      let nda = null;
+      interface NDARecord {
+        id: number;
+        pitch_id: number;
+        owner_id: number;
+        requester_id?: number;
+        request_message?: string;
+        expires_at?: string;
+        status?: string;
+        created_at?: string;
+      }
+      let nda: NDARecord | null = null;
 
       try {
         // Build the query properly based on demo account status
         if (isDemoAccount) {
           // For demo accounts, auto-approve the request
-          [nda] = await this.db.query(`
+          const result = await this.db.query(`
             INSERT INTO nda_requests (
               requester_id, pitch_id, owner_id, status, nda_type,
               request_message, expires_at, created_at, responded_at
             ) VALUES (
               $1, $2, $3, 'approved', 'basic',
-              $4, NOW() + INTERVAL '${data.expiryDays || 30} days',
+              $4, NOW() + INTERVAL '${data.expiryDays ?? 30} days',
               NOW(), NOW()
             ) RETURNING *
-          `, [authResult.user.id, data.pitchId, creatorId, data.message || 'NDA Request']);
+          `, [authResult.user.id, this.safeParseInt(data.pitchId), creatorId as number, this.safeString(data.message) || 'NDA Request']);
+          nda = result[0] as unknown as NDARecord;
 
           // Also create the actual NDA record for demo accounts
           await this.db.query(`
@@ -4553,10 +5049,10 @@ pitchey_analytics_datapoints_per_minute 1250
               status = 'signed',
               access_granted = true,
               updated_at = NOW()
-          `, [authResult.user.id, data.pitchId]);
+          `, [authResult.user.id, this.safeParseInt(data.pitchId)]);
         } else {
           // Regular flow - create pending request
-          [nda] = await this.db.query(`
+          const result2 = await this.db.query(`
             INSERT INTO nda_requests (
               requester_id, pitch_id, owner_id, status, nda_type,
               request_message, expires_at, created_at
@@ -4565,7 +5061,8 @@ pitchey_analytics_datapoints_per_minute 1250
               $4, NOW() + INTERVAL '${data.expiryDays || 30} days',
               NOW()
             ) RETURNING *
-          `, [authResult.user.id, data.pitchId, creatorId, data.message || 'NDA Request']);
+          `, [authResult.user.id, this.safeParseInt(data.pitchId), creatorId as number, this.safeString(data.message) || 'NDA Request']);
+          nda = result2[0] as unknown as NDARecord;
         }
       } catch (insertError) {
         console.error('Failed to create NDA request:', insertError);
@@ -4611,8 +5108,8 @@ pitchey_analytics_datapoints_per_minute 1250
           userId: authResult.user.id,
           ndaId: nda.id,
           pitchId: nda.pitch_id,
-          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For'),
-          userAgent: request.headers.get('User-Agent'),
+          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || undefined,
+          userAgent: request.headers.get('User-Agent') || undefined,
           metadata: {
             ownerId: nda.owner_id,
             message: nda.request_message,
@@ -4674,7 +5171,7 @@ pitchey_analytics_datapoints_per_minute 1250
           status = 'approved',
           access_granted = false,
           updated_at = NOW()
-      `, [ndaRequest.requester_id, ndaRequest.pitch_id, ndaRequest.expires_at]);
+      `, [this.safeParseInt(ndaRequest.requester_id), this.safeParseInt(ndaRequest.pitch_id), this.safeString(ndaRequest.expires_at) || null]);
 
       // Log audit event for NDA approval
       await logNDAEvent(this.auditService,
@@ -4683,9 +5180,9 @@ pitchey_analytics_datapoints_per_minute 1250
         {
           userId: authResult.user.id,
           ndaId: parseInt(params.id),
-          pitchId: ndaRequest.pitch_id,
-          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For'),
-          userAgent: request.headers.get('User-Agent'),
+          pitchId: this.safeParseInt(ndaRequest.pitch_id),
+          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || undefined,
+          userAgent: request.headers.get('User-Agent') || undefined,
           metadata: {
             requesterId: ndaRequest.requester_id,
             ndaType: 'basic',
@@ -4706,7 +5203,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
-    const data = await request.json();
+    const data = await request.json() as { reason?: string };
 
     try {
       const [ndaRequest] = await this.db.query(`
@@ -4734,7 +5231,15 @@ pitchey_analytics_datapoints_per_minute 1250
 
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
-    const data = await request.json();
+    const data = await request.json() as {
+      ndaId?: string;
+      title?: string;
+      company?: string;
+      acceptTerms?: boolean;
+      signedAt?: string;
+      signature?: string;
+      fullName?: string;
+    };
 
     // Extract NDA ID from params or body
     const ndaId = params.id || data.ndaId;
@@ -4799,9 +5304,9 @@ pitchey_analytics_datapoints_per_minute 1250
         {
           userId: authResult.user.id,
           ndaId: parseInt(ndaId),
-          pitchId: nda.pitch_id,
-          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For'),
-          userAgent: request.headers.get('User-Agent'),
+          pitchId: this.safeParseInt(nda.pitch_id),
+          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || undefined,
+          userAgent: request.headers.get('User-Agent') || undefined,
           metadata: {
             signatureData: data,
             previousStatus: nda.status
@@ -5006,11 +5511,12 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Get total count - use params without pagination
       const countParams = params.slice(0, -2);
-      const [{ total }] = await this.db.query(`
-        SELECT COUNT(*) as total 
+      const [countResult] = await this.db.query(`
+        SELECT COUNT(*) as total
         FROM pitches p
         WHERE ${whereClause}
       `, countParams);
+      const total = this.safeParseInt(countResult?.total) || 0;
 
       return builder.paginated(pitches, page, limit, total);
     } catch (error) {
@@ -5124,17 +5630,18 @@ pitchey_analytics_datapoints_per_minute 1250
         ${whereClause}
       `;
 
-      const [{ total }] = await this.db.query(countSql);
+      const [countResult] = await this.db.query(countSql);
+      const totalCount = this.safeParseInt(countResult?.total) || 0;
 
       // Return the response in the expected format
       return builder.success({
         success: true,
         items: pitches || [],
         tab: tab,
-        total: total || 0,
+        total: totalCount,
         page: page,
         limit: limit,
-        hasMore: (offset + (pitches?.length || 0)) < (total || 0)
+        hasMore: (offset + (pitches?.length || 0)) < totalCount
       });
 
     } catch (error) {
@@ -5536,10 +6043,10 @@ pitchey_analytics_datapoints_per_minute 1250
       return builder.success({
         period: preset,
         metrics: {
-          pitches: parseInt(pitchResult[0]?.total_pitches || '0'),
-          views: parseInt(viewResult[0]?.total_views || '0'),
-          investments: parseInt(investmentResult[0]?.total_investments || '0'),
-          funding: parseFloat(investmentResult[0]?.total_funding || '0')
+          pitches: this.safeParseInt(pitchResult[0]?.total_pitches),
+          views: this.safeParseInt(viewResult[0]?.total_views),
+          investments: this.safeParseInt(investmentResult[0]?.total_investments),
+          funding: this.safeParseFloat(investmentResult[0]?.total_funding)
         },
         chartData: { views: [], investments: [], engagement: [] }
       });
@@ -5809,7 +6316,7 @@ pitchey_analytics_datapoints_per_minute 1250
           totalResult = [{ total: 0 }];
         }
 
-        const total = parseInt(totalResult?.[0]?.total || '0');
+        const total = this.safeParseInt(totalResult?.[0]?.total);
         console.log('[DEBUG] Final total:', total);
       }
 
@@ -5825,7 +6332,7 @@ pitchey_analytics_datapoints_per_minute 1250
       return builder.success(pitchesArray);
     } catch (error) {
       console.error('[DEBUG] Error in getPublicPitches:', error);
-      console.error('[DEBUG] Error stack:', error.stack);
+      console.error('[DEBUG] Error stack:', error instanceof Error ? error.stack : 'unknown');
       // Return empty array on error to prevent frontend crash
       return builder.success([]);
     }
@@ -5963,8 +6470,8 @@ pitchey_analytics_datapoints_per_minute 1250
         return createPublicErrorResponse('Search term must be at least 2 characters', 400);
       }
 
-      const genre = url.searchParams.get('genre');
-      const format = url.searchParams.get('format');
+      const genre = url.searchParams.get('genre') || undefined;
+      const format = url.searchParams.get('format') || undefined;
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 50);
       const offset = parseInt(url.searchParams.get('offset') || '0');
 
@@ -6052,20 +6559,19 @@ pitchey_analytics_datapoints_per_minute 1250
 
   private async handleWebSocketUpgrade(request: Request): Promise<Response> {
     try {
-      // Check if WebSocket is supported (available in paid plans)
-      if (typeof WebSocketPair === 'undefined') {
-        // WebSocket not available on free Cloudflare plan
-        // Return polling information instead
+      // Check for WebSocket upgrade header
+      const upgradeHeader = request.headers.get('Upgrade');
+      console.log('WebSocket upgrade request received, Upgrade header:', upgradeHeader);
+
+      if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+        // Not a WebSocket upgrade request - return info about WebSocket endpoint
+        console.log('Not a WebSocket upgrade - returning info response');
         return new Response(JSON.stringify({
-          error: 'WebSocket not available on free tier',
-          alternative: 'Use polling endpoints instead',
-          endpoints: {
-            notifications: '/api/poll/notifications',
-            messages: '/api/poll/messages',
-            dashboard: '/api/poll/dashboard',
-            all: '/api/poll/all'
-          },
-          pollInterval: 30000 // Recommended polling interval: 30 seconds
+          success: true,
+          message: 'WebSocket endpoint ready',
+          protocol: 'websocket',
+          url: 'wss://pitchey-api-prod.ndlovucavelle.workers.dev/ws',
+          instructions: 'Connect with WebSocket client using Upgrade header'
         }), {
           status: 200,
           headers: {
@@ -6075,10 +6581,14 @@ pitchey_analytics_datapoints_per_minute 1250
         });
       }
 
+      console.log('WebSocket upgrade detected, calling realtimeService.handleWebSocketUpgrade');
+      // Paid Cloudflare plan with Durable Objects - WebSocket is fully supported
       // Use the enhanced realtime service for WebSocket handling
-      return await this.realtimeService.handleWebSocketUpgrade(request);
+      const response = await this.realtimeService.handleWebSocketUpgrade(request);
+      console.log('WebSocket upgrade response status:', response.status, 'has webSocket:', !!(response as any).webSocket);
+      return response;
     } catch (error) {
-      console.error('WebSocket upgrade error:', error);
+      console.error('WebSocket upgrade error:', error, 'Stack:', error instanceof Error ? error.stack : 'N/A');
 
       // Fallback to polling information on error
       return new Response(JSON.stringify({
@@ -6093,7 +6603,7 @@ pitchey_analytics_datapoints_per_minute 1250
         },
         pollInterval: 30000
       }), {
-        status: 200,
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
           ...getCorsHeaders(request.headers.get('Origin'))
@@ -6184,7 +6694,7 @@ pitchey_analytics_datapoints_per_minute 1250
         });
       }
 
-      const success = this.realtimeService.subscribeUserToChannel(authResult.user.id, channelId);
+      const success = this.realtimeService.subscribeUserToChannel(String(authResult.user.id), channelId);
 
       return new Response(JSON.stringify({
         success,
@@ -6223,7 +6733,7 @@ pitchey_analytics_datapoints_per_minute 1250
         });
       }
 
-      const success = this.realtimeService.unsubscribeUserFromChannel(authResult.user.id, channelId);
+      const success = this.realtimeService.unsubscribeUserFromChannel(String(authResult.user.id), channelId);
 
       return new Response(JSON.stringify({
         success,
@@ -6249,7 +6759,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
     try {
       const polling = new PollingService(this.env);
-      const response = await polling.pollNotifications(authResult.user.id);
+      const response = await polling.pollNotifications(String(authResult.user.id));
 
       return new Response(JSON.stringify(response), {
         status: 200,
@@ -6274,7 +6784,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const polling = new PollingService(this.env);
       const response = await polling.pollMessages(
-        authResult.user.id,
+        String(authResult.user.id),
         conversationId || undefined
       );
 
@@ -6298,8 +6808,8 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const polling = new PollingService(this.env);
       const response = await polling.pollDashboardUpdates(
-        authResult.user.id,
-        authResult.user.role
+        String(authResult.user.id),
+        this.safeString(authResult.user.role) || 'user'
       );
 
       return new Response(JSON.stringify(response), {
@@ -6428,17 +6938,19 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Calculate YTD growth
       const [ytdData] = await this.db.query(`
-        SELECT 
+        SELECT
           COALESCE(SUM(CASE WHEN type = 'return' THEN amount ELSE 0 END), 0) as ytd_returns,
           COALESCE(SUM(CASE WHEN type = 'investment' THEN amount ELSE 0 END), 0) as ytd_investments
         FROM financial_transactions
-        WHERE user_id = $1 
+        WHERE user_id = $1
           AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
           AND status = 'completed'
       `, [authResult.user.id]);
 
-      const ytdGrowth = ytdData.ytd_investments > 0
-        ? ((ytdData.ytd_returns / ytdData.ytd_investments) * 100).toFixed(2)
+      const ytdInvestments = this.safeParseFloat(ytdData?.ytd_investments) || 0;
+      const ytdReturns = this.safeParseFloat(ytdData?.ytd_returns) || 0;
+      const ytdGrowth = ytdInvestments > 0
+        ? ((ytdReturns / ytdInvestments) * 100).toFixed(2)
         : '0';
 
       return builder.success({
@@ -6492,9 +7004,9 @@ pitchey_analytics_datapoints_per_minute 1250
     const offset = (page - 1) * limit;
 
     try {
-      let params = [authResult.user.id];
+      const params: (string | number)[] = [authResult.user.id];
       let sql = `
-        SELECT 
+        SELECT
           t.*,
           p.title as pitch_title
         FROM financial_transactions t
@@ -6529,12 +7041,13 @@ pitchey_analytics_datapoints_per_minute 1250
       const transactions = await this.db.query(sql, params);
 
       // Get total count
-      const [{ total }] = await this.db.query(
+      const [countResult] = await this.db.query(
         `SELECT COUNT(*) as total FROM financial_transactions WHERE user_id = $1`,
         [authResult.user.id]
       );
+      const totalCount = this.safeParseInt(countResult?.total) || 0;
 
-      return builder.paginated(transactions, page, limit, total);
+      return builder.paginated(transactions, page, limit, totalCount);
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -6627,22 +7140,27 @@ pitchey_analytics_datapoints_per_minute 1250
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
-    const data = await request.json();
+    const data = await request.json() as {
+      category?: string;
+      allocated_amount?: number;
+      period_start?: string;
+      period_end?: string;
+    };
 
     try {
       const [allocation] = await this.db.query(`
         INSERT INTO budget_allocations (
           user_id, category, allocated_amount, period_start, period_end
         ) VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (user_id, category, period_start) 
-        DO UPDATE SET 
+        ON CONFLICT (user_id, category, period_start)
+        DO UPDATE SET
           allocated_amount = EXCLUDED.allocated_amount,
           updated_at = NOW()
         RETURNING *
       `, [
         authResult.user.id,
-        data.category,
-        data.allocated_amount,
+        data.category ?? null,
+        data.allocated_amount ?? null,
         data.period_start || new Date().toISOString().split('T')[0],
         data.period_end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       ]);
@@ -6659,11 +7177,11 @@ pitchey_analytics_datapoints_per_minute 1250
 
     const builder = new ApiResponseBuilder(request);
     const params = (request as any).params;
-    const data = await request.json();
+    const data = await request.json() as { allocated_amount?: number };
 
     try {
       const [updated] = await this.db.query(`
-        UPDATE budget_allocations 
+        UPDATE budget_allocations
         SET allocated_amount = $3, updated_at = NOW()
         WHERE id = $1 AND user_id = $2
         RETURNING *
@@ -7011,7 +7529,7 @@ pitchey_analytics_datapoints_per_minute 1250
         WHERE i.user_id = $1
       `;
 
-      const params = [authResult.user.id];
+      const params: (string | number)[] = [authResult.user.id];
 
       if (status && status !== 'all') {
         params.push(status);
@@ -7129,12 +7647,12 @@ pitchey_analytics_datapoints_per_minute 1250
       } catch (dbError) {
         console.error('Database query failed:', dbError);
         // Return fallback profile data
-        user = StubRoutes.getFallbackProfile(authResult.user.id, authResult.user.email);
+        user = StubRoutes.getFallbackProfile(String(authResult.user.id), authResult.user.email);
       }
 
       if (!user) {
         // Return fallback profile if user not found
-        user = StubRoutes.getFallbackProfile(authResult.user.id, authResult.user.email);
+        user = StubRoutes.getFallbackProfile(String(authResult.user.id), authResult.user.email);
       }
 
       // Cache the profile (free tier optimization)
@@ -7169,10 +7687,10 @@ pitchey_analytics_datapoints_per_minute 1250
       return builder.success({
         profile: {
           ...user,
-          pitch_count: parseInt(pitchCountResult[0]?.count || '0'),
-          following_count: parseInt(followingCountResult[0]?.count || '0'),
-          followers_count: parseInt(followersCountResult[0]?.count || '0'),
-          saved_count: parseInt(savedCountResult[0]?.count || '0')
+          pitch_count: this.safeParseInt(pitchCountResult[0]?.count),
+          following_count: this.safeParseInt(followingCountResult[0]?.count),
+          followers_count: this.safeParseInt(followersCountResult[0]?.count),
+          saved_count: this.safeParseInt(savedCountResult[0]?.count)
         }
       });
     } catch (error) {
@@ -7194,7 +7712,7 @@ pitchey_analytics_datapoints_per_minute 1250
         WHERE user_id = $1 AND read = false
       `, [authResult.user.id]);
 
-      return builder.success({ unread_count: parseInt(count) || 0 });
+      return builder.success({ unread_count: this.safeParseInt(count) });
     } catch (error) {
       // Return 0 if notifications table doesn't exist
       return builder.success({ unread_count: 0 });
@@ -7277,7 +7795,7 @@ pitchey_analytics_datapoints_per_minute 1250
         notifications: notifications || [],
         messages: [], // Messages would come from a messaging system if implemented
         updates: [dashboardStats],
-        unreadCount: parseInt(unreadCount) || 0,
+        unreadCount: this.safeParseInt(unreadCount),
         timestamp: Date.now(),
         nextPollIn
       });
@@ -7309,34 +7827,34 @@ pitchey_analytics_datapoints_per_minute 1250
       if (userType === 'creator') {
         return {
           type: 'creator',
-          totalPitches: parseInt(stats?.total_pitches || '0'),
-          totalViews: parseInt(stats?.total_views || '0'),
-          publishedPitches: parseInt(stats?.published_pitches || '0'),
-          draftPitches: parseInt(stats?.draft_pitches || '0'),
-          followersCount: parseInt(stats?.followers_count || '0'),
-          followingCount: parseInt(stats?.following_count || '0'),
-          unreadNotifications: parseInt(stats?.unread_notifications || '0'),
+          totalPitches: this.safeParseInt(stats?.total_pitches),
+          totalViews: this.safeParseInt(stats?.total_views),
+          publishedPitches: this.safeParseInt(stats?.published_pitches),
+          draftPitches: this.safeParseInt(stats?.draft_pitches),
+          followersCount: this.safeParseInt(stats?.followers_count),
+          followingCount: this.safeParseInt(stats?.following_count),
+          unreadNotifications: this.safeParseInt(stats?.unread_notifications),
           lastUpdated: new Date().toISOString()
         };
       } else if (userType === 'investor') {
         return {
           type: 'investor',
-          totalInvestments: parseInt(stats?.total_investments || '0'),
-          savedPitches: parseInt(stats?.saved_pitches || '0'),
-          approvedNdas: parseInt(stats?.approved_ndas || '0'),
-          pendingNdas: parseInt(stats?.pending_ndas || '0'),
-          followingCount: parseInt(stats?.following_count || '0'),
-          unreadNotifications: parseInt(stats?.unread_notifications || '0'),
+          totalInvestments: this.safeParseInt(stats?.total_investments),
+          savedPitches: this.safeParseInt(stats?.saved_pitches),
+          approvedNdas: this.safeParseInt(stats?.approved_ndas),
+          pendingNdas: this.safeParseInt(stats?.pending_ndas),
+          followingCount: this.safeParseInt(stats?.following_count),
+          unreadNotifications: this.safeParseInt(stats?.unread_notifications),
           lastUpdated: new Date().toISOString()
         };
       } else if (userType === 'production') {
         return {
           type: 'production',
-          activeProjects: parseInt(stats?.active_projects || '0'),
-          completedProjects: parseInt(stats?.completed_projects || '0'),
-          totalInvestments: parseInt(stats?.total_investments || '0'),
-          approvedNdas: parseInt(stats?.approved_ndas || '0'),
-          unreadNotifications: parseInt(stats?.unread_notifications || '0'),
+          activeProjects: this.safeParseInt(stats?.active_projects),
+          completedProjects: this.safeParseInt(stats?.completed_projects),
+          totalInvestments: this.safeParseInt(stats?.total_investments),
+          approvedNdas: this.safeParseInt(stats?.approved_ndas),
+          unreadNotifications: this.safeParseInt(stats?.unread_notifications),
           lastUpdated: new Date().toISOString()
         };
       }
@@ -7632,7 +8150,7 @@ pitchey_analytics_datapoints_per_minute 1250
             return builder.error(ErrorCode.ALREADY_EXISTS, 'MFA already enabled');
           }
 
-          const setup = await setupMFA(authResult.user.id, authResult.user.email);
+          const setup = await setupMFA(String(authResult.user.id), authResult.user.email);
           const hashedBackupCodes = await Promise.all(
             setup.backupCodes.map(code => hashBackupCode(code))
           );
@@ -7648,7 +8166,7 @@ pitchey_analytics_datapoints_per_minute 1250
               secret = $2,
               backup_codes = $3,
               updated_at = CURRENT_TIMESTAMP
-          `, [authResult.user.id, setup.secret, hashedBackupCodes]);
+          `, [authResult.user.id, setup.secret, JSON.stringify(hashedBackupCodes)]);
 
           return builder.success({
             qrCode: setup.qrCode,
@@ -7658,10 +8176,11 @@ pitchey_analytics_datapoints_per_minute 1250
 
         case 'setup/verify': {
           // Verify TOTP and complete setup
-          const { code } = await request.json();
+          const verifyData = await request.json() as { code?: string };
+          const code = verifyData.code;
 
           if (!code || !/^\d{6}$/.test(code)) {
-            return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code format');
+            return builder.error(ErrorCode.BAD_REQUEST, 'Invalid code format');
           }
 
           const [mfaData] = await this.db.query(
@@ -7677,10 +8196,10 @@ pitchey_analytics_datapoints_per_minute 1250
             return builder.error(ErrorCode.ALREADY_EXISTS, 'MFA already enabled');
           }
 
-          const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
+          const verification = await verifyTOTP(code, this.safeString(mfaData.secret) || '', String(authResult.user.id));
 
           if (!verification.valid) {
-            return builder.error(ErrorCode.INVALID_REQUEST, verification.reason || 'Invalid code');
+            return builder.error(ErrorCode.BAD_REQUEST, verification.reason || 'Invalid code');
           }
 
           // Enable MFA
@@ -7704,10 +8223,12 @@ pitchey_analytics_datapoints_per_minute 1250
 
         case 'verify': {
           // Verify MFA code
-          const { code, method = 'totp' } = await request.json();
+          const verifyMfaData = await request.json() as { code?: string; method?: string };
+          const code = verifyMfaData.code;
+          const method = verifyMfaData.method || 'totp';
 
           if (!code) {
-            return builder.error(ErrorCode.INVALID_REQUEST, 'Code required');
+            return builder.error(ErrorCode.BAD_REQUEST, 'Code required');
           }
 
           const [mfaData] = await this.db.query(
@@ -7724,14 +8245,15 @@ pitchey_analytics_datapoints_per_minute 1250
           let verified = false;
 
           if (method === 'totp') {
-            const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
+            const verification = await verifyTOTP(code, this.safeString(mfaData.secret) || '', String(authResult.user.id));
             verified = verification.valid;
 
             if (!verified) {
-              return builder.error(ErrorCode.INVALID_REQUEST, verification.reason || 'Invalid code');
+              return builder.error(ErrorCode.BAD_REQUEST, verification.reason || 'Invalid code');
             }
           } else if (method === 'backup') {
-            verified = await verifyBackupCode(code, mfaData.backup_codes);
+            const backupCodes = Array.isArray(mfaData.backup_codes) ? mfaData.backup_codes as string[] : JSON.parse(this.safeString(mfaData.backup_codes) || '[]');
+            verified = await verifyBackupCode(code, backupCodes);
 
             if (verified) {
               await this.db.query(
@@ -7744,7 +8266,7 @@ pitchey_analytics_datapoints_per_minute 1250
           }
 
           if (!verified) {
-            return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code');
+            return builder.error(ErrorCode.BAD_REQUEST, 'Invalid code');
           }
 
           await this.db.query(
@@ -7760,7 +8282,8 @@ pitchey_analytics_datapoints_per_minute 1250
 
         case 'disable': {
           // Disable MFA
-          const { code } = await request.json();
+          const disableData = await request.json() as { code?: string };
+          const code = disableData.code || '';
 
           const [mfaData] = await this.db.query(
             `SELECT secret FROM user_mfa WHERE user_id = $1 AND enabled = true`,
@@ -7771,10 +8294,10 @@ pitchey_analytics_datapoints_per_minute 1250
             return builder.error(ErrorCode.NOT_FOUND, 'MFA not enabled');
           }
 
-          const verification = await verifyTOTP(code, mfaData.secret, authResult.user.id);
+          const verification = await verifyTOTP(code, this.safeString(mfaData.secret) || '', String(authResult.user.id));
 
           if (!verification.valid) {
-            return builder.error(ErrorCode.INVALID_REQUEST, 'Invalid code');
+            return builder.error(ErrorCode.BAD_REQUEST, 'Invalid code');
           }
 
           await this.db.query(
@@ -7944,25 +8467,7 @@ pitchey_analytics_datapoints_per_minute 1250
         console.log('Intelligence WebSocket: allowing unauthenticated connection');
       }
 
-      // Check if WebSocket is supported (available in paid plans)
-      if (typeof WebSocketPair === 'undefined') {
-        // WebSocket not available on free Cloudflare plan
-        return new Response(JSON.stringify({
-          error: 'WebSocket not available on free tier',
-          alternative: 'Use polling for intelligence updates',
-          endpoints: {
-            dashboard: '/api/intelligence/dashboard',
-            market: '/api/intelligence/market',
-            trends: '/api/intelligence/trends',
-            competitive: '/api/analysis/competitive'
-          },
-          pollInterval: 60000 // Recommended polling interval: 60 seconds for intelligence
-        }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
+      // Paid Cloudflare plan - WebSocket is fully supported
       // Create WebSocket pair for intelligence updates
       const [client, server] = Object.values(new WebSocketPair());
 
@@ -7980,11 +8485,7 @@ pitchey_analytics_datapoints_per_minute 1250
       // }
 
       // Accept the WebSocket connection
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
-        headers: getCorsHeaders()
-      });
+      return new Response(null, { status: 101, webSocket: client });
     } catch (error) {
       console.error('Intelligence WebSocket upgrade error:', error);
       return errorHandler(error, request);
@@ -8011,25 +8512,7 @@ pitchey_analytics_datapoints_per_minute 1250
         console.log('A/B Testing WebSocket: allowing unauthenticated connection');
       }
 
-      // Check if WebSocket is supported (available in paid plans)
-      if (typeof WebSocketPair === 'undefined') {
-        // WebSocket not available on free Cloudflare plan
-        return new Response(JSON.stringify({
-          error: 'WebSocket not available on free tier',
-          alternative: 'Use polling for A/B testing updates',
-          endpoints: {
-            experiments: '/api/experiments',
-            assignment: '/api/experiments/{id}/assignment',
-            track: '/api/experiments/track',
-            results: '/api/experiments/{id}/results'
-          },
-          pollInterval: 30000 // Recommended polling interval: 30 seconds for A/B testing
-        }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
+      // Paid Cloudflare plan - WebSocket is fully supported
       // Create WebSocket pair for A/B testing updates
       const [client, server] = Object.values(new WebSocketPair());
 
@@ -8045,11 +8528,7 @@ pitchey_analytics_datapoints_per_minute 1250
       }
 
       // Accept the WebSocket connection
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
-        headers: getCorsHeaders()
-      });
+      return new Response(null, { status: 101, webSocket: client });
     } catch (error) {
       console.error('A/B Testing WebSocket upgrade error:', error);
       return errorHandler(error, request);
@@ -8064,7 +8543,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getIncomingSignedNDAs(request: Request): Promise<Response> {
     try {
       const authResult = await this.requireAuth(request);
-      if (!authResult.authenticated) {
+      if (!authResult.authorized) {
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
@@ -8112,7 +8591,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getOutgoingSignedNDAs(request: Request): Promise<Response> {
     try {
       const authResult = await this.requireAuth(request);
-      if (!authResult.authenticated) {
+      if (!authResult.authorized) {
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
@@ -8160,7 +8639,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getIncomingNDARequests(request: Request): Promise<Response> {
     try {
       const authResult = await this.requireAuth(request);
-      if (!authResult.authenticated) {
+      if (!authResult.authorized) {
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
@@ -8208,7 +8687,7 @@ pitchey_analytics_datapoints_per_minute 1250
   private async getOutgoingNDARequests(request: Request): Promise<Response> {
     try {
       const authResult = await this.requireAuth(request);
-      if (!authResult.authenticated) {
+      if (!authResult.authorized) {
         return new Response(JSON.stringify({
           success: false,
           error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
@@ -8331,7 +8810,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const url = new URL(request.url);
       const ndaId = parseInt(url.pathname.split('/')[3]);
-      const { reason } = await request.json();
+      const { reason } = await request.json() as { reason?: string };
 
       if (!ndaId || isNaN(ndaId)) {
         return this.jsonResponse({
@@ -8343,11 +8822,11 @@ pitchey_analytics_datapoints_per_minute 1250
       // Try database first
       try {
         const updateResult = await this.db.query(
-          `UPDATE ndas 
+          `UPDATE ndas
            SET status = 'revoked', revocation_reason = $1, revoked_at = $2, updated_at = $3
            WHERE id = $4 AND creator_id = $5 AND status IN ('approved', 'signed')
            RETURNING *`,
-          [reason, new Date().toISOString(), new Date().toISOString(), ndaId, authResult.user.id]
+          [reason ?? null, new Date().toISOString(), new Date().toISOString(), ndaId, authResult.user.id]
         );
 
         if (updateResult.length === 0) {
@@ -8484,7 +8963,7 @@ pitchey_analytics_datapoints_per_minute 1250
           name: row.name,
           description: row.description,
           content: row.content,
-          variables: row.variables ? JSON.parse(row.variables) : [],
+          variables: row.variables ? JSON.parse(this.safeString(row.variables)) : [],
           isDefault: row.is_default,
           createdBy: row.created_by,
           createdAt: row.created_at,
@@ -8528,7 +9007,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const authResult = await this.requireAuth(request);
       if (!authResult.authorized) return authResult.response!;
 
-      const { name, description, content, variables, isDefault } = await request.json();
+      const { name, description, content, variables, isDefault } = await request.json() as TemplateBody;
 
       if (!name || !content) {
         return this.jsonResponse({
@@ -8545,7 +9024,7 @@ pitchey_analytics_datapoints_per_minute 1250
            RETURNING *`,
           [
             name,
-            description,
+            description ?? null,
             content,
             JSON.stringify(variables || []),
             isDefault || false,
@@ -8561,7 +9040,7 @@ pitchey_analytics_datapoints_per_minute 1250
           name: row.name,
           description: row.description,
           content: row.content,
-          variables: row.variables ? JSON.parse(row.variables) : [],
+          variables: row.variables ? JSON.parse(this.safeString(row.variables)) : [],
           isDefault: row.is_default,
           createdBy: row.created_by,
           createdAt: row.created_at,
@@ -8609,7 +9088,13 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const url = new URL(request.url);
       const templateId = parseInt(url.pathname.split('/')[4]);
-      const updates = await request.json();
+      const updates = await request.json() as {
+        name?: string;
+        description?: string;
+        content?: string;
+        variables?: string[];
+        isDefault?: boolean;
+      };
 
       if (!templateId || isNaN(templateId)) {
         return this.jsonResponse({
@@ -8672,7 +9157,7 @@ pitchey_analytics_datapoints_per_minute 1250
           name: row.name,
           description: row.description,
           content: row.content,
-          variables: row.variables ? JSON.parse(row.variables) : [],
+          variables: row.variables ? JSON.parse(this.safeString(row.variables)) : [],
           isDefault: row.is_default,
           createdBy: row.created_by,
           createdAt: row.created_at,
@@ -8766,7 +9251,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const authResult = await this.requireAuth(request);
       if (!authResult.authorized) return authResult.response!;
 
-      const { ndaIds, notes } = await request.json();
+      const { ndaIds, notes } = await request.json() as NDAApproveBody;
 
       if (!Array.isArray(ndaIds) || ndaIds.length === 0) {
         return this.jsonResponse({
@@ -8823,7 +9308,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const authResult = await this.requireAuth(request);
       if (!authResult.authorized) return authResult.response!;
 
-      const { ndaIds, reason } = await request.json();
+      const { ndaIds, reason } = await request.json() as NDARejectBody;
 
       if (!Array.isArray(ndaIds) || ndaIds.length === 0) {
         return this.jsonResponse({
@@ -8939,7 +9424,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const authResult = await this.requireAuth(request);
       if (!authResult.authorized) return authResult.response!;
 
-      const { pitchId, templateId } = await request.json();
+      const { pitchId, templateId } = await request.json() as NDARequestBody;
 
       if (!pitchId) {
         return this.jsonResponse({
@@ -9128,16 +9613,20 @@ Signatures: [To be completed upon signing]
         const results = await this.db.query(query, params);
         const stats = results[0];
 
+        const totalCount = this.safeParseInt(stats?.total) || 0;
+        const approvedCount = this.safeParseInt(stats?.approved) || 0;
+        const signedCount = this.safeParseInt(stats?.signed) || 0;
+
         const analytics = {
-          total: parseInt(stats.total) || 0,
-          pending: parseInt(stats.pending) || 0,
-          approved: parseInt(stats.approved) || 0,
-          rejected: parseInt(stats.rejected) || 0,
-          signed: parseInt(stats.signed) || 0,
-          expired: parseInt(stats.expired) || 0,
-          revoked: parseInt(stats.revoked) || 0,
-          approvalRate: stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0,
-          completionRate: stats.total > 0 ? Math.round((stats.signed / stats.total) * 100) : 0,
+          total: totalCount,
+          pending: this.safeParseInt(stats?.pending) || 0,
+          approved: approvedCount,
+          rejected: this.safeParseInt(stats?.rejected) || 0,
+          signed: signedCount,
+          expired: this.safeParseInt(stats?.expired) || 0,
+          revoked: this.safeParseInt(stats?.revoked) || 0,
+          approvalRate: totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0,
+          completionRate: totalCount > 0 ? Math.round((signedCount / totalCount) * 100) : 0,
           timeframe
         };
 
@@ -9356,15 +9845,15 @@ Signatures: [To be completed upon signing]
         }, 403);
       }
 
-      const filters = {
+      const filters: AuditLogFilters = {
         userId: effectiveUserId,
-        eventTypes,
+        eventTypes: eventTypes as AuditEventType[] | undefined,
         eventCategories,
-        riskLevels,
-        entityType,
+        riskLevels: riskLevels as RiskLevel[] | undefined,
+        entityType: entityType || undefined,
         entityId: entityId ? parseInt(entityId) : undefined,
-        dateFrom,
-        dateTo,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         limit,
         offset
       };
@@ -9378,8 +9867,8 @@ Signatures: [To be completed upon signing]
         RiskLevels.LOW,
         {
           userId: authResult.user.id,
-          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For'),
-          userAgent: request.headers.get('User-Agent'),
+          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || undefined,
+          userAgent: request.headers.get('User-Agent') || undefined,
           metadata: { filters, resultCount: result.logs.length }
         }
       );
@@ -9427,13 +9916,13 @@ Signatures: [To be completed upon signing]
       const dateFrom = url.searchParams.get('dateFrom');
       const dateTo = url.searchParams.get('dateTo');
 
-      const filters = {
+      const filters: AuditLogFilters = {
         userId: userId ? parseInt(userId) : undefined,
-        eventTypes,
+        eventTypes: eventTypes as AuditEventType[] | undefined,
         eventCategories,
-        riskLevels,
-        dateFrom,
-        dateTo,
+        riskLevels: riskLevels as RiskLevel[] | undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         limit: 10000 // Maximum for export
       };
 
@@ -9446,8 +9935,8 @@ Signatures: [To be completed upon signing]
         RiskLevels.MEDIUM,
         {
           userId: authResult.user.id,
-          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For'),
-          userAgent: request.headers.get('User-Agent'),
+          ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || undefined,
+          userAgent: request.headers.get('User-Agent') || undefined,
           metadata: { filters }
         }
       );
@@ -9585,11 +10074,11 @@ Signatures: [To be completed upon signing]
       const limit = parseInt(url.searchParams.get('limit') || '100');
       const offset = parseInt(url.searchParams.get('offset') || '0');
 
-      const filters = {
+      const filters: AuditLogFilters = {
         userId: targetUserId,
         eventCategories,
-        dateFrom,
-        dateTo,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         limit,
         offset
       };
@@ -9861,7 +10350,7 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const origin = request.headers.get('Origin');
-      const body = await request.json();
+      const body = await request.json() as { pitch_id?: string; notes?: string };
 
       if (!body.pitch_id) {
         return new Response(JSON.stringify({
@@ -10031,7 +10520,7 @@ Signatures: [To be completed upon signing]
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
 
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.createInvestment(authCheck.user.id, data);
@@ -10053,7 +10542,7 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const investmentId = parseInt(url.pathname.split('/').pop() || '0');
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.updateInvestment(authCheck.user.id, investmentId, data);
@@ -10112,7 +10601,7 @@ Signatures: [To be completed upon signing]
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
 
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/investor-portfolio')).InvestorPortfolioHandler(this.db);
       const result = await handler.addToWatchlist(authCheck.user.id, data);
@@ -10491,7 +10980,7 @@ Signatures: [To be completed upon signing]
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
 
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.sendMessage(authCheck.user.id, data);
@@ -10594,7 +11083,7 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const conversationId = parseInt(url.pathname.split('/')[3] || '0');
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/messaging-simple')).SimpleMessagingHandler(this.db);
       const result = await handler.sendMessageToConversation(authCheck.user.id, conversationId, data);
@@ -10658,7 +11147,7 @@ Signatures: [To be completed upon signing]
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
 
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/media-access')).MediaAccessHandler(this.db, this.env);
       const result = await handler.uploadMedia(authCheck.user.id, data);
@@ -10794,7 +11283,7 @@ Signatures: [To be completed upon signing]
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
 
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/search-filters')).SearchFiltersHandler(this.db);
       const result = await handler.saveSearch(authCheck.user.id, data);
@@ -10906,7 +11395,7 @@ Signatures: [To be completed upon signing]
       const authCheck = await this.requireAuth(request);
       if (!authCheck.authorized) return authCheck.response;
 
-      const data = await request.json();
+      const data = await request.json() as Record<string, unknown>;
 
       const handler = new (await import('./handlers/transactions')).TransactionsHandler(this.db);
       const result = await handler.createTransaction(authCheck.user.id, data);
@@ -10928,7 +11417,7 @@ Signatures: [To be completed upon signing]
 
       const url = new URL(request.url);
       const transactionId = parseInt(url.pathname.split('/')[3] || '0');
-      const { status } = await request.json();
+      const { status } = await request.json() as { status: string };
 
       const handler = new (await import('./handlers/transactions')).TransactionsHandler(this.db);
       const result = await handler.updateTransactionStatus(authCheck.user.id, transactionId, status);
@@ -11630,20 +12119,42 @@ Signatures: [To be completed upon signing]
 }
 
 /**
- * Main Worker Export
+ * Main Worker Export - Wrapped with Sentry for automatic error tracking
  */
-export default {
+const workerHandler = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    // Use distributed tracing for all API requests
-    return await handleAPIRequestWithTracing(request, env, async (request, rootSpan) => {
-      try {
-        // Validate environment variables on first request
+    // Request handling with distributed tracing
+    const handleRequest = async (): Promise<Response> => {
+      // Use distributed tracing for all API requests
+      return await handleAPIRequestWithTracing(request, env, async (request, rootSpan) => {
         try {
-          EnvironmentValidator.validate(env);
-        } catch (error) {
-          console.error('Environment validation failed:', error);
-          // Log but don't fail - some endpoints might work without all vars
-        }
+          // Add Sentry breadcrumb for request (if Sentry is available)
+          if (typeof Sentry?.addBreadcrumb === 'function') {
+            Sentry.addBreadcrumb({
+              message: `${request.method} ${new URL(request.url).pathname}`,
+              category: 'http',
+              level: 'info',
+              data: {
+                method: request.method,
+                url: request.url,
+              },
+            });
+          }
+
+          // Validate environment variables on first request
+          try {
+            EnvironmentValidator.validate(env);
+          } catch (error) {
+            console.error('Environment validation failed:', error);
+            if (typeof Sentry?.captureException === 'function') {
+              Sentry.captureException(error, {
+                tags: {
+                  component: 'environment-validation',
+                },
+              });
+            }
+            // Log but don't fail - some endpoints might work without all vars
+          }
 
         // Initialize KV cache service
         let cache: KVCacheService | null = null;
@@ -11652,6 +12163,35 @@ export default {
         }
 
         const url = new URL(request.url);
+
+        // CRITICAL: Set request origin for CORS handling
+        // This ensures all response utilities get the correct origin
+        setRequestOrigin(request.headers.get('Origin'));
+
+        // CRITICAL: Handle WebSocket upgrade at the earliest possible point
+        // WebSocket responses must bypass all normal response processing
+        const upgradeHeader = request.headers.get('Upgrade');
+        if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
+          console.log('[EARLY] WebSocket upgrade detected for path:', url.pathname);
+
+          // Minimal WebSocket test endpoint
+          if (url.pathname === '/ws/test') {
+            try {
+              console.log('[EARLY] Creating WebSocket test connection');
+              const pair = new WebSocketPair();
+              const [client, server] = Object.values(pair);
+              server.accept();
+              server.addEventListener('message', (event) => {
+                server.send(`Echo: ${event.data}`);
+              });
+              console.log('[EARLY] Returning WebSocket 101 response');
+              return new Response(null, { status: 101, webSocket: client });
+            } catch (error) {
+              console.error('[EARLY] WebSocket test error:', error);
+              return new Response('WebSocket error: ' + (error as Error).message, { status: 500 });
+            }
+          }
+        }
 
         // Enhanced health check with comprehensive monitoring
         if (url.pathname === '/health') {
@@ -11766,14 +12306,32 @@ export default {
           // Ignore session extraction errors for logging
         }
 
-        // Handle request and ensure CORS headers are always added
-        let response = await router.handle(request);
+        // Check for validated routes first
+        const requestUrl = new URL(request.url);
+        const validatedRoute = matchValidatedRoute(request.method, requestUrl.pathname);
+        
+        let response: Response;
+        
+        if (validatedRoute) {
+          // Handle validated route with contract enforcement
+          response = await validatedRoute.handler(request, env);
+        } else {
+          // Handle request through regular router
+          response = await router.handle(request);
+        }
 
         // Log request metrics (fire and forget)
         const responseTime = Date.now() - startTime;
         ctx.waitUntil(
           logRequestMetrics(request, response, responseTime, env, userId)
         );
+
+        // CRITICAL: WebSocket responses must be returned directly without modification
+        // The webSocket property would be lost if we reconstruct the Response
+        if (response.status === 101 || (response as any).webSocket) {
+          console.log('Returning WebSocket response directly (status:', response.status, ')');
+          return response;
+        }
 
         // Add security headers to all responses
         response = addSecurityHeaders(response, env.ENVIRONMENT);
@@ -11798,6 +12356,23 @@ export default {
 
       } catch (error) {
         console.error('Worker initialization error:', error);
+
+        // Capture error with Sentry (if available)
+        if (typeof Sentry?.captureException === 'function') {
+          Sentry.captureException(error, {
+            tags: {
+              component: 'worker-initialization',
+              url: request.url,
+              method: request.method,
+            },
+            extra: {
+              environment: env.ENVIRONMENT,
+              // Headers don't have entries() in Cloudflare Workers types
+              userAgent: request.headers.get('User-Agent'),
+              contentType: request.headers.get('Content-Type'),
+            },
+          });
+        }
 
         // Log error to database (fire and forget)
         ctx.waitUntil(
@@ -11825,9 +12400,100 @@ export default {
           }
         );
       }
-    });
+      });  // Close handleAPIRequestWithTracing callback
+    };  // Close handleRequest function
+
+    // Execute the request handler
+    return await handleRequest();
   }
 };
+
+/**
+ * Custom worker handler that bypasses Sentry for WebSocket requests
+ * Sentry's wrapper may interfere with WebSocket responses
+ */
+const websocketSafeHandler = {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Check for WebSocket upgrade - bypass Sentry entirely for WebSocket requests
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
+      console.log('[WebSocket Handler] Bypassing Sentry for WebSocket request');
+      return workerHandler.fetch(request, env, ctx);
+    }
+
+    // For non-WebSocket requests, use Sentry wrapper
+    const sentryHandler = Sentry.withSentry(
+      () => ({
+        dsn: env.SENTRY_DSN,
+        release: env.CF_VERSION_METADATA?.id,
+        environment: env.SENTRY_ENVIRONMENT || env.ENVIRONMENT || 'production',
+        tracesSampleRate: parseFloat(env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
+        beforeSendTransaction: (transaction) => {
+          const name = transaction.transaction || '';
+          if (name.includes('/health') || name.includes('/favicon')) {
+            return null;
+          }
+          return transaction;
+        },
+      }),
+      workerHandler as any
+    );
+
+    return (sentryHandler as any).fetch(request, env, ctx);
+  },
+
+  // Scheduled event handler - must be part of the default export object
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      const cron = controller.cron;
+      console.log(`Executing scheduled task: ${cron}`);
+
+      // Route scheduled tasks based on cron pattern
+      switch (cron) {
+        case "*/5 * * * *": // Every 5 minutes
+          await Promise.all([
+            checkNDAExpirations(env, ctx),
+            checkContainerHealth(env, ctx)
+          ]);
+          break;
+
+        case "*/10 * * * *": // Every 10 minutes
+          await monitorJobQueues(env, ctx);
+          break;
+
+        case "0 * * * *": // Hourly
+          await Promise.all([
+            sendDigestEmails(env, ctx),
+            aggregateMetrics(env, ctx)
+          ]);
+          break;
+
+        case "0 0 * * *": // Daily
+          await Promise.all([
+            exportAuditLogs(env, ctx),
+            archiveOldJobs(env, ctx)
+          ]);
+          break;
+
+        case "0 2 * * 1": // Weekly (Monday 2 AM)
+          await cleanupDatabase(env, ctx);
+          break;
+
+        case "*/15 * * * *": // Every 15 minutes
+          await updateTrendingAlgorithm(env, ctx);
+          break;
+
+        default:
+          console.warn(`Unknown cron pattern: ${cron}`);
+      }
+    } catch (error) {
+      console.error("Scheduled task error:", error);
+      // Don't throw - just log and continue
+    }
+  }
+};
+
+export default websocketSafeHandler;
 
 // Export Durable Objects
 export { WebSocketDurableObject };
@@ -11839,61 +12505,7 @@ export { WebSocketRoom } from './durable-objects/websocket-room';
 export { ContainerOrchestrator } from './durable-objects/container-orchestrator-do';
 export { JobScheduler } from './durable-objects/job-scheduler-do';
 
-// Scheduled Event Handler
-export async function scheduled(
-  controller: ScheduledController,
-  env: any,
-  ctx: ExecutionContext
-): Promise<void> {
-  try {
-    const cron = controller.cron;
-    console.log(`Executing scheduled task: ${cron}`);
-
-    // Route scheduled tasks based on cron pattern
-    switch (cron) {
-      case "*/5 * * * *": // Every 5 minutes
-        await Promise.all([
-          checkNDAExpirations(env, ctx),
-          checkContainerHealth(env, ctx)
-        ]);
-        break;
-
-      case "*/10 * * * *": // Every 10 minutes  
-        await monitorJobQueues(env, ctx);
-        break;
-
-      case "0 * * * *": // Hourly
-        await Promise.all([
-          sendDigestEmails(env, ctx),
-          aggregateMetrics(env, ctx)
-        ]);
-        break;
-
-      case "0 0 * * *": // Daily
-        await Promise.all([
-          exportAuditLogs(env, ctx),
-          archiveOldJobs(env, ctx)
-        ]);
-        break;
-
-      case "0 2 * * 1": // Weekly (Monday 2 AM)
-        await cleanupDatabase(env, ctx);
-        break;
-
-      case "*/15 * * * *": // Every 15 minutes
-        await updateTrendingAlgorithm(env, ctx);
-        break;
-
-      default:
-        console.warn(`Unknown cron pattern: ${cron}`);
-    }
-  } catch (error) {
-    console.error("Scheduled task error:", error);
-    // Don't throw - just log and continue
-  }
-}
-
-// Placeholder scheduled task functions
+// Placeholder scheduled task functions (used by scheduled handler in websocketSafeHandler)
 async function checkNDAExpirations(env: any, ctx: ExecutionContext): Promise<void> {
   console.log("Checking NDA expirations...");
 }

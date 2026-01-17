@@ -69,13 +69,14 @@ export async function verifyAuth(request: Request, env: Env): Promise<AuthResult
         const payload = await verifyJWT(token, env.JWT_SECRET || 'test-secret-key-for-development');
         
         if (payload) {
+          const p = payload as Record<string, any>;
           return {
             success: true,
             user: {
-              id: parseInt(payload.sub || payload.userId || '0'),
-              email: payload.email,
-              username: payload.name || payload.username,
-              userType: payload.userType
+              id: parseInt(String(p.sub || p.userId || '0')),
+              email: String(p.email || ''),
+              username: String(p.name || p.username || ''),
+              userType: String(p.userType || '')
             }
           };
         }
@@ -104,7 +105,7 @@ export async function verifyAuth(request: Request, env: Env): Promise<AuthResult
     }
 
     // Create Better Auth instance
-    const auth = await createBetterAuthInstance(env);
+    const auth = await createBetterAuthInstance(env as any);
     if (!auth) {
       return { success: false, error: 'Auth service unavailable' };
     }
@@ -117,10 +118,11 @@ export async function verifyAuth(request: Request, env: Env): Promise<AuthResult
     });
 
     // Get session using Better Auth
-    const sessionResponse = await auth.api.getSession({
+    const authApi = (auth as any).api;
+    const sessionResponse = authApi?.getSession ? await authApi.getSession({
       headers: mockRequest.headers,
       query: {}
-    });
+    }) : null;
 
     if (!sessionResponse?.user) {
       return { success: false, error: 'Invalid session' };
@@ -147,4 +149,11 @@ export async function verifyAuth(request: Request, env: Env): Promise<AuthResult
 export async function getUserFromSession(request: Request, env: Env): Promise<AuthUser | null> {
   const result = await verifyAuth(request, env);
   return result.success ? result.user || null : null;
+}
+
+/**
+ * Get authenticated user from request (alias for getUserFromSession)
+ */
+export async function getAuthUser(request: Request, env: Env): Promise<AuthUser | null> {
+  return getUserFromSession(request, env);
 }

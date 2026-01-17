@@ -35,7 +35,7 @@ export class NDAWithRBACHandler {
     }
 
     try {
-      const body: NDAApprovalRequest = await request.json();
+      const body: NDAApprovalRequest = await request.json() as Record<string, unknown>;
       const { ndaId, action, reason } = body;
 
       // Get NDA details

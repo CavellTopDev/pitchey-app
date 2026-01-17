@@ -32,12 +32,11 @@ export async function getUserSettingsHandler(request: Request, env: Env): Promis
     }
 
     const db = createDatabase(env.DATABASE_URL);
-    const sql = db.sql;
-    const settings = await getUserSettings(sql, authResult.user.id.toString());
+    const settings = await getUserSettings(db, authResult.user.id.toString());
 
     // If no settings exist yet, create default settings
     if (!settings) {
-      const defaultSettings = await upsertUserSettings(sql, authResult.user.id.toString(), {});
+      const defaultSettings = await upsertUserSettings(db, authResult.user.id.toString(), {});
       
       // Format response
       const response = {
@@ -122,7 +121,7 @@ export async function updateUserSettingsHandler(request: Request, env: Env): Pro
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { notifications, privacy, security } = body;
 
     // Prepare settings object
@@ -284,7 +283,7 @@ export async function enableTwoFactorHandler(request: Request, env: Env): Promis
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { secret } = body;
 
     if (!secret) {
@@ -386,7 +385,7 @@ export async function deleteAccountHandler(request: Request, env: Env): Promise<
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { confirmation } = body;
 
     // Require explicit confirmation

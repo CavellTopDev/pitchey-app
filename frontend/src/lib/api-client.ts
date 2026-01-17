@@ -1,7 +1,44 @@
-// Robust API client with comprehensive error handling for Pitchey v0.2
-// Prevents frontend crashes from malformed JSON responses
+/**
+ * Robust TypeScript API client with comprehensive error handling for Pitchey v0.2
+ * Prevents frontend crashes from malformed JSON responses
+ * Features runtime validation with Zod schemas
+ */
 
 import { config } from '../config';
+import type { 
+  ApiResponse, 
+  Pitch, 
+  User, 
+  NDA, 
+  Investment, 
+  PitchesResponse,
+  CreatePitchInput,
+  UpdatePitchInput,
+  LoginCredentials,
+  RegisterData,
+  SearchFilters,
+  InfoRequest,
+  CreateInfoRequestInput,
+  RespondToInfoRequestInput,
+  InvestorDashboardStats,
+  CreatorDashboardStats,
+  ProductionDashboardStats
+} from '../types/api';
+import { 
+  ValidatedPitchesResponse,
+  ValidatedSinglePitchResponse,
+  ValidatedUserResponse,
+  safeValidateApiResponse,
+  PitchesResponseSchema,
+  PitchSchema,
+  UserSchema,
+  NDASchema,
+  InvestmentSchema,
+  LoginCredentialsSchema,
+  RegisterDataSchema,
+  CreatePitchInputSchema,
+  UpdatePitchInputSchema
+} from '../types/zod-schemas';
 
 // Use environment variable or default to localhost for development
 const isDev = import.meta.env.MODE === 'development';
@@ -11,13 +48,15 @@ interface ApiError {
   message: string;
   status?: number;
   code?: string;
-  details?: any;
+  details?: unknown;
 }
 
-interface ApiResponse<T = any> {
+interface TypedApiResponse<T> {
   success: boolean;
   data?: T;
   error?: ApiError | string;
+  message?: string;
+  cached?: boolean;
 }
 
 class ApiClient {
@@ -109,19 +148,20 @@ class ApiClient {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  private async safeJsonParse(text: string): Promise<any> {
+  private async safeJsonParse(text: string): Promise<unknown> {
     try {
       if (!text || text.trim() === '') {
         return { error: 'Empty response body' };
       }
       return JSON.parse(text);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('JSON parse error:', error);
       console.error('Response text:', text);
       return {
         error: 'Invalid JSON response',
         details: {
-          parseError: error.message,
+          parseError: errorMessage,
           responseText: text.substring(0, 200) + (text.length > 200 ? '...' : '')
         }
       };
@@ -132,7 +172,7 @@ class ApiClient {
     endpoint: string, 
     options: RequestInit = {},
     retryCount: number = 0
-  ): Promise<ApiResponse<T>> {
+  ): Promise<TypedApiResponse<T>> {
     try {
       const url = `${this.baseURL}${endpoint}`;
       const token = this.getAuthToken();
@@ -254,7 +294,11 @@ class ApiClient {
         data: data.data || data
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Network request failed';
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      const errorStack = error instanceof Error ? error.stack?.split('\n')[0] : undefined;
+      
       console.error('API request failed:', error);
       
       // Retry logic for network errors
@@ -266,18 +310,20 @@ class ApiClient {
       return {
         success: false,
         error: {
-          message: error.message || 'Network request failed',
+          message: errorMessage,
           code: 'NETWORK_ERROR',
           details: {
-            name: error.name,
-            stack: error.stack?.split('\n')[0] // Just first line of stack
+            name: errorName,
+            stack: errorStack
           }
         }
       };
     }
   }
 
-  private isRetryableError(error: any): boolean {
+  private isRetryableError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    
     // DO NOT retry on CORS errors - they will never succeed
     if (error.message?.includes('Failed to fetch') || 
         error.message?.includes('CORS') ||
@@ -292,17 +338,16 @@ class ApiClient {
       error.message?.includes('ERR_NAME_NOT_RESOLVED') ||
       error.message?.includes('getaddrinfo ENOTFOUND') ||
       error.message?.includes('DNS lookup failed') ||
-      error.code === 'ENOTFOUND' ||
-      error.code === 'EAI_NONAME'
+      ('code' in error && (error.code === 'ENOTFOUND' || error.code === 'EAI_NONAME'))
     );
   }
 
-  // HTTP Methods
-  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
+  // HTTP Methods with proper typing
+  async get<T>(endpoint: string): Promise<TypedApiResponse<T>> {
     return this.makeRequest<T>(endpoint, { method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T, D = unknown>(endpoint: string, data?: D): Promise<TypedApiResponse<T>> {
     const body = data ? JSON.stringify(data) : undefined;
     return this.makeRequest<T>(endpoint, { 
       method: 'POST', 
@@ -310,7 +355,7 @@ class ApiClient {
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T, D = unknown>(endpoint: string, data?: D): Promise<TypedApiResponse<T>> {
     const body = data ? JSON.stringify(data) : undefined;
     return this.makeRequest<T>(endpoint, { 
       method: 'PUT', 
@@ -318,7 +363,7 @@ class ApiClient {
     });
   }
 
-  async delete<T>(endpoint: string, options?: { data?: any }): Promise<ApiResponse<T>> {
+  async delete<T>(endpoint: string, options?: { data?: unknown }): Promise<TypedApiResponse<T>> {
     const body = options?.data ? JSON.stringify(options.data) : undefined;
     return this.makeRequest<T>(endpoint, { 
       method: 'DELETE',
@@ -326,7 +371,7 @@ class ApiClient {
     });
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async patch<T, D = unknown>(endpoint: string, data?: D): Promise<TypedApiResponse<T>> {
     const body = data ? JSON.stringify(data) : undefined;
     return this.makeRequest<T>(endpoint, { 
       method: 'PATCH', 
@@ -335,7 +380,7 @@ class ApiClient {
   }
 
   // File upload with multipart/form-data
-  async uploadFile<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+  async uploadFile<T>(endpoint: string, formData: FormData): Promise<TypedApiResponse<T>> {
     const token = this.getAuthToken();
     const headers: Record<string, string> = {};
     
@@ -349,69 +394,101 @@ class ApiClient {
       headers
     });
   }
+
+  // Validation helper method
+  async getValidated<T>(endpoint: string, schema: any): Promise<TypedApiResponse<T>> {
+    const response = await this.get<T>(endpoint);
+    
+    if (response.success && response.data) {
+      const validation = safeValidateApiResponse(schema, response);
+      if (!validation.success) {
+        console.warn('API response validation failed:', validation.error);
+        return {
+          success: false,
+          error: {
+            message: 'Invalid response format',
+            code: 'VALIDATION_ERROR',
+            details: validation.error.issues
+          }
+        };
+      }
+      return { ...response, data: validation.data };
+    }
+    
+    return response;
+  }
 }
 
 // Create singleton instance
 const apiClient = new ApiClient();
 
-// NDA-specific API functions
+// Typed NDA-specific API functions
 export const ndaAPI = {
   async requestNDA(pitchId: number, data: {
     ndaType?: 'basic' | 'enhanced' | 'custom';
     requestMessage?: string;
     companyInfo?: string;
-  }) {
-    return apiClient.post(`/api/ndas/request`, {
+  }): Promise<TypedApiResponse<NDA>> {
+    return apiClient.post<NDA>(`/api/ndas/request`, {
       pitchId,
       ...data
     });
   },
 
-  async getRequests(type: 'incoming' | 'outgoing' = 'outgoing') {
-    return apiClient.get(`/api/ndas/request?type=${type}`);
+  async getRequests(type: 'incoming' | 'outgoing' = 'outgoing'): Promise<TypedApiResponse<NDA[]>> {
+    return apiClient.get<NDA[]>(`/api/ndas/request?type=${type}`);
   },
 
-  async approveRequest(requestId: number) {
-    return apiClient.post(`/api/ndas/${requestId}/approve`);
+  async approveRequest(requestId: number): Promise<TypedApiResponse<NDA>> {
+    return apiClient.post<NDA>(`/api/ndas/${requestId}/approve`);
   },
 
-  async rejectRequest(requestId: number, rejectionReason?: string) {
-    return apiClient.post(`/api/ndas/${requestId}/reject`, {
+  async rejectRequest(requestId: number, rejectionReason?: string): Promise<TypedApiResponse<NDA>> {
+    return apiClient.post<NDA>(`/api/ndas/${requestId}/reject`, {
       rejectionReason
     });
   },
 
-  async getSignedNDAs() {
-    return apiClient.get('/api/ndas/signed');
+  async getSignedNDAs(): Promise<TypedApiResponse<NDA[]>> {
+    return apiClient.get<NDA[]>('/api/ndas/signed');
   },
 
-  async getNDAById(ndaId: number) {
-    return apiClient.get(`/api/ndas/${ndaId}`);
+  async getNDAById(ndaId: number): Promise<TypedApiResponse<NDA>> {
+    return apiClient.get<NDA>(`/api/ndas/${ndaId}`);
   },
 
   // NEW ENDPOINTS - Updated to match backend structure
-  async getActiveNDAs() {
-    return apiClient.get('/api/ndas/active');
+  async getActiveNDAs(): Promise<TypedApiResponse<NDA[]>> {
+    return apiClient.get<NDA[]>('/api/ndas/active');
   },
 
-  async getIncomingRequests() {
-    return apiClient.get('/api/ndas/incoming-requests');
+  async getIncomingRequests(): Promise<TypedApiResponse<NDA[]>> {
+    return apiClient.get<NDA[]>('/api/ndas/incoming-requests');
   },
 
-  async getOutgoingRequests() {
-    return apiClient.get('/api/ndas/outgoing-requests');
+  async getOutgoingRequests(): Promise<TypedApiResponse<NDA[]>> {
+    return apiClient.get<NDA[]>('/api/ndas/outgoing-requests');
   }
 };
 
-// Saved Pitches API functions
+// Typed Saved Pitches API functions
+interface SavedPitch {
+  id: number;
+  pitchId: number;
+  userId: number;
+  notes?: string;
+  addedAt: string;
+  pitch?: Pitch;
+}
+
+interface SavedPitchStats {
+  total: number;
+  byGenre: Record<string, number>;
+  byFormat: Record<string, number>;
+}
+
 export const savedPitchesAPI = {
-  async getSavedPitches(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    genre?: string;
-    format?: string;
-  }) {
+  async getSavedPitches(params?: SearchFilters): Promise<TypedApiResponse<SavedPitch[]>> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.append('page', params.page.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());
@@ -422,143 +499,252 @@ export const savedPitchesAPI = {
     const queryString = searchParams.toString();
     const endpoint = queryString ? `/api/saved-pitches?${queryString}` : '/api/saved-pitches';
     
-    return apiClient.get(endpoint);
+    return apiClient.get<SavedPitch[]>(endpoint);
   },
 
-  async savePitch(pitchId: number, notes?: string) {
-    return apiClient.post('/api/saved-pitches', {
+  async savePitch(pitchId: number, notes?: string): Promise<TypedApiResponse<SavedPitch>> {
+    return apiClient.post<SavedPitch>('/api/saved-pitches', {
       pitchId,
       notes
     });
   },
 
-  async unsavePitch(savedPitchId: number) {
-    return apiClient.delete(`/api/saved-pitches/${savedPitchId}`);
+  async unsavePitch(savedPitchId: number): Promise<TypedApiResponse<{ success: boolean }>> {
+    return apiClient.delete<{ success: boolean }>(`/api/saved-pitches/${savedPitchId}`);
   },
 
-  async isPitchSaved(pitchId: number) {
-    return apiClient.get(`/api/saved-pitches/check/${pitchId}`);
+  async isPitchSaved(pitchId: number): Promise<TypedApiResponse<{ isSaved: boolean; savedPitchId?: number }>> {
+    return apiClient.get<{ isSaved: boolean; savedPitchId?: number }>(`/api/saved-pitches/check/${pitchId}`);
   },
 
-  async updateSavedPitchNotes(savedPitchId: number, notes: string) {
-    return apiClient.put(`/api/saved-pitches/${savedPitchId}`, {
+  async updateSavedPitchNotes(savedPitchId: number, notes: string): Promise<TypedApiResponse<SavedPitch>> {
+    return apiClient.put<SavedPitch>(`/api/saved-pitches/${savedPitchId}`, {
       notes
     });
   },
 
-  async getSavedPitchStats() {
-    return apiClient.get('/api/saved-pitches/stats');
+  async getSavedPitchStats(): Promise<TypedApiResponse<SavedPitchStats>> {
+    return apiClient.get<SavedPitchStats>('/api/saved-pitches/stats');
   }
 };
 
-// Auth API
+// Typed Auth API
+interface AuthResponse {
+  user: User;
+  token?: string;
+  message?: string;
+}
+
 export const authAPI = {
-  async login(email: string, password: string) {
-    const response = await apiClient.post('/api/auth/creator/login', { email, password });
+  async login(email: string, password: string): Promise<TypedApiResponse<AuthResponse>> {
+    const credentials: LoginCredentials = { email, password };
+    const validation = LoginCredentialsSchema.safeParse(credentials);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: {
+          message: 'Invalid credentials format',
+          code: 'VALIDATION_ERROR',
+          details: validation.error.issues
+        }
+      };
+    }
+    
+    const response = await apiClient.post<AuthResponse>('/api/auth/creator/login', credentials);
     if (response.success && response.data?.token) {
       (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
 
-  async loginCreator(email: string, password: string) {
-    const response = await apiClient.post('/api/auth/creator/login', { email, password });
+  async loginCreator(email: string, password: string): Promise<TypedApiResponse<AuthResponse>> {
+    const credentials: LoginCredentials = { email, password };
+    const response = await apiClient.post<AuthResponse>('/api/auth/creator/login', credentials);
     if (response.success && response.data?.token) {
       (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
 
-  async loginInvestor(email: string, password: string) {
-    const response = await apiClient.post('/api/auth/investor/login', { email, password });
+  async loginInvestor(email: string, password: string): Promise<TypedApiResponse<AuthResponse>> {
+    const credentials: LoginCredentials = { email, password };
+    const response = await apiClient.post<AuthResponse>('/api/auth/investor/login', credentials);
     if (response.success && response.data?.token) {
       (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
 
-  async loginProduction(email: string, password: string) {
-    const response = await apiClient.post('/api/auth/production/login', { email, password });
+  async loginProduction(email: string, password: string): Promise<TypedApiResponse<AuthResponse>> {
+    const credentials: LoginCredentials = { email, password };
+    const response = await apiClient.post<AuthResponse>('/api/auth/production/login', credentials);
     if (response.success && response.data?.token) {
       (apiClient as any).setItem?.('authToken', response.data.token);
     }
     return response;
   },
 
-  async register(data: {
-    email: string;
-    username: string;
-    password: string;
-    userType: string;
-  }) {
-    const response = await apiClient.post('/api/auth/creator/register', data);
+  async register(data: RegisterData): Promise<TypedApiResponse<AuthResponse>> {
+    const validation = RegisterDataSchema.safeParse(data);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: {
+          message: 'Invalid registration data',
+          code: 'VALIDATION_ERROR',
+          details: validation.error.issues
+        }
+      };
+    }
+
+    const response = await apiClient.post<AuthResponse>('/api/auth/creator/register', data);
     if (response.success && response.data?.token) {
       localStorage.setItem('authToken', response.data.token);
     }
     return response;
   },
 
-  async logout() {
+  async logout(): Promise<TypedApiResponse<{ success: boolean }>> {
     try {
+      // Call backend logout endpoint for Better Auth
+      const response = await apiClient.post<{ success: boolean }>('/api/auth/sign-out');
       localStorage.removeItem('authToken');
-      return { success: true };
+      localStorage.removeItem('user');
+      localStorage.removeItem('userType');
+      return response.success ? response : { success: true, data: { success: true } };
     } catch (error) {
-      return { success: false, error: { message: 'Logout failed' } };
+      return { 
+        success: false, 
+        error: { 
+          message: error instanceof Error ? error.message : 'Logout failed' 
+        } 
+      };
     }
   },
 
-  async getProfile() {
-    return apiClient.get('/api/auth/profile');
+  async getProfile(): Promise<TypedApiResponse<User>> {
+    return apiClient.get<User>('/api/auth/profile');
   },
 
-  async updateProfile(data: any) {
-    return apiClient.put('/api/auth/profile', data);
+  async updateProfile(data: Partial<User>): Promise<TypedApiResponse<User>> {
+    return apiClient.put<User>('/api/auth/profile', data);
+  },
+
+  async getSession(): Promise<TypedApiResponse<{ user: User; session: any }>> {
+    return apiClient.get<{ user: User; session: any }>('/api/auth/session');
   }
 };
 
-// Pitch API
+// Typed Pitch API
 export const pitchAPI = {
-  async getAll(params?: {
-    page?: number;
-    limit?: number;
-    genre?: string;
-    format?: string;
-    search?: string;
-  }) {
+  async getAll(params?: SearchFilters): Promise<TypedApiResponse<PitchesResponse>> {
     const queryString = params 
       ? '?' + new URLSearchParams(
-          Object.entries(params).filter(([_, value]) => value != null).map(([key, value]) => [key, String(value)])
+          Object.entries(params)
+            .filter(([_, value]) => value != null && value !== '')
+            .map(([key, value]) => [key, String(value)])
         ).toString()
       : '';
-    return apiClient.get(`/api/pitches${queryString}`);
+    
+    return apiClient.getValidated<PitchesResponse>(`/api/pitches${queryString}`, ValidatedPitchesResponse);
   },
 
-  async getById(id: number) {
-    return apiClient.get(`/api/pitches/${id}`);
+  async getById(id: number): Promise<TypedApiResponse<Pitch>> {
+    return apiClient.getValidated<Pitch>(`/api/pitches/${id}`, ValidatedSinglePitchResponse);
   },
 
-  async getPublic() {
-    return apiClient.get('/api/pitches/public');
+  async getPublic(): Promise<TypedApiResponse<PitchesResponse>> {
+    return apiClient.getValidated<PitchesResponse>('/api/pitches/public', ValidatedPitchesResponse);
   },
 
-  async getPublicById(id: number) {
-    return apiClient.get(`/api/pitches/public/${id}`);
+  async getPublicById(id: number): Promise<TypedApiResponse<Pitch>> {
+    return apiClient.getValidated<Pitch>(`/api/pitches/public/${id}`, ValidatedSinglePitchResponse);
   },
 
-  async create(data: any) {
-    return apiClient.post('/api/pitches', data);
+  async create(data: CreatePitchInput): Promise<TypedApiResponse<Pitch>> {
+    const validation = CreatePitchInputSchema.safeParse(data);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: {
+          message: 'Invalid pitch data',
+          code: 'VALIDATION_ERROR',
+          details: validation.error.issues
+        }
+      };
+    }
+
+    return apiClient.post<Pitch>('/api/pitches', data);
   },
 
-  async update(id: number, data: any) {
-    return apiClient.put(`/api/pitches/${id}`, data);
+  async update(id: number, data: UpdatePitchInput): Promise<TypedApiResponse<Pitch>> {
+    const validation = UpdatePitchInputSchema.safeParse(data);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: {
+          message: 'Invalid pitch update data',
+          code: 'VALIDATION_ERROR',
+          details: validation.error.issues
+        }
+      };
+    }
+
+    return apiClient.put<Pitch>(`/api/pitches/${id}`, data);
   },
 
-  async delete(id: number) {
-    return apiClient.delete(`/api/pitches/${id}`);
+  async delete(id: number): Promise<TypedApiResponse<{ success: boolean }>> {
+    return apiClient.delete<{ success: boolean }>(`/api/pitches/${id}`);
   },
 
-  async recordView(pitchId: number) {
-    return apiClient.post(`/api/pitches/${pitchId}/view`);
+  async recordView(pitchId: number): Promise<TypedApiResponse<{ viewCount: number }>> {
+    return apiClient.post<{ viewCount: number }>(`/api/pitches/${pitchId}/view`);
+  },
+
+  async like(pitchId: number): Promise<TypedApiResponse<{ liked: boolean; likeCount: number }>> {
+    return apiClient.post<{ liked: boolean; likeCount: number }>(`/api/pitches/${pitchId}/like`);
+  },
+
+  async unlike(pitchId: number): Promise<TypedApiResponse<{ liked: boolean; likeCount: number }>> {
+    return apiClient.delete<{ liked: boolean; likeCount: number }>(`/api/pitches/${pitchId}/like`);
+  }
+};
+
+// Info Request API
+export const infoRequestAPI = {
+  async create(data: CreateInfoRequestInput): Promise<TypedApiResponse<InfoRequest>> {
+    return apiClient.post<InfoRequest>('/api/info-requests', data);
+  },
+
+  async getAll(): Promise<TypedApiResponse<{ incoming: InfoRequest[]; outgoing: InfoRequest[] }>> {
+    return apiClient.get<{ incoming: InfoRequest[]; outgoing: InfoRequest[] }>('/api/info-requests');
+  },
+
+  async respond(data: RespondToInfoRequestInput): Promise<TypedApiResponse<InfoRequest>> {
+    return apiClient.post<InfoRequest>(`/api/info-requests/${data.infoRequestId}/respond`, {
+      response: data.response
+    });
+  },
+
+  async close(infoRequestId: number): Promise<TypedApiResponse<InfoRequest>> {
+    return apiClient.patch<InfoRequest>(`/api/info-requests/${infoRequestId}`, {
+      status: 'closed'
+    });
+  }
+};
+
+// Dashboard API
+export const dashboardAPI = {
+  async getInvestorStats(): Promise<TypedApiResponse<InvestorDashboardStats>> {
+    return apiClient.get<InvestorDashboardStats>('/api/dashboard/investor');
+  },
+
+  async getCreatorStats(): Promise<TypedApiResponse<CreatorDashboardStats>> {
+    return apiClient.get<CreatorDashboardStats>('/api/dashboard/creator');
+  },
+
+  async getProductionStats(): Promise<TypedApiResponse<ProductionDashboardStats>> {
+    return apiClient.get<ProductionDashboardStats>('/api/dashboard/production');
   }
 };
 

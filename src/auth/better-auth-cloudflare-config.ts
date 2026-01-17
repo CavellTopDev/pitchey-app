@@ -68,15 +68,15 @@ export function createBetterAuth(env: CloudflareEnv) {
       }
     },
 
-    // Cookie configuration for cross-subdomain support
+    // Cookie configuration for cross-origin support
+    // SameSite=None is required for cross-origin cookies (frontend on pages.dev, API on workers.dev)
     cookies: {
       sessionToken: {
         name: 'pitchey-session',
         httpOnly: true,
-        secure: env.ENVIRONMENT === 'production',
-        sameSite: 'lax',
+        secure: true, // Required when SameSite=None
+        sameSite: 'none', // Required for cross-origin cookies
         maxAge: 60 * 60 * 24 * 30, // 30 days
-        domain: env.ENVIRONMENT === 'production' ? '.pages.dev' : undefined,
         path: '/',
       }
     },

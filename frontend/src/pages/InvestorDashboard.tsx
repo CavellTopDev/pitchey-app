@@ -83,10 +83,11 @@ interface NDARequest {
 
 function InvestorDashboard() {
   const navigate = useNavigate();
-  const { logout, user, isAuthenticated } = useBetterAuthStore();
+  const { logout, user, isAuthenticated, checkSession } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
-  
+  const [sessionChecked, setSessionChecked] = useState(false);
+
   // Data states
   const [portfolio, setPortfolio] = useState<PortfolioSummary>({
     totalInvested: 0,
@@ -100,9 +101,33 @@ function InvestorDashboard() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
 
+  // Check session on mount and redirect if not authenticated
   useEffect(() => {
+    const validateSession = async () => {
+      try {
+        await checkSession();
+        setSessionChecked(true);
+      } catch {
+        setSessionChecked(true);
+      }
+    };
+    validateSession();
+  }, [checkSession]);
+
+  // Redirect to login if not authenticated after session check
+  useEffect(() => {
+    if (sessionChecked && !isAuthenticated) {
+      navigate('/login/investor');
+    }
+  }, [sessionChecked, isAuthenticated, navigate]);
+
+  useEffect(() => {
+    // Only fetch data after session is verified
+    if (!sessionChecked || !isAuthenticated) {
+      return;
+    }
     fetchDashboardData();
-  }, []);
+  }, [sessionChecked, isAuthenticated]);
 
   const fetchDashboardData = async () => {
     try {

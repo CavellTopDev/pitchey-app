@@ -3,7 +3,7 @@
  * Uses raw SQL with Neon's serverless driver
  */
 
-import { createDatabase, RawSQLDatabase } from './raw-sql-connection.ts';
+import { createDatabase, RawSQLDatabase } from './raw-sql-connection';
 
 // Database performance monitoring (kept for compatibility)
 export interface QueryMetrics {

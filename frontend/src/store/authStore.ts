@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { authAPI } from '../lib/api';
+import { authAPI } from '../lib/api-client';
 import { config } from '../config';
-import type { User } from '../types';
+import type { User, RegisterData } from '../types/api';
 import { clearAuthenticationState, checkAuthPortalConsistency, getSafeUserData } from '../utils/auth';
 import { portalAuth, cleanupJWTArtifacts, getCurrentUser, type PortalType } from '../lib/better-auth-client';
 
@@ -14,12 +14,7 @@ interface AuthState {
   loginCreator: (email: string, password: string) => Promise<void>;
   loginInvestor: (email: string, password: string) => Promise<void>;
   loginProduction: (email: string, password: string) => Promise<void>;
-  register: (data: {
-    email: string;
-    username: string;
-    password: string;
-    userType: string;
-  }) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: (navigateToLogin?: boolean) => void;
   fetchProfile: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -35,11 +30,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const { user } = await authAPI.login(email, password);
-      set({ user, isAuthenticated: true, loading: false });
-    } catch (error: any) {
+      const response = await authAPI.login(email, password);
+      if (response.success && response.data?.user) {
+        const user = response.data.user;
+        set({ user, isAuthenticated: true, loading: false });
+      } else {
+        throw new Error(typeof response.error === 'string' ? response.error : response.error?.message || 'Login failed');
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
       set({ 
-        error: error.response?.data?.error || 'Login failed',
+        error: errorMessage,
         loading: false 
       });
       throw error;
@@ -62,9 +63,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       // Better Auth handles session via secure cookies - no localStorage needed!
       set({ user, isAuthenticated: true, loading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Creator login failed';
       set({ 
-        error: error.message || 'Login failed',
+        error: errorMessage,
         loading: false 
       });
       throw error;
@@ -87,9 +89,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       // Better Auth handles session via secure cookies - no localStorage needed!
       set({ user, isAuthenticated: true, loading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Investor login failed';
       set({ 
-        error: error.message || 'Login failed',
+        error: errorMessage,
         loading: false 
       });
       throw error;
@@ -112,28 +115,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       // Better Auth handles session via secure cookies - no localStorage needed!
       set({ user, isAuthenticated: true, loading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Production login failed';
       set({ 
-        error: error.message || 'Login failed',
+        error: errorMessage,
         loading: false 
       });
       throw error;
     }
   },
 
-  register: async (data) => {
+  register: async (data: RegisterData) => {
     set({ loading: true, error: null });
     try {
       const response = await authAPI.register(data);
-      const user = response.data?.user || response.user;
-      if (!user) {
-        throw new Error('User data not received from server');
+      if (response.success && response.data?.user) {
+        const user = response.data.user;
+        set({ user, isAuthenticated: true, loading: false });
+      } else {
+        throw new Error(typeof response.error === 'string' ? response.error : response.error?.message || 'Registration failed');
       }
-      // Better Auth handles session via secure cookies - no localStorage needed!
-      set({ user, isAuthenticated: true, loading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       set({ 
-        error: error.response?.data?.error || error.message || 'Registration failed',
+        error: errorMessage,
         loading: false 
       });
       throw error;
@@ -195,19 +200,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  updateProfile: async (data) => {
+  updateProfile: async (data: Partial<User>) => {
     set({ loading: true, error: null });
     try {
       const response = await authAPI.updateProfile(data);
-      const user = response.data?.user || response.user || response.data;
-      if (!user) {
-        throw new Error('Updated user data not received from server');
+      if (response.success && response.data) {
+        const user = response.data;
+        set({ user, loading: false });
+      } else {
+        throw new Error(typeof response.error === 'string' ? response.error : response.error?.message || 'Update failed');
       }
-      // Update user in state - Better Auth handles session cookies
-      set({ user, loading: false });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Update failed';
       set({ 
-        error: error.response?.data?.error || error.message || 'Update failed',
+        error: errorMessage,
         loading: false 
       });
       throw error;

@@ -1,9 +1,8 @@
-import { Env } from '../types';
+import type { Env } from '../worker-integrated';
 import postgres from 'postgres';
 import { z } from 'zod';
 import { getAuthUser } from '../utils/auth';
-import { corsHeaders } from '../utils/cors';
-import { sendNotification } from '../utils/notifications';
+import { corsHeaders } from '../utils/response';
 
 // Schema for follow/unfollow actions
 const FollowActionSchema = z.object({
@@ -32,11 +31,11 @@ export async function followActionHandler(request: Request, env: Env): Promise<R
       });
     }
     
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { userId, action } = FollowActionSchema.parse(body);
     
     // Can't follow yourself
-    if (userId === user.id) {
+    if (userId === String(user.id)) {
       return new Response(JSON.stringify({ error: 'Cannot follow yourself' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -69,19 +68,9 @@ export async function followActionHandler(request: Request, env: Env): Promise<R
         ON CONFLICT (follower_id, following_id) DO NOTHING
       `;
       
-      // Send notification to the followed user
-      await sendNotification(env, {
-        userId,
-        type: 'new_follower',
-        title: 'New Follower',
-        message: `${user.username} started following you`,
-        data: {
-          followerId: user.id,
-          followerUsername: user.username,
-          followerType: user.userType
-        }
-      });
-      
+      // TODO: Send notification to the followed user
+      // (sendNotification function has been removed from scope)
+
       // Get updated counts
       const [counts] = await sql`
         SELECT 
@@ -206,8 +195,8 @@ export async function getFollowListHandler(request: Request, env: Env): Promise<
     `;
     
     // Get mutual follows if viewing own list
-    let mutualFollows = [];
-    if (currentUser?.id === targetUserId) {
+    let mutualFollows: postgres.Row[] = [];
+    if (currentUser?.id && String(currentUser.id) === String(targetUserId)) {
       mutualFollows = await sql`
         SELECT 
           u.id,
@@ -405,7 +394,7 @@ export async function getFollowSuggestionsHandler(request: Request, env: Env): P
           COUNT(f.id) as follower_count
         FROM users u
         LEFT JOIN follows f ON f.following_id = u.id
-        WHERE u.user_type = ${user.userType}
+        WHERE u.user_type = ${user.userType || null}
         AND u.id != ${user.id}
         AND NOT EXISTS (
           SELECT 1 FROM follows 

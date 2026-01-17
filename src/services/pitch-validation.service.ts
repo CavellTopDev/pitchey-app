@@ -131,8 +131,9 @@ export class PitchValidationService {
       return validationScore;
 
     } catch (error) {
-      logger.error('Pitch validation failed', { error: error.message });
-      throw new Error(`Validation analysis failed: ${error.message}`);
+      const err = error as Error;
+      logger.error('Pitch validation failed', { error: err.message });
+      throw new Error(`Validation analysis failed: ${err.message}`);
     }
   }
 
@@ -437,9 +438,9 @@ export class PitchValidationService {
       sum + (factor.score * factor.weight / 100), 0
     );
 
-    const improvements = [];
-    const strengths = [];
-    const weaknesses = [];
+    const improvements: string[] = [];
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
 
     // Generate targeted feedback
     factors.forEach(factor => {
@@ -460,7 +461,7 @@ export class PitchValidationService {
         score: f.score,
         weight: f.weight,
         description: this.getFactorDescription('story', f.name),
-        impact: f.weight > 15 ? 'high' : f.weight > 10 ? 'medium' : 'low',
+        impact: f.weight > 15 ? 'high' : f.weight > 10 ? 'medium' : 'low' as 'high' | 'medium' | 'low',
         dataSource: 'AI Content Analysis'
       })),
       improvements,
@@ -491,9 +492,9 @@ export class PitchValidationService {
       sum + (factor.score * factor.weight / 100), 0
     );
 
-    const improvements = [];
-    const strengths = [];
-    const weaknesses = [];
+    const improvements: string[] = [];
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
 
     factors.forEach(factor => {
       if (factor.score < 60) {
@@ -538,9 +539,9 @@ export class PitchValidationService {
       sum + (factor.score * factor.weight / 100), 0
     );
 
-    const improvements = [];
-    const strengths = [];
-    const weaknesses = [];
+    const improvements: string[] = [];
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
 
     factors.forEach(factor => {
       if (factor.score < 60) {
@@ -591,9 +592,9 @@ export class PitchValidationService {
       sum + (factor.score * factor.weight / 100), 0
     );
 
-    const improvements = [];
-    const strengths = [];
-    const weaknesses = [];
+    const improvements: string[] = [];
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
 
     factors.forEach(factor => {
       if (factor.score < 60) {
@@ -645,9 +646,9 @@ export class PitchValidationService {
       sum + (factor.score * factor.weight / 100), 0
     );
 
-    const improvements = [];
-    const strengths = [];
-    const weaknesses = [];
+    const improvements: string[] = [];
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
 
     factors.forEach(factor => {
       if (factor.score < 60) {

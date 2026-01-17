@@ -12,13 +12,19 @@ import * as bcrypt from 'bcryptjs';
  * Change Password Handler
  * Requires current password verification before allowing password change
  */
+interface ChangePasswordBody {
+  currentPassword: string;
+  newPassword: string;
+  revokeOtherSessions?: boolean;
+}
+
 export async function changePasswordHandler(
   request: Request,
   env: any,
   ctx: ExecutionContext
 ): Promise<Response> {
   try {
-    const body = await request.json();
+    const body = await request.json() as ChangePasswordBody;
     const { currentPassword, newPassword, revokeOtherSessions } = body;
     
     // Validate input
@@ -64,14 +70,14 @@ export async function changePasswordHandler(
       [session.user.id]
     );
     
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return ApiResponseBuilder.error(
         ErrorCode.NOT_FOUND,
         'User not found'
       );
     }
-    
-    const user = userResult.rows[0];
+
+    const user = userResult[0];
     
     // Verify current password
     const isValidPassword = await bcrypt.compare(currentPassword, user.password);
@@ -139,13 +145,17 @@ export async function changePasswordHandler(
  * Request Password Reset Handler
  * Sends a password reset email to the user
  */
+interface PasswordResetRequestBody {
+  email: string;
+}
+
 export async function requestPasswordResetHandler(
   request: Request,
   env: any,
   ctx: ExecutionContext
 ): Promise<Response> {
   try {
-    const body = await request.json();
+    const body = await request.json() as PasswordResetRequestBody;
     const { email } = body;
     
     if (!email) {
@@ -164,13 +174,13 @@ export async function requestPasswordResetHandler(
     );
     
     // Always return success to prevent email enumeration
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return ApiResponseBuilder.success({
         message: 'If an account exists with this email, a password reset link has been sent'
       });
     }
-    
-    const user = userResult.rows[0];
+
+    const user = userResult[0];
     
     // Generate reset token
     const resetToken = crypto.randomUUID();
@@ -213,13 +223,18 @@ export async function requestPasswordResetHandler(
  * Reset Password Handler
  * Resets password using a valid reset token
  */
+interface ResetPasswordBody {
+  token: string;
+  newPassword: string;
+}
+
 export async function resetPasswordHandler(
   request: Request,
   env: any,
   ctx: ExecutionContext
 ): Promise<Response> {
   try {
-    const body = await request.json();
+    const body = await request.json() as ResetPasswordBody;
     const { token, newPassword } = body;
     
     if (!token || !newPassword) {
@@ -247,14 +262,14 @@ export async function resetPasswordHandler(
       [token]
     );
     
-    if (tokenResult.rows.length === 0) {
+    if (tokenResult.length === 0) {
       return ApiResponseBuilder.error(
         ErrorCode.UNAUTHORIZED,
         'Invalid or expired reset token'
       );
     }
-    
-    const { user_id } = tokenResult.rows[0];
+
+    const { user_id } = tokenResult[0];
     
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);

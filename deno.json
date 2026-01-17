@@ -1,75 +1,27 @@
 {
-  "imports": {
-    "@neondatabase/serverless": "npm:@neondatabase/serverless@0.10.3",
-    "drizzle-orm": "npm:drizzle-orm@0.35.3",
-    "@hono/hono": "npm:hono@4.6.15",
-    "hono": "npm:hono@4.6.15",
-    "bcrypt": "npm:bcrypt@5.1.1",
-    "@sentry/deno": "npm:@sentry/deno@8.55.0",
-    "zod": "npm:zod@3.22.4",
-    "stripe": "npm:stripe@17.5.0",
-    "sinon": "npm:sinon@19.0.2",
-    "@faker-js/faker": "npm:@faker-js/faker@8.4.1"
-  },
+  "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "lib": ["deno.window", "deno.ns"],
+    "strict": true
+  },
+  "tasks": {
+    "test": "deno test --allow-net --allow-env",
+    "test:api": "deno test tests/api/ --allow-net --allow-env",
+    "test:contract": "deno test tests/api/contract-bridge-test.ts --allow-net --allow-env",
+    "test:sentry": "deno test tests/api/sentry-integration-test.ts --allow-net --allow-env"
+  },
+  "imports": {
+    "std/": "https://deno.land/std@0.208.0/"
   },
   "lint": {
-    "exclude": [
-      "node_modules/",
-      "frontend/",
-      "dist/",
-      "build/",
-      ".wrangler/",
-      "scripts/",
-      "tests/",
-      "docs/",
-      "deprecated/",
-      "*.test.ts",
-      "*.spec.ts",
-      "*.test.js",
-      "*.spec.js",
-      "test-*.ts",
-      "test-*.sh",
-      "test-*.js",
-      "verify-*.ts",
-      "verify-*.js",
-      "force-*.ts",
-      "final-*.ts",
-      "debug-*.ts",
-      "debug-*.js",
-      "check-*.ts",
-      "setup-*.ts",
-      "seed-*.ts",
-      "deploy-*.ts",
-      "validate-*.js",
-      "validate-*.ts",
-      "migrate-*.ts",
-      "create-*.ts",
-      "fix-*.ts",
-      "sync-*.ts",
-      "init-*.ts",
-      "working-server.ts",
-      "src/worker-modules/admin-endpoints.ts"
-    ],
+    "include": ["tests/"],
     "rules": {
-      "exclude": [
-        "no-process-global",
-        "require-await",
-        "no-explicit-any",
-        "no-unused-vars"
-      ]
+      "tags": ["recommended"]
     }
   },
   "fmt": {
-    "exclude": [
-      "node_modules/",
-      "frontend/",
-      "dist/",
-      "build/",
-      ".wrangler/"
-    ]
-  },
-  "version": "0.0.0"
+    "include": ["tests/"],
+    "indentWidth": 2,
+    "semiColons": true
+  }
 }

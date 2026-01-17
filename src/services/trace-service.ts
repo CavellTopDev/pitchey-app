@@ -292,7 +292,8 @@ export class TraceService {
             entry.sessionId || ''
           ],
           doubles: [entry.timestamp],
-          indexes: [entry.action, entry.result, entry.resource]
+          // Analytics Engine supports only 1 index per data point
+          indexes: [`${entry.action}:${entry.result}`]
         });
       }
     } catch (error) {
@@ -398,12 +399,21 @@ export class TraceService {
 
   /**
    * Inject trace context into response headers
+   * IMPORTANT: WebSocket responses must be returned unchanged to preserve the webSocket property
    */
   injectTraceContext(response: Response, span: TraceSpan): Response {
+    // CRITICAL: WebSocket responses (status 101) must not be modified
+    // Creating a new Response strips the webSocket property which is required
+    // for Cloudflare Workers to handle WebSocket upgrades
+    if (response.status === 101 || (response as any).webSocket) {
+      console.log('[TraceService] Returning WebSocket response unchanged');
+      return response;
+    }
+
     const headers = new Headers(response.headers);
     headers.set('x-trace-id', span.traceId);
     headers.set('x-span-id', span.spanId);
-    
+
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,

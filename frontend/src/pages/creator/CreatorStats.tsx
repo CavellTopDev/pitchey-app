@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, Eye, Heart, MessageSquare, Users, 
   DollarSign, FileText, Award, Star, Clock,
@@ -28,62 +28,86 @@ export default function CreatorStats() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<QuickStat[]>([]);
 
-  useEffect(() => {
-    // Simulate loading stats
-    setTimeout(() => {
-      setStats([
-        {
-          label: 'Total Views',
-          value: '12,458',
-          change: 15.3,
-          trend: 'up',
-          icon: Eye,
-          color: 'blue'
-        },
-        {
-          label: 'Engagement Rate',
-          value: '8.7%',
-          change: 2.1,
-          trend: 'up',
-          icon: Heart,
-          color: 'red'
-        },
-        {
-          label: 'Active Pitches',
-          value: 7,
-          change: 0,
-          trend: 'stable',
-          icon: FileText,
-          color: 'purple'
-        },
-        {
-          label: 'Total Followers',
-          value: '1,234',
-          change: 5.8,
-          trend: 'up',
-          icon: Users,
-          color: 'green'
-        },
-        {
-          label: 'Investment Interest',
-          value: '$2.5M',
-          change: -3.2,
-          trend: 'down',
-          icon: DollarSign,
-          color: 'yellow'
-        },
-        {
-          label: 'Average Rating',
-          value: '4.6',
-          change: 0.3,
-          trend: 'up',
-          icon: Star,
-          color: 'orange'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
+  const loadStats = useCallback(async () => {
+    let cancelled = false;
+    
+    try {
+      setLoading(true);
+      
+      // Simulate loading stats - replace with actual API call
+      const timeoutId = setTimeout(() => {
+        if (cancelled) return;
+        
+        setStats([
+          {
+            label: 'Total Views',
+            value: '12,458',
+            change: 15.3,
+            trend: 'up',
+            icon: Eye,
+            color: 'blue'
+          },
+          {
+            label: 'Engagement Rate',
+            value: '8.7%',
+            change: 2.1,
+            trend: 'up',
+            icon: Heart,
+            color: 'red'
+          },
+          {
+            label: 'Active Pitches',
+            value: 7,
+            change: 0,
+            trend: 'stable',
+            icon: FileText,
+            color: 'purple'
+          },
+          {
+            label: 'Total Followers',
+            value: '1,234',
+            change: 5.8,
+            trend: 'up',
+            icon: Users,
+            color: 'green'
+          },
+          {
+            label: 'Investment Interest',
+            value: '$2.5M',
+            change: -3.2,
+            trend: 'down',
+            icon: DollarSign,
+            color: 'yellow'
+          },
+          {
+            label: 'Average Rating',
+            value: '4.6',
+            change: 0.3,
+            trend: 'up',
+            icon: Star,
+            color: 'orange'
+          }
+        ]);
+        setLoading(false);
+      }, 1000);
+      
+      // Cleanup function to cancel timeout
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
+    } catch (error) {
+      if (!cancelled) {
+        console.error('Failed to load stats:', error);
+        setLoading(false);
+      }
+    }
   }, [timeRange]);
+
+  useEffect(() => {
+    const cleanup = loadStats();
+    return cleanup;
+  }, [loadStats]);
 
   // Chart data
   const viewsChartData = [

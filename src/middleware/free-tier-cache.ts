@@ -92,7 +92,7 @@ export function withCache(
         const cacheData = {
           body,
           status: response.status,
-          headers: Object.fromEntries(response.headers.entries()),
+          headers: Object.fromEntries([...response.headers] as [string, string][]),
           timestamp: Date.now()
         };
         
@@ -230,7 +230,7 @@ export async function getCachedFragment(
   // Store in cache asynchronously
   kv.put(key, JSON.stringify(data), {
     expirationTtl: ttl
-  }).catch(err => console.error('Fragment cache write error:', err));
+  }).catch((err: Error) => console.error('Fragment cache write error:', err));
   
   return data;
 }

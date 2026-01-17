@@ -3,6 +3,8 @@
  * Manages durable state with SQLite persistence, versioning, and automatic recovery
  */
 
+import type { Env } from '../worker-integrated';
+
 export interface StateRecord {
   id: string;
   objectType: string;
@@ -199,9 +201,9 @@ export class StateManagerDO implements DurableObject {
       }
     } catch (error) {
       console.error('StateManagerDO error:', error);
-      return new Response(JSON.stringify({ 
-        error: error.message 
-      }), { 
+      return new Response(JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -212,7 +214,13 @@ export class StateManagerDO implements DurableObject {
    * Save state to SQLite with versioning
    */
   private async saveState(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as {
+      objectType?: string;
+      objectId?: string;
+      state?: any;
+      metadata?: Record<string, any>;
+      tags?: string[];
+    };
     const { objectType, objectId, state, metadata = {}, tags = [] } = data;
     
     if (!objectType || !objectId || !state) {
@@ -343,24 +351,26 @@ export class StateManagerDO implements DurableObject {
         return new Response('State not found', { status: 404 });
       }
 
+      const r = result as Record<string, any>;
+
       // Decompress state if needed
-      let state = result.state;
+      let state = r.state;
       if (this.config.compressionEnabled && typeof state === 'string') {
         state = await this.decompressData(state);
       }
-      
+
       const stateRecord: StateRecord = {
-        id: result.id,
-        objectType: result.object_type,
-        objectId: result.object_id,
-        version: result.version,
-        state: JSON.parse(state),
-        checksum: result.checksum,
-        createdAt: new Date(result.created_at),
-        updatedAt: new Date(result.updated_at),
+        id: String(r.id || ''),
+        objectType: String(r.object_type || ''),
+        objectId: String(r.object_id || ''),
+        version: Number(r.version || 0),
+        state: JSON.parse(String(state || '{}')),
+        checksum: String(r.checksum || ''),
+        createdAt: new Date(String(r.created_at || new Date().toISOString())),
+        updatedAt: new Date(String(r.updated_at || new Date().toISOString())),
         lastAccess: new Date(),
-        size: result.size,
-        metadata: JSON.parse(result.metadata || '{}')
+        size: Number(r.size || 0),
+        metadata: JSON.parse(String(r.metadata || '{}'))
       };
 
       // Update cache and last access
@@ -383,8 +393,8 @@ export class StateManagerDO implements DurableObject {
    */
   private async updateState(stateId: string, request: Request): Promise<Response> {
     const [objectType, objectId] = stateId.split(':');
-    const data = await request.json();
-    
+    const data = await request.json() as { state?: any; metadata?: any; tags?: string[] };
+
     if (!objectType || !objectId) {
       return new Response('Invalid state ID format', { status: 400 });
     }
@@ -505,18 +515,18 @@ export class StateManagerDO implements DurableObject {
 
     try {
       const results = await this.sql!.prepare(sql).bind(...params).all();
-      
-      const states = results.results.map(row => ({
+
+      const states = results.results.map((row: any) => ({
         id: row.id,
         objectType: row.object_type,
         objectId: row.object_id,
         version: row.version,
         checksum: row.checksum,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-        lastAccess: new Date(row.last_access),
+        createdAt: new Date(String(row.created_at)),
+        updatedAt: new Date(String(row.updated_at)),
+        lastAccess: new Date(String(row.last_access)),
         size: row.size,
-        metadata: JSON.parse(row.metadata || '{}')
+        metadata: JSON.parse(String(row.metadata || '{}'))
       }));
 
       return Response.json({
@@ -753,23 +763,24 @@ export class StateManagerDO implements DurableObject {
       
       if (!result) return null;
 
-      let state = result.state;
+      const r = result as Record<string, any>;
+      let state = r.state;
       if (this.config.compressionEnabled && typeof state === 'string') {
         state = await this.decompressData(state);
       }
 
       return {
-        id: result.id,
-        objectType: result.object_type,
-        objectId: result.object_id,
-        version: result.version,
-        state: JSON.parse(state),
-        checksum: result.checksum,
-        createdAt: new Date(result.created_at),
-        updatedAt: new Date(result.updated_at),
-        lastAccess: new Date(result.last_access),
-        size: result.size,
-        metadata: JSON.parse(result.metadata || '{}')
+        id: String(r.id || ''),
+        objectType: String(r.object_type || ''),
+        objectId: String(r.object_id || ''),
+        version: Number(r.version || 0),
+        state: JSON.parse(String(state || '{}')),
+        checksum: String(r.checksum || ''),
+        createdAt: new Date(String(r.created_at || new Date().toISOString())),
+        updatedAt: new Date(String(r.updated_at || new Date().toISOString())),
+        lastAccess: new Date(String(r.last_access || new Date().toISOString())),
+        size: Number(r.size || 0),
+        metadata: JSON.parse(String(r.metadata || '{}'))
       };
 
     } catch (error) {
@@ -945,12 +956,13 @@ export class StateManagerDO implements DurableObject {
       `).all();
 
       for (const obj of recentObjects.results) {
-        const stateRecord = await this.getStateRecord(obj.object_type, obj.object_id, obj.latest_version);
+        const o = obj as Record<string, any>;
+        const stateRecord = await this.getStateRecord(String(o.object_type), String(o.object_id), Number(o.latest_version));
         if (stateRecord) {
           await this.createSnapshotWithTags(
-            obj.object_type,
-            obj.object_id,
-            obj.latest_version,
+            String(o.object_type),
+            String(o.object_id),
+            Number(o.latest_version),
             JSON.stringify(stateRecord.state),
             ['automatic']
           );
@@ -981,8 +993,9 @@ export class StateManagerDO implements DurableObject {
         FROM state_records
       `).first();
 
-      backup.objects = stats?.objects || 0;
-      backup.size = stats?.total_size || 0;
+      const s = stats as Record<string, any> | null;
+      backup.objects = Number(s?.objects || 0);
+      backup.size = Number(s?.total_size || 0);
       backup.checksum = await this.calculateChecksum(backup.location + backup.timestamp.toISOString());
 
       // Save backup record
@@ -1018,13 +1031,13 @@ export class StateManagerDO implements DurableObject {
 
       return Response.json({
         success: true,
-        snapshots: snapshots.results.map(row => ({
+        snapshots: snapshots.results.map((row: any) => ({
           id: row.id,
           version: row.version,
-          timestamp: new Date(row.timestamp),
+          timestamp: new Date(String(row.timestamp)),
           checksum: row.checksum,
           size: row.size,
-          tags: JSON.parse(row.tags || '[]'),
+          tags: JSON.parse(String(row.tags || '[]')),
           description: row.description
         }))
       });
@@ -1037,11 +1050,12 @@ export class StateManagerDO implements DurableObject {
 
   private async restoreFromSnapshot(stateId: string, request: Request): Promise<Response> {
     const [objectType, objectId] = stateId.split(':');
-    const { snapshotId } = await request.json();
+    const data = await request.json() as { snapshotId?: string };
+    const snapshotId = data.snapshotId;
 
     try {
       const snapshot = await this.sql!.prepare(`
-        SELECT * FROM state_snapshots 
+        SELECT * FROM state_snapshots
         WHERE id = ? AND object_type = ? AND object_id = ?
       `).bind(snapshotId, objectType, objectId).first();
 
@@ -1050,7 +1064,8 @@ export class StateManagerDO implements DurableObject {
       }
 
       // Restore state from snapshot
-      const state = JSON.parse(snapshot.state);
+      const snap = snapshot as Record<string, any>;
+      const state = JSON.parse(String(snap.state || '{}'));
       
       return this.saveState(new Request('', {
         method: 'POST',
@@ -1100,18 +1115,23 @@ export class StateManagerDO implements DurableObject {
         SELECT COUNT(*) as migrations_count FROM state_migrations
       `).first();
 
+      const st = stats as Record<string, any> | null;
+      const vs = versionStats as Record<string, any> | null;
+      const ss = snapshotStats as Record<string, any> | null;
+      const ms = migrationStats as Record<string, any> | null;
+
       const statistics: StateStatistics = {
-        totalObjects: stats?.total_objects || 0,
-        totalSize: stats?.total_size || 0,
-        avgObjectSize: stats?.avg_size || 0,
-        oldestObject: stats?.oldest_object ? new Date(stats.oldest_object) : new Date(),
-        newestObject: stats?.newest_object ? new Date(stats.newest_object) : new Date(),
+        totalObjects: Number(st?.total_objects || 0),
+        totalSize: Number(st?.total_size || 0),
+        avgObjectSize: Number(st?.avg_size || 0),
+        oldestObject: st?.oldest_object ? new Date(String(st.oldest_object)) : new Date(),
+        newestObject: st?.newest_object ? new Date(String(st.newest_object)) : new Date(),
         objectsByType: Object.fromEntries(
-          typeStats.results.map(row => [row.object_type, row.count])
+          typeStats.results.map((row: any) => [row.object_type, row.count])
         ),
-        versionsCount: versionStats?.versions_count || 0,
-        snapshotsCount: snapshotStats?.snapshots_count || 0,
-        migrationsCount: migrationStats?.migrations_count || 0
+        versionsCount: Number(vs?.versions_count || 0),
+        snapshotsCount: Number(ss?.snapshots_count || 0),
+        migrationsCount: Number(ms?.migrations_count || 0)
       };
 
       return Response.json({
@@ -1125,7 +1145,7 @@ export class StateManagerDO implements DurableObject {
     }
   }
 
-  private async getHealth(): Response {
+  private async getHealth(): Promise<Response> {
     const health = {
       status: 'healthy',
       database: this.initialized,
@@ -1169,9 +1189,10 @@ export class StateManagerDO implements DurableObject {
       `).all();
 
       for (const record of records.results) {
-        const calculatedChecksum = await this.calculateChecksum(record.state);
-        if (calculatedChecksum !== record.checksum) {
-          issues.push(`Checksum mismatch for ${record.object_type}:${record.object_id}:${record.version}`);
+        const rec = record as Record<string, any>;
+        const calculatedChecksum = await this.calculateChecksum(String(rec.state || ''));
+        if (calculatedChecksum !== rec.checksum) {
+          issues.push(`Checksum mismatch for ${rec.object_type}:${rec.object_id}:${rec.version}`);
         }
       }
 
@@ -1211,8 +1232,8 @@ export class StateManagerDO implements DurableObject {
 
   // Placeholder implementations for remaining endpoints
   private async applyMigration(request: Request): Promise<Response> {
-    const migration = await request.json();
-    
+    const migration = await request.json() as { id?: string };
+
     // Apply migration logic
     return Response.json({
       success: true,
@@ -1233,7 +1254,8 @@ export class StateManagerDO implements DurableObject {
   }
 
   private async createBackup(request: Request): Promise<Response> {
-    const { type = 'full' } = await request.json();
+    const data = await request.json() as { type?: string };
+    const type = data.type || 'full';
     
     await this.performAutoBackup();
 

@@ -2,13 +2,12 @@
  * Comprehensive Multi-Channel Notification Service
  * Enterprise-grade notification system with intelligent routing, analytics, and delivery tracking
  * Supports email, push, SMS, in-app notifications with preference management
+ * Refactored to use raw SQL via WorkerDatabase
  */
 
-import type { DatabaseService } from '../types/worker-types.ts';
-import { createEmailService, type EmailService } from './email.service.ts';
-import type { MessagingService } from './messaging.service.ts';
-// Temporarily comment out drizzle imports for Worker compatibility
-// import { eq, and, or, desc, asc, like, isNull, isNotNull, sql, inArray, gte, lte } from 'drizzle-orm';
+import { WorkerDatabase, type DatabaseRow } from './worker-database';
+import { createEmailService, type EmailService } from './email.service';
+import type { MessagingService } from './messaging.service';
 
 // Redis integration for queuing and caching
 interface RedisService {
@@ -31,7 +30,7 @@ export interface NotificationInput {
   title: string;
   message: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
-  
+
   // Optional metadata
   relatedPitchId?: number;
   relatedUserId?: number;
@@ -40,8 +39,8 @@ export interface NotificationInput {
   relatedMessageId?: number;
   actionUrl?: string;
   expiresAt?: Date;
-  metadata?: Record<string, any>;
-  
+  metadata?: Record<string, unknown>;
+
   // Channel preferences - if not specified, uses user preferences
   channels?: {
     email?: boolean;
@@ -49,17 +48,25 @@ export interface NotificationInput {
     push?: boolean;
     sms?: boolean;
   };
-  
+
   // Email specific options
   emailOptions?: {
     templateType?: string;
-    variables?: Record<string, any>;
+    variables?: Record<string, unknown>;
     attachments?: Array<{
       filename: string;
       content: string | Buffer;
       type?: string;
     }>;
   };
+}
+
+// Exported for other services
+export interface NotificationData extends NotificationInput {
+  id?: number;
+  createdAt?: Date;
+  // Category for grouping/batching purposes
+  category?: 'investment' | 'project' | 'system' | 'analytics' | 'market';
 }
 
 export interface NotificationPreferences {
@@ -73,14 +80,14 @@ export interface NotificationPreferences {
   quietHoursStart?: string; // HH:mm format
   quietHoursEnd?: string;   // HH:mm format
   timezone?: string;
-  
+
   // Category-specific preferences
   ndaNotifications: boolean;
   investmentNotifications: boolean;
   messageNotifications: boolean;
   pitchUpdateNotifications: boolean;
   systemNotifications: boolean;
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -136,7 +143,92 @@ export interface NotificationMetrics {
   }>;
 }
 
+// Database row types with index signatures for raw SQL compatibility
+interface NotificationRow {
+  [key: string]: unknown;
+  id: number;
+  user_id: number;
+  type: string;
+  title: string;
+  message: string;
+  priority: string;
+  related_pitch_id: number | null;
+  related_user_id: number | null;
+  related_nda_request_id: number | null;
+  related_investment_id: number | null;
+  related_message_id: number | null;
+  action_url: string | null;
+  expires_at: Date | null;
+  metadata: string | null;
+  is_read: boolean;
+  read_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface PreferencesRow {
+  [key: string]: unknown;
+  id: number;
+  user_id: number;
+  email_notifications: boolean;
+  push_notifications: boolean;
+  sms_notifications: boolean;
+  marketing_emails: boolean;
+  digest_frequency: string;
+  quiet_hours_enabled: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  timezone: string | null;
+  nda_notifications: boolean;
+  investment_notifications: boolean;
+  message_notifications: boolean;
+  pitch_update_notifications: boolean;
+  system_notifications: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface DeliveryRow {
+  [key: string]: unknown;
+  id: number;
+  notification_id: number;
+  channel: string;
+  status: string;
+  provider_id: string | null;
+  attempts: number;
+  error_message: string | null;
+  sent_at: Date | null;
+  delivered_at: Date | null;
+  read_at: Date | null;
+  clicked_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface UserRow {
+  [key: string]: unknown;
+  id: number;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+interface CountRow {
+  [key: string]: unknown;
+  count: string | number;
+}
+
+interface MetricsRow {
+  [key: string]: unknown;
+  total_sent: string | number;
+  total_delivered: string | number;
+  total_read: string | number;
+  total_clicked: string | number;
+  total_failed: string | number;
+}
+
 export class NotificationService {
+  private db: WorkerDatabase;
   private redis: RedisService;
   private email: EmailService;
   private messaging: MessagingService;
@@ -145,11 +237,12 @@ export class NotificationService {
   private isProcessing: boolean = false;
 
   constructor(
-    private db: DatabaseService,
+    connectionString: string,
     redis: RedisService,
     email: EmailService,
     messaging: MessagingService
   ) {
+    this.db = new WorkerDatabase({ connectionString });
     this.redis = redis;
     this.email = email;
     this.messaging = messaging;
@@ -169,35 +262,42 @@ export class NotificationService {
   }> {
     try {
       // Create notification record
-      const [notification] = await this.db
-        .insert('notifications')
-        .values({
-          userId: input.userId,
-          type: input.type,
-          title: input.title,
-          message: input.message,
-          priority: input.priority,
-          relatedPitchId: input.relatedPitchId,
-          relatedUserId: input.relatedUserId,
-          relatedNdaRequestId: input.relatedNdaRequestId,
-          relatedInvestmentId: input.relatedInvestmentId,
-          relatedMessageId: input.relatedMessageId,
-          actionUrl: input.actionUrl,
-          expiresAt: input.expiresAt,
-          metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-          isRead: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning()
-        .execute();
+      const notifications = await this.db.query<NotificationRow>(
+        `INSERT INTO notifications (
+          user_id, type, title, message, priority,
+          related_pitch_id, related_user_id, related_nda_request_id,
+          related_investment_id, related_message_id,
+          action_url, expires_at, metadata, is_read, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING *`,
+        [
+          input.userId,
+          input.type,
+          input.title,
+          input.message,
+          input.priority,
+          input.relatedPitchId ?? null,
+          input.relatedUserId ?? null,
+          input.relatedNdaRequestId ?? null,
+          input.relatedInvestmentId ?? null,
+          input.relatedMessageId ?? null,
+          input.actionUrl ?? null,
+          input.expiresAt ?? null,
+          input.metadata ? JSON.stringify(input.metadata) : null,
+          false,
+          new Date(),
+          new Date()
+        ]
+      );
+
+      const notification = notifications[0];
 
       // Get user preferences
       const preferences = await this.getUserPreferences(input.userId);
-      
+
       // Determine which channels to use
       const channelsToUse = await this.determineChannels(input, preferences);
-      
+
       const results: Array<{ channel: string; status: string; messageId?: string }> = [];
 
       // Send in-app notification immediately
@@ -243,7 +343,7 @@ export class NotificationService {
     const batchSize = 20;
     for (let i = 0; i < notifications.length; i += batchSize) {
       const batch = notifications.slice(i, i + batchSize);
-      
+
       await Promise.allSettled(
         batch.map(async (notificationInput) => {
           try {
@@ -251,10 +351,10 @@ export class NotificationService {
             results.push({ input: notificationInput, success: true });
             successful++;
           } catch (error) {
-            results.push({ 
-              input: notificationInput, 
-              success: false, 
-              error: error instanceof Error ? error.message : 'Unknown error' 
+            results.push({
+              input: notificationInput,
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error'
             });
             failed++;
           }
@@ -276,31 +376,31 @@ export class NotificationService {
   async sendReminder(originalNotificationId: number, reminderText: string): Promise<void> {
     try {
       // Get original notification
-      const [original] = await this.db
-        .select()
-        .from('notifications')
-        .where(eq('id', originalNotificationId))
-        .execute();
+      const notifications = await this.db.query<NotificationRow>(
+        'SELECT * FROM notifications WHERE id = $1',
+        [originalNotificationId]
+      );
 
+      const original = notifications[0];
       if (!original) {
         throw new Error('Original notification not found');
       }
 
       // Send reminder notification
       await this.sendNotification({
-        userId: original.userId,
-        type: original.type as any,
+        userId: original.user_id,
+        type: original.type as NotificationInput['type'],
         title: `Reminder: ${original.title}`,
         message: reminderText,
         priority: 'normal',
-        relatedPitchId: original.relatedPitchId,
-        relatedUserId: original.relatedUserId,
-        relatedNdaRequestId: original.relatedNdaRequestId,
-        actionUrl: original.actionUrl,
-        metadata: { 
-          ...original.metadata, 
-          isReminder: true, 
-          originalNotificationId: originalNotificationId 
+        relatedPitchId: original.related_pitch_id ?? undefined,
+        relatedUserId: original.related_user_id ?? undefined,
+        relatedNdaRequestId: original.related_nda_request_id ?? undefined,
+        actionUrl: original.action_url ?? undefined,
+        metadata: {
+          ...(original.metadata ? JSON.parse(original.metadata) : {}),
+          isReminder: true,
+          originalNotificationId: originalNotificationId
         }
       });
     } catch (error) {
@@ -318,41 +418,43 @@ export class NotificationService {
    */
   async getUserPreferences(userId: number): Promise<NotificationPreferences> {
     try {
-      const [preferences] = await this.db
-        .select()
-        .from('notification_preferences')
-        .where(eq('user_id', userId))
-        .execute();
+      const preferences = await this.db.query<PreferencesRow>(
+        'SELECT * FROM notification_preferences WHERE user_id = $1',
+        [userId]
+      );
 
-      if (!preferences) {
+      if (!preferences[0]) {
         // Create default preferences
-        const defaultPrefs: Partial<NotificationPreferences> = {
-          userId,
-          emailNotifications: true,
-          pushNotifications: true,
-          smsNotifications: false,
-          marketingEmails: false,
-          digestFrequency: 'instant',
-          quietHoursEnabled: false,
-          ndaNotifications: true,
-          investmentNotifications: true,
-          messageNotifications: true,
-          pitchUpdateNotifications: true,
-          systemNotifications: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+        const defaultPrefs = await this.db.query<PreferencesRow>(
+          `INSERT INTO notification_preferences (
+            user_id, email_notifications, push_notifications, sms_notifications,
+            marketing_emails, digest_frequency, quiet_hours_enabled,
+            nda_notifications, investment_notifications, message_notifications,
+            pitch_update_notifications, system_notifications, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          RETURNING *`,
+          [
+            userId,
+            true,  // emailNotifications
+            true,  // pushNotifications
+            false, // smsNotifications
+            false, // marketingEmails
+            'instant', // digestFrequency
+            false, // quietHoursEnabled
+            true,  // ndaNotifications
+            true,  // investmentNotifications
+            true,  // messageNotifications
+            true,  // pitchUpdateNotifications
+            true,  // systemNotifications
+            new Date(),
+            new Date()
+          ]
+        );
 
-        const [created] = await this.db
-          .insert('notification_preferences')
-          .values(defaultPrefs)
-          .returning()
-          .execute();
-
-        return created as NotificationPreferences;
+        return this.convertPreferencesRow(defaultPrefs[0]);
       }
 
-      return preferences as NotificationPreferences;
+      return this.convertPreferencesRow(preferences[0]);
     } catch (error) {
       console.error('Error fetching user preferences:', error);
       throw error;
@@ -360,28 +462,116 @@ export class NotificationService {
   }
 
   /**
+   * Convert DB row to NotificationPreferences
+   */
+  private convertPreferencesRow(row: PreferencesRow): NotificationPreferences {
+    return {
+      userId: row.user_id,
+      emailNotifications: row.email_notifications,
+      pushNotifications: row.push_notifications,
+      smsNotifications: row.sms_notifications,
+      marketingEmails: row.marketing_emails,
+      digestFrequency: row.digest_frequency as NotificationPreferences['digestFrequency'],
+      quietHoursEnabled: row.quiet_hours_enabled,
+      quietHoursStart: row.quiet_hours_start ?? undefined,
+      quietHoursEnd: row.quiet_hours_end ?? undefined,
+      timezone: row.timezone ?? undefined,
+      ndaNotifications: row.nda_notifications,
+      investmentNotifications: row.investment_notifications,
+      messageNotifications: row.message_notifications,
+      pitchUpdateNotifications: row.pitch_update_notifications,
+      systemNotifications: row.system_notifications,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  /**
    * Update user notification preferences
    */
   async updateUserPreferences(userId: number, updates: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
     try {
-      const [updated] = await this.db
-        .update('notification_preferences')
-        .set({
-          ...updates,
-          updatedAt: new Date()
-        })
-        .where(eq('user_id', userId))
-        .returning()
-        .execute();
+      // Build SET clause dynamically
+      const setClauses: string[] = [];
+      const values: (string | number | boolean | Date | null)[] = [];
+      let paramIndex = 1;
 
-      if (!updated) {
+      if (updates.emailNotifications !== undefined) {
+        setClauses.push(`email_notifications = $${paramIndex++}`);
+        values.push(updates.emailNotifications);
+      }
+      if (updates.pushNotifications !== undefined) {
+        setClauses.push(`push_notifications = $${paramIndex++}`);
+        values.push(updates.pushNotifications);
+      }
+      if (updates.smsNotifications !== undefined) {
+        setClauses.push(`sms_notifications = $${paramIndex++}`);
+        values.push(updates.smsNotifications);
+      }
+      if (updates.marketingEmails !== undefined) {
+        setClauses.push(`marketing_emails = $${paramIndex++}`);
+        values.push(updates.marketingEmails);
+      }
+      if (updates.digestFrequency !== undefined) {
+        setClauses.push(`digest_frequency = $${paramIndex++}`);
+        values.push(updates.digestFrequency);
+      }
+      if (updates.quietHoursEnabled !== undefined) {
+        setClauses.push(`quiet_hours_enabled = $${paramIndex++}`);
+        values.push(updates.quietHoursEnabled);
+      }
+      if (updates.quietHoursStart !== undefined) {
+        setClauses.push(`quiet_hours_start = $${paramIndex++}`);
+        values.push(updates.quietHoursStart);
+      }
+      if (updates.quietHoursEnd !== undefined) {
+        setClauses.push(`quiet_hours_end = $${paramIndex++}`);
+        values.push(updates.quietHoursEnd);
+      }
+      if (updates.timezone !== undefined) {
+        setClauses.push(`timezone = $${paramIndex++}`);
+        values.push(updates.timezone);
+      }
+      if (updates.ndaNotifications !== undefined) {
+        setClauses.push(`nda_notifications = $${paramIndex++}`);
+        values.push(updates.ndaNotifications);
+      }
+      if (updates.investmentNotifications !== undefined) {
+        setClauses.push(`investment_notifications = $${paramIndex++}`);
+        values.push(updates.investmentNotifications);
+      }
+      if (updates.messageNotifications !== undefined) {
+        setClauses.push(`message_notifications = $${paramIndex++}`);
+        values.push(updates.messageNotifications);
+      }
+      if (updates.pitchUpdateNotifications !== undefined) {
+        setClauses.push(`pitch_update_notifications = $${paramIndex++}`);
+        values.push(updates.pitchUpdateNotifications);
+      }
+      if (updates.systemNotifications !== undefined) {
+        setClauses.push(`system_notifications = $${paramIndex++}`);
+        values.push(updates.systemNotifications);
+      }
+
+      setClauses.push(`updated_at = $${paramIndex++}`);
+      values.push(new Date());
+
+      // Add userId for WHERE clause
+      values.push(userId);
+
+      const updated = await this.db.query<PreferencesRow>(
+        `UPDATE notification_preferences SET ${setClauses.join(', ')} WHERE user_id = $${paramIndex} RETURNING *`,
+        values
+      );
+
+      if (!updated[0]) {
         throw new Error('Failed to update preferences');
       }
 
       // Clear cached preferences
       await this.redis.del(`user_preferences:${userId}`);
 
-      return updated as NotificationPreferences;
+      return this.convertPreferencesRow(updated[0]);
     } catch (error) {
       console.error('Error updating user preferences:', error);
       throw error;
@@ -419,7 +609,7 @@ export class NotificationService {
       await this.redis.rpush(queueKey, JSON.stringify(queueItem));
 
       // Track queue size metrics
-      await this.redis.hset('notification_metrics', `queue_size_${channel}`, 
+      await this.redis.hset('notification_metrics', `queue_size_${channel}`,
         (await this.redis.llen(queueKey)).toString()
       );
     } catch (error) {
@@ -444,7 +634,7 @@ export class NotificationService {
    */
   private async processQueues(): Promise<void> {
     if (this.isProcessing) return;
-    
+
     this.isProcessing = true;
 
     try {
@@ -468,16 +658,16 @@ export class NotificationService {
    */
   private async processQueue(channel: 'email' | 'push' | 'sms', priority: string): Promise<void> {
     const queueKey = `notification_queue:${priority}:${channel}`;
-    
+
     for (let i = 0; i < this.batchSize; i++) {
       const itemJson = await this.redis.lpop(queueKey);
       if (!itemJson) break;
 
       try {
         const item: NotificationQueueItem = JSON.parse(itemJson);
-        
+
         // Check if scheduled time has passed
-        if (item.scheduledAt > new Date()) {
+        if (new Date(item.scheduledAt) > new Date()) {
           // Put back in queue for later processing
           await this.redis.rpush(queueKey, itemJson);
           continue;
@@ -500,18 +690,22 @@ export class NotificationService {
       let providerId = '';
 
       // Create delivery record
-      const [delivery] = await this.db
-        .insert('notification_deliveries')
-        .values({
-          notificationId: item.notificationId,
-          channel: item.channel,
-          status: 'sending',
-          attempts: item.attempts + 1,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .returning()
-        .execute();
+      const deliveries = await this.db.query<DeliveryRow>(
+        `INSERT INTO notification_deliveries (
+          notification_id, channel, status, attempts, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *`,
+        [
+          item.notificationId,
+          item.channel,
+          'sending',
+          item.attempts + 1,
+          new Date(),
+          new Date()
+        ]
+      );
+
+      const delivery = deliveries[0];
 
       try {
         switch (item.channel) {
@@ -532,32 +726,29 @@ export class NotificationService {
         }
 
         // Update delivery record
-        await this.db
-          .update('notification_deliveries')
-          .set({
-            status: success ? 'sent' : 'failed',
-            providerId: providerId || null,
-            errorMessage: success ? null : errorMessage,
-            sentAt: success ? new Date() : null,
-            updatedAt: new Date()
-          })
-          .where(eq('id', delivery.id))
-          .execute();
+        await this.db.query(
+          `UPDATE notification_deliveries SET
+            status = $1, provider_id = $2, error_message = $3, sent_at = $4, updated_at = $5
+          WHERE id = $6`,
+          [
+            success ? 'sent' : 'failed',
+            providerId || null,
+            success ? null : errorMessage,
+            success ? new Date() : null,
+            new Date(),
+            delivery.id
+          ]
+        );
 
       } catch (sendError) {
         success = false;
         errorMessage = sendError instanceof Error ? sendError.message : 'Unknown error';
-        
+
         // Update delivery record with error
-        await this.db
-          .update('notification_deliveries')
-          .set({
-            status: 'failed',
-            errorMessage,
-            updatedAt: new Date()
-          })
-          .where(eq('id', delivery.id))
-          .execute();
+        await this.db.query(
+          `UPDATE notification_deliveries SET status = $1, error_message = $2, updated_at = $3 WHERE id = $4`,
+          ['failed', errorMessage, new Date(), delivery.id]
+        );
       }
 
       // Handle retry logic
@@ -586,45 +777,43 @@ export class NotificationService {
   /**
    * Send email notification
    */
-  private async sendEmailNotification(data: NotificationInput, deliveryId: number): Promise<{
+  private async sendEmailNotification(data: NotificationInput, _deliveryId: number): Promise<{
     success: boolean;
     messageId?: string;
     error?: string;
   }> {
     try {
       // Get user email
-      const [user] = await this.db
-        .select({ email: 'email', firstName: 'first_name', lastName: 'last_name' })
-        .from('users')
-        .where(eq('id', data.userId))
-        .execute();
+      const users = await this.db.query<UserRow>(
+        'SELECT id, email, first_name, last_name FROM users WHERE id = $1',
+        [data.userId]
+      );
 
+      const user = users[0];
       if (!user?.email) {
         return { success: false, error: 'User email not found' };
       }
 
-      // Prepare email data
-      const emailData = {
+      // Prepare email data - cast to any to handle template type compatibility
+      const emailData: Parameters<EmailService['sendEmail']>[0] = {
         to: user.email,
         subject: data.title,
         html: data.message,
-        templateType: data.emailOptions?.templateType || data.type,
         variables: {
-          recipientName: user.firstName || 'User',
+          recipientName: user.first_name || 'User',
           title: data.title,
           message: data.message,
-          actionUrl: data.actionUrl,
-          ...data.emailOptions?.variables
-        },
-        attachments: data.emailOptions?.attachments
+          actionUrl: data.actionUrl || '',
+          ...(data.emailOptions?.variables || {})
+        }
       };
 
       const result = await this.email.sendEmail(emailData);
-      
+
       return {
         success: result.success,
-        messageId: result.messageId,
-        error: result.error
+        messageId: result.messageId ?? undefined,
+        error: result.error ?? undefined
       };
     } catch (error) {
       return {
@@ -637,7 +826,7 @@ export class NotificationService {
   /**
    * Send push notification (placeholder)
    */
-  private async sendPushNotification(data: NotificationInput, deliveryId: number): Promise<boolean> {
+  private async sendPushNotification(data: NotificationInput, _deliveryId: number): Promise<boolean> {
     try {
       // Implement push notification logic here
       // This would integrate with Firebase, APNs, or other push services
@@ -652,7 +841,7 @@ export class NotificationService {
   /**
    * Send SMS notification (placeholder)
    */
-  private async sendSMSNotification(data: NotificationInput, deliveryId: number): Promise<boolean> {
+  private async sendSMSNotification(data: NotificationInput, _deliveryId: number): Promise<boolean> {
     try {
       // Implement SMS logic here
       // This would integrate with Twilio, AWS SNS, or other SMS services
@@ -667,24 +856,23 @@ export class NotificationService {
   /**
    * Send in-app notification via WebSocket
    */
-  private async sendInAppNotification(notification: any, data: NotificationInput): Promise<void> {
+  private async sendInAppNotification(notification: NotificationRow, data: NotificationInput): Promise<void> {
     try {
-      // Send via messaging service WebSocket
-      await this.messaging.broadcastUserBlocked({
-        type: 'notification',
-        data: {
-          id: notification.id,
-          type: data.type,
-          title: data.title,
-          message: data.message,
-          priority: data.priority,
-          actionUrl: data.actionUrl,
-          timestamp: notification.createdAt
-        },
-        conversationId: 0,
-        userId: data.userId,
-        timestamp: new Date().toISOString()
-      });
+      // Send via messaging service WebSocket if broadcastToUser method exists
+      if ('broadcastToUser' in this.messaging && typeof (this.messaging as any).broadcastToUser === 'function') {
+        await (this.messaging as any).broadcastToUser(data.userId, {
+          type: 'notification',
+          data: {
+            id: notification.id,
+            type: data.type,
+            title: data.title,
+            message: data.message,
+            priority: data.priority,
+            actionUrl: data.actionUrl,
+            timestamp: notification.created_at
+          }
+        });
+      }
     } catch (error) {
       console.error('Error sending in-app notification:', error);
       // Don't throw - in-app notification failure shouldn't break the flow
@@ -714,7 +902,7 @@ export class NotificationService {
 
     // Check if user is in quiet hours
     const inQuietHours = await this.isInQuietHours(preferences);
-    
+
     // Apply user preferences and quiet hours
     if (preferences.emailNotifications && !inQuietHours) {
       // Check category-specific preferences
@@ -750,8 +938,8 @@ export class NotificationService {
     try {
       const now = new Date();
       const timezone = preferences.timezone || 'UTC';
-      const currentTime = now.toLocaleTimeString('en-US', { 
-        timeZone: timezone, 
+      const currentTime = now.toLocaleTimeString('en-US', {
+        timeZone: timezone,
         hour12: false,
         hour: '2-digit',
         minute: '2-digit'
@@ -801,7 +989,7 @@ export class NotificationService {
   /**
    * Cache notification for real-time delivery
    */
-  private async cacheNotification(notification: any, userId: number): Promise<void> {
+  private async cacheNotification(notification: NotificationRow, userId: number): Promise<void> {
     try {
       const cacheKey = `user_notifications:${userId}`;
       const notificationData = {
@@ -810,13 +998,13 @@ export class NotificationService {
         title: notification.title,
         message: notification.message,
         priority: notification.priority,
-        actionUrl: notification.actionUrl,
-        timestamp: notification.createdAt,
+        actionUrl: notification.action_url,
+        timestamp: notification.created_at,
         read: false
       };
 
       await this.redis.rpush(cacheKey, JSON.stringify(notificationData));
-      
+
       // Keep only recent 100 notifications in cache
       const length = await this.redis.llen(cacheKey);
       if (length > 100) {
@@ -840,32 +1028,54 @@ export class NotificationService {
     endDate?: Date
   ): Promise<NotificationMetrics> {
     try {
-      const whereClause = and(
-        userId ? eq('n.user_id', userId) : undefined,
-        startDate ? gte('n.created_at', startDate) : undefined,
-        endDate ? lte('n.created_at', endDate) : undefined
-      );
+      // Build WHERE clause dynamically
+      const conditions: string[] = [];
+      const values: (number | Date)[] = [];
+      let paramIndex = 1;
+
+      if (userId) {
+        conditions.push(`n.user_id = $${paramIndex++}`);
+        values.push(userId);
+      }
+      if (startDate) {
+        conditions.push(`n.created_at >= $${paramIndex++}`);
+        values.push(startDate);
+      }
+      if (endDate) {
+        conditions.push(`n.created_at <= $${paramIndex++}`);
+        values.push(endDate);
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
       // Get overall metrics
-      const [overallStats] = await this.db
-        .select({
-          totalSent: sql`COUNT(DISTINCT nd.id)`,
-          totalDelivered: sql`COUNT(DISTINCT CASE WHEN nd.status IN ('sent', 'delivered') THEN nd.id END)`,
-          totalRead: sql`COUNT(DISTINCT CASE WHEN nd.read_at IS NOT NULL THEN nd.id END)`,
-          totalClicked: sql`COUNT(DISTINCT CASE WHEN nd.clicked_at IS NOT NULL THEN nd.id END)`,
-          totalFailed: sql`COUNT(DISTINCT CASE WHEN nd.status = 'failed' THEN nd.id END)`
-        })
-        .from('notifications n')
-        .leftJoin('notification_deliveries nd', eq('nd.notification_id', 'n.id'))
-        .where(whereClause)
-        .execute();
+      const metricsResult = await this.db.query<MetricsRow>(
+        `SELECT
+          COUNT(DISTINCT nd.id) as total_sent,
+          COUNT(DISTINCT CASE WHEN nd.status IN ('sent', 'delivered') THEN nd.id END) as total_delivered,
+          COUNT(DISTINCT CASE WHEN nd.read_at IS NOT NULL THEN nd.id END) as total_read,
+          COUNT(DISTINCT CASE WHEN nd.clicked_at IS NOT NULL THEN nd.id END) as total_clicked,
+          COUNT(DISTINCT CASE WHEN nd.status = 'failed' THEN nd.id END) as total_failed
+        FROM notifications n
+        LEFT JOIN notification_deliveries nd ON nd.notification_id = n.id
+        ${whereClause}`,
+        values
+      );
+
+      const overallStats = metricsResult[0] || {
+        total_sent: 0,
+        total_delivered: 0,
+        total_read: 0,
+        total_clicked: 0,
+        total_failed: 0
+      };
 
       // Calculate rates
-      const totalSent = Number(overallStats.totalSent) || 1;
-      const totalDelivered = Number(overallStats.totalDelivered);
-      const totalRead = Number(overallStats.totalRead);
-      const totalClicked = Number(overallStats.totalClicked);
-      const totalFailed = Number(overallStats.totalFailed);
+      const totalSent = Number(overallStats.total_sent) || 1;
+      const totalDelivered = Number(overallStats.total_delivered);
+      const totalRead = Number(overallStats.total_read);
+      const totalClicked = Number(overallStats.total_clicked);
+      const totalFailed = Number(overallStats.total_failed);
 
       return {
         totalSent,
@@ -891,15 +1101,10 @@ export class NotificationService {
    */
   async markAsDelivered(providerId: string, deliveredAt?: Date): Promise<void> {
     try {
-      await this.db
-        .update('notification_deliveries')
-        .set({
-          status: 'delivered',
-          deliveredAt: deliveredAt || new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq('provider_id', providerId))
-        .execute();
+      await this.db.query(
+        `UPDATE notification_deliveries SET status = $1, delivered_at = $2, updated_at = $3 WHERE provider_id = $4`,
+        ['delivered', deliveredAt || new Date(), new Date(), providerId]
+      );
     } catch (error) {
       console.error('Error marking notification as delivered:', error);
     }
@@ -911,25 +1116,16 @@ export class NotificationService {
   async markAsRead(notificationId: number, userId: number): Promise<void> {
     try {
       // Update notification
-      await this.db
-        .update('notifications')
-        .set({
-          isRead: true,
-          readAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(and(eq('id', notificationId), eq('user_id', userId)))
-        .execute();
+      await this.db.query(
+        `UPDATE notifications SET is_read = $1, read_at = $2, updated_at = $3 WHERE id = $4 AND user_id = $5`,
+        [true, new Date(), new Date(), notificationId, userId]
+      );
 
       // Update delivery records
-      await this.db
-        .update('notification_deliveries')
-        .set({
-          readAt: new Date(),
-          updatedAt: new Date()
-        })
-        .where(eq('notification_id', notificationId))
-        .execute();
+      await this.db.query(
+        `UPDATE notification_deliveries SET read_at = $1, updated_at = $2 WHERE notification_id = $3`,
+        [new Date(), new Date(), notificationId]
+      );
 
       // Remove from cache
       await this.redis.del(`user_notifications:${userId}`);
@@ -949,39 +1145,41 @@ export class NotificationService {
       includeRead?: boolean;
       type?: string;
     } = {}
-  ): Promise<{ notifications: any[]; total: number }> {
+  ): Promise<{ notifications: NotificationRow[]; total: number }> {
     try {
       const limit = options.limit || 20;
       const offset = options.offset || 0;
 
-      let whereClause = eq('user_id', userId);
-      
+      // Build WHERE clause
+      const conditions: string[] = ['user_id = $1'];
+      const values: (number | string | boolean)[] = [userId];
+      let paramIndex = 2;
+
       if (!options.includeRead) {
-        whereClause = and(whereClause, eq('is_read', false));
+        conditions.push(`is_read = $${paramIndex++}`);
+        values.push(false);
       }
-      
+
       if (options.type) {
-        whereClause = and(whereClause, eq('type', options.type));
+        conditions.push(`type = $${paramIndex++}`);
+        values.push(options.type);
       }
 
-      const notifications = await this.db
-        .select()
-        .from('notifications')
-        .where(whereClause)
-        .orderBy(desc('created_at'))
-        .limit(limit)
-        .offset(offset)
-        .execute();
+      const whereClause = conditions.join(' AND ');
 
-      const [{ count }] = await this.db
-        .select({ count: sql`count(*)` })
-        .from('notifications')
-        .where(whereClause)
-        .execute();
+      const notifications = await this.db.query<NotificationRow>(
+        `SELECT * FROM notifications WHERE ${whereClause} ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
+        [...values, limit, offset]
+      );
+
+      const countResult = await this.db.query<CountRow>(
+        `SELECT COUNT(*) as count FROM notifications WHERE ${whereClause}`,
+        values
+      );
 
       return {
         notifications,
-        total: Number(count)
+        total: Number(countResult[0]?.count || 0)
       };
     } catch (error) {
       console.error('Error getting user notifications:', error);
@@ -992,19 +1190,10 @@ export class NotificationService {
 
 // Export service factory
 export function createNotificationService(
-  db: DatabaseService,
+  connectionString: string,
   redis: RedisService,
   email: EmailService,
   messaging: MessagingService
 ): NotificationService {
-  return new NotificationService(db, redis, email, messaging);
+  return new NotificationService(connectionString, redis, email, messaging);
 }
-
-// Export types
-export type {
-  NotificationInput,
-  NotificationPreferences,
-  NotificationDelivery,
-  NotificationQueueItem,
-  NotificationMetrics
-};

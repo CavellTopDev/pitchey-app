@@ -138,6 +138,7 @@ interface PortalAccessResult {
   accessLevel: AccessLevel;
   restrictions: string[];
   user: any;
+  reason?: string;
 }
 
 // Portal access violation types
@@ -617,7 +618,7 @@ export function requirePortalAccess(portal: PortalType) {
     const method = descriptor.value;
 
     descriptor.value = async function(request: Request, ...args: any[]) {
-      const env = this.env; // Assume env is available in context
+      const env = (this as any).env; // Assume env is available in context
       const user = (request as any).user; // Assume user is attached by auth middleware
 
       if (!user) {

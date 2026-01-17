@@ -313,7 +313,7 @@ export const secureSessionConfig = {
   cookieOptions: {
     httpOnly: true,
     secure: true, // Always use HTTPS
-    sameSite: 'lax' as const,
+    sameSite: 'none' as const, // Required for cross-origin cookies (frontend on pages.dev, API on workers.dev)
     maxAge: 7 * 24 * 60 * 60, // 7 days
     path: '/',
     domain: undefined // Let browser handle domain

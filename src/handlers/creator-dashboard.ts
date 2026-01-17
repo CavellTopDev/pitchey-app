@@ -97,8 +97,8 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
           totalViews: analytics?.total_views || 0,
           totalFollowers: userStats?.totalFollowers || 0,
           totalInvestments: recentInvestments?.length || 0,
-          activeDeals: pendingNDAs ? pendingNDAs.filter(n => n?.status === 'approved').length : 0,
-          pendingActions: pendingNDAs ? pendingNDAs.filter(n => n?.status === 'pending').length : 0
+          activeDeals: pendingNDAs ? pendingNDAs.filter((n: Record<string, unknown>) => n?.status === 'approved').length : 0,
+          pendingActions: pendingNDAs ? pendingNDAs.filter((n: Record<string, unknown>) => n?.status === 'pending').length : 0
         },
         revenue: revenueData,
         recentPitches: recentPitches || [],

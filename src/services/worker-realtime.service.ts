@@ -40,6 +40,7 @@ export class WorkerRealtimeService {
   private config: WorkerRealtimeConfig;
   private env: any;
   private sessionHandler: BetterAuthSessionHandler;
+  private startTime: number = Date.now(); // Track service start time for uptime calculation
 
   constructor(env: any, db: WorkerDatabase) {
     this.env = env;
@@ -127,29 +128,11 @@ export class WorkerRealtimeService {
 
   /**
    * Handle WebSocket upgrade request
+   * Paid Cloudflare plan with Durable Objects - WebSocket is fully supported
    */
   async handleWebSocketUpgrade(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    
-    // Check if WebSocketPair is available (not available on free tier)
-    if (typeof WebSocketPair === 'undefined') {
-      return new Response(JSON.stringify({
-        error: 'WebSocket not available on free tier',
-        alternative: 'Use polling endpoints instead',
-        endpoints: {
-          notifications: '/api/poll/notifications',
-          messages: '/api/poll/messages',
-          updates: '/api/poll/updates'
-        }
-      }), {
-        status: 503,
-        headers: {
-          'Content-Type': 'application/json',
-          ...getCorsHeaders(request.headers.get('Origin'))
-        }
-      });
-    }
-    
+
     // Better Auth: Validate authentication via session cookies or token for cross-origin WebSocket
     try {
       let user = null;
@@ -235,16 +218,16 @@ export class WorkerRealtimeService {
       timestamp: new Date().toISOString()
     });
 
-    // Update user presence
+    // Update user presence (non-blocking - don't let errors affect WebSocket connection)
     if (this.config.enablePresence) {
-      await this.updateUserPresence(userId, 'online');
+      this.updateUserPresence(userId, 'online').catch(err => {
+        console.error('Failed to update user presence:', err);
+      });
     }
 
-      // Return the WebSocket connection to the client
-      return new Response(null, {
-        status: 101,
-        webSocket: client
-      });
+    // Return the WebSocket connection to the client
+    // Cloudflare Workers requires status 101 for WebSocket responses
+    return new Response(null, { status: 101, webSocket: client });
     } catch (error) {
       console.error('WebSocket upgrade error:', error);
       
@@ -650,7 +633,7 @@ export class WorkerRealtimeService {
       activeChannels: this.channels.size,
       totalChannelSubscriptions: Array.from(this.channels.values()).reduce((sum, users) => sum + users.size, 0),
       config: this.config,
-      uptime: process.uptime() || 0
+      uptime: Math.floor((Date.now() - this.startTime) / 1000) // Uptime in seconds
     };
   }
 

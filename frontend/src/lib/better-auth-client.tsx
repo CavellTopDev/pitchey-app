@@ -1,6 +1,7 @@
 /**
  * Better Auth Client Configuration for Frontend
  * Migrated from JWT to session-based authentication
+ * Features comprehensive TypeScript support
  */
 
 import React from 'react';
@@ -9,6 +10,7 @@ import { organizationClient } from 'better-auth/client/plugins';
 import { adminClient } from 'better-auth/client/plugins';
 import { multiSessionClient } from 'better-auth/client/plugins';
 import { API_URL } from '../config';
+import type { User } from '../types/api';
 
 // Portal types
 export type PortalType = 'creator' | 'investor' | 'production';
@@ -40,23 +42,44 @@ export const authClient = createAuthClient({
   }
 });
 
+// Authentication response types
+export interface AuthResponse {
+  success: boolean;
+  user?: User;
+  token?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface Session {
+  user: User;
+  session: {
+    id: string;
+    userId: string;
+    expiresAt: Date;
+    token: string;
+    ipAddress?: string;
+    userAgent?: string;
+  };
+}
+
 /**
  * Portal-specific authentication hooks
  */
 export interface PortalAuthMethods {
   // Sign in methods
-  signInCreator: (email: string, password: string) => Promise<any>;
-  signInInvestor: (email: string, password: string) => Promise<any>;
-  signInProduction: (email: string, password: string) => Promise<any>;
+  signInCreator: (email: string, password: string) => Promise<AuthResponse>;
+  signInInvestor: (email: string, password: string) => Promise<AuthResponse>;
+  signInProduction: (email: string, password: string) => Promise<AuthResponse>;
   
   // Registration methods  
-  registerCreator: (email: string, username: string, password: string) => Promise<any>;
-  registerInvestor: (email: string, username: string, password: string) => Promise<any>;
-  registerProduction: (email: string, username: string, password: string) => Promise<any>;
+  registerCreator: (email: string, username: string, password: string) => Promise<AuthResponse>;
+  registerInvestor: (email: string, username: string, password: string) => Promise<AuthResponse>;
+  registerProduction: (email: string, username: string, password: string) => Promise<AuthResponse>;
   
   // Session management
-  getSession: () => Promise<any>;
-  signOut: () => Promise<any>;
+  getSession: () => Promise<Session | null>;
+  signOut: () => Promise<{ success: boolean }>;
   
   // Portal validation
   validatePortalAccess: (userType: string, requiredPortal: PortalType) => boolean;
@@ -66,147 +89,90 @@ export interface PortalAuthMethods {
  * Create portal authentication methods
  */
 export function createPortalAuthMethods(): PortalAuthMethods {
+  // Helper function for auth requests
+  const makeAuthRequest = async (endpoint: string, data: unknown): Promise<AuthResponse> => {
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include'
+      });
+
+      const responseData: AuthResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: responseData.error || 'Request failed'
+        };
+      }
+
+      return {
+        success: true,
+        ...responseData
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  };
+
   return {
-    // Creator authentication
-    async signInCreator(email: string, password: string) {
-      const response = await fetch(`${API_URL}/api/auth/creator/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // Send cookies for Better Auth session
-      });
+    // Sign in methods
+    signInCreator: (email: string, password: string) => 
+      makeAuthRequest('/api/auth/creator/login', { email, password }),
+    
+    signInInvestor: (email: string, password: string) => 
+      makeAuthRequest('/api/auth/investor/login', { email, password }),
+    
+    signInProduction: (email: string, password: string) => 
+      makeAuthRequest('/api/auth/production/login', { email, password }),
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Login failed' }));
-        throw new Error(error.error || 'Login failed');
-      }
+    // Registration methods
+    registerCreator: (email: string, username: string, password: string) => 
+      makeAuthRequest('/api/auth/creator/register', { email, username, password, userType: 'creator' }),
+    
+    registerInvestor: (email: string, username: string, password: string) => 
+      makeAuthRequest('/api/auth/investor/register', { email, username, password, userType: 'investor' }),
+    
+    registerProduction: (email: string, username: string, password: string) => 
+      makeAuthRequest('/api/auth/production/register', { email, username, password, userType: 'production' }),
 
-      return response.json();
-    },
-
-    // Investor authentication  
-    async signInInvestor(email: string, password: string) {
-      const response = await fetch(`${API_URL}/api/auth/investor/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // Send cookies for Better Auth session
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Login failed' }));
-        throw new Error(error.error || 'Login failed');
-      }
-
-      return response.json();
-    },
-
-    // Production authentication
-    async signInProduction(email: string, password: string) {
-      const response = await fetch(`${API_URL}/api/auth/production/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // Send cookies for Better Auth session
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Login failed' }));
-        throw new Error(error.error || 'Login failed');
-      }
-
-      return response.json();
-    },
-
-    // Creator registration
-    async registerCreator(email: string, username: string, password: string) {
-      const response = await fetch(`${API_URL}/api/auth/creator/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password }),
-        credentials: 'include' // Send cookies for Better Auth session
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Registration failed' }));
-        throw new Error(error.error || 'Registration failed');
-      }
-
-      return response.json();
-    },
-
-    // Investor registration
-    async registerInvestor(email: string, username: string, password: string) {
-      const response = await fetch(`${API_URL}/api/auth/investor/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password }),
-        credentials: 'include' // Send cookies for Better Auth session
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Registration failed' }));
-        throw new Error(error.error || 'Registration failed');
-      }
-
-      return response.json();
-    },
-
-    // Production registration
-    async registerProduction(email: string, username: string, password: string) {
-      const response = await fetch(`${API_URL}/api/auth/production/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password }),
-        credentials: 'include' // Send cookies for Better Auth session
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Registration failed' }));
-        throw new Error(error.error || 'Registration failed');
-      }
-
-      return response.json();
-    },
-
-    // Get current session
-    async getSession() {
+    // Session management
+    async getSession(): Promise<Session | null> {
       try {
         const response = await fetch(`${API_URL}/api/auth/session`, {
           method: 'GET',
-          credentials: 'include' // Send cookies for Better Auth session
+          credentials: 'include'
         });
 
         if (!response.ok) {
-          // Don't throw on 401/403/404/429 - just return null
-          if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 429) {
-            if (response.status === 429) {
-              console.warn('Session check rate limited - treating as unauthenticated');
-            }
-            return null;
-          }
-          // For other errors, still return null but log them
-          console.warn(`Session check returned ${response.status}`);
           return null;
         }
 
-        return response.json();
+        const data = await response.json();
+        return data as Session;
       } catch (error) {
-        // Network errors or other issues - treat as not authenticated
-        console.warn('Session check failed:', error);
+        console.error('Failed to get session:', error);
         return null;
       }
     },
 
-    // Sign out
-    async signOut() {
-      const response = await fetch(`${API_URL}/api/auth/sign-out`, {
-        method: 'POST',
-        credentials: 'include' // Send cookies for Better Auth session
-      });
+    async signOut(): Promise<{ success: boolean }> {
+      try {
+        const response = await fetch(`${API_URL}/api/auth/sign-out`, {
+          method: 'POST',
+          credentials: 'include'
+        });
 
-      // Always return success for sign out
-      return { success: true };
+        return { success: response.ok };
+      } catch (error) {
+        console.error('Failed to sign out:', error);
+        return { success: false };
+      }
     },
 
     // Validate portal access
@@ -256,7 +222,7 @@ export async function isAuthenticated(): Promise<boolean> {
 /**
  * Get current user from Better Auth session
  */
-export async function getCurrentUser(): Promise<any> {
+export async function getCurrentUser(): Promise<User | null> {
   try {
     const portalAuth = createPortalAuthMethods();
     const session = await portalAuth.getSession();

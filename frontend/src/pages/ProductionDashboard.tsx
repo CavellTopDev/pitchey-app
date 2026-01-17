@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Building2, TrendingUp, Eye, Heart, Users, Film, Plus, 
@@ -63,7 +63,8 @@ interface Activity {
 
 function ProductionDashboard() {
   const navigate = useNavigate();
-  const { user, logout, isAuthenticated } = useBetterAuthStore();
+  const { user, logout, isAuthenticated, checkSession } = useBetterAuthStore();
+  const [sessionChecked, setSessionChecked] = useState(false);
   const { getAllPitches, drafts } = usePitchStore();
   
   // Sentry portal integration
@@ -126,12 +127,8 @@ function ProductionDashboard() {
   const [ndaTemplates, setNdaTemplates] = useState<NDATemplate[]>([]);
   const ndaFileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchData();
-    fetchInvestmentData(); // Fetch investment data in parallel
-  }, [getAllPitches]);
-
-  const fetchInvestmentData = async () => {
+  const fetchInvestmentData = useCallback(async () => {
+    let cancelled = false;
     try {
       setInvestmentLoading(true);
       
@@ -173,12 +170,37 @@ function ProductionDashboard() {
       }
       
     } catch (error) {
-      console.error('Error fetching investment data:', error);
-      reportError(error as Error, { context: 'fetchInvestmentData' });
+      if (!cancelled) {
+        console.error('Error fetching investment data:', error);
+        reportError(error as Error, { context: 'fetchInvestmentData' });
+      }
     } finally {
-      setInvestmentLoading(false);
+      if (!cancelled) {
+        setInvestmentLoading(false);
+      }
     }
-  };
+  }, [user?.id, trackEvent, reportError, trackApiError]);
+
+  // Check session on mount and redirect if not authenticated
+  useEffect(() => {
+    const validateSession = async () => {
+      try {
+        await checkSession();
+        setSessionChecked(true);
+      } catch {
+        // Session check failed, will be handled by the redirect below
+        setSessionChecked(true);
+      }
+    };
+    validateSession();
+  }, [checkSession]);
+
+  // Redirect to login if not authenticated after session check
+  useEffect(() => {
+    if (sessionChecked && !isAuthenticated) {
+      navigate('/login/production');
+    }
+  }, [sessionChecked, isAuthenticated, navigate]);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -198,7 +220,8 @@ function ProductionDashboard() {
     };
   }, [showUserMenu]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    let cancelled = false;
     try {
       setLoading(true);
       
@@ -361,15 +384,41 @@ function ProductionDashboard() {
       }
       
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      reportError(error as Error, { 
-        context: 'fetchData',
-        severity: 'error'
-      });
+      if (!cancelled) {
+        console.error('Failed to fetch dashboard data:', error);
+        reportError(error as Error, { 
+          context: 'fetchData',
+          severity: 'error'
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+      }
     }
-  };
+  }, [getAllPitches, isAuthenticated, user?.id, user?.username, user?.companyName, trackEvent, reportError, trackApiError]);
+
+  useEffect(() => {
+    // Only fetch data after session is verified
+    if (!sessionChecked || !isAuthenticated) {
+      return;
+    }
+
+    let fetchCleanup: (() => void) | undefined;
+    let investmentCleanup: (() => void) | undefined;
+
+    const initializeData = async () => {
+      fetchCleanup = await fetchData();
+      investmentCleanup = await fetchInvestmentData();
+    };
+
+    void initializeData();
+    
+    return () => {
+      fetchCleanup?.();
+      investmentCleanup?.();
+    };
+  }, [fetchData, fetchInvestmentData, sessionChecked, isAuthenticated]);
 
   const handleViewTerms = (nda: any) => {
     setSelectedNDA(nda);

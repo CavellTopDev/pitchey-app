@@ -10,7 +10,7 @@ import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCorsHeaders } from "../utils/response";
 
 // Define environment interface
-interface AuthEnv {
+export interface AuthEnv {
   DATABASE_URL: string;
   BETTER_AUTH_SECRET?: string;
   JWT_SECRET?: string;
@@ -20,33 +20,43 @@ interface AuthEnv {
   ENVIRONMENT?: string;
 }
 
+// Helper to safely get array from Neon query result
+function toArray<T>(result: any): T[] {
+  if (Array.isArray(result)) {
+    return result as T[];
+  }
+  return [];
+}
+
 /**
  * Custom database adapter for raw SQL with Neon
  */
 function createRawSQLAdapter(sql: ReturnType<typeof neon>) {
   return {
     async findUser(email: string) {
-      const [user] = await sql`
+      const result = await sql`
         SELECT id, email, username, user_type, password_hash,
                first_name, last_name, company_name, profile_image, subscription_tier,
                COALESCE(name, username, email) as name
-        FROM users 
+        FROM users
         WHERE email = ${email}
         LIMIT 1
       `;
-      return user;
+      const rows = toArray<Record<string, unknown>>(result);
+      return rows[0];
     },
 
     async findUserById(id: string) {
-      const [user] = await sql`
+      const result = await sql`
         SELECT id, email, username, user_type,
                first_name, last_name, company_name, profile_image, subscription_tier,
                COALESCE(name, username, email) as name
-        FROM users 
+        FROM users
         WHERE id = ${id}
         LIMIT 1
       `;
-      return user;
+      const rows = toArray<Record<string, unknown>>(result);
+      return rows[0];
     },
 
     async createSession(userId: string, expiresAt: Date) {
@@ -60,10 +70,10 @@ function createRawSQLAdapter(sql: ReturnType<typeof neon>) {
     },
 
     async findSession(sessionId: string) {
-      const [session] = await sql`
+      const result = await sql`
         SELECT s.id, s.user_id, s.expires_at,
                u.id as user_id, u.email, u.username, u.user_type,
-               u.first_name, u.last_name, u.company_name, 
+               u.first_name, u.last_name, u.company_name,
                u.profile_image, u.subscription_tier
         FROM sessions s
         JOIN users u ON s.user_id = u.id
@@ -71,7 +81,8 @@ function createRawSQLAdapter(sql: ReturnType<typeof neon>) {
         AND s.expires_at > NOW()
         LIMIT 1
       `;
-      return session;
+      const rows = toArray<Record<string, unknown>>(result);
+      return rows[0];
     },
 
     async deleteSession(sessionId: string) {
@@ -114,8 +125,21 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
 
       // Handle login
       if (method === 'POST' && url.pathname.includes('/login')) {
-        const body = await request.json();
+        const body = await request.json() as { email?: string; password?: string };
         const { email, password } = body;
+
+        if (!email) {
+          return new Response(
+            JSON.stringify({ error: 'Email is required' }),
+            {
+              status: 400,
+              headers: {
+                'Content-Type': 'application/json',
+                ...getCorsHeaders(request.headers.get('Origin'))
+              }
+            }
+          );
+        }
 
         // Get user from database
         const user = await dbAdapter.findUser(email);
@@ -138,7 +162,8 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
 
         // Create session
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        const sessionId = await dbAdapter.createSession(user.id, expiresAt);
+        const userId = String(user.id);
+        const sessionId = await dbAdapter.createSession(userId, expiresAt);
 
         // Store session in KV if available
         if (env.SESSIONS_KV) {
@@ -207,7 +232,7 @@ export function createBetterAuthInstance(env: AuthEnv, request?: Request) {
             status: 200,
             headers: {
               'Content-Type': 'application/json',
-              'Set-Cookie': 'better-auth-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+              'Set-Cookie': 'better-auth-session=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0',
               ...getCorsHeaders(request.headers.get('Origin'))
             }
           }

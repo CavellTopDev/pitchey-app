@@ -7,8 +7,12 @@
 name = "pitchey-api-prod"
 main = "src/worker-integrated.ts"
 compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat", "nodejs_als"]
 account_id = "002bd5c0e90ae753a387c60546cf6869"
+
+# Sentry version metadata for automatic release tracking
+[version_metadata]
+binding = "CF_VERSION_METADATA"
 
 # Production domain routing (existing URLs) 
 # Note: Using workers_dev = true instead of custom routes
@@ -206,6 +210,11 @@ TRACE_RETENTION_DAYS = "30"
 ENABLE_AUDIT_LOGGING = "true"
 AUDIT_LOG_RETENTION_DAYS = "90"
 TRACE_CORRELATION_ENABLED = "true"
+
+# Sentry Error Tracking
+SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.de.sentry.io/4510138308755536"
+SENTRY_ENVIRONMENT = "production"
+SENTRY_TRACES_SAMPLE_RATE = "0.1"
 
 # ===== OBSERVABILITY CONFIGURATION =====
 [observability]

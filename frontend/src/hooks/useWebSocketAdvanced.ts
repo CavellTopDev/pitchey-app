@@ -115,7 +115,7 @@ const CIRCUIT_BREAKER_CONFIG = {
   halfOpenMaxAttempts: 1,  // Only 1 attempt in half-open state
 };
 
-// WebSocket is now enabled with Cloudflare Workers Paid plan
+// WebSocket is ENABLED with Cloudflare Workers paid plan (Durable Objects available)
 const WEBSOCKET_ENABLED = true;
 
 export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) {
@@ -737,8 +737,13 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
     });
     
     try {
-      const wsUrl = config.WS_URL.replace(/^http/, 'ws');
-      
+      let wsUrl = config.WS_URL.replace(/^http/, 'ws');
+
+      // Remove trailing /ws if already present to prevent duplication
+      if (wsUrl.endsWith('/ws')) {
+        wsUrl = wsUrl.slice(0, -3);
+      }
+
       // Better Auth: For cross-origin WebSocket connections, we need to get a token
       // because browsers don't send cookies for cross-origin WebSocket upgrades
       let finalWsUrl = `${wsUrl}/ws`;

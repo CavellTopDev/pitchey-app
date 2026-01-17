@@ -7,7 +7,6 @@
     "npm:@neondatabase/serverless@0.10.3": "0.10.3",
     "npm:@neondatabase/serverless@^1.0.2": "1.0.2",
     "npm:@sendgrid/mail@^8.1.6": "8.1.6",
-    "npm:@sentry/browser@7": "7.120.4",
     "npm:@sentry/deno@8.55.0": "8.55.0",
     "npm:@types/bcryptjs@^2.4.6": "2.4.6",
     "npm:@types/node@20": "20.19.27",
@@ -29,10 +28,8 @@
     "npm:sinon@19.0.2": "19.0.2",
     "npm:sinon@^19.0.2": "19.0.2",
     "npm:stripe@17.5.0": "17.5.0",
-    "npm:toucan-js@^4.1.1": "4.1.1",
     "npm:wrangler@^4.51.0": "4.54.0_@cloudflare+workers-types@4.20251225.0_unenv@2.0.0-rc.24_workerd@1.20251210.0",
-    "npm:zod@3.22.4": "3.22.4",
-    "npm:zod@^4.2.1": "4.2.1"
+    "npm:zod@3.22.4": "3.22.4"
   },
   "npm": {
     "@better-auth/core@1.4.9_@better-auth+utils@0.3.0_@better-fetch+fetch@1.1.21_better-call@1.1.7__zod@4.2.1_jose@6.1.3_kysely@0.28.9_nanostores@1.1.0_zod@4.2.1": {
@@ -2575,7 +2572,7 @@
         "npm:@faker-js/faker@^8.4.1",
         "npm:@neondatabase/serverless@^1.0.2",
         "npm:@sendgrid/mail@^8.1.6",
-        "npm:@sentry/browser@7",
+        "npm:@sentry/cloudflare@^8.40.0",
         "npm:@types/bcryptjs@^2.4.6",
         "npm:@types/node@20",
         "npm:@types/sinon@21",
@@ -2591,9 +2588,8 @@
         "npm:prom-client@^15.1.0",
         "npm:resend@^6.6.0",
         "npm:sinon@^19.0.2",
-        "npm:toucan-js@^4.1.1",
         "npm:wrangler@^4.51.0",
-        "npm:zod@^4.2.1"
+        "npm:zod@^3.24.1"
       ]
     }
   }

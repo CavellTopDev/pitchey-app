@@ -98,10 +98,9 @@ export class DatabaseMetricsService {
           metrics.queryCount,
           metrics.timestamp
         ],
+        // Analytics Engine supports only 1 index per data point
         indexes: [
-          metrics.endpoint,        // Index by endpoint
-          `${metrics.method}:${metrics.endpoint}`, // Method + endpoint
-          `status:${metrics.statusCode}`  // Status code grouping
+          `${metrics.method}:${metrics.endpoint}` // Combined method + endpoint index
         ]
       });
     } catch (error) {

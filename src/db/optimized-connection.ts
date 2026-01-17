@@ -19,19 +19,25 @@ export interface OptimizedDbConfig {
  */
 export function getOptimizedConnection(config: OptimizedDbConfig) {
   const { DATABASE_URL, maxQueryTime = 5000 } = config;
-  
+
   if (!connectionCache.has(DATABASE_URL)) {
     const sql = neon(DATABASE_URL, {
-      fetchConnectionCache: true,
       fetchOptions: {
-        priority: 'high',
         signal: AbortSignal.timeout(maxQueryTime)
       }
-    });
+    } as Parameters<typeof neon>[1]);
     connectionCache.set(DATABASE_URL, sql);
   }
-  
+
   return connectionCache.get(DATABASE_URL)!;
+}
+
+// Helper to safely get array from Neon query result
+function toArray<T>(result: any): T[] {
+  if (Array.isArray(result)) {
+    return result as T[];
+  }
+  return [];
 }
 
 /**
@@ -62,12 +68,13 @@ export class OptimizedQueries {
     // Simple indexed query
     const result = await this.sql`
       SELECT id, email, name, role, created_at
-      FROM users 
+      FROM users
       WHERE id = ${userId}
       LIMIT 1
     `;
 
-    const user = result[0];
+    const rows = toArray<Record<string, unknown>>(result);
+    const user = rows[0];
     
     // Cache for 5 minutes
     if (this.kv && user) {
@@ -112,8 +119,9 @@ export class OptimizedQueries {
       `;
     }
 
-    const pitches = await query;
-    
+    const result = await query;
+    const pitches = toArray<Record<string, unknown>>(result);
+
     // Cache for 1 minute
     if (this.kv && pitches.length > 0) {
       await this.kv.put(cacheKey, JSON.stringify(pitches), {
@@ -137,25 +145,29 @@ export class OptimizedQueries {
     }
 
     // Run queries in parallel for efficiency
-    const [pitchCount, totalViews, ndaCount] = await Promise.all([
+    const [pitchCountResult, totalViewsResult, ndaCountResult] = await Promise.all([
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM pitches 
+        SELECT COUNT(*) as count
+        FROM pitches
         WHERE creator_id = ${userId}
       `,
       this.sql`
-        SELECT COALESCE(SUM(view_count), 0) as total 
-        FROM pitches 
+        SELECT COALESCE(SUM(view_count), 0) as total
+        FROM pitches
         WHERE creator_id = ${userId}
       `,
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM ndas 
+        SELECT COUNT(*) as count
+        FROM ndas
         WHERE pitch_id IN (
           SELECT id FROM pitches WHERE creator_id = ${userId}
         ) AND status = 'pending'
       `
     ]);
+
+    const pitchCount = toArray<Record<string, unknown>>(pitchCountResult);
+    const totalViews = toArray<Record<string, unknown>>(totalViewsResult);
+    const ndaCount = toArray<Record<string, unknown>>(ndaCountResult);
 
     const stats = {
       totalPitches: pitchCount[0]?.count || 0,
@@ -184,23 +196,27 @@ export class OptimizedQueries {
       if (cached) return cached;
     }
 
-    const [savedCount, investmentCount, followingCount] = await Promise.all([
+    const [savedCountResult, investmentCountResult, followingCountResult] = await Promise.all([
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM saved_pitches 
+        SELECT COUNT(*) as count
+        FROM saved_pitches
         WHERE user_id = ${userId}
       `,
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM investments 
+        SELECT COUNT(*) as count
+        FROM investments
         WHERE investor_id = ${userId}
       `,
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM follows 
+        SELECT COUNT(*) as count
+        FROM follows
         WHERE follower_id = ${userId}
       `
     ]);
+
+    const savedCount = toArray<Record<string, unknown>>(savedCountResult);
+    const investmentCount = toArray<Record<string, unknown>>(investmentCountResult);
+    const followingCount = toArray<Record<string, unknown>>(followingCountResult);
 
     const stats = {
       savedPitches: savedCount[0]?.count || 0,
@@ -228,26 +244,30 @@ export class OptimizedQueries {
       if (cached) return cached;
     }
 
-    const [projectCount, ndaCount, partnershipCount] = await Promise.all([
+    const [projectCountResult, ndaCountResult, partnershipCountResult] = await Promise.all([
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM production_projects 
+        SELECT COUNT(*) as count
+        FROM production_projects
         WHERE company_id = ${userId}
         AND status = 'active'
       `,
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM ndas 
+        SELECT COUNT(*) as count
+        FROM ndas
         WHERE user_id = ${userId}
         AND status = 'active'
       `,
       this.sql`
-        SELECT COUNT(*) as count 
-        FROM partnerships 
+        SELECT COUNT(*) as count
+        FROM partnerships
         WHERE production_id = ${userId}
         AND status = 'active'
       `
     ]);
+
+    const projectCount = toArray<Record<string, unknown>>(projectCountResult);
+    const ndaCount = toArray<Record<string, unknown>>(ndaCountResult);
+    const partnershipCount = toArray<Record<string, unknown>>(partnershipCountResult);
 
     const stats = {
       activeProjects: projectCount[0]?.count || 0,
@@ -285,7 +305,8 @@ export class OptimizedQueries {
       LIMIT 1
     `;
 
-    const session = result[0];
+    const rows = toArray<Record<string, unknown>>(result);
+    const session = rows[0];
     
     // Cache valid sessions for 60 seconds
     if (this.kv && session) {

@@ -75,7 +75,7 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
 // POST /api/nda/request - Create new NDA request
 export async function createNDARequest(request: Request, env: Env): Promise<Response> {
   try {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { pitch_id, requester_id, nda_type = 'standard', custom_nda_url } = body;
     
     const sql = getDb(env);
@@ -118,7 +118,7 @@ export async function approveNDARequest(request: Request, env: Env): Promise<Res
   try {
     const url = new URL(request.url);
     const ndaId = url.pathname.split('/').pop()?.replace('/approve', '');
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { approver_id, signature } = body;
     
     if (!ndaId) {
@@ -169,7 +169,7 @@ export async function rejectNDARequest(request: Request, env: Env): Promise<Resp
   try {
     const url = new URL(request.url);
     const ndaId = url.pathname.split('/').pop()?.replace('/reject', '');
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { rejector_id, reason } = body;
     
     if (!ndaId) {
@@ -219,10 +219,12 @@ export async function rejectNDARequest(request: Request, env: Env): Promise<Resp
 export async function getDocuments(request: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(request.url);
+    const origin = request.headers.get('Origin');
+    const corsHeaders = getCorsHeaders(origin);
     const pathParts = url.pathname.split('/');
     const pitchId = pathParts[pathParts.indexOf('documents') + 1];
     const userId = url.searchParams.get('userId');
-    
+
     const sql = getDb(env);
     if (!sql) {
       return new Response(JSON.stringify({ error: 'Database unavailable' }), {

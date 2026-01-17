@@ -3,11 +3,12 @@
  * Comprehensive REST API endpoints for the notification system
  */
 
-import type { Context } from 'hono';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Context = any;
 import { z } from 'zod';
-import type { DatabaseService } from '../types/worker-types.ts';
-import { ApiResponseBuilder, ErrorCode, errorHandler } from '../utils/api-response.ts';
-import { NotificationIntegrationService } from '../services/notification-integration.service.ts';
+import type { DatabaseService } from '../types/worker-types';
+import { ApiResponseBuilder, ErrorCode, errorHandler } from '../utils/api-response';
+import { NotificationIntegrationService } from '../services/notification-integration.service';
 
 // Validation schemas
 const SendNotificationSchema = z.object({
@@ -591,6 +592,432 @@ export class NotificationRoutesHandler {
       console.error('Error sending test notification:', error);
       return c.json({
         error: 'Failed to send test notification',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  // Additional methods to match worker-integrated.ts references
+  
+  async deleteNotification(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const notificationId = c.req.param('id');
+      const services = this.notificationIntegration.getServices();
+      
+      // Delete notification logic
+      await services.notification.deleteNotification(notificationId, user.id);
+
+      return c.json({
+        success: true,
+        message: 'Notification deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      return c.json({
+        error: 'Failed to delete notification',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async sendBulkNotifications(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const body = await c.req.json();
+      const services = this.notificationIntegration.getServices();
+      
+      // Send bulk notifications
+      const results = await services.notification.sendBulkNotifications(body);
+
+      return c.json({
+        success: true,
+        results,
+        message: 'Bulk notifications sent successfully',
+      });
+    } catch (error) {
+      console.error('Error sending bulk notifications:', error);
+      return c.json({
+        error: 'Failed to send bulk notifications',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async subscribePush(c: Context) {
+    return this.subscribeToPush(c);
+  }
+
+  async unsubscribePush(c: Context) {
+    return this.unsubscribeFromPush(c);
+  }
+
+  async getVapidKey(c: Context) {
+    return this.getVAPIDKey(c);
+  }
+
+  async trackPushEvent(c: Context) {
+    return this.trackPushClick(c);
+  }
+
+  async testPushNotification(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      await services.push.testPush(user.id);
+
+      return c.json({
+        success: true,
+        message: 'Test push notification sent',
+      });
+    } catch (error) {
+      console.error('Error sending test push:', error);
+      return c.json({
+        error: 'Failed to send test push notification',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async createTemplate(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const body = await c.req.json();
+      const services = this.notificationIntegration.getServices();
+      const template = await services.notification.createTemplate(body);
+
+      return c.json({
+        success: true,
+        template,
+        message: 'Template created successfully',
+      });
+    } catch (error) {
+      console.error('Error creating template:', error);
+      return c.json({
+        error: 'Failed to create template',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async updateTemplate(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const templateId = c.req.param('id');
+      const body = await c.req.json();
+      const services = this.notificationIntegration.getServices();
+      const template = await services.notification.updateTemplate(templateId, body);
+
+      return c.json({
+        success: true,
+        template,
+        message: 'Template updated successfully',
+      });
+    } catch (error) {
+      console.error('Error updating template:', error);
+      return c.json({
+        error: 'Failed to update template',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async deleteTemplate(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const templateId = c.req.param('id');
+      const services = this.notificationIntegration.getServices();
+      await services.notification.deleteTemplate(templateId);
+
+      return c.json({
+        success: true,
+        message: 'Template deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      return c.json({
+        error: 'Failed to delete template',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async createUnsubscribeToken(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      const token = await services.notification.createUnsubscribeToken(user.id);
+
+      return c.json({
+        success: true,
+        token,
+        message: 'Unsubscribe token created successfully',
+      });
+    } catch (error) {
+      console.error('Error creating unsubscribe token:', error);
+      return c.json({
+        error: 'Failed to create unsubscribe token',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async getBatches(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      const batches = await services.notification.getBatches();
+
+      return c.json({
+        success: true,
+        batches,
+      });
+    } catch (error) {
+      console.error('Error getting batches:', error);
+      return c.json({
+        error: 'Failed to get batches',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async processBatches(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      const results = await services.notification.processBatches();
+
+      return c.json({
+        success: true,
+        results,
+        message: 'Batches processed successfully',
+      });
+    } catch (error) {
+      console.error('Error processing batches:', error);
+      return c.json({
+        error: 'Failed to process batches',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async getDeliveryAnalytics(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      const analytics = await services.analytics.getDeliveryAnalytics();
+
+      return c.json({
+        success: true,
+        analytics,
+      });
+    } catch (error) {
+      console.error('Error getting delivery analytics:', error);
+      return c.json({
+        error: 'Failed to get delivery analytics',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async getEngagementAnalytics(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      const analytics = await services.analytics.getEngagementAnalytics();
+
+      return c.json({
+        success: true,
+        analytics,
+      });
+    } catch (error) {
+      console.error('Error getting engagement analytics:', error);
+      return c.json({
+        error: 'Failed to get engagement analytics',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async getPerformanceAnalytics(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      const analytics = await services.analytics.getPerformanceAnalytics();
+
+      return c.json({
+        success: true,
+        analytics,
+      });
+    } catch (error) {
+      console.error('Error getting performance analytics:', error);
+      return c.json({
+        error: 'Failed to get performance analytics',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async trackAnalyticsEvent(c: Context) {
+    try {
+      const body = await c.req.json();
+      const services = this.notificationIntegration.getServices();
+      await services.analytics.trackEvent(body);
+
+      return c.json({
+        success: true,
+        message: 'Analytics event tracked successfully',
+      });
+    } catch (error) {
+      console.error('Error tracking analytics event:', error);
+      return c.json({
+        error: 'Failed to track analytics event',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async getABTests(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const services = this.notificationIntegration.getServices();
+      const tests = await services.abTesting.getTests();
+
+      return c.json({
+        success: true,
+        tests,
+      });
+    } catch (error) {
+      console.error('Error getting A/B tests:', error);
+      return c.json({
+        error: 'Failed to get A/B tests',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async createABTest(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const body = await c.req.json();
+      const services = this.notificationIntegration.getServices();
+      const test = await services.abTesting.createTest(body);
+
+      return c.json({
+        success: true,
+        test,
+        message: 'A/B test created successfully',
+      });
+    } catch (error) {
+      console.error('Error creating A/B test:', error);
+      return c.json({
+        error: 'Failed to create A/B test',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async updateABTest(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const testId = c.req.param('id');
+      const body = await c.req.json();
+      const services = this.notificationIntegration.getServices();
+      const test = await services.abTesting.updateTest(testId, body);
+
+      return c.json({
+        success: true,
+        test,
+        message: 'A/B test updated successfully',
+      });
+    } catch (error) {
+      console.error('Error updating A/B test:', error);
+      return c.json({
+        error: 'Failed to update A/B test',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      }, 500);
+    }
+  }
+
+  async getABTestResults(c: Context) {
+    try {
+      const user = c.get('user');
+      if (!user || user.role !== 'admin') {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      const testId = c.req.param('id');
+      const services = this.notificationIntegration.getServices();
+      const results = await services.abTesting.getTestResults(testId);
+
+      return c.json({
+        success: true,
+        results,
+      });
+    } catch (error) {
+      console.error('Error getting A/B test results:', error);
+      return c.json({
+        error: 'Failed to get A/B test results',
         details: error instanceof Error ? error.message : 'Unknown error',
       }, 500);
     }

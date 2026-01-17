@@ -3,6 +3,8 @@
  * Real-time metrics collection, aggregation, and alerting system
  */
 
+import type { Env } from '../worker-integrated';
+
 export interface MetricPoint {
   timestamp: Date;
   metric: string;
@@ -242,9 +244,9 @@ export class MetricsAggregatorDO implements DurableObject {
       }
     } catch (error) {
       console.error('MetricsAggregatorDO error:', error);
-      return new Response(JSON.stringify({ 
-        error: error.message 
-      }), { 
+      return new Response(JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -255,16 +257,25 @@ export class MetricsAggregatorDO implements DurableObject {
    * Ingest metrics data
    */
   private async ingestMetrics(request: Request): Promise<Response> {
-    const data = await request.json();
+    const data = await request.json() as {
+      timestamp?: string;
+      metric?: string;
+      value?: string | number;
+      labels?: Record<string, string>;
+      source?: string;
+      type?: string;
+      unit?: string;
+      metadata?: Record<string, any>;
+    };
     const now = new Date();
-    
+
     const metricPoint: MetricPoint = {
       timestamp: data.timestamp ? new Date(data.timestamp) : now,
-      metric: data.metric,
-      value: parseFloat(data.value),
+      metric: data.metric || '',
+      value: parseFloat(String(data.value || '0')),
       labels: data.labels || {},
-      source: data.source,
-      type: data.type || 'gauge',
+      source: data.source || '',
+      type: (data.type || 'gauge') as MetricPoint['type'],
       unit: data.unit,
       metadata: data.metadata
     };
@@ -282,18 +293,19 @@ export class MetricsAggregatorDO implements DurableObject {
    * Ingest batch of metrics
    */
   private async ingestMetricsBatch(request: Request): Promise<Response> {
-    const { metrics } = await request.json();
+    const body = await request.json() as { metrics?: any[] };
+    const metrics = body.metrics || [];
     const now = new Date();
     let ingestedCount = 0;
 
     for (const data of metrics) {
       const metricPoint: MetricPoint = {
         timestamp: data.timestamp ? new Date(data.timestamp) : now,
-        metric: data.metric,
-        value: parseFloat(data.value),
+        metric: data.metric || '',
+        value: parseFloat(String(data.value || '0')),
         labels: data.labels || {},
-        source: data.source,
-        type: data.type || 'gauge',
+        source: data.source || '',
+        type: (data.type || 'gauge') as MetricPoint['type'],
         unit: data.unit,
         metadata: data.metadata
       };
@@ -330,7 +342,8 @@ export class MetricsAggregatorDO implements DurableObject {
    */
   private async listMetrics(params: URLSearchParams): Promise<Response> {
     const prefix = params.get('prefix');
-    const labels = params.get('labels') ? JSON.parse(params.get('labels')!) : undefined;
+    const labelsParam = params.get('labels');
+    const labels = labelsParam ? JSON.parse(labelsParam) : undefined;
     const limit = parseInt(params.get('limit') || '100');
 
     const metrics: string[] = [];
@@ -341,7 +354,7 @@ export class MetricsAggregatorDO implements DurableObject {
       
       if (labels) {
         let matchesLabels = true;
-        for (const [key, value] of Object.entries(labels)) {
+        for (const [key, value] of Object.entries(labels as Record<string, string>)) {
           if (!index.labelValues.get(key)?.has(value)) {
             matchesLabels = false;
             break;
@@ -388,13 +401,20 @@ export class MetricsAggregatorDO implements DurableObject {
    * Create metrics alert
    */
   private async createAlert(request: Request): Promise<Response> {
-    const data = await request.json();
-    
+    const data = await request.json() as {
+      id?: string;
+      name?: string;
+      metric?: string;
+      condition?: MetricsAlert['condition'];
+      labels?: Record<string, string>;
+      notifications?: AlertNotification[];
+    };
+
     const alert: MetricsAlert = {
       id: data.id || crypto.randomUUID(),
-      name: data.name,
-      metric: data.metric,
-      condition: data.condition,
+      name: data.name || '',
+      metric: data.metric || '',
+      condition: data.condition || { operator: '>', threshold: 0, duration: 60, aggregation: 'avg' },
       labels: data.labels,
       notifications: data.notifications || [],
       status: 'active',
@@ -417,17 +437,26 @@ export class MetricsAggregatorDO implements DurableObject {
    * Create dashboard
    */
   private async createDashboard(request: Request): Promise<Response> {
-    const data = await request.json();
-    
+    const data = await request.json() as {
+      id?: string;
+      name?: string;
+      description?: string;
+      panels?: DashboardPanel[];
+      timeRange?: MetricsDashboard['timeRange'];
+      refreshInterval?: number;
+      variables?: DashboardVariable[];
+      createdBy?: string;
+    };
+
     const dashboard: MetricsDashboard = {
       id: data.id || crypto.randomUUID(),
-      name: data.name,
+      name: data.name || '',
       description: data.description || '',
       panels: data.panels || [],
       timeRange: data.timeRange || { relative: '1h' },
       refreshInterval: data.refreshInterval || 60,
       variables: data.variables || [],
-      createdBy: data.createdBy,
+      createdBy: data.createdBy || '',
       createdAt: new Date(),
       lastModified: new Date()
     };
@@ -447,14 +476,16 @@ export class MetricsAggregatorDO implements DurableObject {
   private async initializeMetricsAggregator(): Promise<void> {
     // Load existing alerts
     const storedAlerts = await this.storage.list({ prefix: 'alert:' });
-    for (const [key, alert] of storedAlerts) {
-      this.alerts.set(alert.id, alert as MetricsAlert);
+    for (const [key, value] of storedAlerts) {
+      const alert = value as MetricsAlert;
+      this.alerts.set(alert.id, alert);
     }
 
     // Load dashboards
     const storedDashboards = await this.storage.list({ prefix: 'dashboard:' });
-    for (const [key, dashboard] of storedDashboards) {
-      this.dashboards.set(dashboard.id, dashboard as MetricsDashboard);
+    for (const [key, value] of storedDashboards) {
+      const dashboard = value as MetricsDashboard;
+      this.dashboards.set(dashboard.id, dashboard);
     }
 
     // Load metrics index
@@ -999,8 +1030,13 @@ export class MetricsAggregatorDO implements DurableObject {
       return new Response('Alert not found', { status: 404 });
     }
 
-    const updates = await request.json();
-    
+    const updates = await request.json() as {
+      name?: string;
+      condition?: Partial<MetricsAlert['condition']>;
+      notifications?: AlertNotification[];
+      status?: MetricsAlert['status'];
+    };
+
     // Update alert properties
     if (updates.name) alert.name = updates.name;
     if (updates.condition) alert.condition = { ...alert.condition, ...updates.condition };
@@ -1135,8 +1171,8 @@ export class MetricsAggregatorDO implements DurableObject {
       return new Response('Dashboard not found', { status: 404 });
     }
 
-    const { timeRange } = await request.json();
-    const effectiveTimeRange = timeRange || dashboard.timeRange;
+    const body = await request.json() as { timeRange?: any };
+    const effectiveTimeRange = body.timeRange || dashboard.timeRange;
 
     // Render each panel
     const renderedPanels = [];

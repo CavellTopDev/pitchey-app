@@ -63,10 +63,11 @@ export class PushNotificationService {
     private redis?: any,
     vapidKeys?: { publicKey: string; privateKey: string; subject: string }
   ) {
+    // VAPID keys must be provided - no process.env fallback in Cloudflare Workers
     this.vapidKeys = vapidKeys || {
-      publicKey: process.env.VAPID_PUBLIC_KEY || '',
-      privateKey: process.env.VAPID_PRIVATE_KEY || '',
-      subject: process.env.VAPID_SUBJECT || 'mailto:support@pitchey.com',
+      publicKey: '',
+      privateKey: '',
+      subject: 'mailto:support@pitchey.com',
     };
   }
 
@@ -105,7 +106,9 @@ export class PushNotificationService {
         ]
       );
 
-      const subscriptionId = result.rows[0].id;
+      // Raw SQL returns array directly, not { rows: [...] }
+      const rows = Array.isArray(result) ? result : [];
+      const subscriptionId = (rows[0] as any)?.id;
 
       // Cache subscription for quick lookup
       if (this.redis) {
@@ -278,16 +281,19 @@ export class PushNotificationService {
         [userId]
       );
 
+      // Raw SQL returns array directly, not { rows: [...] }
+      const rows = Array.isArray(result) ? result : [];
+
       // Cache for quick lookup
-      if (this.redis && result.rows.length > 0) {
+      if (this.redis && rows.length > 0) {
         await this.redis.set(
           `user_push_subscriptions:${userId}`,
-          JSON.stringify(result.rows),
+          JSON.stringify(rows),
           300 // 5 minutes TTL
         );
       }
 
-      return result.rows;
+      return rows;
     } catch (error) {
       console.error('Error getting user subscriptions:', error);
       return [];
@@ -387,7 +393,7 @@ export class PushNotificationService {
       }
 
       const result = await this.db.query(`
-        SELECT 
+        SELECT
           ps.device_type,
           COUNT(CASE WHEN pa.event = 'delivered' THEN 1 END) as delivered,
           COUNT(CASE WHEN pa.event = 'sent' THEN 1 END) as sent,
@@ -398,11 +404,21 @@ export class PushNotificationService {
         GROUP BY ps.device_type
       `, params);
 
-      const totalSent = result.rows.reduce((sum, row) => sum + parseInt(row.sent), 0);
-      const totalDelivered = result.rows.reduce((sum, row) => sum + parseInt(row.delivered), 0);
-      const totalClicked = result.rows.reduce((sum, row) => sum + parseInt(row.clicked), 0);
+      // Raw SQL returns array directly, not { rows: [...] }
+      const rows = Array.isArray(result) ? result : [];
 
-      const byDevice = result.rows.reduce((acc, row) => {
+      interface AnalyticsRow {
+        device_type: string;
+        sent: string;
+        delivered: string;
+        clicked: string;
+      }
+
+      const totalSent = rows.reduce((sum: number, row: AnalyticsRow) => sum + parseInt(row.sent), 0);
+      const totalDelivered = rows.reduce((sum: number, row: AnalyticsRow) => sum + parseInt(row.delivered), 0);
+      const totalClicked = rows.reduce((sum: number, row: AnalyticsRow) => sum + parseInt(row.clicked), 0);
+
+      const byDevice = rows.reduce((acc: Record<string, { sent: number; clicked: number }>, row: AnalyticsRow) => {
         acc[row.device_type] = {
           sent: parseInt(row.sent),
           clicked: parseInt(row.clicked),

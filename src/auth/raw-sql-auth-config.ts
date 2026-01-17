@@ -149,7 +149,7 @@ export function createSessionCookie(
     maxAge: DEFAULT_CONFIG.sessionDuration / 1000, // Convert to seconds
     secure: true,
     httpOnly: true,
-    sameSite: 'lax' as const,
+    sameSite: 'none' as const, // Required for cross-origin cookies
     path: '/'
   };
   

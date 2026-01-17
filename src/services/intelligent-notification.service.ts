@@ -27,7 +27,7 @@ export interface NotificationAction {
   type: 'send' | 'delay' | 'batch' | 'upgrade_priority' | 'suppress';
   delayMinutes?: number;
   batchSize?: number;
-  newPriority?: 'critical' | 'high' | 'medium' | 'low';
+  newPriority?: 'low' | 'normal' | 'high' | 'urgent'; // Match NotificationInput priority type
   suppressDuration?: number; // minutes
 }
 
@@ -52,7 +52,7 @@ export interface SmartBatch {
   category: string;
   notifications: NotificationData[];
   scheduledTime: Date;
-  priority: 'critical' | 'high' | 'medium' | 'low';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
   estimatedEngagement: number;
 }
 
@@ -86,8 +86,8 @@ export class IntelligentNotificationService {
     reason: string;
   }> {
     try {
-      // Get or create user profile
-      const userProfile = await this.getUserProfile(data.userId);
+      // Get or create user profile (convert userId number to string for profile lookup)
+      const userProfile = await this.getUserProfile(String(data.userId));
       
       // Apply notification rules
       const ruleResult = await this.applyRules(data, userProfile);
@@ -155,12 +155,12 @@ export class IntelligentNotificationService {
   ): Promise<NotificationTiming> {
     const now = new Date();
     
-    // For critical notifications, send immediately
-    if (data.priority === 'critical') {
+    // For urgent notifications, send immediately
+    if (data.priority === 'urgent') {
       return {
         sendTime: now,
         confidence: 1.0,
-        reasoning: 'Critical priority - immediate delivery required',
+        reasoning: 'Urgent priority - immediate delivery required',
         estimatedEngagement: 0.9,
       };
     }
@@ -227,8 +227,8 @@ export class IntelligentNotificationService {
     batchId?: string;
     reason: string;
   }> {
-    // Never batch critical or high priority notifications
-    if (data.priority === 'critical' || data.priority === 'high') {
+    // Never batch urgent or high priority notifications
+    if (data.priority === 'urgent' || data.priority === 'high') {
       return {
         shouldBatch: false,
         reason: 'High priority notifications are not batched',
@@ -243,10 +243,12 @@ export class IntelligentNotificationService {
       };
     }
 
-    // Check for existing batch
+    // Check for existing batch (use default category if not specified)
+    const category = data.category || 'system';
+    const userIdStr = String(data.userId);
     const existingBatch = await this.findExistingBatch(
-      data.userId,
-      data.category,
+      userIdStr,
+      category,
       timing.sendTime
     );
 
@@ -260,14 +262,14 @@ export class IntelligentNotificationService {
 
     // Check if user has recent notifications in this category
     const recentNotifications = await this.getRecentNotifications(
-      data.userId,
-      data.category,
+      userIdStr,
+      category,
       60 // last 60 minutes
     );
 
     if (recentNotifications.length >= 2) {
       // Create new batch
-      const batchId = await this.createBatch(data.userId, data.category, timing.sendTime);
+      const batchId = await this.createBatch(userIdStr, category, timing.sendTime);
       return {
         shouldBatch: true,
         batchId,
@@ -292,20 +294,21 @@ export class IntelligentNotificationService {
     reason: string;
     nextAllowedTime?: NotificationTiming;
   }> {
-    const categoryData = userProfile.categories[data.category];
-    
+    const category = data.category || 'system';
+    const categoryData = userProfile.categories[category];
+
     if (!categoryData) {
       return { allowed: true, reason: 'No previous notifications in this category' };
     }
 
     const timeSinceLastSent = Date.now() - categoryData.lastSent.getTime();
-    const minInterval = this.getMinIntervalForCategory(data.category, data.priority);
+    const minInterval = this.getMinIntervalForCategory(category, data.priority);
 
     if (timeSinceLastSent < minInterval) {
       const nextAllowedTime = new Date(categoryData.lastSent.getTime() + minInterval);
       return {
         allowed: false,
-        reason: `Frequency limit exceeded for ${data.category} category`,
+        reason: `Frequency limit exceeded for ${category} category`,
         nextAllowedTime: {
           sendTime: nextAllowedTime,
           confidence: 0.8,
@@ -382,9 +385,11 @@ export class IntelligentNotificationService {
       );
 
       let profile: UserNotificationProfile;
+      // Raw SQL query returns array directly, not { rows: [...] }
+      const rows = Array.isArray(result) ? result : [];
 
-      if (result.rows.length > 0) {
-        const row = result.rows[0];
+      if (rows.length > 0) {
+        const row = rows[0] as any;
         profile = {
           userId,
           preferredTimes: row.preferred_times || ['09:00', '14:00', '18:00'],
@@ -652,7 +657,7 @@ export class IntelligentNotificationService {
   }
 
   private getMinIntervalForCategory(category: string, priority: string): number {
-    const baseIntervals = {
+    const baseIntervals: Record<string, number> = {
       investment: 30 * 60 * 1000, // 30 minutes
       project: 60 * 60 * 1000, // 1 hour
       system: 4 * 60 * 60 * 1000, // 4 hours
@@ -660,16 +665,16 @@ export class IntelligentNotificationService {
       market: 12 * 60 * 60 * 1000, // 12 hours
     };
 
-    const priorityMultipliers = {
-      critical: 0.1,
+    const priorityMultipliers: Record<string, number> = {
+      urgent: 0.1,
       high: 0.5,
-      medium: 1.0,
+      normal: 1.0,
       low: 2.0,
     };
 
     const baseInterval = baseIntervals[category] || 60 * 60 * 1000;
     const multiplier = priorityMultipliers[priority] || 1.0;
-    
+
     return baseInterval * multiplier;
   }
 
@@ -751,12 +756,13 @@ export class IntelligentNotificationService {
   ): Promise<any[]> {
     try {
       const result = await this.db.query(
-        `SELECT id FROM notifications 
-         WHERE user_id = $1 AND category = $2 
+        `SELECT id FROM notifications
+         WHERE user_id = $1 AND category = $2
          AND created_at > $3`,
         [userId, category, new Date(Date.now() - minutesBack * 60 * 1000)]
       );
-      return result.rows;
+      // Raw SQL returns array directly
+      return Array.isArray(result) ? result : [];
     } catch (error) {
       console.error('Error getting recent notifications:', error);
       return [];

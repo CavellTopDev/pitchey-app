@@ -164,7 +164,7 @@ export async function createTeamHandler(request: Request, env: Env): Promise<Res
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { name, description, visibility } = body;
 
     if (!name) {
@@ -252,7 +252,7 @@ export async function updateTeamHandler(request: Request, env: Env): Promise<Res
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const sql = getDb(env);
     
     if (!sql) {
@@ -399,7 +399,7 @@ export async function inviteToTeamHandler(request: Request, env: Env): Promise<R
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { email, role, message } = body;
 
     if (!email) {
@@ -694,7 +694,7 @@ export async function updateMemberRoleHandler(request: Request, env: Env): Promi
       });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { role } = body;
 
     if (!role) {

@@ -1,10 +1,10 @@
 // Phase 3: Media Access Handler
 // Handles file uploads, downloads, and media management
 
-import { R2Bucket } from '@cloudflare/workers-types';
-
+// Use generic type for Environment to avoid R2Bucket version conflicts
 interface Environment {
-  MEDIA_STORAGE: R2Bucket;
+  MEDIA_STORAGE?: any;
+  [key: string]: any;
 }
 
 export class MediaAccessHandler {
