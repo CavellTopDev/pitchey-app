@@ -216,6 +216,15 @@ SENTRY_DSN = "https://fd5664ae577039ccb7cce31e91f54533@o4510137537396736.ingest.
 SENTRY_ENVIRONMENT = "production"
 SENTRY_TRACES_SAMPLE_RATE = "0.1"
 
+# Axiom Log Aggregation (set via wrangler secret)
+# AXIOM_TOKEN = "your-axiom-api-token"
+AXIOM_DATASET = "pitchey-logs"
+
+# Observability Settings
+LOG_LEVEL = "info"
+SLOW_QUERY_THRESHOLD_MS = "1000"
+LOG_ALL_QUERIES = "false"
+
 # ===== OBSERVABILITY CONFIGURATION =====
 [observability]
 enabled = true
