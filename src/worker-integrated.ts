@@ -5741,9 +5741,11 @@ pitchey_analytics_datapoints_per_minute 1250
           break;
 
         case 'new':
-          // New: Most recently created content only
+          // New: Only recently created content (last 30 days), purely chronological
+          // This is distinctly different from trending which considers engagement
           whereClause = `
             WHERE p.status = 'published'
+            AND p.created_at >= NOW() - INTERVAL '30 days'
           `;
           orderClause = `ORDER BY p.created_at DESC`;
           break;
