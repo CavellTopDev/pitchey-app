@@ -156,15 +156,28 @@ export default function CreatorPitchesAnalytics() {
           }
         ]);
 
-        // Mock time series data
+        // Generate recent dates dynamically for the past 7 days
+        const getRecentDates = () => {
+          const dates = [];
+          const now = new Date();
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            dates.push(d.toISOString().split('T')[0]);
+          }
+          return dates;
+        };
+        const recentDates = getRecentDates();
+
+        // Mock time series data with dynamic dates
         setTimeSeriesData([
-          { date: '2024-11-09', views: 1240, engagement: 89, newFollowers: 12 },
-          { date: '2024-11-10', views: 1580, engagement: 134, newFollowers: 18 },
-          { date: '2024-11-11', views: 1320, engagement: 98, newFollowers: 8 },
-          { date: '2024-11-12', views: 1890, engagement: 156, newFollowers: 22 },
-          { date: '2024-11-13', views: 2100, engagement: 189, newFollowers: 29 },
-          { date: '2024-11-14', views: 1750, engagement: 145, newFollowers: 15 },
-          { date: '2024-11-15', views: 2340, engagement: 234, newFollowers: 34 }
+          { date: recentDates[0], views: 1240, engagement: 89, newFollowers: 12 },
+          { date: recentDates[1], views: 1580, engagement: 134, newFollowers: 18 },
+          { date: recentDates[2], views: 1320, engagement: 98, newFollowers: 8 },
+          { date: recentDates[3], views: 1890, engagement: 156, newFollowers: 22 },
+          { date: recentDates[4], views: 2100, engagement: 189, newFollowers: 29 },
+          { date: recentDates[5], views: 1750, engagement: 145, newFollowers: 15 },
+          { date: recentDates[6], views: 2340, engagement: 234, newFollowers: 34 }
         ]);
 
         setLoading(false);

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  FileSignature, FileClock, FileCheck, FileX, FileSearch, 
+import {
+  FileSignature, FileClock, FileCheck, FileX, FileSearch,
   FileText, Filter, Search, Calendar, Download, Eye,
   AlertCircle, CheckCircle, XCircle, Clock, ChevronRight,
-  MoreVertical, Send, Archive, Trash2
+  MoreVertical, Send, Archive, Trash2, RefreshCw, PenTool
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import apiClient from '../../lib/api-client';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 
 interface NDARequest {
   id: number;
@@ -37,83 +39,125 @@ interface NDARequest {
   creator: string;
   company: string;
   requestDate: string;
-  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'signed' | 'active';
   expiryDate?: string;
   documentUrl?: string;
   notes?: string;
   genre: string;
   budget: string;
+  pitchId?: number;
 }
 
 export default function NDARequests() {
-    const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedTab, setSelectedTab] = useState(searchParams.get('tab') || 'all');
-  
-  // Mock data for NDA requests
-  const [ndaRequests] = useState<NDARequest[]>([
-    {
-      id: 1,
-      pitchTitle: "The Last Frontier",
-      creator: "Alex Chen",
-      company: "Visionary Films",
-      requestDate: "2024-12-15",
-      status: 'pending',
-      genre: "Sci-Fi",
-      budget: "$50M"
-    },
-    {
-      id: 2,
-      pitchTitle: "Echoes of Tomorrow",
-      creator: "Sarah Miller",
-      company: "DreamWorks Studios",
-      requestDate: "2024-12-14",
-      status: 'approved',
-      expiryDate: "2025-12-14",
-      documentUrl: "/nda/002.pdf",
-      genre: "Drama",
-      budget: "$25M"
-    },
-    {
-      id: 3,
-      pitchTitle: "Quantum Paradox",
-      creator: "James Wilson",
-      company: "Stellar Productions",
-      requestDate: "2024-12-10",
-      status: 'rejected',
-      notes: "Budget constraints",
-      genre: "Thriller",
-      budget: "$75M"
-    },
-    {
-      id: 4,
-      pitchTitle: "City of Dreams",
-      creator: "Maria Garcia",
-      company: "Independent",
-      requestDate: "2024-12-08",
-      status: 'approved',
-      expiryDate: "2025-12-08",
-      documentUrl: "/nda/004.pdf",
-      genre: "Romance",
-      budget: "$15M"
-    },
-    {
-      id: 5,
-      pitchTitle: "The Silent Hour",
-      creator: "David Kim",
-      company: "A24 Films",
-      requestDate: "2024-11-20",
-      status: 'expired',
-      expiryDate: "2024-12-20",
-      genre: "Horror",
-      budget: "$10M"
+  const [ndaRequests, setNdaRequests] = useState<NDARequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated, checkSession } = useBetterAuthStore();
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  // Check session on mount
+  useEffect(() => {
+    const validateSession = async () => {
+      try {
+        await checkSession();
+        setSessionChecked(true);
+      } catch {
+        setSessionChecked(true);
+      }
+    };
+    validateSession();
+  }, [checkSession]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (sessionChecked && !isAuthenticated) {
+      navigate('/login/investor');
     }
-  ]);
+  }, [sessionChecked, isAuthenticated, navigate]);
+
+  // Fetch NDA requests from API
+  const fetchNDARequests = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await apiClient.get('/api/ndas');
+
+      if (response.success && response.data) {
+        // Transform API data to match component interface
+        const ndas = response.data.ndas || response.data || [];
+        const transformedNDAs: NDARequest[] = ndas.map((nda: any) => ({
+          id: nda.id,
+          pitchTitle: nda.pitchTitle || nda.pitch_title || 'Unknown Pitch',
+          creator: nda.creatorName || nda.creator_name || nda.creator || 'Unknown Creator',
+          company: nda.companyName || nda.company_name || nda.company || 'Independent',
+          requestDate: nda.requestedAt || nda.requested_at || nda.createdAt || nda.created_at,
+          status: nda.status || 'pending',
+          expiryDate: nda.expiresAt || nda.expires_at,
+          documentUrl: nda.documentUrl || nda.document_url,
+          notes: nda.notes || nda.rejectionReason || nda.rejection_reason,
+          genre: nda.genre || 'Unknown',
+          budget: nda.budget || 'TBD',
+          pitchId: nda.pitchId || nda.pitch_id
+        }));
+        setNdaRequests(transformedNDAs);
+      } else {
+        // If no data, show empty state (not an error)
+        setNdaRequests([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch NDA requests:', err);
+      setError('Failed to load NDA requests. Please try again.');
+      setNdaRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data when session is confirmed
+  useEffect(() => {
+    if (sessionChecked && isAuthenticated) {
+      fetchNDARequests();
+    }
+  }, [sessionChecked, isAuthenticated]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login/investor');
+  };
+
+  const [signingId, setSigningId] = useState<number | null>(null);
+
+  // Sign an approved NDA
+  const handleSignNDA = async (ndaId: number) => {
+    try {
+      setSigningId(ndaId);
+      setError(null);
+
+      const response = await apiClient.post(`/api/ndas/${ndaId}/sign`, {
+        acceptTerms: true,
+        signedAt: new Date().toISOString()
+      });
+
+      if (response.success) {
+        // Update local state to reflect signed status
+        setNdaRequests(prev => prev.map(nda =>
+          nda.id === ndaId ? { ...nda, status: 'signed' as const } : nda
+        ));
+      } else {
+        setError(response.error?.message || 'Failed to sign NDA');
+      }
+    } catch (err) {
+      console.error('Failed to sign NDA:', err);
+      setError('Failed to sign NDA. Please try again.');
+    } finally {
+      setSigningId(null);
+    }
   };
 
   const filteredRequests = ndaRequests.filter(request => {
@@ -129,7 +173,8 @@ export default function NDARequests() {
   const getStatusIcon = (status: string) => {
     switch(status) {
       case 'pending': return <Clock className="w-4 h-4" />;
-      case 'approved': return <CheckCircle className="w-4 h-4" />;
+      case 'approved': return <FileCheck className="w-4 h-4" />;
+      case 'signed': return <CheckCircle className="w-4 h-4" />;
       case 'rejected': return <XCircle className="w-4 h-4" />;
       case 'expired': return <AlertCircle className="w-4 h-4" />;
       default: return null;
@@ -139,7 +184,8 @@ export default function NDARequests() {
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'approved': return 'bg-green-100 text-green-800';
+      case 'approved': return 'bg-blue-100 text-blue-800';
+      case 'signed': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'expired': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -150,6 +196,7 @@ export default function NDARequests() {
     total: ndaRequests.length,
     pending: ndaRequests.filter(r => r.status === 'pending').length,
     approved: ndaRequests.filter(r => r.status === 'approved').length,
+    signed: ndaRequests.filter(r => r.status === 'signed').length,
     rejected: ndaRequests.filter(r => r.status === 'rejected').length,
     expired: ndaRequests.filter(r => r.status === 'expired').length,
   };
@@ -160,18 +207,48 @@ export default function NDARequests() {
     }
   }, [selectedTab]);
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-            
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">NDA Requests</h1>
-          <p className="text-gray-600 mt-2">Manage your non-disclosure agreement requests and access protected content</p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">NDA Requests</h1>
+            <p className="text-gray-600 mt-2">Manage your non-disclosure agreement requests and access protected content</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchNDARequests}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
         </div>
 
+        {/* Error message */}
+        {error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="py-4">
+              <p className="text-red-700">{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Requests</CardDescription>
@@ -193,7 +270,15 @@ export default function NDARequests() {
               <CardDescription>Approved</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+              <div className="text-2xl font-bold text-blue-600">{stats.approved}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Signed</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{stats.signed}</div>
             </CardContent>
           </Card>
           <Card>
@@ -238,10 +323,11 @@ export default function NDARequests() {
 
         {/* Tabs */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
             <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
             <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
             <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
+            <TabsTrigger value="signed">Signed ({stats.signed})</TabsTrigger>
             <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
             <TabsTrigger value="expired">Expired ({stats.expired})</TabsTrigger>
           </TabsList>
@@ -252,7 +338,21 @@ export default function NDARequests() {
                 <Card>
                   <CardContent className="text-center py-12">
                     <FileSearch className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500">No NDA requests found</p>
+                    <p className="text-gray-500 mb-4">
+                      {ndaRequests.length === 0
+                        ? "You haven't requested any NDAs yet"
+                        : "No NDA requests match your search criteria"
+                      }
+                    </p>
+                    {ndaRequests.length === 0 && (
+                      <Button
+                        onClick={() => navigate('/marketplace')}
+                        variant="outline"
+                        className="mt-2"
+                      >
+                        Browse Pitches
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -304,7 +404,23 @@ export default function NDARequests() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          {request.status === 'approved' && request.documentUrl && (
+                          {request.status === 'approved' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                              onClick={() => handleSignNDA(request.id)}
+                              disabled={signingId === request.id}
+                            >
+                              {signingId === request.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <PenTool className="w-4 h-4" />
+                              )}
+                              {signingId === request.id ? 'Signing...' : 'Sign NDA'}
+                            </Button>
+                          )}
+                          {request.status === 'signed' && request.documentUrl && (
                             <>
                               <Button variant="outline" size="sm" className="flex items-center gap-2">
                                 <Eye className="w-4 h-4" />
@@ -333,6 +449,14 @@ export default function NDARequests() {
                                 View Pitch Details
                               </DropdownMenuItem>
                               {request.status === 'approved' && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handleSignNDA(request.id)}>
+                                    <PenTool className="w-4 h-4 mr-2" />
+                                    Sign NDA
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {request.status === 'signed' && (
                                 <DropdownMenuItem>
                                   Access Protected Content
                                 </DropdownMenuItem>

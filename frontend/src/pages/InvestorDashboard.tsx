@@ -282,11 +282,18 @@ function InvestorDashboard() {
                 <DollarSign className="w-6 h-6 text-blue-600" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-              <span className="text-green-500 font-medium">+12.5%</span>
-              <span className="text-gray-500 ml-1">vs last month</span>
-            </div>
+            {portfolio.totalInvested > 0 && (
+              <div className="mt-4 flex items-center text-sm">
+                <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+                <span className="text-green-500 font-medium">Active</span>
+                <span className="text-gray-500 ml-1">portfolio</span>
+              </div>
+            )}
+            {portfolio.totalInvested === 0 && (
+              <div className="mt-4 flex items-center text-sm">
+                <span className="text-gray-500">Start investing today</span>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
@@ -302,8 +309,14 @@ function InvestorDashboard() {
               </div>
             </div>
             <div className="mt-4 flex items-center text-sm">
-              <Plus className="w-4 h-4 text-blue-500 mr-1" />
-              <span className="text-gray-600">2 new this month</span>
+              {portfolio.activeInvestments > 0 ? (
+                <>
+                  <Plus className="w-4 h-4 text-blue-500 mr-1" />
+                  <span className="text-gray-600">{portfolio.activeInvestments} active</span>
+                </>
+              ) : (
+                <span className="text-gray-500">No active investments</span>
+              )}
             </div>
           </div>
 
@@ -338,8 +351,14 @@ function InvestorDashboard() {
               </div>
             </div>
             <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-              <span className="text-green-500 font-medium">+45% ROI</span>
+              {portfolio.topPerformer !== 'None yet' ? (
+                <>
+                  <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+                  <span className="text-green-500 font-medium">Best performer</span>
+                </>
+              ) : (
+                <span className="text-gray-500">Invest to see top performers</span>
+              )}
             </div>
           </div>
         </div>
@@ -669,11 +688,13 @@ function InvestorDashboard() {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Due Diligence & NDAs</h3>
                   <div className="flex gap-2">
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm">
-                      Pending: 2
-                    </span>
+                    {safeArray(ndaRequests).filter((nda: NDARequest) => nda.status === 'pending').length > 0 && (
+                      <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm">
+                        Pending: {safeArray(ndaRequests).filter((nda: NDARequest) => nda.status === 'pending').length}
+                      </span>
+                    )}
                     <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm">
-                      Active: {safeArray(ndaRequests).length}
+                      Active: {safeArray(ndaRequests).filter((nda: NDARequest) => nda.status === 'signed' || nda.status === 'active').length}
                     </span>
                   </div>
                 </div>

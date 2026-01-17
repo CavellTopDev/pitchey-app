@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Menu, X, LogOut, Plus, Eye, Coins, CreditCard, 
+import {
+  Menu, X, LogOut, Plus, Eye, Coins, CreditCard,
   Users, Home, Film, Search, Bell, Shield, BarChart3,
   Settings, UserCircle, ChevronDown
 } from 'lucide-react';
@@ -9,6 +9,12 @@ import { NotificationBell } from './NotificationBell';
 import { NDANotificationBadge } from './NDANotifications';
 import { getSubscriptionTier } from '../config/subscription-plans';
 import { EnhancedNavigationShadcn } from './EnhancedNavigationShadcn';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DashboardHeaderProps {
   user: any;
@@ -100,44 +106,38 @@ export default function DashboardHeader({
 
   const navigationItems = getNavigationItems();
 
-  // Quick actions based on user type
+  // Quick actions based on user type - consistent gradient styling per portal
   const getQuickActions = () => {
     switch (userType) {
       case 'creator':
         return (
-          <>
-            <button
-              onClick={() => navigate('/creator/pitch/new')}
-              className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden lg:inline">New Pitch</span>
-            </button>
-          </>
+          <button
+            onClick={() => navigate('/creator/pitch/new')}
+            className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden lg:inline">New Pitch</span>
+          </button>
         );
       case 'investor':
         return (
-          <>
-            <button
-              onClick={() => navigate('/marketplace')}
-              className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition text-sm"
-            >
-              <Eye className="w-4 h-4" />
-              <span className="hidden lg:inline">Browse Deals</span>
-            </button>
-          </>
+          <button
+            onClick={() => navigate('/marketplace')}
+            className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-medium"
+          >
+            <Eye className="w-4 h-4" />
+            <span className="hidden lg:inline">Browse Deals</span>
+          </button>
         );
       case 'production':
         return (
-          <>
-            <button
-              onClick={() => navigate('/marketplace')}
-              className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-50 transition text-sm"
-            >
-              <Search className="w-4 h-4" />
-              <span className="hidden lg:inline">Find Projects</span>
-            </button>
-          </>
+          <button
+            onClick={() => navigate('/marketplace')}
+            className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg hover:shadow-lg hover:scale-105 transition-all text-sm font-medium"
+          >
+            <Search className="w-4 h-4" />
+            <span className="hidden lg:inline">Find Projects</span>
+          </button>
         );
       default:
         return null;
@@ -231,35 +231,67 @@ export default function DashboardHeader({
           <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
             {/* Credits Display - Only for creators */}
             {userType === 'creator' && credits && (
-              <button
-                onClick={() => navigate('/creator/billing?tab=credits')}
-                className="hidden sm:flex items-center gap-2 px-2 lg:px-3 py-1.5 lg:py-2 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
-              >
-                <Coins className="w-4 h-4 text-purple-600" />
-                <div className="text-xs lg:text-sm">
-                  <div className="font-semibold text-purple-900">
-                    {credits?.balance?.credits || 0}
-                  </div>
-                  <div className="hidden xl:block text-xs text-purple-600">
-                    Credits
-                  </div>
-                </div>
-              </button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => navigate('/creator/billing?tab=credits')}
+                      className="hidden sm:flex items-center gap-2 px-2 lg:px-3 py-1.5 lg:py-2 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
+                    >
+                      <Coins className="w-4 h-4 text-purple-600" />
+                      <div className="text-xs lg:text-sm">
+                        <div className="font-semibold text-purple-900">
+                          {credits?.balance?.credits || 0}
+                        </div>
+                        <div className="hidden xl:block text-xs text-purple-600">
+                          Credits
+                        </div>
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    className="max-w-xs bg-gray-900 text-white p-3 rounded-lg shadow-lg"
+                  >
+                    <p className="font-semibold mb-1">Pitchey Credits</p>
+                    <p className="text-xs text-gray-300">
+                      Use credits to boost visibility, access premium analytics,
+                      and unlock advanced features. Click to manage your credits.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             
             {/* Subscription Status - Only for creators */}
             {userType === 'creator' && subscription && (
-              <button
-                onClick={() => navigate('/creator/billing?tab=subscription')}
-                className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-              >
-                <span className="font-medium text-gray-700 truncate max-w-[100px]">
-                  {getSubscriptionTier(subscription?.tier || '')?.name || 'Free'}
-                </span>
-                {subscription?.status === 'active' && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                )}
-              </button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => navigate('/creator/billing?tab=subscription')}
+                      className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                    >
+                      <span className="font-medium text-gray-700 truncate max-w-[100px]">
+                        {getSubscriptionTier(subscription?.tier || '')?.name || 'Free'}
+                      </span>
+                      {subscription?.status === 'active' && (
+                        <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    className="max-w-xs bg-gray-900 text-white p-3 rounded-lg shadow-lg"
+                  >
+                    <p className="font-semibold mb-1">Your Subscription</p>
+                    <p className="text-xs text-gray-300">
+                      Current plan: {getSubscriptionTier(subscription?.tier || '')?.name || 'Free'}.
+                      Click to upgrade or manage your subscription.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             
             {/* Quick Actions */}
@@ -306,7 +338,7 @@ export default function DashboardHeader({
               </Link>
             ))}
             
-            {/* Mobile Quick Actions */}
+            {/* Mobile Quick Actions - portal-specific colors */}
             <div className="border-t mt-2 pt-2">
               {userType === 'creator' && (
                 <button
@@ -314,33 +346,33 @@ export default function DashboardHeader({
                     navigate('/creator/pitch/new');
                     setMobileMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-purple-600 hover:bg-purple-50 rounded-lg transition-colors font-medium"
                 >
                   <Plus className="w-5 h-5" />
                   New Pitch
                 </button>
               )}
-              
+
               {userType === 'investor' && (
                 <button
                   onClick={() => {
                     navigate('/marketplace');
                     setMobileMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-green-600 hover:bg-green-50 rounded-lg transition-colors font-medium"
                 >
                   <Eye className="w-5 h-5" />
                   Browse Deals
                 </button>
               )}
-              
+
               {userType === 'production' && (
                 <button
                   onClick={() => {
                     navigate('/marketplace');
                     setMobileMenuOpen(false);
                   }}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 text-base text-orange-600 hover:bg-orange-50 rounded-lg transition-colors font-medium"
                 >
                   <Search className="w-5 h-5" />
                   Find Projects

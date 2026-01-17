@@ -200,8 +200,8 @@ export class WorkerFileHandler {
       if (userId) {
         query += ` AND (owner_id = $2 OR pitch_id IN (
           SELECT id FROM pitches WHERE user_id = $2 OR id IN (
-            SELECT pitch_id FROM nda_requests 
-            WHERE investor_id = $2 AND status = 'approved'
+            SELECT pitch_id FROM nda_requests
+            WHERE requester_id = $2 AND status = 'approved'
           )
         ))`;
         params.push(userId);

@@ -4,9 +4,13 @@
 
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
+import { getUserId } from '../utils/auth-extract';
 
 export async function investorDashboardHandler(request: Request, env: Env): Promise<Response> {
   const sql = getDb(env);
+
+  // Get user ID from authentication
+  const authenticatedUserId = await getUserId(request, env);
   
   // Always return valid data structure
   const defaultData = {
@@ -43,8 +47,8 @@ export async function investorDashboardHandler(request: Request, env: Env): Prom
   }
   
   try {
-    // Get user ID from auth (hardcoded for demo)
-    const userId = 2; // TODO: Get from session/JWT
+    // Get user ID from auth
+    const userId = authenticatedUserId ? Number(authenticatedUserId) : 2;
     
     // Simple queries for free tier
     const [investmentStats, ndaStats, savedStats] = await Promise.all([

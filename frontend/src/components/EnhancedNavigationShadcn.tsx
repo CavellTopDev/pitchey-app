@@ -20,6 +20,12 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -380,15 +386,31 @@ export function EnhancedNavigationShadcn({
 
             {/* Right Section */}
             <div className="flex items-center gap-4">
-              {/* Credits (Creator only) */}
+              {/* Credits (Creator only) with tooltip */}
               {userType === 'creator' && (
-                <button 
-                  onClick={() => navigate(`${portalPrefix}/billing`)}
-                  className="flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition"
-                >
-                  <Coins className="w-4 h-4" />
-                  <span>0 Credits</span>
-                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => navigate(`${portalPrefix}/billing`)}
+                        className="flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition"
+                      >
+                        <Coins className="w-4 h-4" />
+                        <span>0 Credits</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      className="max-w-xs bg-gray-900 text-white p-3 rounded-lg shadow-lg"
+                    >
+                      <p className="font-semibold mb-1">Pitchey Credits</p>
+                      <p className="text-xs text-gray-300">
+                        Use credits to boost visibility, access premium analytics,
+                        and unlock advanced features. Click to manage your credits.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
 
               {/* Shopping Cart/Basket */}

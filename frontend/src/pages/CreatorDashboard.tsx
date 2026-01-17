@@ -770,11 +770,21 @@ function CreatorDashboard() {
                           )}
                         </div>
                       ) : (
-                        <p>
-                          {tierName === 'The Watcher' 
-                            ? 'Free tier - Create pitches but cannot upload files. Upgrade to start uploading!' 
-                            : 'Choose a Creator plan to unlock uploads and advanced features'}
-                        </p>
+                        <div>
+                          {tierName === 'The Watcher' ? (
+                            <>
+                              <p className="font-medium mb-1">Free Plan Features:</p>
+                              <ul className="text-xs space-y-0.5 mb-2">
+                                <li>• Create and publish pitches</li>
+                                <li>• Basic analytics dashboard</li>
+                                <li>• Connect with investors</li>
+                              </ul>
+                              <p className="text-purple-200">Upgrade to upload documents, scripts & media files</p>
+                            </>
+                          ) : (
+                            <p>Choose a Creator plan to unlock uploads and advanced features</p>
+                          )}
+                        </div>
                       )}
                     </div>
                     <button 

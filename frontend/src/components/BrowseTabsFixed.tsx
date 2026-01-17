@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TrendingUp, Clock, Star, Award, Search, Filter, Eye, Heart, User } from 'lucide-react';
 import LoadingSpinner from './Loading/LoadingSpinner';
 import { pitchService } from '../services/pitch.service';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 interface Pitch {
@@ -33,6 +33,9 @@ interface TabState {
   error: string | null;
   hasMore: boolean;
   page: number;
+  // Track which search/genre combination this data was fetched with
+  fetchedWithSearch: string;
+  fetchedWithGenre: string;
 }
 
 const BrowseTabsFixed: React.FC = () => {
@@ -41,7 +44,15 @@ const BrowseTabsFixed: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState('all');
-  
+
+  // Track in-flight requests to prevent race conditions
+  const fetchRequestIdRef = useRef<Record<TabType, number>>({
+    trending: 0,
+    new: 0,
+    featured: 0,
+    topRated: 0
+  });
+
   // Separate state for each tab to prevent content mixing
   const [tabStates, setTabStates] = useState<Record<TabType, TabState>>({
     trending: {
@@ -49,28 +60,36 @@ const BrowseTabsFixed: React.FC = () => {
       loading: false,
       error: null,
       hasMore: true,
-      page: 1
+      page: 1,
+      fetchedWithSearch: '',
+      fetchedWithGenre: 'all'
     },
     new: {
       pitches: [],
       loading: false,
       error: null,
       hasMore: true,
-      page: 1
+      page: 1,
+      fetchedWithSearch: '',
+      fetchedWithGenre: 'all'
     },
     featured: {
       pitches: [],
       loading: false,
       error: null,
       hasMore: true,
-      page: 1
+      page: 1,
+      fetchedWithSearch: '',
+      fetchedWithGenre: 'all'
     },
     topRated: {
       pitches: [],
       loading: false,
       error: null,
       hasMore: true,
-      page: 1
+      page: 1,
+      fetchedWithSearch: '',
+      fetchedWithGenre: 'all'
     }
   });
 
@@ -80,19 +99,35 @@ const BrowseTabsFixed: React.FC = () => {
   ];
 
   // Fetch pitches for specific tab with unique sorting/filtering
-  const fetchTabPitches = useCallback(async (tab: TabType, reset = false) => {
-    // Use a ref to get current state to avoid stale closure
+  // This function is now called with explicit search/genre to prevent stale closures
+  const fetchTabPitches = useCallback(async (
+    tab: TabType,
+    reset: boolean,
+    currentSearch: string,
+    currentGenre: string
+  ) => {
+    // Increment request ID for this tab to track if response is still valid
+    const requestId = ++fetchRequestIdRef.current[tab];
+
+    // Get current state synchronously to determine page
     let currentPage = 1;
     let shouldFetch = true;
-    
+
     setTabStates(prev => {
       const currentState = prev[tab];
-      
-      if (currentState.loading || (!reset && !currentState.hasMore)) {
+
+      // Skip if already loading (unless reset which cancels in-flight request)
+      if (currentState.loading && !reset) {
         shouldFetch = false;
         return prev;
       }
-      
+
+      // Skip if no more data and not resetting
+      if (!reset && !currentState.hasMore) {
+        shouldFetch = false;
+        return prev;
+      }
+
       currentPage = reset ? 1 : currentState.page;
 
       return {
@@ -104,52 +139,13 @@ const BrowseTabsFixed: React.FC = () => {
         }
       };
     });
-    
+
     if (!shouldFetch) {
       return;
     }
 
     try {
       const page = currentPage;
-      
-      // Use the /api/browse endpoint that exists on the backend
-      let endpoint = '/api/browse';
-      const params = new URLSearchParams();
-      params.append('limit', '12');
-      params.append('offset', String((page - 1) * 12));
-      
-      if (searchTerm) {
-        params.append('search', searchTerm);
-      }
-      
-      if (selectedGenre !== 'all') {
-        params.append('genre', selectedGenre);
-      }
-
-      // Apply tab-specific parameters
-      switch (tab) {
-        case 'trending':
-          params.append('tab', 'trending');
-          params.append('sortBy', 'views_desc');
-          params.append('timeRange', '7d');
-          break;
-          
-        case 'new':
-          params.append('tab', 'new');
-          params.append('sortBy', 'created_desc');
-          break;
-          
-        case 'featured':
-          params.append('tab', 'featured');
-          params.append('featured', 'true');
-          break;
-          
-        case 'topRated':
-          params.append('tab', 'topRated');
-          params.append('sortBy', 'rating_desc');
-          params.append('minRating', '4');
-          break;
-      }
 
       // Call the existing getTrendingPitches or getPublicPitches method
       let response: any;
@@ -162,13 +158,19 @@ const BrowseTabsFixed: React.FC = () => {
         response = await pitchService.getPublicPitches({
           page,
           limit: 12,
-          search: searchTerm !== '' ? searchTerm : undefined,
-          genre: selectedGenre !== 'all' ? selectedGenre : undefined,
+          search: currentSearch !== '' ? currentSearch : undefined,
+          genre: currentGenre !== 'all' ? currentGenre : undefined,
           featured: tab === 'featured',
           sortBy: tab === 'new' ? 'created_desc' : tab === 'topRated' ? 'rating_desc' : undefined
         });
       }
-      
+
+      // Check if this response is still valid (no newer request has been made)
+      if (requestId !== fetchRequestIdRef.current[tab]) {
+        console.log(`Ignoring stale response for ${tab} tab (requestId: ${requestId})`);
+        return;
+      }
+
       const newPitches = response.pitches || response.data?.pitches || [];
       const hasMore = newPitches.length === 12; // If we got full page, there might be more
 
@@ -180,11 +182,18 @@ const BrowseTabsFixed: React.FC = () => {
           pitches: reset ? newPitches : [...prev[tab].pitches, ...newPitches],
           hasMore,
           page: reset ? 2 : page + 1,
-          error: null
+          error: null,
+          fetchedWithSearch: currentSearch,
+          fetchedWithGenre: currentGenre
         }
       }));
 
     } catch (error) {
+      // Check if this error is still relevant
+      if (requestId !== fetchRequestIdRef.current[tab]) {
+        return;
+      }
+
       console.error(`Failed to fetch ${tab} pitches:`, error);
       setTabStates(prev => ({
         ...prev,
@@ -195,35 +204,43 @@ const BrowseTabsFixed: React.FC = () => {
         }
       }));
     }
-  }, [searchTerm, selectedGenre]);
+  }, []); // No dependencies - search/genre passed as arguments
 
-  // Load initial data for active tab
+  // Load data for active tab when tab changes or when search/genre changes
   useEffect(() => {
-    const currentTab = tabStates[activeTab];
-    // Only fetch if we don't have data for this tab yet
-    if (currentTab.pitches.length === 0 && !currentTab.loading) {
-      fetchTabPitches(activeTab, true);
+    const currentTabState = tabStates[activeTab];
+
+    // Check if we need to fetch data:
+    // 1. Tab has no data yet
+    // 2. Search/genre changed since last fetch
+    const needsFetch =
+      currentTabState.pitches.length === 0 ||
+      currentTabState.fetchedWithSearch !== searchTerm ||
+      currentTabState.fetchedWithGenre !== selectedGenre;
+
+    if (needsFetch && !currentTabState.loading) {
+      // Debounce only for search term changes
+      const delay = currentTabState.fetchedWithSearch !== searchTerm ? 500 : 0;
+
+      const timeoutId = setTimeout(() => {
+        fetchTabPitches(activeTab, true, searchTerm, selectedGenre);
+      }, delay);
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [activeTab]); // Removed fetchTabPitches from deps to prevent infinite loop
-
-  // Refresh data when search or genre filter changes
-  useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      fetchTabPitches(activeTab, true);
-    }, 500); // Debounce search
-
-    return () => clearTimeout(delayedSearch);
-  }, [searchTerm, selectedGenre, activeTab]); // Added activeTab, removed fetchTabPitches
+  }, [activeTab, searchTerm, selectedGenre, fetchTabPitches, tabStates]);
 
   // Handle tab switch - preserve individual tab states
   const handleTabSwitch = (tab: TabType) => {
-    setActiveTab(tab);
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+    }
     // Data will be loaded in useEffect if needed
   };
 
   // Load more pitches for current tab
   const loadMore = () => {
-    fetchTabPitches(activeTab, false);
+    fetchTabPitches(activeTab, false, searchTerm, selectedGenre);
   };
 
   const currentTabState = tabStates[activeTab];
@@ -369,7 +386,7 @@ const BrowseTabsFixed: React.FC = () => {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-red-800">{currentTabState.error}</p>
               <button
-                onClick={() => fetchTabPitches(activeTab, true)}
+                onClick={() => fetchTabPitches(activeTab, true, searchTerm, selectedGenre)}
                 className="mt-2 text-red-600 hover:text-red-800 font-medium"
               >
                 Try again

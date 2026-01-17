@@ -5,10 +5,13 @@
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
 import { getCorsHeaders } from '../utils/response';
+import { getUserId } from '../utils/auth-extract';
 
 export async function followersHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const creatorId = url.searchParams.get('creatorId') || '1';
+  // creatorId can be from query param (viewing someone else's followers) or auth (own followers)
+  const authenticatedUserId = await getUserId(request, env);
+  const creatorId = url.searchParams.get('creatorId') || authenticatedUserId || '1';
   const sql = getDb(env);
   const origin = request.headers.get('Origin');
   const corsHeaders = getCorsHeaders(origin);
@@ -93,7 +96,8 @@ export async function followersHandler(request: Request, env: Env): Promise<Resp
 
 export async function followingHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const userId = url.searchParams.get('userId') || '1';
+  const authenticatedUserId = await getUserId(request, env);
+  const userId = url.searchParams.get('userId') || authenticatedUserId || '1';
   const sql = getDb(env);
   const origin = request.headers.get('Origin');
   const corsHeaders = getCorsHeaders(origin);

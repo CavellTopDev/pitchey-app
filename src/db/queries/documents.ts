@@ -416,32 +416,43 @@ export async function getUserNDARequests(
   type: 'sent' | 'received' | 'all' = 'all'
 ): Promise<NDARequest[]> {
   const wb = new WhereBuilder();
-  
+
+  // ndas table uses signer_id for the requester, and pitches uses user_id for owner
   if (type === 'sent') {
-    wb.add('nr.requester_id = $param', userId);
+    wb.add('n.signer_id = $param', userId);
   } else if (type === 'received') {
-    wb.add('p.creator_id = $param', userId);
+    wb.add('p.user_id = $param', userId);
   } else {
-    wb.add('(nr.requester_id = $param OR p.creator_id = $param)', userId);
+    wb.add('(n.signer_id = $param OR p.user_id = $param)', userId);
   }
-  
+
   const { where, params } = wb.build();
-  
+
   const query = `
-    SELECT 
-      nr.*,
+    SELECT
+      n.id,
+      n.pitch_id,
+      n.signer_id as requester_id,
+      n.status,
+      n.nda_type,
+      n.created_at,
+      n.updated_at,
+      n.expires_at,
+      n.signed_at,
+      n.approved_at,
+      n.approved_by,
       p.title as pitch_title,
       p.genre as pitch_genre,
       u1.username as requester_username,
       u2.username as creator_username
-    FROM nda_requests nr
-    JOIN pitches p ON nr.pitch_id = p.id
-    JOIN users u1 ON nr.requester_id = u1.id
-    JOIN users u2 ON p.creator_id = u2.id
+    FROM ndas n
+    JOIN pitches p ON n.pitch_id = p.id
+    JOIN users u1 ON n.signer_id = u1.id
+    JOIN users u2 ON p.user_id = u2.id
     ${where}
-    ORDER BY nr.created_at DESC
+    ORDER BY n.created_at DESC
   `;
-  
+
   const result = await sql(query, params);
   return extractMany<NDARequest>(result);
 }

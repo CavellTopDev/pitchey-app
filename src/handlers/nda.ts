@@ -6,6 +6,7 @@
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
 import { getCorsHeaders } from '../utils/response';
+import { getUserId } from '../utils/auth-extract';
 import * as documentQueries from '../db/queries/documents';
 import * as notificationQueries from '../db/queries/notifications';
 
@@ -13,11 +14,12 @@ import * as notificationQueries from '../db/queries/notifications';
 export async function ndaHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const type = url.searchParams.get('type') || 'all'; // sent, received, all
-  const userId = url.searchParams.get('userId') || '1';
+  const authenticatedUserId = await getUserId(request, env);
+  const userId = authenticatedUserId || url.searchParams.get('userId') || '1';
   const sql = getDb(env);
   const origin = request.headers.get('Origin');
   const corsHeaders = getCorsHeaders(origin);
-  
+
   const defaultResponse = {
     success: true,
     data: {
@@ -25,45 +27,124 @@ export async function ndaHandler(request: Request, env: Env): Promise<Response> 
       total: 0
     }
   };
-  
+
   if (!sql) {
+    console.error('NDA handler: No database connection');
     return new Response(JSON.stringify(defaultResponse), {
       status: 200,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=60',
         ...corsHeaders
       }
     });
   }
-  
+
   try {
-    const ndas = await documentQueries.getUserNDARequests(
-      sql,
-      userId,
-      type as 'sent' | 'received' | 'all'
-    );
-    
+    // Query the ndas table with proper joins
+    // Note: Using ndas table instead of nda_requests, with signer_id as requester
+    let ndas;
+    if (type === 'sent') {
+      ndas = await sql`
+        SELECT
+          n.id,
+          n.pitch_id,
+          n.signer_id as requester_id,
+          n.status,
+          n.nda_type,
+          n.created_at,
+          n.updated_at,
+          n.expires_at,
+          n.signed_at,
+          n.approved_at,
+          n.approved_by,
+          p.title as pitch_title,
+          p.genre as pitch_genre,
+          u1.username as requester_username,
+          u2.username as creator_username
+        FROM ndas n
+        JOIN pitches p ON n.pitch_id = p.id
+        JOIN users u1 ON n.signer_id = u1.id
+        JOIN users u2 ON p.user_id = u2.id
+        WHERE n.signer_id = ${userId}
+        ORDER BY n.created_at DESC
+      `;
+    } else if (type === 'received') {
+      ndas = await sql`
+        SELECT
+          n.id,
+          n.pitch_id,
+          n.signer_id as requester_id,
+          n.status,
+          n.nda_type,
+          n.created_at,
+          n.updated_at,
+          n.expires_at,
+          n.signed_at,
+          n.approved_at,
+          n.approved_by,
+          p.title as pitch_title,
+          p.genre as pitch_genre,
+          u1.username as requester_username,
+          u2.username as creator_username
+        FROM ndas n
+        JOIN pitches p ON n.pitch_id = p.id
+        JOIN users u1 ON n.signer_id = u1.id
+        JOIN users u2 ON p.user_id = u2.id
+        WHERE p.user_id = ${userId}
+        ORDER BY n.created_at DESC
+      `;
+    } else {
+      // all - get both sent and received
+      ndas = await sql`
+        SELECT
+          n.id,
+          n.pitch_id,
+          n.signer_id as requester_id,
+          n.status,
+          n.nda_type,
+          n.created_at,
+          n.updated_at,
+          n.expires_at,
+          n.signed_at,
+          n.approved_at,
+          n.approved_by,
+          p.title as pitch_title,
+          p.genre as pitch_genre,
+          u1.username as requester_username,
+          u2.username as creator_username
+        FROM ndas n
+        JOIN pitches p ON n.pitch_id = p.id
+        JOIN users u1 ON n.signer_id = u1.id
+        JOIN users u2 ON p.user_id = u2.id
+        WHERE n.signer_id = ${userId} OR p.user_id = ${userId}
+        ORDER BY n.created_at DESC
+      `;
+    }
+
     return new Response(JSON.stringify({
       success: true,
       data: {
         ndas: ndas || [],
-        total: ndas.length
+        total: ndas?.length || 0
       }
     }), {
       status: 200,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=60',
         ...corsHeaders
       }
     });
-    
+
   } catch (error) {
     console.error('NDA query error:', error);
-    return new Response(JSON.stringify(defaultResponse), {
+    return new Response(JSON.stringify({
+      ...defaultResponse,
+      debug: { error: String(error), userId, type }
+    }), {
       status: 200,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=60',
         ...corsHeaders
@@ -347,7 +428,8 @@ export async function uploadDocuments(request: Request, env: Env): Promise<Respo
 // GET /api/nda/stats - NDA statistics
 export async function ndaStatsHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const userId = url.searchParams.get('userId') || '1';
+  const authenticatedUserId = await getUserId(request, env);
+  const userId = authenticatedUserId || url.searchParams.get('userId') || '1';
   const sql = getDb(env);
   const origin = request.headers.get('Origin');
   const corsHeaders = getCorsHeaders(origin);

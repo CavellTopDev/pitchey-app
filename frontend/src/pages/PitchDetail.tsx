@@ -804,7 +804,11 @@ export default function PitchDetail() {
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <div>
                     <div className="font-medium">Published</div>
-                    <div className="text-gray-500">{new Date(pitch.createdAt).toLocaleDateString()}</div>
+                    <div className="text-gray-500">
+                      {pitch.createdAt && !isNaN(new Date(pitch.createdAt).getTime())
+                        ? new Date(pitch.createdAt).toLocaleDateString()
+                        : 'Recently'}
+                    </div>
                   </div>
                 </div>
               </div>

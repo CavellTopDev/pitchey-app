@@ -6,6 +6,7 @@
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
 import { getCorsHeaders } from '../utils/response';
+import { getUserId } from '../utils/auth-extract';
 import * as pitchQueries from '../db/queries/pitches';
 import * as investmentQueries from '../db/queries/investments';
 import * as analyticsQueries from '../db/queries/analytics';
@@ -17,7 +18,9 @@ import * as userQueries from '../db/queries/users';
 // GET /api/creator/dashboard - Main creator dashboard data
 export async function creatorDashboardHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const userId = url.searchParams.get('userId') || '1';
+  // Get user ID from auth, fallback to query param for backward compat
+  const authenticatedUserId = await getUserId(request, env);
+  const userId = authenticatedUserId || url.searchParams.get('userId') || '1';
   const origin = request.headers.get('Origin');
   const corsHeaders = getCorsHeaders(origin);
   
@@ -137,7 +140,8 @@ export async function creatorDashboardHandler(request: Request, env: Env): Promi
 // GET /api/creator/revenue - Revenue Dashboard
 export async function creatorRevenueHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const userId = url.searchParams.get('userId') || '1';
+  const authenticatedUserId = await getUserId(request, env);
+  const userId = authenticatedUserId || url.searchParams.get('userId') || '1';
   const period = url.searchParams.get('period') || '30'; // days
   const sql = getDb(env);
   const origin = request.headers.get('Origin');
@@ -253,7 +257,8 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
 // GET /api/creator/contracts - Contract Management
 export async function creatorContractsHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const userId = url.searchParams.get('userId') || '1';
+  const authenticatedUserId = await getUserId(request, env);
+  const userId = authenticatedUserId || url.searchParams.get('userId') || '1';
   const status = url.searchParams.get('status'); // active, pending, completed
   const sql = getDb(env);
   const origin = request.headers.get('Origin');
@@ -467,7 +472,8 @@ export async function creatorPitchAnalyticsHandler(request: Request, env: Env): 
 // GET /api/creator/investors - Investor Relations Management
 export async function creatorInvestorsHandler(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const userId = url.searchParams.get('userId') || '1';
+  const authenticatedUserId = await getUserId(request, env);
+  const userId = authenticatedUserId || url.searchParams.get('userId') || '1';
   const filter = url.searchParams.get('filter'); // active, potential, past
   const sql = getDb(env);
   const origin = request.headers.get('Origin');

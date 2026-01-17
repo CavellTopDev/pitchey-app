@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 // import * as Sentry from '@sentry/react'; // Temporarily disabled
 import { useBetterAuthStore } from '../store/betterAuthStore';
 
@@ -71,7 +71,8 @@ export function useSentryPortal(config: SentryPortalConfig) {
   }
 
   // Error reporting function with portal context - temporarily disabled
-  const reportError = (error: Error, context?: Record<string, any>) => {
+  // Memoized to prevent infinite re-render loops in dependent useEffect/useCallback hooks
+  const reportError = useCallback((error: Error, context?: Record<string, any>) => {
     console.error('Portal error captured:', error, {
       portalType,
       componentName,
@@ -79,19 +80,21 @@ export function useSentryPortal(config: SentryPortalConfig) {
       userType: user?.userType,
       ...context
     });
-  };
+  }, [portalType, componentName, user?.id, user?.userType]);
 
   // Track custom events - temporarily disabled
-  const trackEvent = (eventName: string, data?: Record<string, any>) => {
+  // Memoized to prevent infinite re-render loops
+  const trackEvent = useCallback((eventName: string, data?: Record<string, any>) => {
     console.info(`Portal Event: ${eventName}`, {
       portal: portalType,
       component: componentName,
       ...data
     });
-  };
+  }, [portalType, componentName]);
 
   // Track API errors with context - temporarily disabled
-  const trackApiError = (endpoint: string, error: any, requestData?: any) => {
+  // Memoized to prevent infinite re-render loops
+  const trackApiError = useCallback((endpoint: string, error: any, requestData?: any) => {
     console.error('API Error:', {
       endpoint,
       portal: portalType,
@@ -100,13 +103,14 @@ export function useSentryPortal(config: SentryPortalConfig) {
       responseStatus: error.status || error.response?.status,
       responseData: error.response?.data
     });
-  };
+  }, [portalType, componentName]);
 
-  return {
+  // Memoize the return object to maintain stable reference
+  return useMemo(() => ({
     reportError,
     trackEvent,
     trackApiError
-  };
+  }), [reportError, trackEvent, trackApiError]);
 }
 
 /**

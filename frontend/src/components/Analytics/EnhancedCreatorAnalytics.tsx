@@ -20,7 +20,7 @@ import { PerformanceChart } from './PerformanceChart';
 import { AnalyticsExport } from './AnalyticsExport';
 import { analyticsService } from '../../services/analytics.service';
 import type { TimeRange } from '../../services/analytics.service';
-import { useAuthStore } from '../../store/authStore';
+import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { 
   LineChart, 
   BarChart, 
@@ -81,11 +81,11 @@ interface CreatorAnalyticsData {
   };
 }
 
-export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({ 
+export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   pitchPerformance,
   disableRemoteFetch = false,
 }) => {
-  const { user } = useAuthStore();
+  const { user } = useBetterAuthStore();
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [analyticsData, setAnalyticsData] = useState<CreatorAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,8 +101,11 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                                          timeRange === '90d' ? 'quarter' : 'year';
       
       
-      // Only fetch analytics if user is loaded
+      // If user is not loaded yet, use mock data as fallback
       if (!user?.id) {
+        console.log('User not loaded, using fallback analytics data');
+        setAnalyticsData(getMockData());
+        setLoading(false);
         return;
       }
 

@@ -157,14 +157,27 @@ export default function InvestorAnalytics() {
           }
         ]);
 
-        // Mock investment flows
+        // Generate dynamic month labels for the past 6 months
+        const getRecentMonths = () => {
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const result = [];
+          const now = new Date();
+          for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            result.push(`${months[d.getMonth()]} ${d.getFullYear()}`);
+          }
+          return result;
+        };
+        const recentMonths = getRecentMonths();
+
+        // Mock investment flows with dynamic dates
         setInvestmentFlows([
-          { month: 'Jul 2024', invested: 450000, returned: 320000, netFlow: -130000 },
-          { month: 'Aug 2024', invested: 380000, returned: 420000, netFlow: 40000 },
-          { month: 'Sep 2024', invested: 520000, returned: 380000, netFlow: -140000 },
-          { month: 'Oct 2024', invested: 420000, returned: 550000, netFlow: 130000 },
-          { month: 'Nov 2024', invested: 380000, returned: 480000, netFlow: 100000 },
-          { month: 'Dec 2024', invested: 460000, returned: 620000, netFlow: 160000 }
+          { month: recentMonths[0], invested: 450000, returned: 320000, netFlow: -130000 },
+          { month: recentMonths[1], invested: 380000, returned: 420000, netFlow: 40000 },
+          { month: recentMonths[2], invested: 520000, returned: 380000, netFlow: -140000 },
+          { month: recentMonths[3], invested: 420000, returned: 550000, netFlow: 130000 },
+          { month: recentMonths[4], invested: 380000, returned: 480000, netFlow: 100000 },
+          { month: recentMonths[5], invested: 460000, returned: 620000, netFlow: 160000 }
         ]);
 
         // Mock creator insights
@@ -243,7 +256,8 @@ export default function InvestorAnalytics() {
   }));
 
   const investmentFlowChartData = investmentFlows.map(flow => ({
-    month: flow.month.replace(' 2024', ''),
+    // Show just the month abbreviation for cleaner chart labels
+    month: flow.month.split(' ')[0],
     invested: flow.invested,
     returned: flow.returned,
     netFlow: flow.netFlow

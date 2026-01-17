@@ -145,7 +145,9 @@ export const ndaAPI = {
   async getIncomingRequests() {
     const response = await apiClient.get('/api/ndas/incoming-requests');
     if (response.success) {
-      return { success: true, requests: response.data.requests || [], count: response.data.count || 0 };
+      // API returns data as array directly, not nested under 'requests'
+      const requests = Array.isArray(response.data) ? response.data : (response.data?.requests || response.data?.data || []);
+      return { success: true, requests, count: requests.length };
     }
     return { success: false, error: response.error?.message, requests: [], count: 0 };
   },
@@ -153,7 +155,9 @@ export const ndaAPI = {
   async getOutgoingRequests() {
     const response = await apiClient.get('/api/ndas/outgoing-requests');
     if (response.success) {
-      return { success: true, requests: response.data.requests || [], count: response.data.count || 0 };
+      // API returns data as array directly, not nested under 'requests'
+      const requests = Array.isArray(response.data) ? response.data : (response.data?.requests || response.data?.data || []);
+      return { success: true, requests, count: requests.length };
     }
     return { success: false, error: response.error?.message, requests: [], count: 0 };
   },

@@ -172,6 +172,29 @@ const formatMap: Record<string, string> = {
   'Reality Show': 'tv'
 };
 
+// Helper to transform pitch data from snake_case (API) to camelCase (frontend)
+// and ensure numeric values are properly typed
+function transformPitchData(pitch: any): any {
+  if (!pitch) return pitch;
+  return {
+    ...pitch,
+    // Map snake_case to camelCase for engagement metrics
+    // Note: API may return strings for some numeric fields
+    viewCount: Number(pitch.view_count ?? pitch.viewCount ?? 0),
+    likeCount: Number(pitch.like_count ?? pitch.likeCount ?? 0),
+    ndaCount: Number(pitch.nda_count ?? pitch.ndaCount ?? 0),
+    createdAt: pitch.created_at ?? pitch.createdAt,
+    updatedAt: pitch.updated_at ?? pitch.updatedAt,
+    creatorId: pitch.creator_id ?? pitch.creatorId ?? pitch.user_id,
+    creatorName: pitch.creator_name ?? pitch.creatorName,
+    shortSynopsis: pitch.short_synopsis ?? pitch.shortSynopsis,
+    longSynopsis: pitch.long_synopsis ?? pitch.longSynopsis,
+    budgetBreakdown: pitch.budget_breakdown ?? pitch.budgetBreakdown,
+    attachedTalent: pitch.attached_talent ?? pitch.attachedTalent,
+    financialProjections: pitch.financial_projections ?? pitch.financialProjections,
+  };
+}
+
 export class PitchService {
   // Create a new pitch
   static async create(input: CreatePitchInput): Promise<Pitch> {
@@ -220,11 +243,13 @@ export class PitchService {
     }
     
     console.log('🔐 [PitchService] Authenticated endpoint response:', response.data);
-    
+
     // Extract the pitch object from the response
-    const pitch = response.data?.pitch || response.data;
-    console.log('🔐 [PitchService] Extracted pitch object:', pitch);
-    
+    const rawPitch = response.data?.pitch || response.data;
+    console.log('🔐 [PitchService] Extracted pitch object:', rawPitch);
+
+    // Transform snake_case to camelCase and ensure proper types
+    const pitch = transformPitchData(rawPitch);
     return pitch;
   }
 
@@ -258,13 +283,14 @@ export class PitchService {
 
     // The public endpoint returns the pitch directly in data
     // Backend returns: { success: true, data: { ...pitchData } }
-    const pitch = response.data;
-    
-    if (!pitch) {
+    const rawPitch = response.data;
+
+    if (!rawPitch) {
       throw new Error('Invalid response structure from server');
     }
 
-    return pitch;
+    // Transform snake_case to camelCase and ensure proper types
+    return transformPitchData(rawPitch);
   }
 
   // Update a pitch

@@ -272,11 +272,33 @@ function ProductionDashboard() {
           
           if (safeAccess(incomingRequests, 'success', false)) {
             const incomingData = safeArray(safeAccess(incomingRequests, 'requests', []));
-            setIncomingNDARequests(incomingData);
+            // Transform API field names (snake_case) to component expected names (camelCase)
+            const transformedIncoming = incomingData.map((r: any) => ({
+              id: r.id,
+              pitchId: r.pitch_id || r.pitchId,
+              pitchTitle: r.pitch_title || r.pitchTitle || 'Unknown Pitch',
+              ndaType: r.nda_type || r.ndaType || 'basic',
+              requestedDate: r.created_at || r.requested_at || r.requestedDate,
+              requester: r.requester_name || r.requester || 'Unknown',
+              requesterType: r.requester_type || r.requesterType || 'investor',
+              companyName: r.company_name || r.companyName,
+              message: r.message || r.request_message
+            }));
+            setIncomingNDARequests(transformedIncoming);
           }
           if (safeAccess(outgoingRequests, 'success', false)) {
             const outgoingData = safeArray(safeAccess(outgoingRequests, 'requests', []));
-            setOutgoingNDARequests(outgoingData);
+            // Transform API field names for outgoing requests
+            const transformedOutgoing = outgoingData.map((r: any) => ({
+              id: r.id,
+              pitchId: r.pitch_id || r.pitchId,
+              pitchTitle: r.pitch_title || r.pitchTitle || 'Unknown Pitch',
+              ndaType: r.nda_type || r.ndaType || 'basic',
+              requestedDate: r.created_at || r.requested_at || r.requestedDate,
+              creatorName: r.creator_name || r.creatorName || 'Unknown',
+              status: r.status || 'pending'
+            }));
+            setOutgoingNDARequests(transformedOutgoing);
           }
           if (safeAccess(incomingSignedNDAs, 'success', false)) {
             const incomingSignedData = safeArray(safeAccess(incomingSignedNDAs, 'ndas', []));

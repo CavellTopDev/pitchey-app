@@ -45,6 +45,27 @@ api.interceptors.response.use(
   }
 );
 
+// Helper to transform pitch data from snake_case (API) to camelCase (frontend)
+function transformPitchData(pitch: any): any {
+  if (!pitch) return pitch;
+  return {
+    ...pitch,
+    // Map snake_case to camelCase for engagement metrics
+    viewCount: pitch.view_count ?? pitch.viewCount ?? 0,
+    likeCount: pitch.like_count ?? pitch.likeCount ?? 0,
+    ndaCount: pitch.nda_count ?? pitch.ndaCount ?? 0,
+    createdAt: pitch.created_at ?? pitch.createdAt,
+    updatedAt: pitch.updated_at ?? pitch.updatedAt,
+    creatorId: pitch.creator_id ?? pitch.creatorId ?? pitch.user_id,
+    creatorName: pitch.creator_name ?? pitch.creatorName,
+    shortSynopsis: pitch.short_synopsis ?? pitch.shortSynopsis,
+    longSynopsis: pitch.long_synopsis ?? pitch.longSynopsis,
+    budgetBreakdown: pitch.budget_breakdown ?? pitch.budgetBreakdown,
+    attachedTalent: pitch.attached_talent ?? pitch.attachedTalent,
+    financialProjections: pitch.financial_projections ?? pitch.financialProjections,
+  };
+}
+
 export interface User {
   id: number;
   email: string;
@@ -270,7 +291,8 @@ export const pitchAPI = {
     const response = await api.get(`/api/pitches/public/${id}`);
     // Axios returns the response in response.data
     // The API structure is { success: true, data: { ...pitchData } }
-    return response.data.data;
+    // Transform snake_case to camelCase for frontend compatibility
+    return transformPitchData(response.data.data);
   },
 
   async getAll(params?: {
@@ -310,8 +332,13 @@ export const pitchAPI = {
       }
       
       console.log('Extracted pitches count:', pitches.length); // Debug log
-      
-      return Array.isArray(pitches) ? pitches : [];
+
+      // Transform each pitch to ensure camelCase fields
+      const transformedPitches = Array.isArray(pitches)
+        ? pitches.map(transformPitchData)
+        : [];
+
+      return transformedPitches;
     } catch (error) {
       console.error('Failed to fetch pitches:', error);
       return [];
@@ -320,7 +347,8 @@ export const pitchAPI = {
 
   async getById(id: number) {
     const response = await api.get<Pitch>(`/api/pitches/${id}`);
-    return response.data;
+    // Transform snake_case to camelCase
+    return transformPitchData(response.data);
   },
 
   async create(data: {

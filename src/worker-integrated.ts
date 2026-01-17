@@ -117,6 +117,19 @@ import {
   logRequestMetrics,
   logError
 } from './handlers/health-monitoring';
+
+// Import status dashboard handlers
+import {
+  statusDashboardHandler,
+  healthPingHandler,
+  serviceHealthHandler,
+  logErrorToAxiom,
+  logRequestToAxiom
+} from './handlers/status-dashboard';
+
+// Import implementation status checker
+import { implementationStatusHandler } from './handlers/implementation-status';
+
 import {
   changePasswordHandler,
   requestPasswordResetHandler,
@@ -1512,6 +1525,9 @@ class RouteRegistry {
     // Analytics realtime
     this.register('GET', '/api/analytics/realtime', this.getRealtimeAnalytics.bind(this));
 
+    // Client error reporting endpoint
+    this.register('POST', '/api/errors/client', this.handleClientError.bind(this));
+
     // Pitch routes
     this.register('GET', '/api/pitches', this.getPitches.bind(this));
     this.register('POST', '/api/pitches', this.createPitch.bind(this));
@@ -1520,6 +1536,7 @@ class RouteRegistry {
     this.register('GET', '/api/pitches/search', this.searchPitches.bind(this));  // Add search BEFORE :id
     this.register('GET', '/api/pitches/browse', this.browsePitches.bind(this));  // Add browse BEFORE :id
     this.register('GET', '/api/pitches/trending', this.getTrending.bind(this));  // Add trending BEFORE :id
+    this.register('GET', '/api/pitches/saved', this.getSavedPitches.bind(this));  // Alias for /api/saved-pitches
     this.register('GET', '/api/pitches/:id', this.getPitch.bind(this));
     this.register('GET', '/api/pitches/:id/attachments/:filename', this.getPitchAttachment.bind(this));
     this.register('GET', '/api/trending', this.getTrending.bind(this));
@@ -1801,6 +1818,7 @@ class RouteRegistry {
     this.register('GET', '/api/analytics/database/errors', this.getDatabaseErrors.bind(this));
     this.register('GET', '/api/analytics/performance/endpoints', this.getEndpointPerformance.bind(this));
     this.register('GET', '/api/analytics/performance/overview', this.getPerformanceOverview.bind(this));
+    this.register('POST', '/api/analytics/events', this.trackAnalyticsEvents.bind(this));
 
     // Distributed Tracing Analytics
     this.register('GET', '/api/traces/search', this.searchTraces.bind(this));
@@ -2903,6 +2921,70 @@ class RouteRegistry {
     }
   }
 
+  private async handleClientError(request: Request): Promise<Response> {
+    const builder = new ApiResponseBuilder(request);
+
+    try {
+      const body = await request.json() as {
+        message: string;
+        stack?: string;
+        componentStack?: string;
+        url?: string;
+        userAgent?: string;
+        timestamp?: string;
+        metadata?: Record<string, unknown>;
+      };
+
+      // Log to console for Cloudflare logs
+      console.error('[Client Error]', {
+        message: body.message,
+        stack: body.stack,
+        componentStack: body.componentStack,
+        url: body.url,
+        userAgent: body.userAgent || request.headers.get('User-Agent'),
+        timestamp: body.timestamp || new Date().toISOString(),
+        metadata: body.metadata
+      });
+
+      // Send to Sentry if available
+      if (this.env.SENTRY_DSN) {
+        try {
+          // Log as breadcrumb - Sentry SDK will capture it
+          console.error(`[Sentry] Client error: ${body.message}`);
+        } catch (e) {
+          // Ignore Sentry errors
+        }
+      }
+
+      // Store in error_logs table if database available
+      if (this.db) {
+        try {
+          await this.db.query(`
+            INSERT INTO error_logs (error_type, message, stack_trace, metadata, created_at)
+            VALUES ($1, $2, $3, $4, NOW())
+          `, [
+            'client',
+            body.message || 'Unknown error',
+            body.stack || body.componentStack || null,
+            JSON.stringify({
+              url: body.url || null,
+              userAgent: body.userAgent || null,
+              componentStack: body.componentStack || null,
+              ...(body.metadata || {})
+            })
+          ]);
+        } catch (dbError) {
+          console.error('Failed to store client error:', dbError);
+        }
+      }
+
+      return builder.success({ received: true });
+    } catch (error: any) {
+      console.error('Error processing client error report:', error);
+      return builder.success({ received: true }); // Always return success to client
+    }
+  }
+
   private async handleDatabaseHealth(request: Request): Promise<Response> {
     const builder = new ApiResponseBuilder(request);
 
@@ -3804,11 +3886,21 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const counts = countResult[0] || { view_count: 0, investment_count: 0 };
 
-      // Combine the data
+      // Combine the data with proper creator object
       const fullPitch = {
         ...pitch,
         view_count: counts.view_count,
-        investment_count: counts.investment_count
+        investment_count: counts.investment_count,
+        // Format creator info as an object for frontend
+        creator: {
+          id: pitch.user_id,
+          name: pitch.creator_name || 'Unknown Creator',
+          userType: pitch.creator_type
+        },
+        // Ensure userId is set for ownership checks
+        userId: pitch.user_id,
+        // Format createdAt properly
+        createdAt: pitch.created_at || pitch.createdAt
       };
 
       return builder.success({ pitch: fullPitch });
@@ -5167,53 +5259,66 @@ pitchey_analytics_datapoints_per_minute 1250
     const params = (request as any).params;
 
     try {
-      // Update the NDA request
-      const [ndaRequest] = await this.db.query(`
-        UPDATE nda_requests SET
+      // Update the NDA in ndas table, checking ownership via pitches table
+      // The ndas table stores pending NDA requests with signer_id = requester
+      const [nda] = await this.db.query(`
+        UPDATE ndas n SET
           status = 'approved',
-          responded_at = NOW(),
-          approved_by = $2
-        WHERE id = $1 AND owner_id = $2
-        RETURNING *
+          approved_at = NOW(),
+          approved_by = $2,
+          updated_at = NOW()
+        FROM pitches p
+        WHERE n.id = $1
+          AND n.pitch_id = p.id
+          AND p.user_id = $2
+          AND n.status = 'pending'
+        RETURNING n.*, p.title as pitch_title
       `, [params.id, authResult.user.id]);
 
-      if (!ndaRequest) {
+      if (!nda) {
         return builder.error(ErrorCode.NOT_FOUND, 'NDA request not found or not authorized');
       }
-
-      // Create the actual NDA record
-      await this.db.query(`
-        INSERT INTO ndas (
-          signer_id, pitch_id, status, nda_type,
-          access_granted, expires_at, created_at, updated_at, signed_at
-        ) VALUES (
-          $1, $2, 'approved', 'basic', false,
-          $3, NOW(), NOW(), NULL
-        ) ON CONFLICT (pitch_id, signer_id) DO UPDATE SET
-          status = 'approved',
-          access_granted = false,
-          updated_at = NOW()
-      `, [this.safeParseInt(ndaRequest.requester_id), this.safeParseInt(ndaRequest.pitch_id), this.safeString(ndaRequest.expires_at) || null]);
 
       // Log audit event for NDA approval
       await logNDAEvent(this.auditService,
         AuditEventTypes.NDA_REQUEST_APPROVED,
-        `NDA request ${params.id} approved by creator ${authResult.user.id}`,
+        `NDA ${params.id} approved by owner ${authResult.user.id}`,
         {
           userId: authResult.user.id,
           ndaId: parseInt(params.id),
-          pitchId: this.safeParseInt(ndaRequest.pitch_id),
+          pitchId: this.safeParseInt(nda.pitch_id),
           ipAddress: request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || undefined,
           userAgent: request.headers.get('User-Agent') || undefined,
           metadata: {
-            requesterId: ndaRequest.requester_id,
-            ndaType: 'basic',
-            expiresAt: ndaRequest.expires_at
+            signerId: nda.signer_id,
+            ndaType: nda.nda_type || 'basic',
+            expiresAt: nda.expires_at
           }
         }
       );
 
-      return builder.success({ nda: ndaRequest });
+      // Create notification for the requester (signer)
+      try {
+        await this.db.query(`
+          INSERT INTO notifications (
+            user_id, type, title, message,
+            related_pitch_id, related_user_id,
+            priority, created_at
+          ) VALUES (
+            $1, 'nda_approved', 'NDA Approved',
+            'Your NDA request has been approved. You can now sign and access protected content.',
+            $2, $3, 'high', NOW()
+          )
+        `, [
+          this.safeParseInt(nda.signer_id),
+          this.safeParseInt(nda.pitch_id),
+          authResult.user.id
+        ]);
+      } catch (notifError) {
+        console.warn('Failed to create NDA approval notification:', notifError);
+      }
+
+      return builder.success({ nda });
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -5228,20 +5333,51 @@ pitchey_analytics_datapoints_per_minute 1250
     const data = await request.json() as { reason?: string };
 
     try {
-      const [ndaRequest] = await this.db.query(`
-        UPDATE nda_requests SET
+      // Update the NDA in ndas table, checking ownership via pitches table
+      const [nda] = await this.db.query(`
+        UPDATE ndas n SET
           status = 'rejected',
-          responded_at = NOW(),
-          rejection_reason = $3
-        WHERE id = $1 AND owner_id = $2
-        RETURNING *
+          revoked_at = NOW(),
+          revocation_reason = $3,
+          updated_at = NOW()
+        FROM pitches p
+        WHERE n.id = $1
+          AND n.pitch_id = p.id
+          AND p.user_id = $2
+          AND n.status = 'pending'
+        RETURNING n.*, p.title as pitch_title
       `, [params.id, authResult.user.id, data.reason]);
 
-      if (!ndaRequest) {
+      if (!nda) {
         return builder.error(ErrorCode.NOT_FOUND, 'NDA request not found or not authorized');
       }
 
-      return builder.success({ nda: ndaRequest });
+      // Create notification for the requester (signer)
+      try {
+        const message = data.reason
+          ? `Your NDA request has been rejected. Reason: ${data.reason}`
+          : 'Your NDA request has been rejected.';
+
+        await this.db.query(`
+          INSERT INTO notifications (
+            user_id, type, title, message,
+            related_pitch_id, related_user_id,
+            priority, created_at
+          ) VALUES (
+            $1, 'nda_rejected', 'NDA Request Rejected',
+            $2, $3, $4, 'medium', NOW()
+          )
+        `, [
+          this.safeParseInt(nda.signer_id),
+          message,
+          this.safeParseInt(nda.pitch_id),
+          authResult.user.id
+        ]);
+      } catch (notifError) {
+        console.warn('Failed to create NDA rejection notification:', notifError);
+      }
+
+      return builder.success({ nda });
     } catch (error) {
       return errorHandler(error, request);
     }
@@ -8675,15 +8811,19 @@ pitchey_analytics_datapoints_per_minute 1250
       }
 
       const sql = this.db.getSql();
+      // Get incoming NDA requests for pitches owned by this user
+      // ndas table uses signer_id for the requester, pitch owner comes from pitches table
       const result = await sql`
-        SELECT 
+        SELECT
           n.*,
           p.title as pitch_title,
-          u.username as requester_name
+          p.user_id as pitch_owner_id,
+          u.username as requester_name,
+          u.email as requester_email
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
-        JOIN users u ON n.user_id = u.id
-        WHERE p.creator_id = ${authResult.user.id}
+        LEFT JOIN users u ON n.signer_id = u.id
+        WHERE p.user_id = ${authResult.user.id}
           AND n.status = 'pending'
         ORDER BY n.created_at DESC
       `;
@@ -8723,15 +8863,19 @@ pitchey_analytics_datapoints_per_minute 1250
       }
 
       const sql = this.db.getSql();
+      // Get outgoing NDA requests made by this user
+      // ndas table uses signer_id for the requester, pitch owner comes from pitches table
       const result = await sql`
-        SELECT 
+        SELECT
           n.*,
           p.title as pitch_title,
-          u.username as creator_name
+          p.user_id as pitch_owner_id,
+          u.username as creator_name,
+          u.email as creator_email
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
-        JOIN users u ON p.creator_id = u.id
-        WHERE n.user_id = ${authResult.user.id}
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE n.signer_id = ${authResult.user.id}
           AND n.status = 'pending'
         ORDER BY n.created_at DESC
       `;
@@ -11820,6 +11964,93 @@ Signatures: [To be completed upon signing]
   }
 
   /**
+   * Track analytics events from frontend
+   */
+  private async trackAnalyticsEvents(request: Request): Promise<Response> {
+    try {
+      const body = await request.json() as { events: any[] };
+      const events = body.events || [];
+
+      if (events.length === 0) {
+        return new Response(JSON.stringify({ success: true, message: 'No events to track' }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Send to Axiom if configured
+      const axiomToken = this.env.AXIOM_TOKEN;
+      const axiomDataset = this.env.AXIOM_DATASET || 'pitchey-logs';
+
+      if (axiomToken) {
+        const axiomEvents = events.map((event: any) => ({
+          _time: event.timestamp || new Date().toISOString(),
+          service: 'pitchey-frontend',
+          environment: this.env.ENVIRONMENT || 'production',
+          type: 'analytics',
+          level: 'info',
+          ...event
+        }));
+
+        await fetch(`https://api.axiom.co/v1/datasets/${axiomDataset}/ingest`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${axiomToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(axiomEvents)
+        });
+      }
+
+      // Also write to Analytics Engine if available
+      if (this.env.ANALYTICS) {
+        for (const event of events) {
+          this.env.ANALYTICS.writeDataPoint({
+            blobs: [
+              event.event || 'unknown',
+              event.category || 'unknown',
+              event.label || '',
+              event.userId || 'anonymous',
+              event.userType || 'unknown',
+              event.page || '',
+              JSON.stringify(event.metadata || {})
+            ],
+            doubles: [event.value || 0],
+            indexes: [event.sessionId || 'unknown']
+          });
+        }
+      }
+
+      // Log high-value events to console for debugging
+      const highValueEvents = events.filter((e: any) =>
+        e.category === 'conversion' ||
+        e.metadata?.businessValue === 'high'
+      );
+
+      if (highValueEvents.length > 0) {
+        console.log('[Analytics] High-value events:', highValueEvents.map((e: any) => e.event));
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        tracked: events.length,
+        highValue: highValueEvents.length
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+    } catch (error) {
+      console.error('[Analytics] Error tracking events:', error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Failed to track events'
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  /**
    * Search traces by filters
    */
   private async searchTraces(request: Request): Promise<Response> {
@@ -12231,9 +12462,36 @@ const workerHandler = {
           return addSecurityHeaders(response, env.ENVIRONMENT);
         }
 
+        // Status dashboard - comprehensive monitoring endpoint
+        if (url.pathname === '/api/status' && request.method === 'GET') {
+          const response = await statusDashboardHandler(request, env, ctx);
+          return addSecurityHeaders(response, env.ENVIRONMENT);
+        }
+
+        // Simple health ping for uptime monitors
+        if (url.pathname === '/api/health/ping' && request.method === 'GET') {
+          const response = await healthPingHandler(request, env);
+          return addSecurityHeaders(response, env.ENVIRONMENT);
+        }
+
+        // Service-specific health checks
+        if (url.pathname.startsWith('/api/health/') && request.method === 'GET') {
+          const service = url.pathname.split('/').pop();
+          if (service && service !== 'ping') {
+            const response = await serviceHealthHandler(request, env, service);
+            return addSecurityHeaders(response, env.ENVIRONMENT);
+          }
+        }
+
         // Admin metrics endpoint for monitoring dashboard
         if (url.pathname === '/api/admin/metrics' && request.method === 'GET') {
           const response = await getErrorMetricsHandler(request, env, ctx);
+          return addSecurityHeaders(response, env.ENVIRONMENT);
+        }
+
+        // Implementation status checker - verify full platform implementation
+        if (url.pathname === '/api/implementation-status' && request.method === 'GET') {
+          const response = await implementationStatusHandler(request, env, ctx);
           return addSecurityHeaders(response, env.ENVIRONMENT);
         }
 
