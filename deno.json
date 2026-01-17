@@ -1,7 +1,10 @@
 {
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "compilerOptions": {
-    "lib": ["deno.window", "deno.ns"],
+    "lib": [
+      "deno.window",
+      "deno.ns"
+    ],
     "strict": true
   },
   "tasks": {
@@ -14,14 +17,21 @@
     "std/": "https://deno.land/std@0.208.0/"
   },
   "lint": {
-    "include": ["tests/"],
+    "include": [
+      "tests/"
+    ],
     "rules": {
-      "tags": ["recommended"]
+      "tags": [
+        "recommended"
+      ]
     }
   },
   "fmt": {
-    "include": ["tests/"],
+    "include": [
+      "tests/"
+    ],
     "indentWidth": 2,
     "semiColons": true
-  }
+  },
+  "version": "0.0.0"
 }
