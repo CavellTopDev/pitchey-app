@@ -138,6 +138,10 @@ import { WorkerEmailService } from './services/worker-email';
 // Import distributed tracing service
 import { TraceService, handleAPIRequestWithTracing, TraceSpan } from './services/trace-service';
 
+// Import production logging
+import { initLogging, logAuthEvent, logDatabaseQuery } from './middleware/logging';
+import { ProductionLogger } from './lib/production-logger';
+
 // Import pitch validation handlers
 import { validationHandlers } from './handlers/pitch-validation';
 
@@ -12123,6 +12127,14 @@ Signatures: [To be completed upon signing]
  */
 const workerHandler = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Initialize production logging
+    const loggingContext = initLogging(request, {
+      ENVIRONMENT: env.ENVIRONMENT,
+      SENTRY_DSN: env.SENTRY_DSN,
+    });
+    const { logger, endRequest } = loggingContext;
+    const requestStartTime = Date.now();
+
     // Request handling with distributed tracing
     const handleRequest = async (): Promise<Response> => {
       // Use distributed tracing for all API requests
@@ -12137,6 +12149,8 @@ const workerHandler = {
               data: {
                 method: request.method,
                 url: request.url,
+                requestId: loggingContext.requestId,
+                traceId: loggingContext.traceId,
               },
             });
           }
@@ -12145,7 +12159,7 @@ const workerHandler = {
           try {
             EnvironmentValidator.validate(env);
           } catch (error) {
-            console.error('Environment validation failed:', error);
+            logger.warn('Environment validation failed', { error: String(error) });
             if (typeof Sentry?.captureException === 'function') {
               Sentry.captureException(error, {
                 tags: {
@@ -12403,8 +12417,23 @@ const workerHandler = {
       });  // Close handleAPIRequestWithTracing callback
     };  // Close handleRequest function
 
-    // Execute the request handler
-    return await handleRequest();
+    // Execute the request handler and wrap response with logging
+    try {
+      const response = await handleRequest();
+      // Add trace headers and log response
+      return endRequest(response);
+    } catch (error) {
+      // Log unhandled errors
+      logger.error('Unhandled request error', error);
+      return endRequest(new Response(
+        JSON.stringify({
+          success: false,
+          error: { message: 'Internal server error', code: 'INTERNAL_ERROR' },
+          meta: { requestId: loggingContext.requestId }
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      ));
+    }
   }
 };
 

@@ -221,7 +221,7 @@ SENTRY_TRACES_SAMPLE_RATE = "0.1"
 enabled = true
 
 [observability.logs]
-enabled = false
+enabled = true
 head_sampling_rate = 1.0
 invocation_logs = true
 persist = true
