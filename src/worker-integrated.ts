@@ -1357,7 +1357,25 @@ class RouteRegistry {
         }), { status: 400 });
       }
 
-      const portal = body.userType || 'production'; // Default to production for demo
+      // If userType not provided, try to find user by email first to get their type
+      let portal = body.userType;
+
+      if (!portal && this.db && body.email) {
+        try {
+          const [user] = await this.db.query(
+            'SELECT user_type FROM users WHERE email = $1 LIMIT 1',
+            [body.email]
+          ) as { user_type: string }[];
+          if (user) {
+            portal = user.user_type;
+          }
+        } catch (e) {
+          // Ignore lookup error, will use default
+        }
+      }
+
+      // Default to creator if still not determined
+      portal = portal || 'creator';
 
       // Transform the request to match our existing login format
       const transformedRequest = new Request(request.url, {
