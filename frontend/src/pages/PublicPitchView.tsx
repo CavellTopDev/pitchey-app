@@ -202,83 +202,85 @@ export default function PublicPitchView() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <button
-            onClick={() => navigate('/marketplace')}
-            className="flex items-center gap-2 text-gray-600 hover:text-purple-600"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Marketplace
-          </button>
-          
-          <div className="flex items-center gap-4">
-            {isAuthenticated && user ? (
-              <>
-                {/* User Status Indicator */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
-                  {user.userType === 'production' && (
-                    <>
-                      <Building2 className="w-4 h-4 text-purple-600" />
-                      <span className="text-sm font-medium text-gray-700">Production Portal</span>
-                    </>
-                  )}
-                  {user.userType === 'investor' && (
-                    <>
-                      <Wallet className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-medium text-gray-700">Investor Portal</span>
-                    </>
-                  )}
-                  {user.userType === 'creator' && (
-                    <>
-                      <User className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium text-gray-700">Creator Portal</span>
-                    </>
-                  )}
-                  {user.userType === 'production' && (
-                    <>
-                      <Building2 className="w-4 h-4 text-purple-600" />
-                      <span className="text-sm font-medium text-gray-700">Production Portal</span>
-                    </>
-                  )}
-                  {user.userType && <span className="text-xs text-gray-500">• {user.companyName || user.username}</span>}
-                </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Back Navigation */}
+            <button
+              onClick={() => navigate('/marketplace')}
+              className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-medium">Back to Marketplace</span>
+            </button>
 
-                {/* Dashboard Link */}
-                <button
-                  onClick={() => {
-                    const userType = user?.userType || localStorage.getItem('userType');
-                    if (userType) {
-                      navigate(`/${userType}/dashboard`);
-                    } else {
-                      navigate('/portals');
-                    }
-                  }}
-                  className="px-3 py-1.5 text-sm text-purple-600 hover:text-purple-700 font-medium"
-                >
-                  Go to Dashboard
-                </button>
+            {/* User Actions */}
+            <div className="flex flex-wrap items-center gap-3">
+              {isAuthenticated && user ? (
+                <>
+                  {/* User Status Indicator */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                    {user.userType === 'production' && (
+                      <>
+                        <Building2 className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm font-medium text-gray-700">Production</span>
+                      </>
+                    )}
+                    {user.userType === 'investor' && (
+                      <>
+                        <Wallet className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-gray-700">Investor</span>
+                      </>
+                    )}
+                    {user.userType === 'creator' && (
+                      <>
+                        <User className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-gray-700">Creator</span>
+                      </>
+                    )}
+                    {user.userType && (
+                      <span className="text-xs text-gray-500 hidden sm:inline">
+                        • {user.companyName || user.username}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Sign Out */}
+                  {/* Dashboard Link */}
+                  <button
+                    onClick={() => {
+                      const userType = user?.userType || localStorage.getItem('userType');
+                      if (userType) {
+                        navigate(`/${userType}/dashboard`);
+                      } else {
+                        navigate('/portals');
+                      }
+                    }}
+                    className="px-4 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                  >
+                    Dashboard
+                  </button>
+
+                  {/* Sign Out */}
+                  <button
+                    onClick={() => {
+                      logout();
+                      localStorage.removeItem('userType');
+                      window.location.href = '/portals';
+                    }}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
                 <button
-                  onClick={() => {
-                    logout();
-                    localStorage.removeItem('userType');
-                    window.location.href = '/portals';
-                  }}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-700"
+                  onClick={() => navigate('/portals')}
+                  className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 font-medium shadow-sm transition-colors"
                 >
-                  Sign Out
+                  <LogIn className="w-4 h-4" />
+                  Sign In for Full Access
                 </button>
-              </>
-            ) : (
-              <button
-                onClick={() => navigate('/portals')}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign In for Full Access
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </header>

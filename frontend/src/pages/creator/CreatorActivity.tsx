@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Activity, Bell, Heart, MessageSquare, Eye, Star, 
+import {
+  Activity, Bell, Heart, MessageSquare, Eye, Star,
   TrendingUp, Award, Users, FileText, PlayCircle,
-  Calendar, Clock, ChevronRight, Filter, RefreshCw
+  Calendar, Clock, ChevronRight, Filter, RefreshCw,
+  AlertCircle
 } from 'lucide-react';
+import { CreatorService, type CreatorActivity as CreatorActivityType } from '../../services/creator.service';
 
 interface ActivityItem {
   id: string;
@@ -29,97 +31,104 @@ interface ActivityItem {
   read: boolean;
 }
 
+// Map API activity types to local types
+function mapActivityType(apiType: string): ActivityItem['type'] {
+  const typeMap: Record<string, ActivityItem['type']> = {
+    'pitch_created': 'milestone',
+    'pitch_published': 'milestone',
+    'pitch_updated': 'milestone',
+    'nda_signed': 'nda',
+    'message_sent': 'comment',
+    'pitch_view': 'view',
+    'pitch_like': 'like',
+    'nda_request': 'nda',
+    'follow': 'follow',
+    'investment': 'investment',
+  };
+  return typeMap[apiType] || 'milestone';
+}
+
+// Transform API activity to local format
+function transformActivity(apiActivity: CreatorActivityType): ActivityItem {
+  return {
+    id: String(apiActivity.id),
+    type: mapActivityType(apiActivity.type),
+    title: apiActivity.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    description: apiActivity.description,
+    timestamp: new Date(apiActivity.createdAt),
+    metadata: apiActivity.metadata,
+    read: true, // API doesn't have read status yet
+  };
+}
+
 export default function CreatorActivity() {
   const navigate = useNavigate();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    unreadCount: 0,
+    todayViews: 0,
+    newFollowers: 0,
+    engagementRate: 0
+  });
 
-  // Mock data - replace with actual API calls
+  // Load activities from API
   useEffect(() => {
-    const mockActivities: ActivityItem[] = [
-      {
-        id: '1',
-        type: 'view',
-        title: 'New pitch view',
-        description: 'Sarah Johnson from Stellar Productions viewed your pitch "The Quantum Paradox"',
-        timestamp: new Date(Date.now() - 1000 * 60 * 5),
-        user: { name: 'Sarah Johnson', role: 'Production Executive' },
-        pitch: { id: '1', title: 'The Quantum Paradox' },
-        read: false
-      },
-      {
-        id: '2',
-        type: 'like',
-        title: 'Pitch liked',
-        description: 'Michael Chen liked your pitch "Dark Waters Rising"',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-        user: { name: 'Michael Chen', role: 'Investor' },
-        pitch: { id: '2', title: 'Dark Waters Rising' },
-        read: false
-      },
-      {
-        id: '3',
-        type: 'comment',
-        title: 'New comment',
-        description: 'Alex Rivera commented on your pitch "The Last Colony"',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
-        user: { name: 'Alex Rivera', role: 'Producer' },
-        pitch: { id: '3', title: 'The Last Colony' },
-        read: true
-      },
-      {
-        id: '4',
-        type: 'follow',
-        title: 'New follower',
-        description: 'Emily Watson started following you',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-        user: { name: 'Emily Watson', role: 'Director' },
-        read: true
-      },
-      {
-        id: '5',
-        type: 'investment',
-        title: 'Investment interest',
-        description: 'Quantum Capital expressed interest in investing $500,000 in "The Quantum Paradox"',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-        pitch: { id: '1', title: 'The Quantum Paradox' },
-        metadata: { amount: 500000, status: 'pending' },
-        read: false
-      },
-      {
-        id: '6',
-        type: 'nda',
-        title: 'NDA request',
-        description: 'Global Studios requested NDA access for "Dark Waters Rising"',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-        user: { name: 'Global Studios', role: 'Production Company' },
-        pitch: { id: '2', title: 'Dark Waters Rising' },
-        read: true
-      },
-      {
-        id: '7',
-        type: 'milestone',
-        title: 'Milestone reached',
-        description: 'Your pitch "The Last Colony" reached 1,000 views!',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8),
-        pitch: { id: '3', title: 'The Last Colony' },
-        metadata: { milestone: '1000 views' },
-        read: true
-      }
-    ];
-
-    setTimeout(() => {
-      setActivities(mockActivities);
-      setLoading(false);
-    }, 1000);
+    loadActivities();
+    loadStats();
   }, []);
+
+  const loadActivities = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await CreatorService.getActivityFeed({ limit: 50 });
+
+      if (response.activities && response.activities.length > 0) {
+        const transformedActivities = response.activities.map(transformActivity);
+        setActivities(transformedActivities);
+      } else {
+        // If no activities, set empty array (will show empty state)
+        setActivities([]);
+      }
+    } catch (err) {
+      console.error('Failed to load activities:', err);
+      setError('Failed to load activity feed. Please try again.');
+      // Set empty activities on error
+      setActivities([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const dashboardData = await CreatorService.getDashboard();
+
+      // Calculate stats from dashboard data
+      const unreadNotifications = dashboardData.notifications?.filter(n => !n.isRead).length || 0;
+      const todayViews = dashboardData.stats?.totalViews || 0;
+      const engagementRate = dashboardData.stats?.avgEngagementRate || 0;
+
+      setStats({
+        unreadCount: unreadNotifications,
+        todayViews: todayViews,
+        newFollowers: 0, // Not tracked in current API
+        engagementRate: engagementRate
+      });
+    } catch (err) {
+      console.error('Failed to load stats:', err);
+      // Keep default stats on error
+    }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await Promise.all([loadActivities(), loadStats()]);
     setRefreshing(false);
   };
 
@@ -166,7 +175,7 @@ export default function CreatorActivity() {
     ? activities 
     : activities.filter(a => a.type === filter);
 
-  const unreadCount = activities.filter(a => !a.read).length;
+  const unreadCount = stats.unreadCount || activities.filter(a => !a.read).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -203,8 +212,8 @@ export default function CreatorActivity() {
           <div className="bg-white rounded-lg shadow-sm border p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Today's Views</p>
-                <p className="text-2xl font-bold text-gray-900">124</p>
+                <p className="text-sm text-gray-600">Total Views</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.todayViews.toLocaleString()}</p>
               </div>
               <Eye className="w-8 h-8 text-blue-600" />
             </div>
@@ -213,7 +222,7 @@ export default function CreatorActivity() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">New Followers</p>
-                <p className="text-2xl font-bold text-gray-900">8</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.newFollowers}</p>
               </div>
               <Users className="w-8 h-8 text-green-600" />
             </div>
@@ -222,7 +231,7 @@ export default function CreatorActivity() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Engagement Rate</p>
-                <p className="text-2xl font-bold text-gray-900">12.5%</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.engagementRate.toFixed(1)}%</p>
               </div>
               <TrendingUp className="w-8 h-8 text-orange-600" />
             </div>
@@ -260,6 +269,22 @@ export default function CreatorActivity() {
           })}
         </div>
       </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-red-700">{error}</p>
+            <button
+              onClick={handleRefresh}
+              className="ml-auto text-red-600 hover:text-red-800 font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Activity List */}
       {loading ? (

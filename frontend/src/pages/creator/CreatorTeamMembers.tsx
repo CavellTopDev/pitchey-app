@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, UserPlus, Search, Filter, MoreVertical,
-  Mail, Shield, Edit, Trash2, Clock, CheckCircle,
+import {
+  Users, UserPlus, Search, MoreVertical,
+  Shield, Edit, Trash2, Clock, CheckCircle,
   XCircle, AlertCircle, Crown, Star, MessageSquare,
   Calendar, Activity, Settings, Globe, Lock
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { TeamService, type TeamMember as ApiTeamMember } from '../../services/team.service';
 
 interface TeamMember {
   id: string;
@@ -39,7 +39,6 @@ interface TeamFilters {
 
 export default function CreatorTeamMembers() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([]);
@@ -50,7 +49,8 @@ export default function CreatorTeamMembers() {
     permissions: 'all'
   });
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadTeamMembers();
@@ -62,119 +62,44 @@ export default function CreatorTeamMembers() {
 
   const loadTeamMembers = async () => {
     try {
-      // Simulate API call - replace with actual API
-      setTimeout(() => {
-        const mockMembers: TeamMember[] = [
-          {
-            id: '1',
-            name: 'Alex Thompson',
-            email: 'alex@example.com',
-            role: 'owner',
-            permissions: {
-              canEdit: true,
-              canInvite: true,
-              canDelete: true,
-              canManageRoles: true
-            },
-            status: 'active',
-            joinedDate: '2024-01-15T09:00:00Z',
-            lastActive: '2024-12-08T15:30:00Z',
-            projects: ['The Quantum Paradox', 'Midnight Café', 'The Last Symphony'],
-            bio: 'Filmmaker and writer with 10+ years experience in independent cinema.',
-            skills: ['Directing', 'Screenwriting', 'Project Management'],
-            isPublic: true,
-            contributionScore: 95
-          },
-          {
-            id: '2',
-            name: 'Sarah Mitchell',
-            email: 'sarah.mitchell@example.com',
-            role: 'admin',
-            permissions: {
-              canEdit: true,
-              canInvite: true,
-              canDelete: false,
-              canManageRoles: true
-            },
-            status: 'active',
-            joinedDate: '2024-02-01T10:00:00Z',
-            lastActive: '2024-12-08T14:15:00Z',
-            invitedBy: 'Alex Thompson',
-            projects: ['The Quantum Paradox', 'Midnight Café'],
-            bio: 'Producer specializing in sci-fi and thriller genres.',
-            skills: ['Producing', 'Budget Management', 'Team Coordination'],
-            isPublic: true,
-            contributionScore: 88
-          },
-          {
-            id: '3',
-            name: 'Marcus Rodriguez',
-            email: 'marcus.rodriguez@example.com',
-            role: 'member',
-            permissions: {
-              canEdit: true,
-              canInvite: false,
-              canDelete: false,
-              canManageRoles: false
-            },
-            status: 'active',
-            joinedDate: '2024-03-15T14:30:00Z',
-            lastActive: '2024-12-07T18:45:00Z',
-            invitedBy: 'Sarah Mitchell',
-            projects: ['The Last Symphony'],
-            bio: 'Cinematographer with expertise in dramatic lighting and emotional storytelling.',
-            skills: ['Cinematography', 'Lighting', 'Camera Operation'],
-            isPublic: false,
-            contributionScore: 76
-          },
-          {
-            id: '4',
-            name: 'Emma Wilson',
-            email: 'emma.wilson@example.com',
-            role: 'collaborator',
-            permissions: {
-              canEdit: false,
-              canInvite: false,
-              canDelete: false,
-              canManageRoles: false
-            },
-            status: 'pending',
-            joinedDate: '2024-12-05T11:00:00Z',
-            lastActive: '2024-12-05T11:00:00Z',
-            invitedBy: 'Alex Thompson',
-            projects: [],
-            bio: 'Sound designer and composer looking to collaborate on innovative projects.',
-            skills: ['Sound Design', 'Music Composition', 'Audio Post-Production'],
-            isPublic: true,
-            contributionScore: 0
-          },
-          {
-            id: '5',
-            name: 'David Chen',
-            email: 'david.chen@example.com',
-            role: 'viewer',
-            permissions: {
-              canEdit: false,
-              canInvite: false,
-              canDelete: false,
-              canManageRoles: false
-            },
-            status: 'inactive',
-            joinedDate: '2024-01-20T16:00:00Z',
-            lastActive: '2024-11-15T10:30:00Z',
-            invitedBy: 'Alex Thompson',
-            projects: ['The Quantum Paradox'],
-            bio: 'Script consultant and story development advisor.',
-            skills: ['Script Analysis', 'Story Development', 'Character Development'],
-            isPublic: false,
-            contributionScore: 42
-          }
-        ];
-        setMembers(mockMembers);
-        setLoading(false);
-      }, 1000);
+      setLoading(true);
+      // Get teams first, then get members from the first/primary team
+      const teams = await TeamService.getTeams();
+
+      const primaryTeam = teams[0];
+      if (primaryTeam) {
+        setCurrentTeamId(primaryTeam.id);
+        const apiMembers = await TeamService.getTeamMembers(primaryTeam.id);
+
+        // Transform API response to match component's TeamMember interface
+        const transformedMembers: TeamMember[] = apiMembers.map((m: ApiTeamMember) => ({
+          id: m.id,
+          name: m.name,
+          email: m.email,
+          avatar: m.avatar,
+          role: m.role,
+          permissions: m.permissions,
+          status: m.status,
+          joinedDate: m.joinedDate,
+          lastActive: m.lastActive,
+          invitedBy: m.invitedBy,
+          projects: m.projects || [],
+          bio: m.bio,
+          skills: m.skills || [],
+          isPublic: m.isPublic ?? true,
+          contributionScore: m.contributionScore ?? 0
+        }));
+
+        setMembers(transformedMembers);
+      } else {
+        // No teams yet - show empty state
+        setMembers([]);
+      }
     } catch (error) {
       console.error('Failed to load team members:', error);
+      // On error, set empty members array instead of leaving stale data
+      setMembers([]);
+    } finally {
       setLoading(false);
     }
   };
@@ -231,9 +156,26 @@ export default function CreatorTeamMembers() {
   };
 
   const handleBulkAction = async (action: 'remove' | 'change-role') => {
-    if (selectedMembers.length > 0) {
-      // Simulate API call
+    if (selectedMembers.length === 0 || !currentTeamId) return;
+
+    setError(null);
+    try {
+      if (action === 'remove') {
+        // Remove each selected member
+        await Promise.all(
+          selectedMembers.map(memberId =>
+            TeamService.removeMember(currentTeamId, memberId)
+          )
+        );
+        // Refresh the member list
+        await loadTeamMembers();
+      }
+      // For 'change-role', we would need a modal to select the new role
+      // This can be implemented as a follow-up feature
       setSelectedMembers([]);
+    } catch (err) {
+      console.error('Bulk action failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to perform action');
     }
   };
 
@@ -310,6 +252,20 @@ export default function CreatorTeamMembers() {
     <div>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <span className="text-red-800">{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto text-red-600 hover:text-red-800"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>

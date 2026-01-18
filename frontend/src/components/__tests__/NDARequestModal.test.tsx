@@ -120,11 +120,11 @@ describe('NDAModal', () => {
 
     it('should handle NDA request submission', async () => {
       const onClose = vi.fn()
-      
+
       render(
-        <NDAModal 
-          isOpen={true} 
-          onClose={onClose} 
+        <NDAModal
+          isOpen={true}
+          onClose={onClose}
           pitchId={1}
           pitchTitle="Test Pitch"
           creatorType="investor"
@@ -132,11 +132,19 @@ describe('NDAModal', () => {
         />
       )
 
-      // Wait for modal to load
+      // Wait for modal to load and check the terms checkbox
       await waitFor(() => {
-        const requestButton = screen.getByText(/Submit NDA Request/i)
-        fireEvent.click(requestButton)
+        const checkbox = screen.getByLabelText(/I agree to the terms/i)
+        expect(checkbox).toBeInTheDocument()
       }, { timeout: 3000 })
+
+      // Check the terms checkbox to enable the submit button
+      const checkbox = screen.getByLabelText(/I agree to the terms/i)
+      await user.click(checkbox)
+
+      // Now click the submit button
+      const requestButton = screen.getByText(/Submit NDA Request/i)
+      await user.click(requestButton)
 
       // Service should eventually be called
       await waitFor(() => {

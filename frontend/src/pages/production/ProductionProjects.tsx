@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Film, Clock, CheckCircle, AlertCircle, TrendingUp, DollarSign, Calendar, Users, MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
+import { ProductionService, type ProductionProject as ApiProject } from '../../services/production.service';
 
 interface Project {
   id: string;
@@ -16,6 +17,46 @@ interface Project {
   risk: 'low' | 'medium' | 'high';
 }
 
+// Transform API project to local format
+function transformProject(apiProject: ApiProject): Project {
+  // Calculate progress based on status
+  const statusProgress: Record<string, number> = {
+    'development': 20,
+    'pre-production': 35,
+    'production': 60,
+    'post-production': 85,
+    'completed': 100,
+    'on-hold': 10
+  };
+
+  // Calculate risk based on budget vs spent ratio
+  let risk: 'low' | 'medium' | 'high' = 'low';
+  if (apiProject.budget > 0) {
+    const spentRatio = (apiProject.spentBudget || 0) / apiProject.budget;
+    if (spentRatio > 0.9) risk = 'high';
+    else if (spentRatio > 0.7) risk = 'medium';
+  }
+
+  // Find director and producer from team
+  const director = apiProject.team?.find(t => t.role.toLowerCase().includes('director'))?.name;
+  const producer = apiProject.team?.find(t => t.role.toLowerCase().includes('producer'))?.name;
+
+  return {
+    id: String(apiProject.id),
+    title: apiProject.title,
+    genre: apiProject.pitch?.genre || 'Drama',
+    status: apiProject.status as Project['status'],
+    budget: apiProject.budget,
+    startDate: apiProject.startDate,
+    endDate: apiProject.endDate,
+    progress: statusProgress[apiProject.status] || 0,
+    team: apiProject.team?.length || 0,
+    director,
+    producer,
+    risk
+  };
+}
+
 const statusColors = {
   development: 'bg-blue-100 text-blue-800',
   production: 'bg-purple-100 text-purple-800',
@@ -30,82 +71,37 @@ const riskColors = {
 };
 
 export default function ProductionProjects() {
-    
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading projects
-    setTimeout(() => {
-      setProjects([
-        {
-          id: '1',
-          title: 'The Last Symphony',
-          genre: 'Drama',
-          status: 'production',
-          budget: 2500000,
-          startDate: '2024-10-01',
-          progress: 65,
-          team: 45,
-          director: 'Sarah Johnson',
-          producer: 'Michael Chen',
-          risk: 'low'
-        },
-        {
-          id: '2',
-          title: 'Digital Rebellion',
-          genre: 'Sci-Fi',
-          status: 'post-production',
-          budget: 5000000,
-          startDate: '2024-08-15',
-          progress: 85,
-          team: 78,
-          director: 'Alex Rivera',
-          producer: 'Emma Watson',
-          risk: 'medium'
-        },
-        {
-          id: '3',
-          title: 'Ocean\'s Secret',
-          genre: 'Thriller',
-          status: 'development',
-          budget: 3200000,
-          startDate: '2024-12-01',
-          progress: 25,
-          team: 12,
-          director: 'James Park',
-          risk: 'low'
-        },
-        {
-          id: '4',
-          title: 'Time Traveler\'s Dilemma',
-          genre: 'Sci-Fi',
-          status: 'development',
-          budget: 8000000,
-          startDate: '2025-01-15',
-          progress: 10,
-          team: 8,
-          risk: 'high'
-        },
-        {
-          id: '5',
-          title: 'The Forgotten City',
-          genre: 'Mystery',
-          status: 'completed',
-          budget: 1800000,
-          startDate: '2024-03-01',
-          endDate: '2024-11-30',
-          progress: 100,
-          team: 35,
-          director: 'Maria Garcia',
-          producer: 'David Lee',
-          risk: 'low'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
+    loadProjects();
   }, []);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await ProductionService.getProjects();
+
+      if (response.projects && response.projects.length > 0) {
+        setProjects(response.projects.map(transformProject));
+      } else {
+        // If no projects from API, set empty array
+        setProjects([]);
+      }
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+      setError('Failed to load projects. Please try again.');
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredProjects = filter === 'all' 
     ? projects 
@@ -120,8 +116,24 @@ export default function ProductionProjects() {
 
   return (
     <div>
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <p className="text-red-700">{error}</p>
+              <button
+                onClick={loadProjects}
+                className="ml-auto text-red-600 hover:text-red-800 font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">

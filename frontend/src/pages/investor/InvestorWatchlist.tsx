@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { 
+import { useNavigate } from 'react-router-dom';
+import {
   Eye, Bell, TrendingUp, TrendingDown, Calendar,
   Star, User, Building, DollarSign, Clock, AlertCircle,
   Search, Filter, RefreshCw, Plus, MoreVertical,
   CheckCircle, XCircle, Target, Activity, Globe
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { InvestorService } from '../../services/investor.service';
 
 interface WatchlistItem {
   id: string;
@@ -47,8 +49,10 @@ interface WatchlistFilters {
 }
 
 export default function InvestorWatchlist() {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<WatchlistItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,191 +72,78 @@ export default function InvestorWatchlist() {
 
   const loadWatchlist = async () => {
     try {
-      // Simulate API call - replace with actual API
-      setTimeout(() => {
-        const mockWatchlist: WatchlistItem[] = [
-          {
-            id: '1',
-            type: 'creator',
-            name: 'Alex Thompson',
-            description: 'Sci-fi filmmaker with 3 successful projects and growing social following',
-            addedDate: '2024-10-15T10:00:00Z',
-            lastUpdate: '2024-12-08T14:30:00Z',
-            status: 'active',
-            alerts: {
-              newPitches: true,
-              milestones: true,
-              funding: false,
-              performance: true
-            },
-            metrics: {
-              totalPitches: 7,
-              successRate: 85.7,
-              averageROI: 240,
-              lastActivity: '2024-12-08T10:00:00Z',
-              followers: 2450
-            },
-            recentActivity: [
-              {
-                type: 'new_pitch',
-                description: 'Published "The Quantum Paradox" seeking $2.5M funding',
-                timestamp: '2024-12-08T10:00:00Z'
-              },
-              {
-                type: 'milestone',
-                description: 'Completed post-production on "Digital Dreams"',
-                timestamp: '2024-12-05T16:30:00Z'
-              }
-            ],
-            trend: 'up',
-            trendValue: 15.3
-          },
-          {
-            id: '2',
-            type: 'project',
-            name: 'Midnight Café',
-            description: 'Character-driven drama entering production phase',
-            addedDate: '2024-11-20T14:00:00Z',
-            lastUpdate: '2024-12-07T11:45:00Z',
-            status: 'active',
-            alerts: {
-              newPitches: false,
-              milestones: true,
-              funding: true,
-              performance: true
-            },
-            metrics: {
-              fundingStage: 'Series A',
-              valuation: 3200000,
-              lastActivity: '2024-12-07T11:45:00Z'
-            },
-            recentActivity: [
-              {
-                type: 'funding_update',
-                description: 'Reached 75% of funding goal with 2 new investors',
-                timestamp: '2024-12-07T11:45:00Z'
-              },
-              {
-                type: 'team_update',
-                description: 'Added acclaimed DP Marcus Rodriguez to crew',
-                timestamp: '2024-12-03T09:20:00Z'
-              }
-            ],
-            trend: 'up',
-            trendValue: 8.7
-          },
-          {
-            id: '3',
-            type: 'company',
-            name: 'Silver Screen Studios',
-            description: 'Independent production company specializing in genre films',
-            addedDate: '2024-09-30T12:00:00Z',
-            lastUpdate: '2024-12-06T18:00:00Z',
-            status: 'active',
-            alerts: {
-              newPitches: true,
-              milestones: false,
-              funding: true,
-              performance: false
-            },
-            metrics: {
-              totalPitches: 23,
-              successRate: 73.9,
-              averageROI: 185,
-              lastActivity: '2024-12-06T18:00:00Z',
-              followers: 8920
-            },
-            recentActivity: [
-              {
-                type: 'slate_announcement',
-                description: 'Announced 5 new projects for 2025 slate',
-                timestamp: '2024-12-06T18:00:00Z'
-              },
-              {
-                type: 'partnership',
-                description: 'Signed distribution deal with Global Streaming Network',
-                timestamp: '2024-11-28T14:15:00Z'
-              }
-            ],
-            trend: 'stable',
-            trendValue: 2.1
-          },
-          {
-            id: '4',
-            type: 'genre',
-            name: 'Cyberpunk/Sci-Fi',
-            description: 'Monitoring cyberpunk and hard sci-fi project opportunities',
-            addedDate: '2024-08-15T09:00:00Z',
-            lastUpdate: '2024-12-08T08:30:00Z',
-            status: 'active',
-            alerts: {
-              newPitches: true,
-              milestones: false,
-              funding: true,
-              performance: false
-            },
-            metrics: {
-              totalPitches: 15,
-              averageROI: 295,
-              lastActivity: '2024-12-08T08:30:00Z'
-            },
-            recentActivity: [
-              {
-                type: 'market_trend',
-                description: '3 new cyberpunk projects entered funding phase',
-                timestamp: '2024-12-08T08:30:00Z'
-              },
-              {
-                type: 'success_story',
-                description: '"Neural Interface" completed with 340% ROI',
-                timestamp: '2024-12-01T12:00:00Z'
-              }
-            ],
-            trend: 'up',
-            trendValue: 22.5
-          },
-          {
-            id: '5',
-            type: 'market',
-            name: 'Streaming Horror Market',
-            description: 'Tracking horror content performance across streaming platforms',
-            addedDate: '2024-07-10T16:30:00Z',
-            lastUpdate: '2024-12-05T20:15:00Z',
-            status: 'active',
-            alerts: {
-              newPitches: true,
-              milestones: false,
-              funding: false,
-              performance: true
-            },
-            metrics: {
-              totalPitches: 8,
-              averageROI: 225,
-              lastActivity: '2024-12-05T20:15:00Z'
-            },
-            recentActivity: [
-              {
-                type: 'market_analysis',
-                description: 'Streaming horror content up 45% YoY, strong Q4 performance',
-                timestamp: '2024-12-05T20:15:00Z'
-              },
-              {
-                type: 'opportunity',
-                description: 'New horror anthology series seeking investors',
-                timestamp: '2024-11-30T10:45:00Z'
-              }
-            ],
-            trend: 'up',
-            trendValue: 12.8
-          }
-        ];
-        setWatchlist(mockWatchlist);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to load watchlist:', error);
+      setError(null);
+
+      // Fetch watchlist from API
+      const apiWatchlist = await InvestorService.getWatchlist();
+
+      // Transform API response to match component interface
+      const transformedWatchlist: WatchlistItem[] = apiWatchlist.map((item: any) => ({
+        id: String(item.id || item.pitchId),
+        type: mapItemType(item.type || 'project'),
+        name: item.pitch?.title || item.name || 'Untitled',
+        description: item.pitch?.logline || item.description || item.notes || '',
+        avatar: item.pitch?.thumbnailUrl || item.avatar,
+        addedDate: item.addedAt || item.createdAt || new Date().toISOString(),
+        lastUpdate: item.updatedAt || item.lastUpdate || new Date().toISOString(),
+        status: mapStatus(item.pitch?.status || item.status || 'active'),
+        alerts: {
+          newPitches: item.alerts?.newPitches ?? true,
+          milestones: item.alerts?.milestones ?? true,
+          funding: item.alerts?.funding ?? false,
+          performance: item.alerts?.performance ?? true
+        },
+        metrics: {
+          totalPitches: item.metrics?.totalPitches,
+          successRate: item.metrics?.successRate,
+          averageROI: item.metrics?.averageROI,
+          lastActivity: item.metrics?.lastActivity,
+          followers: item.metrics?.followers,
+          valuation: item.pitch?.estimatedBudget || item.metrics?.valuation,
+          fundingStage: item.pitch?.productionStage || item.metrics?.fundingStage
+        },
+        recentActivity: item.recentActivity || [],
+        trend: item.trend || 'stable',
+        trendValue: item.trendValue || 0
+      }));
+
+      setWatchlist(transformedWatchlist);
+    } catch (err) {
+      console.error('Failed to load watchlist:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load watchlist');
+      setWatchlist([]);
+    } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to map API item types to component types
+  const mapItemType = (apiType: string): WatchlistItem['type'] => {
+    const typeMap: Record<string, WatchlistItem['type']> = {
+      'creator': 'creator',
+      'user': 'creator',
+      'project': 'project',
+      'pitch': 'project',
+      'company': 'company',
+      'studio': 'company',
+      'genre': 'genre',
+      'market': 'market'
+    };
+    return typeMap[apiType.toLowerCase()] || 'project';
+  };
+
+  // Helper to map API status to component status
+  const mapStatus = (apiStatus: string): WatchlistItem['status'] => {
+    const statusMap: Record<string, WatchlistItem['status']> = {
+      'active': 'active',
+      'published': 'active',
+      'draft': 'paused',
+      'funded': 'funded',
+      'completed': 'completed',
+      'archived': 'completed',
+      'paused': 'paused'
+    };
+    return statusMap[apiStatus.toLowerCase()] || 'active';
   };
 
   const applyFilters = () => {
@@ -409,10 +300,13 @@ export default function InvestorWatchlist() {
           </div>
           <div className="mt-4 sm:mt-0 flex gap-3">
             <button
-              onClick={() => setLoading(true)}
+              onClick={() => {
+                setLoading(true);
+                loadWatchlist();
+              }}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
             <button className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
@@ -421,6 +315,30 @@ export default function InvestorWatchlist() {
             </button>
           </div>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">Failed to load watchlist</p>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  setError(null);
+                  loadWatchlist();
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 border border-red-300 rounded-md text-sm text-red-700 hover:bg-red-100"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filters and Search */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">

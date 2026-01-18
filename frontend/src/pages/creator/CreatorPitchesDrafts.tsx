@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   FileText, Edit3, Trash2, Save, Clock, AlertCircle,
   Plus, Search, Filter, Calendar, Eye, Copy,
   MoreVertical, Tag, Globe, Lock, CheckCircle
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { PitchService, type Pitch } from '../../services/pitch.service';
 
 interface DraftPitch {
   id: string;
@@ -26,6 +27,65 @@ interface DraftPitch {
   };
   createdDate: string;
   autosaveEnabled: boolean;
+}
+
+// Calculate completion progress based on filled fields
+function calculateProgress(pitch: Pitch): number {
+  let filledFields = 0;
+  let totalFields = 10;
+
+  if (pitch.title) filledFields++;
+  if (pitch.logline) filledFields++;
+  if (pitch.genre) filledFields++;
+  if (pitch.format) filledFields++;
+  if (pitch.shortSynopsis || pitch.longSynopsis) filledFields++;
+  if (pitch.characters && pitch.characters.length > 0) filledFields++;
+  if (pitch.budgetBracket || pitch.estimatedBudget) filledFields++;
+  if (pitch.titleImage) filledFields++;
+  if (pitch.targetAudience) filledFields++;
+  if (pitch.themes) filledFields++;
+
+  return Math.round((filledFields / totalFields) * 100);
+}
+
+// Transform API pitch to local draft format
+function transformToDraft(apiPitch: Pitch): DraftPitch {
+  const progress = calculateProgress(apiPitch);
+
+  // Determine completion status
+  const completionStatus = {
+    basicInfo: !!(apiPitch.title && apiPitch.logline && apiPitch.genre),
+    characters: !!(apiPitch.characters && apiPitch.characters.length > 0),
+    plot: !!(apiPitch.shortSynopsis || apiPitch.longSynopsis),
+    budget: !!(apiPitch.budgetBracket || apiPitch.estimatedBudget),
+    production: !!(apiPitch.productionTimeline)
+  };
+
+  // Map status
+  let status: 'draft' | 'auto-saved' | 'needs-review' = 'draft';
+  if (apiPitch.status === 'under_review') {
+    status = 'needs-review';
+  }
+
+  // Estimate word count from synopsis
+  const wordCount =
+    ((apiPitch.shortSynopsis || '').split(/\s+/).length || 0) +
+    ((apiPitch.longSynopsis || '').split(/\s+/).length || 0);
+
+  return {
+    id: String(apiPitch.id),
+    title: apiPitch.title,
+    logline: apiPitch.logline,
+    genre: apiPitch.genre ? [apiPitch.genre.charAt(0).toUpperCase() + apiPitch.genre.slice(1)] : [],
+    status,
+    lastSaved: apiPitch.updatedAt,
+    progress,
+    wordCount,
+    isPublic: false, // Drafts are not public
+    completionStatus,
+    createdDate: apiPitch.createdAt,
+    autosaveEnabled: true
+  };
 }
 
 interface DraftFilters {
@@ -60,95 +120,21 @@ export default function CreatorPitchesDrafts() {
 
   const loadDrafts = async () => {
     try {
-      // Simulate API call - replace with actual API
-      setTimeout(() => {
-        const mockDrafts: DraftPitch[] = [
-          {
-            id: '1',
-            title: 'The Quantum Paradox',
-            logline: 'A scientist discovers that reality isn\'t what it seems when she accidentally opens a portal to parallel universes.',
-            genre: ['Sci-Fi', 'Thriller'],
-            status: 'auto-saved',
-            lastSaved: '2024-12-08T14:30:00Z',
-            progress: 85,
-            wordCount: 2450,
-            isPublic: false,
-            completionStatus: {
-              basicInfo: true,
-              characters: true,
-              plot: true,
-              budget: false,
-              production: false
-            },
-            createdDate: '2024-11-15T09:00:00Z',
-            autosaveEnabled: true
-          },
-          {
-            id: '2',
-            title: 'Midnight Café',
-            logline: 'A 24-hour diner becomes the meeting ground for lost souls seeking redemption.',
-            genre: ['Drama', 'Mystery'],
-            status: 'draft',
-            lastSaved: '2024-12-07T18:45:00Z',
-            progress: 35,
-            wordCount: 890,
-            isPublic: true,
-            completionStatus: {
-              basicInfo: true,
-              characters: false,
-              plot: false,
-              budget: false,
-              production: false
-            },
-            createdDate: '2024-12-01T14:20:00Z',
-            autosaveEnabled: true
-          },
-          {
-            id: '3',
-            title: 'Ocean\'s Heart',
-            logline: '',
-            genre: ['Adventure'],
-            status: 'needs-review',
-            lastSaved: '2024-12-05T10:15:00Z',
-            progress: 15,
-            wordCount: 234,
-            isPublic: false,
-            completionStatus: {
-              basicInfo: false,
-              characters: false,
-              plot: false,
-              budget: false,
-              production: false
-            },
-            createdDate: '2024-12-04T11:30:00Z',
-            autosaveEnabled: false
-          },
-          {
-            id: '4',
-            title: 'The Last Symphony',
-            logline: 'A dying composer race against time to complete his masterpiece while battling Alzheimer\'s disease.',
-            genre: ['Drama', 'Music'],
-            status: 'auto-saved',
-            lastSaved: '2024-12-08T16:20:00Z',
-            progress: 70,
-            wordCount: 1876,
-            isPublic: false,
-            completionStatus: {
-              basicInfo: true,
-              characters: true,
-              plot: true,
-              budget: false,
-              production: false
-            },
-            createdDate: '2024-11-28T16:45:00Z',
-            autosaveEnabled: true
-          }
-        ];
-        setDrafts(mockDrafts);
-        setLoading(false);
-      }, 1000);
+      setLoading(true);
+
+      const myPitches = await PitchService.getMyPitches();
+
+      // Filter to only draft and under_review pitches
+      const draftPitches = myPitches
+        .filter((p: Pitch) => p.status === 'draft' || p.status === 'under_review')
+        .map(transformToDraft);
+
+      setDrafts(draftPitches);
     } catch (error) {
       console.error('Failed to load drafts:', error);
+      // Keep empty array on error
+      setDrafts([]);
+    } finally {
       setLoading(false);
     }
   };

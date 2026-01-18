@@ -1981,8 +1981,13 @@ class RouteRegistry {
     this.register('GET', '/api/production/crew/:id', (req: Request) => 
       productionCrewDetailsHandler(req, this.env)
     );
-    this.register('POST', '/api/production/crew/:id/hire', (req: Request) => 
+    this.register('POST', '/api/production/crew/:id/hire', (req: Request) =>
       productionCrewHireHandler(req, this.env)
+    );
+
+    // Production Analytics
+    this.register('GET', '/api/production/analytics', (req: Request) =>
+      this.getProductionAnalytics(req)
     );
 
     // NDA routes
@@ -10646,7 +10651,7 @@ Signatures: [To be completed upon signing]
       if (!authCheck.authorized) return authCheck.response;
 
       const savedPitches = await this.db.query(`
-        SELECT sp.*, p.title, p.tagline, p.genre, p.status, p.thumbnail_url,
+        SELECT sp.*, p.title, p.logline, p.genre, p.status, p.thumbnail_url,
                u.first_name, u.last_name, u.company_name
         FROM saved_pitches sp
         JOIN pitches p ON p.id = sp.pitch_id
@@ -11235,6 +11240,114 @@ Signatures: [To be completed upon signing]
       });
     } catch (error) {
       return errorHandler(error, request);
+    }
+  }
+
+  // ======= PRODUCTION ANALYTICS ENDPOINT =======
+
+  private async getProductionAnalytics(request: Request): Promise<Response> {
+    try {
+      const authCheck = await this.requireAuth(request);
+      if (!authCheck.authorized) return authCheck.response;
+
+      const url = new URL(request.url);
+      const timeRange = url.searchParams.get('range') || '30d';
+      const projectId = url.searchParams.get('project_id');
+
+      // Get production analytics data
+      let analyticsQuery = `
+        SELECT
+          COUNT(DISTINCT p.id) as total_projects,
+          SUM(CASE WHEN p.status = 'active' OR p.status = 'published' THEN 1 ELSE 0 END) as active_projects,
+          SUM(CASE WHEN p.status = 'completed' THEN 1 ELSE 0 END) as completed_projects,
+          SUM(p.view_count) as total_views,
+          SUM(p.like_count) as total_likes,
+          AVG(p.view_count) as avg_views_per_project
+        FROM pitches p
+        WHERE p.creator_id = $1
+      `;
+      const queryParams: any[] = [authCheck.user.id];
+
+      if (projectId) {
+        analyticsQuery += ` AND p.id = $2`;
+        queryParams.push(projectId);
+      }
+
+      const analyticsResult = await this.db.query(analyticsQuery, queryParams);
+      const stats = analyticsResult?.rows?.[0] || analyticsResult?.[0] || {};
+
+      // Get recent activity
+      const recentActivityQuery = `
+        SELECT
+          'view' as activity_type,
+          p.title as project_title,
+          pv.viewed_at as timestamp
+        FROM pitch_views pv
+        JOIN pitches p ON p.id = pv.pitch_id
+        WHERE p.creator_id = $1
+        ORDER BY pv.viewed_at DESC
+        LIMIT 10
+      `;
+      const recentActivity = await this.db.query(recentActivityQuery, [authCheck.user.id]);
+
+      // Get project performance by genre
+      const genrePerformanceQuery = `
+        SELECT
+          p.genre,
+          COUNT(*) as project_count,
+          SUM(p.view_count) as total_views,
+          AVG(p.view_count) as avg_views
+        FROM pitches p
+        WHERE p.creator_id = $1 AND p.genre IS NOT NULL
+        GROUP BY p.genre
+        ORDER BY total_views DESC
+        LIMIT 5
+      `;
+      const genrePerformance = await this.db.query(genrePerformanceQuery, [authCheck.user.id]);
+
+      // Get monthly trends (last 6 months)
+      const trendsQuery = `
+        SELECT
+          TO_CHAR(p.created_at, 'Mon YYYY') as month,
+          COUNT(*) as projects_created,
+          SUM(p.view_count) as views
+        FROM pitches p
+        WHERE p.creator_id = $1
+          AND p.created_at >= NOW() - INTERVAL '6 months'
+        GROUP BY TO_CHAR(p.created_at, 'Mon YYYY'), DATE_TRUNC('month', p.created_at)
+        ORDER BY DATE_TRUNC('month', p.created_at) DESC
+      `;
+      const trends = await this.db.query(trendsQuery, [authCheck.user.id]);
+
+      const origin = request.headers.get('Origin');
+      const { getCorsHeaders } = await import('./utils/response');
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          summary: {
+            totalProjects: parseInt(stats.total_projects) || 0,
+            activeProjects: parseInt(stats.active_projects) || 0,
+            completedProjects: parseInt(stats.completed_projects) || 0,
+            totalViews: parseInt(stats.total_views) || 0,
+            totalLikes: parseInt(stats.total_likes) || 0,
+            avgViewsPerProject: parseFloat(stats.avg_views_per_project) || 0
+          },
+          recentActivity: recentActivity?.rows || recentActivity || [],
+          genrePerformance: genrePerformance?.rows || genrePerformance || [],
+          monthlyTrends: trends?.rows || trends || [],
+          timeRange
+        }
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(origin)
+        },
+        status: 200
+      });
+    } catch (error) {
+      console.error('Production analytics error:', error);
+      const { createErrorResponse } = await import('./utils/response');
+      return createErrorResponse(error as Error, request);
     }
   }
 

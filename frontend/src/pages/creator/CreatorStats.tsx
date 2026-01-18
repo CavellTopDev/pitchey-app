@@ -1,18 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  TrendingUp, Eye, Heart, MessageSquare, Users, 
+import {
+  TrendingUp, Eye, Heart, MessageSquare, Users,
   DollarSign, FileText, Award, Star, Clock,
   ArrowUp, ArrowDown, BarChart3, PieChart,
-  Calendar, Filter, Download, RefreshCw
+  Calendar, Filter, Download, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { 
-  LineChart, Line, 
-  BarChart, Bar, 
+import {
+  LineChart, Line,
+  BarChart, Bar,
   PieChart as RechartsPieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer
 } from 'recharts';
+import { CreatorService, type CreatorStats as CreatorStatsType, type CreatorAnalytics } from '../../services/creator.service';
+import { PitchService, type Pitch } from '../../services/pitch.service';
 
 interface QuickStat {
   label: string;
@@ -26,87 +28,95 @@ interface QuickStat {
 export default function CreatorStats() {
   const [timeRange, setTimeRange] = useState('7days');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<QuickStat[]>([]);
+  const [topPitches, setTopPitches] = useState<Pitch[]>([]);
 
   const loadStats = useCallback(async () => {
-    let cancelled = false;
-    
     try {
       setLoading(true);
-      
-      // Simulate loading stats - replace with actual API call
-      const timeoutId = setTimeout(() => {
-        if (cancelled) return;
-        
-        setStats([
-          {
-            label: 'Total Views',
-            value: '12,458',
-            change: 15.3,
-            trend: 'up',
-            icon: Eye,
-            color: 'blue'
-          },
-          {
-            label: 'Engagement Rate',
-            value: '8.7%',
-            change: 2.1,
-            trend: 'up',
-            icon: Heart,
-            color: 'red'
-          },
-          {
-            label: 'Active Pitches',
-            value: 7,
-            change: 0,
-            trend: 'stable',
-            icon: FileText,
-            color: 'purple'
-          },
-          {
-            label: 'Total Followers',
-            value: '1,234',
-            change: 5.8,
-            trend: 'up',
-            icon: Users,
-            color: 'green'
-          },
-          {
-            label: 'Investment Interest',
-            value: '$2.5M',
-            change: -3.2,
-            trend: 'down',
-            icon: DollarSign,
-            color: 'yellow'
-          },
-          {
-            label: 'Average Rating',
-            value: '4.6',
-            change: 0.3,
-            trend: 'up',
-            icon: Star,
-            color: 'orange'
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
-      
-      // Cleanup function to cancel timeout
-      return () => {
-        cancelled = true;
-        clearTimeout(timeoutId);
-      };
-    } catch (error) {
-      if (!cancelled) {
-        console.error('Failed to load stats:', error);
-        setLoading(false);
-      }
+      setError(null);
+
+      // Fetch data from multiple API endpoints
+      const [dashboardData, myPitches] = await Promise.all([
+        CreatorService.getDashboard().catch(() => null),
+        PitchService.getMyPitches().catch(() => [])
+      ]);
+
+      // Calculate stats from API data
+      const apiStats = dashboardData?.stats;
+      const publishedPitches = myPitches.filter((p: Pitch) => p.status === 'published');
+
+      // Calculate total views and likes from pitches
+      const totalViews = myPitches.reduce((acc: number, p: Pitch) => acc + (p.viewCount || 0), 0);
+      const totalLikes = myPitches.reduce((acc: number, p: Pitch) => acc + (p.likeCount || 0), 0);
+      const engagementRate = totalViews > 0 ? ((totalLikes / totalViews) * 100) : 0;
+
+      setStats([
+        {
+          label: 'Total Views',
+          value: totalViews.toLocaleString(),
+          change: apiStats?.monthlyGrowth || 0,
+          trend: (apiStats?.monthlyGrowth || 0) > 0 ? 'up' : (apiStats?.monthlyGrowth || 0) < 0 ? 'down' : 'stable',
+          icon: Eye,
+          color: 'blue'
+        },
+        {
+          label: 'Engagement Rate',
+          value: `${engagementRate.toFixed(1)}%`,
+          change: 0,
+          trend: 'stable',
+          icon: Heart,
+          color: 'red'
+        },
+        {
+          label: 'Active Pitches',
+          value: publishedPitches.length,
+          change: 0,
+          trend: 'stable',
+          icon: FileText,
+          color: 'purple'
+        },
+        {
+          label: 'Total Likes',
+          value: totalLikes.toLocaleString(),
+          change: 0,
+          trend: 'stable',
+          icon: Users,
+          color: 'green'
+        },
+        {
+          label: 'Total NDAs',
+          value: apiStats?.totalNDAs || myPitches.reduce((acc: number, p: Pitch) => acc + (p.ndaCount || 0), 0),
+          change: 0,
+          trend: 'stable',
+          icon: DollarSign,
+          color: 'yellow'
+        },
+        {
+          label: 'Total Pitches',
+          value: myPitches.length,
+          change: 0,
+          trend: 'stable',
+          icon: Star,
+          color: 'orange'
+        }
+      ]);
+
+      // Set top pitches (sorted by views)
+      const sorted = [...myPitches].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0)).slice(0, 5);
+      setTopPitches(sorted);
+
+    } catch (err) {
+      console.error('Failed to load stats:', err);
+      setError('Failed to load statistics. Please try again.');
+    } finally {
+      setLoading(false);
     }
   }, [timeRange]);
 
   useEffect(() => {
-    const cleanup = loadStats();
-    return cleanup;
+    loadStats();
   }, [loadStats]);
 
   // Chart data
@@ -216,11 +226,30 @@ export default function CreatorStats() {
             </button>
             
             {/* Refresh Button */}
-            <button className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+            <button
+              onClick={loadStats}
+              className="p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            >
               <RefreshCw className="w-4 h-4" />
             </button>
           </div>
         </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <p className="text-red-700">{error}</p>
+              <button
+                onClick={loadStats}
+                className="ml-auto text-red-600 hover:text-red-800 font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Quick Stats Grid */}
         {loading ? (
@@ -386,71 +415,62 @@ export default function CreatorStats() {
         </CardHeader>
         <CardContent>
         <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-4 font-semibold text-sm text-gray-900">Pitch Title</th>
-                <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Views</th>
-                <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Likes</th>
-                <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Comments</th>
-                <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Engagement Rate</th>
-                <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b hover:bg-gray-50">
-                <td className="py-3 px-4">
-                  <div>
-                    <p className="font-medium text-gray-900">The Quantum Paradox</p>
-                    <p className="text-sm text-gray-500">Sci-Fi Thriller</p>
-                  </div>
-                </td>
-                <td className="text-center py-3 px-4">3,245</td>
-                <td className="text-center py-3 px-4">287</td>
-                <td className="text-center py-3 px-4">43</td>
-                <td className="text-center py-3 px-4">
-                  <span className="text-green-600 font-semibold">10.2%</span>
-                </td>
-                <td className="text-center py-3 px-4">
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>
-                </td>
-              </tr>
-              <tr className="border-b hover:bg-gray-50">
-                <td className="py-3 px-4">
-                  <div>
-                    <p className="font-medium text-gray-900">Dark Waters Rising</p>
-                    <p className="text-sm text-gray-500">Horror Mystery</p>
-                  </div>
-                </td>
-                <td className="text-center py-3 px-4">2,867</td>
-                <td className="text-center py-3 px-4">234</td>
-                <td className="text-center py-3 px-4">67</td>
-                <td className="text-center py-3 px-4">
-                  <span className="text-green-600 font-semibold">10.5%</span>
-                </td>
-                <td className="text-center py-3 px-4">
-                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Active</span>
-                </td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="py-3 px-4">
-                  <div>
-                    <p className="font-medium text-gray-900">The Last Colony</p>
-                    <p className="text-sm text-gray-500">Sci-Fi Drama</p>
-                  </div>
-                </td>
-                <td className="text-center py-3 px-4">2,145</td>
-                <td className="text-center py-3 px-4">189</td>
-                <td className="text-center py-3 px-4">29</td>
-                <td className="text-center py-3 px-4">
-                  <span className="text-yellow-600 font-semibold">10.1%</span>
-                </td>
-                <td className="text-center py-3 px-4">
-                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Under Review</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          {topPitches.length > 0 ? (
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-3 px-4 font-semibold text-sm text-gray-900">Pitch Title</th>
+                  <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Views</th>
+                  <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Likes</th>
+                  <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">NDAs</th>
+                  <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Engagement</th>
+                  <th className="text-center py-3 px-4 font-semibold text-sm text-gray-900">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPitches.map((pitch, index) => {
+                  const engagementRate = pitch.viewCount && pitch.viewCount > 0
+                    ? ((pitch.likeCount || 0) / pitch.viewCount * 100).toFixed(1)
+                    : '0.0';
+                  const statusColors: Record<string, string> = {
+                    published: 'bg-green-100 text-green-800',
+                    draft: 'bg-gray-100 text-gray-800',
+                    under_review: 'bg-yellow-100 text-yellow-800',
+                    archived: 'bg-red-100 text-red-800'
+                  };
+
+                  return (
+                    <tr key={pitch.id} className={`${index < topPitches.length - 1 ? 'border-b' : ''} hover:bg-gray-50`}>
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{pitch.title}</p>
+                          <p className="text-sm text-gray-500 capitalize">{pitch.genre}</p>
+                        </div>
+                      </td>
+                      <td className="text-center py-3 px-4">{(pitch.viewCount || 0).toLocaleString()}</td>
+                      <td className="text-center py-3 px-4">{(pitch.likeCount || 0).toLocaleString()}</td>
+                      <td className="text-center py-3 px-4">{pitch.ndaCount || 0}</td>
+                      <td className="text-center py-3 px-4">
+                        <span className={`font-semibold ${parseFloat(engagementRate) >= 5 ? 'text-green-600' : 'text-yellow-600'}`}>
+                          {engagementRate}%
+                        </span>
+                      </td>
+                      <td className="text-center py-3 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs ${statusColors[pitch.status] || 'bg-gray-100 text-gray-800'}`}>
+                          {pitch.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>No pitches yet. Create your first pitch to see stats!</p>
+            </div>
+          )}
         </div>
         </CardContent>
       </Card>

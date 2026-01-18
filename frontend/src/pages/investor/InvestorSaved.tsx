@@ -1,35 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Bookmark, Star, Clock, Calendar, Filter,
   Search, Eye, Share2, Trash2, FolderPlus,
   Tag, User, Film, DollarSign, Grid,
-  List, MoreVertical, Plus, Check, X
+  List, MoreVertical, Plus, Check, X,
+  AlertCircle, RefreshCw
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { savedPitchesService } from '../../lib/apiServices';
-import type { SavedPitch as SavedPitchType } from '../../services/saved-pitches.service';
 
-interface SavedPitch {
-  id: number;
-  userId: number;
-  pitchId: number;
-  savedAt: string;
-  notes?: string;
-  pitch?: {
-    id: number;
-    title: string;
-    logline: string;
-    genre: string;
-    budgetBracket?: string;
-    creator?: {
-      id: number;
-      username: string;
-      name?: string;
-    };
-    titleImage?: string;
-    status: string;
+// Local interface for the transformed pitch data used by this component
+interface TransformedPitch {
+  id: string;
+  title: string;
+  logline: string;
+  genre: string[];
+  budget: number;
+  creator: {
+    id: string;
+    name: string;
+    verified: boolean;
   };
+  savedDate: string;
+  lastViewed?: string;
+  folder?: string;
+  tags: string[];
+  rating?: number;
+  notes?: string;
+  priority: string;
+  status: string;
+  fundingStage?: string;
+  targetAudience?: string;
+  estimatedROI?: number;
 }
 
 interface SavedFilters {
@@ -42,10 +44,10 @@ interface SavedFilters {
 
 export default function InvestorSaved() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
-  const [savedPitches, setSavedPitches] = useState<SavedPitch[]>([]);
-  const [filteredPitches, setFilteredPitches] = useState<SavedPitch[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [savedPitches, setSavedPitches] = useState<TransformedPitch[]>([]);
+  const [filteredPitches, setFilteredPitches] = useState<TransformedPitch[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedPitches, setSelectedPitches] = useState<string[]>([]);
@@ -69,142 +71,42 @@ export default function InvestorSaved() {
   const loadSavedPitches = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await savedPitchesService.getSavedPitches({
-        limit: 50, // Load more pitches at once
+        limit: 50,
         page: 1
       });
 
       if (response.success && response.savedPitches) {
-        setSavedPitches(response.savedPitches);
+        // Transform API response to local interface
+        const transformed: TransformedPitch[] = response.savedPitches.map((sp: any) => ({
+          id: String(sp.pitchId || sp.id),
+          title: sp.pitch?.title || 'Untitled Pitch',
+          logline: sp.pitch?.logline || '',
+          genre: sp.pitch?.genre ? [sp.pitch.genre] : [],
+          budget: 0, // Budget not available from saved pitches API
+          creator: {
+            id: String(sp.pitch?.creator?.id || ''),
+            name: sp.pitch?.creator?.username || sp.pitch?.creator?.name || 'Unknown',
+            verified: false
+          },
+          savedDate: sp.savedAt || new Date().toISOString(),
+          tags: [],
+          notes: sp.notes,
+          priority: 'medium',
+          status: sp.pitch?.status || 'saved'
+        }));
+        setSavedPitches(transformed);
       } else {
         console.error('Failed to load saved pitches:', response.error);
+        setError(response.error || 'Failed to load saved pitches');
         setSavedPitches([]);
       }
-    } catch (error) {
-      console.error('Error loading saved pitches:', error);
+    } catch (err) {
+      console.error('Error loading saved pitches:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load saved pitches');
       setSavedPitches([]);
     } finally {
-      setLoading(false);
-    }
-  };
-
-  // Keep mock data as fallback for development
-  const loadMockPitches = () => {
-    try {
-      setTimeout(() => {
-        const mockPitches: any[] = [
-          {
-            id: '1',
-            title: 'The Quantum Paradox',
-            logline: 'A scientist discovers that reality isn\'t what it seems when she accidentally opens a portal to parallel universes.',
-            genre: ['Sci-Fi', 'Thriller'],
-            budget: 2500000,
-            creator: {
-              id: 'c1',
-              name: 'Alex Thompson',
-              verified: true
-            },
-            savedDate: '2024-12-01T10:00:00Z',
-            lastViewed: '2024-12-07T14:30:00Z',
-            folder: 'High Priority',
-            tags: ['parallel universes', 'time travel', 'quantum physics'],
-            rating: 4.8,
-            notes: 'Impressive concept with strong commercial potential. Creator has good track record.',
-            priority: 'high',
-            status: 'interested',
-            fundingStage: 'development',
-            targetAudience: 'Sci-fi enthusiasts, thriller fans',
-            estimatedROI: 285
-          },
-          {
-            id: '2',
-            title: 'Midnight Café',
-            logline: 'A 24-hour diner becomes the meeting ground for lost souls seeking redemption in this character-driven drama.',
-            genre: ['Drama', 'Independent'],
-            budget: 850000,
-            creator: {
-              id: 'c2',
-              name: 'Sarah Mitchell',
-              verified: false
-            },
-            savedDate: '2024-11-28T16:45:00Z',
-            lastViewed: '2024-12-05T09:20:00Z',
-            folder: 'Indie Films',
-            tags: ['character study', 'ensemble cast', 'redemption'],
-            rating: 4.2,
-            priority: 'medium',
-            status: 'under-review',
-            fundingStage: 'production',
-            targetAudience: 'Adult drama audiences, festival circuit',
-            estimatedROI: 180
-          },
-          {
-            id: '3',
-            title: 'Digital Shadows',
-            logline: 'In a cyberpunk future, a hacker discovers a conspiracy that threatens the boundary between virtual and reality.',
-            genre: ['Sci-Fi', 'Action'],
-            budget: 1200000,
-            creator: {
-              id: 'c3',
-              name: 'Marcus Chen',
-              verified: true
-            },
-            savedDate: '2024-11-15T11:30:00Z',
-            folder: 'Sci-Fi Projects',
-            tags: ['cyberpunk', 'hacking', 'virtual reality'],
-            rating: 3.9,
-            priority: 'medium',
-            status: 'saved',
-            fundingStage: 'seed',
-            targetAudience: 'Young adults, gaming audiences',
-            estimatedROI: 220
-          },
-          {
-            id: '4',
-            title: 'The Last Symphony',
-            logline: 'A dying composer races against time to complete his masterpiece while battling Alzheimer\'s disease.',
-            genre: ['Drama', 'Music'],
-            budget: 950000,
-            creator: {
-              id: 'c4',
-              name: 'Emma Rodriguez',
-              verified: true
-            },
-            savedDate: '2024-10-20T14:15:00Z',
-            lastViewed: '2024-11-30T16:40:00Z',
-            tags: ['music', 'alzheimers', 'emotional'],
-            rating: 4.6,
-            priority: 'high',
-            status: 'interested',
-            fundingStage: 'development',
-            targetAudience: 'Mature audiences, music lovers',
-            estimatedROI: 195
-          },
-          {
-            id: '5',
-            title: 'Ocean\'s Heart',
-            logline: 'A young marine biologist discovers an ancient underwater civilization that holds the key to saving the ocean.',
-            genre: ['Adventure', 'Family'],
-            budget: 1800000,
-            creator: {
-              id: 'c5',
-              name: 'David Kim',
-              verified: false
-            },
-            savedDate: '2024-10-05T12:00:00Z',
-            tags: ['ocean', 'environmental', 'adventure'],
-            rating: 3.7,
-            priority: 'low',
-            status: 'archived',
-            fundingStage: 'production',
-            targetAudience: 'Family audiences, environmental advocates'
-          }
-        ];
-        setSavedPitches(mockPitches);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to load saved pitches:', error);
       setLoading(false);
     }
   };
@@ -369,6 +271,32 @@ export default function InvestorSaved() {
             </button>
           </div>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">Failed to load saved pitches</p>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-600 hover:text-red-800 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                onClick={loadSavedPitches}
+                className="inline-flex items-center gap-2 px-3 py-1.5 border border-red-300 rounded-md text-sm text-red-700 hover:bg-red-100"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filters and Search */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">

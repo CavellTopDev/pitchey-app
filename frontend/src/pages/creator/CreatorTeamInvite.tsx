@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  UserPlus, Mail, Link, Copy, Send, Users, 
-  Search, Filter, X, Check, AlertCircle, 
-  Clock, Globe, Shield, Crown, Star,
-  MessageSquare, Calendar, ChevronRight,
-  ExternalLink, Download, Upload
+import {
+  Mail, Link, Copy, Send, Users,
+  X, Check, AlertCircle,
+  Clock, Globe, Shield, Star,
+  ChevronRight, Download, Upload
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { TeamService, type TeamInvitation, type TeamRole } from '../../services/team.service';
 
 interface InviteMethod {
   id: 'email' | 'link' | 'bulk' | 'import';
@@ -48,12 +48,14 @@ interface RoleTemplate {
 
 export default function CreatorTeamInvite() {
   const navigate = useNavigate();
-  const { user, logout } = useBetterAuthStore();
+  const { user } = useBetterAuthStore();
   const [loading, setLoading] = useState(false);
   const [activeMethod, setActiveMethod] = useState<'email' | 'link' | 'bulk' | 'import'>('email');
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [roleTemplates, setRoleTemplates] = useState<RoleTemplate[]>([]);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Form states
   const [emailForm, setEmailForm] = useState({
@@ -117,95 +119,50 @@ export default function CreatorTeamInvite() {
 
   const loadData = async () => {
     try {
-      // Load pending invites
-      setTimeout(() => {
-        setPendingInvites([
-          {
-            id: '1',
-            email: 'emma.wilson@example.com',
-            name: 'Emma Wilson',
-            role: 'collaborator',
-            permissions: ['can-edit'],
-            invitedDate: '2024-12-05T11:00:00Z',
-            expiresDate: '2024-12-12T11:00:00Z',
-            status: 'pending',
-            invitedBy: 'Alex Thompson',
-            message: 'Welcome to our creative team! Looking forward to your contributions.'
-          },
-          {
-            id: '2',
-            email: 'john.doe@example.com',
-            role: 'viewer',
-            permissions: [],
-            invitedDate: '2024-12-01T14:30:00Z',
-            expiresDate: '2024-12-08T14:30:00Z',
-            status: 'expired',
-            invitedBy: 'Alex Thompson'
-          }
-        ]);
+      // Load teams first to get the primary team ID
+      const teams = await TeamService.getTeams();
+      const primaryTeam = teams[0];
 
-        // Load role templates
-        setRoleTemplates([
-          {
-            id: 'admin',
-            name: 'Administrator',
-            description: 'Full access except ownership transfer',
-            permissions: {
-              canEdit: true,
-              canInvite: true,
-              canDelete: false,
-              canManageRoles: true,
-              canViewAnalytics: true,
-              canManageProjects: true
-            },
-            isDefault: false
+      if (primaryTeam) {
+        setCurrentTeamId(primaryTeam.id);
+
+        // Load pending invitations from API
+        const invitations = await TeamService.getInvitations();
+        const transformedInvites: PendingInvite[] = invitations.map((inv: TeamInvitation) => ({
+          id: inv.id,
+          email: inv.email,
+          name: undefined, // API might not include name
+          role: inv.role as 'admin' | 'member' | 'collaborator' | 'viewer',
+          permissions: [],
+          invitedDate: inv.createdAt,
+          expiresDate: inv.expiresAt,
+          status: inv.status === 'pending' ? 'pending' : inv.status === 'expired' ? 'expired' : 'pending',
+          invitedBy: inv.invitedByName,
+          message: inv.message
+        }));
+        setPendingInvites(transformedInvites);
+
+        // Load role templates from API
+        const roles = await TeamService.getTeamRoles(primaryTeam.id);
+        const transformedRoles: RoleTemplate[] = roles.map((role: TeamRole) => ({
+          id: role.id,
+          name: role.name,
+          description: role.description || '',
+          permissions: {
+            canEdit: role.permissions.canEdit,
+            canInvite: role.permissions.canInvite,
+            canDelete: role.permissions.canDelete,
+            canManageRoles: role.permissions.canManageRoles,
+            canViewAnalytics: role.permissions.canViewAnalytics,
+            canManageProjects: role.permissions.canManagePitches
           },
-          {
-            id: 'member',
-            name: 'Team Member',
-            description: 'Edit content and collaborate on projects',
-            permissions: {
-              canEdit: true,
-              canInvite: false,
-              canDelete: false,
-              canManageRoles: false,
-              canViewAnalytics: false,
-              canManageProjects: false
-            },
-            isDefault: true
-          },
-          {
-            id: 'collaborator',
-            name: 'Collaborator',
-            description: 'Limited editing and project-specific access',
-            permissions: {
-              canEdit: true,
-              canInvite: false,
-              canDelete: false,
-              canManageRoles: false,
-              canViewAnalytics: false,
-              canManageProjects: false
-            },
-            isDefault: false
-          },
-          {
-            id: 'viewer',
-            name: 'Viewer',
-            description: 'Read-only access to assigned projects',
-            permissions: {
-              canEdit: false,
-              canInvite: false,
-              canDelete: false,
-              canManageRoles: false,
-              canViewAnalytics: false,
-              canManageProjects: false
-            },
-            isDefault: false
-          }
-        ]);
-      }, 500);
+          isDefault: role.isDefault
+        }));
+        setRoleTemplates(transformedRoles);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load data');
     }
   };
 
@@ -231,28 +188,40 @@ export default function CreatorTeamInvite() {
   };
 
   const handleSendEmailInvites = async () => {
+    if (!currentTeamId) {
+      setError('No team selected. Please create a team first.');
+      return;
+    }
+
     setLoading(true);
+    setError(null);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Add new pending invites
-      const newInvites: PendingInvite[] = emailForm.emails
-        .filter(email => email.trim())
-        .map(email => ({
-          id: String(Date.now() + Math.random()),
+      // Send invitations via API
+      const validEmails = emailForm.emails.filter(email => email.trim());
+      const newInvites: PendingInvite[] = [];
+
+      for (const email of validEmails) {
+        const invitation = await TeamService.inviteToTeam(currentTeamId, {
           email: email.trim(),
-          role: emailForm.role as any,
+          role: emailForm.role,
+          message: emailForm.message || undefined
+        });
+
+        newInvites.push({
+          id: invitation.id,
+          email: invitation.email,
+          role: invitation.role as 'admin' | 'member' | 'collaborator' | 'viewer',
           permissions: emailForm.permissions,
-          invitedDate: new Date().toISOString(),
-          expiresDate: new Date(Date.now() + parseInt(emailForm.expiresIn) * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'pending' as const,
+          invitedDate: invitation.createdAt,
+          expiresDate: invitation.expiresAt,
+          status: 'pending',
           invitedBy: user?.name || 'You',
           message: emailForm.message
-        }));
+        });
+      }
 
       setPendingInvites(prev => [...newInvites, ...prev]);
-      
+
       // Reset form
       setEmailForm({
         emails: [''],
@@ -264,9 +233,10 @@ export default function CreatorTeamInvite() {
 
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 5000);
-      
-    } catch (error) {
-      console.error('Failed to send invites:', error);
+
+    } catch (err) {
+      console.error('Failed to send invites:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send invitations');
     } finally {
       setLoading(false);
     }
@@ -297,24 +267,27 @@ export default function CreatorTeamInvite() {
   };
 
   const handleResendInvite = async (inviteId: string) => {
+    // Note: Resend functionality would need a dedicated API endpoint
+    // For now, we update the UI optimistically
     try {
-      // Simulate API call
-      setPendingInvites(prev => prev.map(invite => 
-        invite.id === inviteId 
+      setPendingInvites(prev => prev.map(invite =>
+        invite.id === inviteId
           ? { ...invite, status: 'resent' as const, invitedDate: new Date().toISOString() }
           : invite
       ));
-    } catch (error) {
-      console.error('Failed to resend invite:', error);
+    } catch (err) {
+      console.error('Failed to resend invite:', err);
+      setError(err instanceof Error ? err.message : 'Failed to resend invitation');
     }
   };
 
   const handleCancelInvite = async (inviteId: string) => {
     try {
-      // Simulate API call
+      await TeamService.rejectInvitation(inviteId);
       setPendingInvites(prev => prev.filter(invite => invite.id !== inviteId));
-    } catch (error) {
-      console.error('Failed to cancel invite:', error);
+    } catch (err) {
+      console.error('Failed to cancel invite:', err);
+      setError(err instanceof Error ? err.message : 'Failed to cancel invitation');
     }
   };
 
@@ -385,6 +358,24 @@ export default function CreatorTeamInvite() {
             </button>
           </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-red-400" />
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-medium text-red-800">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-600 hover:text-red-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Success Message */}
         {showSuccessMessage && (

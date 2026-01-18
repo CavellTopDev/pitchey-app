@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Globe, Eye, Heart, MessageSquare, Star, TrendingUp,
   Calendar, Clock, Edit, MoreVertical, Filter, Search,
-  Download, Share2, BarChart3, DollarSign, Users
+  Download, Share2, BarChart3, DollarSign, Users, AlertCircle
 } from 'lucide-react';
+import { PitchService, type Pitch } from '../../services/pitch.service';
 
 interface PublishedPitch {
   id: string;
@@ -27,81 +28,80 @@ interface PublishedPitch {
   visibility: 'public' | 'private' | 'nda_required';
 }
 
+// Transform API pitch to local format
+function transformPitch(apiPitch: Pitch): PublishedPitch {
+  // Map status to our local status
+  const statusMap: Record<string, 'active' | 'paused' | 'archived'> = {
+    'published': 'active',
+    'under_review': 'paused',
+    'archived': 'archived',
+    'draft': 'paused'
+  };
+
+  // Determine visibility
+  let visibility: 'public' | 'private' | 'nda_required' = 'public';
+  if (apiPitch.requireNDA) {
+    visibility = 'nda_required';
+  } else if (apiPitch.visibilitySettings && !apiPitch.visibilitySettings.showShortSynopsis) {
+    visibility = 'private';
+  }
+
+  return {
+    id: String(apiPitch.id),
+    title: apiPitch.title,
+    tagline: apiPitch.logline || '',
+    genre: apiPitch.genre?.charAt(0).toUpperCase() + apiPitch.genre?.slice(1) || 'Other',
+    budget: apiPitch.budgetBracket || apiPitch.estimatedBudget || 'Not specified',
+    status: statusMap[apiPitch.status] || 'active',
+    publishedDate: new Date(apiPitch.publishedAt || apiPitch.createdAt),
+    lastModified: new Date(apiPitch.updatedAt),
+    stats: {
+      views: apiPitch.viewCount || 0,
+      likes: apiPitch.likeCount || 0,
+      comments: 0, // Not tracked in API yet
+      shares: 0, // Not tracked in API yet
+      rating: 0, // Not tracked in API yet
+      investmentInterest: 0 // Would need to aggregate from investments
+    },
+    thumbnail: apiPitch.titleImage,
+    visibility
+  };
+}
+
 export default function CreatorPitchesPublished() {
   const navigate = useNavigate();
   const [pitches, setPitches] = useState<PublishedPitch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('recent');
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockPitches: PublishedPitch[] = [
-      {
-        id: '1',
-        title: 'The Quantum Paradox',
-        tagline: 'When time breaks, reality follows',
-        genre: 'Sci-Fi Thriller',
-        budget: '$15M - $20M',
-        status: 'active',
-        publishedDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        lastModified: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        stats: {
-          views: 3245,
-          likes: 287,
-          comments: 43,
-          shares: 89,
-          rating: 4.6,
-          investmentInterest: 2500000
-        },
-        visibility: 'public'
-      },
-      {
-        id: '2',
-        title: 'Dark Waters Rising',
-        tagline: 'Some secrets should stay buried',
-        genre: 'Horror Mystery',
-        budget: '$8M - $12M',
-        status: 'active',
-        publishedDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
-        lastModified: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-        stats: {
-          views: 2867,
-          likes: 234,
-          comments: 67,
-          shares: 56,
-          rating: 4.5,
-          investmentInterest: 1800000
-        },
-        visibility: 'nda_required'
-      },
-      {
-        id: '3',
-        title: 'The Last Colony',
-        tagline: 'Humanity\'s final frontier becomes its last stand',
-        genre: 'Sci-Fi Drama',
-        budget: '$25M - $30M',
-        status: 'paused',
-        publishedDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
-        lastModified: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-        stats: {
-          views: 2145,
-          likes: 189,
-          comments: 29,
-          shares: 45,
-          rating: 4.3,
-          investmentInterest: 1200000
-        },
-        visibility: 'public'
-      }
-    ];
-
-    setTimeout(() => {
-      setPitches(mockPitches);
-      setLoading(false);
-    }, 1000);
+    loadPublishedPitches();
   }, []);
+
+  const loadPublishedPitches = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const myPitches = await PitchService.getMyPitches();
+
+      // Filter to only published pitches
+      const publishedPitches = myPitches
+        .filter((p: Pitch) => p.status === 'published')
+        .map(transformPitch);
+
+      setPitches(publishedPitches);
+    } catch (err) {
+      console.error('Failed to load pitches:', err);
+      setError('Failed to load your pitches. Please try again.');
+      setPitches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -160,6 +160,22 @@ export default function CreatorPitchesPublished() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-red-700">{error}</p>
+            <button
+              onClick={loadPublishedPitches}
+              className="ml-auto text-red-600 hover:text-red-800 font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">

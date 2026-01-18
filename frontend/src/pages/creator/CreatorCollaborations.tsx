@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { 
-  Handshake, Star, Clock, CheckCircle, XCircle, 
-  AlertCircle, Search, Filter, Calendar, User,
-  DollarSign, MessageSquare, Eye, Send, FileText,
-  Building, Users, Award, TrendingUp, Download,
-  Globe, Lock, Heart, Share2, Plus
+import {
+  Handshake, Star, Clock, CheckCircle, XCircle,
+  AlertCircle, Search, Calendar,
+  DollarSign, MessageSquare, Eye, FileText,
+  Building, Users, Award, TrendingUp,
+  Globe, Lock, Plus
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { CollaborationService, type Collaboration as ApiCollaboration } from '../../services/collaboration.service';
 
 interface Collaboration {
   id: string;
@@ -54,11 +54,11 @@ interface CollaborationFilters {
 }
 
 export default function CreatorCollaborations() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
   const [filteredCollaborations, setFilteredCollaborations] = useState<Collaboration[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CollaborationFilters>({
     type: 'all',
     status: 'all',
@@ -76,163 +76,40 @@ export default function CreatorCollaborations() {
 
   const loadCollaborations = async () => {
     try {
-      // Simulate API call - replace with actual API
-      setTimeout(() => {
-        const mockCollaborations: Collaboration[] = [
-          {
-            id: '1',
-            title: 'Co-Production Partnership',
-            type: 'production',
-            status: 'active',
-            partner: {
-              id: 'p1',
-              name: 'Silver Screen Studios',
-              type: 'production',
-              company: 'Silver Screen Studios',
-              verified: true
-            },
-            project: {
-              id: 'pr1',
-              title: 'The Quantum Paradox',
-              genre: 'Sci-Fi'
-            },
-            description: 'Joint production partnership for sci-fi thriller with shared creative control and profit participation.',
-            terms: {
-              budget: 2500000,
-              equity: 40,
-              timeline: '18 months',
-              deliverables: ['Script development', 'Pre-production', 'Principal photography', 'Post-production']
-            },
-            proposedDate: '2024-09-15T10:00:00Z',
-            startDate: '2024-10-01T09:00:00Z',
-            lastUpdate: '2024-12-08T14:30:00Z',
-            priority: 'high',
-            isPublic: false,
-            metrics: {
-              rating: 9.2,
-              reviews: 15,
-              completionRate: 85
-            }
-          },
-          {
-            id: '2',
-            title: 'Investment Proposal',
-            type: 'investment',
-            status: 'pending',
-            partner: {
-              id: 'i1',
-              name: 'Sarah Chen',
-              type: 'investor',
-              company: 'Venture Films',
-              verified: true
-            },
-            project: {
-              id: 'pr2',
-              title: 'Midnight Café',
-              genre: 'Drama'
-            },
-            description: 'Series A funding for intimate character-driven drama with focus on streaming distribution.',
-            terms: {
-              budget: 850000,
-              equity: 25,
-              timeline: '12 months',
-              deliverables: ['Completed film', 'Marketing materials', 'Distribution strategy']
-            },
-            proposedDate: '2024-11-20T15:30:00Z',
-            lastUpdate: '2024-12-07T16:45:00Z',
-            priority: 'high',
-            isPublic: false
-          },
-          {
-            id: '3',
-            title: 'Creative Collaboration',
-            type: 'co-creation',
-            status: 'active',
-            partner: {
-              id: 'c1',
-              name: 'Marcus Rodriguez',
-              type: 'creator',
-              verified: false
-            },
-            description: 'Joint screenplay development for psychological thriller with shared writing credits.',
-            terms: {
-              timeline: '6 months',
-              deliverables: ['First draft screenplay', 'Character development', 'Story outline']
-            },
-            proposedDate: '2024-10-10T11:00:00Z',
-            startDate: '2024-10-15T09:00:00Z',
-            lastUpdate: '2024-12-08T10:20:00Z',
-            priority: 'medium',
-            isPublic: true,
-            metrics: {
-              rating: 8.5,
-              reviews: 8,
-              completionRate: 65
-            }
-          },
-          {
-            id: '4',
-            title: 'Distribution Agreement',
-            type: 'distribution',
-            status: 'completed',
-            partner: {
-              id: 'd1',
-              name: 'Global Streaming Network',
-              type: 'distributor',
-              company: 'GSN',
-              verified: true
-            },
-            project: {
-              id: 'pr3',
-              title: 'Urban Legends',
-              genre: 'Horror'
-            },
-            description: 'Exclusive streaming distribution deal for horror anthology series.',
-            terms: {
-              budget: 1200000,
-              timeline: 'Completed',
-              deliverables: ['Final cut', 'Marketing assets', 'Subtitles/dubbing']
-            },
-            proposedDate: '2023-08-15T09:00:00Z',
-            startDate: '2023-09-01T00:00:00Z',
-            endDate: '2024-11-30T23:59:59Z',
-            lastUpdate: '2024-11-30T18:00:00Z',
-            priority: 'medium',
-            isPublic: false,
-            metrics: {
-              rating: 9.8,
-              reviews: 45,
-              completionRate: 100
-            }
-          },
-          {
-            id: '5',
-            title: 'Talent Attachment',
-            type: 'talent',
-            status: 'declined',
-            partner: {
-              id: 't1',
-              name: 'Emma Wilson',
-              type: 'talent',
-              verified: true
-            },
-            project: {
-              id: 'pr4',
-              title: 'The Last Symphony',
-              genre: 'Drama'
-            },
-            description: 'Lead actress attachment for musical drama with awards consideration potential.',
-            proposedDate: '2024-11-01T14:00:00Z',
-            lastUpdate: '2024-11-15T11:30:00Z',
-            priority: 'low',
-            isPublic: false
-          }
-        ];
-        setCollaborations(mockCollaborations);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to load collaborations:', error);
+      setLoading(true);
+      setError(null);
+
+      // Fetch collaborations from API
+      const apiCollaborations = await CollaborationService.getCollaborations({
+        type: filters.type !== 'all' ? filters.type : undefined,
+        status: filters.status !== 'all' ? filters.status : undefined
+      });
+
+      // Transform API response to component's Collaboration interface
+      const transformedCollaborations: Collaboration[] = apiCollaborations.map((c: ApiCollaboration) => ({
+        id: c.id,
+        title: c.title,
+        type: c.type,
+        status: c.status,
+        partner: c.partner,
+        project: c.project,
+        description: c.description,
+        terms: c.terms,
+        proposedDate: c.proposedDate,
+        startDate: c.startDate,
+        endDate: c.endDate,
+        lastUpdate: c.lastUpdate,
+        priority: c.priority,
+        isPublic: c.isPublic,
+        metrics: c.metrics
+      }));
+
+      setCollaborations(transformedCollaborations);
+    } catch (err) {
+      console.error('Failed to load collaborations:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load collaborations');
+      setCollaborations([]);
+    } finally {
       setLoading(false);
     }
   };

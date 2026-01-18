@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
+import {
   Shield, Crown, Users, Star, Globe, Edit, Trash2,
-  Plus, Settings, Check, X, AlertCircle, Save,
-  Copy, Eye, Lock, Unlock, ChevronDown, ChevronUp
+  Plus, Check, X, AlertCircle, Save,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { TeamService, type TeamRole } from '../../services/team.service';
 
 interface Permission {
   id: string;
@@ -37,13 +37,14 @@ interface RoleForm {
 }
 
 export default function CreatorTeamRoles() {
-    const { user, logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [editingRole, setEditingRole] = useState<string | null>(null);
   const [creatingRole, setCreatingRole] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['content']);
+  const [currentTeamId, setCurrentTeamId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [roleForm, setRoleForm] = useState<RoleForm>({
     name: '',
     description: '',
@@ -56,102 +57,108 @@ export default function CreatorTeamRoles() {
     loadData();
   }, []);
 
+  // Helper to get role icon based on role name
+  const getRoleIcon = (roleName: string) => {
+    switch (roleName.toLowerCase()) {
+      case 'owner': return Crown;
+      case 'admin':
+      case 'administrator': return Shield;
+      case 'member': return Users;
+      case 'collaborator': return Star;
+      case 'viewer': return Globe;
+      default: return Users;
+    }
+  };
+
+  // Helper to get role color based on role name
+  const getRoleColor = (roleName: string) => {
+    switch (roleName.toLowerCase()) {
+      case 'owner': return 'yellow';
+      case 'admin':
+      case 'administrator': return 'red';
+      case 'member': return 'blue';
+      case 'collaborator': return 'purple';
+      case 'viewer': return 'gray';
+      default: return 'blue';
+    }
+  };
+
   const loadData = async () => {
     try {
-      // Simulate API call - replace with actual API
-      setTimeout(() => {
-        setPermissions([
-          // Content permissions
-          { id: 'view-content', name: 'View Content', description: 'View pitch content and projects', category: 'content' },
-          { id: 'edit-content', name: 'Edit Content', description: 'Edit and modify pitch content', category: 'content' },
-          { id: 'create-content', name: 'Create Content', description: 'Create new pitches and projects', category: 'content' },
-          { id: 'delete-content', name: 'Delete Content', description: 'Delete pitches and projects', category: 'content', isAdvanced: true },
-          { id: 'publish-content', name: 'Publish Content', description: 'Publish and make content live', category: 'content' },
-          
-          // Team permissions
-          { id: 'view-team', name: 'View Team', description: 'View team members and roles', category: 'team' },
-          { id: 'invite-members', name: 'Invite Members', description: 'Send team invitations', category: 'team' },
-          { id: 'manage-members', name: 'Manage Members', description: 'Edit member roles and permissions', category: 'team', isAdvanced: true },
-          { id: 'remove-members', name: 'Remove Members', description: 'Remove team members', category: 'team', isAdvanced: true },
-          
-          // Analytics permissions
-          { id: 'view-analytics', name: 'View Analytics', description: 'Access performance metrics', category: 'analytics' },
-          { id: 'export-analytics', name: 'Export Analytics', description: 'Download analytics reports', category: 'analytics' },
-          
-          // Settings permissions
-          { id: 'manage-settings', name: 'Manage Settings', description: 'Modify team and project settings', category: 'settings', isAdvanced: true },
-          { id: 'billing-access', name: 'Billing Access', description: 'View and manage billing', category: 'settings', isAdvanced: true },
-          { id: 'transfer-ownership', name: 'Transfer Ownership', description: 'Transfer team ownership', category: 'settings', isAdvanced: true }
-        ]);
+      setLoading(true);
+      setError(null);
 
-        setRoles([
-          {
-            id: 'owner',
-            name: 'Owner',
-            description: 'Full control over team and all projects',
-            color: 'yellow',
-            icon: Crown,
-            permissions: ['view-content', 'edit-content', 'create-content', 'delete-content', 'publish-content', 'view-team', 'invite-members', 'manage-members', 'remove-members', 'view-analytics', 'export-analytics', 'manage-settings', 'billing-access', 'transfer-ownership'],
-            isDefault: false,
-            isSystemRole: true,
-            memberCount: 1,
-            createdDate: '2024-01-15T09:00:00Z'
-          },
-          {
-            id: 'admin',
-            name: 'Administrator',
-            description: 'Full access except ownership transfer',
-            color: 'red',
-            icon: Shield,
-            permissions: ['view-content', 'edit-content', 'create-content', 'delete-content', 'publish-content', 'view-team', 'invite-members', 'manage-members', 'remove-members', 'view-analytics', 'export-analytics', 'manage-settings'],
-            isDefault: false,
-            isSystemRole: true,
-            memberCount: 1,
-            createdDate: '2024-01-15T09:00:00Z'
-          },
-          {
-            id: 'member',
-            name: 'Team Member',
-            description: 'Edit content and collaborate on projects',
-            color: 'blue',
-            icon: Users,
-            permissions: ['view-content', 'edit-content', 'create-content', 'publish-content', 'view-team', 'view-analytics'],
-            isDefault: true,
-            isSystemRole: true,
-            memberCount: 2,
-            createdDate: '2024-01-15T09:00:00Z'
-          },
-          {
-            id: 'collaborator',
-            name: 'Collaborator',
-            description: 'Limited editing and project-specific access',
-            color: 'purple',
-            icon: Star,
-            permissions: ['view-content', 'edit-content', 'view-team'],
-            isDefault: false,
-            isSystemRole: false,
-            memberCount: 1,
-            createdDate: '2024-02-01T10:00:00Z',
-            lastModified: '2024-11-15T14:30:00Z'
-          },
-          {
-            id: 'viewer',
-            name: 'Viewer',
-            description: 'Read-only access to assigned projects',
-            color: 'gray',
-            icon: Globe,
-            permissions: ['view-content', 'view-team'],
-            isDefault: false,
-            isSystemRole: true,
-            memberCount: 0,
-            createdDate: '2024-01-15T09:00:00Z'
-          }
-        ]);
+      // Static permissions definition (these don't come from API)
+      setPermissions([
+        // Content permissions
+        { id: 'view-content', name: 'View Content', description: 'View pitch content and projects', category: 'content' },
+        { id: 'edit-content', name: 'Edit Content', description: 'Edit and modify pitch content', category: 'content' },
+        { id: 'create-content', name: 'Create Content', description: 'Create new pitches and projects', category: 'content' },
+        { id: 'delete-content', name: 'Delete Content', description: 'Delete pitches and projects', category: 'content', isAdvanced: true },
+        { id: 'publish-content', name: 'Publish Content', description: 'Publish and make content live', category: 'content' },
 
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
-      console.error('Failed to load data:', error);
+        // Team permissions
+        { id: 'view-team', name: 'View Team', description: 'View team members and roles', category: 'team' },
+        { id: 'invite-members', name: 'Invite Members', description: 'Send team invitations', category: 'team' },
+        { id: 'manage-members', name: 'Manage Members', description: 'Edit member roles and permissions', category: 'team', isAdvanced: true },
+        { id: 'remove-members', name: 'Remove Members', description: 'Remove team members', category: 'team', isAdvanced: true },
+
+        // Analytics permissions
+        { id: 'view-analytics', name: 'View Analytics', description: 'Access performance metrics', category: 'analytics' },
+        { id: 'export-analytics', name: 'Export Analytics', description: 'Download analytics reports', category: 'analytics' },
+
+        // Settings permissions
+        { id: 'manage-settings', name: 'Manage Settings', description: 'Modify team and project settings', category: 'settings', isAdvanced: true },
+        { id: 'billing-access', name: 'Billing Access', description: 'View and manage billing', category: 'settings', isAdvanced: true },
+        { id: 'transfer-ownership', name: 'Transfer Ownership', description: 'Transfer team ownership', category: 'settings', isAdvanced: true }
+      ]);
+
+      // Load teams first to get the primary team ID
+      const teams = await TeamService.getTeams();
+      const primaryTeam = teams[0];
+
+      if (primaryTeam) {
+        setCurrentTeamId(primaryTeam.id);
+
+        // Load roles from API
+        const apiRoles = await TeamService.getTeamRoles(primaryTeam.id);
+
+        // Transform API roles to component's Role interface
+        const transformedRoles: Role[] = apiRoles.map((role: TeamRole) => {
+          // Convert permissions object to array of permission IDs
+          const permissionIds: string[] = [];
+          if (role.permissions.canEdit) permissionIds.push('edit-content', 'view-content');
+          if (role.permissions.canInvite) permissionIds.push('invite-members');
+          if (role.permissions.canDelete) permissionIds.push('delete-content', 'remove-members');
+          if (role.permissions.canManageRoles) permissionIds.push('manage-members', 'manage-settings');
+          if (role.permissions.canViewAnalytics) permissionIds.push('view-analytics');
+          if (role.permissions.canManagePitches) permissionIds.push('create-content', 'publish-content');
+          if (!permissionIds.includes('view-content')) permissionIds.push('view-content');
+          if (!permissionIds.includes('view-team')) permissionIds.push('view-team');
+
+          return {
+            id: role.id,
+            name: role.name,
+            description: role.description || '',
+            color: getRoleColor(role.name),
+            icon: getRoleIcon(role.name),
+            permissions: permissionIds,
+            isDefault: role.isDefault,
+            isSystemRole: ['owner', 'admin', 'member', 'viewer'].includes(role.id),
+            memberCount: role.memberCount,
+            createdDate: role.createdAt
+          };
+        });
+
+        setRoles(transformedRoles);
+      } else {
+        // No team - show empty state with default roles
+        setRoles([]);
+      }
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load roles');
+    } finally {
       setLoading(false);
     }
   };

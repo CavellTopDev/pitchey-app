@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { 
-  TrendingUp, TrendingDown, DollarSign, Film, Users, Eye, 
+import {
+  TrendingUp, TrendingDown, DollarSign, Film, Users, Eye,
   Heart, Clock, CheckCircle, AlertCircle, Star, Award,
   Calendar, Target, Zap, Activity, BarChart3, PieChart,
   ArrowUp, ArrowDown, Minus, PlayCircle, StopCircle,
   RefreshCw, Download, Share, Filter, Info
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
-import { config } from '../../config';
+import { ProductionService } from '../../services/production.service';
 import { RevenueChart } from '../../components/charts/RevenueChart';
 import { ProjectStatusChart } from '../../components/charts/ProjectStatusChart';
 
@@ -58,27 +58,99 @@ export default function ProductionStats() {
   const loadStatsData = async () => {
     try {
       setError(null);
-    const response = await fetch(`${config.apiUrl}/api/production`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
+      setLoading(true);
 
-      if (!response.ok) {
-        throw new Error(`Stats API error: ${response.status}`);
+      // Fetch dashboard data which includes stats
+      const [dashboardData, analyticsData] = await Promise.all([
+        ProductionService.getDashboard().catch(() => null),
+        ProductionService.getAnalytics(timeRange === '30d' ? 'month' : timeRange === '90d' ? 'quarter' : 'month').catch(() => null)
+      ]);
+
+      const stats = dashboardData?.stats;
+
+      if (stats) {
+        setQuickStats([
+          {
+            id: '1',
+            title: 'Total Projects',
+            value: stats.totalProjects || 0,
+            change: 0,
+            changeType: 'neutral',
+            trend: 'stable',
+            icon: Film,
+            color: 'text-purple-600',
+            description: 'Total production projects'
+          },
+          {
+            id: '2',
+            title: 'Active Projects',
+            value: stats.activeProjects || 0,
+            change: 0,
+            changeType: 'neutral',
+            trend: 'stable',
+            icon: PlayCircle,
+            color: 'text-blue-600',
+            description: 'Currently active projects'
+          },
+          {
+            id: '3',
+            title: 'Total Budget',
+            value: `$${((stats.totalBudget || 0) / 1000000).toFixed(1)}M`,
+            change: 0,
+            changeType: 'neutral',
+            trend: 'stable',
+            icon: DollarSign,
+            color: 'text-green-600',
+            description: 'Total budget across all projects'
+          },
+          {
+            id: '4',
+            title: 'Pitches Reviewed',
+            value: stats.pitchesReviewed || 0,
+            change: 0,
+            changeType: 'neutral',
+            trend: 'stable',
+            icon: Eye,
+            color: 'text-orange-600',
+            description: 'Pitches reviewed this period'
+          },
+          {
+            id: '5',
+            title: 'Deals Signed',
+            value: stats.pitchesContracted || 0,
+            change: 0,
+            changeType: 'neutral',
+            trend: 'stable',
+            icon: CheckCircle,
+            color: 'text-green-600',
+            description: 'Successful pitch contracts'
+          },
+          {
+            id: '6',
+            title: 'NDAs Signed',
+            value: stats.ndaSigned || 0,
+            change: 0,
+            changeType: 'neutral',
+            trend: 'stable',
+            icon: Award,
+            color: 'text-yellow-600',
+            description: 'NDAs signed with creators'
+          }
+        ]);
       }
 
-      const data = await response.json();
-      
-      // Transform API data into component state
-      setQuickStats(data.quickStats || []);
-      setTrendData(data.trends || []);
-      setComparisonMetrics(data.comparisons || []);
-      setKpiSummary(data.kpiSummary || null);
-      
+      if (analyticsData) {
+        setKpiSummary({
+          dealConversionRate: analyticsData.dealConversionRate,
+          avgProductionTime: analyticsData.avgProductionTime,
+          successRate: analyticsData.successRate
+        });
+      }
+
     } catch (err) {
       console.error('Failed to load stats data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load stats data');
-      
+
       // Set fallback demo data
       setQuickStats([
         {

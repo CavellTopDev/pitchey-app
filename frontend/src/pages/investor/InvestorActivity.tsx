@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { 
-  Activity, TrendingUp, DollarSign, Eye, Heart, 
+import {
+  Activity, TrendingUp, DollarSign, Eye, Heart,
   MessageSquare, FileText, Bell, Filter, RefreshCw,
   CheckCircle, AlertCircle, Calendar, User, Film,
   ArrowRight, Star, Award, Building, Clock,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
 import { config } from '../../config';
+import { apiClient } from '../../lib/api-client';
 
 interface ActivityItem {
   id: string;
@@ -76,170 +77,109 @@ export default function InvestorActivity() {
   const loadActivityFeed = async () => {
     try {
       setError(null);
-      
-      // Simulate API call - replace with actual implementation
-      setTimeout(() => {
-        setActivities([
-          {
-            id: '1',
-            type: 'investment',
-            title: 'Investment completed',
-            description: 'Successfully invested $500K in "The Quantum Paradox" - Series A funding round',
-            timestamp: '2024-12-08T14:30:00Z',
-            creator: {
-              id: 'c1',
-              name: 'Alex Thompson'
-            },
-            project: {
-              id: 'p1',
-              title: 'The Quantum Paradox',
-              genre: 'Sci-Fi Thriller',
-              budget: 2500000
-            },
-            investment: {
-              amount: 500000,
-              stake: 15,
-              valuation: 3333333
-            },
-            metadata: {
-              priority: 'high',
-              status: 'completed'
-            },
-            isRead: false,
-            isImportant: true
+
+      // Fetch activity feed from API
+      const response = await apiClient.get<{
+        success: boolean;
+        data?: {
+          activities: any[];
+          total: number;
+        };
+        activities?: any[];
+        error?: { message: string };
+      }>('/api/investor/activity/feed');
+
+      if (response.success) {
+        const apiActivities = response.data?.activities || response.activities || [];
+
+        // Transform API response to match component interface
+        const transformedActivities: ActivityItem[] = apiActivities.map((activity: any, index: number) => ({
+          id: String(activity.id || index + 1),
+          type: mapActivityType(activity.type || activity.activityType || 'pitch_view'),
+          title: activity.title || getActivityTitle(activity.type),
+          description: activity.description || activity.message || '',
+          timestamp: activity.timestamp || activity.createdAt || new Date().toISOString(),
+          creator: activity.creator ? {
+            id: String(activity.creator.id),
+            name: activity.creator.name || activity.creator.username || 'Unknown',
+            avatar: activity.creator.avatar
+          } : undefined,
+          project: activity.project || activity.pitch ? {
+            id: String(activity.project?.id || activity.pitch?.id || ''),
+            title: activity.project?.title || activity.pitch?.title || '',
+            genre: activity.project?.genre || activity.pitch?.genre,
+            budget: activity.project?.budget || activity.pitch?.estimatedBudget
+          } : undefined,
+          investment: activity.investment ? {
+            amount: activity.investment.amount || 0,
+            stake: activity.investment.stake || activity.investment.equityPercentage || 0,
+            valuation: activity.investment.valuation,
+            roi: activity.investment.roi || activity.investment.returnPercentage
+          } : undefined,
+          metadata: {
+            priority: activity.priority || activity.metadata?.priority || 'medium',
+            status: activity.status || activity.metadata?.status,
+            category: activity.category || activity.metadata?.category,
+            attachments: activity.attachments || activity.metadata?.attachments
           },
-          {
-            id: '2',
-            type: 'portfolio_update',
-            title: 'Portfolio performance update',
-            description: 'Midnight Café entered post-production phase. Timeline on track for Q2 2025 release.',
-            timestamp: '2024-12-08T10:15:00Z',
-            creator: {
-              id: 'c2',
-              name: 'Sarah Mitchell'
-            },
-            project: {
-              id: 'p2',
-              title: 'Midnight Café',
-              genre: 'Drama'
-            },
-            investment: {
-              amount: 300000,
-              stake: 20,
-              roi: 8.5
-            },
-            metadata: {
-              priority: 'medium',
-              status: 'in-progress'
-            },
-            isRead: false,
-            isImportant: true
-          },
-          {
-            id: '3',
-            type: 'pitch_view',
-            title: 'New pitch viewed',
-            description: 'Reviewed "Digital Shadows" - cyberpunk thriller seeking $1.2M funding',
-            timestamp: '2024-12-08T09:45:00Z',
-            creator: {
-              id: 'c3',
-              name: 'Marcus Chen'
-            },
-            project: {
-              id: 'p3',
-              title: 'Digital Shadows',
-              genre: 'Cyberpunk Thriller',
-              budget: 1200000
-            },
-            metadata: {
-              priority: 'medium'
-            },
-            isRead: true,
-            isImportant: false
-          },
-          {
-            id: '4',
-            type: 'due_diligence',
-            title: 'Due diligence completed',
-            description: 'Financial and creative review completed for "Ocean\'s Heart" production',
-            timestamp: '2024-12-07T16:20:00Z',
-            creator: {
-              id: 'c4',
-              name: 'Emma Rodriguez'
-            },
-            project: {
-              id: 'p4',
-              title: 'Ocean\'s Heart',
-              genre: 'Adventure',
-              budget: 1800000
-            },
-            metadata: {
-              priority: 'high',
-              status: 'approved',
-              attachments: 5
-            },
-            isRead: false,
-            isImportant: true
-          },
-          {
-            id: '5',
-            type: 'market_alert',
-            title: 'Market opportunity alert',
-            description: 'Streaming horror content showing 45% growth. 3 relevant pitches available for review.',
-            timestamp: '2024-12-07T14:10:00Z',
-            metadata: {
-              priority: 'medium',
-              category: 'Horror'
-            },
-            isRead: true,
-            isImportant: false
-          },
-          {
-            id: '6',
-            type: 'creator_follow',
-            title: 'Creator activity',
-            description: 'James Wilson (director you follow) published new pitch "Time Loop Café"',
-            timestamp: '2024-12-07T11:30:00Z',
-            creator: {
-              id: 'c5',
-              name: 'James Wilson'
-            },
-            project: {
-              id: 'p5',
-              title: 'Time Loop Café',
-              genre: 'Sci-Fi Comedy',
-              budget: 850000
-            },
-            metadata: {
-              priority: 'low'
-            },
-            isRead: true,
-            isImportant: false
-          },
-          {
-            id: '7',
-            type: 'funding_round',
-            title: 'Series B funding opportunity',
-            description: 'Silver Screen Studios opening Series B round - $5M target for slate financing',
-            timestamp: '2024-12-06T15:45:00Z',
-            metadata: {
-              priority: 'high',
-              status: 'open'
-            },
-            isRead: false,
-            isImportant: true
-          }
-        ]);
-        setLoading(false);
-        setRefreshing(false);
-      }, 1000);
-      
+          isRead: activity.isRead ?? activity.read ?? false,
+          isImportant: activity.isImportant ?? activity.important ?? activity.priority === 'high'
+        }));
+
+        setActivities(transformedActivities);
+      } else {
+        // API returned error, use empty state
+        console.warn('Activity feed API returned error:', response.error?.message);
+        setActivities([]);
+      }
     } catch (err) {
       console.error('Failed to load activity feed:', err);
       setError(err instanceof Error ? err.message : 'Failed to load activity feed');
+      setActivities([]);
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Helper to map API activity types to component types
+  const mapActivityType = (apiType: string): ActivityItem['type'] => {
+    const typeMap: Record<string, ActivityItem['type']> = {
+      'investment': 'investment',
+      'pitch_view': 'pitch_view',
+      'view': 'pitch_view',
+      'due_diligence': 'due_diligence',
+      'diligence': 'due_diligence',
+      'portfolio_update': 'portfolio_update',
+      'portfolio': 'portfolio_update',
+      'market_alert': 'market_alert',
+      'alert': 'market_alert',
+      'creator_follow': 'creator_follow',
+      'follow': 'creator_follow',
+      'collaboration': 'collaboration',
+      'funding_round': 'funding_round',
+      'funding': 'funding_round',
+      'exit': 'exit',
+      'dividend': 'dividend'
+    };
+    return typeMap[apiType.toLowerCase()] || 'pitch_view';
+  };
+
+  // Helper to generate title based on activity type
+  const getActivityTitle = (type: string): string => {
+    const titleMap: Record<string, string> = {
+      'investment': 'Investment activity',
+      'pitch_view': 'Pitch viewed',
+      'due_diligence': 'Due diligence update',
+      'portfolio_update': 'Portfolio update',
+      'market_alert': 'Market alert',
+      'creator_follow': 'Creator activity',
+      'collaboration': 'Collaboration update',
+      'funding_round': 'Funding opportunity',
+      'exit': 'Exit event',
+      'dividend': 'Dividend distribution'
+    };
+    return titleMap[type] || 'Activity';
   };
 
   const applyFilters = () => {

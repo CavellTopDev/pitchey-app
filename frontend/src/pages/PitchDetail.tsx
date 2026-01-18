@@ -309,31 +309,46 @@ export default function PitchDetail() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <BackButton />
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-bold text-gray-900">{pitch.title}</h1>
-                  {pitch.seekingInvestment && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      💰 Seeking Investment
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Top Row - Navigation */}
+          <div className="mb-4">
+            <BackButton />
+          </div>
+
+          {/* Main Content Row */}
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            {/* Title & Info Section */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+                  {pitch.title}
+                </h1>
+                {pitch.seekingInvestment && (
+                  <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 whitespace-nowrap">
+                    💰 Seeking Investment
+                  </span>
+                )}
+              </div>
+
+              {/* Creator & Meta Info */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
+                <div className="flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-gray-400" />
                   <span>By</span>
-                  <span 
-                    className="hover:text-purple-600 cursor-pointer font-medium"
+                  <span
+                    className="hover:text-purple-600 cursor-pointer font-medium text-gray-900"
                     onClick={() => navigate(`/creator/${pitch.creator?.id}`)}
                   >
                     {pitch.creator?.name || pitch.creator?.username || 'Unknown Creator'}
                   </span>
-                  <span>•</span>
-                  <span>{pitch.genre}</span>
-                  <span>•</span>
-                  <FormatDisplay 
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Tag className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-700">{pitch.genre}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Film className="w-4 h-4 text-gray-400" />
+                  <FormatDisplay
                     formatCategory={pitch.formatCategory}
                     formatSubtype={pitch.formatSubtype}
                     format={pitch.format}
@@ -342,12 +357,13 @@ export default function PitchDetail() {
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3">
+
+            {/* Actions Section */}
+            <div className="flex flex-wrap items-center gap-3 lg:flex-shrink-0">
               {!isAuthenticated ? (
                 <button
                   onClick={() => navigate('/portals')}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium shadow-sm"
                 >
                   <LogIn className="w-4 h-4" />
                   Sign In to Interact
@@ -357,19 +373,19 @@ export default function PitchDetail() {
                   {!hasSignedNDA && !isOwner && (
                     <button
                       onClick={() => setShowEnhancedNDARequest(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
                     >
                       <Shield className="w-4 h-4" />
                       Request Enhanced Access
                     </button>
                   )}
                   {hasSignedNDA && (
-                    <span className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg">
+                    <span className="flex items-center gap-2 px-4 py-2.5 bg-green-100 text-green-700 rounded-lg font-medium">
                       <Shield className="w-4 h-4" />
                       NDA Signed
                     </span>
                   )}
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                  <button className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium">
                     <Share2 className="w-4 h-4" />
                     Share
                   </button>

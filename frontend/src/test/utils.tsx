@@ -114,6 +114,11 @@ vi.mock('../store/pitchStore', () => ({
   usePitchStore: () => mockPitchStore,
 }))
 
+// Mock betterAuthStore (used by login pages)
+vi.mock('../store/betterAuthStore', () => ({
+  useBetterAuthStore: () => mockAuthStore,
+}))
+
 // Test data factories
 export const createMockUser = (overrides = {}) => ({
   id: 'mock-user-uuid-' + Date.now(),

@@ -1,15 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Star, Filter, Search, Calendar, Clock, 
-  MoreVertical, Eye, MessageSquare, FileText,
-  Bookmark, BookmarkCheck, TrendingUp, Film
+import {
+  Star, Search, Calendar,
+  MoreVertical, Eye, MessageSquare,
+  Bookmark, BookmarkCheck, Film,
+  AlertCircle, RefreshCw, X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
-import { pitchService } from '../../services/pitch.service';
+import { SavedPitchesService, type SavedPitch as ApiSavedPitch } from '../../services/saved-pitches.service';
+
+// Loading skeleton for pitch cards
+function PitchCardSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <Skeleton className="h-48 w-full" />
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-16 rounded" />
+            <Skeleton className="h-5 w-20 rounded" />
+          </div>
+          <Skeleton className="h-4 w-8" />
+        </div>
+        <div className="flex items-center justify-between text-sm mb-3">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-24 rounded-full" />
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-8" />
+            <Skeleton className="h-8 w-8" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface SavedPitch {
   id: number;
@@ -28,13 +58,13 @@ interface SavedPitch {
 }
 
 export default function ProductionSaved() {
-  const { user } = useBetterAuthStore();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGenre, setFilterGenre] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [savedPitches, setSavedPitches] = useState<SavedPitch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSavedPitches();
@@ -42,86 +72,43 @@ export default function ProductionSaved() {
 
   const fetchSavedPitches = async () => {
     setLoading(true);
+    setError(null);
     try {
-      // Mock data for now - replace with actual API call
-      const mockPitches: SavedPitch[] = [
-        {
-          id: 1,
-          title: 'Cosmic Odyssey',
-          creator: 'Alex Thompson',
-          genre: 'Sci-Fi',
-          format: 'Feature Film',
-          savedDate: '2024-12-05',
-          pitchDate: '2024-11-20',
-          status: 'Under Review',
-          thumbnail: 'https://picsum.photos/400/300?random=1',
-          views: 1250,
-          rating: 4.8,
-          hasNDA: true,
-          notes: 'High potential for Q2 2025 production slate'
-        },
-        {
-          id: 2,
-          title: 'Urban Legends',
-          creator: 'Maria Garcia',
-          genre: 'Horror',
-          format: 'TV Series',
-          savedDate: '2024-12-03',
-          pitchDate: '2024-11-15',
-          status: 'Shortlisted',
-          thumbnail: 'https://picsum.photos/400/300?random=2',
-          views: 980,
-          rating: 4.6,
-          hasNDA: false
-        },
-        {
-          id: 3,
-          title: 'The Last Signal',
-          creator: 'James Chen',
-          genre: 'Thriller',
-          format: 'Limited Series',
-          savedDate: '2024-12-01',
-          pitchDate: '2024-11-10',
-          status: 'Reviewing',
-          thumbnail: 'https://picsum.photos/400/300?random=3',
-          views: 750,
-          rating: 4.5,
-          hasNDA: true,
-          notes: 'Strong script, needs budget review'
-        },
-        {
-          id: 4,
-          title: 'Quantum Dreams',
-          creator: 'Sophie Laurent',
-          genre: 'Sci-Fi',
-          format: 'Feature Film',
-          savedDate: '2024-11-28',
-          pitchDate: '2024-11-01',
-          status: 'Under Consideration',
-          thumbnail: 'https://picsum.photos/400/300?random=4',
-          views: 2100,
-          rating: 4.9,
-          hasNDA: true
-        },
-        {
-          id: 5,
-          title: 'Shadow Protocol',
-          creator: 'David Kim',
-          genre: 'Action',
-          format: 'Feature Film',
-          savedDate: '2024-11-25',
-          pitchDate: '2024-10-20',
-          status: 'Reviewing',
-          thumbnail: 'https://picsum.photos/400/300?random=5',
-          views: 1800,
-          rating: 4.7,
-          hasNDA: false
-        }
-      ];
-      
-      setSavedPitches(mockPitches);
-    } catch (error) {
-      console.error('Error fetching saved pitches:', error);
+      // Fetch from real API
+      const response = await SavedPitchesService.getSavedPitches({
+        genre: filterGenre !== 'all' ? filterGenre : undefined,
+        limit: 50
+      });
+
+      // Transform API response to component's SavedPitch interface
+      const transformedPitches: SavedPitch[] = response.savedPitches.map((sp: ApiSavedPitch) => ({
+        id: sp.pitchId,
+        title: sp.pitch?.title || 'Untitled Pitch',
+        creator: sp.pitch?.creator?.username || sp.pitch?.creator?.name || 'Unknown Creator',
+        genre: sp.pitch?.genre || 'Unknown',
+        format: sp.pitch?.budgetBracket || 'Feature Film',
+        savedDate: sp.savedAt,
+        pitchDate: sp.savedAt, // Use savedAt as fallback
+        status: sp.pitch?.status || 'Under Review',
+        thumbnail: sp.pitch?.titleImage || `https://picsum.photos/400/300?random=${sp.pitchId}`,
+        views: 0, // Not available from saved pitches API
+        rating: 0, // Not available from saved pitches API
+        hasNDA: false, // Default
+        notes: sp.notes
+      }));
+
+      // Apply sorting
+      if (sortBy === 'recent') {
+        transformedPitches.sort((a, b) => new Date(b.savedDate).getTime() - new Date(a.savedDate).getTime());
+      } else if (sortBy === 'newest') {
+        transformedPitches.sort((a, b) => new Date(b.pitchDate).getTime() - new Date(a.pitchDate).getTime());
+      }
+
+      setSavedPitches(transformedPitches);
+    } catch (err) {
+      console.error('Error fetching saved pitches:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load saved pitches');
+      setSavedPitches([]);
     } finally {
       setLoading(false);
     }
@@ -136,10 +123,15 @@ export default function ProductionSaved() {
 
   const handleRemoveSaved = async (pitchId: number) => {
     try {
-      // API call to remove from saved
-      setSavedPitches(prev => prev.filter(p => p.id !== pitchId));
-    } catch (error) {
-      console.error('Error removing saved pitch:', error);
+      // Find the saved pitch entry to get its ID
+      const savedPitch = savedPitches.find(p => p.id === pitchId);
+      if (savedPitch) {
+        await SavedPitchesService.unsavePitch(pitchId);
+        setSavedPitches(prev => prev.filter(p => p.id !== pitchId));
+      }
+    } catch (err) {
+      console.error('Error removing saved pitch:', err);
+      setError(err instanceof Error ? err.message : 'Failed to remove saved pitch');
     }
   };
 
@@ -158,6 +150,36 @@ export default function ProductionSaved() {
             </span>
           </div>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">Error loading saved pitches</p>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setError(null)}
+                className="text-red-600 hover:text-red-800"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchSavedPitches}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -200,8 +222,13 @@ export default function ProductionSaved() {
 
         {/* Saved Pitches Grid */}
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <PitchCardSkeleton />
+            <PitchCardSkeleton />
+            <PitchCardSkeleton />
+            <PitchCardSkeleton />
+            <PitchCardSkeleton />
+            <PitchCardSkeleton />
           </div>
         ) : filteredPitches.length === 0 ? (
           <Card className="p-12 text-center">

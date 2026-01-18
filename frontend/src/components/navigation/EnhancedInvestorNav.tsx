@@ -1,10 +1,10 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { 
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import {
   Home, BarChart3, Activity, LineChart, Briefcase, Clock, CheckCircle,
   FolderOpen, Globe, Bookmark, Eye, DollarSign, FileText, PieChart,
   TrendingUp, AlertTriangle, Users, Building2, UserCheck, Wallet,
-  CreditCard, Settings, Shield, Receipt, Calculator, FileCheck
+  CreditCard, Settings, Shield, Receipt, Calculator, FileCheck, Store, ExternalLink
 } from 'lucide-react';
 import { INVESTOR_ROUTES } from '../../config/navigation.routes';
 
@@ -157,8 +157,33 @@ export function EnhancedInvestorNav() {
   return (
     <nav className="w-64 bg-white border-r border-gray-200 h-full overflow-y-auto">
       <div className="p-4">
-        <h2 className="text-xl font-bold text-green-600 mb-6">Investor Portal</h2>
-        
+        <h2 className="text-xl font-bold text-green-600 mb-4">Investor Portal</h2>
+
+        {/* Quick Links - Always visible at top */}
+        <div className="mb-6 pb-4 border-b border-gray-200">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            Quick Links
+          </h3>
+          <div className="space-y-1">
+            <Link
+              to="/"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors duration-200"
+            >
+              <Home className="w-4 h-4" />
+              <span className="flex-1 text-left">Home</span>
+              <ExternalLink className="w-3 h-3 text-gray-400" />
+            </Link>
+            <Link
+              to="/marketplace"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors duration-200"
+            >
+              <Store className="w-4 h-4" />
+              <span className="flex-1 text-left">Marketplace</span>
+              <ExternalLink className="w-3 h-3 text-gray-400" />
+            </Link>
+          </div>
+        </div>
+
         {investorNavigationSections.map((section) => (
           <div key={section.title} className="mb-6">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">

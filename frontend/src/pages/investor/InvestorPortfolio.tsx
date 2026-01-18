@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { 
-  TrendingUp, DollarSign, PieChart, Calendar, 
+import {
+  TrendingUp, DollarSign, PieChart, Calendar,
   Film, Eye, Star, Clock, AlertCircle, CheckCircle,
   ArrowUp, ArrowDown, MoreVertical, Filter, Download,
   BarChart3, Target, RefreshCw, Search, Grid3X3, List,
-  Heart, MessageSquare, Settings, Plus, Minus
+  Heart, MessageSquare, Settings, Plus, Minus, X
 } from 'lucide-react';
+import { InvestmentService } from '../../services/investment.service';
 
 interface Investment {
   id: string;
@@ -32,102 +33,77 @@ interface PortfolioStats {
 }
 
 export default function InvestorPortfolio() {
-    
+
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('all');
   const [timeRange, setTimeRange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'roi' | 'title'>('date');
-  
+
   const [stats, setStats] = useState<PortfolioStats>({
-    totalInvested: 2500000,
-    currentValue: 3100000,
-    totalReturns: 600000,
-    averageROI: 24,
-    activeInvestments: 8,
-    completedDeals: 3
+    totalInvested: 0,
+    currentValue: 0,
+    totalReturns: 0,
+    averageROI: 0,
+    activeInvestments: 0,
+    completedDeals: 0
   });
 
   useEffect(() => {
-    // Simulate loading investments
-    setTimeout(() => {
-      setInvestments([
-        {
-          id: '1',
-          pitchTitle: 'Quantum Dreams',
-          creator: 'Alex Thompson',
-          investmentDate: '2024-01-15',
-          amount: 500000,
-          stake: 15,
-          status: 'active',
-          currentValue: 650000,
-          roi: 30,
-          genre: 'Sci-Fi',
-          stage: 'production',
-          riskLevel: 'medium'
-        },
-        {
-          id: '2',
-          pitchTitle: 'The Last Echo',
-          creator: 'Sarah Mitchell',
-          investmentDate: '2024-02-20',
-          amount: 300000,
-          stake: 10,
-          status: 'active',
-          currentValue: 320000,
-          roi: 6.7,
-          genre: 'Mystery',
-          stage: 'post-production',
-          riskLevel: 'low'
-        },
-        {
-          id: '3',
-          pitchTitle: 'Ocean\'s Secret',
-          creator: 'Emma Rodriguez',
-          investmentDate: '2023-11-10',
-          amount: 750000,
-          stake: 25,
-          status: 'completed',
-          currentValue: 1200000,
-          roi: 60,
-          genre: 'Drama',
-          stage: 'released',
-          riskLevel: 'low'
-        },
-        {
-          id: '4',
-          pitchTitle: 'Digital Shadows',
-          creator: 'Marcus Chen',
-          investmentDate: '2024-03-05',
-          amount: 200000,
-          stake: 8,
-          status: 'pending',
-          currentValue: 200000,
-          roi: 0,
-          genre: 'Thriller',
-          stage: 'development',
-          riskLevel: 'high'
-        },
-        {
-          id: '5',
-          pitchTitle: 'Time Loop Cafe',
-          creator: 'James Wilson',
-          investmentDate: '2023-12-01',
-          amount: 150000,
-          stake: 20,
-          status: 'active',
-          currentValue: 180000,
-          roi: 20,
-          genre: 'Comedy',
-          stage: 'production',
-          riskLevel: 'medium'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
+    loadPortfolioData();
   }, []);
+
+  const loadPortfolioData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch portfolio summary
+      const portfolioResponse = await InvestmentService.getInvestorPortfolio();
+      if (portfolioResponse.success && portfolioResponse.data) {
+        const portfolio = portfolioResponse.data;
+        setStats({
+          totalInvested: portfolio.totalInvested || 0,
+          currentValue: portfolio.currentValue || 0,
+          totalReturns: portfolio.totalReturn || 0,
+          averageROI: portfolio.returnPercentage || 0,
+          activeInvestments: portfolio.activeInvestments || 0,
+          completedDeals: portfolio.completedInvestments || 0
+        });
+      }
+
+      // Fetch investment history
+      const historyResponse = await InvestmentService.getInvestmentHistory({ limit: 50 });
+      if (historyResponse.success && historyResponse.data) {
+        const transformedInvestments: Investment[] = historyResponse.data.investments.map((inv) => ({
+          id: String(inv.id),
+          pitchTitle: inv.pitchTitle || 'Unknown Project',
+          creator: inv.creatorName || 'Unknown Creator',
+          investmentDate: inv.createdAt,
+          amount: inv.amount,
+          stake: 0, // Not available from API
+          status: inv.status === 'active' ? 'active' : inv.status === 'completed' ? 'completed' : 'pending',
+          currentValue: inv.currentValue,
+          roi: inv.returnPercentage || 0,
+          genre: inv.pitchGenre || 'Unknown',
+          stage: 'production' as const, // Default since not in API
+          riskLevel: 'medium' as const // Default since not in API
+        }));
+        setInvestments(transformedInvestments);
+      } else {
+        // No investments found - that's okay, show empty state
+        setInvestments([]);
+      }
+    } catch (err) {
+      console.error('Error loading portfolio data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load portfolio data');
+      setInvestments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredInvestments = investments
     .filter(inv => {
@@ -173,8 +149,34 @@ export default function InvestorPortfolio() {
 
   return (
     <div>
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">Failed to load portfolio data</p>
+                <p className="text-sm text-red-600 mt-1">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-600 hover:text-red-800 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                onClick={loadPortfolioData}
+                className="inline-flex items-center gap-2 px-3 py-1.5 border border-red-300 rounded-md text-sm text-red-700 hover:bg-red-100"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Portfolio Overview */}
         <div className="bg-gradient-to-r from-green-600 to-teal-600 rounded-xl shadow-xl p-6 mb-8 text-white">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">

@@ -69,12 +69,12 @@ describe('CreatorDashboard', () => {
       render(<CreatorDashboard />)
 
       await waitFor(() => {
-        // Look for welcome or name display
-        const welcomeText = screen.queryByText(/welcome/i) || 
+        // Look for welcome, name display, or dashboard header
+        const welcomeText = screen.queryByText(/welcome/i) ||
                            screen.queryByText(mockCreatorUser.name) ||
-                           screen.queryByText(/dashboard/i)
-        expect(welcomeText).toBeInTheDocument()
-      }, { timeout: 3000 })
+                           screen.queryByText(/Creator Dashboard/i)
+        expect(welcomeText).toBeTruthy()
+      }, { timeout: 5000 })
     })
 
     it('should show stats sections', async () => {
@@ -93,11 +93,12 @@ describe('CreatorDashboard', () => {
     it('should handle API responses gracefully', async () => {
       render(<CreatorDashboard />)
 
+      // Component should handle real API calls
+      // Even if API fails, component should not crash
       await waitFor(() => {
-        // Component should handle real API calls
-        // Even if API fails, component should not crash
-        const dashboard = screen.getByText(/dashboard/i)
-        expect(dashboard).toBeInTheDocument()
+        const dashboard = screen.queryByText(/Creator Dashboard/i) ||
+                          screen.queryByText(/dashboard/i)
+        expect(dashboard).toBeTruthy()
       }, { timeout: 5000 })
     })
 

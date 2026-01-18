@@ -1,25 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { TrendingUp, Star, Film, Search, Filter, Grid, List, ArrowLeft, Home } from 'lucide-react';
+import { TrendingUp, Star, Film, Search, Filter, Grid, List, ArrowLeft, Home, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { InvestorService, type InvestmentOpportunity } from '../../services/investor.service';
+
+interface PitchItem {
+  id: number;
+  title: string;
+  genre: string;
+  budget: string;
+  roi: string;
+  status: string;
+  thumbnail: string;
+  description: string;
+  rating: number;
+}
 
 const InvestorDiscover = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
-  
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login/investor');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pitches, setPitches] = useState<PitchItem[]>([]);
   
   // Get current tab from URL params or default to 'featured'
   const currentTab = searchParams.get('tab') || 'featured';
@@ -53,44 +60,134 @@ const InvestorDiscover = () => {
     }
   }, [isGenresPage, currentTab, setSearchParams]);
 
-  // Mock data for pitches
-  const mockPitches = [
-    {
-      id: 1,
-      title: 'The Last Horizon',
-      genre: 'Sci-Fi',
-      budget: '$15M',
-      roi: '320%',
-      status: 'Seeking Investment',
-      thumbnail: '/images/pitch-placeholder.svg',
-      description: 'A groundbreaking sci-fi thriller about humanity\'s last stand.',
-      rating: 4.8,
-    },
-    {
-      id: 2,
-      title: 'Echoes of Tomorrow',
-      genre: 'Drama',
-      budget: '$8M',
-      roi: '250%',
-      status: 'In Development',
-      thumbnail: '/images/pitch-placeholder.svg',
-      description: 'An emotional journey through time and memory.',
-      rating: 4.6,
-    },
-    {
-      id: 3,
-      title: 'Shadow Protocol',
-      genre: 'Action',
-      budget: '$25M',
-      roi: '450%',
-      status: 'Pre-Production',
-      thumbnail: '/images/pitch-placeholder.svg',
-      description: 'High-octane action thriller with international stakes.',
-      rating: 4.9,
-    },
-  ];
+  // Load pitches on mount and when filters change
+  useEffect(() => {
+    loadPitches();
+  }, [currentTab, selectedGenre]);
+
+  const loadPitches = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const filters: {
+        genre?: string;
+        sortBy?: 'matchScore' | 'deadline' | 'roi' | 'popularity';
+        limit?: number;
+      } = {
+        limit: 50
+      };
+
+      // Apply genre filter
+      if (selectedGenre && selectedGenre !== 'all' && selectedGenre !== 'all-genres') {
+        filters.genre = selectedGenre.replace('-', ' ');
+      }
+
+      // Apply sorting based on tab
+      if (currentTab === 'high-potential') {
+        filters.sortBy = 'roi';
+      } else if (currentTab === 'featured') {
+        filters.sortBy = 'popularity';
+      }
+
+      const response = await InvestorService.getOpportunities(filters);
+
+      // Transform API response to match component interface
+      const transformedPitches: PitchItem[] = response.opportunities.map((opp: InvestmentOpportunity) => ({
+        id: opp.id,
+        title: opp.title || 'Untitled',
+        genre: opp.genre || 'Unknown',
+        budget: formatBudget(opp.minInvestment || opp.targetAmount || 0),
+        roi: opp.expectedROI ? `${opp.expectedROI}%` : 'TBD',
+        status: mapStatus(opp.status || 'active'),
+        thumbnail: opp.thumbnailUrl || '/images/pitch-placeholder.svg',
+        description: opp.logline || opp.description || '',
+        rating: opp.matchScore ? opp.matchScore / 20 : 4.5  // Convert match score to 5-star rating
+      }));
+
+      setPitches(transformedPitches);
+    } catch (err) {
+      console.error('Failed to load pitches:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load pitches');
+      setPitches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatBudget = (amount: number): string => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      return `$${(amount / 1000).toFixed(0)}K`;
+    }
+    return `$${amount}`;
+  };
+
+  const mapStatus = (apiStatus: string): string => {
+    const statusMap: Record<string, string> = {
+      'active': 'Seeking Investment',
+      'published': 'Seeking Investment',
+      'in_development': 'In Development',
+      'pre_production': 'Pre-Production',
+      'production': 'In Production',
+      'post_production': 'Post-Production',
+      'completed': 'Completed',
+      'funded': 'Fully Funded'
+    };
+    return statusMap[apiStatus.toLowerCase()] || apiStatus;
+  };
+
+  // Filter pitches by search query
+  const filteredPitches = pitches.filter(pitch =>
+    pitch.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pitch.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pitch.genre.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderContent = () => {
+    // Loading state
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="flex items-center space-x-2">
+            <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+            <span className="text-gray-600">Loading opportunities...</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Error state
+    if (error) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-red-800 mb-2">Failed to load opportunities</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={loadPitches} variant="outline" className="text-red-700 border-red-300">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      );
+    }
+
+    // Empty state
+    if (filteredPitches.length === 0) {
+      return (
+        <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+          <Film className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No opportunities found</h3>
+          <p className="text-gray-600">
+            {searchQuery
+              ? 'Try adjusting your search or filters.'
+              : 'Check back later for new investment opportunities.'}
+          </p>
+        </div>
+      );
+    }
+
     if (isGenresPage || currentTab === 'genres') {
       return (
         <div>
@@ -113,7 +210,7 @@ const InvestorDiscover = () => {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockPitches.map(pitch => (
+            {filteredPitches.map(pitch => (
               <PitchCard key={pitch.id} pitch={pitch} viewMode="grid" />
             ))}
           </div>
@@ -123,7 +220,7 @@ const InvestorDiscover = () => {
 
     return (
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-        {mockPitches.map(pitch => (
+        {filteredPitches.map(pitch => (
           <PitchCard key={pitch.id} pitch={pitch} viewMode={viewMode} />
         ))}
       </div>
