@@ -172,7 +172,8 @@ export async function enhancedHealthHandler(
     `);
     
     // Neon returns rows directly, not wrapped in a .rows property
-    if (authCheck && authCheck.length > 0 && authCheck[0].table_count >= 3) {
+    const authResult = authCheck as { table_count: number }[];
+    if (authResult && authResult.length > 0 && authResult[0].table_count >= 3) {
       healthStatus.checks.auth = 'healthy';
     } else {
       healthStatus.checks.auth = 'unhealthy';

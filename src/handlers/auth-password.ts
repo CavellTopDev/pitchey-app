@@ -5,7 +5,7 @@
 
 import { ApiResponseBuilder, ErrorCode } from '../utils/api-response';
 import { createDatabase } from '../db/raw-sql-connection';
-import { createBetterAuthInstance } from '../auth/better-auth-neon-raw-sql';
+import { getAuthenticatedUser } from '../utils/auth-extract';
 import * as bcrypt from 'bcryptjs';
 
 /**
@@ -50,18 +50,16 @@ export async function changePasswordHandler(
       );
     }
     
-    // Get current user from Better Auth session
-    const auth = createBetterAuthInstance(env);
-    const session = await auth.api.getSession({
-      headers: request.headers
-    });
-    
-    if (!session?.user) {
+    // Get current user from session
+    const authResult = await getAuthenticatedUser(request, env);
+
+    if (!authResult.authenticated || !authResult.user) {
       return ApiResponseBuilder.error(
         ErrorCode.UNAUTHORIZED,
         'Not authenticated'
       );
     }
+    const session = { user: authResult.user };
     
     // Get user's current password hash from database
     const db = createDatabase(env.DATABASE_URL);
