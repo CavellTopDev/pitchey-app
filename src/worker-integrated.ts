@@ -163,6 +163,18 @@ import { ProductionLogger } from './lib/production-logger';
 // Import pitch validation handlers
 import { validationHandlers } from './handlers/pitch-validation';
 
+// Import RBAC enforcer for permission-based access control
+import {
+  enforceRBAC,
+  enforcePortalAccess,
+  checkPermission,
+  Permission,
+  buildRBACContext,
+  forbiddenResponse,
+  unauthorizedResponse,
+  AuthenticatedUser
+} from './utils/rbac-enforcer';
+
 // Import advanced search handlers - TEMPORARILY DISABLED
 // import {
 //   advancedSearchHandler,
@@ -825,46 +837,130 @@ class RouteRegistry {
     };
   }
 
-  private async requireAuth(request: Request): Promise<AuthCheckResult> {
+  private async requireAuth(request: Request, requiredPermission?: Permission): Promise<AuthCheckResult> {
     const result = await this.validateAuth(request);
+    const origin = request.headers.get('Origin');
+
     if (!result.valid) {
       return {
         authorized: false,
-        response: new Response(JSON.stringify({
-          success: false,
-          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        }), { status: 401, headers: getCorsHeaders(request.headers.get('Origin')) })
+        response: unauthorizedResponse('Authentication required', origin)
       };
     }
+
+    // If a specific permission is required, check RBAC
+    if (requiredPermission) {
+      const user = result.user as AuthenticatedUser;
+      const hasPermission = checkPermission(user, requiredPermission);
+
+      if (!hasPermission) {
+        const context = buildRBACContext(user);
+        return {
+          authorized: false,
+          response: forbiddenResponse(
+            `You don't have permission to perform this action. Required: ${requiredPermission}`,
+            origin,
+            { userRole: context.userRole, requiredPermission }
+          )
+        };
+      }
+    }
+
     return { authorized: true, user: result.user as UserRecord };
   }
 
-  private async requirePortalAuth(request: Request, portal: string | string[]): Promise<AuthCheckResult> {
+  private async requirePortalAuth(
+    request: Request,
+    portal: string | string[],
+    requiredPermission?: Permission
+  ): Promise<AuthCheckResult> {
     const result = await this.validateAuth(request);
+    const origin = request.headers.get('Origin');
+
     if (!result.valid) {
       return {
         authorized: false,
-        response: new Response(JSON.stringify({
-          success: false,
-          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
-        }), { status: 401, headers: getCorsHeaders(request.headers.get('Origin')) })
+        response: unauthorizedResponse('Authentication required', origin)
       };
     }
 
-    // Check user type if portal is specified
-    if (portal) {
-      const allowedPortals = Array.isArray(portal) ? portal : [portal];
-      const userType = result.user.userType || result.user.user_type;
+    const user = result.user as AuthenticatedUser;
 
-      if (!allowedPortals.includes(userType)) {
+    // Check portal access using RBAC enforcer
+    if (portal) {
+      const portals = Array.isArray(portal) ? portal : [portal];
+
+      // Check if user has access to any of the allowed portals
+      let hasPortalAccess = false;
+      for (const p of portals) {
+        const rbacResult = enforcePortalAccess(user, p, origin);
+        if (rbacResult.authorized) {
+          hasPortalAccess = true;
+          break;
+        }
+      }
+
+      if (!hasPortalAccess) {
+        const userType = user.user_type || user.userType || user.role || 'unknown';
         return {
           authorized: false,
-          response: new Response(JSON.stringify({
-            success: false,
-            error: { code: 'FORBIDDEN', message: `Access denied. Required user type: ${allowedPortals.join(' or ')}` }
-          }), { status: 403, headers: getCorsHeaders(request.headers.get('Origin')) })
+          response: forbiddenResponse(
+            `Access denied. Required portal: ${portals.join(' or ')}. Your account type: ${userType}`,
+            origin,
+            { requiredPortals: portals, currentUserType: userType }
+          )
         };
       }
+    }
+
+    // If a specific permission is required, check RBAC
+    if (requiredPermission) {
+      const hasPermission = checkPermission(user, requiredPermission);
+
+      if (!hasPermission) {
+        const context = buildRBACContext(user);
+        return {
+          authorized: false,
+          response: forbiddenResponse(
+            `Insufficient permissions. Required: ${requiredPermission}`,
+            origin,
+            { userRole: context.userRole, requiredPermission }
+          )
+        };
+      }
+    }
+
+    return { authorized: true, user: result.user as UserRecord };
+  }
+
+  /**
+   * Check RBAC permissions for a route
+   * Returns an authorization result with the user context if authorized
+   */
+  private async requireAuthWithRBAC(
+    request: Request
+  ): Promise<AuthCheckResult> {
+    const result = await this.validateAuth(request);
+    const origin = request.headers.get('Origin');
+    const pathname = new URL(request.url).pathname;
+
+    if (!result.valid) {
+      return {
+        authorized: false,
+        response: unauthorizedResponse('Authentication required', origin)
+      };
+    }
+
+    const user = result.user as AuthenticatedUser;
+
+    // Enforce RBAC based on route
+    const rbacResult = enforceRBAC(user, pathname, origin);
+
+    if (!rbacResult.authorized) {
+      return {
+        authorized: false,
+        response: rbacResult.response!
+      };
     }
 
     return { authorized: true, user: result.user as UserRecord };
@@ -3681,7 +3777,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async createPitch(request: Request): Promise<Response> {
-    const authResult = await this.requirePortalAuth(request, ['creator', 'production']);
+    // RBAC: Requires creator/production portal access + pitch create permission
+    const authResult = await this.requirePortalAuth(request, ['creator', 'production'], Permission.PITCH_CREATE);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -4074,7 +4171,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async updatePitch(request: Request): Promise<Response> {
-    const authResult = await this.requirePortalAuth(request, 'creator');
+    // RBAC: Requires creator portal access + pitch edit permission
+    const authResult = await this.requirePortalAuth(request, 'creator', Permission.PITCH_EDIT_OWN);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -4130,7 +4228,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async deletePitch(request: Request): Promise<Response> {
-    const authResult = await this.requirePortalAuth(request, 'creator');
+    // RBAC: Requires creator portal access + pitch delete permission
+    const authResult = await this.requirePortalAuth(request, 'creator', Permission.PITCH_DELETE_OWN);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -5162,7 +5261,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async getInvestments(request: Request): Promise<Response> {
-    const authResult = await this.requirePortalAuth(request, 'investor');
+    // RBAC: Requires investor portal access + investment view permission
+    const authResult = await this.requirePortalAuth(request, 'investor', Permission.INVESTMENT_VIEW_OWN);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -5187,7 +5287,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async createInvestment(request: Request): Promise<Response> {
-    const authResult = await this.requirePortalAuth(request, 'investor');
+    // RBAC: Requires investor portal access + investment create permission
+    const authResult = await this.requirePortalAuth(request, 'investor', Permission.INVESTMENT_CREATE);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -5291,7 +5392,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async requestNDA(request: Request): Promise<Response> {
-    const authResult = await this.requireAuth(request);
+    // RBAC: Requires NDA request permission
+    const authResult = await this.requireAuth(request, Permission.NDA_REQUEST);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -5484,7 +5586,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async approveNDA(request: Request): Promise<Response> {
-    const authResult = await this.requireAuth(request);
+    // RBAC: Requires NDA approve permission (creators can approve NDAs for their pitches)
+    const authResult = await this.requireAuth(request, Permission.NDA_APPROVE);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -5557,7 +5660,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async rejectNDA(request: Request): Promise<Response> {
-    const authResult = await this.requireAuth(request);
+    // RBAC: Requires NDA reject permission (creators can reject NDAs for their pitches)
+    const authResult = await this.requireAuth(request, Permission.NDA_REJECT);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -5616,7 +5720,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async signNDA(request: Request): Promise<Response> {
-    const authResult = await this.requireAuth(request);
+    // RBAC: Requires NDA sign permission (investors/production can sign NDAs)
+    const authResult = await this.requireAuth(request, Permission.NDA_SIGN);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -6355,7 +6460,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async getProductionDashboard(request: Request): Promise<Response> {
-    const authResult = await this.requirePortalAuth(request, 'production');
+    // RBAC: Requires production portal access + project creation permission
+    const authResult = await this.requirePortalAuth(request, 'production', Permission.PRODUCTION_CREATE_PROJECT);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -11267,17 +11373,18 @@ Signatures: [To be completed upon signing]
 
       const origin = request.headers.get('Origin');
 
-      // Get signed NDAs where user is either requester or pitch owner
+      // Get signed NDAs where user is either signer or pitch owner
+      // Note: The ndas table uses signer_id (not requester_id) based on actual schema
       const signedNDAs = await this.db.query(`
         SELECT n.*, p.title as pitch_title, p.creator_id,
-               requester.email as requester_email, requester.name as requester_name,
+               signer.email as signer_email, signer.name as signer_name,
                creator.email as creator_email, creator.name as creator_name
         FROM ndas n
         JOIN pitches p ON p.id = n.pitch_id
-        JOIN users requester ON requester.id = n.requester_id
+        LEFT JOIN users signer ON signer.id = COALESCE(n.signer_id, n.user_id)
         JOIN users creator ON creator.id = p.creator_id
-        WHERE n.status = 'approved' AND n.signed_at IS NOT NULL
-          AND (n.requester_id = $1 OR p.creator_id = $1)
+        WHERE n.signed_at IS NOT NULL
+          AND (COALESCE(n.signer_id, n.user_id) = $1 OR p.creator_id = $1)
         ORDER BY n.signed_at DESC
       `, [authCheck.user.id]);
 
