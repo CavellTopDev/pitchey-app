@@ -371,3 +371,84 @@ export async function gdprConsentHandler(request: Request): Promise<Response> {
     }
   });
 }
+
+// Investor Portfolio Summary (stub)
+export async function investorPortfolioSummaryHandler(request: Request): Promise<Response> {
+  return new Response(JSON.stringify({
+    success: true,
+    data: {
+      summary: {
+        total_invested: 0,
+        total_returns: 0,
+        active_investments: 0,
+        avg_roi: 0,
+        top_performer: null
+      },
+      recentInvestments: [],
+      distribution: []
+    }
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getCorsHeaders(request.headers.get('Origin'))
+    }
+  });
+}
+
+// Investor Investments List (stub)
+export async function investorInvestmentsHandler(request: Request): Promise<Response> {
+  return new Response(JSON.stringify({
+    success: true,
+    data: {
+      investments: [],
+      pagination: {
+        page: 1,
+        limit: 20,
+        total: 0,
+        totalPages: 0
+      }
+    }
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getCorsHeaders(request.headers.get('Origin'))
+    }
+  });
+}
+
+// Active NDAs (stub)
+export async function activeNdasHandler(request: Request): Promise<Response> {
+  return new Response(JSON.stringify({
+    success: true,
+    data: {
+      ndas: [],
+      total: 0
+    }
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getCorsHeaders(request.headers.get('Origin'))
+    }
+  });
+}
+
+// Notifications (stub) - for /api/notifications without query params
+export async function notificationsHandler(request: Request): Promise<Response> {
+  return new Response(JSON.stringify({
+    success: true,
+    data: {
+      notifications: [],
+      unreadCount: 0,
+      total: 0
+    }
+  }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getCorsHeaders(request.headers.get('Origin'))
+    }
+  });
+}

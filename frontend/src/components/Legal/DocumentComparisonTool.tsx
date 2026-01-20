@@ -112,7 +112,7 @@ const DocumentComparisonTool: React.FC = () => {
   const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/legal/documents/versions');
+      const response = await api.get('/api/legal/documents/versions');
       if (response.data?.success) {
         setDocuments(response.data.data.documents);
       }
@@ -134,7 +134,7 @@ const DocumentComparisonTool: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await api.post('/legal/documents/compare', {
+      const response = await api.post('/api/legal/documents/compare', {
         document1_id: selectedDocument1.id,
         document2_id: selectedDocument2.id,
         comparison_settings: settings
@@ -221,7 +221,7 @@ const DocumentComparisonTool: React.FC = () => {
     if (!comparisonResult) return;
 
     try {
-      const response = await api.post('/legal/documents/export-comparison', {
+      const response = await api.post('/api/legal/documents/export-comparison', {
         document1_id: selectedDocument1?.id,
         document2_id: selectedDocument2?.id,
         comparison_result: comparisonResult,

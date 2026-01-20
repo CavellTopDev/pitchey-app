@@ -11,9 +11,13 @@ interface Env {
   [key: string]: any;
 }
 import { ApiResponseBuilder } from '../utils/api-response';
+import { requireRole } from '../utils/auth-extract';
 
 // Revenue handlers
 export async function creatorRevenueTrendsHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   return ApiResponseBuilder.success({
     trends: [],
     message: 'Revenue trends handler not yet implemented'
@@ -21,6 +25,9 @@ export async function creatorRevenueTrendsHandler(request: Request, env: Env): P
 }
 
 export async function creatorRevenueBreakdownHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   return ApiResponseBuilder.success({
     breakdown: {},
     message: 'Revenue breakdown handler not yet implemented'
@@ -29,9 +36,12 @@ export async function creatorRevenueBreakdownHandler(request: Request, env: Env)
 
 // Contract handlers
 export async function creatorContractDetailsHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   const url = new URL(request.url);
   const contractId = url.pathname.split('/').pop();
-  
+
   return ApiResponseBuilder.success({
     contractId,
     message: 'Contract details handler not yet implemented'
@@ -39,9 +49,12 @@ export async function creatorContractDetailsHandler(request: Request, env: Env):
 }
 
 export async function creatorContractUpdateHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   const url = new URL(request.url);
   const contractId = url.pathname.split('/').pop();
-  
+
   return ApiResponseBuilder.success({
     contractId,
     message: 'Contract update handler not yet implemented'
@@ -50,6 +63,9 @@ export async function creatorContractUpdateHandler(request: Request, env: Env): 
 
 // Analytics handlers
 export async function creatorEngagementHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   return ApiResponseBuilder.success({
     engagement: {},
     message: 'Engagement analytics handler not yet implemented'
@@ -57,6 +73,9 @@ export async function creatorEngagementHandler(request: Request, env: Env): Prom
 }
 
 export async function creatorDemographicsHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   return ApiResponseBuilder.success({
     demographics: {},
     message: 'Demographics handler not yet implemented'
@@ -65,6 +84,9 @@ export async function creatorDemographicsHandler(request: Request, env: Env): Pr
 
 // Communication handlers
 export async function creatorInvestorCommunicationHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   return ApiResponseBuilder.success({
     communications: [],
     message: 'Investor communication handler not yet implemented'
@@ -72,6 +94,9 @@ export async function creatorInvestorCommunicationHandler(request: Request, env:
 }
 
 export async function creatorMessageInvestorHandler(request: Request, env: Env): Promise<Response> {
+  const roleCheck = await requireRole(request, env, 'creator');
+  if ('error' in roleCheck) return roleCheck.error;
+
   return ApiResponseBuilder.success({
     messageSent: false,
     message: 'Message investor handler not yet implemented'

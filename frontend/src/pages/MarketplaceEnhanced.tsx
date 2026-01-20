@@ -195,9 +195,13 @@ export default function MarketplaceEnhanced() {
       return;
     }
     
-    const totalInvestment = pitchData.reduce((sum, p) => sum + (p.total_investment || 0), 0);
-    const avgBudget = pitchData.reduce((sum, p) => sum + (p.budget || 0), 0) / (pitchData.length || 1);
-    const activeCreators = new Set(pitchData.map(p => p.creator_id)).size;
+    const totalInvestment = pitchData.reduce((sum, p) => sum + ((p as any).totalInvestment || (p as any).total_investment || 0), 0);
+    // Use estimatedBudget (camelCase from interface) with fallbacks for API snake_case
+    const avgBudget = pitchData.reduce((sum, p) => {
+      const budget = Number(p.estimatedBudget) || Number((p as any).estimated_budget) || 0;
+      return sum + budget;
+    }, 0) / (pitchData.length || 1);
+    const activeCreators = new Set(pitchData.map(p => p.creator?.id || (p as any).creator_id || p.userId)).size;
     
     setStats({
       totalPitches: pitchData.length,
@@ -220,11 +224,11 @@ export default function MarketplaceEnhanced() {
     // Search filter
     if (debouncedSearch) {
       const query = debouncedSearch.toLowerCase();
-      filtered = filtered.filter(pitch => 
+      filtered = filtered.filter(pitch =>
         pitch.title.toLowerCase().includes(query) ||
         pitch.logline?.toLowerCase().includes(query) ||
         pitch.genre?.toLowerCase().includes(query) ||
-        pitch.creator_name?.toLowerCase().includes(query)
+        (pitch.creator?.name || (pitch as any).creator_name || '').toLowerCase().includes(query)
       );
     }
 
@@ -246,19 +250,18 @@ export default function MarketplaceEnhanced() {
     filtered = filtered.filter(pitch => {
       // Parse budget if it's a string like "5-8 million"
       let budgetValue = 0;
-      if (typeof pitch.budget === 'string') {
+      const budgetStr = pitch.estimatedBudget || pitch.budgetBracket || '';
+      if (budgetStr) {
         // Extract numeric value from strings like "5-8 million" or "15-25 million"
-        const match = pitch.budget.match(/(\d+)/);
+        const match = String(budgetStr).match(/(\d+)/);
         if (match) {
-          budgetValue = parseInt(match[1]) * 1000000; // Convert to actual number
+          budgetValue = parseInt(match[1], 10) * 1000000; // Convert to actual number
         }
-      } else if (typeof pitch.budget === 'number') {
-        budgetValue = pitch.budget;
       }
-      
+
       // If no budget specified, don't filter it out
-      if (!pitch.budget) return true;
-      
+      if (!budgetStr) return true;
+
       return budgetValue >= filters.budgetRange.min && budgetValue <= filters.budgetRange.max;
     });
 
@@ -271,37 +274,50 @@ export default function MarketplaceEnhanced() {
 
     // NDA filter
     if (filters.hasNDA !== null) {
-      filtered = filtered.filter(pitch => 
-        filters.hasNDA ? pitch.has_nda : !pitch.has_nda
+      filtered = filtered.filter(pitch =>
+        filters.hasNDA ? (pitch.hasNDA || pitch.requireNDA) : !(pitch.hasNDA || pitch.requireNDA)
       );
     }
 
     // Investment filter
     if (filters.hasInvestment !== null) {
-      filtered = filtered.filter(pitch => 
-        filters.hasInvestment ? (pitch.total_investment || 0) > 0 : (pitch.total_investment || 0) === 0
+      const getInvestment = (p: Pitch) => (p as any).totalInvestment || (p as any).total_investment || 0;
+      filtered = filtered.filter(pitch =>
+        filters.hasInvestment ? getInvestment(pitch) > 0 : getInvestment(pitch) === 0
       );
     }
 
-    // Sorting
+    // Sorting - helper functions for accessing properties with both naming conventions
+    const getViewCount = (p: Pitch) => p.viewCount || (p as any).view_count || 0;
+    const getLikeCount = (p: Pitch) => p.likeCount || (p as any).like_count || 0;
+    const getCreatedAt = (p: Pitch) => p.createdAt || (p as any).created_at || '';
+    const getBudgetNum = (p: Pitch) => {
+      const budgetStr = p.estimatedBudget || p.budgetBracket || '';
+      if (!budgetStr) return 0;
+      const match = String(budgetStr).match(/(\d+)/);
+      return match ? parseInt(match[1], 10) * 1000000 : 0;
+    };
+    const getInvestmentGoal = (p: Pitch) => (p as any).investmentGoal || (p as any).investment_goal || 0;
+    const getTotalInvestment = (p: Pitch) => (p as any).totalInvestment || (p as any).total_investment || 0;
+
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'trending':
-          return (b.view_count || 0) + (b.like_count || 0) - ((a.view_count || 0) + (a.like_count || 0));
+          return (getViewCount(b) + getLikeCount(b)) - (getViewCount(a) + getLikeCount(a));
         case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          return new Date(getCreatedAt(b)).getTime() - new Date(getCreatedAt(a)).getTime();
         case 'popular':
-          return (b.like_count || 0) - (a.like_count || 0);
+          return getLikeCount(b) - getLikeCount(a);
         case 'views':
-          return (b.view_count || 0) - (a.view_count || 0);
+          return getViewCount(b) - getViewCount(a);
         case 'budget_high':
-          return (b.budget || 0) - (a.budget || 0);
+          return getBudgetNum(b) - getBudgetNum(a);
         case 'budget_low':
-          return (a.budget || 0) - (b.budget || 0);
+          return getBudgetNum(a) - getBudgetNum(b);
         case 'alphabetical':
           return a.title.localeCompare(b.title);
         case 'investment_ready':
-          return (b.investment_goal || 0) - (b.total_investment || 0) - ((a.investment_goal || 0) - (a.total_investment || 0));
+          return (getInvestmentGoal(b) - getTotalInvestment(b)) - (getInvestmentGoal(a) - getTotalInvestment(a));
         default:
           return 0;
       }
@@ -327,7 +343,7 @@ export default function MarketplaceEnhanced() {
       navigate(`/investor/pitch/${pitch.id}`);
     } else if (userType === 'production') {
       navigate(`/production/pitch/${pitch.id}`);
-    } else if (userType === 'creator' && pitch.creator_id === user?.id) {
+    } else if (userType === 'creator' && (pitch.creator?.id || pitch.userId) === user?.id) {
       navigate(`/creator/pitch/${pitch.id}`);
     } else {
       navigate(`/pitch/${pitch.id}`);
@@ -371,9 +387,9 @@ export default function MarketplaceEnhanced() {
           onClick={() => handlePitchClick(pitch)}
         >
           <div className="flex gap-4">
-            {pitch.poster_url && (
-              <img 
-                src={pitch.poster_url} 
+            {pitch.titleImage && (
+              <img
+                src={pitch.titleImage}
                 alt={pitch.title}
                 className="w-24 h-36 object-cover rounded"
               />
@@ -382,7 +398,7 @@ export default function MarketplaceEnhanced() {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h3 className="text-lg font-semibold">{pitch.title}</h3>
-                  <p className="text-sm text-gray-600">{pitch.creator_name}</p>
+                  <p className="text-sm text-gray-600">{pitch.creator?.name || pitch.creator?.username || 'Unknown'}</p>
                 </div>
                 <div className="flex gap-2">
                   {pitch.genre && (
@@ -398,20 +414,20 @@ export default function MarketplaceEnhanced() {
                 <div className="flex gap-4 text-sm text-gray-600">
                   <span className="flex items-center gap-1">
                     <Eye className="w-4 h-4" />
-                    {pitch.view_count || 0}
+                    {pitch.viewCount || 0}
                   </span>
                   <span className="flex items-center gap-1">
                     <Heart className="w-4 h-4" />
-                    {pitch.like_count || 0}
+                    {pitch.likeCount || 0}
                   </span>
                   <span className="flex items-center gap-1">
                     <MessageCircle className="w-4 h-4" />
-                    {pitch.comment_count || 0}
+                    {(pitch as any).commentCount || 0}
                   </span>
                 </div>
-                {pitch.budget && (
+                {(pitch.estimatedBudget || pitch.budgetBracket) && (
                   <span className="text-sm font-medium text-green-600">
-                    ${pitch.budget.toLocaleString()}
+                    {pitch.estimatedBudget || pitch.budgetBracket}
                   </span>
                 )}
               </div>
@@ -433,9 +449,9 @@ export default function MarketplaceEnhanced() {
         onClick={() => handlePitchClick(pitch)}
       >
         <div className="aspect-[3/4] relative overflow-hidden bg-gray-100">
-          {pitch.poster_url ? (
-            <img 
-              src={pitch.poster_url} 
+          {pitch.titleImage ? (
+            <img
+              src={pitch.titleImage}
               alt={pitch.title}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             />
@@ -444,7 +460,7 @@ export default function MarketplaceEnhanced() {
               <Film className="w-12 h-12 text-gray-400" />
             </div>
           )}
-          
+
           {/* Overlay with quick info */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
@@ -452,11 +468,11 @@ export default function MarketplaceEnhanced() {
               <div className="flex gap-2 text-xs">
                 <span className="flex items-center gap-1">
                   <Eye className="w-3 h-3" />
-                  {pitch.view_count || 0}
+                  {pitch.viewCount || 0}
                 </span>
                 <span className="flex items-center gap-1">
                   <Heart className="w-3 h-3" />
-                  {pitch.like_count || 0}
+                  {pitch.likeCount || 0}
                 </span>
               </div>
             </div>
@@ -464,13 +480,13 @@ export default function MarketplaceEnhanced() {
 
           {/* Badges */}
           <div className="absolute top-2 right-2 flex flex-col gap-1">
-            {pitch.has_nda && (
+            {(pitch.hasNDA || pitch.requireNDA) && (
               <span className="bg-purple-600 text-white px-2 py-1 text-xs rounded flex items-center gap-1">
                 <Shield className="w-3 h-3" />
                 NDA
               </span>
             )}
-            {pitch.is_featured && (
+            {(pitch as any).isFeatured && (
               <span className="bg-yellow-500 text-white px-2 py-1 text-xs rounded flex items-center gap-1">
                 <Star className="w-3 h-3" />
                 Featured
@@ -478,13 +494,13 @@ export default function MarketplaceEnhanced() {
             )}
           </div>
         </div>
-        
+
         <div className="p-4">
           <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">
             {pitch.title}
           </h3>
-          <p className="text-sm text-gray-600 mb-2">{pitch.creator_name}</p>
-          
+          <p className="text-sm text-gray-600 mb-2">{pitch.creator?.name || pitch.creator?.username || 'Unknown'}</p>
+
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
               {pitch.genre && (
@@ -493,9 +509,9 @@ export default function MarketplaceEnhanced() {
                 </span>
               )}
             </div>
-            {pitch.budget && (
+            {(pitch.estimatedBudget || pitch.budgetBracket) && (
               <span className="text-sm font-medium text-green-600">
-                ${(pitch.budget / 1000).toFixed(0)}K
+                {pitch.estimatedBudget || pitch.budgetBracket}
               </span>
             )}
           </div>
@@ -881,7 +897,7 @@ export default function MarketplaceEnhanced() {
             ) : (
               <EmptyState
                 title="No pitches found"
-                message="Try adjusting your filters or search query"
+                description="Try adjusting your filters or search query"
                 action={{
                   label: 'Clear filters',
                   onClick: clearFilters

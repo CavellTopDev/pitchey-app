@@ -3,7 +3,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Home, BarChart3, Activity, TrendingUp, Film, Plus, FolderOpen,
   FileText, Users, UserPlus, Shield, GitBranch, User, Settings,
-  Calendar, MessageSquare, Eye, Upload, Target, Star, Store, ExternalLink
+  Calendar, MessageSquare, Eye, Upload, Target, Star, Store, ExternalLink,
+  Scale, FileSignature, Library, FilePlus, GitCompare
 } from 'lucide-react';
 import { CREATOR_ROUTES } from '../../config/navigation.routes';
 
@@ -56,6 +57,15 @@ export const creatorNavigationSections: NavigationSection[] = [
       { label: 'Messages', path: CREATOR_ROUTES.messages, icon: MessageSquare },
       { label: 'Calendar', path: CREATOR_ROUTES.calendar, icon: Calendar },
       { label: 'NDAs', path: CREATOR_ROUTES.ndas, icon: FileText },
+    ],
+  },
+  {
+    title: 'Legal',
+    items: [
+      { label: 'Documents', path: CREATOR_ROUTES.legalLibrary, icon: Library },
+      { label: 'Create Document', path: CREATOR_ROUTES.legalWizard, icon: FilePlus, isNew: true },
+      { label: 'Templates', path: CREATOR_ROUTES.legalTemplates, icon: FileSignature },
+      { label: 'Compare', path: CREATOR_ROUTES.legalCompare, icon: GitCompare },
     ],
   },
   {

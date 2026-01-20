@@ -144,6 +144,49 @@ export async function requireAuth(
 }
 
 /**
+ * Require specific role - returns user or error response
+ */
+export async function requireRole(
+  request: Request,
+  env: { JWT_SECRET?: string; SESSION_STORE?: KVNamespace },
+  allowedRoles: string | string[]
+): Promise<{ user: AuthenticatedUser } | { error: Response }> {
+  const authResult = await requireAuth(request, env);
+
+  if ('error' in authResult) {
+    return authResult;
+  }
+
+  const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+  const userRole = authResult.user.userType?.toLowerCase() || '';
+
+  if (!roles.some(role => role.toLowerCase() === userRole)) {
+    const origin = request.headers.get('Origin');
+    return {
+      error: new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: `Access denied. Required role: ${roles.join(' or ')}`
+          }
+        }),
+        {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': origin || '*',
+            'Access-Control-Allow-Credentials': 'true'
+          }
+        }
+      )
+    };
+  }
+
+  return { user: authResult.user };
+}
+
+/**
  * Parse cookies from header
  */
 function parseCookies(cookieHeader: string): Record<string, string> {

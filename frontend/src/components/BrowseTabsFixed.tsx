@@ -155,14 +155,13 @@ const BrowseTabsFixed: React.FC = () => {
         response = { data: { pitches: response } };
       } else {
         // Use getPublicPitches for other tabs with parameters
-        response = await pitchService.getPublicPitches({
+        const params: { page: number; limit: number; search?: string; genre?: string } = {
           page,
-          limit: 12,
-          search: currentSearch !== '' ? currentSearch : undefined,
-          genre: currentGenre !== 'all' ? currentGenre : undefined,
-          featured: tab === 'featured',
-          sortBy: tab === 'new' ? 'created_desc' : tab === 'topRated' ? 'rating_desc' : undefined
-        });
+          limit: 12
+        };
+        if (currentSearch !== '') params.search = currentSearch;
+        if (currentGenre !== 'all') params.genre = currentGenre;
+        response = await pitchService.getPublicPitches(params);
       }
 
       // Check if this response is still valid (no newer request has been made)
@@ -206,19 +205,33 @@ const BrowseTabsFixed: React.FC = () => {
     }
   }, []); // No dependencies - search/genre passed as arguments
 
+  // Track if initial fetch has been attempted for each tab
+  const fetchAttemptedRef = useRef<Record<TabType, boolean>>({
+    trending: false,
+    new: false,
+    featured: false,
+    topRated: false
+  });
+
   // Load data for active tab when tab changes or when search/genre changes
   useEffect(() => {
     const currentTabState = tabStates[activeTab];
 
     // Check if we need to fetch data:
-    // 1. Tab has no data yet
-    // 2. Search/genre changed since last fetch
-    const needsFetch =
-      currentTabState.pitches.length === 0 ||
+    // 1. Tab has not been fetched yet (first time) AND no data
+    // 2. Search/genre changed since last fetch (user action)
+    const isFirstFetch = !fetchAttemptedRef.current[activeTab] && currentTabState.pitches.length === 0;
+    const filtersChanged =
       currentTabState.fetchedWithSearch !== searchTerm ||
       currentTabState.fetchedWithGenre !== selectedGenre;
 
+    // Only fetch if filters changed by user action, or if this is the first fetch for this tab
+    const needsFetch = isFirstFetch || (filtersChanged && (searchTerm !== '' || selectedGenre !== 'all' || currentTabState.pitches.length > 0));
+
     if (needsFetch && !currentTabState.loading) {
+      // Mark this tab as having been fetched
+      fetchAttemptedRef.current[activeTab] = true;
+
       // Debounce only for search term changes
       const delay = currentTabState.fetchedWithSearch !== searchTerm ? 500 : 0;
 

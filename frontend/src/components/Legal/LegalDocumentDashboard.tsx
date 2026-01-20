@@ -58,7 +58,7 @@ const LegalDocumentDashboard: React.FC = () => {
         ...(jurisdictionFilter && { jurisdiction: jurisdictionFilter }),
       });
 
-      const response = await api.get(`/legal/documents?${params.toString()}`);
+      const response = await api.get(`/api/legal/documents?${params.toString()}`);
 
       if (response.data?.success) {
         const newDocuments = response.data.data.documents;

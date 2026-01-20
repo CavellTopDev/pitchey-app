@@ -86,22 +86,25 @@ export class WorkerRealtimeService {
    */
   private async validateTokenForWebSocket(token: string): Promise<{ valid: boolean; user?: any }> {
     if (!token) return { valid: false };
-    
+
     try {
-      // Query the database directly to validate the session token
-      const sql = this.db.getSql();
-      
-      // Check if this is a valid session token
-      const sessions = await sql`
-        SELECT s.*, u.id as user_id, u.email, u.username, u.user_type, 
+      if (!this.db) {
+        console.error('Database connection not available for WebSocket token validation');
+        return { valid: false };
+      }
+
+      // Check if this is a valid session token - try both id and token fields
+      // Users table may have numeric or text IDs, so cast appropriately
+      const sessions = await this.db.query(`
+        SELECT s.*, u.id as user_id, u.email, u.username, u.user_type,
                u.first_name, u.last_name, u.company_name, u.profile_image
         FROM sessions s
-        JOIN users u ON s.user_id = u.id
-        WHERE s.id = ${token}
+        JOIN users u ON s.user_id::text = u.id::text
+        WHERE (s.id = $1 OR s.token = $1)
         AND s.expires_at > NOW()
         LIMIT 1
-      `;
-      
+      `, [token]);
+
       if (sessions && sessions.length > 0) {
         const session = sessions[0];
         return {
@@ -118,7 +121,8 @@ export class WorkerRealtimeService {
           }
         };
       }
-      
+
+      console.log('WebSocket token validation: no valid session found for token:', token.substring(0, 8) + '...');
       return { valid: false };
     } catch (error) {
       console.error('Token validation error:', error);
@@ -135,41 +139,48 @@ export class WorkerRealtimeService {
 
     // Better Auth: Validate authentication via session cookies or token for cross-origin WebSocket
     try {
-      let user = null;
-      let userId: string;
-      let userType: string;
-      
-      // First, try cookie-based authentication
-      const sessionResult = await this.validateSessionFromRequest(request);
-      
-      if (sessionResult.valid && sessionResult.user) {
-        user = sessionResult.user;
-        userId = user.id.toString();
-        userType = user.userType || 'creator';
-      } else {
-        // For cross-origin WebSocket connections where cookies aren't sent,
-        // allow token-based authentication as a fallback
+      let user: any = null;
+      let userId: string = `anonymous-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      let userType: string = 'anonymous';
+
+      // First, try cookie-based authentication (wrapped in try-catch to not fail WebSocket)
+      try {
+        const sessionResult = await this.validateSessionFromRequest(request);
+
+        if (sessionResult.valid && sessionResult.user) {
+          user = sessionResult.user;
+          userId = user.id.toString();
+          userType = user.userType || 'creator';
+        }
+      } catch (sessionError) {
+        console.warn('Session validation failed, trying token auth:', sessionError);
+      }
+
+      // If no session, try token-based authentication as a fallback
+      if (!user) {
         const token = url.searchParams.get('token');
-        
+
         if (token) {
-          // Validate the token using Better Auth's session verification
-          const tokenValidation = await this.validateTokenForWebSocket(token);
-          
-          if (tokenValidation.valid && tokenValidation.user) {
-            user = tokenValidation.user;
-            userId = user.id.toString();
-            userType = user.userType || 'creator';
+          try {
+            // Validate the token using database session lookup
+            const tokenValidation = await this.validateTokenForWebSocket(token);
+
+            if (tokenValidation.valid && tokenValidation.user) {
+              user = tokenValidation.user;
+              userId = user.id.toString();
+              userType = user.userType || 'creator';
+            }
+          } catch (tokenError) {
+            console.warn('Token validation failed:', tokenError);
           }
         }
       }
-      
-      // If still no authentication, allow anonymous connection with limited features
-      if (!user) {
-        // Allow anonymous WebSocket connection for public notifications only
-        userId = `anonymous-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        userType = 'anonymous';
-        
-        console.log('Allowing anonymous WebSocket connection:', userId);
+
+      // Log connection type
+      if (user) {
+        console.log('Authenticated WebSocket connection for user:', userId);
+      } else {
+        console.log('Anonymous WebSocket connection:', userId);
       }
 
     // Create WebSocket pair

@@ -69,7 +69,7 @@ export default function ProductionAnalytics() {
   const loadAnalyticsData = async () => {
     try {
       setError(null);
-    const response = await fetch(`${config.apiUrl}/api/production/analytics`, {
+    const response = await fetch(`${config.API_URL}/api/production/analytics`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });

@@ -146,6 +146,33 @@ export function enforceRBAC(
   origin?: string | null
 ): RBACResult {
   const context = buildRBACContext(user);
+
+  // First check portal-specific access based on route path
+  const portalMatch = pathname.match(/^\/api\/(creator|investor|production)\//);
+  if (portalMatch) {
+    const portal = portalMatch[1];
+    if (!checkPortalAccess(user, portal)) {
+      const userType = user.user_type || user.userType || user.role || 'unknown';
+      return {
+        authorized: false,
+        user,
+        context,
+        errorMessage: `Access denied. ${portal} portal requires ${portal} role, you have ${userType} role.`,
+        response: new Response(JSON.stringify({
+          success: false,
+          error: `Access denied. This endpoint is only accessible to ${portal} users.`,
+          code: 'PORTAL_ACCESS_DENIED'
+        }), {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+            ...getCorsHeaders(origin)
+          }
+        })
+      };
+    }
+  }
+
   const requiredPermissions = getRoutePermissions(pathname);
 
   // If no permissions required, allow access

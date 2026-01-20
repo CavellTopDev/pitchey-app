@@ -106,7 +106,7 @@ const LegalDocumentWizard: React.FC = () => {
   const loadTemplates = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/legal/templates');
+      const response = await api.get('/api/legal/templates');
       if (response.data?.success) {
         setTemplates(response.data.data.templates);
       }
@@ -120,7 +120,7 @@ const LegalDocumentWizard: React.FC = () => {
 
   const loadJurisdictions = useCallback(async () => {
     try {
-      const response = await api.get('/legal/jurisdictions');
+      const response = await api.get('/api/legal/jurisdictions');
       if (response.data?.success) {
         setJurisdictions(response.data.data.jurisdictions);
       }
@@ -168,7 +168,7 @@ const LegalDocumentWizard: React.FC = () => {
         if (selectedTemplate) {
           try {
             setLoading(true);
-            const response = await api.post('/legal/validate', {
+            const response = await api.post('/api/legal/validate', {
               template_id: selectedTemplate.id,
               variables,
               jurisdiction: selectedJurisdiction,
@@ -239,7 +239,7 @@ const LegalDocumentWizard: React.FC = () => {
         }
       };
 
-      const response = await api.post('/legal/generate', requestData);
+      const response = await api.post('/api/legal/generate', requestData);
 
       if (response.data?.success) {
         setGeneratedDocument(response.data.data.document);

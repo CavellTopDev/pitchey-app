@@ -154,7 +154,7 @@ const TemplateEditor: React.FC = () => {
 
   const loadJurisdictions = useCallback(async () => {
     try {
-      const response = await api.get('/legal/jurisdictions');
+      const response = await api.get('/api/legal/jurisdictions');
       if (response.data?.success) {
         setAvailableJurisdictions(response.data.data.jurisdictions);
       }
@@ -264,7 +264,7 @@ const TemplateEditor: React.FC = () => {
         return;
       }
 
-      const endpoint = template.id ? `/legal/templates/${template.id}` : '/legal/templates';
+      const endpoint = template.id ? `/api/legal/templates/${template.id}` : '/api/legal/templates';
       const method = template.id ? 'PUT' : 'POST';
 
       const response = await api.request({
@@ -292,7 +292,7 @@ const TemplateEditor: React.FC = () => {
   const loadTemplate = useCallback(async (templateId: string) => {
     try {
       setLoading(true);
-      const response = await api.get(`/legal/templates/${templateId}`);
+      const response = await api.get(`/api/legal/templates/${templateId}`);
       if (response.data?.success) {
         setTemplate(response.data.data.template);
       }

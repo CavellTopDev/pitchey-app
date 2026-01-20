@@ -4,13 +4,17 @@
 
 import { getDb } from '../db/connection';
 import type { Env } from '../db/connection';
-import { getUserId } from '../utils/auth-extract';
+import { requireRole } from '../utils/auth-extract';
 
 export async function investorDashboardHandler(request: Request, env: Env): Promise<Response> {
-  const sql = getDb(env);
+  // Require investor role
+  const roleCheck = await requireRole(request, env, 'investor');
+  if ('error' in roleCheck) {
+    return roleCheck.error;
+  }
 
-  // Get user ID from authentication
-  const authenticatedUserId = await getUserId(request, env);
+  const sql = getDb(env);
+  const authenticatedUserId = roleCheck.user.id;
   
   // Always return valid data structure
   const defaultData = {

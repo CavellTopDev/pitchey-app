@@ -30,6 +30,13 @@ export const CREATOR_ROUTES = {
   following: '/creator/following',
   profile: '/creator/profile',
   settings: '/creator/settings',
+
+  // Legal Documents
+  legalDashboard: '/legal/dashboard',
+  legalWizard: '/legal/wizard',
+  legalLibrary: '/legal/library',
+  legalTemplates: '/legal/templates',
+  legalCompare: '/legal/compare',
 };
 
 export const INVESTOR_ROUTES = {
@@ -114,6 +121,13 @@ export const PRODUCTION_ROUTES = {
   // Other
   following: '/production/following',
   settings: '/production/settings',
+
+  // Legal Documents
+  legalDashboard: '/legal/dashboard',
+  legalWizard: '/legal/wizard',
+  legalLibrary: '/legal/library',
+  legalTemplates: '/legal/templates',
+  legalCompare: '/legal/compare',
 };
 
 export const PUBLIC_ROUTES = {

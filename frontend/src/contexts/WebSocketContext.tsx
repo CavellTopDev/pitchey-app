@@ -1141,10 +1141,55 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   );
 }
 
+// Safe default values for when WebSocket provider is not yet available
+const safeWebSocketDefaults: WebSocketContextValue = {
+  isConnected: false,
+  connectionStatus: 'disconnected' as ConnectionStatus,
+  messageQueueStatus: { pending: 0, failed: 0, sent: 0 } as MessageQueueStatus,
+  isReconnecting: false,
+  isConnecting: false,
+  isDisconnecting: false,
+  connectionQuality: 'unknown' as ConnectionQuality,
+  retryCount: 0,
+  isHealthy: false,
+  notifications: [],
+  dashboardMetrics: null,
+  onlineUsers: [],
+  typingIndicators: [],
+  uploadProgress: [],
+  pitchViews: new Map(),
+  ndaUpdates: [],
+  sendMessage: () => false,
+  markNotificationAsRead: () => {},
+  clearAllNotifications: () => {},
+  updatePresence: () => {},
+  startTyping: () => {},
+  stopTyping: () => {},
+  trackPitchView: () => {},
+  subscribeToNDAUpdates: () => () => {},
+  markNDAUpdateAsRead: () => {},
+  clearNDAUpdates: () => {},
+  connect: () => {},
+  disconnect: () => {},
+  manualReconnect: () => {},
+  clearQueue: () => {},
+  disableWebSocket: () => {},
+  enableWebSocket: () => {},
+  isWebSocketDisabled: true,
+  subscribeToNotifications: () => () => {},
+  subscribeToDashboard: () => () => {},
+  subscribeToPresence: () => () => {},
+  subscribeToTyping: () => () => {},
+  subscribeToUploads: () => () => {},
+  subscribeToPitchViews: () => () => {},
+  subscribeToMessages: () => () => {},
+};
+
 export function useWebSocket() {
   const context = useContext(WebSocketContext);
+  // Return safe defaults if provider not available (e.g., during auth loading)
   if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
+    return safeWebSocketDefaults;
   }
   return context;
 }

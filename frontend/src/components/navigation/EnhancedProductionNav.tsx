@@ -4,7 +4,8 @@ import {
   Home, BarChart3, Activity, TrendingUp, Film, Layers, PlayCircle,
   Edit, CheckCircle, FolderOpen, Plus, Eye, ThumbsUp, ThumbsDown,
   Archive, GitBranch, DollarSign, Bookmark, UserPlus, Shield,
-  Users, Settings, Clock, AlertCircle, FileCheck, Store, ExternalLink
+  Users, Settings, Clock, AlertCircle, FileCheck, Store, ExternalLink,
+  Library, FilePlus, FileSignature, GitCompare
 } from 'lucide-react';
 import { PRODUCTION_ROUTES } from '../../config/navigation.routes';
 
@@ -67,6 +68,15 @@ export const productionNavigationSections: NavigationSection[] = [
     items: [
       { label: 'Invite Members', path: PRODUCTION_ROUTES.teamInvite, icon: UserPlus, isNew: true },
       { label: 'Manage Roles', path: PRODUCTION_ROUTES.teamRoles, icon: Shield, isNew: true },
+    ],
+  },
+  {
+    title: 'Legal',
+    items: [
+      { label: 'Documents', path: PRODUCTION_ROUTES.legalLibrary, icon: Library },
+      { label: 'Create Document', path: PRODUCTION_ROUTES.legalWizard, icon: FilePlus, isNew: true },
+      { label: 'Templates', path: PRODUCTION_ROUTES.legalTemplates, icon: FileSignature },
+      { label: 'Compare', path: PRODUCTION_ROUTES.legalCompare, icon: GitCompare },
     ],
   },
   {

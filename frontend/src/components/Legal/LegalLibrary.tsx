@@ -169,7 +169,7 @@ const LegalLibrary: React.FC = () => {
         ...(filters.accessLevel && { access_level: filters.accessLevel })
       });
 
-      const response = await api.get(`/legal/library?${params.toString()}`);
+      const response = await api.get(`/api/legal/library?${params.toString()}`);
 
       if (response.data?.success) {
         setDocuments(response.data.data.documents);
@@ -185,7 +185,7 @@ const LegalLibrary: React.FC = () => {
 
   const loadFilterOptions = useCallback(async () => {
     try {
-      const response = await api.get('/legal/library/filter-options');
+      const response = await api.get('/api/legal/library/filter-options');
       if (response.data?.success) {
         const { categories, jurisdictions, tags, authors } = response.data.data;
         setAvailableCategories(categories);
@@ -272,7 +272,7 @@ const LegalLibrary: React.FC = () => {
 
   const toggleFavorite = async (documentId: string) => {
     try {
-      await api.post(`/legal/library/${documentId}/favorite`);
+      await api.post(`/api/legal/library/${documentId}/favorite`);
       setDocuments(prev =>
         prev.map(doc =>
           doc.id === documentId ? { ...doc, is_favorite: !doc.is_favorite } : doc
@@ -286,7 +286,7 @@ const LegalLibrary: React.FC = () => {
 
   const archiveDocuments = async (documentIds: string[]) => {
     try {
-      await api.post('/legal/library/bulk-archive', { document_ids: documentIds });
+      await api.post('/api/legal/library/bulk-archive', { document_ids: documentIds });
       setDocuments(prev => prev.filter(doc => !documentIds.includes(doc.id)));
       clearSelection();
     } catch (error) {
@@ -298,7 +298,7 @@ const LegalLibrary: React.FC = () => {
   const exportDocuments = async (format: 'pdf' | 'zip' | 'json') => {
     try {
       const documentIds = Array.from(selectedDocuments);
-      const response = await api.post('/legal/library/export', {
+      const response = await api.post('/api/legal/library/export', {
         document_ids: documentIds,
         format
       });

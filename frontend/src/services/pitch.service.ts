@@ -418,8 +418,10 @@ export class PitchService {
 
       // ApiClient returns { success: true, data: <full-api-response> }
       // API returns { success: true, data: [...], total: number, ... }
-      const pitches = response.data?.data || [];
-      const total = response.data?.total || pitches.length;
+      // Handle both nested and direct response formats
+      const responseData = response.data as any;
+      const pitches = responseData?.data || responseData || [];
+      const total = responseData?.total || (Array.isArray(pitches) ? pitches.length : 0);
       
       // Ensure we always return arrays and numbers
       return {
@@ -432,28 +434,26 @@ export class PitchService {
     }
   }
 
-  // Get trending pitches - use browse endpoint with tab parameter
+  // Get trending pitches - use pitches endpoint sorted by view/like counts
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
     try {
-      const response = await apiClient.get<{ 
-        success: boolean; 
+      // Use /api/pitches endpoint since /api/browse returns empty
+      const response = await apiClient.get<{
+        success: boolean;
         data?: Pitch[];
-        items?: Pitch[];
         pagination?: any;
         message?: string;
-        tab?: string;
-        total?: number;
-      }>(`/api/browse?tab=trending&limit=${limit}`);
+      }>(`/api/pitches?limit=${limit}&sortBy=like_count&sortOrder=desc`);
 
       if (!response.success) {
         console.error('Failed to fetch trending pitches:', response.error?.message);
         return [];
       }
 
-      // The apiClient returns the whole response as data, so we need to check response.data.data
+      // Extract pitches from response
       const responseData = response.data as any;
-      const pitches = responseData?.data || responseData?.items || responseData || [];
-      
+      const pitches = Array.isArray(responseData) ? responseData : (responseData?.data || []);
+
       // Ensure we always return an array
       return Array.isArray(pitches) ? pitches : [];
     } catch (error) {
