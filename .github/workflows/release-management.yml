@@ -504,6 +504,20 @@ jobs:
           # Determine if draft
           DRAFT="${{ inputs.draft_release }}"
           
+          # Check if release already exists
+          EXISTING_RELEASE=$(curl -s \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$NEW_VERSION")
+
+          EXISTING_ID=$(echo "$EXISTING_RELEASE" | jq -r '.id // empty')
+
+          if [[ -n "$EXISTING_ID" && "$EXISTING_ID" != "null" ]]; then
+            echo "⚠️ Release v$NEW_VERSION already exists, skipping creation"
+            echo "release-id=$EXISTING_ID" >> $GITHUB_OUTPUT
+            echo "release-url=$(echo "$EXISTING_RELEASE" | jq -r '.html_url')" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Create release
           RELEASE_RESPONSE=$(curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
@@ -517,19 +531,19 @@ jobs:
               "draft": '$DRAFT',
               "prerelease": '$PRERELEASE'
             }')
-          
+
           RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
           RELEASE_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.html_url')
-          
+
           if [ "$RELEASE_ID" == "null" ]; then
             echo "❌ Failed to create release"
             echo "$RELEASE_RESPONSE" | jq .
             exit 1
           fi
-          
+
           echo "release-id=$RELEASE_ID" >> $GITHUB_OUTPUT
           echo "release-url=$RELEASE_URL" >> $GITHUB_OUTPUT
-          
+
           echo "✅ Created release v$NEW_VERSION"
           echo "🔗 Release URL: $RELEASE_URL"
       
