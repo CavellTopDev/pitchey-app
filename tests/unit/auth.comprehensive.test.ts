@@ -100,7 +100,7 @@ class MockAuthService implements AuthService {
       const { passwordHash, ...safeUser } = user;
       return { success: true, user: safeUser };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }
@@ -172,7 +172,7 @@ class MockAuthService implements AuthService {
       const { passwordHash, ...safeUser } = user;
       return { success: true, token, user: safeUser };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }
@@ -205,7 +205,7 @@ class MockAuthService implements AuthService {
       const { passwordHash, ...safeUser } = user;
       return { valid: true, user: safeUser };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { valid: false, error: (error as Error).message };
     }
   }
@@ -235,7 +235,7 @@ class MockAuthService implements AuthService {
 
       return { success: true, newToken };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }
@@ -276,7 +276,7 @@ class MockAuthService implements AuthService {
 
       return { success: true };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }
@@ -298,7 +298,7 @@ class MockAuthService implements AuthService {
 
       return { success: true, resetToken };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }
@@ -335,7 +335,7 @@ class MockAuthService implements AuthService {
 
       return { success: true };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }
@@ -356,7 +356,7 @@ class MockAuthService implements AuthService {
 
       return { success: true, secret, qrCode };
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }
@@ -382,7 +382,7 @@ class MockAuthService implements AuthService {
         return { success: false, error: "Invalid 2FA token" };
       }
       
-    } catch (error) {
+    } catch (error: unknown) {
       return { success: false, error: (error as Error).message };
     }
   }

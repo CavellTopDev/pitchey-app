@@ -236,7 +236,7 @@ class PerformanceValidationSuite {
       const duration = Date.now() - startTime;
       console.log(`    ✅ PASSED (${duration}ms)`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       this.results.push({ 
         category, 
@@ -244,9 +244,9 @@ class PerformanceValidationSuite {
         status: 'FAIL', 
         duration,
         metrics: {},
-        error: error.message 
+        error: (error as Error).message 
       });
-      console.log(`    ❌ FAILED (${duration}ms): ${error.message}`);
+      console.log(`    ❌ FAILED (${duration}ms): ${(error as Error).message}`);
     }
   }
 
@@ -728,7 +728,7 @@ class PerformanceValidationSuite {
           if (!response.ok) {
             userErrors.push(1);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           userErrors.push(1);
         }
         

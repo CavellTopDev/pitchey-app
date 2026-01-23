@@ -51,11 +51,11 @@ export const serviceAvailabilitySuite: TestSuite = {
               timestamp: data.timestamp 
             }
           };
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Backend proxy connection failed: ${error.message}`,
+            message: `Backend proxy connection failed: ${(error as Error).message}`,
             error
           };
         }
@@ -102,11 +102,11 @@ export const serviceAvailabilitySuite: TestSuite = {
             message: "PostgreSQL connection successful",
             details: { output: output.trim() }
           };
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `PostgreSQL test failed: ${error.message}`,
+            message: `PostgreSQL test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -144,7 +144,7 @@ export const serviceAvailabilitySuite: TestSuite = {
                 details: { method: "redis-cli", response: "PONG" }
               };
             }
-          } catch (error) {
+          } catch (error: unknown) {
             // CLI not available, continue with API test
           }
 
@@ -159,7 +159,7 @@ export const serviceAvailabilitySuite: TestSuite = {
                 details: { method: "backend-proxy" }
               };
             }
-          } catch (error) {
+          } catch (error: unknown) {
             // Continue to failure
           }
 
@@ -170,11 +170,11 @@ export const serviceAvailabilitySuite: TestSuite = {
             details: { port: LOCAL_CONFIG.redis.port, host: LOCAL_CONFIG.redis.host }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Redis test failed: ${error.message}`,
+            message: `Redis test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -207,11 +207,11 @@ export const serviceAvailabilitySuite: TestSuite = {
             message: "MinIO API is accessible",
             details: { endpoint: LOCAL_CONFIG.minio.endpoint }
           };
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `MinIO API connection failed: ${error.message}`,
+            message: `MinIO API connection failed: ${(error as Error).message}`,
             error
           };
         }
@@ -247,11 +247,11 @@ export const serviceAvailabilitySuite: TestSuite = {
               status: response.status 
             }
           };
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `MinIO Console connection failed: ${error.message}`,
+            message: `MinIO Console connection failed: ${(error as Error).message}`,
             error
           };
         }
@@ -297,11 +297,11 @@ export const serviceAvailabilitySuite: TestSuite = {
               status: response.status 
             }
           };
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Adminer connection failed: ${error.message}`,
+            message: `Adminer connection failed: ${(error as Error).message}`,
             error
           };
         }
@@ -353,11 +353,11 @@ export const serviceAvailabilitySuite: TestSuite = {
               workerUrl: data.workerUrl
             }
           };
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Network connectivity test failed: ${error.message}`,
+            message: `Network connectivity test failed: ${(error as Error).message}`,
             error
           };
         }

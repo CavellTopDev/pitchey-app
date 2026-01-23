@@ -83,7 +83,7 @@ async function runUserSession(
           await sleep(200 + Math.random() * 300);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       metrics.record('errors', 1);
     }
   }

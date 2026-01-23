@@ -62,7 +62,7 @@ function logTestEnd(context: TestContext, result?: any, error?: any): void {
     console.log(`📥 RESPONSE:`, typeof result === 'object' ? JSON.stringify(result, null, 2) : result);
   }
   if (error) {
-    console.log(`❌ ERROR:`, error.message || error);
+    console.log(`❌ ERROR:`, (error as Error).message || error);
   }
   console.log(`${'─'.repeat(80)}\n`);
 }
@@ -157,7 +157,7 @@ Deno.test("AUTH-001: Creator Portal - Successful Authentication Flow", async () 
     await logoutResponse.body?.cancel(); // Consume response body
     
     logTestEnd(context, { login: loginData, profile: profileData });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -207,7 +207,7 @@ Deno.test("AUTH-002: Investor Portal - Successful Authentication Flow", async ()
     await dashboardResponse.body?.cancel(); // Consume response body
 
     logTestEnd(context, loginData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -251,7 +251,7 @@ Deno.test("AUTH-003: Production Portal - Successful Authentication Flow", async 
     await pitchesResponse.body?.cancel(); // Consume response body
 
     logTestEnd(context, loginData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -281,7 +281,7 @@ Deno.test("AUTH-004: Universal Login Endpoint", async () => {
     assertEquals(loginData.user.userType, "creator", "Should detect correct user type");
 
     logTestEnd(context, loginData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -314,7 +314,7 @@ Deno.test("AUTH-005: Invalid Credentials - Wrong Password", async () => {
     assertEquals(errorData.success, false, "Success should be false");
 
     logTestEnd(context, errorData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -342,7 +342,7 @@ Deno.test("AUTH-006: Invalid Credentials - Non-existent User", async () => {
     assertExists(errorData.error, "Response should contain error message");
 
     logTestEnd(context, errorData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -374,7 +374,7 @@ Deno.test("AUTH-007: Malformed Request - Invalid Email Format", async () => {
     await response.body?.cancel(); // Consume response body
 
     logTestEnd(context, { status: response.status });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -400,7 +400,7 @@ Deno.test("AUTH-008: Malformed Request - Empty Fields", async () => {
     await response.body?.cancel(); // Consume response body
 
     logTestEnd(context, { status: response.status });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -426,7 +426,7 @@ Deno.test("AUTH-009: Malformed Request - Missing Fields", async () => {
     await response.body?.cancel(); // Consume response body
 
     logTestEnd(context, { status: response.status });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -465,7 +465,7 @@ Deno.test("SEC-001: SQL Injection Prevention", async () => {
     );
 
     logTestEnd(context, responseData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -500,7 +500,7 @@ Deno.test("SEC-002: XSS Prevention", async () => {
     );
 
     logTestEnd(context, responseData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -529,7 +529,7 @@ Deno.test("SEC-003: CSRF Protection", async () => {
     await response.body?.cancel(); // Consume response body
 
     logTestEnd(context, { status: response.status });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -575,7 +575,7 @@ Deno.test("JWT-001: Token Lifecycle Management", async () => {
     await profileResponse.body?.cancel(); // Consume response body
 
     logTestEnd(context, { payload, expirationTime, currentTime });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -608,7 +608,7 @@ Deno.test("JWT-002: Invalid Token Handling", async () => {
     }
 
     logTestEnd(context, { testedTokens: invalidTokens.length });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -626,7 +626,7 @@ Deno.test("JWT-003: Missing Authorization Header", async () => {
     assertExists(errorData.error, "Should return error message");
 
     logTestEnd(context, errorData);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -673,7 +673,7 @@ Deno.test("RBAC-001: Creator Portal Access Control", async () => {
     }
 
     logTestEnd(context, { endpointsTested: endpoints.length });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -716,7 +716,7 @@ Deno.test("RBAC-002: Investor Portal Access Control", async () => {
       viewStatus: viewResponse.status, 
       createStatus: createResponse.status 
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -765,7 +765,7 @@ Deno.test("RBAC-003: Cross-Portal Access Prevention", async () => {
     }
 
     logTestEnd(context, { testsConducted: crossAccessTests.length });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -803,7 +803,7 @@ Deno.test("SESSION-001: Session Creation and Validation", async () => {
     assertEquals(profileData.user.id, user.id, "Session should return correct user");
 
     logTestEnd(context, { sessionCreated: true, sessionValid: true });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -837,7 +837,7 @@ Deno.test("SESSION-002: Session Destruction on Logout", async () => {
     // The logout endpoint serves as a client-side instruction
 
     logTestEnd(context, { logoutSuccessful: true });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -872,7 +872,7 @@ Deno.test("SESSION-003: Concurrent Session Management", async () => {
     }
 
     logTestEnd(context, { sessionsCreated: sessions.length });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -921,7 +921,7 @@ Deno.test("RATE-001: Login Rate Limiting", async () => {
     });
 
     // Note: Rate limiting may not be implemented yet, so this test documents the behavior
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -961,7 +961,7 @@ Deno.test("RATE-002: Token Verification Rate Limiting", async () => {
       rateLimited,
       successfulRequests: attempts.filter(a => a.status === 200).length
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -1011,17 +1011,17 @@ Deno.test("ERROR-001: Server Error Handling", async () => {
           passed: response.status === test.expectedStatus
         });
         await response.body?.cancel(); // Consume response body
-      } catch (error) {
+      } catch (error: unknown) {
         results.push({
           test: test.name,
-          error: error instanceof Error ? error.message : String(error),
+          error: error instanceof Error ? (error as Error).message : String(error),
           passed: false
         });
       }
     }
 
     logTestEnd(context, results);
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -1047,7 +1047,7 @@ Deno.test("ERROR-002: Network and Timeout Handling", async () => {
       clearTimeout(timeoutId);
       await response.body?.cancel(); // Consume response body
       logTestEnd(context, { networkTest: "completed", status: response.status });
-    } catch (error) {
+    } catch (error: unknown) {
       clearTimeout(timeoutId);
       assertEquals(
         error instanceof Error ? error.name : "UnknownError", 
@@ -1056,7 +1056,7 @@ Deno.test("ERROR-002: Network and Timeout Handling", async () => {
       );
       logTestEnd(context, { networkTest: "aborted", error: error instanceof Error ? error.name : "UnknownError" });
     }
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -1099,7 +1099,7 @@ Deno.test("INTEGRATION-001: Complete User Journey", async () => {
       steps: ["login", "profile", "pitches", "logout"],
       allSuccessful: true
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -1158,7 +1158,7 @@ Deno.test("INTEGRATION-002: Multi-Portal Workflow", async () => {
       workflowSteps: ["creator_create", "investor_view", "production_view"],
       pitchCreated: !!pitchId
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -1212,7 +1212,7 @@ Deno.test("PERFORMANCE-001: Authentication Response Time", async () => {
 
     // Basic performance assertion (should complete within reasonable time)
     assertEquals(avgTime < 5000, true, "Average response time should be under 5 seconds");
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }
@@ -1237,7 +1237,7 @@ Deno.test("CLEANUP-001: Test Suite Cleanup", async () => {
       cacheCleared: true,
       endpointHealthy: healthCheck
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logTestEnd(context, null, error);
     throw error;
   }

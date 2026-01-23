@@ -290,7 +290,7 @@ class VideoProcessorTests extends ContainerTestBase {
       // Verify service is still healthy after error
       await this.assertServiceHealthy(this.serviceName);
       
-    } catch (error) {
+    } catch (error: unknown) {
       // If corrupted file doesn't exist, simulate the error
       console.log('⚠️ Corrupted test file not available, simulating error recovery');
       await this.assertServiceHealthy(this.serviceName);

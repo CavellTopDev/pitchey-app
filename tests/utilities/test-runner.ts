@@ -91,7 +91,7 @@ export class CreatorWorkflowTestRunner {
 
       return suite;
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("❌ Test suite failed to complete:", error);
       throw error;
     } finally {
@@ -120,7 +120,7 @@ export class CreatorWorkflowTestRunner {
       if (!response.ok) {
         throw new Error("Server health check failed");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("⚠️ Server health check failed - tests may fail");
     }
 
@@ -326,7 +326,7 @@ export class CreatorWorkflowTestRunner {
     try {
       await Deno.writeTextFile(reportPath, report);
       console.log(`\n📊 Detailed report generated: ${reportPath}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("Failed to write report file:", error);
     }
 
@@ -471,7 +471,7 @@ export class CreatorWorkflowTestRunner {
       if (this.config.verbose) {
         console.log("✅ Test environment cleaned up");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("⚠️ Cleanup failed:", error);
     }
   }

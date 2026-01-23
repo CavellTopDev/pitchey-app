@@ -64,7 +64,7 @@ class WebSocketIntegrationTester {
             timestamp: Date.now(),
             userId,
           });
-        } catch (error) {
+        } catch (error: unknown) {
           console.error("Failed to parse WebSocket message:", error);
         }
       };
@@ -213,7 +213,7 @@ Deno.test({
                 
                 setTimeout(() => resolve(null), 2000);
               });
-            } catch (error) {
+            } catch (error: unknown) {
               // Expected to fail
               assert(true, "Invalid token should be rejected");
             }
@@ -539,7 +539,7 @@ Deno.test({
                 // Connection should still be open (server should handle gracefully)
                 assertEquals(ws.readyState, WebSocket.OPEN);
               }
-            } catch (error) {
+            } catch (error: unknown) {
               // Expected behavior - server might close connection for invalid data
               console.log("Connection closed for invalid message (expected)");
             }

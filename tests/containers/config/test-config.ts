@@ -226,7 +226,7 @@ export class ConfigFactory {
         environment,
         runtime,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn(`Failed to load specific config, using defaults: ${error}`);
       return this.getDefaultConfig(environment, runtime);
     }

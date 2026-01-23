@@ -125,11 +125,11 @@ export const accessControlSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Creator access control test failed: ${error.message}`,
+            message: `Creator access control test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -238,11 +238,11 @@ export const accessControlSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Investor access control test failed: ${error.message}`,
+            message: `Investor access control test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -344,11 +344,11 @@ export const accessControlSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Production company access control test failed: ${error.message}`,
+            message: `Production company access control test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -444,11 +444,11 @@ export const accessControlSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Unauthenticated access control test failed: ${error.message}`,
+            message: `Unauthenticated access control test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -565,11 +565,11 @@ export const accessControlSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Cross-user data access test failed: ${error.message}`,
+            message: `Cross-user data access test failed: ${(error as Error).message}`,
             error
           };
         }

@@ -106,11 +106,11 @@ export const websocketSuite: TestSuite = {
             const startTime = Date.now();
           });
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `WebSocket connection test failed: ${error.message}`,
+            message: `WebSocket connection test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -255,11 +255,11 @@ export const websocketSuite: TestSuite = {
             };
           });
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `WebSocket messaging test failed: ${error.message}`,
+            message: `WebSocket messaging test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -425,11 +425,11 @@ export const websocketSuite: TestSuite = {
             };
           });
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `WebSocket authentication test failed: ${error.message}`,
+            message: `WebSocket authentication test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -558,11 +558,11 @@ export const websocketSuite: TestSuite = {
             }
           });
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Concurrent WebSocket connections test failed: ${error.message}`,
+            message: `Concurrent WebSocket connections test failed: ${(error as Error).message}`,
             error
           };
         }

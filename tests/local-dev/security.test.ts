@@ -146,11 +146,11 @@ export const securitySuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `SQL injection prevention test failed: ${error.message}`,
+            message: `SQL injection prevention test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -216,12 +216,12 @@ export const securitySuite: TestSuite = {
                 responseLength: responseText.length
               });
 
-            } catch (error) {
+            } catch (error: unknown) {
               results.push({
                 endpoint: "search",
                 payload: payload.substring(0, 30) + "...",
                 status: 0,
-                error: error.message
+                error: (error as Error).message
               });
             }
 
@@ -256,12 +256,12 @@ export const securitySuite: TestSuite = {
                   blocked: createResponse.status >= 400
                 });
 
-              } catch (error) {
+              } catch (error: unknown) {
                 results.push({
                   endpoint: "pitch-creation", 
                   payload: payload.substring(0, 30) + "...",
                   status: 0,
-                  error: error.message
+                  error: (error as Error).message
                 });
               }
 
@@ -306,11 +306,11 @@ export const securitySuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `XSS prevention test failed: ${error.message}`,
+            message: `XSS prevention test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -379,7 +379,7 @@ export const securitySuite: TestSuite = {
                   responseLength: responseText.length
                 });
 
-              } catch (error) {
+              } catch (error: unknown) {
                 results.push({
                   endpoint: endpoint.url.split("/").pop(),
                   method: endpoint.method,
@@ -387,7 +387,7 @@ export const securitySuite: TestSuite = {
                   status: 0,
                   accessGranted: false,
                   properlyBlocked: true, // Network error counts as blocked
-                  error: error.message
+                  error: (error as Error).message
                 });
               }
 
@@ -428,11 +428,11 @@ export const securitySuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Authentication bypass test failed: ${error.message}`,
+            message: `Authentication bypass test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -513,11 +513,11 @@ export const securitySuite: TestSuite = {
                 hasExposures: exposures.length > 0 || debugExposure
               });
 
-            } catch (error) {
+            } catch (error: unknown) {
               results.push({
                 endpoint: endpoint.split("/").pop() || endpoint,
                 status: 0,
-                error: error.message,
+                error: (error as Error).message,
                 hasExposures: false
               });
             }
@@ -560,11 +560,11 @@ export const securitySuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Data exposure test failed: ${error.message}`,
+            message: `Data exposure test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -629,13 +629,13 @@ export const securitySuite: TestSuite = {
                 responseSize: responseText.length
               });
 
-            } catch (error) {
+            } catch (error: unknown) {
               results.push({
                 endpoint: "search",
                 inputType: input.type,
                 status: 0,
                 handledProperly: true, // Network error counts as handled
-                error: error.message
+                error: (error as Error).message
               });
             }
 
@@ -673,13 +673,13 @@ export const securitySuite: TestSuite = {
                   responseSize: responseText.length
                 });
 
-              } catch (error) {
+              } catch (error: unknown) {
                 results.push({
                   endpoint: "pitch-creation",
                   inputType: input.type,
                   status: 0,
                   handledProperly: true,
-                  error: error.message
+                  error: (error as Error).message
                 });
               }
 
@@ -719,11 +719,11 @@ export const securitySuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Input validation test failed: ${error.message}`,
+            message: `Input validation test failed: ${(error as Error).message}`,
             error
           };
         }

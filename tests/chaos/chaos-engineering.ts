@@ -277,13 +277,13 @@ class ChaosEngineer {
         
         // Wait between experiments to allow system stabilization
         await new Promise(resolve => setTimeout(resolve, 5000));
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`Failed to run experiment ${name}:`, error);
         results.push({
           experiment: name,
           success: false,
           duration: 0,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? (error as Error).message : String(error)
         });
       }
     }
@@ -407,7 +407,7 @@ class ChaosEngineer {
       // Test basic API endpoints
       const response = await this.testHelper.checkEndpointHealth('/api/health');
       return response;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("System recovery validation failed:", error);
       return false;
     }
@@ -432,7 +432,7 @@ class ChaosEngineer {
       }
       
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }

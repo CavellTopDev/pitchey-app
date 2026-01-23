@@ -55,11 +55,11 @@ export const storageSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `MinIO bucket operations test failed: ${error.message}`,
+            message: `MinIO bucket operations test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -183,11 +183,11 @@ Created at: ${new Date().toISOString()}`;
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `File upload API test failed: ${error.message}`,
+            message: `File upload API test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -262,7 +262,7 @@ Created at: ${new Date().toISOString()}`;
             } else {
               redisCliResult = "failed";
             }
-          } catch (error) {
+          } catch (error: unknown) {
             redisCliResult = "cli-not-available";
           }
 
@@ -310,11 +310,11 @@ Created at: ${new Date().toISOString()}`;
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Redis cache operations test failed: ${error.message}`,
+            message: `Redis cache operations test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -469,11 +469,11 @@ Created at: ${new Date().toISOString()}`;
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Data persistence test failed: ${error.message}`,
+            message: `Data persistence test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -551,12 +551,12 @@ Created at: ${new Date().toISOString()}`;
               // Don't overwhelm the system
               await new Promise(resolve => setTimeout(resolve, 1000));
 
-            } catch (error) {
+            } catch (error: unknown) {
               uploadResults.push({
                 size: testSize.name,
                 bytes: testSize.size,
                 success: false,
-                error: error.message
+                error: (error as Error).message
               });
             }
           }
@@ -578,11 +578,11 @@ Created at: ${new Date().toISOString()}`;
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Storage capacity test failed: ${error.message}`,
+            message: `Storage capacity test failed: ${(error as Error).message}`,
             error
           };
         }

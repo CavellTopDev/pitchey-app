@@ -97,15 +97,15 @@ class WorkflowValidator {
       this.results.push({ name, status: 'PASS', duration });
       console.log(`✅ PASSED (${duration}ms)`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       this.results.push({ 
         name, 
         status: 'FAIL', 
         duration, 
-        error: error.message 
+        error: (error as Error).message 
       });
-      console.log(`❌ FAILED (${duration}ms): ${error.message}`);
+      console.log(`❌ FAILED (${duration}ms): ${(error as Error).message}`);
     }
   }
 
@@ -504,8 +504,8 @@ class WorkflowValidator {
         genre: 'InvalidGenre'
       }, creatorSession);
       throw new Error('Invalid pitch should be rejected');
-    } catch (error) {
-      if (error.message.includes('validation')) {
+    } catch (error: unknown) {
+      if ((error as Error).message.includes('validation')) {
         console.log('    ✓ Invalid pitch properly rejected');
       } else {
         throw error;
@@ -519,8 +519,8 @@ class WorkflowValidator {
       await this.uploadFile('/api/pitches/' + this.context.pitchId + '/documents',
         oversizedFile, 'oversized_doc', creatorSession);
       throw new Error('Oversized file should be rejected');
-    } catch (error) {
-      if (error.message.includes('size') || error.message.includes('413')) {
+    } catch (error: unknown) {
+      if ((error as Error).message.includes('size') || (error as Error).message.includes('413')) {
         console.log('    ✓ Oversized file properly rejected');
       } else {
         throw error;
@@ -532,8 +532,8 @@ class WorkflowValidator {
     try {
       await this.apiCall('GET', '/api/user/profile', {}, 'invalid-session');
       throw new Error('Invalid session should be rejected');
-    } catch (error) {
-      if (error.message.includes('unauthorized') || error.message.includes('401')) {
+    } catch (error: unknown) {
+      if ((error as Error).message.includes('unauthorized') || (error as Error).message.includes('401')) {
         console.log('    ✓ Invalid session properly handled');
       } else {
         throw error;

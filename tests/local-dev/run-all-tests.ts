@@ -106,7 +106,7 @@ async function main() {
       Deno.exit(0);
     }
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Test suite execution failed:", error);
     Deno.exit(1);
   }
@@ -129,8 +129,8 @@ async function validatePrerequisites(): Promise<void> {
         throw new Error(`Service ${service.name} not responding (${response.status})`);
       }
       console.log(`✓ ${service.name} is running`);
-    } catch (error) {
-      console.error(`✗ ${service.name} is not accessible:`, error.message);
+    } catch (error: unknown) {
+      console.error(`✗ ${service.name} is not accessible:`, (error as Error).message);
       throw new Error(`Service ${service.name} is required but not accessible`);
     }
   }
@@ -154,8 +154,8 @@ async function validatePrerequisites(): Promise<void> {
     } else {
       throw new Error("PostgreSQL connection failed");
     }
-  } catch (error) {
-    console.error("✗ PostgreSQL connection test failed:", error.message);
+  } catch (error: unknown) {
+    console.error("✗ PostgreSQL connection test failed:", (error as Error).message);
     throw new Error("PostgreSQL is required but not accessible");
   }
 
@@ -172,7 +172,7 @@ async function validatePrerequisites(): Promise<void> {
     } else {
       throw new Error("Redis connection failed");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.log("⚠ Redis CLI test failed (service might still be accessible via HTTP)");
   }
 }
@@ -187,8 +187,8 @@ async function warmUpServices(): Promise<void> {
   try {
     await fetch(`${LOCAL_CONFIG.backend}/api/health`);
     console.log("✓ Backend proxy warmed up");
-  } catch (error) {
-    console.error("⚠ Backend proxy warm-up failed:", error.message);
+  } catch (error: unknown) {
+    console.error("⚠ Backend proxy warm-up failed:", (error as Error).message);
   }
 
   // Add a small delay to ensure services are fully ready
@@ -215,7 +215,7 @@ async function generateTestReport(reports: any[]): Promise<void> {
   // Ensure reports directory exists
   try {
     await Deno.mkdir("./tests/local-dev/reports", { recursive: true });
-  } catch (error) {
+  } catch (error: unknown) {
     // Directory might already exist
   }
 
@@ -239,8 +239,8 @@ async function generateTestReport(reports: any[]): Promise<void> {
   try {
     await Deno.writeTextFile(reportPath, JSON.stringify(fullReport, null, 2));
     console.log(`📊 Detailed test report saved: ${reportPath}`);
-  } catch (error) {
-    console.error("⚠ Failed to save test report:", error.message);
+  } catch (error: unknown) {
+    console.error("⚠ Failed to save test report:", (error as Error).message);
   }
 }
 

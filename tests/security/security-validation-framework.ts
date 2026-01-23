@@ -212,7 +212,7 @@ class SecurityValidationFramework {
       });
       console.log(`    ✅ SECURE (${duration}ms)`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       const result: SecurityTestResult = { 
         category, 
@@ -220,14 +220,14 @@ class SecurityValidationFramework {
         status: 'FAIL', 
         severity,
         duration, 
-        error: error.message 
+        error: (error as Error).message 
       };
       
       this.results.push(result);
       this.context.vulnerabilities.push(result);
       
       const severityIcon = severity === 'CRITICAL' ? '🔥' : severity === 'HIGH' ? '⚠️' : severity === 'MEDIUM' ? '⚡' : 'ℹ️';
-      console.log(`    ${severityIcon} VULNERABLE (${duration}ms): ${error.message}`);
+      console.log(`    ${severityIcon} VULNERABLE (${duration}ms): ${(error as Error).message}`);
     }
   }
 
@@ -680,9 +680,9 @@ class SecurityValidationFramework {
       } else if (response.status === 200) {
         throw new Error('HTTP requests accepted without HTTPS redirect');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Network error is expected for HTTP on HTTPS-only service
-      if (!error.message.includes('redirect')) {
+      if (!(error as Error).message.includes('redirect')) {
         console.log('    ℹ️  HTTP endpoint properly blocked');
       }
     }
@@ -804,7 +804,7 @@ class SecurityValidationFramework {
           }
         };
         
-      } catch (error) {
+      } catch (error: unknown) {
         reject(error);
       }
     });

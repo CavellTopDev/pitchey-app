@@ -235,7 +235,7 @@ class BusinessLogicVerificationSuite {
       });
       console.log(`    ✅ COMPLIANT (${duration}ms)`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       const result: BusinessLogicTestResult = { 
         domain, 
@@ -243,7 +243,7 @@ class BusinessLogicVerificationSuite {
         status: 'FAIL', 
         severity,
         duration, 
-        error: error.message,
+        error: (error as Error).message,
         business_impact: this.assessBusinessImpact(domain, testName, severity)
       };
       
@@ -251,7 +251,7 @@ class BusinessLogicVerificationSuite {
       this.context.violations.push(result);
       
       const severityIcon = severity === 'CRITICAL' ? '🔥' : severity === 'HIGH' ? '⚠️' : severity === 'MEDIUM' ? '⚡' : 'ℹ️';
-      console.log(`    ${severityIcon} VIOLATION (${duration}ms): ${error.message}`);
+      console.log(`    ${severityIcon} VIOLATION (${duration}ms): ${(error as Error).message}`);
     }
   }
 

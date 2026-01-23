@@ -60,13 +60,13 @@ export const performanceSuite: TestSuite = {
                 // Small delay between requests
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
-              } catch (error) {
+              } catch (error: unknown) {
                 measurements.push({
                   attempt: i + 1,
                   responseTime: -1,
                   status: 0,
                   success: false,
-                  error: error.message
+                  error: (error as Error).message
                 });
               }
             }
@@ -131,11 +131,11 @@ export const performanceSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `API response time test failed: ${error.message}`,
+            message: `API response time test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -176,7 +176,7 @@ export const performanceSuite: TestSuite = {
                     responseTime: Math.round(requestEnd - requestStart),
                     timestamp: requestEnd
                   };
-                } catch (error) {
+                } catch (error: unknown) {
                   const requestEnd = performance.now();
                   return {
                     client,
@@ -185,7 +185,7 @@ export const performanceSuite: TestSuite = {
                     status: 0,
                     responseTime: Math.round(requestEnd - requestStart),
                     timestamp: requestEnd,
-                    error: error.message
+                    error: (error as Error).message
                   };
                 }
               })();
@@ -251,11 +251,11 @@ export const performanceSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Concurrent request handling test failed: ${error.message}`,
+            message: `Concurrent request handling test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -323,13 +323,13 @@ export const performanceSuite: TestSuite = {
 
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-              } catch (error) {
+              } catch (error: unknown) {
                 measurements.push({
                   attempt: i + 1,
                   queryTime: -1,
                   status: 0,
                   success: false,
-                  error: error.message
+                  error: (error as Error).message
                 });
               }
             }
@@ -392,11 +392,11 @@ export const performanceSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Database query performance test failed: ${error.message}`,
+            message: `Database query performance test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -497,11 +497,11 @@ export const performanceSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Memory usage monitoring test failed: ${error.message}`,
+            message: `Memory usage monitoring test failed: ${(error as Error).message}`,
             error
           };
         }

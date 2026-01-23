@@ -194,8 +194,8 @@ class AIInferenceTests extends ContainerTestBase {
         } else {
           console.log(`⚠️ Provider ${provider} returned status ${response.status}`);
         }
-      } catch (error) {
-        console.log(`⚠️ Provider ${provider} error: ${error.message}`);
+      } catch (error: unknown) {
+        console.log(`⚠️ Provider ${provider} error: ${(error as Error).message}`);
       }
     }
     

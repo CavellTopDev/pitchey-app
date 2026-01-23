@@ -77,7 +77,7 @@ export class TestDatabase {
       }
       
       console.log("Test database initialized successfully");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to initialize test database:", error);
       throw error;
     }
@@ -104,7 +104,7 @@ export class TestDatabase {
       // Import and run migration script
       const { runMigrations } = await import("../../src/db/migrate.ts");
       await runMigrations();
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn("Migration runner not available, continuing...");
     }
   }
@@ -198,7 +198,7 @@ export class TestDatabase {
       }
       
       console.log(`Successfully seeded database with ${data.users.length} users, ${data.pitches.length} pitches`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to seed database:", error);
       throw error;
     }
@@ -240,14 +240,14 @@ export class TestDatabase {
       for (const table of tables) {
         try {
           await db.execute(sql.raw(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`));
-        } catch (error) {
+        } catch (error: unknown) {
           // Table might not exist, continue
-          console.warn(`Warning: Could not truncate table ${table}:`, error.message);
+          console.warn(`Warning: Could not truncate table ${table}:`, (error as Error).message);
         }
       }
 
       console.log("Test data cleared successfully");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to clear test data:", error);
       throw error;
     }
@@ -279,7 +279,7 @@ export class TestDatabase {
       console.log(`Snapshot '${name}' created with ${rowCount} total rows`);
       
       return name;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to create snapshot:", error);
       throw error;
     }
@@ -310,7 +310,7 @@ export class TestDatabase {
       }
       
       console.log(`Snapshot '${name}' restored successfully`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to restore snapshot:", error);
       throw error;
     }
@@ -332,8 +332,8 @@ export class TestDatabase {
       try {
         const tableData = await db.execute(sql.raw(`SELECT * FROM ${tableName}`));
         tables[tableName] = tableData.rows;
-      } catch (error) {
-        console.warn(`Could not read table ${tableName}:`, error.message);
+      } catch (error: unknown) {
+        console.warn(`Could not read table ${tableName}:`, (error as Error).message);
         tables[tableName] = [];
       }
     }
@@ -354,8 +354,8 @@ export class TestDatabase {
       for (const row of result.rows) {
         sequences[row.sequence_name as string] = row.last_value as number;
       }
-    } catch (error) {
-      console.warn("Could not read sequence values:", error.message);
+    } catch (error: unknown) {
+      console.warn("Could not read sequence values:", (error as Error).message);
     }
     
     return sequences;
@@ -380,16 +380,16 @@ export class TestDatabase {
           values
         ));
       }
-    } catch (error) {
-      console.warn(`Could not insert data into ${tableName}:`, error.message);
+    } catch (error: unknown) {
+      console.warn(`Could not insert data into ${tableName}:`, (error as Error).message);
     }
   }
 
   private async setSequenceValue(sequenceName: string, value: number): Promise<void> {
     try {
       await db.execute(sql.raw(`SELECT setval('${sequenceName}', ${value})`));
-    } catch (error) {
-      console.warn(`Could not set sequence ${sequenceName}:`, error.message);
+    } catch (error: unknown) {
+      console.warn(`Could not set sequence ${sequenceName}:`, (error as Error).message);
     }
   }
 
@@ -399,13 +399,13 @@ export class TestDatabase {
     if (!this.config.useTransactions) return null;
 
     try {
-      const transaction = await db.transaction(async (tx) => {
+      const transaction = await db.transaction(async (tx: any) => {
         this.activeTransactions.set(testName, tx);
         return tx;
       });
       
       return transaction;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Failed to begin transaction for test ${testName}:`, error);
       throw error;
     }
@@ -418,7 +418,7 @@ export class TestDatabase {
     try {
       await transaction.rollback();
       this.activeTransactions.delete(testName);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Failed to rollback transaction for test ${testName}:`, error);
     }
   }
@@ -430,7 +430,7 @@ export class TestDatabase {
     try {
       await transaction.commit();
       this.activeTransactions.delete(testName);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Failed to commit transaction for test ${testName}:`, error);
       throw error;
     }
@@ -476,13 +476,13 @@ export class TestDatabase {
       for (const table of requiredTables) {
         try {
           await db.execute(sql.raw(`SELECT 1 FROM ${table} LIMIT 1`));
-        } catch (error) {
+        } catch (error: unknown) {
           issues.push(`Missing required table: ${table}`);
         }
       }
 
-    } catch (error) {
-      issues.push(`Database connection failed: ${error.message}`);
+    } catch (error: unknown) {
+      issues.push(`Database connection failed: ${(error as Error).message}`);
     }
 
     const latency = Date.now() - startTime;
@@ -511,7 +511,7 @@ export class TestDatabase {
       ORDER BY t.table_name
     `);
 
-    return result.rows.map(row => ({
+    return result.rows.map((row: any) => ({
       name: row.table_name as string,
       rowCount: row.row_count as number,
       hasData: row.has_data as boolean,
@@ -586,7 +586,7 @@ export async function withTransaction<T>(
     const result = await testFn(tx);
     await db.commitTransaction(testName);
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     await db.rollbackTransaction(testName);
     throw error;
   }

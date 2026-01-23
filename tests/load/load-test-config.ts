@@ -274,7 +274,7 @@ export class VirtualUser {
       });
 
       failed = !response.ok;
-    } catch (error) {
+    } catch (error: unknown) {
       failed = true;
       response = new Response(null, { status: 0 });
     }

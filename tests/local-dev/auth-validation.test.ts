@@ -119,11 +119,11 @@ export const authenticationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Creator authentication test failed: ${error.message}`,
+            message: `Creator authentication test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -209,11 +209,11 @@ export const authenticationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Investor authentication test failed: ${error.message}`,
+            message: `Investor authentication test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -299,11 +299,11 @@ export const authenticationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Production company authentication test failed: ${error.message}`,
+            message: `Production company authentication test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -356,11 +356,11 @@ export const authenticationSuite: TestSuite = {
             details: { status: response.status }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Invalid credentials test failed: ${error.message}`,
+            message: `Invalid credentials test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -464,11 +464,11 @@ export const authenticationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Session persistence test failed: ${error.message}`,
+            message: `Session persistence test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -524,11 +524,11 @@ export const authenticationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Concurrent session test failed: ${error.message}`,
+            message: `Concurrent session test failed: ${(error as Error).message}`,
             error
           };
         }

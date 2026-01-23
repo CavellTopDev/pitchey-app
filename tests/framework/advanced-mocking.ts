@@ -235,7 +235,7 @@ export class DatabaseMock extends BaseMock {
           commit: () => Promise.resolve(),
           rollback: () => Promise.resolve(),
         });
-      } catch (error) {
+      } catch (error: unknown) {
         throw error;
       }
     });

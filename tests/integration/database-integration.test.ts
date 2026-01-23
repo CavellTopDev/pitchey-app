@@ -36,8 +36,8 @@ class DatabaseIntegrationTester {
         await testCase.test();
         
         console.log(`✅ ${testCase.name} passed`);
-      } catch (error) {
-        console.error(`❌ ${testCase.name} failed:`, error.message);
+      } catch (error: unknown) {
+        console.error(`❌ ${testCase.name} failed:`, (error as Error).message);
         throw error;
       } finally {
         if (testCase.cleanup) {

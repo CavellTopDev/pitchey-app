@@ -230,7 +230,7 @@ class APIContractTester {
             ...options.headers,
             "Authorization": `Bearer ${token}`
           };
-        } catch (error) {
+        } catch (error: unknown) {
           result.errors.push("Failed to authenticate for secured endpoint");
           result.passed = false;
           return result;
@@ -273,7 +273,7 @@ class APIContractTester {
               result.passed = false;
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           result.errors.push("Failed to parse JSON response");
           result.passed = false;
         }
@@ -284,8 +284,8 @@ class APIContractTester {
         result.warnings.push(`Slow response time: ${result.responseTime}ms`);
       }
 
-    } catch (error) {
-      result.errors.push(`Request failed: ${error.message}`);
+    } catch (error: unknown) {
+      result.errors.push(`Request failed: ${(error as Error).message}`);
       result.passed = false;
       result.responseTime = Date.now() - startTime;
     }

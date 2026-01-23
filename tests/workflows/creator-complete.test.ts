@@ -109,7 +109,7 @@ class CreatorWorkflowTester {
     for (const pitchId of this.createdPitches) {
       try {
         await testHelper.cleanupTestPitch(pitchId, "creator");
-      } catch (error) {
+      } catch (error: unknown) {
         console.warn(`Failed to cleanup pitch ${pitchId}:`, error);
       }
     }
@@ -205,7 +205,7 @@ class CreatorWorkflowTester {
         if (await operationFn()) {
           return true;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.warn(`Async operation attempt ${i + 1} failed:`, error);
       }
       
@@ -417,7 +417,7 @@ Deno.test({
 
       console.log("✅ Creator workflow test completed successfully!");
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("❌ Creator workflow test failed:", error);
       throw error;
     } finally {
@@ -535,7 +535,7 @@ Deno.test({
 
       console.log("✅ Edge cases and error handling test completed!");
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("❌ Edge cases test failed:", error);
       throw error;
     } finally {
@@ -599,7 +599,7 @@ Deno.test({
             resolve(false);
           }
         }, 5000);
-      } catch (error) {
+      } catch (error: unknown) {
         resolve(false);
       }
     });
@@ -657,7 +657,7 @@ Deno.test({
 
       console.log("✅ Performance benchmarks completed successfully!");
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("❌ Performance benchmark failed:", error);
       throw error;
     } finally {
@@ -727,7 +727,7 @@ Deno.test({
 
       console.log("✅ Database consistency tests passed!");
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("❌ Database consistency test failed:", error);
       throw error;
     } finally {

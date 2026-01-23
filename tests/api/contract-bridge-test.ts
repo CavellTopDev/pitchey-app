@@ -55,7 +55,7 @@ async function apiRequest(
     }
 
     return { response, duration, body };
-  } catch (error) {
+  } catch (error: unknown) {
     const duration = performance.now() - start;
     throw { error, duration };
   }

@@ -157,16 +157,16 @@ class IntegrationVerificationSuite {
       });
       console.log(`    ✅ PASSED (${duration}ms)`);
       
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       this.results.push({ 
         component, 
         test: testName, 
         status: 'FAIL', 
         duration, 
-        error: error.message 
+        error: (error as Error).message 
       });
-      console.log(`    ❌ FAILED (${duration}ms): ${error.message}`);
+      console.log(`    ❌ FAILED (${duration}ms): ${(error as Error).message}`);
     }
   }
 

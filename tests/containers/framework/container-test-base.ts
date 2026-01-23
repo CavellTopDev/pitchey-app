@@ -88,7 +88,7 @@ export abstract class ContainerTestBase {
       await this.waitForServices();
       
       console.log('✅ Container test environment ready');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Failed to setup test environment:', error);
       await this.cleanup();
       throw error;
@@ -105,7 +105,7 @@ export abstract class ContainerTestBase {
     for (const cleanupFn of this.context.cleanup.reverse()) {
       try {
         await cleanupFn();
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('⚠️ Cleanup error:', error);
       }
     }
@@ -157,7 +157,7 @@ export abstract class ContainerTestBase {
       });
       
       await process.output();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error stopping services:', error);
     }
   }
@@ -211,9 +211,9 @@ export abstract class ContainerTestBase {
           }
           
           console.log(`✅ ${serviceName} healthy`);
-        } catch (error) {
+        } catch (error: unknown) {
           allHealthy = false;
-          console.log(`❌ ${serviceName} health check failed:`, error.message);
+          console.log(`❌ ${serviceName} health check failed:`, (error as Error).message);
           break;
         }
       }
@@ -262,7 +262,7 @@ export abstract class ContainerTestBase {
       }
       
       return response;
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = performance.now() - startTime;
       service.metrics.requestCount++;
       service.metrics.errorCount++;
@@ -441,7 +441,7 @@ export abstract class ContainerTestBase {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         return await operation();
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error as Error;
         
         if (attempt === maxAttempts) {
@@ -463,8 +463,8 @@ export abstract class ContainerTestBase {
     const fixturePath = `${this.config.testData.fixtures}/${filename}`;
     try {
       return await Deno.readFile(fixturePath);
-    } catch (error) {
-      throw new Error(`Failed to load fixture ${filename}: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to load fixture ${filename}: ${(error as Error).message}`);
     }
   }
   
@@ -493,7 +493,7 @@ export abstract class ContainerTestBase {
       await Deno.mkdir('./tests/containers/reports', { recursive: true });
       await Deno.writeTextFile(reportPath, JSON.stringify(report, null, 2));
       console.log(`📊 Test results saved to ${reportPath}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to save test results:', error);
     }
   }

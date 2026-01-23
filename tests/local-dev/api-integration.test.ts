@@ -211,11 +211,11 @@ export const apiIntegrationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Pitch CRUD test failed: ${error.message}`,
+            message: `Pitch CRUD test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -338,11 +338,11 @@ export const apiIntegrationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `NDA workflow test failed: ${error.message}`,
+            message: `NDA workflow test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -464,11 +464,11 @@ export const apiIntegrationSuite: TestSuite = {
             };
           }
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Investment tracking test failed: ${error.message}`,
+            message: `Investment tracking test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -562,11 +562,11 @@ export const apiIntegrationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `File upload test failed: ${error.message}`,
+            message: `File upload test failed: ${(error as Error).message}`,
             error
           };
         }
@@ -616,11 +616,11 @@ export const apiIntegrationSuite: TestSuite = {
             }
           };
 
-        } catch (error) {
+        } catch (error: unknown) {
           return {
             success: false,
             duration: 0,
-            message: `Search functionality test failed: ${error.message}`,
+            message: `Search functionality test failed: ${(error as Error).message}`,
             error
           };
         }

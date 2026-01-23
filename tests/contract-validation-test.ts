@@ -302,27 +302,27 @@ class ContractValidationTester {
       } else {
         console.log(`  ❌ ${testCase}: Expected ${expectedStatus}, got ${response.status}`);
         if (responseData.error) {
-          console.log(`     Error: ${responseData.error.message}`);
+          console.log(`     Error: ${responseData.(error as Error).message}`);
         }
       }
 
       // Track Sentry errors
       if (responseData.error && responseData.error.code === 'INTERNAL_ERROR') {
-        this.sentryErrors.push(`${testCase}: ${responseData.error.message}`);
+        this.sentryErrors.push(`${testCase}: ${responseData.(error as Error).message}`);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       const result: TestResult = {
         endpoint: path,
         testCase,
         status: 0,
         response: null,
         success: false,
-        errorDetails: `Network error: ${error.message}`
+        errorDetails: `Network error: ${(error as Error).message}`
       };
 
       this.results.push(result);
-      console.log(`  ❌ ${testCase}: Network error - ${error.message}`);
+      console.log(`  ❌ ${testCase}: Network error - ${(error as Error).message}`);
     }
   }
 
@@ -354,18 +354,18 @@ class ContractValidationTester {
         console.log(`  ❌ ${testCase}: Expected 400, got ${response.status}`);
       }
 
-    } catch (error) {
+    } catch (error: unknown) {
       const result: TestResult = {
         endpoint: path,
         testCase,
         status: 0,
         response: null,
         success: false,
-        errorDetails: `Network error: ${error.message}`
+        errorDetails: `Network error: ${(error as Error).message}`
       };
 
       this.results.push(result);
-      console.log(`  ❌ ${testCase}: Network error - ${error.message}`);
+      console.log(`  ❌ ${testCase}: Network error - ${(error as Error).message}`);
     }
   }
 

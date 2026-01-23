@@ -329,7 +329,7 @@ Deno.test({
               // Wait between experiments for system stabilization
               await new Promise(resolve => setTimeout(resolve, 3000));
               
-            } catch (error) {
+            } catch (error: unknown) {
               allPassed = false;
               console.error(`❌ Critical experiment error: ${experiment}`, error);
             }
@@ -363,8 +363,8 @@ Deno.test({
           try {
             await Deno.writeTextFile("chaos-engineering-report.txt", report);
             console.log("📁 Report saved to chaos-engineering-report.txt");
-          } catch (error) {
-            console.warn("Could not save report to file:", error.message);
+          } catch (error: unknown) {
+            console.warn("Could not save report to file:", (error as Error).message);
           }
           
           console.log(`✅ Chaos engineering report generated`);

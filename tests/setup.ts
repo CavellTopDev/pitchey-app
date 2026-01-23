@@ -105,8 +105,8 @@ export class TestHelper {
   async cleanupTestPitch(pitchId: number, portal: "creator" | "production" = "creator") {
     try {
       await this.authenticatedRequest(`/api/pitches/${pitchId}`, portal, "DELETE");
-    } catch (error) {
-      console.warn(`Failed to cleanup test pitch ${pitchId}:`, error instanceof Error ? error.message : String(error));
+    } catch (error: unknown) {
+      console.warn(`Failed to cleanup test pitch ${pitchId}:`, error instanceof Error ? (error as Error).message : String(error));
     }
   }
 
@@ -122,7 +122,7 @@ export class TestHelper {
         if (await conditionFn()) {
           return true;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Condition check failed, continue waiting
       }
       
@@ -137,7 +137,7 @@ export class TestHelper {
       const response = await fetch(`${TEST_CONFIG.API_BASE}${endpoint}`);
       await response.body?.cancel(); // Consume response body
       return response.status < 500; // Accept 4xx as "healthy" (auth errors are expected)
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }
@@ -188,7 +188,7 @@ export class TestHelper {
             resolve(false);
           }
         }, timeoutMs);
-      } catch (error) {
+      } catch (error: unknown) {
         resolve(false);
       }
     });
@@ -213,8 +213,8 @@ export async function setupTestDB() {
     
     // Run seeds
     await import("../src/db/seed.ts");
-  } catch (error) {
-    console.warn("Database setup failed:", error instanceof Error ? error.message : String(error));
+  } catch (error: unknown) {
+    console.warn("Database setup failed:", error instanceof Error ? (error as Error).message : String(error));
     // Don't fail tests if DB setup fails - some tests might still work
   }
 }
