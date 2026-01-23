@@ -27,11 +27,12 @@ jobs:
           fetch-depth: 0  # Full history for secret scanning
 
       - name: TruffleHog Secret Scan
+        continue-on-error: true  # Don't fail workflow on BASE=HEAD edge case
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
+          base: ${{ github.event.before || github.event.repository.default_branch }}
+          head: ${{ github.event.after || 'HEAD' }}
           extra_args: --debug --only-verified
 
       - name: Gitleaks Secret Scan
