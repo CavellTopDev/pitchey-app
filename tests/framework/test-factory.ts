@@ -3,8 +3,165 @@
  * Provides comprehensive test data generation with realistic relationships and constraints
  */
 
-import type { User, Pitch, NDA, Message, Investment, Portfolio } from "../../src/db/schema.ts";
 import { faker } from "npm:@faker-js/faker@8.4.1";
+
+// Define types locally (these match the database schema)
+interface User {
+  id: number;
+  email: string;
+  username: string;
+  password: string;
+  passwordHash: string;
+  userType: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  location?: string;
+  bio?: string;
+  website?: string;
+  avatar_url?: string;
+  profileImageUrl?: string;
+  companyName?: string;
+  companyNumber?: string;
+  companyWebsite?: string;
+  companyAddress?: string;
+  emailVerified: boolean;
+  emailVerificationToken?: string | null;
+  emailVerifiedAt?: Date;
+  companyVerified?: boolean;
+  isActive: boolean;
+  failedLoginAttempts?: number;
+  lastFailedLogin?: Date | null;
+  accountLockedUntil?: Date | null;
+  accountLockedAt?: Date | null;
+  accountLockReason?: string | null;
+  lastPasswordChangeAt?: Date;
+  passwordHistory?: string;
+  requirePasswordChange?: boolean;
+  twoFactorEnabled?: boolean;
+  email_notifications?: boolean;
+  marketing_emails?: boolean;
+  privacy_settings?: string;
+  preferred_genres?: string[];
+  preferred_formats?: string[];
+  preferred_budget_ranges?: string[];
+  notification_frequency?: string;
+  subscriptionTier?: string;
+  subscriptionStartDate?: Date;
+  subscriptionEndDate?: Date;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  lastLoginAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Pitch {
+  id: number;
+  userId: number;
+  title: string;
+  logline: string;
+  description?: string;
+  genre: string;
+  format?: string;
+  formatCategory?: string;
+  formatSubtype?: string;
+  customFormat?: string | null;
+  shortSynopsis?: string;
+  longSynopsis?: string;
+  opener?: string;
+  premise?: string;
+  targetAudience?: string;
+  characters?: string;
+  themes?: string;
+  worldDescription?: string;
+  episodeBreakdown?: string | null;
+  budgetRange?: string;
+  budgetBracket?: string;
+  estimatedBudget?: string;
+  stage?: string;
+  videoUrl?: string | null;
+  posterUrl?: string | null;
+  pitchDeckUrl?: string | null;
+  additionalMaterials?: string;
+  visibility?: string;
+  status?: string;
+  viewCount?: number;
+  likeCount?: number;
+  commentCount?: number;
+  ndaCount?: number;
+  titleImage?: string | null;
+  lookbookUrl?: string | null;
+  scriptUrl?: string | null;
+  trailerUrl?: string | null;
+  additionalMedia?: string;
+  productionTimeline?: string;
+  requireNda?: boolean;
+  seekingInvestment?: boolean;
+  productionStage?: string;
+  publishedAt?: Date;
+  visibilitySettings?: string;
+  aiUsed?: boolean;
+  aiTools?: string[];
+  aiDisclosure?: string | null;
+  shareCount?: number;
+  feedback?: string;
+  tags?: string[];
+  archived?: boolean;
+  archivedAt?: Date | null;
+  metadata?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface NDA {
+  id: number;
+  pitchId: number;
+  userId: number;
+  signerId: number;
+  status: string;
+  ndaType: string;
+  accessGranted: boolean;
+  signedAt?: Date;
+  expiresAt?: Date;
+  documentUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Message {
+  id: number;
+  conversationId?: number;
+  senderId: number;
+  receiverId: number;
+  subject?: string;
+  content: string;
+  messageType: string;
+  pitchId?: number | null;
+  read: boolean;
+  isRead?: boolean;
+  metadata?: string;
+  offPlatformRequested?: boolean;
+  offPlatformApproved?: boolean;
+  sentAt?: Date;
+  readAt?: Date | null;
+  createdAt: Date;
+}
+
+interface Investment {
+  id: number;
+  investorId: number;
+  pitchId: number;
+  amount: string;
+  status: string;
+  terms?: string;
+  currentValue?: string;
+  documents?: string[];
+  notes?: string;
+  roiPercentage?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export type TestScenario = 
   | "empty_state"
