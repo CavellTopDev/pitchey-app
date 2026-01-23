@@ -423,7 +423,7 @@ jobs:
       
       - name: Run Database Performance Tests
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: |
           echo "🗄️ Running database performance tests..."
 
@@ -507,10 +507,8 @@ jobs:
 
           console.log('✅ Database performance tests passed');
           EOF
-          
+
           deno run --allow-env --allow-net db-perf-test.ts
-        env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
 
   # Performance regression detection
   performance-regression:
