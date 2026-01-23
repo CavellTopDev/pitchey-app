@@ -596,13 +596,7 @@ jobs:
               return `${emoji} ${job}: ${info.result}`;
             }).join('\n');
             
-            const body = `## 🔍 Quality Gates Report
-            
-${results}
-
-${Object.values(needs).every(job => job.result === 'success') ? 
-  '✅ **All quality gates passed!** This PR is ready for review.' : 
-  '❌ **Some quality gates failed.** Please review and fix the issues above.'}`;
+            const body = `## 🔍 Quality Gates Report\n\n${results}\n\n${Object.values(needs).every(job => job.result === 'success') ? '✅ **All quality gates passed!** This PR is ready for review.' : '❌ **Some quality gates failed.** Please review and fix the issues above.'}`;
             
             await github.rest.issues.createComment({
               owner,

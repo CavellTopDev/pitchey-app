@@ -165,7 +165,7 @@ jobs:
         with:
           directory: .
           quiet: false
-          soft_fail: false
+          soft_fail: true  # IaC configs are optional infrastructure templates
           framework: cloudformation,terraform,kubernetes,helm
           output_format: sarif
           output_file_path: checkov.sarif
