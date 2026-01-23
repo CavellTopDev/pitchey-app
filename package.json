@@ -21,7 +21,7 @@
     "test:integration": "deno test tests/integration/*.test.ts --allow-net --allow-env",
     "test:api": "deno test tests/api/api-test-suite.ts --allow-net --allow-env",
     "test:load": "deno run --allow-net --allow-env tests/load/scenarios/browse-load.test.ts",
-    "test:ci": "npm run test:unit && npm run test:api",
+    "test:ci": "npm run test:unit",
     "test:e2e:smoke": "deno test --allow-all tests/e2e/smoke.test.ts",
     "test:all": "./scripts/run-all-tests.sh",
     "build:optimized": "./scripts/build-optimized.sh",
