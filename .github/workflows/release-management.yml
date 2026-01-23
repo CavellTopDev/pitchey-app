@@ -504,44 +504,37 @@ jobs:
           # Determine if draft
           DRAFT="${{ inputs.draft_release }}"
           
-          # Check if release already exists
-          EXISTING_RELEASE=$(curl -s \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$NEW_VERSION")
-
-          EXISTING_ID=$(echo "$EXISTING_RELEASE" | jq -r '.id // empty')
-
-          if [[ -n "$EXISTING_ID" && "$EXISTING_ID" != "null" ]]; then
+          # Check if release already exists using gh cli
+          if gh release view "v$NEW_VERSION" --json id --jq '.id' 2>/dev/null; then
             echo "⚠️ Release v$NEW_VERSION already exists, skipping creation"
-            echo "release-id=$EXISTING_ID" >> $GITHUB_OUTPUT
-            echo "release-url=$(echo "$EXISTING_RELEASE" | jq -r '.html_url')" >> $GITHUB_OUTPUT
+            RELEASE_URL=$(gh release view "v$NEW_VERSION" --json url --jq '.url')
+            echo "release-id=existing" >> $GITHUB_OUTPUT
+            echo "release-url=$RELEASE_URL" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          # Create release
-          RELEASE_RESPONSE=$(curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases" \
-            -d '{
-              "tag_name": "v'$NEW_VERSION'",
-              "target_commitish": "'${{ github.sha }}'",
-              "name": "Release v'$NEW_VERSION'",
-              "body": "'"$(echo "$RELEASE_NOTES" | jq -R -s .)"'",
-              "draft": '$DRAFT',
-              "prerelease": '$PRERELEASE'
-            }')
+          # Write release notes to a file for proper handling
+          echo "$RELEASE_NOTES" > release-notes.md
 
-          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
-          RELEASE_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.html_url')
-
-          if [ "$RELEASE_ID" == "null" ]; then
-            echo "❌ Failed to create release"
-            echo "$RELEASE_RESPONSE" | jq .
-            exit 1
+          # Create release using gh cli (handles escaping properly)
+          PRERELEASE_FLAG=""
+          if [ "$PRERELEASE" == "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
           fi
 
-          echo "release-id=$RELEASE_ID" >> $GITHUB_OUTPUT
+          DRAFT_FLAG=""
+          if [ "$DRAFT" == "true" ]; then
+            DRAFT_FLAG="--draft"
+          fi
+
+          gh release create "v$NEW_VERSION" \
+            --title "Release v$NEW_VERSION" \
+            --notes-file release-notes.md \
+            --target "${{ github.sha }}" \
+            $PRERELEASE_FLAG $DRAFT_FLAG
+
+          RELEASE_URL=$(gh release view "v$NEW_VERSION" --json url --jq '.url')
+          echo "release-id=new" >> $GITHUB_OUTPUT
           echo "release-url=$RELEASE_URL" >> $GITHUB_OUTPUT
 
           echo "✅ Created release v$NEW_VERSION"
