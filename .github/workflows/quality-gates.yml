@@ -288,7 +288,7 @@ jobs:
       
       - name: Upload Security Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-scan-results
           path: |
@@ -433,7 +433,7 @@ jobs:
       
       - name: Upload Quality Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: code-quality-results
           path: |
@@ -570,7 +570,7 @@ jobs:
       
       - name: Upload Dependencies Report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dependencies-report
           path: |
@@ -650,7 +650,7 @@ jobs:
           head -50 bundle-analysis.txt
       
       - name: Upload Bundle Analysis
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bundle-analysis
           path: |
@@ -803,7 +803,7 @@ jobs:
             });
       
       - name: Upload Quality Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: quality-gates-report
           path: quality-report.md

@@ -112,7 +112,7 @@ jobs:
           EOF
       
       - name: Upload Performance Config
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-config
           path: ${{ env.PERFORMANCE_BUDGET_FILE }}
@@ -147,7 +147,7 @@ jobs:
           cache: 'npm'
       
       - name: Download Performance Config
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: performance-config
       
@@ -214,7 +214,7 @@ jobs:
           fi
       
       - name: Upload Lighthouse Reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report-${{ matrix.page.name }}
           path: .lighthouseci/
@@ -391,7 +391,7 @@ jobs:
           fi
       
       - name: Upload Load Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: load-test-results
           path: load-test-results.json
@@ -516,7 +516,7 @@ jobs:
           fetch-depth: 0
       
       - name: Download Test Results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: load-test-results
       
@@ -596,7 +596,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Download All Results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
       
       - name: Generate Performance Report
         run: |
@@ -694,7 +694,7 @@ jobs:
           echo "📋 Performance report generated successfully!"
       
       - name: Upload Performance Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: performance-report
           path: performance-report.md
@@ -739,7 +739,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Download Load Test Results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: load-test-results
       
