@@ -33,6 +33,12 @@ env:
   HEALTH_CHECK_RETRIES: 10
   HEALTH_CHECK_INTERVAL: 30
 
+permissions:
+  contents: read
+  deployments: write
+  statuses: write
+  pull-requests: write
+
 concurrency:
   group: deploy-${{ github.event.inputs.environment || 'production' }}
   cancel-in-progress: false

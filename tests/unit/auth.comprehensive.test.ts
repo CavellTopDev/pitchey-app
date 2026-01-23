@@ -101,7 +101,7 @@ class MockAuthService implements AuthService {
       return { success: true, user: safeUser };
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -173,7 +173,7 @@ class MockAuthService implements AuthService {
       return { success: true, token, user: safeUser };
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -206,7 +206,7 @@ class MockAuthService implements AuthService {
       return { valid: true, user: safeUser };
       
     } catch (error) {
-      return { valid: false, error: error.message };
+      return { valid: false, error: (error as Error).message };
     }
   }
 
@@ -236,7 +236,7 @@ class MockAuthService implements AuthService {
       return { success: true, newToken };
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -277,7 +277,7 @@ class MockAuthService implements AuthService {
       return { success: true };
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -299,7 +299,7 @@ class MockAuthService implements AuthService {
       return { success: true, resetToken };
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -336,7 +336,7 @@ class MockAuthService implements AuthService {
       return { success: true };
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -357,7 +357,7 @@ class MockAuthService implements AuthService {
       return { success: true, secret, qrCode };
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 
@@ -383,7 +383,7 @@ class MockAuthService implements AuthService {
       }
       
     } catch (error) {
-      return { success: false, error: error.message };
+      return { success: false, error: (error as Error).message };
     }
   }
 }
