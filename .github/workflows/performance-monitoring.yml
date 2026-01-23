@@ -1,4 +1,4 @@
-name: Performance Monitoring & Testing
+name: Performance Monitoring Pipeline
 
 on:
   schedule:
