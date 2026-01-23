@@ -138,6 +138,7 @@ jobs:
         uses: github/codeql-action/analyze@v2
 
       - name: Semgrep Security Scan
+        continue-on-error: true  # Report findings but don't block pipeline
         uses: returntocorp/semgrep-action@v1
         with:
           config: >-

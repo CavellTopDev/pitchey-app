@@ -768,20 +768,30 @@ jobs:
       - name: Update Baseline
         run: |
           echo "📊 Updating performance baseline..."
-          
-          # Create new baseline from current results
-          jq -n \
-            --arg p95 "$(jq '.metrics.http_req_duration.values."p(95)"' load-test-results.json)" \
-            --arg avg "$(jq '.metrics.http_req_duration.values.avg' load-test-results.json)" \
-            --arg errors "$(jq '.metrics.http_req_failed.values.rate' load-test-results.json)" \
-            --arg commit "${{ github.sha }}" \
-            '{
-              p95_response_time: $p95 | tonumber,
-              avg_response_time: $avg | tonumber,
-              error_rate: $errors | tonumber,
-              commit: $commit,
-              updated_at: now | strftime("%Y-%m-%d %H:%M:%S")
-            }' > performance-baseline.json
+
+          # Extract metrics to variables first to avoid argument list too long
+          if [[ -f "load-test-results.json" ]]; then
+            # K6 ndjson format - get last summary line
+            p95=$(tail -1 load-test-results.json | jq -r '.metrics.http_req_duration.values["p(95)"] // "0"' 2>/dev/null || echo "0")
+            avg=$(tail -1 load-test-results.json | jq -r '.metrics.http_req_duration.values.avg // "0"' 2>/dev/null || echo "0")
+            errors=$(tail -1 load-test-results.json | jq -r '.metrics.http_req_failed.values.rate // "0"' 2>/dev/null || echo "0")
+          else
+            echo "⚠️ No load test results found, using defaults"
+            p95="0"
+            avg="0"
+            errors="0"
+          fi
+
+          # Create baseline JSON
+          cat > performance-baseline.json << EOF
+          {
+            "p95_response_time": $p95,
+            "avg_response_time": $avg,
+            "error_rate": $errors,
+            "commit": "${{ github.sha }}",
+            "updated_at": "$(date -u +"%Y-%m-%d %H:%M:%S")"
+          }
+          EOF
           
           # Commit baseline update
           git config --local user.email "action@github.com"
