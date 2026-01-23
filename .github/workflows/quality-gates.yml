@@ -726,15 +726,15 @@ jobs:
           echo "  Dependencies Gate: $deps_status"
           echo "  Bundle Size Gate: $bundle_status"
           
-          # Count passed gates
+          # Count passed gates (use || true to prevent exit on 0++ which returns 1)
           passed_gates=0
           total_gates=5
-          
-          [[ "$coverage_status" == "passed" ]] && ((passed_gates++))
-          [[ "$security_status" == "passed" ]] && ((passed_gates++))
-          [[ "$quality_status" == "passed" ]] && ((passed_gates++))
-          [[ "$deps_status" == "passed" ]] && ((passed_gates++))
-          [[ "$bundle_status" == "passed" ]] && ((passed_gates++))
+
+          [[ "$coverage_status" == "passed" ]] && ((passed_gates++)) || true
+          [[ "$security_status" == "passed" ]] && ((passed_gates++)) || true
+          [[ "$quality_status" == "passed" ]] && ((passed_gates++)) || true
+          [[ "$deps_status" == "passed" ]] && ((passed_gates++)) || true
+          [[ "$bundle_status" == "passed" ]] && ((passed_gates++)) || true
           
           echo ""
           echo "📊 Summary: $passed_gates/$total_gates quality gates passed"
