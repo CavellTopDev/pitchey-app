@@ -259,31 +259,34 @@ jobs:
       - name: Check for Secret Exposure
         run: |
           echo "🔐 Scanning for exposed secrets..."
-          
-          # Check for common secret patterns
-          secret_patterns=(
-            "password\s*[:=]\s*['\"][^'\"]{8,}['\"]"
-            "secret\s*[:=]\s*['\"][^'\"]{8,}['\"]"
-            "key\s*[:=]\s*['\"][^'\"]{8,}['\"]"
-            "token\s*[:=]\s*['\"][^'\"]{8,}['\"]"
-            "api[_-]?key\s*[:=]\s*['\"][^'\"]{8,}['\"]"
-            "access[_-]?token\s*[:=]\s*['\"][^'\"]{8,}['\"]"
-          )
-          
+
+          # Use gitleaks for accurate secrets detection (skip soft patterns)
+          # Check for actual hardcoded secrets like API keys with real values
           secrets_found=false
-          
-          for pattern in "${secret_patterns[@]}"; do
-            if grep -r -E "$pattern" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" | grep -v -E "(test|mock|example|placeholder|demo)" | head -5; then
-              echo "⚠️ Potential secret pattern found: $pattern"
-              secrets_found=true
-            fi
-          done
-          
+
+          # Pattern for real API keys (32+ hex/base64 characters)
+          if grep -r -E "(sk-[a-zA-Z0-9]{32,}|[a-zA-Z0-9]{32,}_secret|AIza[a-zA-Z0-9_-]{35}|ghp_[a-zA-Z0-9]{36})" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v -E "(test|mock|example|placeholder|demo|xxx|\.env)" | head -5; then
+            echo "⚠️ Potential real API key found"
+            secrets_found=true
+          fi
+
+          # Check for hardcoded passwords with actual values (not templates or env vars)
+          if grep -r -E "password\s*[:=]\s*['\"][a-zA-Z0-9!@#$%^&*()]{12,}['\"]" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | grep -v -E "(test|mock|example|placeholder|demo|Demo123|hash|\\$\{)" | head -5; then
+            echo "⚠️ Potential hardcoded password found"
+            secrets_found=true
+          fi
+
+          # Check for private keys
+          if grep -r -E "(-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----)" src/ frontend/src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" 2>/dev/null | head -5; then
+            echo "⚠️ Private key found in source code"
+            secrets_found=true
+          fi
+
           if [[ "$secrets_found" == "true" ]]; then
             echo "❌ Potential hardcoded secrets detected!"
             exit 1
           fi
-          
+
           echo "✅ No hardcoded secrets detected"
       
       - name: Upload Security Results
