@@ -5,8 +5,7 @@
 
 import { assertEquals, assertExists, assert } from "jsr:@std/assert";
 import { TestFactory } from "../framework/test-factory.ts";
-import { createMockManager, DatabaseMock } from "../framework/advanced-mocking.ts";
-import { testDb, withDatabase, withTransaction } from "../framework/test-database.ts";
+import { testDb, withDatabase } from "../framework/test-database.ts";
 
 // Mock JWT utilities for testing
 const mockJWT = {
@@ -394,8 +393,7 @@ Deno.test({
   name: "Authentication Service - Comprehensive Unit Tests",
   async fn() {
     const authService = new MockAuthService();
-    const mockManager = createMockManager();
-    
+
     try {
       console.log("🧪 Testing Authentication Service...");
 
@@ -753,9 +751,9 @@ Deno.test({
       });
 
       console.log("✅ All authentication tests passed!");
-      
-    } finally {
-      mockManager.restoreAll();
+    } catch (error: unknown) {
+      console.error("Test suite error:", error);
+      throw error;
     }
   }
 });
