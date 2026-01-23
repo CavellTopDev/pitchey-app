@@ -90,13 +90,18 @@ jobs:
             
             core.setOutput('deployment_id', deployment.data.id);
             return deployment.data.id;
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
       - name: Install dependencies
         run: |
           npm ci
