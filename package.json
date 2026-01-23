@@ -73,7 +73,7 @@
     "@cloudflare/workers-types": "^4.0.0",
     "@faker-js/faker": "^8.4.1",
     "@types/node": "^20.0.0",
-    "esbuild": "^0.19.0",
+    "esbuild": "^0.27.2",
     "form-data": "^4.0.5",
     "wrangler": "^4.51.0"
   }
