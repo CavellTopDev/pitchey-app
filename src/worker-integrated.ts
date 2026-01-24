@@ -760,7 +760,9 @@ class RouteRegistry {
   private async validateAuth(request: Request): Promise<{ valid: boolean; user?: any }> {
     // First try Better Auth session validation via cookie
     const cookieHeader = request.headers.get('Cookie');
-    const sessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
+    // Import the centralized session parser to handle both cookie names
+    const { parseSessionCookie } = await import('./config/session.config');
+    const sessionId = parseSessionCookie(cookieHeader);
 
     if (sessionId && this.db) {
       try {
@@ -1325,7 +1327,8 @@ class RouteRegistry {
       // This prevents auth mixing when switching portals
       try {
         const cookieHeader = request.headers.get('Cookie');
-        const existingSessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
+        const { parseSessionCookie } = await import('./config/session.config');
+        const existingSessionId = parseSessionCookie(cookieHeader);
 
         // Delete old sessions from database for this user
         await this.db.query(`DELETE FROM sessions WHERE user_id = $1`, [result.id]);
@@ -1388,7 +1391,7 @@ class RouteRegistry {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`,
+          'Set-Cookie': (await import('./config/session.config')).createSessionCookie(sessionId),
           ...getCorsHeaders(origin)
         }
       });
@@ -1438,7 +1441,8 @@ class RouteRegistry {
 
     // Get the session ID from cookie to invalidate it properly
     const cookieHeader = request.headers.get('Cookie');
-    const sessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
+    const { parseSessionCookie } = await import('./config/session.config');
+    const sessionId = parseSessionCookie(cookieHeader);
 
     if (sessionId && this.db) {
       try {
@@ -3094,7 +3098,7 @@ class RouteRegistry {
             status: 200,
             headers: {
               'Content-Type': 'application/json',
-              'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`,
+              'Set-Cookie': (await import('./config/session.config')).createSessionCookie(sessionId),
               ...corsHeaders
             }
           }
@@ -3194,7 +3198,8 @@ class RouteRegistry {
         try {
           // Get the incoming session cookie to check if user is already logged in
           const cookieHeader = request.headers.get('Cookie');
-          const existingSessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
+          const { parseSessionCookie } = await import('./config/session.config');
+          const existingSessionId = parseSessionCookie(cookieHeader);
 
           // Delete old sessions from database
           await this.db!.query(
@@ -3258,7 +3263,7 @@ class RouteRegistry {
             status: 200,
             headers: {
               'Content-Type': 'application/json',
-              'Set-Cookie': `better-auth-session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=604800`,
+              'Set-Cookie': (await import('./config/session.config')).createSessionCookie(sessionId),
               ...corsHeaders
             }
           }
@@ -3746,9 +3751,8 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Get the session ID from cookies to use as WebSocket token
       const cookieHeader = request.headers.get('Cookie');
-      const cookies = cookieHeader?.split(';').map(c => c.trim()) || [];
-      const sessionCookie = cookies.find(c => c.startsWith('better-auth-session='));
-      const sessionId = sessionCookie?.split('=')[1];
+      const { parseSessionCookie } = await import('./config/session.config');
+      const sessionId = parseSessionCookie(cookieHeader);
 
       if (!sessionId) {
         return createAuthErrorResponse();
@@ -3810,7 +3814,8 @@ pitchey_analytics_datapoints_per_minute 1250
     if (this.betterAuth && this.betterAuth.dbAdapter) {
       try {
         const cookieHeader = request.headers.get('Cookie');
-        const sessionId = cookieHeader?.match(/better-auth-session=([^;]+)/)?.[1];
+        const { parseSessionCookie } = await import('./config/session.config');
+        const sessionId = parseSessionCookie(cookieHeader);
 
         if (sessionId) {
           // Check KV cache first (check all possible KV bindings)
@@ -4152,10 +4157,9 @@ pitchey_analytics_datapoints_per_minute 1250
     let userId: number | null = null;
 
     // Check Better Auth session cookie first
-    const cookies = request.headers.get('Cookie') || '';
-    const sessionCookie = cookies.split(';')
-      .find(c => c.trim().startsWith('better-auth-session='))
-      ?.split('=')[1]?.trim();
+    const cookieHeader = request.headers.get('Cookie');
+    const { parseSessionCookie } = await import('./config/session.config');
+    const sessionCookie = parseSessionCookie(cookieHeader);
 
     if (sessionCookie) {
       // Verify session with Better Auth
@@ -14993,10 +14997,10 @@ const workerHandler = {
 
         // Extract user ID from session if available (for logging)
         try {
-          const cookies = request.headers.get('cookie') || '';
-          const sessionCookie = cookies.split(';')
-            .find(c => c.trim().startsWith('better-auth-session='));
-          if (sessionCookie) {
+          const cookieHeader = request.headers.get('cookie') || '';
+          const { parseSessionCookie } = await import('./config/session.config');
+          const sessionId = parseSessionCookie(cookieHeader);
+          if (sessionId) {
             // This is just for logging - actual auth is handled by Better Auth
             // We don't decode the session here, just mark that a session exists
             userId = 'authenticated-user';
