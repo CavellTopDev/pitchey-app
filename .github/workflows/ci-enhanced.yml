@@ -589,20 +589,21 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const pr_number = context.payload.pull_request.number;
-            
             const needs = ${{ toJSON(needs) }};
-            const results = Object.entries(needs).map(([job, info]) => {
+            const lines = [];
+            for (const [job, info] of Object.entries(needs)) {
               const emoji = info.result === 'success' ? '✅' : '❌';
-              return `${emoji} ${job}: ${info.result}`;
-            }).join('\n');
-            
-            const body = `## 🔍 Quality Gates Report\n\n${results}\n\n${Object.values(needs).every(job => job.result === 'success') ? '✅ **All quality gates passed!** This PR is ready for review.' : '❌ **Some quality gates failed.** Please review and fix the issues above.'}`;
-            
+              lines.push(emoji + ' ' + job + ': ' + info.result);
+            }
+            const results = lines.join('\n');
+            const allPassed = Object.values(needs).every(function(job) { return job.result === 'success'; });
+            const status = allPassed ? '✅ **All quality gates passed!** This PR is ready for review.' : '❌ **Some quality gates failed.** Please review and fix the issues above.';
+            const body = '## 🔍 Quality Gates Report\n\n' + results + '\n\n' + status;
             await github.rest.issues.createComment({
-              owner,
-              repo,
+              owner: owner,
+              repo: repo,
               issue_number: pr_number,
-              body
+              body: body
             });
 
   # Notify status

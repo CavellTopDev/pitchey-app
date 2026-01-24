@@ -114,7 +114,7 @@ export default function AnalyticsDashboard() {
         } : {})
       });
 
-      const response = await apiClient.get(`/api/analytics?${params}`);
+      const response = await apiClient.get(`/api/analytics/dashboard?${params}`);
       
       if (response.data.success) {
         setAnalyticsData(response.data.data);
