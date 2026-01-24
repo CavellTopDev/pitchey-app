@@ -207,16 +207,30 @@ export default defineConfig({
     {
       name: 'coverage-validation',
       testMatch: /test-coverage\.spec\.ts/,
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1400, height: 900 }
       },
       // dependencies: [
       //   'critical-user-journeys',
-      //   'portal-functionality', 
+      //   'portal-functionality',
       //   'api-integration',
       //   'cross-platform'
       // ], // Temporarily disabled
+    },
+
+    // Production Tests (no local servers needed)
+    {
+      name: 'production',
+      testMatch: /pitch-upload-with-media\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: 'https://pitchey-5o8.pages.dev',
+        viewport: { width: 1400, height: 900 },
+        video: 'on',
+        trace: 'on'
+      },
+      timeout: 120000,
     },
   ],
   webServer: [

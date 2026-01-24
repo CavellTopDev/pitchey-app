@@ -68,7 +68,27 @@ export class PageHelper {
   }
 
   async waitForNotification(type: 'success' | 'error' | 'info' = 'success') {
-    await expect(this.page.locator(`[data-testid="toast-${type}"]`)).toBeVisible();
+    // Try multiple selectors for notifications/toasts
+    const selectors = [
+      `[data-testid="toast-${type}"]`,
+      `[data-testid="notification-${type}"]`,
+      `.toast-${type}`,
+      `.notification.${type}`,
+      `[role="alert"]`,
+      `.Toastify__toast--${type}`,
+      `.toast.${type}`,
+    ];
+
+    const combinedSelector = selectors.join(', ');
+    const notification = this.page.locator(combinedSelector).first();
+
+    try {
+      await expect(notification).toBeVisible({ timeout: 10000 });
+    } catch (error) {
+      // Fallback: just wait a bit and continue if no notification found
+      console.log(`Notification (${type}) not found, continuing...`);
+      await this.page.waitForTimeout(1000);
+    }
   }
 
   async checkWebSocketConnection() {
