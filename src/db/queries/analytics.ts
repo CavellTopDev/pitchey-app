@@ -53,6 +53,470 @@ export interface ViewEvent {
   created_at: Date;
 }
 
+// Time-series data types for charts
+export interface ViewTimeSeriesPoint {
+  date: string;
+  views: number;
+}
+
+export interface EngagementTimeSeriesPoint {
+  date: string;
+  engagement_rate: number;
+  likes: number;
+  shares: number;
+  saves: number;
+}
+
+export interface FundingTimeSeriesPoint {
+  date: string;
+  amount: number;
+  cumulative: number;
+}
+
+export interface AudienceDemographic {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+export interface TopPerformingPitch {
+  pitch_id: string;
+  title: string;
+  views: number;
+  engagement_rate: number;
+  funding: number;
+}
+
+// ============================================
+// TIME-SERIES ANALYTICS QUERIES
+// ============================================
+
+/**
+ * Get pitch views over time for charts
+ */
+export async function getPitchViewsTimeSeries(
+  sql: SqlQuery,
+  pitchId: string,
+  days: number = 30
+): Promise<ViewTimeSeriesPoint[]> {
+  try {
+    // Each row in pitch_views is a single view, so COUNT(*) gives us views per day
+    const result = await sql`
+      WITH date_series AS (
+        SELECT generate_series(
+          DATE_TRUNC('day', NOW() - INTERVAL '1 day' * ${days}),
+          DATE_TRUNC('day', NOW()),
+          '1 day'::interval
+        )::date AS date
+      )
+      SELECT
+        ds.date::text,
+        COALESCE(COUNT(pv.id), 0)::int AS views
+      FROM date_series ds
+      LEFT JOIN pitch_views pv
+        ON DATE(pv.viewed_at) = ds.date
+        AND pv.pitch_id::text = ${pitchId}
+      GROUP BY ds.date
+      ORDER BY ds.date ASC
+    `;
+
+    return extractMany<ViewTimeSeriesPoint>(result);
+  } catch (error) {
+    console.error('[Analytics] getPitchViewsTimeSeries error:', error);
+    return [];
+  }
+}
+
+/**
+ * Get user's total views over time across all their pitches
+ */
+export async function getUserViewsTimeSeries(
+  sql: SqlQuery,
+  userId: string,
+  days: number = 30
+): Promise<ViewTimeSeriesPoint[]> {
+  try {
+    const result = await sql`
+      WITH date_series AS (
+        SELECT generate_series(
+          DATE_TRUNC('day', NOW() - INTERVAL '1 day' * ${days}),
+          DATE_TRUNC('day', NOW()),
+          '1 day'::interval
+        )::date AS date
+      ),
+      user_pitches AS (
+        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+      )
+      SELECT
+        ds.date::text,
+        COALESCE(COUNT(pv.id), 0)::int AS views
+      FROM date_series ds
+      LEFT JOIN pitch_views pv
+        ON DATE(pv.viewed_at) = ds.date
+        AND pv.pitch_id IN (SELECT id FROM user_pitches)
+      GROUP BY ds.date
+      ORDER BY ds.date ASC
+    `;
+
+    return extractMany<ViewTimeSeriesPoint>(result);
+  } catch (error) {
+    console.error('[Analytics] getUserViewsTimeSeries error:', error);
+    return [];
+  }
+}
+
+/**
+ * Get engagement rate over time (likes, saves, shares per view)
+ */
+export async function getEngagementTimeSeries(
+  sql: SqlQuery,
+  userId: string,
+  days: number = 30
+): Promise<EngagementTimeSeriesPoint[]> {
+  try {
+    const result = await sql`
+      WITH date_series AS (
+        SELECT generate_series(
+          DATE_TRUNC('day', NOW() - INTERVAL '1 day' * ${days}),
+          DATE_TRUNC('day', NOW()),
+          '1 day'::interval
+        )::date AS date
+      ),
+      user_pitches AS (
+        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+      ),
+      daily_views AS (
+        SELECT DATE(viewed_at) as date, COUNT(*) as views
+        FROM pitch_views
+        WHERE pitch_id IN (SELECT id FROM user_pitches)
+        GROUP BY DATE(viewed_at)
+      ),
+      daily_likes AS (
+        SELECT DATE(created_at) as date, COUNT(*) as likes
+        FROM pitch_likes
+        WHERE pitch_id IN (SELECT id FROM user_pitches)
+        GROUP BY DATE(created_at)
+      ),
+      daily_saves AS (
+        SELECT DATE(created_at) as date, COUNT(*) as saves
+        FROM saved_pitches
+        WHERE pitch_id IN (SELECT id FROM user_pitches)
+        GROUP BY DATE(created_at)
+      )
+      SELECT
+        ds.date::text,
+        CASE
+          WHEN COALESCE(dv.views, 0) > 0
+          THEN ROUND((COALESCE(dl.likes, 0) + COALESCE(dsv.saves, 0))::numeric / dv.views * 100, 2)
+          ELSE 0
+        END as engagement_rate,
+        COALESCE(dl.likes, 0)::int as likes,
+        0::int as shares,
+        COALESCE(dsv.saves, 0)::int as saves
+      FROM date_series ds
+      LEFT JOIN daily_views dv ON ds.date = dv.date
+      LEFT JOIN daily_likes dl ON ds.date = dl.date
+      LEFT JOIN daily_saves dsv ON ds.date = dsv.date
+      ORDER BY ds.date ASC
+    `;
+
+    return extractMany<EngagementTimeSeriesPoint>(result);
+  } catch (error) {
+    console.error('[Analytics] getEngagementTimeSeries error:', error);
+    return [];
+  }
+}
+
+/**
+ * Get cumulative funding progress over time
+ */
+export async function getFundingTimeSeries(
+  sql: SqlQuery,
+  userId: string,
+  days: number = 365
+): Promise<FundingTimeSeriesPoint[]> {
+  try {
+    const result = await sql`
+      WITH date_series AS (
+        SELECT generate_series(
+          DATE_TRUNC('day', NOW() - INTERVAL '1 day' * ${days}),
+          DATE_TRUNC('day', NOW()),
+          '1 day'::interval
+        )::date AS date
+      ),
+      user_pitches AS (
+        SELECT id FROM pitches WHERE creator_id::text = ${userId}
+      ),
+      daily_funding AS (
+        SELECT
+          DATE(created_at) as date,
+          SUM(amount) as amount
+        FROM investments
+        WHERE pitch_id IN (SELECT id FROM user_pitches)
+          AND status IN ('committed', 'funded')
+        GROUP BY DATE(created_at)
+      )
+      SELECT
+        ds.date::text,
+        COALESCE(df.amount, 0)::numeric as amount,
+        SUM(COALESCE(df.amount, 0)) OVER (ORDER BY ds.date)::numeric as cumulative
+      FROM date_series ds
+      LEFT JOIN daily_funding df ON ds.date = df.date
+      ORDER BY ds.date ASC
+    `;
+
+    return extractMany<FundingTimeSeriesPoint>(result);
+  } catch (error) {
+    console.error('[Analytics] getFundingTimeSeries error:', error);
+    return [];
+  }
+}
+
+/**
+ * Get audience demographics by user type
+ */
+export async function getAudienceDemographics(
+  sql: SqlQuery,
+  userId: string
+): Promise<{ userTypes: AudienceDemographic[]; categories: AudienceDemographic[] }> {
+  try {
+    // Get viewer user types
+    const userTypeResult = await sql`
+      WITH user_pitches AS (
+        SELECT id FROM pitches WHERE creator_id::text = ${userId}
+      ),
+      viewer_types AS (
+        SELECT
+          COALESCE(u.user_type, 'anonymous') as user_type,
+          COUNT(*) as count
+        FROM pitch_views pv
+        LEFT JOIN users u ON pv.user_id = u.id
+        WHERE pv.pitch_id IN (SELECT id FROM user_pitches)
+        GROUP BY COALESCE(u.user_type, 'anonymous')
+      ),
+      total AS (
+        SELECT SUM(count) as total FROM viewer_types
+      )
+      SELECT
+        user_type as category,
+        count::int,
+        CASE WHEN t.total > 0
+          THEN ROUND((count::numeric / t.total) * 100, 1)
+          ELSE 0
+        END as percentage
+      FROM viewer_types, total t
+      ORDER BY count DESC
+    `;
+
+    // Get views by pitch category/genre
+    const categoryResult = await sql`
+      WITH user_pitches AS (
+        SELECT id, genre FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+      ),
+      category_views AS (
+        SELECT
+          COALESCE(up.genre, 'Uncategorized') as category,
+          COUNT(pv.id) as count
+        FROM pitch_views pv
+        JOIN user_pitches up ON pv.pitch_id = up.id
+        GROUP BY COALESCE(up.genre, 'Uncategorized')
+      ),
+      total AS (
+        SELECT SUM(count) as total FROM category_views
+      )
+      SELECT
+        category,
+        count::int,
+        CASE WHEN t.total > 0
+          THEN ROUND((count::numeric / t.total) * 100, 1)
+          ELSE 0
+        END as percentage
+      FROM category_views, total t
+      ORDER BY count DESC
+    `;
+
+    return {
+      userTypes: extractMany<AudienceDemographic>(userTypeResult),
+      categories: extractMany<AudienceDemographic>(categoryResult)
+    };
+  } catch (error) {
+    console.error('[Analytics] getAudienceDemographics error:', error);
+    return { userTypes: [], categories: [] };
+  }
+}
+
+/**
+ * Get top performing pitches for a user
+ */
+export async function getTopPerformingPitchesForUser(
+  sql: SqlQuery,
+  userId: string,
+  limit: number = 5
+): Promise<TopPerformingPitch[]> {
+  try {
+    const result = await sql`
+      SELECT
+        p.id::text as pitch_id,
+        p.title,
+        COALESCE(p.view_count, 0)::int as views,
+        CASE
+          WHEN COALESCE(p.view_count, 0) > 0
+          THEN ROUND(
+            (COALESCE(p.like_count, 0) + COALESCE(p.save_count, 0))::numeric
+            / p.view_count * 100, 1
+          )
+          ELSE 0
+        END as engagement_rate,
+        COALESCE(
+          (SELECT SUM(amount) FROM investments
+           WHERE pitch_id = p.id AND status IN ('committed', 'funded')),
+          0
+        )::numeric as funding
+      FROM pitches p
+      WHERE p.creator_id::text = ${userId}
+        AND p.status = 'published'
+      ORDER BY views DESC, engagement_rate DESC
+      LIMIT ${limit}
+    `;
+
+    return extractMany<TopPerformingPitch>(result);
+  } catch (error) {
+    console.error('[Analytics] getTopPerformingPitchesForUser error:', error);
+    return [];
+  }
+}
+
+/**
+ * Get monthly performance overview
+ */
+export async function getMonthlyPerformance(
+  sql: SqlQuery,
+  userId: string,
+  months: number = 12
+): Promise<Array<{ month: string; pitches: number; views: number; engagement: number }>> {
+  try {
+    const result = await sql`
+      WITH month_series AS (
+        SELECT generate_series(
+          DATE_TRUNC('month', NOW() - INTERVAL '1 month' * ${months}),
+          DATE_TRUNC('month', NOW()),
+          '1 month'::interval
+        )::date AS month
+      ),
+      monthly_pitches AS (
+        SELECT
+          DATE_TRUNC('month', created_at)::date as month,
+          COUNT(*) as pitches
+        FROM pitches
+        WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+        GROUP BY DATE_TRUNC('month', created_at)
+      ),
+      user_pitch_ids AS (
+        SELECT id FROM pitches WHERE creator_id::text = ${userId} OR created_by::text = ${userId}
+      ),
+      monthly_views AS (
+        SELECT
+          DATE_TRUNC('month', viewed_at)::date as month,
+          COUNT(*) as views
+        FROM pitch_views
+        WHERE pitch_id IN (SELECT id FROM user_pitch_ids)
+        GROUP BY DATE_TRUNC('month', viewed_at)
+      ),
+      monthly_likes AS (
+        SELECT
+          DATE_TRUNC('month', created_at)::date as month,
+          COUNT(*) as likes
+        FROM pitch_likes
+        WHERE pitch_id IN (SELECT id FROM user_pitch_ids)
+        GROUP BY DATE_TRUNC('month', created_at)
+      )
+      SELECT
+        TO_CHAR(ms.month, 'Mon') as month,
+        COALESCE(mp.pitches, 0)::int as pitches,
+        COALESCE(mv.views, 0)::int as views,
+        CASE
+          WHEN COALESCE(mv.views, 0) > 0
+          THEN ROUND(COALESCE(ml.likes, 0)::numeric / mv.views * 100, 1)
+          ELSE 0
+        END as engagement
+      FROM month_series ms
+      LEFT JOIN monthly_pitches mp ON ms.month = mp.month
+      LEFT JOIN monthly_views mv ON ms.month = mv.month
+      LEFT JOIN monthly_likes ml ON ms.month = ml.month
+      ORDER BY ms.month ASC
+    `;
+
+    return extractMany<any>(result);
+  } catch (error) {
+    console.error('[Analytics] getMonthlyPerformance error:', error);
+    return [];
+  }
+}
+
+/**
+ * Get average rating for user's pitches
+ */
+export async function getUserAverageRating(
+  sql: SqlQuery,
+  userId: string
+): Promise<number> {
+  try {
+    const result = await sql`
+      SELECT COALESCE(AVG(rating), 0)::numeric as avg_rating
+      FROM pitch_ratings pr
+      JOIN pitches p ON pr.pitch_id = p.id
+      WHERE p.creator_id::text = ${userId}
+    `;
+
+    const data = extractFirst<{ avg_rating: number }>(result);
+    return data?.avg_rating || 0;
+  } catch (error) {
+    console.error('[Analytics] getUserAverageRating error:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get response rate (messages responded to / total messages received)
+ */
+export async function getUserResponseRate(
+  sql: SqlQuery,
+  userId: string
+): Promise<number> {
+  try {
+    const result = await sql`
+      WITH received AS (
+        SELECT COUNT(*) as total
+        FROM messages
+        WHERE recipient_id::text = ${userId}
+      ),
+      responded AS (
+        SELECT COUNT(DISTINCT m1.sender_id) as total
+        FROM messages m1
+        WHERE m1.recipient_id::text = ${userId}
+          AND EXISTS (
+            SELECT 1 FROM messages m2
+            WHERE m2.sender_id::text = ${userId}
+              AND m2.recipient_id = m1.sender_id
+              AND m2.sent_at > m1.sent_at
+          )
+      )
+      SELECT
+        CASE WHEN r.total > 0
+          THEN ROUND(res.total::numeric / r.total * 100, 1)
+          ELSE 0
+        END as response_rate
+      FROM received r, responded res
+    `;
+
+    const data = extractFirst<{ response_rate: number }>(result);
+    return data?.response_rate || 0;
+  } catch (error) {
+    console.error('[Analytics] getUserResponseRate error:', error);
+    return 0;
+  }
+}
+
 // View tracking
 export async function trackPitchView(
   sql: SqlQuery,

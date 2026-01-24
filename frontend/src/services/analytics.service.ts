@@ -10,7 +10,8 @@ import {
   safeTimestamp
 } from '../utils/defensive';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 // Types for analytics data
 export interface TimeRange {
@@ -206,17 +207,18 @@ export class AnalyticsService {
       if (timeRange?.end) params.append('end', timeRange.end);
       if (timeRange?.preset) params.append('preset', timeRange.preset);
 
-      const response = await apiClient.get<{ success: boolean; data: { analytics: any } }>(
+      const response = await apiClient.get<{ analytics: any }>(
         `/api/analytics/pitch/${pitchId}?${params}`
       );
 
-      if (!response.success || !response.data?.data?.analytics) {
+      // api-client already unwraps { success, data } to just return data
+      if (!response.success || !response.data?.analytics) {
         console.warn('Pitch analytics not available:', response.error?.message);
         return this.getDefaultPitchAnalytics(pitchId);
       }
 
       // Transform the API response with defensive parsing
-      const apiAnalytics = safeAccess(response, 'data.data.analytics', {});
+      const apiAnalytics = safeAccess(response, 'data.analytics', {});
       return {
         pitchId,
         title: safeString(safeAccess(apiAnalytics, 'title', 'Untitled Pitch')),
@@ -257,17 +259,19 @@ export class AnalyticsService {
       if (timeRange?.preset) params.append('preset', timeRange.preset);
 
       const endpoint = userId ? `/api/analytics/user/${userId}` : '/api/analytics/user';
-      const response = await apiClient.get<{ success: boolean; data: { analytics: any } }>(
+      const response = await apiClient.get<{ analytics: any }>(
         `${endpoint}?${params}`
       );
 
-      if (!response.success || !response.data?.data?.analytics) {
+      // api-client already unwraps { success, data } to just return data
+      // So response.data is { analytics: {...} }
+      if (!response.success || !response.data?.analytics) {
         console.warn('User analytics not available:', response.error?.message);
         return this.getDefaultUserAnalytics(userId || 1);
       }
 
       // Transform the API response with defensive parsing
-      const apiAnalytics = safeAccess(response, 'data.data.analytics', {});
+      const apiAnalytics = safeAccess(response, 'data.analytics', {});
       
       return {
         userId: userId || 1,
@@ -375,15 +379,9 @@ export class AnalyticsService {
         return { activities: [], total: 0 };
       }
 
-      // Handle both nested and flat response structures with safe access
-      const activities = safeArray(
-        safeAccess(response, 'data.data.activities', null) ||
-        safeAccess(response, 'data.activities', [])
-      );
-      const total = safeNumber(
-        safeAccess(response, 'data.data.total', null) ||
-        safeAccess(response, 'data.total', 0)
-      );
+      // api-client already unwraps { success, data }, so response.data is the payload
+      const activities = safeArray(safeAccess(response, 'data.activities', []));
+      const total = safeNumber(safeAccess(response, 'data.total', 0));
 
       return { activities, total };
     } catch (error) {
@@ -497,11 +495,8 @@ export class AnalyticsService {
         return [];
       }
 
-      // Handle both nested and flat response structures with safe access
-      return safeArray(
-        safeAccess(response, 'data.data.pitches', null) ||
-        safeAccess(response, 'data.pitches', [])
-      );
+      // api-client already unwraps { success, data }
+      return safeArray(safeAccess(response, 'data.pitches', []));
     } catch (error) {
       console.error('Failed to fetch trending pitches:', error);
       return [];

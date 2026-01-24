@@ -3,7 +3,8 @@ import { apiClient } from '../lib/api-client';
 import type { Pitch } from '../types/api';
 import type { User } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 // Types for creator dashboard data
 export interface CreatorStats {

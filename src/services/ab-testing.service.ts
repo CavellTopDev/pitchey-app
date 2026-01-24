@@ -1,9 +1,9 @@
 // Comprehensive A/B Testing Service
 // Provides experiment management, user assignment, event tracking, and statistical analysis
 
-import { getPostgresClient } from '../db/database.js';
-import { CacheService } from './cache.service.js';
-import { WebSocketService } from './enhanced-realtime.service.js';
+import { db } from '../db/client.ts';
+import { CacheService } from './cache.service.ts';
+import { WebSocketService } from './websocket.service.ts';
 
 // Types and Interfaces
 export interface Experiment {
@@ -167,10 +167,9 @@ class ABTestingService {
 
   // Experiment Management
   async createExperiment(request: CreateExperimentRequest, createdBy: number): Promise<Experiment> {
-    const client = await getPostgresClient();
     
     try {
-      await client.query('BEGIN');
+      await db.execute('BEGIN');
 
       // Validate traffic allocations sum to 1.0
       const totalAllocation = request.variants.reduce((sum, v) => sum + v.trafficAllocation, 0);
@@ -185,7 +184,7 @@ class ABTestingService {
       }
 
       // Create experiment
-      const experimentResult = await client.query(`
+      const experimentResult = await db.execute(`
         INSERT INTO experiments (
           name, description, hypothesis, primary_metric, secondary_metrics,
           traffic_allocation, targeting_rules, user_segments, minimum_sample_size,
@@ -214,7 +213,7 @@ class ABTestingService {
       // Create variants
       const variants = await Promise.all(
         request.variants.map(async (variant) => {
-          const result = await client.query(`
+          const result = await db.execute(`
             INSERT INTO experiment_variants (
               experiment_id, variant_id, name, description, config,
               traffic_allocation, is_control
@@ -233,7 +232,7 @@ class ABTestingService {
         })
       );
 
-      await client.query('COMMIT');
+      await db.execute('COMMIT');
 
       // Cache the experiment
       await this.cache.set(`experiment:${experiment.id}`, experiment, 300);
@@ -247,15 +246,15 @@ class ABTestingService {
 
       return this.formatExperiment(experiment);
     } catch (error) {
-      await client.query('ROLLBACK');
+      await db.execute('ROLLBACK');
       throw error;
     } finally {
-      client.release();
+      
     }
   }
 
   async startExperiment(experimentId: number, userId: number): Promise<void> {
-    const client = await getPostgresClient();
+    
 
     try {
       // Validate experiment can be started
@@ -275,7 +274,7 @@ class ABTestingService {
       }
 
       // Start experiment
-      await client.query(`
+      await db.execute(`
         UPDATE experiments 
         SET status = 'active', started_at = NOW(), updated_at = NOW()
         WHERE id = $1
@@ -292,15 +291,15 @@ class ABTestingService {
       });
 
     } finally {
-      client.release();
+      
     }
   }
 
   async pauseExperiment(experimentId: number, userId: number, reason?: string): Promise<void> {
-    const client = await getPostgresClient();
+    
 
     try {
-      await client.query(`
+      await db.execute(`
         UPDATE experiments 
         SET status = 'paused', paused_at = NOW(), pause_reason = $2, updated_at = NOW()
         WHERE id = $1 AND status = 'active'
@@ -318,15 +317,15 @@ class ABTestingService {
       });
 
     } finally {
-      client.release();
+      
     }
   }
 
   async completeExperiment(experimentId: number, userId: number): Promise<void> {
-    const client = await getPostgresClient();
+    
 
     try {
-      await client.query('BEGIN');
+      await db.execute('BEGIN');
 
       // Calculate final results
       const results = await this.calculateExperimentResults(experimentId);
@@ -349,7 +348,7 @@ class ABTestingService {
       }
 
       // Complete experiment
-      await client.query(`
+      await db.execute(`
         UPDATE experiments 
         SET status = 'completed', completed_at = NOW(), winner_variant_id = $2, updated_at = NOW()
         WHERE id = $1
@@ -358,7 +357,7 @@ class ABTestingService {
       // Create final snapshot
       await this.createExperimentSnapshot(experimentId, 'final', results);
 
-      await client.query('COMMIT');
+      await db.execute('COMMIT');
 
       // Clear cache
       await this.cache.delete(`experiment:${experimentId}`);
@@ -373,10 +372,10 @@ class ABTestingService {
       });
 
     } catch (error) {
-      await client.query('ROLLBACK');
+      await db.execute('ROLLBACK');
       throw error;
     } finally {
-      client.release();
+      
     }
   }
 
@@ -385,7 +384,7 @@ class ABTestingService {
     experimentId: number, 
     userContext: UserContext
   ): Promise<UserAssignment | null> {
-    const client = await getPostgresClient();
+    
 
     try {
       // Get experiment details
@@ -400,7 +399,7 @@ class ABTestingService {
         return null;
       }
 
-      const existingResult = await client.query(`
+      const existingResult = await db.execute(`
         SELECT * FROM user_experiment_assignments
         WHERE experiment_id = $1 AND (
           (user_id = $2 AND $2 IS NOT NULL) OR 
@@ -427,7 +426,7 @@ class ABTestingService {
       const variantId = this.assignToVariant(identifier.toString(), variants);
 
       // Create assignment
-      const assignmentResult = await client.query(`
+      const assignmentResult = await db.execute(`
         INSERT INTO user_experiment_assignments (
           experiment_id, variant_id, user_id, session_id, user_type,
           user_agent, ip_address, custom_properties
@@ -453,7 +452,7 @@ class ABTestingService {
       return assignment;
 
     } finally {
-      client.release();
+      
     }
   }
 
@@ -465,10 +464,10 @@ class ABTestingService {
       return [];
     }
 
-    const client = await getPostgresClient();
+    
 
     try {
-      const result = await client.query(`
+      const result = await db.execute(`
         SELECT uea.*, e.status as experiment_status
         FROM user_experiment_assignments uea
         JOIN experiments e ON uea.experiment_id = e.id
@@ -481,7 +480,7 @@ class ABTestingService {
 
       return result.rows.map(this.formatUserAssignment);
     } finally {
-      client.release();
+      
     }
   }
 
@@ -500,7 +499,7 @@ class ABTestingService {
       elementText?: string;
     }
   ): Promise<void> {
-    const client = await getPostgresClient();
+    
 
     try {
       // Validate experiment is active
@@ -512,7 +511,7 @@ class ABTestingService {
       // Update first exposure time if this is the first event
       const identifier = userContext.userId || userContext.sessionId;
       if (identifier) {
-        await client.query(`
+        await db.execute(`
           UPDATE user_experiment_assignments
           SET first_exposure_at = COALESCE(first_exposure_at, NOW())
           WHERE experiment_id = $1 AND (
@@ -523,7 +522,7 @@ class ABTestingService {
       }
 
       // Track event
-      await client.query(`
+      await db.execute(`
         INSERT INTO experiment_events (
           experiment_id, variant_id, event_type, event_name, event_value,
           user_id, session_id, user_type, user_agent, ip_address,
@@ -562,7 +561,7 @@ class ABTestingService {
       }
 
     } finally {
-      client.release();
+      
     }
   }
 
@@ -574,7 +573,7 @@ class ABTestingService {
       return cached;
     }
 
-    const client = await getPostgresClient();
+    
 
     try {
       const experiment = await this.getExperiment(experimentId);
@@ -644,7 +643,7 @@ class ABTestingService {
       return results;
 
     } finally {
-      client.release();
+      
     }
   }
 
@@ -654,13 +653,13 @@ class ABTestingService {
     userContext: UserContext,
     defaultValue: T
   ): Promise<T> {
-    const client = await getPostgresClient();
+    
 
     try {
       // Check for user-specific override first
       const identifier = userContext.userId || userContext.sessionId;
       if (identifier) {
-        const overrideResult = await client.query(`
+        const overrideResult = await db.execute(`
           SELECT override_value FROM user_feature_flag_overrides
           WHERE flag_key = $1 AND (
             (user_id = $2 AND $2 IS NOT NULL) OR 
@@ -676,7 +675,7 @@ class ABTestingService {
       }
 
       // Get feature flag
-      const flagResult = await client.query(`
+      const flagResult = await db.execute(`
         SELECT * FROM feature_flags WHERE flag_key = $1 AND enabled = true
       `, [flagKey]);
 
@@ -694,7 +693,7 @@ class ABTestingService {
       return flag.default_value;
 
     } finally {
-      client.release();
+      
     }
   }
 
@@ -850,23 +849,23 @@ class ABTestingService {
     const cached = await this.cache.get<Experiment>(`experiment:${id}`);
     if (cached) return cached;
 
-    const client = await getPostgresClient();
+    
     try {
-      const result = await client.query('SELECT * FROM experiments WHERE id = $1', [id]);
+      const result = await db.execute('SELECT * FROM experiments WHERE id = $1', [id]);
       if (result.rows.length === 0) return null;
       
       const experiment = this.formatExperiment(result.rows[0]);
       await this.cache.set(`experiment:${id}`, experiment, 300);
       return experiment;
     } finally {
-      client.release();
+      
     }
   }
 
   private async getExperimentVariants(experimentId: number): Promise<ExperimentVariant[]> {
-    const client = await getPostgresClient();
+    
     try {
-      const result = await client.query(
+      const result = await db.execute(
         'SELECT * FROM experiment_variants WHERE experiment_id = $1 ORDER BY traffic_allocation DESC',
         [experimentId]
       );
@@ -883,14 +882,14 @@ class ABTestingService {
         updatedAt: new Date(row.updated_at)
       }));
     } finally {
-      client.release();
+      
     }
   }
 
   private async calculateVariantStatistics(experimentId: number, variantId: string, metric: string) {
-    const client = await getPostgresClient();
+    
     try {
-      const result = await client.query(`
+      const result = await db.execute(`
         SELECT 
           COUNT(DISTINCT COALESCE(user_id::text, session_id)) as sample_size,
           COUNT(*) FILTER (WHERE event_type = 'conversion') as conversions,
@@ -915,7 +914,7 @@ class ABTestingService {
         totalRevenue: parseFloat(stats.total_revenue) || 0
       };
     } finally {
-      client.release();
+      
     }
   }
 
@@ -961,10 +960,10 @@ class ABTestingService {
   }
 
   private async updateResultsCache(experimentId: number, variants: VariantResults[]): Promise<void> {
-    const client = await getPostgresClient();
+    
     try {
       for (const variant of variants) {
-        await client.query(`
+        await db.execute(`
           INSERT INTO experiment_results_cache (
             experiment_id, variant_id, metric, sample_size, conversion_rate,
             confidence_interval_lower, confidence_interval_upper, p_value,
@@ -998,26 +997,26 @@ class ABTestingService {
         ]);
       }
     } finally {
-      client.release();
+      
     }
   }
 
   private async createExperimentSnapshot(experimentId: number, type: string, data: any): Promise<void> {
-    const client = await getPostgresClient();
+    
     try {
-      await client.query(`
+      await db.execute(`
         INSERT INTO experiment_snapshots (experiment_id, snapshot_type, snapshot_date, data)
         VALUES ($1, $2, CURRENT_DATE, $3)
         ON CONFLICT (experiment_id, snapshot_type, snapshot_date)
         DO UPDATE SET data = EXCLUDED.data, created_at = NOW()
       `, [experimentId, type, JSON.stringify(data)]);
     } finally {
-      client.release();
+      
     }
   }
 
   async listExperiments(options: ListExperimentsOptions): Promise<{ experiments: Experiment[]; total: number }> {
-    const client = await getPostgresClient();
+    
     
     try {
       // Build WHERE clause
@@ -1046,7 +1045,7 @@ class ABTestingService {
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
       // Get total count
-      const countResult = await client.query(`
+      const countResult = await db.execute(`
         SELECT COUNT(*) FROM experiments ${whereClause}
       `, params);
       const total = parseInt(countResult.rows[0].count);
@@ -1057,7 +1056,7 @@ class ABTestingService {
         : options.orderBy === 'updated' ? 'updated_at' 
         : 'name';
 
-      const experimentsResult = await client.query(`
+      const experimentsResult = await db.execute(`
         SELECT * FROM experiments ${whereClause}
         ORDER BY ${orderColumn} ${orderDirection}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -1067,7 +1066,7 @@ class ABTestingService {
 
       return { experiments, total };
     } finally {
-      client.release();
+      
     }
   }
 

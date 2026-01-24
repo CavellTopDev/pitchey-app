@@ -1,9 +1,9 @@
 // Production Service - Dashboard and production company-specific operations with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import type { Pitch } from '../types/api';
-import type { User } from '../types/api';
+import type { Pitch, User } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? (isDev ? 'http://localhost:8001' : '');
 
 // Types for production dashboard data
 export interface ProductionStats {
@@ -86,25 +86,125 @@ export interface ProductionCalendarEvent {
   project?: ProductionProject;
 }
 
+// API response types
+interface DashboardData {
+  stats: ProductionStats;
+  activeProjects: ProductionProject[];
+  recentDeals: ProductionDeal[];
+  upcomingEvents: ProductionCalendarEvent[];
+  recommendedPitches: Pitch[];
+}
+
+interface DashboardResponseData {
+  dashboard: DashboardData;
+}
+
+interface ProjectsResponseData {
+  projects: ProductionProject[];
+  total: number;
+}
+
+interface ProjectResponseData {
+  project: ProductionProject;
+}
+
+interface DealsResponseData {
+  deals: ProductionDeal[];
+  total: number;
+}
+
+interface DealResponseData {
+  deal: ProductionDeal;
+}
+
+interface TalentResponseData {
+  talent: TalentSearch[];
+  total: number;
+}
+
+interface CalendarEventsResponseData {
+  events: ProductionCalendarEvent[];
+}
+
+interface CalendarEventResponseData {
+  event: ProductionCalendarEvent;
+}
+
+interface BudgetBreakdown {
+  total: number;
+  spent: number;
+  remaining: number;
+  categories: Array<{
+    category: string;
+    allocated: number;
+    spent: number;
+    percentage: number;
+  }>;
+  timeline: Array<{
+    date: string;
+    amount: number;
+    description: string;
+  }>;
+}
+
+interface BudgetResponseData {
+  budget: BudgetBreakdown;
+}
+
+interface AnalyticsData {
+  projectPerformance: Array<{
+    project: string;
+    budget: number;
+    spent: number;
+    progress: number;
+    onSchedule: boolean;
+  }>;
+  genreDistribution: Array<{
+    genre: string;
+    count: number;
+    avgBudget: number;
+    avgROI: number;
+  }>;
+  dealConversionRate: number;
+  avgProductionTime: number;
+  successRate: number;
+}
+
+interface AnalyticsResponseData {
+  analytics: AnalyticsData;
+}
+
+interface DistributionChannel {
+  id: number;
+  platform: string;
+  status: 'negotiating' | 'signed' | 'live' | 'ended';
+  terms: string;
+  revenue: number;
+  releaseDate?: string;
+}
+
+interface DistributionResponseData {
+  channels: DistributionChannel[];
+}
+
+// Helper function to extract error message
+function getErrorMessage(error: { message: string } | string | undefined, fallback: string): string {
+  if (typeof error === 'object' && error !== null) {
+    return error.message;
+  }
+  return error ?? fallback;
+}
+
 export class ProductionService {
   // Get production dashboard
-  static async getDashboard(): Promise<{
-    stats: ProductionStats;
-    activeProjects: ProductionProject[];
-    recentDeals: ProductionDeal[];
-    upcomingEvents: ProductionCalendarEvent[];
-    recommendedPitches: Pitch[];
-  }> {
-    const response = await apiClient.get<{
-      success: boolean;
-      dashboard: any;
-    }>('/api/production/dashboard');
+  static async getDashboard(): Promise<DashboardData> {
+    const response = await apiClient.get<DashboardResponseData>('/api/production/dashboard');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch dashboard');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch dashboard'));
     }
 
-    return response.data?.dashboard || {
+    return response.data?.dashboard ?? {
       stats: {
         totalProjects: 0,
         activeProjects: 0,
@@ -130,24 +230,22 @@ export class ProductionService {
     offset?: number;
   }): Promise<{ projects: ProductionProject[]; total: number }> {
     const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
+    if (filters?.status !== undefined && filters.status !== '') params.append('status', filters.status);
+    if (filters?.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
+    if (filters?.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
+    if (filters?.offset !== undefined && filters.offset !== 0) params.append('offset', filters.offset.toString());
 
-    const response = await apiClient.get<{
-      success: boolean;
-      projects: ProductionProject[];
-      total: number;
-    }>(`/api/production/projects?${params}`);
+    const response = await apiClient.get<ProjectsResponseData>(
+      `/api/production/projects?${params.toString()}`
+    );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch projects');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch projects'));
     }
 
     return {
-      projects: response.data?.projects || [],
-      total: response.data?.total || 0
+      projects: response.data?.projects ?? [],
+      total: response.data?.total ?? 0
     };
   }
 
@@ -159,13 +257,13 @@ export class ProductionService {
     estimatedEndDate?: string;
     team?: Array<{ role: string; name: string; email?: string }>;
   }): Promise<ProductionProject> {
-    const response = await apiClient.post<{
-      success: boolean;
-      project: ProductionProject;
-    }>('/api/production/projects', data);
+    const response = await apiClient.post<ProjectResponseData>(
+      '/api/production/projects',
+      data
+    );
 
-    if (!response.success || !response.data?.project) {
-      throw new Error(response.error?.message || 'Failed to create project');
+    if (response.success !== true || response.data?.project === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to create project'));
     }
 
     return response.data.project;
@@ -173,13 +271,13 @@ export class ProductionService {
 
   // Update project
   static async updateProject(projectId: number, updates: Partial<ProductionProject>): Promise<ProductionProject> {
-    const response = await apiClient.put<{
-      success: boolean;
-      project: ProductionProject;
-    }>(`/api/production/projects/${projectId}`, updates);
+    const response = await apiClient.put<ProjectResponseData>(
+      `/api/production/projects/${projectId.toString()}`,
+      updates
+    );
 
-    if (!response.success || !response.data?.project) {
-      throw new Error(response.error?.message || 'Failed to update project');
+    if (response.success !== true || response.data?.project === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to update project'));
     }
 
     return response.data.project;
@@ -192,23 +290,21 @@ export class ProductionService {
     sortBy?: 'signedAt' | 'amount' | 'expiresAt';
   }): Promise<{ deals: ProductionDeal[]; total: number }> {
     const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.creatorId) params.append('creatorId', filters.creatorId.toString());
-    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.status !== undefined && filters.status !== '') params.append('status', filters.status);
+    if (filters?.creatorId !== undefined && filters.creatorId !== 0) params.append('creatorId', filters.creatorId.toString());
+    if (filters?.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
 
-    const response = await apiClient.get<{
-      success: boolean;
-      deals: ProductionDeal[];
-      total: number;
-    }>(`/api/production/deals?${params}`);
+    const response = await apiClient.get<DealsResponseData>(
+      `/api/production/deals?${params.toString()}`
+    );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch deals');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch deals'));
     }
 
     return {
-      deals: response.data?.deals || [],
-      total: response.data?.total || 0
+      deals: response.data?.deals ?? [],
+      total: response.data?.total ?? 0
     };
   }
 
@@ -221,13 +317,13 @@ export class ProductionService {
     terms: string;
     expiresAt?: string;
   }): Promise<ProductionDeal> {
-    const response = await apiClient.post<{
-      success: boolean;
-      deal: ProductionDeal;
-    }>('/api/production/deals', data);
+    const response = await apiClient.post<DealResponseData>(
+      '/api/production/deals',
+      data
+    );
 
-    if (!response.success || !response.data?.deal) {
-      throw new Error(response.error?.message || 'Failed to propose deal');
+    if (response.success !== true || response.data?.deal === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to propose deal'));
     }
 
     return response.data.deal;
@@ -242,25 +338,23 @@ export class ProductionService {
     search?: string;
   }): Promise<{ talent: TalentSearch[]; total: number }> {
     const params = new URLSearchParams();
-    if (filters?.role) params.append('role', filters.role);
-    if (filters?.availability) params.append('availability', filters.availability);
-    if (filters?.maxRate) params.append('maxRate', filters.maxRate.toString());
-    if (filters?.experience) params.append('experience', filters.experience);
-    if (filters?.search) params.append('search', filters.search);
+    if (filters?.role !== undefined && filters.role !== '') params.append('role', filters.role);
+    if (filters?.availability !== undefined && filters.availability !== '') params.append('availability', filters.availability);
+    if (filters?.maxRate !== undefined && filters.maxRate !== 0) params.append('maxRate', filters.maxRate.toString());
+    if (filters?.experience !== undefined && filters.experience !== '') params.append('experience', filters.experience);
+    if (filters?.search !== undefined && filters.search !== '') params.append('search', filters.search);
 
-    const response = await apiClient.get<{
-      success: boolean;
-      talent: TalentSearch[];
-      total: number;
-    }>(`/api/production/talent?${params}`);
+    const response = await apiClient.get<TalentResponseData>(
+      `/api/production/talent?${params.toString()}`
+    );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to search talent');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to search talent'));
     }
 
     return {
-      talent: response.data?.talent || [],
-      total: response.data?.total || 0
+      talent: response.data?.talent ?? [],
+      total: response.data?.total ?? 0
     };
   }
 
@@ -272,64 +366,47 @@ export class ProductionService {
     type?: string;
   }): Promise<ProductionCalendarEvent[]> {
     const params = new URLSearchParams();
-    if (options?.startDate) params.append('startDate', options.startDate);
-    if (options?.endDate) params.append('endDate', options.endDate);
-    if (options?.projectId) params.append('projectId', options.projectId.toString());
-    if (options?.type) params.append('type', options.type);
+    if (options?.startDate !== undefined && options.startDate !== '') params.append('startDate', options.startDate);
+    if (options?.endDate !== undefined && options.endDate !== '') params.append('endDate', options.endDate);
+    if (options?.projectId !== undefined && options.projectId !== 0) params.append('projectId', options.projectId.toString());
+    if (options?.type !== undefined && options.type !== '') params.append('type', options.type);
 
-    const response = await apiClient.get<{
-      success: boolean;
-      events: ProductionCalendarEvent[];
-    }>(`/api/production/calendar?${params}`);
+    const response = await apiClient.get<CalendarEventsResponseData>(
+      `/api/production/calendar?${params.toString()}`
+    );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch calendar events');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch calendar events'));
     }
 
-    return response.data?.events || [];
+    return response.data?.events ?? [];
   }
 
   // Create calendar event
   static async createCalendarEvent(event: Omit<ProductionCalendarEvent, 'id'>): Promise<ProductionCalendarEvent> {
-    const response = await apiClient.post<{
-      success: boolean;
-      event: ProductionCalendarEvent;
-    }>('/api/production/calendar', event);
+    const response = await apiClient.post<CalendarEventResponseData>(
+      '/api/production/calendar',
+      event
+    );
 
-    if (!response.success || !response.data?.event) {
-      throw new Error(response.error?.message || 'Failed to create event');
+    if (response.success !== true || response.data?.event === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to create event'));
     }
 
     return response.data.event;
   }
 
   // Get budget breakdown
-  static async getBudgetBreakdown(projectId: number): Promise<{
-    total: number;
-    spent: number;
-    remaining: number;
-    categories: Array<{
-      category: string;
-      allocated: number;
-      spent: number;
-      percentage: number;
-    }>;
-    timeline: Array<{
-      date: string;
-      amount: number;
-      description: string;
-    }>;
-  }> {
-    const response = await apiClient.get<{
-      success: boolean;
-      budget: any;
-    }>(`/api/production/projects/${projectId}/budget`);
+  static async getBudgetBreakdown(projectId: number): Promise<BudgetBreakdown> {
+    const response = await apiClient.get<BudgetResponseData>(
+      `/api/production/projects/${projectId.toString()}/budget`
+    );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch budget breakdown');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch budget breakdown'));
     }
 
-    return response.data?.budget || {
+    return response.data?.budget ?? {
       total: 0,
       spent: 0,
       remaining: 0,
@@ -343,48 +420,30 @@ export class ProductionService {
     completed?: boolean;
     notes?: string;
   }): Promise<void> {
-    const response = await apiClient.put<{ success: boolean }>(
-      `/api/production/projects/${projectId}/milestones/${milestoneId}`,
+    const response = await apiClient.put<Record<string, unknown>>(
+      `/api/production/projects/${projectId.toString()}/milestones/${milestoneId.toString()}`,
       data
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to update milestone');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to update milestone'));
     }
   }
 
   // Get production analytics
-  static async getAnalytics(period?: 'month' | 'quarter' | 'year'): Promise<{
-    projectPerformance: Array<{
-      project: string;
-      budget: number;
-      spent: number;
-      progress: number;
-      onSchedule: boolean;
-    }>;
-    genreDistribution: Array<{
-      genre: string;
-      count: number;
-      avgBudget: number;
-      avgROI: number;
-    }>;
-    dealConversionRate: number;
-    avgProductionTime: number;
-    successRate: number;
-  }> {
+  static async getAnalytics(period?: 'month' | 'quarter' | 'year'): Promise<AnalyticsData> {
     const params = new URLSearchParams();
-    if (period) params.append('period', period);
+    if (period !== undefined) params.append('period', period);
 
-    const response = await apiClient.get<{
-      success: boolean;
-      analytics: any;
-    }>(`/api/production/analytics?${params}`);
+    const response = await apiClient.get<AnalyticsResponseData>(
+      `/api/production/analytics?${params.toString()}`
+    );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch analytics');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch analytics'));
     }
 
-    return response.data?.analytics || {
+    return response.data?.analytics ?? {
       projectPerformance: [],
       genreDistribution: [],
       dealConversionRate: 0,
@@ -395,10 +454,11 @@ export class ProductionService {
 
   // Generate contract
   static async generateContract(dealId: number, template?: string): Promise<Blob> {
+    const templateParam = template ?? 'standard';
     const response = await fetch(
-      `${API_BASE_URL}/api/production/deals/${dealId}/contract?template=${template || 'standard'}`, {
-        headers: {
-          }
+      `${API_BASE_URL}/api/production/deals/${dealId.toString()}/contract?template=${templateParam}`,
+      {
+        credentials: 'include'
       }
     );
 
@@ -410,32 +470,24 @@ export class ProductionService {
   }
 
   // Get distribution channels
-  static async getDistributionChannels(projectId: number): Promise<Array<{
-    id: number;
-    platform: string;
-    status: 'negotiating' | 'signed' | 'live' | 'ended';
-    terms: string;
-    revenue: number;
-    releaseDate?: string;
-  }>> {
-    const response = await apiClient.get<{
-      success: boolean;
-      channels: any[];
-    }>(`/api/production/projects/${projectId}/distribution`);
+  static async getDistributionChannels(projectId: number): Promise<DistributionChannel[]> {
+    const response = await apiClient.get<DistributionResponseData>(
+      `/api/production/projects/${projectId.toString()}/distribution`
+    );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch distribution channels');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch distribution channels'));
     }
 
-    return response.data?.channels || [];
+    return response.data?.channels ?? [];
   }
 
   // Export project data
   static async exportProjectData(projectId: number, format: 'pdf' | 'excel'): Promise<Blob> {
     const response = await fetch(
-      `${API_BASE_URL}/api/production/projects/${projectId}/export?format=${format}`, {
-        headers: {
-          }
+      `${API_BASE_URL}/api/production/projects/${projectId.toString()}/export?format=${format}`,
+      {
+        credentials: 'include'
       }
     );
 

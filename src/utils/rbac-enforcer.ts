@@ -112,7 +112,14 @@ export function buildRBACContext(user: AuthenticatedUser): RBACContext {
 export function checkPortalAccess(user: AuthenticatedUser, portal: string): boolean {
   const userType = (user.user_type || user.userType || user.role || '').toLowerCase();
   const allowedTypes = PortalAccessMap[portal.toLowerCase()] || [];
-  return allowedTypes.includes(userType);
+  const hasAccess = allowedTypes.includes(userType);
+
+  // Diagnostic logging for portal access issues
+  if (!hasAccess) {
+    console.warn(`[RBAC] Portal access DENIED: portal=${portal}, userType='${userType}', allowed=${JSON.stringify(allowedTypes)}, user=${JSON.stringify({ id: user.id, user_type: user.user_type, userType: user.userType, role: user.role })}`);
+  }
+
+  return hasAccess;
 }
 
 /**

@@ -67,7 +67,7 @@ export default function ProductionProjectsActive() {
   const fetchActiveProjects = async () => {
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production/projects?status=active`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -77,7 +77,7 @@ export default function ProductionProjectsActive() {
       }
 
       const data = await response.json();
-      setProjects(data.projects || []);
+      setProjects(data.data?.projects || data.projects || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching active projects:', err);

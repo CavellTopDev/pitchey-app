@@ -75,18 +75,17 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
         throw new Error('User data not received from server');
       }
       
-      // Store JWT token if provided (for backward compatibility with production API)
-      if (token) {
-        localStorage.setItem('authToken', token);
-      }
-      
+      // NOTE: We no longer store JWT tokens in localStorage
+      // Session cookies are the only auth mechanism (managed by Better Auth)
+      // This prevents auth mixing bugs when switching portals
+
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
-      set({ 
+      set({
         error: error.message || 'Login failed',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -98,24 +97,21 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       const response = await portalAuth.signInInvestor(email, password);
       // Handle both response.user and response.data.user formats
       const user = response.user || response.data?.user;
-      const token = response.token || response.data?.token;
-      
+
       if (!user) {
         throw new Error('User data not received from server');
       }
-      
-      // Store JWT token if provided (for backward compatibility with production API)
-      if (token) {
-        localStorage.setItem('authToken', token);
-      }
-      
+
+      // NOTE: We no longer store JWT tokens in localStorage
+      // Session cookies are the only auth mechanism (managed by Better Auth)
+
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
-      set({ 
+      set({
         error: error.message || 'Login failed',
-        loading: false 
+        loading: false
       });
       throw error;
     }
@@ -127,17 +123,14 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
       const response = await portalAuth.signInProduction(email, password);
       // Handle both response.user and response.data.user formats
       const user = response.user || response.data?.user;
-      const token = response.token || response.data?.token;
-      
+
       if (!user) {
         throw new Error('User data not received from server');
       }
-      
-      // Store JWT token if provided (for backward compatibility with production API)
-      if (token) {
-        localStorage.setItem('authToken', token);
-      }
-      
+
+      // NOTE: We no longer store JWT tokens in localStorage
+      // Session cookies are the only auth mechanism (managed by Better Auth)
+
       sessionCache.set(user); // Cache the user session
       sessionManager.updateCache(user); // Update session manager cache
       set({ user, isAuthenticated: true, loading: false });
@@ -221,13 +214,17 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
     set({ loading: true });
     try {
       await portalAuth.signOut();
-      sessionCache.clear(); // Clear the cache on logout
-      sessionManager.clearCache(); // Clear session manager cache
-      set({ user: null, isAuthenticated: false, loading: false, error: null });
     } catch (error) {
-      // Always clear the user even if logout fails
-      sessionCache.clear(); // Clear the cache on logout
-      sessionManager.clearCache(); // Clear session manager cache
+      // Continue with cleanup even if server logout fails
+      console.warn('[BetterAuthStore] Server logout failed:', error);
+    } finally {
+      // Always clear all auth state to prevent mixing
+      sessionCache.clear();
+      sessionManager.clearCache();
+      // Remove any legacy JWT tokens that might still exist
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
+      localStorage.removeItem('accessToken');
       set({ user: null, isAuthenticated: false, loading: false, error: null });
     }
   },

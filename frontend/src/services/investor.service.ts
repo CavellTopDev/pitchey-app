@@ -3,17 +3,16 @@ import { apiClient } from '../lib/api-client';
 import type { 
 
   Pitch, 
-  User, 
   Investment, 
   InvestorDashboardStats, 
   InvestmentOpportunity, 
   InvestorPortfolio, 
   WatchlistItem,
-  ApiResponse,
   DashboardResponse 
 } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? (isDev ? 'http://localhost:8001' : '');
 
 // Export types from centralized types file
 export type { 
@@ -26,13 +25,60 @@ export type {
 // Keep local types for backward compatibility
 export type InvestorStats = InvestorDashboardStats;
 
+export interface ROIMetric {
+  category: string;
+  avg_roi: number;
+  count: number;
+  total_profit: number;
+}
+
+export interface ROISummary {
+  total_investments: number;
+  average_roi: number;
+  best_roi: number;
+  worst_roi: number;
+  profitable_count: number;
+}
+
+// Types for API responses
+interface FinancialSummaryResponse {
+  totalInvested: number;
+  portfolioValue: number;
+  totalReturns: number;
+  monthlyChange: number;
+  pendingInvestments: number;
+}
+
+interface TransactionStatsResponse {
+  totalTransactions: number;
+  totalVolume: number;
+  avgTransactionSize: number;
+  transactionsByType: Record<string, number>;
+}
+
+interface TaxDocument {
+  id: number;
+  type: string;
+  name: string;
+  url: string;
+  year: number;
+  createdAt: string;
+}
+
+interface PerformanceDataPoint {
+  date: string;
+  value: number;
+  invested: number;
+  returns: number;
+}
+
 // Export a singleton instance for new API methods
 export const investorApi = {
   // Financial Overview
-  getFinancialSummary: () => 
-    apiClient.get('/api/investor/financial/summary'),
-  
-  getRecentTransactions: (limit: number = 5) => 
+  getFinancialSummary: (timeframe?: string) =>
+    apiClient.get<FinancialSummaryResponse>(`/api/investor/financial/summary${timeframe !== undefined ? `?timeframe=${timeframe}` : ''}`),
+
+  getRecentTransactions: (limit: number = 5) =>
     apiClient.get(`/api/investor/financial/recent-transactions?limit=${limit}`),
   
   // Transaction History
@@ -53,11 +99,18 @@ export const investorApi = {
     return apiClient.get(`/api/investor/transactions?${queryParams}`);
   },
   
-  exportTransactions: () => 
-    apiClient.get('/api/investor/transactions/export', { responseType: 'blob' } as any),
+  exportTransactions: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/investor/transactions/export`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('pitchey:authToken') ?? localStorage.getItem('authToken') ?? ''}`
+      }
+    });
+    if (!response.ok) throw new Error('Failed to export transactions');
+    return response.blob();
+  },
   
-  getTransactionStats: () => 
-    apiClient.get('/api/investor/transactions/stats'),
+  getTransactionStats: () =>
+    apiClient.get<{ stats: TransactionStatsResponse }>('/api/investor/transactions/stats'),
   
   // Budget Allocation
   getBudgetAllocations: () => 
@@ -82,19 +135,19 @@ export const investorApi = {
     apiClient.get('/api/investor/projects/completed'),
   
   // ROI Analysis
-  getROISummary: () => 
-    apiClient.get('/api/investor/analytics/roi/summary'),
-  
-  getROIByCategory: () => 
-    apiClient.get('/api/investor/analytics/roi/by-category'),
-  
+  getROISummary: (timeframe?: string) =>
+    apiClient.get<{ summary: ROISummary }>(`/api/investor/analytics/roi/summary${timeframe !== undefined ? `?timeframe=${timeframe}` : ''}`),
+
+  getROIByCategory: (timeframe?: string) =>
+    apiClient.get<{ categories: ROIMetric[] }>(`/api/investor/analytics/roi/by-category${timeframe !== undefined ? `?timeframe=${timeframe}` : ''}`),
+
   // Market Trends
-  getMarketTrends: () => 
-    apiClient.get('/api/investor/analytics/market/trends'),
-  
+  getMarketTrends: (timeframe?: string) =>
+    apiClient.get(`/api/investor/analytics/market/trends${timeframe !== undefined ? `?timeframe=${timeframe}` : ''}`),
+
   // Risk Assessment
-  getPortfolioRisk: () => 
-    apiClient.get('/api/investor/analytics/risk/portfolio'),
+  getPortfolioRisk: (timeframe?: string) =>
+    apiClient.get(`/api/investor/analytics/risk/portfolio${timeframe !== undefined ? `?timeframe=${timeframe}` : ''}`),
   
   // All Investments
   getAllInvestments: (params?: {
@@ -116,12 +169,20 @@ export const investorApi = {
   
   // Tax Documents
   getTaxDocuments: (year?: number) => {
-    const endpoint = year 
+    const endpoint = year !== undefined
       ? `/api/investor/tax-documents?year=${year}`
       : '/api/investor/tax-documents';
-    return apiClient.get(endpoint);
+    return apiClient.get<{ documents: TaxDocument[] }>(endpoint);
   },
 };
+
+interface Activity {
+  id: number;
+  type: string;
+  description: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
 
 export class InvestorService {
   // Get investor dashboard
@@ -130,16 +191,19 @@ export class InvestorService {
     recentOpportunities: InvestmentOpportunity[];
     portfolio: InvestorPortfolio;
     watchlist: WatchlistItem[];
-    activities: any[];
+    activities: Activity[];
   }> {
-    const response = await apiClient.get<ApiResponse<DashboardResponse>>('/api/investor/dashboard');
+    const response = await apiClient.get<DashboardResponse>('/api/investor/dashboard');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch dashboard');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch dashboard');
     }
 
-    return response.data?.dashboard || {
-      stats: {
+    const dashboard = response.data?.dashboard;
+
+    return {
+      stats: (dashboard?.stats as InvestorDashboardStats) ?? {
         totalInvestments: 0,
         activeInvestments: 0,
         totalInvested: 0,
@@ -148,9 +212,9 @@ export class InvestorService {
         pitchesViewed: 0,
         pitchesLiked: 0,
         ndaSigned: 0
-      } as InvestorDashboardStats,
-      recentOpportunities: [],
-      portfolio: {
+      },
+      recentOpportunities: dashboard?.recentOpportunities ?? [],
+      portfolio: dashboard?.portfolio ?? {
         totalValue: 0,
         totalInvested: 0,
         totalReturns: 0,
@@ -158,8 +222,8 @@ export class InvestorService {
         performance: [],
         diversification: []
       },
-      watchlist: [],
-      activities: []
+      watchlist: dashboard?.watchlist ?? [],
+      activities: (dashboard?.activities as Activity[]) ?? []
     };
   }
 
@@ -174,26 +238,27 @@ export class InvestorService {
     offset?: number;
   }): Promise<{ opportunities: InvestmentOpportunity[]; total: number }> {
     const params = new URLSearchParams();
-    if (filters?.genre) params.append('genre', filters.genre);
-    if (filters?.minInvestment) params.append('minInvestment', filters.minInvestment.toString());
-    if (filters?.maxInvestment) params.append('maxInvestment', filters.maxInvestment.toString());
-    if (filters?.riskLevel) params.append('riskLevel', filters.riskLevel);
-    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
+    if (filters?.genre !== undefined && filters.genre !== '') params.append('genre', filters.genre);
+    if (filters?.minInvestment !== undefined) params.append('minInvestment', filters.minInvestment.toString());
+    if (filters?.maxInvestment !== undefined) params.append('maxInvestment', filters.maxInvestment.toString());
+    if (filters?.riskLevel !== undefined && filters.riskLevel !== '') params.append('riskLevel', filters.riskLevel);
+    if (filters?.sortBy !== undefined) params.append('sortBy', filters.sortBy);
+    if (filters?.limit !== undefined) params.append('limit', filters.limit.toString());
+    if (filters?.offset !== undefined) params.append('offset', filters.offset.toString());
 
-    const response = await apiClient.get<ApiResponse<{
+    const response = await apiClient.get<{
       opportunities: InvestmentOpportunity[];
       total: number;
-    }>>(`/api/investor/opportunities?${params}`);
+    }>(`/api/investor/opportunities?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch opportunities');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch opportunities');
     }
 
     return {
-      opportunities: response.data?.opportunities || [],
-      total: response.data?.total || 0
+      opportunities: response.data?.opportunities ?? [],
+      total: response.data?.total ?? 0
     };
   }
 
@@ -209,15 +274,27 @@ export class InvestorService {
     quarterlyGrowth: number;
     ytdGrowth: number;
   }> {
-    const response = await apiClient.get<ApiResponse<{
-      data: any;
-    }>>('/api/investor/portfolio/summary');
+    interface PortfolioSummaryData {
+      totalInvestments: number;
+      activeDeals: number;
+      totalInvested: number;
+      currentValue: number;
+      averageReturn: number;
+      pendingOpportunities: number;
+      monthlyGrowth: number;
+      quarterlyGrowth: number;
+      ytdGrowth: number;
+    }
+    const response = await apiClient.get<{
+      data: PortfolioSummaryData;
+    }>('/api/investor/portfolio/summary');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch portfolio summary');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch portfolio summary');
     }
 
-    return response.data?.data || {
+    return response.data?.data ?? {
       totalInvestments: 0,
       activeDeals: 0,
       totalInvested: 0,
@@ -231,16 +308,17 @@ export class InvestorService {
   }
 
   // Get portfolio performance history
-  static async getPortfolioPerformance(timeframe: string = '1y'): Promise<any[]> {
-    const response = await apiClient.get<ApiResponse<{
-      data: any;
-    }>>(`/api/investor/portfolio/performance?timeframe=${timeframe}`);
+  static async getPortfolioPerformance(timeframe: string = '1y'): Promise<PerformanceDataPoint[]> {
+    const response = await apiClient.get<{
+      performanceData: PerformanceDataPoint[];
+    }>(`/api/investor/portfolio/performance?timeframe=${timeframe}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch portfolio performance');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch portfolio performance');
     }
 
-    return response.data?.performanceData || [];
+    return response.data?.performanceData ?? [];
   }
 
   // Get portfolio
@@ -249,18 +327,19 @@ export class InvestorService {
     sortBy?: 'value' | 'returns' | 'date';
   }): Promise<InvestorPortfolio> {
     const params = new URLSearchParams();
-    if (options?.status) params.append('status', options.status);
-    if (options?.sortBy) params.append('sortBy', options.sortBy);
+    if (options?.status !== undefined) params.append('status', options.status);
+    if (options?.sortBy !== undefined) params.append('sortBy', options.sortBy);
 
-    const response = await apiClient.get<ApiResponse<{
+    const response = await apiClient.get<{
       portfolio: InvestorPortfolio;
-    }>>(`/api/investor/portfolio?${params}`);
+    }>(`/api/investor/portfolio?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch portfolio');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch portfolio');
     }
 
-    return response.data?.portfolio || {
+    return response.data?.portfolio ?? {
       totalValue: 0,
       totalInvested: 0,
       totalReturns: 0,
@@ -277,12 +356,13 @@ export class InvestorService {
     terms?: string;
     message?: string;
   }): Promise<Investment> {
-    const response = await apiClient.post<ApiResponse<{
+    const response = await apiClient.post<{
       investment: Investment;
-    }>>('/api/investor/invest', data);
+    }>('/api/investor/invest', data);
 
-    if (!response.success || !response.data?.investment) {
-      throw new Error(response.error?.message || 'Failed to make investment');
+    if (response.success !== true || response.data?.investment === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to make investment');
     }
 
     return response.data.investment;
@@ -290,37 +370,40 @@ export class InvestorService {
 
   // Withdraw investment
   static async withdrawInvestment(investmentId: number, reason?: string): Promise<void> {
-    const response = await apiClient.post<ApiResponse<void>>(
+    const response = await apiClient.post<void>(
       `/api/investor/investments/${investmentId}/withdraw`,
       { reason }
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to withdraw investment');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to withdraw investment');
     }
   }
 
   // Get watchlist
   static async getWatchlist(): Promise<WatchlistItem[]> {
-    const response = await apiClient.get<ApiResponse<{
+    const response = await apiClient.get<{
       watchlist: WatchlistItem[];
-    }>>('/api/investor/watchlist');
+    }>('/api/investor/watchlist');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch watchlist');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch watchlist');
     }
 
-    return response.data?.watchlist || [];
+    return response.data?.watchlist ?? [];
   }
 
   // Add to watchlist
   static async addToWatchlist(pitchId: number, notes?: string): Promise<WatchlistItem> {
-    const response = await apiClient.post<ApiResponse<{
+    const response = await apiClient.post<{
       item: WatchlistItem;
-    }>>('/api/investor/watchlist', { pitchId, notes });
+    }>('/api/investor/watchlist', { pitchId, notes });
 
-    if (!response.success || !response.data?.item) {
-      throw new Error(response.error?.message || 'Failed to add to watchlist');
+    if (response.success !== true || response.data?.item === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to add to watchlist');
     }
 
     return response.data.item;
@@ -328,23 +411,19 @@ export class InvestorService {
 
   // Remove from watchlist
   static async removeFromWatchlist(pitchId: number): Promise<void> {
-    const response = await apiClient.delete<ApiResponse<void>>(
+    const response = await apiClient.delete<void>(
       `/api/investor/watchlist/${pitchId}`
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to remove from watchlist');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to remove from watchlist');
     }
   }
 
   // Get investment analytics
   static async getAnalytics(period?: 'week' | 'month' | 'quarter' | 'year' | 'all'): Promise<{
-    performance: {
-      date: string;
-      value: number;
-      invested: number;
-      returns: number;
-    }[];
+    performance: PerformanceDataPoint[];
     topPerformers: Investment[];
     riskAnalysis: {
       lowRisk: number;
@@ -358,18 +437,34 @@ export class InvestorService {
       avgROI: number;
     }[];
   }> {
+    interface AnalyticsResponse {
+      performance: PerformanceDataPoint[];
+      topPerformers: Investment[];
+      riskAnalysis: {
+        lowRisk: number;
+        mediumRisk: number;
+        highRisk: number;
+      };
+      genrePerformance: {
+        genre: string;
+        investments: number;
+        totalValue: number;
+        avgROI: number;
+      }[];
+    }
     const params = new URLSearchParams();
-    if (period) params.append('period', period);
+    if (period !== undefined) params.append('period', period);
 
-    const response = await apiClient.get<ApiResponse<{
-      analytics: any;
-    }>>(`/api/investor/analytics?${params}`);
+    const response = await apiClient.get<{
+      analytics: AnalyticsResponse;
+    }>(`/api/investor/analytics?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch analytics');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch analytics');
     }
 
-    return response.data?.analytics || {
+    return response.data?.analytics ?? {
       performance: [],
       topPerformers: [],
       riskAnalysis: {
@@ -390,19 +485,25 @@ export class InvestorService {
     score: number;
     reasons: string[];
   }[]> {
+    interface RecommendationItem {
+      pitch: Pitch;
+      score: number;
+      reasons: string[];
+    }
     const params = new URLSearchParams();
-    if (options?.limit) params.append('limit', options.limit.toString());
-    if (options?.minScore) params.append('minScore', options.minScore.toString());
+    if (options?.limit !== undefined) params.append('limit', options.limit.toString());
+    if (options?.minScore !== undefined) params.append('minScore', options.minScore.toString());
 
-    const response = await apiClient.get<ApiResponse<{
-      recommendations: any[];
-    }>>(`/api/investor/recommendations?${params}`);
+    const response = await apiClient.get<{
+      recommendations: RecommendationItem[];
+    }>(`/api/investor/recommendations?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch recommendations');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch recommendations');
     }
 
-    return response.data?.recommendations || [];
+    return response.data?.recommendations ?? [];
   }
 
   // Get investment documents
@@ -413,23 +514,33 @@ export class InvestorService {
     url: string;
     uploadedAt: string;
   }[]> {
-    const response = await apiClient.get<ApiResponse<{
-      documents: any[];
-    }>>(`/api/investor/investments/${investmentId}/documents`);
+    interface DocumentItem {
+      id: number;
+      name: string;
+      type: 'contract' | 'report' | 'statement' | 'other';
+      url: string;
+      uploadedAt: string;
+    }
+    const response = await apiClient.get<{
+      documents: DocumentItem[];
+    }>(`/api/investor/investments/${investmentId}/documents`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch documents');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch documents');
     }
 
-    return response.data?.documents || [];
+    return response.data?.documents ?? [];
   }
 
   // Download investment report
   static async downloadReport(investmentId: number, format: 'pdf' | 'excel'): Promise<Blob> {
+    const token = localStorage.getItem('pitchey:authToken') ?? localStorage.getItem('authToken') ?? '';
     const response = await fetch(
       `${API_BASE_URL}/api/investor/investments/${investmentId}/report?format=${format}`, {
         headers: {
-          }
+          'Authorization': `Bearer ${token}`
+        }
       }
     );
 
@@ -447,13 +558,14 @@ export class InvestorService {
     onDeadlineApproaching?: boolean;
     customThreshold?: number;
   }): Promise<void> {
-    const response = await apiClient.post<ApiResponse<void>>(
+    const response = await apiClient.post<void>(
       `/api/investor/alerts/${pitchId}`,
       alerts
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to set alerts');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to set alerts');
     }
   }
 
@@ -473,15 +585,31 @@ export class InvestorService {
       taxableAmount: number;
     };
   }> {
-    const response = await apiClient.get<ApiResponse<{
-      taxInfo: any;
-    }>>(`/api/investor/tax/${year}`);
+    interface TaxInfoResponse {
+      documents: Array<{
+        id: number;
+        type: string;
+        name: string;
+        url: string;
+        year: number;
+      }>;
+      summary: {
+        totalInvested: number;
+        totalReturns: number;
+        netGainLoss: number;
+        taxableAmount: number;
+      };
+    }
+    const response = await apiClient.get<{
+      taxInfo: TaxInfoResponse;
+    }>(`/api/investor/tax/${year}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch tax documents');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch tax documents');
     }
 
-    return response.data?.taxInfo || {
+    return response.data?.taxInfo ?? {
       documents: [],
       summary: {
         totalInvested: 0,

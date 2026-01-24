@@ -40,9 +40,15 @@ import {
   UpdatePitchInputSchema
 } from '../types/zod-schemas';
 
-// Use environment variable or default to localhost for development
+// API URL configuration
+// In production: Use same-origin via Pages Functions proxy (no cross-origin issues!)
+// In development: Use local backend or VITE_API_URL if set
 const isDev = import.meta.env.MODE === 'development';
-const API_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : 'https://pitchey-api-prod.ndlovucavelle.workers.dev');
+
+// IMPORTANT: In production, we use '' (empty string) for same-origin requests
+// The Pages Functions proxy at /api/* forwards to the backend Worker
+// This eliminates all cross-origin cookie/CORS issues!
+const API_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 interface ApiError {
   message: string;
@@ -105,10 +111,12 @@ class ApiClient {
 
   private getBaseURL(): string {
     try {
-      return API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8001';
+      // In production, API_URL is '' for same-origin requests via Pages Functions proxy
+      // In development, use localhost or VITE_API_URL
+      return API_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8001';
     } catch (error) {
       console.warn('Config not available during initialization, using fallback URL');
-      return import.meta.env.VITE_API_URL || 'http://localhost:8001';
+      return import.meta.env.VITE_API_URL ?? 'http://localhost:8001';
     }
   }
 

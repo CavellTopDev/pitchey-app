@@ -106,11 +106,11 @@ export class EmailTemplateService {
         [templateName]
       );
 
-      if (result.rows.length === 0) {
+      if (result.length === 0) {
         return null;
       }
 
-      return this.transformTemplate(result.rows[0]);
+      return this.transformTemplate(result[0]);
     } catch (error) {
       console.error('Error getting template:', error);
       throw error;
@@ -137,7 +137,7 @@ export class EmailTemplateService {
         ]
       );
 
-      return this.transformTemplate(result.rows[0]);
+      return this.transformTemplate(result[0]);
     } catch (error) {
       console.error('Error creating template:', error);
       throw error;
@@ -160,7 +160,7 @@ export class EmailTemplateService {
       query += ` ORDER BY category, name`;
 
       const result = await this.db.query(query, params);
-      return result.rows.map(row => this.transformTemplate(row));
+      return result.map(row => this.transformTemplate(row));
     } catch (error) {
       console.error('Error getting templates:', error);
       throw error;
@@ -213,7 +213,7 @@ export class EmailTemplateService {
         [name, description, templateAId, templateBId, trafficSplit]
       );
 
-      return result.rows[0].id;
+      return result[0].id;
     } catch (error) {
       console.error('Error creating A/B test:', error);
       throw error;
@@ -304,11 +304,11 @@ export class EmailTemplateService {
         [templateId]
       );
 
-      if (result.rows.length === 0) {
+      if (result.length === 0) {
         return null;
       }
 
-      return this.transformTemplate(result.rows[0]);
+      return this.transformTemplate(result[0]);
     } catch (error) {
       console.error('Error getting template by ID:', error);
       return null;
@@ -322,7 +322,7 @@ export class EmailTemplateService {
         [testId]
       );
 
-      return result.rows[0] || null;
+      return result[0] || null;
     } catch (error) {
       console.error('Error getting A/B test:', error);
       return null;

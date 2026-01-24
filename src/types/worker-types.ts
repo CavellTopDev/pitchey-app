@@ -34,6 +34,9 @@ export interface DatabaseService {
   getUserByEmail(email: string): Promise<any | null>;
   getAllUsers(limit?: number): Promise<any[]>;
   testConnection(): Promise<boolean>;
+  // Raw SQL client for tagged template queries
+  sql?: (strings: TemplateStringsArray, ...values: any[]) => Promise<any[]>;
+  getSql?(): (strings: TemplateStringsArray, ...values: any[]) => Promise<any[]>;
 }
 
 export interface User {

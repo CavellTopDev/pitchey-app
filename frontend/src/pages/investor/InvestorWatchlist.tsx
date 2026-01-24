@@ -349,9 +349,12 @@ export default function InvestorWatchlist() {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
+                  id="watchlist-search"
+                  name="watchlist-search"
                   placeholder="Search watchlist..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  autoComplete="off"
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
@@ -554,6 +557,8 @@ export default function InvestorWatchlist() {
                           <label key={alertType} className="flex items-center gap-2 cursor-pointer">
                             <input
                               type="checkbox"
+                              id={`alert-${item.id}-${alertType}`}
+                              name={`alert-${item.id}-${alertType}`}
                               checked={enabled}
                               onChange={() => handleToggleAlert(item.id, alertType as keyof WatchlistItem['alerts'])}
                               className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"

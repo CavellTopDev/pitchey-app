@@ -1,6 +1,6 @@
 // NDA Service with comprehensive notification workflows
 import { db } from '../db/client.ts';
-import { z } from 'npm:zod@3.22.4';
+import { z } from 'zod';
 import { sendNDARequestEmail, sendNDAResponseEmail } from './email/index.ts';
 import type { NotificationService } from './notification.service.ts';
 
@@ -43,7 +43,7 @@ export class NDAService {
       console.log("NDA Request data validated:", validatedData);
       
       // Get the pitch owner
-      const pitchResult = await db.query(
+      const pitchResult = await db.execute(
         'SELECT id, user_id, title FROM pitches WHERE id = $1 LIMIT 1',
         [validatedData.pitchId]
       );
@@ -55,7 +55,7 @@ export class NDAService {
       const pitch = pitchResult.rows[0];
       
       // Check if an active request already exists
-      const existingRequestResult = await db.query(
+      const existingRequestResult = await db.execute(
         'SELECT id FROM nda_requests WHERE pitch_id = $1 AND requester_id = $2 AND status = $3 LIMIT 1',
         [validatedData.pitchId, validatedData.requesterId, 'pending']
       );
@@ -65,7 +65,7 @@ export class NDAService {
       }
       
       // Create new NDA request
-      const newRequestResult = await db.query(
+      const newRequestResult = await db.execute(
         `INSERT INTO nda_requests (pitch_id, requester_id, owner_id, nda_type, request_message, company_info, status, requested_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
@@ -116,7 +116,7 @@ export class NDAService {
         await this.scheduleNDAReminder(newRequest.id, pitch.user_id, pitch.title, 7);
       } else {
         // Fallback to legacy notification creation
-        await db.query(
+        await db.execute(
           `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
@@ -134,12 +134,12 @@ export class NDAService {
       
       // Send email notification to pitch owner
       try {
-        const pitchOwnerResult = await db.query(
+        const pitchOwnerResult = await db.execute(
           'SELECT id, email, first_name, username FROM users WHERE id = $1 LIMIT 1',
           [pitch.user_id]
         );
         
-        const requesterInfoResult = await db.query(
+        const requesterInfoResult = await db.execute(
           'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
           [validatedData.requesterId]
         );
@@ -157,13 +157,13 @@ export class NDAService {
             unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
           });
         }
-      } catch (emailError) {
+      } catch (emailError: any) {
         console.error('Failed to send NDA request email:', emailError);
         // Continue execution even if email fails
       }
       
       return newRequest;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating NDA request:', error);
       
       // Handle specific database constraint errors
@@ -183,7 +183,7 @@ export class NDAService {
   // Get NDA requests for a user (incoming)
   static async getIncomingRequests(userId: number) {
     try {
-      const result = await db.query(
+      const result = await db.execute(
         `SELECT 
            nr.id, nr.pitch_id, nr.requester_id, nr.owner_id, nr.nda_type, 
            nr.request_message, nr.company_info, nr.status, nr.requested_at,
@@ -235,7 +235,7 @@ export class NDAService {
       }));
       
       return requests;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching incoming NDA requests:', error);
       throw error;
     }
@@ -244,7 +244,7 @@ export class NDAService {
   // Get NDA requests by a user (outgoing)
   static async getOutgoingRequests(userId: number) {
     try {
-      const result = await db.query(
+      const result = await db.execute(
         `SELECT 
            nr.id, nr.pitch_id, nr.requester_id, nr.owner_id, nr.nda_type, 
            nr.request_message, nr.company_info, nr.status, nr.requested_at,
@@ -296,7 +296,7 @@ export class NDAService {
       }));
       
       return requests;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching outgoing NDA requests:', error);
       throw error;
     }
@@ -306,7 +306,7 @@ export class NDAService {
   static async approveRequest(requestId: number, ownerId: number) {
     try {
       // Verify ownership
-      const requestResult = await db.query(
+      const requestResult = await db.execute(
         'SELECT * FROM nda_requests WHERE id = $1 AND owner_id = $2 AND status = $3 LIMIT 1',
         [requestId, ownerId, 'pending']
       );
@@ -318,13 +318,13 @@ export class NDAService {
       const request = requestResult.rows[0];
       
       // Update request status
-      await db.query(
+      await db.execute(
         'UPDATE nda_requests SET status = $1, responded_at = $2 WHERE id = $3',
         ['approved', new Date(), requestId]
       );
       
       // Create NDA record
-      const ndaResult = await db.query(
+      const ndaResult = await db.execute(
         `INSERT INTO ndas (pitch_id, signer_id, status, signed_at, document_url)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
@@ -340,7 +340,7 @@ export class NDAService {
       const nda = ndaResult.rows[0];
 
       // Update with correct document URL
-      await db.query(
+      await db.execute(
         'UPDATE ndas SET document_url = $1 WHERE id = $2',
         [`/api/nda/documents/${nda.id}/download`, nda.id]
       );
@@ -348,7 +348,7 @@ export class NDAService {
       // Send comprehensive approval notifications
       if (this.notificationService) {
         // Get pitch and user details for notification
-        const pitchInfo = await db.query(
+        const pitchInfo = await db.execute(
           'SELECT title FROM pitches WHERE id = $1',
           [request.pitch_id]
         );
@@ -384,7 +384,7 @@ export class NDAService {
         await this.scheduleNDAExpiration(nda.id, request.requester_id, pitchTitle, 365); // 1 year
       } else {
         // Fallback to legacy notification
-        await db.query(
+        await db.execute(
           `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id, action_url)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
@@ -402,17 +402,17 @@ export class NDAService {
       
       // Send email notification to requester
       try {
-        const requesterInfoResult = await db.query(
+        const requesterInfoResult = await db.execute(
           'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
           [request.requester_id]
         );
         
-        const ownerInfoResult = await db.query(
+        const ownerInfoResult = await db.execute(
           'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
           [ownerId]
         );
         
-        const pitchInfoResult = await db.query(
+        const pitchInfoResult = await db.execute(
           'SELECT id, title FROM pitches WHERE id = $1 LIMIT 1',
           [request.pitch_id]
         );
@@ -431,19 +431,19 @@ export class NDAService {
             unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
           });
         }
-      } catch (emailError) {
+      } catch (emailError: any) {
         console.error('Failed to send NDA approval email:', emailError);
         // Continue execution even if email fails
       }
       
       // Increment NDA count on pitch
-      await db.query(
+      await db.execute(
         'UPDATE pitches SET nda_count = nda_count + 1 WHERE id = $1',
         [request.pitch_id]
       );
       
       return nda;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving NDA request:', error);
       throw error;
     }
@@ -453,7 +453,7 @@ export class NDAService {
   static async rejectRequest(requestId: number, ownerId: number, rejectionReason?: string) {
     try {
       // Verify ownership
-      const requestResult = await db.query(
+      const requestResult = await db.execute(
         'SELECT * FROM nda_requests WHERE id = $1 AND owner_id = $2 AND status = $3 LIMIT 1',
         [requestId, ownerId, 'pending']
       );
@@ -465,7 +465,7 @@ export class NDAService {
       const request = requestResult.rows[0];
       
       // Update request status
-      await db.query(
+      await db.execute(
         'UPDATE nda_requests SET status = $1, rejection_reason = $2, responded_at = $3 WHERE id = $4',
         ['rejected', rejectionReason, new Date(), requestId]
       );
@@ -473,7 +473,7 @@ export class NDAService {
       // Send comprehensive rejection notifications
       if (this.notificationService) {
         // Get pitch details for notification
-        const pitchInfo = await db.query(
+        const pitchInfo = await db.execute(
           'SELECT title FROM pitches WHERE id = $1',
           [request.pitch_id]
         );
@@ -508,7 +508,7 @@ export class NDAService {
         });
       } else {
         // Fallback to legacy notification
-        await db.query(
+        await db.execute(
           `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id, related_nda_request_id)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
@@ -525,17 +525,17 @@ export class NDAService {
       
       // Send email notification to requester
       try {
-        const requesterInfoResult = await db.query(
+        const requesterInfoResult = await db.execute(
           'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
           [request.requester_id]
         );
         
-        const ownerInfoResult = await db.query(
+        const ownerInfoResult = await db.execute(
           'SELECT id, email, first_name, last_name, username FROM users WHERE id = $1 LIMIT 1',
           [ownerId]
         );
         
-        const pitchInfoResult = await db.query(
+        const pitchInfoResult = await db.execute(
           'SELECT id, title FROM pitches WHERE id = $1 LIMIT 1',
           [request.pitch_id]
         );
@@ -555,13 +555,13 @@ export class NDAService {
             unsubscribeUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings/notifications`
           });
         }
-      } catch (emailError) {
+      } catch (emailError: any) {
         console.error('Failed to send NDA rejection email:', emailError);
         // Continue execution even if email fails
       }
       
       return { success: true, message: 'NDA request rejected' };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting NDA request:', error);
       throw error;
     }
@@ -570,13 +570,13 @@ export class NDAService {
   // Check if user has signed NDA for a pitch
   static async hasSignedNDA(userId: number, pitchId: number) {
     try {
-      const result = await db.query(
+      const result = await db.execute(
         'SELECT id FROM ndas WHERE pitch_id = $1 AND signer_id = $2 AND access_granted = $3 LIMIT 1',
         [pitchId, userId, true]
       );
       
       return result.rows && result.rows.length > 0;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking NDA status:', error);
       return false;
     }
@@ -585,7 +585,7 @@ export class NDAService {
   // Get all NDAs signed by a user
   static async getUserSignedNDAs(userId: number) {
     try {
-      const result = await db.query(
+      const result = await db.execute(
         `SELECT 
            n.id, n.pitch_id, n.signer_id, n.status, n.signed_at, n.document_url,
            n.access_granted, n.access_revoked_at,
@@ -621,7 +621,7 @@ export class NDAService {
       }));
       
       return ndaRecords;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching user NDAs:', error);
       throw error;
     }
@@ -631,7 +631,7 @@ export class NDAService {
   static async getPitchNDAs(pitchId: number, ownerId: number) {
     try {
       // Verify ownership
-      const pitchResult = await db.query(
+      const pitchResult = await db.execute(
         'SELECT id FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
         [pitchId, ownerId]
       );
@@ -640,7 +640,7 @@ export class NDAService {
         throw new Error('Pitch not found or unauthorized');
       }
       
-      const result = await db.query(
+      const result = await db.execute(
         `SELECT 
            n.id, n.pitch_id, n.signer_id, n.status, n.signed_at, n.document_url,
            n.access_granted, n.access_revoked_at,
@@ -677,7 +677,7 @@ export class NDAService {
       }));
       
       return ndaRecords;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching pitch NDAs:', error);
       throw error;
     }
@@ -687,7 +687,7 @@ export class NDAService {
   static async revokeAccess(ndaId: number, ownerId: number) {
     try {
       // Get NDA details
-      const result = await db.query(
+      const result = await db.execute(
         `SELECT 
            n.id, n.pitch_id, n.signer_id, n.status, n.signed_at,
            p.id as pitch_id, p.title as pitch_title, p.user_id as pitch_user_id
@@ -705,13 +705,13 @@ export class NDAService {
       const nda = result.rows[0];
       
       // Revoke access
-      await db.query(
+      await db.execute(
         'UPDATE ndas SET access_granted = $1, access_revoked_at = $2 WHERE id = $3',
         [false, new Date(), ndaId]
       );
       
       // Create notification for signer
-      await db.query(
+      await db.execute(
         `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
@@ -725,7 +725,7 @@ export class NDAService {
       );
       
       return { success: true, message: 'NDA access revoked' };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error revoking NDA access:', error);
       throw error;
     }
@@ -737,7 +737,7 @@ export class NDAService {
       const validatedData = signNDASchema.parse(data);
       
       // Check if already signed
-      const existingResult = await db.query(
+      const existingResult = await db.execute(
         'SELECT id FROM ndas WHERE pitch_id = $1 AND signer_id = $2 LIMIT 1',
         [validatedData.pitchId, validatedData.signerId]
       );
@@ -747,7 +747,7 @@ export class NDAService {
       }
       
       // Create NDA record
-      const ndaResult = await db.query(
+      const ndaResult = await db.execute(
         `INSERT INTO ndas (pitch_id, signer_id, status, signed_at, document_url)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
@@ -764,20 +764,20 @@ export class NDAService {
 
       // Update with correct document URL if not custom
       if (!validatedData.customNdaUrl) {
-        await db.query(
+        await db.execute(
           'UPDATE ndas SET document_url = $1 WHERE id = $2',
           [`/api/nda/documents/${nda.id}/download`, nda.id]
         );
       }
       
       // Increment NDA count
-      await db.query(
+      await db.execute(
         'UPDATE pitches SET nda_count = nda_count + 1 WHERE id = $1',
         [validatedData.pitchId]
       );
       
       // Get pitch details for notification
-      const pitchResult = await db.query(
+      const pitchResult = await db.execute(
         'SELECT id, user_id, title FROM pitches WHERE id = $1 LIMIT 1',
         [validatedData.pitchId]
       );
@@ -785,7 +785,7 @@ export class NDAService {
       const pitch = pitchResult.rows[0];
       
       // Notify pitch owner
-      await db.query(
+      await db.execute(
         `INSERT INTO notifications (user_id, type, title, message, related_pitch_id, related_user_id)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
@@ -799,7 +799,7 @@ export class NDAService {
       );
       
       return nda;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing NDA:', error);
       throw error;
     }
@@ -808,7 +808,7 @@ export class NDAService {
   // Get NDA statistics for a user
   static async getUserNDAStats(userId: number) {
     try {
-      const result = await db.query(
+      const result = await db.execute(
         `SELECT 
            COUNT(DISTINCT nr.id) as total_requests,
            COUNT(DISTINCT CASE WHEN nr.status = 'pending' THEN nr.id END) as pending_requests,
@@ -829,7 +829,7 @@ export class NDAService {
         rejectedRequests: parseInt(row.rejected_requests) || 0,
         signedNDAs: parseInt(row.signed_ndas) || 0
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching NDA stats:', error);
       throw error;
     }
@@ -855,7 +855,7 @@ export class NDAService {
       scheduledDate.setDate(scheduledDate.getDate() + daysFromNow);
 
       // Check if request is still pending before scheduling
-      const requestResult = await db.query(
+      const requestResult = await db.execute(
         'SELECT status FROM nda_requests WHERE id = $1',
         [ndaRequestId]
       );
@@ -884,7 +884,7 @@ export class NDAService {
           }
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error scheduling NDA reminder:', error);
     }
   }
@@ -950,7 +950,7 @@ export class NDAService {
           }
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error scheduling NDA expiration:', error);
     }
   }
@@ -963,7 +963,7 @@ export class NDAService {
       if (!this.notificationService) return;
 
       // Get NDAs expiring in 30 days
-      const expiringNDAs = await db.query(`
+      const expiringNDAs = await db.execute(`
         SELECT 
           n.id, n.signer_id, n.expires_at,
           p.title as pitch_title,
@@ -1000,14 +1000,14 @@ export class NDAService {
         });
 
         // Mark reminder as sent
-        await db.query(
+        await db.execute(
           'UPDATE ndas SET expiration_reminder_sent = true WHERE id = $1',
           [nda.id]
         );
       }
 
       console.log(`Sent ${expiringNDAs.rows.length} NDA expiration reminders`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending NDA expiration reminders:', error);
     }
   }
@@ -1020,7 +1020,7 @@ export class NDAService {
       if (!this.notificationService) return;
 
       // Get expired NDAs
-      const expiredNDAs = await db.query(`
+      const expiredNDAs = await db.execute(`
         SELECT 
           n.id, n.signer_id,
           p.title as pitch_title,
@@ -1034,7 +1034,7 @@ export class NDAService {
 
       for (const nda of expiredNDAs.rows) {
         // Revoke access
-        await db.query(
+        await db.execute(
           'UPDATE ndas SET access_granted = false, access_revoked_at = NOW() WHERE id = $1',
           [nda.id]
         );
@@ -1062,7 +1062,7 @@ export class NDAService {
       }
 
       console.log(`Processed ${expiredNDAs.rows.length} expired NDAs`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing expired NDAs:', error);
     }
   }
@@ -1075,7 +1075,7 @@ export class NDAService {
       if (!this.notificationService) return;
 
       // Get creators with NDA activity in the last week
-      const creatorsWithActivity = await db.query(`
+      const creatorsWithActivity = await db.execute(`
         SELECT 
           p.user_id,
           u.email, u.first_name,
@@ -1122,7 +1122,7 @@ export class NDAService {
       }
 
       console.log(`Sent weekly NDA digest to ${creatorsWithActivity.rows.length} creators`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending weekly NDA digest:', error);
     }
   }

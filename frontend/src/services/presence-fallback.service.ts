@@ -4,7 +4,8 @@
  */
 
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 interface PresenceData {
   userId: number;
@@ -75,21 +76,17 @@ class PresenceFallbackService {
 
   /**
    * Update user presence status
+   * Uses session cookies for authentication (credentials: 'include')
    */
   async updatePresence(data: PresenceUpdateData): Promise<boolean> {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        console.warn('No auth token available for presence update');
-        return false;
-      }
-
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-      credentials: 'include' // Send cookies for Better Auth session
-    });
+      // Use session cookies for authentication - no token needed
+      const response = await fetch(`${API_BASE_URL}/api/presence/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'include' // Send cookies for Better Auth session
+      });
 
       if (!response.ok) {
         throw new Error(`Presence update failed: ${response.status}`);
@@ -112,19 +109,15 @@ class PresenceFallbackService {
 
   /**
    * Fetch current online users
+   * Uses session cookies for authentication (credentials: 'include')
    */
   async fetchPresence(): Promise<PresenceData[]> {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        // Not authenticated, return empty list
-        return [];
-      }
-
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
+      // Use session cookies for authentication - no token needed
+      const response = await fetch(`${API_BASE_URL}/api/presence/online`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
+      });
 
       if (!response.ok) {
         throw new Error(`Presence fetch failed: ${response.status}`);
@@ -210,18 +203,15 @@ class PresenceFallbackService {
 
   /**
    * Test WebSocket availability
+   * Uses session cookies for authentication (credentials: 'include')
    */
   async testWebSocketAvailability(): Promise<{ available: boolean; error?: string }> {
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        return { available: false, error: 'Not authenticated' };
-      }
-
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-      method: 'GET',
-      credentials: 'include' // Send cookies for Better Auth session
-    });
+      // Use session cookies for authentication - no token needed
+      const response = await fetch(`${API_BASE_URL}/api/ws/health`, {
+        method: 'GET',
+        credentials: 'include' // Send cookies for Better Auth session
+      });
 
       if (!response.ok) {
         throw new Error(`WebSocket test failed: ${response.status}`);

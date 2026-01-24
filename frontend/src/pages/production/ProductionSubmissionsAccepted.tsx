@@ -46,14 +46,14 @@ export default function ProductionSubmissionsAccepted() {
       try {
         setLoading(true);
         // Connect to production API
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production/submissions?status=accepted`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
-        
+
         if (response.ok) {
           const data = await response.json();
-          setSubmissions(data.submissions || []);
+          setSubmissions(data.data?.submissions || data.submissions || []);
         } else {
           // Fallback to demo data for development
           setSubmissions([

@@ -6,14 +6,17 @@
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 
 // Export the query function type for use in services
-export type SqlQuery = NeonQueryFunction<false, false>;
+export type SqlQuery = {
+  (strings: TemplateStringsArray, ...values: any[]): Promise<any[]>;
+  (query: string, params?: any[]): Promise<any[]>;
+};
 
 /**
  * Create a SQL connection for a specific request
  * In serverless/edge environments, connections should be created per-request
  */
 export function createSqlConnection(databaseUrl: string): SqlQuery {
-  return neon(databaseUrl);
+  return neon(databaseUrl) as unknown as SqlQuery;
 }
 
 /**

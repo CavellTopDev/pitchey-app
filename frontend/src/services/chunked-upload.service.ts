@@ -35,7 +35,8 @@ class ChunkedUploadService {
   private progressTimers: Map<string, number> = new Map();
 
   constructor(baseUrl?: string, config?: Partial<ChunkedUploadConfig>) {
-    this.baseUrl = baseUrl || import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+    const isDev = import.meta.env.MODE === 'development';
+    this.baseUrl = baseUrl || import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
     
     this.config = {
       maxFileSize: {

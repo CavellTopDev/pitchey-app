@@ -65,7 +65,7 @@ export default function ProductionProjectsDevelopment() {
   const fetchDevelopmentProjects = async () => {
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production/projects?status=development`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -75,7 +75,7 @@ export default function ProductionProjectsDevelopment() {
       }
 
       const data = await response.json();
-      setProjects(data.projects || []);
+      setProjects(data.data?.projects || data.projects || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching development projects:', err);

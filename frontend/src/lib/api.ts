@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { config } from '../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+// In production, use '' (empty string) for same-origin requests via Pages Functions proxy
+const isDev = import.meta.env.MODE === 'development';
+const API_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 const api = axios.create({
   baseURL: API_URL,

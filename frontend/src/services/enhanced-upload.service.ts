@@ -1,6 +1,7 @@
 import { uploadService, UploadProgress, UploadResult, UploadOptions } from './upload.service';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 export interface EnhancedUploadOptions extends UploadOptions {
   // R2-specific optimizations

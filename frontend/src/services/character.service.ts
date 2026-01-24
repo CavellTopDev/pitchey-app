@@ -2,7 +2,6 @@
 // Provides comprehensive character CRUD and ordering operations
 
 import { apiClient } from '../lib/api-client';
-import { API_URL } from '../config';
 import type { Character } from '../types/character';
 
 export interface CharacterOrderItem {
@@ -10,23 +9,26 @@ export interface CharacterOrderItem {
   displayOrder: number;
 }
 
-export interface CharacterResponse {
-  success: boolean;
-  data?: {
-    character?: Character;
-    characters?: Character[];
-  };
-  message?: string;
-  error?: string;
+// API response types
+interface CharacterResponseData {
+  character?: Character;
+  characters?: Character[];
 }
 
-export interface CharactersResponse {
-  success: boolean;
-  data?: {
-    characters: Character[];
-  };
-  message?: string;
-  error?: string;
+interface CharactersResponseData {
+  characters: Character[];
+}
+
+interface ApiCharacter {
+  id?: number;
+  name?: string;
+  description?: string;
+  age?: number | string;
+  gender?: string;
+  actor?: string;
+  role?: string;
+  relationship?: string;
+  displayOrder?: number;
 }
 
 class CharacterService {
@@ -35,16 +37,18 @@ class CharacterService {
    */
   async getCharacters(pitchId: number): Promise<Character[]> {
     try {
-      const response = await apiClient.get(`/api/pitches/${pitchId}/characters`);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to fetch characters');
+      const response = await apiClient.get<CharactersResponseData>(`/api/pitches/${pitchId}/characters`);
+
+      if (response.success !== true) {
+        const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+        throw new Error(errorMessage ?? 'Failed to fetch characters');
       }
 
-      return response.data.data?.characters || [];
-    } catch (error: any) {
+      return response.data?.characters ?? [];
+    } catch (error: unknown) {
       console.error('Error fetching characters:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch characters');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch characters';
+      throw new Error(errorMessage);
     }
   }
 
@@ -53,16 +57,22 @@ class CharacterService {
    */
   async addCharacter(pitchId: number, character: Omit<Character, 'id' | 'displayOrder'>): Promise<Character> {
     try {
-      const response = await apiClient.post(`/api/pitches/${pitchId}/characters`, character);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to add character');
+      const response = await apiClient.post<CharacterResponseData>(`/api/pitches/${pitchId}/characters`, character);
+
+      if (response.success !== true) {
+        const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+        throw new Error(errorMessage ?? 'Failed to add character');
       }
 
-      return response.data.data.character;
-    } catch (error: any) {
+      if (response.data?.character === undefined) {
+        throw new Error('No character returned from server');
+      }
+
+      return response.data.character;
+    } catch (error: unknown) {
       console.error('Error adding character:', error);
-      throw new Error(error.response?.data?.message || 'Failed to add character');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add character';
+      throw new Error(errorMessage);
     }
   }
 
@@ -71,16 +81,22 @@ class CharacterService {
    */
   async updateCharacter(pitchId: number, characterId: number, character: Omit<Character, 'id' | 'displayOrder'>): Promise<Character> {
     try {
-      const response = await apiClient.put(`/api/pitches/${pitchId}/characters/${characterId}`, character);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to update character');
+      const response = await apiClient.put<CharacterResponseData>(`/api/pitches/${pitchId}/characters/${characterId}`, character);
+
+      if (response.success !== true) {
+        const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+        throw new Error(errorMessage ?? 'Failed to update character');
       }
 
-      return response.data.data.character;
-    } catch (error: any) {
+      if (response.data?.character === undefined) {
+        throw new Error('No character returned from server');
+      }
+
+      return response.data.character;
+    } catch (error: unknown) {
       console.error('Error updating character:', error);
-      throw new Error(error.response?.data?.message || 'Failed to update character');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update character';
+      throw new Error(errorMessage);
     }
   }
 
@@ -89,14 +105,16 @@ class CharacterService {
    */
   async deleteCharacter(pitchId: number, characterId: number): Promise<void> {
     try {
-      const response = await apiClient.delete(`/api/pitches/${pitchId}/characters/${characterId}`);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to delete character');
+      const response = await apiClient.delete<Record<string, unknown>>(`/api/pitches/${pitchId}/characters/${characterId}`);
+
+      if (response.success !== true) {
+        const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+        throw new Error(errorMessage ?? 'Failed to delete character');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting character:', error);
-      throw new Error(error.response?.data?.message || 'Failed to delete character');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete character';
+      throw new Error(errorMessage);
     }
   }
 
@@ -105,18 +123,20 @@ class CharacterService {
    */
   async reorderCharacters(pitchId: number, characterOrders: CharacterOrderItem[]): Promise<Character[]> {
     try {
-      const response = await apiClient.post(`/api/pitches/${pitchId}/characters/reorder`, {
+      const response = await apiClient.post<CharactersResponseData>(`/api/pitches/${pitchId}/characters/reorder`, {
         characterOrders
       });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to reorder characters');
+
+      if (response.success !== true) {
+        const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+        throw new Error(errorMessage ?? 'Failed to reorder characters');
       }
 
-      return response.data.data.characters;
-    } catch (error: any) {
+      return response.data?.characters ?? [];
+    } catch (error: unknown) {
       console.error('Error reordering characters:', error);
-      throw new Error(error.response?.data?.message || 'Failed to reorder characters');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to reorder characters';
+      throw new Error(errorMessage);
     }
   }
 
@@ -125,25 +145,27 @@ class CharacterService {
    */
   async moveCharacter(pitchId: number, characterId: number, direction: 'up' | 'down'): Promise<Character[]> {
     try {
-      const response = await apiClient.patch(`/api/pitches/${pitchId}/characters/${characterId}/position`, {
+      const response = await apiClient.patch<CharactersResponseData>(`/api/pitches/${pitchId}/characters/${characterId}/position`, {
         direction
       });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to move character');
+
+      if (response.success !== true) {
+        const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+        throw new Error(errorMessage ?? 'Failed to move character');
       }
 
-      return response.data.data.characters;
-    } catch (error: any) {
+      return response.data?.characters ?? [];
+    } catch (error: unknown) {
       console.error('Error moving character:', error);
-      throw new Error(error.response?.data?.message || 'Failed to move character');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to move character';
+      throw new Error(errorMessage);
     }
   }
 
   /**
    * Convert frontend Character to API format
    */
-  private toApiFormat(character: Partial<Character>) {
+  private toApiFormat(character: Partial<Character>): ApiCharacter {
     return {
       name: character.name,
       description: character.description,
@@ -158,17 +180,17 @@ class CharacterService {
   /**
    * Convert API response to frontend Character format
    */
-  private fromApiFormat(apiCharacter: any): Character {
+  private fromApiFormat(apiCharacter: ApiCharacter): Character {
     return {
-      id: apiCharacter.id?.toString() || '',
-      name: apiCharacter.name || '',
-      description: apiCharacter.description || '',
+      id: apiCharacter.id !== undefined ? apiCharacter.id.toString() : '',
+      name: apiCharacter.name ?? '',
+      description: apiCharacter.description ?? '',
       age: apiCharacter.age,
       gender: apiCharacter.gender,
       actor: apiCharacter.actor,
       role: apiCharacter.role,
       relationship: apiCharacter.relationship,
-      displayOrder: apiCharacter.displayOrder || 0,
+      displayOrder: apiCharacter.displayOrder ?? 0,
     };
   }
 
@@ -186,28 +208,28 @@ class CharacterService {
       let characters = await this.getCharacters(pitchId);
 
       // Handle deletions first
-      if (operations.delete?.length) {
+      if (operations.delete !== undefined && operations.delete.length > 0) {
         for (const characterId of operations.delete) {
           await this.deleteCharacter(pitchId, characterId);
         }
       }
 
       // Handle updates
-      if (operations.update?.length) {
+      if (operations.update !== undefined && operations.update.length > 0) {
         for (const { id, character } of operations.update) {
           await this.updateCharacter(pitchId, id, character as Omit<Character, 'id' | 'displayOrder'>);
         }
       }
 
       // Handle additions
-      if (operations.add?.length) {
+      if (operations.add !== undefined && operations.add.length > 0) {
         for (const character of operations.add) {
           await this.addCharacter(pitchId, character);
         }
       }
 
       // Handle reordering last
-      if (operations.reorder?.length) {
+      if (operations.reorder !== undefined && operations.reorder.length > 0) {
         characters = await this.reorderCharacters(pitchId, operations.reorder);
       } else {
         // Refetch to get updated list
@@ -215,7 +237,7 @@ class CharacterService {
       }
 
       return characters;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error in batch character update:', error);
       throw error;
     }

@@ -71,7 +71,7 @@ export default function ProductionActivity() {
   const loadActivityFeed = async () => {
     try {
       setError(null);
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production/activity`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -81,7 +81,7 @@ export default function ProductionActivity() {
       }
 
       const data = await response.json();
-      setActivities(data.activities || []);
+      setActivities(data.data?.activities || data.activities || []);
       
     } catch (err) {
       console.error('Failed to load activity feed:', err);

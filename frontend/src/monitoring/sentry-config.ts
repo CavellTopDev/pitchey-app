@@ -1,16 +1,12 @@
 import * as Sentry from '@sentry/react'
-import { BrowserTracing } from '@sentry/tracing'
-import { CaptureConsole } from '@sentry/integrations'
-import { Replay } from '@sentry/replay'
 
 // Performance monitoring configuration
-const PERFORMANCE_SAMPLE_RATE = import.meta.env.PROD ? 0.1 : 1.0 // 10% in production
 const REPLAY_SAMPLE_RATE = import.meta.env.PROD ? 0.1 : 0.5 // 10% in production
 const TRACES_SAMPLE_RATE = import.meta.env.PROD ? 0.1 : 1.0
 
 // Initialize Sentry
 export function initSentry() {
-  const dsn = import.meta.env.VITE_SENTRY_DSN
+  const dsn = import.meta.env['VITE_SENTRY_DSN'] as string
 
   if (!dsn) {
     console.warn('Sentry DSN not configured')
@@ -20,34 +16,23 @@ export function initSentry() {
   Sentry.init({
     dsn,
     environment: import.meta.env.MODE,
-    release: import.meta.env.VITE_APP_VERSION || 'unknown',
+    release: (import.meta.env['VITE_APP_VERSION'] as string) || 'unknown',
 
     // Performance Monitoring
     integrations: [
       // Browser tracing for performance monitoring
-      new BrowserTracing({
+      Sentry.browserTracingIntegration({
         // Set sampling rate for performance monitoring
-        tracingOrigins: [
+        tracePropagationTargets: [
           'localhost',
           'pitchey-5o8.pages.dev',
           'pitchey-api-prod.ndlovucavelle.workers.dev',
           /^\//
-        ],
-
-        // Capture interactions
-        routingInstrumentation: Sentry.reactRouterV6Instrumentation(
-          window.history
-        ),
-
-        // Track Web Vitals
-        _experiments: {
-          enableInteractions: true,
-          enableLongTask: true
-        }
+        ]
       }),
 
       // Session replay for debugging
-      new Replay({
+      Sentry.replayIntegration({
         maskAllText: false,
         maskAllInputs: true,
         blockAllMedia: false,
@@ -70,7 +55,7 @@ export function initSentry() {
       }),
 
       // Capture console errors
-      new CaptureConsole({
+      Sentry.captureConsoleIntegration({
         levels: ['error', 'warn']
       })
     ],
@@ -119,7 +104,7 @@ export function initSentry() {
     ],
 
     // User context
-    beforeSend(event, hint) {
+    beforeSend(event: Sentry.ErrorEvent, hint: Sentry.EventHint) {
       // Add custom context
       if (event.exception) {
         const error = hint.originalException
@@ -157,7 +142,7 @@ export function initSentry() {
     },
 
     // Breadcrumb filtering
-    beforeBreadcrumb(breadcrumb) {
+    beforeBreadcrumb(breadcrumb: Sentry.Breadcrumb) {
       // Filter out noisy breadcrumbs
       if (breadcrumb.category === 'console' && breadcrumb.level === 'debug') {
         return null
@@ -280,7 +265,7 @@ export function trackEvent(eventName: string, data?: Record<string, any>) {
 
 // Capture custom errors with context
 export function captureError(error: Error, context?: Record<string, any>) {
-  Sentry.withScope((scope) => {
+  Sentry.withScope((scope: Sentry.Scope) => {
     if (context) {
       scope.setContext('custom', context)
     }
@@ -296,10 +281,12 @@ export function trackWebVitals() {
       const entries = list.getEntries()
       const lastEntry = entries[entries.length - 1]
 
-      SentryPerformance.trackMetric('lcp', lastEntry.startTime, 'ms')
+      if (lastEntry) {
+        SentryPerformance.trackMetric('lcp', lastEntry.startTime, 'ms')
 
-      if (lastEntry.startTime > 2500) {
-        Sentry.captureMessage(`Poor LCP: ${lastEntry.startTime}ms`, 'warning')
+        if (lastEntry.startTime > 2500) {
+          Sentry.captureMessage(`Poor LCP: ${lastEntry.startTime}ms`, 'warning')
+        }
       }
     })
 

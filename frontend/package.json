@@ -69,6 +69,7 @@
     "use-sync-external-store": "^1.6.0",
     "valibot": "^1.2.0",
     "zod": "^4.3.4",
+    "@sentry/react": "^8.40.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

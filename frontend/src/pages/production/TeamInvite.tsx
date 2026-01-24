@@ -113,12 +113,12 @@ export default function TeamInvite() {
       }, 1000);
       
       // TODO: Replace with actual API call
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/teams/invites`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
-      // const data = await response.json();
-      // setPendingInvitations(data.invitations || []);
+      const data = await response.json();
+      setPendingInvitations(data.data?.invitations || data.invitations || []);
     } catch (error) {
       console.error('Failed to fetch invitations:', error);
       setError('Failed to load pending invitations');
@@ -152,10 +152,10 @@ export default function TeamInvite() {
       }
 
       // TODO: Replace with actual API call
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/teams/invites`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData),
+      body: JSON.stringify(formData),
       credentials: 'include' // Send cookies for Better Auth session
     });
       

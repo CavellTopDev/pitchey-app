@@ -7,7 +7,20 @@ import importPlugin from 'eslint-plugin-import'
 
 export default [
   {
-    ignores: ['dist', 'node_modules']
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      'e2e/**',
+      'playwright-report/**',
+      'test-results/**',
+      'deploy.ts',
+      '*.config.js',
+      '*.config.ts',
+      'vite.config.ts',
+      'vitest.config.ts',
+      'playwright.config.ts'
+    ]
   },
   {
     files: ['**/*.{ts,tsx}'],
@@ -30,7 +43,15 @@ export default [
       ...js.configs.recommended.rules,
       ...tseslint.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
-      
+
+      // Ignore underscore-prefixed parameters (commonly used in callbacks)
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }],
+
       // TypeScript strict rules
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unsafe-assignment': 'error',

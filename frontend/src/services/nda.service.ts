@@ -1,14 +1,42 @@
 // NDA Service - Complete NDA management with Drizzle integration
 import { apiClient } from '../lib/api-client';
-import type { 
-  NDA, 
-  NDARequest, 
-  User, 
-  Pitch,
-  ApiResponse 
+import type {
+  NDA,
+  NDARequest,
+  User
 } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? (isDev ? 'http://localhost:8001' : '');
+
+// Type for NDA data from API response
+interface NDAResponseData {
+  id: number;
+  pitchId: number;
+  requesterId?: number;
+  signerId?: number;
+  ownerId?: number;
+  status: string;
+  ndaType?: string;
+  accessGranted?: boolean;
+  expiresAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  signedAt?: string;
+  documentUrl?: string;
+  customNdaUrl?: string;
+  message?: string;
+}
+
+// Analytics response type
+interface NDAAnalyticsData {
+  totalRequests?: number;
+  approved?: number;
+  rejected?: number;
+  pending?: number;
+  avgResponseTime?: number;
+  trends?: Array<{ date: string; count: number }>;
+}
 
 // Export types from centralized types file
 export type { NDA, NDARequest } from '../types/api';
@@ -66,24 +94,24 @@ export interface NDAStats {
 export class NDAService {
   // Request NDA for a pitch
   static async requestNDA(request: NDARequestInput): Promise<NDA> {
-    const response = await apiClient.post<ApiResponse<any>>(
+    const response = await apiClient.post<NDAResponseData>(
       '/api/ndas/request',
       request
     );
 
-    if (!response.success) {
+    if (response.success !== true) {
       // Ensure we always throw an Error with a string message
       // response.error can be either a string or an object with a message property
       let errorMessage = 'Failed to request NDA';
-      
+
       if (typeof response.error === 'string') {
         errorMessage = response.error;
-      } else if (response.error && typeof response.error.message === 'string') {
+      } else if (response.error !== null && response.error !== undefined && typeof response.error === 'object' && 'message' in response.error && typeof response.error.message === 'string') {
         errorMessage = response.error.message;
-      } else if (response.error?.code === 'INTERNAL_ERROR') {
+      } else if (response.error !== null && response.error !== undefined && typeof response.error === 'object' && 'code' in response.error && response.error.code === 'INTERNAL_ERROR') {
         errorMessage = 'An unexpected error occurred. Please try again.';
       }
-      
+
       throw new Error(errorMessage);
     }
 
@@ -91,17 +119,21 @@ export class NDAService {
     // For demo accounts, it returns: { id, status, pitchId, requesterId, ownerId, message, expiresAt, createdAt, success }
     // Map the response to NDA structure
     const ndaData = response.data;
-    
+
+    if (ndaData === undefined || ndaData === null) {
+      throw new Error('Invalid response from server');
+    }
+
     return {
       id: ndaData.id,
       pitchId: ndaData.pitchId,
       signerId: ndaData.requesterId, // Map requesterId to signerId for compatibility
       status: ndaData.status,
-      ndaType: ndaData.ndaType || 'basic',
-      accessGranted: ndaData.status === 'approved' || ndaData.accessGranted,
+      ndaType: ndaData.ndaType ?? 'basic',
+      accessGranted: ndaData.status === 'approved' || ndaData.accessGranted === true,
       expiresAt: ndaData.expiresAt,
       createdAt: ndaData.createdAt,
-      updatedAt: ndaData.updatedAt || ndaData.createdAt,
+      updatedAt: ndaData.updatedAt ?? ndaData.createdAt,
       // Additional fields that may be present
       signedAt: ndaData.signedAt,
       documentUrl: ndaData.documentUrl,
@@ -111,13 +143,15 @@ export class NDAService {
 
   // Sign NDA
   static async signNDA(signature: NDASignature): Promise<NDA> {
-    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
+    interface SignNDAResponse { nda: NDA }
+    const response = await apiClient.post<SignNDAResponse>(
       `/api/ndas/${signature.ndaId}/sign`,
       signature
     );
 
-    if (!response.success || !response.data?.nda) {
-      throw new Error(response.error?.message || 'Failed to sign NDA');
+    if (response.success !== true || response.data?.nda === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to sign NDA');
     }
 
     return response.data.nda;
@@ -125,13 +159,15 @@ export class NDAService {
 
   // Approve NDA request (for creators)
   static async approveNDA(ndaId: number, notes?: string): Promise<NDA> {
-    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
+    interface ApproveNDAResponse { nda: NDA }
+    const response = await apiClient.post<ApproveNDAResponse>(
       `/api/ndas/${ndaId}/approve`,
       { notes }
     );
 
-    if (!response.success || !response.data?.nda) {
-      throw new Error(response.error?.message || 'Failed to approve NDA');
+    if (response.success !== true || response.data?.nda === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to approve NDA');
     }
 
     return response.data.nda;
@@ -139,13 +175,15 @@ export class NDAService {
 
   // Reject NDA request (for creators)
   static async rejectNDA(ndaId: number, reason: string): Promise<NDA> {
-    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
+    interface RejectNDAResponse { nda: NDA }
+    const response = await apiClient.post<RejectNDAResponse>(
       `/api/ndas/${ndaId}/reject`,
       { reason }
     );
 
-    if (!response.success || !response.data?.nda) {
-      throw new Error(response.error?.message || 'Failed to reject NDA');
+    if (response.success !== true || response.data?.nda === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to reject NDA');
     }
 
     return response.data.nda;
@@ -153,13 +191,15 @@ export class NDAService {
 
   // Revoke NDA (for creators)
   static async revokeNDA(ndaId: number, reason?: string): Promise<NDA> {
-    const response = await apiClient.post<ApiResponse<{ nda: NDA }>>(
+    interface RevokeNDAResponse { nda: NDA }
+    const response = await apiClient.post<RevokeNDAResponse>(
       `/api/ndas/${ndaId}/revoke`,
       { reason }
     );
 
-    if (!response.success || !response.data?.nda) {
-      throw new Error(response.error?.message || 'Failed to revoke NDA');
+    if (response.success !== true || response.data?.nda === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to revoke NDA');
     }
 
     return response.data.nda;
@@ -167,12 +207,14 @@ export class NDAService {
 
   // Get NDA by ID
   static async getNDAById(ndaId: number): Promise<NDA> {
-    const response = await apiClient.get<ApiResponse<{ nda: NDA }>>(
+    interface GetNDAResponse { nda: NDA }
+    const response = await apiClient.get<GetNDAResponse>(
       `/api/ndas/${ndaId}`
     );
 
-    if (!response.success || !response.data?.nda) {
-      throw new Error(response.error?.message || 'NDA not found');
+    if (response.success !== true || response.data?.nda === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'NDA not found');
     }
 
     return response.data.nda;
@@ -181,27 +223,29 @@ export class NDAService {
   // Get NDAs with filters
   static async getNDAs(filters?: NDAFilters): Promise<{ ndas: NDA[]; total: number }> {
     const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.pitchId) params.append('pitchId', filters.pitchId.toString());
-    if (filters?.requesterId) params.append('requesterId', filters.requesterId.toString());
-    if (filters?.creatorId) params.append('creatorId', filters.creatorId.toString());
-    if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
-    if (filters?.dateTo) params.append('dateTo', filters.dateTo);
-    if (filters?.limit) params.append('limit', filters.limit.toString());
-    if (filters?.offset) params.append('offset', filters.offset.toString());
+    if (filters?.status !== undefined) params.append('status', filters.status);
+    if (filters?.pitchId !== undefined) params.append('pitchId', filters.pitchId.toString());
+    if (filters?.requesterId !== undefined) params.append('requesterId', filters.requesterId.toString());
+    if (filters?.creatorId !== undefined) params.append('creatorId', filters.creatorId.toString());
+    if (filters?.dateFrom !== undefined && filters.dateFrom !== '') params.append('dateFrom', filters.dateFrom);
+    if (filters?.dateTo !== undefined && filters.dateTo !== '') params.append('dateTo', filters.dateTo);
+    if (filters?.limit !== undefined) params.append('limit', filters.limit.toString());
+    if (filters?.offset !== undefined) params.append('offset', filters.offset.toString());
 
-    const response = await apiClient.get<ApiResponse<{ 
-      ndas: NDA[]; 
-      total: number 
-    }>>(`/api/ndas?${params}`);
+    interface GetNDAsResponse {
+      ndas: NDA[];
+      total: number;
+    }
+    const response = await apiClient.get<GetNDAsResponse>(`/api/ndas?${params}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch NDAs');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch NDAs');
     }
 
     return {
-      ndas: response.data?.ndas || [],
-      total: response.data?.total || 0
+      ndas: response.data?.ndas ?? [],
+      total: response.data?.total ?? 0
     };
   }
 
@@ -213,25 +257,26 @@ export class NDAService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get<ApiResponse<{ 
+      interface NDAStatusResponse {
         hasNDA: boolean;
         nda?: NDA;
         canAccess: boolean;
-      }>>(`/api/ndas/pitch/${pitchId}/status`);
+      }
+      const response = await apiClient.get<NDAStatusResponse>(`/api/ndas/pitch/${pitchId}/status`);
 
-      if (!response.success) {
+      if (response.success !== true) {
         // Handle specific error cases
         // response.error can be either a string or an object with a message property
         let errorMessage = 'Failed to fetch NDA status';
         let errorStatus: number | undefined;
-        
+
         if (typeof response.error === 'string') {
           errorMessage = response.error;
-        } else if (response.error && typeof response.error === 'object') {
-          errorMessage = response.error.message || errorMessage;
+        } else if (response.error !== null && response.error !== undefined && typeof response.error === 'object') {
+          errorMessage = response.error.message ?? errorMessage;
           errorStatus = response.error.status;
         }
-        
+
         // Don't throw for business rule violations, return them as part of response
         if (errorStatus === 404 || errorMessage.includes('not found')) {
           return {
@@ -240,7 +285,7 @@ export class NDAService {
             error: 'No NDA relationship found'
           };
         }
-        
+
         if (errorStatus === 403 || errorMessage.includes('forbidden')) {
           return {
             hasNDA: false,
@@ -248,7 +293,7 @@ export class NDAService {
             error: 'Access denied'
           };
         }
-        
+
         // For other errors, include error message but don't throw
         return {
           hasNDA: false,
@@ -258,32 +303,35 @@ export class NDAService {
       }
 
       return {
-        hasNDA: response.data?.hasNDA || false,
+        hasNDA: response.data?.hasNDA ?? false,
         nda: response.data?.nda,
-        canAccess: response.data?.canAccess || false
+        canAccess: response.data?.canAccess ?? false
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('NDA status check failed:', error);
-      
+
       // Return error in response instead of throwing
+      const errorMessage = error instanceof Error ? error.message : 'Network error while checking NDA status';
       return {
         hasNDA: false,
         canAccess: false,
-        error: error.message || 'Network error while checking NDA status'
+        error: errorMessage
       };
     }
   }
 
   // Get NDA history for user
   static async getNDAHistory(userId?: number): Promise<NDA[]> {
-    const endpoint = userId ? `/api/ndas/history/${userId}` : '/api/ndas/history';
-    const response = await apiClient.get<ApiResponse<{ ndas: NDA[] }>>(endpoint);
+    const endpoint = userId !== undefined ? `/api/ndas/history/${userId}` : '/api/ndas/history';
+    interface NDAHistoryResponse { ndas: NDA[] }
+    const response = await apiClient.get<NDAHistoryResponse>(endpoint);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch NDA history');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch NDA history');
     }
 
-    return response.data?.ndas || [];
+    return response.data?.ndas ?? [];
   }
 
   // Download NDA document
@@ -317,13 +365,15 @@ export class NDAService {
 
   // Generate NDA preview
   static async generatePreview(pitchId: number, templateId?: number): Promise<string> {
-    const response = await apiClient.post<ApiResponse<{ preview: string }>>(
+    interface PreviewResponse { preview: string }
+    const response = await apiClient.post<PreviewResponse>(
       '/api/ndas/preview',
       { pitchId, templateId }
     );
 
-    if (!response.success || !response.data?.preview) {
-      throw new Error(response.error?.message || 'Failed to generate NDA preview');
+    if (response.success !== true || response.data?.preview === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to generate NDA preview');
     }
 
     return response.data.preview;
@@ -331,16 +381,16 @@ export class NDAService {
 
   // Get NDA templates
   static async getNDATemplates(): Promise<{ templates: NDATemplate[] }> {
-    const response = await apiClient.get<ApiResponse<{ templates: NDATemplate[] }>>(
-      '/api/ndas/templates'
-    );
+    interface TemplatesResponse { templates: NDATemplate[] }
+    const response = await apiClient.get<TemplatesResponse>('/api/ndas/templates');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch NDA templates');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch NDA templates');
     }
 
     return {
-      templates: response.data?.templates || []
+      templates: response.data?.templates ?? []
     };
   }
 
@@ -352,12 +402,12 @@ export class NDAService {
 
   // Get NDA template by ID
   static async getNDATemplate(templateId: number): Promise<NDATemplate> {
-    const response = await apiClient.get<ApiResponse<{ template: NDATemplate }>>(
-      `/api/ndas/templates/${templateId}`
-    );
+    interface TemplateResponse { template: NDATemplate }
+    const response = await apiClient.get<TemplateResponse>(`/api/ndas/templates/${templateId}`);
 
-    if (!response.success || !response.data?.template) {
-      throw new Error(response.error?.message || 'Template not found');
+    if (response.success !== true || response.data?.template === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Template not found');
     }
 
     return response.data.template;
@@ -370,13 +420,15 @@ export class NDAService {
 
   // Create NDA template (for admins/creators)
   static async createNDATemplate(template: Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): Promise<NDATemplate> {
-    const response = await apiClient.post<ApiResponse<{ template: NDATemplate }>>(
+    interface CreateTemplateResponse { template: NDATemplate }
+    const response = await apiClient.post<CreateTemplateResponse>(
       '/api/ndas/templates',
       template
     );
 
-    if (!response.success || !response.data?.template) {
-      throw new Error(response.error?.message || 'Failed to create NDA template');
+    if (response.success !== true || response.data?.template === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to create NDA template');
     }
 
     return response.data.template;
@@ -389,16 +441,18 @@ export class NDAService {
 
   // Update NDA template
   static async updateNDATemplate(
-    templateId: number, 
+    templateId: number,
     updates: Partial<Omit<NDATemplate, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
   ): Promise<NDATemplate> {
-    const response = await apiClient.put<ApiResponse<{ template: NDATemplate }>>(
+    interface UpdateTemplateResponse { template: NDATemplate }
+    const response = await apiClient.put<UpdateTemplateResponse>(
       `/api/ndas/templates/${templateId}`,
       updates
     );
 
-    if (!response.success || !response.data?.template) {
-      throw new Error(response.error?.message || 'Failed to update NDA template');
+    if (response.success !== true || response.data?.template === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to update NDA template');
     }
 
     return response.data.template;
@@ -414,12 +468,11 @@ export class NDAService {
 
   // Delete NDA template
   static async deleteNDATemplate(templateId: number): Promise<void> {
-    const response = await apiClient.delete<ApiResponse<void>>(
-      `/api/ndas/templates/${templateId}`
-    );
+    const response = await apiClient.delete<void>(`/api/ndas/templates/${templateId}`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to delete NDA template');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to delete NDA template');
     }
   }
 
@@ -430,32 +483,34 @@ export class NDAService {
 
   // Get NDA statistics
   static async getNDAStats(pitchId?: number): Promise<NDAStats> {
-    const endpoint = pitchId ? `/api/ndas/stats/${pitchId}` : '/api/ndas/stats';
-    const response = await apiClient.get<ApiResponse<NDAStats>>(endpoint);
+    const endpoint = pitchId !== undefined ? `/api/ndas/stats/${pitchId}` : '/api/ndas/stats';
+    interface StatsResponse extends NDAStats { stats?: NDAStats }
+    const response = await apiClient.get<StatsResponse>(endpoint);
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to fetch NDA statistics');
+    if (response.success !== true || response.data === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch NDA statistics');
     }
 
     // Handle both formats: data.stats (old) and direct data (new)
-    return (response.data as any).stats || response.data;
+    return response.data.stats ?? response.data;
   }
 
   // Get NDA analytics with timeframe
-  static async getNDAAnalytics(timeframe: string = '30d', pitchId?: number): Promise<any> {
+  static async getNDAAnalytics(timeframe: string = '30d', pitchId?: number): Promise<NDAAnalyticsData> {
     const params = new URLSearchParams();
     params.append('timeframe', timeframe);
-    if (pitchId) params.append('pitchId', pitchId.toString());
+    if (pitchId !== undefined) params.append('pitchId', pitchId.toString());
 
-    const response = await apiClient.get<ApiResponse<{ analytics: any }>>(
-      `/api/ndas/analytics?${params}`
-    );
+    interface AnalyticsResponse extends NDAAnalyticsData { analytics?: NDAAnalyticsData }
+    const response = await apiClient.get<AnalyticsResponse>(`/api/ndas/analytics?${params}`);
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to fetch NDA analytics');
+    if (response.success !== true || response.data === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch NDA analytics');
     }
 
-    return response.data.analytics || response.data;
+    return response.data.analytics ?? response.data;
   }
 
   // Check if user can request NDA for pitch with business rule validation
@@ -466,23 +521,24 @@ export class NDAService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get<ApiResponse<{ 
+      interface CanRequestResponse {
         canRequest: boolean;
         reason?: string;
         existingNDA?: NDA;
-      }>>(`/api/ndas/pitch/${pitchId}/can-request`);
+      }
+      const response = await apiClient.get<CanRequestResponse>(`/api/ndas/pitch/${pitchId}/can-request`);
 
-      if (!response.success) {
+      if (response.success !== true) {
         // Handle business rule violations gracefully
         // response.error can be either a string or an object with a message property
         let errorMessage = 'Failed to check NDA request status';
-        
+
         if (typeof response.error === 'string') {
           errorMessage = response.error;
-        } else if (response.error && typeof response.error.message === 'string') {
+        } else if (response.error !== null && response.error !== undefined && typeof response.error === 'object' && 'message' in response.error && typeof response.error.message === 'string') {
           errorMessage = response.error.message;
         }
-        
+
         return {
           canRequest: false,
           reason: errorMessage,
@@ -491,70 +547,76 @@ export class NDAService {
       }
 
       return {
-        canRequest: response.data?.canRequest || false,
+        canRequest: response.data?.canRequest ?? false,
         reason: response.data?.reason,
         existingNDA: response.data?.existingNDA
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('NDA request check failed:', error);
-      
+
+      const errorMessage = error instanceof Error ? error.message : 'Network error';
       return {
         canRequest: false,
         reason: 'Unable to verify NDA request eligibility',
-        error: error.message || 'Network error'
+        error: errorMessage
       };
     }
   }
 
   // Bulk approve NDAs (for creators)
-  static async bulkApprove(ndaIds: number[]): Promise<{ 
-    successful: number[]; 
-    failed: { id: number; error: string }[] 
+  static async bulkApprove(ndaIds: number[]): Promise<{
+    successful: number[];
+    failed: { id: number; error: string }[]
   }> {
-    const response = await apiClient.post<ApiResponse<{ 
-      successful: number[]; 
-      failed: { id: number; error: string }[] 
-    }>>('/api/ndas/bulk-approve', { ndaIds });
+    interface BulkApproveResponse {
+      successful: number[];
+      failed: { id: number; error: string }[];
+    }
+    const response = await apiClient.post<BulkApproveResponse>('/api/ndas/bulk-approve', { ndaIds });
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to bulk approve NDAs');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to bulk approve NDAs');
     }
 
     return {
-      successful: response.data?.successful || [],
-      failed: response.data?.failed || []
+      successful: response.data?.successful ?? [],
+      failed: response.data?.failed ?? []
     };
   }
 
   // Bulk reject NDAs (for creators)
-  static async bulkReject(ndaIds: number[], reason: string): Promise<{ 
-    successful: number[]; 
-    failed: { id: number; error: string }[] 
+  static async bulkReject(ndaIds: number[], reason: string): Promise<{
+    successful: number[];
+    failed: { id: number; error: string }[]
   }> {
-    const response = await apiClient.post<ApiResponse<{ 
-      successful: number[]; 
-      failed: { id: number; error: string }[] 
-    }>>('/api/ndas/bulk-reject', { ndaIds, reason });
+    interface BulkRejectResponse {
+      successful: number[];
+      failed: { id: number; error: string }[];
+    }
+    const response = await apiClient.post<BulkRejectResponse>('/api/ndas/bulk-reject', { ndaIds, reason });
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to bulk reject NDAs');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to bulk reject NDAs');
     }
 
     return {
-      successful: response.data?.successful || [],
-      failed: response.data?.failed || []
+      successful: response.data?.successful ?? [],
+      failed: response.data?.failed ?? []
     };
   }
 
   // Send NDA reminder
   static async sendReminder(ndaId: number): Promise<void> {
-    const response = await apiClient.post<ApiResponse<void>>(
+    const response = await apiClient.post<void>(
       `/api/ndas/${ndaId}/remind`,
       {}
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to send NDA reminder');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to send NDA reminder');
     }
   }
 
@@ -564,18 +626,20 @@ export class NDAService {
     signedBy?: User;
     signedAt?: string;
   }> {
-    const response = await apiClient.get<ApiResponse<{ 
+    interface VerifyResponse {
       valid: boolean;
       signedBy?: User;
       signedAt?: string;
-    }>>(`/api/ndas/${ndaId}/verify`);
+    }
+    const response = await apiClient.get<VerifyResponse>(`/api/ndas/${ndaId}/verify`);
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to verify NDA signature');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to verify NDA signature');
     }
 
     return {
-      valid: response.data?.valid || false,
+      valid: response.data?.valid ?? false,
       signedBy: response.data?.signedBy,
       signedAt: response.data?.signedAt
     };
@@ -586,18 +650,21 @@ export class NDAService {
     ndaRequests: NDARequest[];
     total: number;
   }> {
-    const response = await apiClient.get<ApiResponse<{
+    interface ActiveNDAsResponse {
       ndaRequests: NDARequest[];
       total?: number;
-    }>>('/api/ndas/active');
+    }
+    const response = await apiClient.get<ActiveNDAsResponse>('/api/ndas/active');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch active NDAs');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch active NDAs');
     }
 
+    const ndaRequests = response.data?.ndaRequests ?? [];
     return {
-      ndaRequests: response.data?.ndaRequests || [],
-      total: response.data?.total || response.data?.ndaRequests?.length || 0
+      ndaRequests,
+      total: response.data?.total ?? ndaRequests.length
     };
   }
 
@@ -606,18 +673,21 @@ export class NDAService {
     ndaRequests: NDARequest[];
     total: number;
   }> {
-    const response = await apiClient.get<ApiResponse<{
+    interface SignedNDAsResponse {
       ndaRequests: NDARequest[];
       total?: number;
-    }>>('/api/ndas/signed');
+    }
+    const response = await apiClient.get<SignedNDAsResponse>('/api/ndas/signed');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch signed NDAs');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch signed NDAs');
     }
 
+    const ndaRequests = response.data?.ndaRequests ?? [];
     return {
-      ndaRequests: response.data?.ndaRequests || [],
-      total: response.data?.total || response.data?.ndaRequests?.length || 0
+      ndaRequests,
+      total: response.data?.total ?? ndaRequests.length
     };
   }
 
@@ -626,38 +696,44 @@ export class NDAService {
     ndaRequests: NDARequest[];
     total: number;
   }> {
-    const response = await apiClient.get<ApiResponse<{
+    interface IncomingRequestsResponse {
       ndaRequests: NDARequest[];
       total?: number;
-    }>>('/api/ndas/incoming-requests');
+    }
+    const response = await apiClient.get<IncomingRequestsResponse>('/api/ndas/incoming-requests');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch incoming NDA requests');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch incoming NDA requests');
     }
 
+    const ndaRequests = response.data?.ndaRequests ?? [];
     return {
-      ndaRequests: response.data?.ndaRequests || [],
-      total: response.data?.total || response.data?.ndaRequests?.length || 0
+      ndaRequests,
+      total: response.data?.total ?? ndaRequests.length
     };
   }
 
-  // Get outgoing NDA requests - NEW ENDPOINT  
+  // Get outgoing NDA requests - NEW ENDPOINT
   static async getOutgoingRequests(): Promise<{
     ndaRequests: NDARequest[];
     total: number;
   }> {
-    const response = await apiClient.get<ApiResponse<{
+    interface OutgoingRequestsResponse {
       ndaRequests: NDARequest[];
       total?: number;
-    }>>('/api/ndas/outgoing-requests');
+    }
+    const response = await apiClient.get<OutgoingRequestsResponse>('/api/ndas/outgoing-requests');
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch outgoing NDA requests');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch outgoing NDA requests');
     }
 
+    const ndaRequests = response.data?.ndaRequests ?? [];
     return {
-      ndaRequests: response.data?.ndaRequests || [],
-      total: response.data?.total || response.data?.ndaRequests?.length || 0
+      ndaRequests,
+      total: response.data?.total ?? ndaRequests.length
     };
   }
 }

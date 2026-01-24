@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-  TrendingUp, TrendingDown, DollarSign, Target, Award,
-  Calendar, BarChart3, PieChart, Download, RefreshCw,
-  ArrowUp, ArrowDown, Activity, Globe, Users, Building,
-  Clock, AlertCircle, CheckCircle, Info
+import { useNavigate } from 'react-router-dom';
+import {
+  TrendingUp, DollarSign, Target,
+  BarChart3, Download, RefreshCw,
+  ArrowUp, ArrowDown, Activity,
+  Clock, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,8 @@ interface InvestmentPerformance {
 }
 
 const PerformanceTracking = () => {
-    const { user, logout } = useBetterAuthStore();
+  const navigate = useNavigate();
+  const { logout } = useBetterAuthStore();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('1y');
   const [metrics, setMetrics] = useState<PerformanceMetric[]>([]);
@@ -49,144 +51,128 @@ const PerformanceTracking = () => {
     loadPerformanceData();
   }, [timeRange]);
 
+  const getMockData = (range: string) => {
+    const multiplier = range === '1m' ? 0.2 : range === '3m' ? 0.4 : range === '6m' ? 0.6 : range === 'all' ? 2 : 1;
+    const isPositive = Math.random() > 0.3;
+
+    const metrics: PerformanceMetric[] = [
+      {
+        id: '1',
+        name: 'Portfolio Value',
+        value: `$${(12.5 * multiplier).toFixed(1)}M`,
+        change: Math.round((15.8 * (0.8 + Math.random() * 0.4)) * 10) / 10,
+        changeType: 'positive',
+        icon: DollarSign,
+        color: 'text-green-600',
+        description: 'Total value of all investments'
+      },
+      {
+        id: '2',
+        name: 'Total ROI',
+        value: `${(28.5 * (0.9 + Math.random() * 0.2)).toFixed(1)}%`,
+        change: Math.round((3.2 * (0.5 + Math.random())) * 10) / 10,
+        changeType: isPositive ? 'positive' : 'negative',
+        icon: TrendingUp,
+        color: 'text-blue-600',
+        description: 'Return on investment across portfolio'
+      },
+      {
+        id: '3',
+        name: 'Active Projects',
+        value: Math.round(18 * multiplier) || 1,
+        change: Math.round(2 * multiplier),
+        changeType: 'positive',
+        icon: Activity,
+        color: 'text-purple-600',
+        description: 'Currently active investments'
+      },
+      {
+        id: '4',
+        name: 'Success Rate',
+        value: `${Math.round(70 + Math.random() * 10)}%`,
+        change: Math.round((Math.random() * 5 - 2.5) * 10) / 10,
+        changeType: Math.random() > 0.5 ? 'positive' : 'negative',
+        icon: Target,
+        color: 'text-orange-600',
+        description: 'Percentage of profitable investments'
+      },
+      {
+        id: '5',
+        name: 'Avg. Hold Period',
+        value: `${(2.3 * (0.9 + Math.random() * 0.2)).toFixed(1)} years`,
+        change: 0.1,
+        changeType: 'neutral',
+        icon: Clock,
+        color: 'text-gray-600',
+        description: 'Average investment duration'
+      },
+      {
+        id: '6',
+        name: 'Risk Score',
+        value: multiplier > 1 ? 'Moderate-High' : 'Moderate',
+        change: 0,
+        changeType: 'neutral',
+        icon: AlertCircle,
+        color: 'text-yellow-600',
+        description: 'Overall portfolio risk assessment'
+      }
+    ];
+
+    const investments: InvestmentPerformance[] = [
+      {
+        id: '1',
+        pitchTitle: 'The Quantum Paradox',
+        company: 'Quantum Films Ltd',
+        investmentDate: '2024-01-15',
+        investedAmount: 500000 * multiplier,
+        currentValue: 725000 * multiplier,
+        roi: 45,
+        status: 'performing',
+        milestones: { completed: 7, total: 10 },
+        nextMilestone: 'Post-production completion',
+        risk: 'low'
+      },
+      {
+        id: '2',
+        pitchTitle: 'Urban Legends',
+        company: 'Dark Horse Productions',
+        investmentDate: '2023-11-20',
+        investedAmount: 750000 * multiplier,
+        currentValue: 820000 * multiplier,
+        roi: 9.3,
+        status: 'on-track',
+        milestones: { completed: 4, total: 8 },
+        nextMilestone: 'Principal photography',
+        risk: 'medium'
+      },
+      {
+        id: '3',
+        pitchTitle: 'Digital Dreams',
+        company: 'Tech Cinema Co',
+        investmentDate: '2023-08-10',
+        investedAmount: 300000 * multiplier,
+        currentValue: 280000 * multiplier,
+        roi: -6.7,
+        status: 'underperforming',
+        milestones: { completed: 3, total: 9 },
+        nextMilestone: 'Script revision',
+        risk: 'high'
+      }
+    ];
+
+    return { metrics, investments };
+  };
+
   const loadPerformanceData = async () => {
     try {
       setLoading(true);
-      // Simulate API call
+      // Simulate API call with dynamic mock data
       setTimeout(() => {
-        setMetrics([
-          {
-            id: '1',
-            name: 'Portfolio Value',
-            value: '$12.5M',
-            change: 15.8,
-            changeType: 'positive',
-            icon: DollarSign,
-            color: 'text-green-600',
-            description: 'Total value of all investments'
-          },
-          {
-            id: '2',
-            name: 'Total ROI',
-            value: '28.5%',
-            change: 3.2,
-            changeType: 'positive',
-            icon: TrendingUp,
-            color: 'text-blue-600',
-            description: 'Return on investment across portfolio'
-          },
-          {
-            id: '3',
-            name: 'Active Projects',
-            value: 18,
-            change: 2,
-            changeType: 'positive',
-            icon: Activity,
-            color: 'text-purple-600',
-            description: 'Currently active investments'
-          },
-          {
-            id: '4',
-            name: 'Success Rate',
-            value: '73%',
-            change: -2.1,
-            changeType: 'negative',
-            icon: Target,
-            color: 'text-orange-600',
-            description: 'Percentage of profitable investments'
-          },
-          {
-            id: '5',
-            name: 'Avg. Hold Period',
-            value: '2.3 years',
-            change: 0.1,
-            changeType: 'neutral',
-            icon: Clock,
-            color: 'text-gray-600',
-            description: 'Average investment duration'
-          },
-          {
-            id: '6',
-            name: 'Risk Score',
-            value: 'Moderate',
-            change: 0,
-            changeType: 'neutral',
-            icon: AlertCircle,
-            color: 'text-yellow-600',
-            description: 'Overall portfolio risk assessment'
-          }
-        ]);
-
-        setInvestments([
-          {
-            id: '1',
-            pitchTitle: 'The Quantum Paradox',
-            company: 'Quantum Films Ltd',
-            investmentDate: '2024-01-15',
-            investedAmount: 500000,
-            currentValue: 725000,
-            roi: 45,
-            status: 'performing',
-            milestones: { completed: 7, total: 10 },
-            nextMilestone: 'Post-production completion',
-            risk: 'low'
-          },
-          {
-            id: '2',
-            pitchTitle: 'Urban Legends',
-            company: 'Dark Horse Productions',
-            investmentDate: '2023-11-20',
-            investedAmount: 750000,
-            currentValue: 820000,
-            roi: 9.3,
-            status: 'on-track',
-            milestones: { completed: 4, total: 8 },
-            nextMilestone: 'Principal photography',
-            risk: 'medium'
-          },
-          {
-            id: '3',
-            pitchTitle: 'Digital Dreams',
-            company: 'Tech Cinema Co',
-            investmentDate: '2023-08-10',
-            investedAmount: 300000,
-            currentValue: 280000,
-            roi: -6.7,
-            status: 'underperforming',
-            milestones: { completed: 3, total: 9 },
-            nextMilestone: 'Script revision',
-            risk: 'high'
-          },
-          {
-            id: '4',
-            pitchTitle: 'Lost Paradise',
-            company: 'Paradise Films',
-            investmentDate: '2023-06-05',
-            investedAmount: 1000000,
-            currentValue: 1450000,
-            roi: 45,
-            status: 'completed',
-            milestones: { completed: 10, total: 10 },
-            nextMilestone: 'Distribution phase',
-            risk: 'low'
-          },
-          {
-            id: '5',
-            pitchTitle: 'Midnight Chronicles',
-            company: 'Moonlight Studios',
-            investmentDate: '2024-02-20',
-            investedAmount: 450000,
-            currentValue: 495000,
-            roi: 10,
-            status: 'on-track',
-            milestones: { completed: 5, total: 11 },
-            nextMilestone: 'Cast finalization',
-            risk: 'medium'
-          }
-        ]);
-        
+        const mock = getMockData(timeRange);
+        setMetrics(mock.metrics);
+        setInvestments(mock.investments);
         setLoading(false);
-      }, 1000);
+      }, 500);
     } catch (error) {
       console.error('Failed to load performance data:', error);
       setLoading(false);
@@ -242,7 +228,7 @@ const PerformanceTracking = () => {
   if (loading) {
     return (
       <div>
-                <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       </div>
@@ -251,7 +237,7 @@ const PerformanceTracking = () => {
 
   return (
     <div>
-            <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-start">
@@ -276,6 +262,9 @@ const PerformanceTracking = () => {
               <Button variant="outline" size="icon" onClick={loadPerformanceData}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
+              <Button variant="ghost" className="text-gray-600" onClick={handleLogout}>
+                Logout
+              </Button>
               <Button variant="outline">
                 <Download className="h-4 w-4 mr-2" />
                 Export Report
@@ -294,9 +283,8 @@ const PerformanceTracking = () => {
                   <div className="flex items-center justify-between mb-2">
                     <Icon className={`h-5 w-5 ${metric.color}`} />
                     {metric.changeType !== 'neutral' && (
-                      <div className={`flex items-center text-sm ${
-                        metric.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <div className={`flex items-center text-sm ${metric.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                        }`}>
                         {metric.changeType === 'positive' ? (
                           <ArrowUp className="h-3 w-3 mr-1" />
                         ) : (
@@ -414,9 +402,8 @@ const PerformanceTracking = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className={`flex items-center text-sm font-medium ${
-                          investment.roi > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
+                        <div className={`flex items-center text-sm font-medium ${investment.roi > 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
                           {investment.roi > 0 ? (
                             <ArrowUp className="h-3 w-3 mr-1" />
                           ) : (
@@ -431,7 +418,7 @@ const PerformanceTracking = () => {
                             {investment.milestones.completed}/{investment.milestones.total} milestones
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                            <div 
+                            <div
                               className="bg-purple-600 h-2 rounded-full"
                               style={{ width: `${(investment.milestones.completed / investment.milestones.total) * 100}%` }}
                             />

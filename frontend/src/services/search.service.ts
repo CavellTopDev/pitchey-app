@@ -2,7 +2,8 @@
 import { apiClient } from '../lib/api-client';
 import type { Pitch, User } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? (isDev ? 'http://localhost:8001' : '');
 
 // Search result types
 export interface SearchResult<T> {
@@ -80,7 +81,7 @@ export interface SearchHistory {
   id: number;
   query: string;
   type: 'pitch' | 'user' | 'global';
-  filters?: any;
+  filters?: Record<string, unknown>;
   resultsCount: number;
   clickedResults?: number[];
   createdAt: string;
@@ -89,36 +90,134 @@ export interface SearchHistory {
 export interface SearchSuggestion {
   text: string;
   type: 'query' | 'pitch' | 'user' | 'category';
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   score?: number;
+}
+
+// API response types
+interface PitchSearchResponseData {
+  result: SearchResult<Pitch>;
+}
+
+interface UserSearchResponseData {
+  result: SearchResult<User>;
+}
+
+interface MessageSearchResult {
+  id: number;
+  content: string;
+  createdAt: string;
+  senderId: number;
+  receiverId: number;
+}
+
+interface GlobalSearchResponseData {
+  pitches?: SearchResult<Pitch>;
+  users?: SearchResult<User>;
+  messages?: SearchResult<MessageSearchResult>;
+  total: number;
+}
+
+interface SuggestionResponseData {
+  suggestions: SearchSuggestion[];
+}
+
+interface AutocompleteResponseData {
+  completions: string[];
+}
+
+interface SavedSearchResponseData {
+  search: SavedSearch;
+}
+
+interface SavedSearchesResponseData {
+  searches: SavedSearch[];
+}
+
+interface SearchHistoryResponseData {
+  history: SearchHistory[];
+}
+
+interface TrendingItem {
+  query: string;
+  count: number;
+  trend: 'up' | 'down' | 'stable';
+}
+
+interface TrendingResponseData {
+  trending: TrendingItem[];
+}
+
+interface RelatedResponseData {
+  related: string[];
+}
+
+interface AISearchResult {
+  interpretation: string;
+  filters: Record<string, unknown>;
+  results: SearchResult<Pitch | User>;
+  confidence: number;
+}
+
+interface AISearchResponseData {
+  search: AISearchResult;
+}
+
+interface FiltersMetadata {
+  genres?: string[];
+  formats?: string[];
+  userTypes?: string[];
+  locations?: string[];
+  specialties?: string[];
+  budgetRanges?: { min: number; max: number; label: string }[];
+}
+
+interface FiltersMetadataResponseData {
+  metadata: FiltersMetadata;
+}
+
+interface PitchesResponseData {
+  pitches: Pitch[];
+}
+
+interface UsersResponseData {
+  users: User[];
+}
+
+// Helper function to extract error message
+function getErrorMessage(error: { message: string } | string | undefined, fallback: string): string {
+  if (typeof error === 'object' && error !== null) {
+    return error.message;
+  }
+  return error ?? fallback;
 }
 
 export class SearchService {
   // Search pitches
   static async searchPitches(filters: PitchSearchFilters): Promise<SearchResult<Pitch>> {
     const params = new URLSearchParams();
-    if (filters.query) params.append('q', filters.query);
-    if (filters.genres?.length) params.append('genres', filters.genres.join(','));
-    if (filters.formats?.length) params.append('formats', filters.formats.join(','));
-    if (filters.status?.length) params.append('status', filters.status.join(','));
-    if (filters.minBudget) params.append('minBudget', filters.minBudget.toString());
-    if (filters.maxBudget) params.append('maxBudget', filters.maxBudget.toString());
-    if (filters.creatorId) params.append('creatorId', filters.creatorId.toString());
+    if (filters.query !== undefined && filters.query !== '') params.append('q', filters.query);
+    if (filters.genres !== undefined && filters.genres.length > 0) params.append('genres', filters.genres.join(','));
+    if (filters.formats !== undefined && filters.formats.length > 0) params.append('formats', filters.formats.join(','));
+    if (filters.status !== undefined && filters.status.length > 0) params.append('status', filters.status.join(','));
+    if (filters.minBudget !== undefined && filters.minBudget !== 0) params.append('minBudget', filters.minBudget.toString());
+    if (filters.maxBudget !== undefined && filters.maxBudget !== 0) params.append('maxBudget', filters.maxBudget.toString());
+    if (filters.creatorId !== undefined && filters.creatorId !== 0) params.append('creatorId', filters.creatorId.toString());
     if (filters.hasNDA !== undefined) params.append('hasNDA', filters.hasNDA.toString());
     if (filters.hasVideo !== undefined) params.append('hasVideo', filters.hasVideo.toString());
-    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
-    if (filters.dateTo) params.append('dateTo', filters.dateTo);
-    if (filters.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
-    if (filters.page) params.append('page', filters.page.toString());
-    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.dateFrom !== undefined && filters.dateFrom !== '') params.append('dateFrom', filters.dateFrom);
+    if (filters.dateTo !== undefined && filters.dateTo !== '') params.append('dateTo', filters.dateTo);
+    if (filters.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
+    if (filters.sortOrder !== undefined && filters.sortOrder !== '') params.append('sortOrder', filters.sortOrder);
+    if (filters.page !== undefined && filters.page !== 0) params.append('page', filters.page.toString());
+    if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 
-    const response = await apiClient.get<{ success: boolean; result: SearchResult<Pitch> }>(
-      `/api/search/pitches?${params}`
+    const response = await apiClient.get<PitchSearchResponseData>(
+      `/api/search/pitches?${params.toString()}`
     );
 
-    if (!response.success || !response.data?.result) {
-      throw new Error(response.error?.message || 'Failed to search pitches');
+    if (response.success !== true || response.data?.result === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to search pitches'));
     }
 
     return response.data.result;
@@ -127,48 +226,42 @@ export class SearchService {
   // Search users
   static async searchUsers(filters: UserSearchFilters): Promise<SearchResult<User>> {
     const params = new URLSearchParams();
-    if (filters.query) params.append('q', filters.query);
-    if (filters.userTypes?.length) params.append('userTypes', filters.userTypes.join(','));
+    if (filters.query !== undefined && filters.query !== '') params.append('q', filters.query);
+    if (filters.userTypes !== undefined && filters.userTypes.length > 0) params.append('userTypes', filters.userTypes.join(','));
     if (filters.verified !== undefined) params.append('verified', filters.verified.toString());
     if (filters.hasCompany !== undefined) params.append('hasCompany', filters.hasCompany.toString());
-    if (filters.location) params.append('location', filters.location);
-    if (filters.specialties?.length) params.append('specialties', filters.specialties.join(','));
-    if (filters.minFollowers) params.append('minFollowers', filters.minFollowers.toString());
-    if (filters.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
-    if (filters.page) params.append('page', filters.page.toString());
-    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.location !== undefined && filters.location !== '') params.append('location', filters.location);
+    if (filters.specialties !== undefined && filters.specialties.length > 0) params.append('specialties', filters.specialties.join(','));
+    if (filters.minFollowers !== undefined && filters.minFollowers !== 0) params.append('minFollowers', filters.minFollowers.toString());
+    if (filters.sortBy !== undefined && filters.sortBy !== '') params.append('sortBy', filters.sortBy);
+    if (filters.sortOrder !== undefined && filters.sortOrder !== '') params.append('sortOrder', filters.sortOrder);
+    if (filters.page !== undefined && filters.page !== 0) params.append('page', filters.page.toString());
+    if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 
-    const response = await apiClient.get<{ success: boolean; result: SearchResult<User> }>(
-      `/api/search/users?${params}`
+    const response = await apiClient.get<UserSearchResponseData>(
+      `/api/search/users?${params.toString()}`
     );
 
-    if (!response.success || !response.data?.result) {
-      throw new Error(response.error?.message || 'Failed to search users');
+    if (response.success !== true || response.data?.result === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to search users'));
     }
 
     return response.data.result;
   }
 
   // Global search
-  static async globalSearch(filters: GlobalSearchFilters): Promise<{
-    pitches?: SearchResult<Pitch>;
-    users?: SearchResult<User>;
-    messages?: SearchResult<any>;
-    total: number;
-  }> {
+  static async globalSearch(filters: GlobalSearchFilters): Promise<GlobalSearchResponseData> {
     const params = new URLSearchParams();
     params.append('q', filters.query);
-    if (filters.types?.length) params.append('types', filters.types.join(','));
-    if (filters.limit) params.append('limit', filters.limit.toString());
+    if (filters.types !== undefined && filters.types.length > 0) params.append('types', filters.types.join(','));
+    if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 
-    const response = await apiClient.get<{ 
-      success: boolean; 
-      results: any 
-    }>(`/api/search/global?${params}`);
+    const response = await apiClient.get<{ results: GlobalSearchResponseData }>(
+      `/api/search/global?${params.toString()}`
+    );
 
-    if (!response.success || !response.data?.results) {
-      throw new Error(response.error?.message || 'Failed to perform global search');
+    if (response.success !== true || response.data?.results === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to perform global search'));
     }
 
     return response.data.results;
@@ -177,43 +270,43 @@ export class SearchService {
   // Get search suggestions
   static async getSuggestions(query: string, type?: 'pitch' | 'user' | 'all'): Promise<SearchSuggestion[]> {
     const params = new URLSearchParams({ q: query });
-    if (type) params.append('type', type);
+    if (type !== undefined) params.append('type', type);
 
-    const response = await apiClient.get<{ success: boolean; suggestions: SearchSuggestion[] }>(
-      `/api/search/suggestions?${params}`
+    const response = await apiClient.get<SuggestionResponseData>(
+      `/api/search/suggestions?${params.toString()}`
     );
 
-    if (!response.success) {
+    if (response.success !== true) {
       return [];
     }
 
-    return response.data?.suggestions || [];
+    return response.data?.suggestions ?? [];
   }
 
   // Get autocomplete
   static async getAutocomplete(query: string, field: string): Promise<string[]> {
     const params = new URLSearchParams({ q: query, field });
 
-    const response = await apiClient.get<{ success: boolean; completions: string[] }>(
-      `/api/search/autocomplete?${params}`
+    const response = await apiClient.get<AutocompleteResponseData>(
+      `/api/search/autocomplete?${params.toString()}`
     );
 
-    if (!response.success) {
+    if (response.success !== true) {
       return [];
     }
 
-    return response.data?.completions || [];
+    return response.data?.completions ?? [];
   }
 
   // Save search
   static async saveSearch(search: Omit<SavedSearch, 'id' | 'createdAt' | 'updatedAt'>): Promise<SavedSearch> {
-    const response = await apiClient.post<{ success: boolean; search: SavedSearch }>(
+    const response = await apiClient.post<SavedSearchResponseData>(
       '/api/search/saved',
       search
     );
 
-    if (!response.success || !response.data?.search) {
-      throw new Error(response.error?.message || 'Failed to save search');
+    if (response.success !== true || response.data?.search === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to save search'));
     }
 
     return response.data.search;
@@ -221,15 +314,15 @@ export class SearchService {
 
   // Get saved searches
   static async getSavedSearches(): Promise<SavedSearch[]> {
-    const response = await apiClient.get<{ success: boolean; searches: SavedSearch[] }>(
+    const response = await apiClient.get<SavedSearchesResponseData>(
       '/api/search/saved'
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch saved searches');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch saved searches'));
     }
 
-    return response.data?.searches || [];
+    return response.data?.searches ?? [];
   }
 
   // Update saved search
@@ -237,13 +330,13 @@ export class SearchService {
     searchId: number,
     updates: Partial<Omit<SavedSearch, 'id' | 'createdAt' | 'updatedAt'>>
   ): Promise<SavedSearch> {
-    const response = await apiClient.put<{ success: boolean; search: SavedSearch }>(
-      `/api/search/saved/${searchId}`,
+    const response = await apiClient.put<SavedSearchResponseData>(
+      `/api/search/saved/${searchId.toString()}`,
       updates
     );
 
-    if (!response.success || !response.data?.search) {
-      throw new Error(response.error?.message || 'Failed to update saved search');
+    if (response.success !== true || response.data?.search === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to update saved search'));
     }
 
     return response.data.search;
@@ -251,23 +344,23 @@ export class SearchService {
 
   // Delete saved search
   static async deleteSavedSearch(searchId: number): Promise<void> {
-    const response = await apiClient.delete<{ success: boolean }>(
-      `/api/search/saved/${searchId}`
+    const response = await apiClient.delete<Record<string, unknown>>(
+      `/api/search/saved/${searchId.toString()}`
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to delete saved search');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to delete saved search'));
     }
   }
 
   // Run saved search
-  static async runSavedSearch(searchId: number): Promise<SearchResult<any>> {
-    const response = await apiClient.get<{ success: boolean; result: SearchResult<any> }>(
-      `/api/search/saved/${searchId}/run`
+  static async runSavedSearch(searchId: number): Promise<SearchResult<Pitch | User>> {
+    const response = await apiClient.get<{ result: SearchResult<Pitch | User> }>(
+      `/api/search/saved/${searchId.toString()}/run`
     );
 
-    if (!response.success || !response.data?.result) {
-      throw new Error(response.error?.message || 'Failed to run saved search');
+    if (response.success !== true || response.data?.result === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to run saved search'));
     }
 
     return response.data.result;
@@ -275,75 +368,66 @@ export class SearchService {
 
   // Get search history
   static async getSearchHistory(limit: number = 10): Promise<SearchHistory[]> {
-    const response = await apiClient.get<{ success: boolean; history: SearchHistory[] }>(
-      `/api/search/history?limit=${limit}`
+    const response = await apiClient.get<SearchHistoryResponseData>(
+      `/api/search/history?limit=${limit.toString()}`
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch search history');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch search history'));
     }
 
-    return response.data?.history || [];
+    return response.data?.history ?? [];
   }
 
   // Clear search history
   static async clearSearchHistory(): Promise<void> {
-    const response = await apiClient.delete<{ success: boolean }>(
+    const response = await apiClient.delete<Record<string, unknown>>(
       '/api/search/history'
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to clear search history');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to clear search history'));
     }
   }
 
   // Get trending searches
-  static async getTrendingSearches(type?: 'pitch' | 'user' | 'all'): Promise<{
-    query: string;
-    count: number;
-    trend: 'up' | 'down' | 'stable';
-  }[]> {
+  static async getTrendingSearches(type?: 'pitch' | 'user' | 'all'): Promise<TrendingItem[]> {
     const params = new URLSearchParams();
-    if (type) params.append('type', type);
+    if (type !== undefined) params.append('type', type);
 
-    const response = await apiClient.get<{ success: boolean; trending: any[] }>(
-      `/api/search/trending?${params}`
+    const response = await apiClient.get<TrendingResponseData>(
+      `/api/search/trending?${params.toString()}`
     );
 
-    if (!response.success) {
+    if (response.success !== true) {
       return [];
     }
 
-    return response.data?.trending || [];
+    return response.data?.trending ?? [];
   }
 
   // Get related searches
   static async getRelatedSearches(query: string): Promise<string[]> {
-    const response = await apiClient.get<{ success: boolean; related: string[] }>(
+    const response = await apiClient.get<RelatedResponseData>(
       `/api/search/related?q=${encodeURIComponent(query)}`
     );
 
-    if (!response.success) {
+    if (response.success !== true) {
       return [];
     }
 
-    return response.data?.related || [];
+    return response.data?.related ?? [];
   }
 
   // Advanced search with AI
-  static async aiSearch(prompt: string): Promise<{
-    interpretation: string;
-    filters: any;
-    results: SearchResult<any>;
-    confidence: number;
-  }> {
-    const response = await apiClient.post<{ success: boolean; search: any }>(
+  static async aiSearch(prompt: string): Promise<AISearchResult> {
+    const response = await apiClient.post<AISearchResponseData>(
       '/api/search/ai',
       { prompt }
     );
 
-    if (!response.success || !response.data?.search) {
-      throw new Error(response.error?.message || 'Failed to perform AI search');
+    if (response.success !== true || response.data?.search === undefined) {
+      throw new Error(getErrorMessage(response.error, 'Failed to perform AI search'));
     }
 
     return response.data.search;
@@ -352,7 +436,7 @@ export class SearchService {
   // Export search results
   static async exportResults(
     searchType: 'pitch' | 'user',
-    filters: any,
+    filters: Record<string, unknown>,
     format: 'csv' | 'pdf' | 'excel'
   ): Promise<Blob> {
     const response = await fetch(
@@ -373,49 +457,42 @@ export class SearchService {
   }
 
   // Get search filters metadata
-  static async getFiltersMetadata(type: 'pitch' | 'user'): Promise<{
-    genres?: string[];
-    formats?: string[];
-    userTypes?: string[];
-    locations?: string[];
-    specialties?: string[];
-    budgetRanges?: { min: number; max: number; label: string }[];
-  }> {
-    const response = await apiClient.get<{ success: boolean; metadata: any }>(
+  static async getFiltersMetadata(type: 'pitch' | 'user'): Promise<FiltersMetadata> {
+    const response = await apiClient.get<FiltersMetadataResponseData>(
       `/api/search/filters/${type}`
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch filters metadata');
+    if (response.success !== true) {
+      throw new Error(getErrorMessage(response.error, 'Failed to fetch filters metadata'));
     }
 
-    return response.data?.metadata || {};
+    return response.data?.metadata ?? {};
   }
 
   // Similar pitches
   static async getSimilarPitches(pitchId: number, limit: number = 5): Promise<Pitch[]> {
-    const response = await apiClient.get<{ success: boolean; pitches: Pitch[] }>(
-      `/api/search/similar/pitches/${pitchId}?limit=${limit}`
+    const response = await apiClient.get<PitchesResponseData>(
+      `/api/search/similar/pitches/${pitchId.toString()}?limit=${limit.toString()}`
     );
 
-    if (!response.success) {
+    if (response.success !== true) {
       return [];
     }
 
-    return response.data?.pitches || [];
+    return response.data?.pitches ?? [];
   }
 
   // Similar users
   static async getSimilarUsers(userId: number, limit: number = 5): Promise<User[]> {
-    const response = await apiClient.get<{ success: boolean; users: User[] }>(
-      `/api/search/similar/users/${userId}?limit=${limit}`
+    const response = await apiClient.get<UsersResponseData>(
+      `/api/search/similar/users/${userId.toString()}?limit=${limit.toString()}`
     );
 
-    if (!response.success) {
+    if (response.success !== true) {
       return [];
     }
 
-    return response.data?.users || [];
+    return response.data?.users ?? [];
   }
 }
 

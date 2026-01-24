@@ -57,6 +57,7 @@ export function createCookieHeader(
     secure?: boolean;
     httpOnly?: boolean;
     path?: string;
+    domain?: string; // ADDED: Domain for cross-subdomain session sharing
   } = {}
 ): string {
   const {
@@ -64,25 +65,40 @@ export function createCookieHeader(
     sameSite = 'None', // Cross-origin by default
     secure = true,
     httpOnly = true,
-    path = '/'
+    path = '/',
+    domain // Domain attribute for cross-subdomain cookies
   } = options;
-  
+
   let cookie = `${name}=${value}; Path=${path}`;
-  
+
+  // CRITICAL: Domain attribute enables session sharing across subdomains
+  // e.g., Domain=.pages.dev allows cookies to work across:
+  // - pitchey-5o8.pages.dev (main frontend)
+  // - creator.pitchey-5o8.pages.dev (creator portal)
+  // - investor.pitchey-5o8.pages.dev (investor portal)
+  if (domain) {
+    cookie += `; Domain=${domain}`;
+  }
+
   if (httpOnly) {
     cookie += '; HttpOnly';
   }
-  
+
   if (secure) {
     cookie += '; Secure';
   }
-  
+
   cookie += `; SameSite=${sameSite}`;
   cookie += `; Max-Age=${maxAge}`;
-  
+
   return cookie;
 }
 
-export function clearCookieHeader(name: string): string {
-  return `${name}=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0`;
+export function clearCookieHeader(name: string, domain?: string): string {
+  let cookie = `${name}=; Path=/`;
+  if (domain) {
+    cookie += `; Domain=${domain}`;
+  }
+  cookie += '; HttpOnly; Secure; SameSite=None; Max-Age=0';
+  return cookie;
 }

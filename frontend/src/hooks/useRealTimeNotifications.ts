@@ -133,7 +133,8 @@ export function useRealTimeNotifications() {
     const pollNotifications = async () => {
       try {
         // Fetch recent notifications from API
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+        const isDev = import.meta.env.MODE === 'development';
+        const apiUrl = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
         const response = await fetch(`${apiUrl}/api/user/notifications`, {
           method: 'GET',
           credentials: 'include' // Send cookies for Better Auth session

@@ -21,27 +21,20 @@ function createConfig(): AppConfig {
   // Get environment variables from Vite's import.meta.env
   // Use localhost for development if not specified
   const isDev = import.meta.env.MODE === 'development';
-  const apiUrl = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : 'https://pitchey-api-prod.ndlovucavelle.workers.dev');
+
+  // IMPORTANT: In production, use '' (empty string) for same-origin requests
+  // The Pages Functions proxy at /api/* forwards to the backend Worker
+  // This eliminates all cross-origin cookie/CORS issues!
+  const apiUrl = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
+
+  // WebSocket URL - still needs to go direct to the Worker for now
+  // (Pages Functions don't support WebSocket proxying)
   const wsUrl = import.meta.env.VITE_WS_URL || (isDev ? 'ws://localhost:8001' : 'wss://pitchey-api-prod.ndlovucavelle.workers.dev');
   const nodeEnv = import.meta.env.VITE_NODE_ENV || import.meta.env.MODE || 'development';
   const mode = import.meta.env.MODE || 'development';
 
-  // Validate required environment variables
-  if (!apiUrl && typeof window !== 'undefined') {
-    // Only throw in runtime, not during build
-    console.error('VITE_API_URL environment variable is required, using production default');
-    // Use production API as fallback
-    const fallbackUrl = 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
-    return {
-      API_URL: fallbackUrl,
-      WS_URL: fallbackUrl.replace('https://', 'wss://'),
-      NODE_ENV: nodeEnv,
-      IS_PRODUCTION: false,
-      IS_DEVELOPMENT: true,
-      MODE: mode,
-      WEBSOCKET_ENABLED: false
-    };
-  }
+  // Note: In production, apiUrl being '' (empty string) is expected and correct
+  // This means same-origin requests via Pages Functions proxy
 
   // Default WebSocket URL if not provided
   let finalWsUrl = wsUrl;

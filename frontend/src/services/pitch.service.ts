@@ -79,17 +79,58 @@ export interface Pitch {
   canEdit?: boolean; // For current viewer
   hasSignedNDA?: boolean; // Whether user has signed NDA
   protectedContent?: {
-    budgetBreakdown?: any;
+    budgetBreakdown?: Record<string, number | string>;
     productionTimeline?: string;
-    attachedTalent?: any[];
-    financialProjections?: any;
+    attachedTalent?: Array<{ name: string; role: string; confirmed?: boolean }>;
+    financialProjections?: Record<string, number | string>;
     distributionPlan?: string;
     marketingStrategy?: string;
-    privateAttachments?: any[];
-    contactDetails?: any;
+    privateAttachments?: Array<{ url: string; name: string; type: string }>;
+    contactDetails?: { email?: string; phone?: string; address?: string };
     revenueModel?: string;
   };
 }
+
+// Raw pitch data from API (snake_case)
+interface RawPitchData {
+  id?: number;
+  view_count?: number;
+  viewCount?: number;
+  like_count?: number;
+  likeCount?: number;
+  nda_count?: number;
+  ndaCount?: number;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+  creator_id?: number;
+  creatorId?: number;
+  user_id?: number;
+  creator_name?: string;
+  creatorName?: string;
+  short_synopsis?: string;
+  shortSynopsis?: string;
+  long_synopsis?: string;
+  longSynopsis?: string;
+  budget_breakdown?: Record<string, number | string>;
+  budgetBreakdown?: Record<string, number | string>;
+  attached_talent?: Array<{ name: string; role: string; confirmed?: boolean }>;
+  attachedTalent?: Array<{ name: string; role: string; confirmed?: boolean }>;
+  financial_projections?: Record<string, number | string>;
+  financialProjections?: Record<string, number | string>;
+  [key: string]: unknown;
+}
+
+interface PitchAnalytics {
+  views: number;
+  likes: number;
+  ndaRequests: number;
+  investments: number;
+  viewHistory?: Array<{ date: string; count: number }>;
+  demographics?: Record<string, number>;
+}
+
 
 export interface CreatePitchInput {
   title: string;
@@ -174,10 +215,10 @@ const formatMap: Record<string, string> = {
 
 // Helper to transform pitch data from snake_case (API) to camelCase (frontend)
 // and ensure numeric values are properly typed
-function transformPitchData(pitch: any): any {
-  if (!pitch) return pitch;
+function transformPitchData(pitch: RawPitchData | null | undefined): Partial<Pitch> | null {
+  if (pitch === null || pitch === undefined) return null;
   return {
-    ...pitch,
+    ...(pitch as unknown as Partial<Pitch>),
     // Map snake_case to camelCase for engagement metrics
     // Note: API may return strings for some numeric fields
     viewCount: Number(pitch.view_count ?? pitch.viewCount ?? 0),
@@ -185,13 +226,8 @@ function transformPitchData(pitch: any): any {
     ndaCount: Number(pitch.nda_count ?? pitch.ndaCount ?? 0),
     createdAt: pitch.created_at ?? pitch.createdAt,
     updatedAt: pitch.updated_at ?? pitch.updatedAt,
-    creatorId: pitch.creator_id ?? pitch.creatorId ?? pitch.user_id,
-    creatorName: pitch.creator_name ?? pitch.creatorName,
     shortSynopsis: pitch.short_synopsis ?? pitch.shortSynopsis,
     longSynopsis: pitch.long_synopsis ?? pitch.longSynopsis,
-    budgetBreakdown: pitch.budget_breakdown ?? pitch.budgetBreakdown,
-    attachedTalent: pitch.attached_talent ?? pitch.attachedTalent,
-    financialProjections: pitch.financial_projections ?? pitch.financialProjections,
   };
 }
 
@@ -201,96 +237,118 @@ export class PitchService {
     // Map frontend values to backend expectations
     const mappedData = {
       ...input,
-      genre: genreMap[input.genre] || input.genre.toLowerCase(),
-      format: formatMap[input.format] || input.format.toLowerCase(),
+      genre: genreMap[input.genre] ?? input.genre.toLowerCase(),
+      format: formatMap[input.format] ?? input.format.toLowerCase(),
       // Ensure proper data types
-      estimatedBudget: input.estimatedBudget || undefined,
+      estimatedBudget: input.estimatedBudget ?? undefined,
       additionalMedia: input.additionalMedia?.map(media => ({
         ...media,
         uploadedAt: new Date().toISOString()
       }))
     };
 
-    const response = await apiClient.post<any>(
+    interface CreatePitchResponse {
+      pitch?: Pitch;
+      data?: Pitch;
+    }
+    const response = await apiClient.post<CreatePitchResponse>(
       '/api/creator/pitches',
       mappedData
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to create pitch');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to create pitch');
     }
 
     // Handle different response structures
-    const pitch = response.data?.pitch || response.data?.data || response.pitch || response.data;
-    
-    if (!pitch) {
+    const pitch = response.data?.pitch ?? response.data?.data ?? response.data;
+
+    if (pitch === undefined || pitch === null) {
       throw new Error('Invalid response structure from server');
     }
 
-    return pitch;
+    return pitch as Pitch;
   }
 
   // Get pitch with authenticated access for protected content
   static async getByIdAuthenticated(id: number): Promise<Pitch> {
     console.log('🔐 [PitchService] Fetching authenticated pitch data for ID:', id);
-    
-    const response = await apiClient.get<any>(
+
+    interface AuthPitchResponse {
+      pitch?: RawPitchData;
+    }
+    const response = await apiClient.get<AuthPitchResponse>(
       `/api/pitches/${id}`
     );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch authenticated pitch data');
+
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch authenticated pitch data');
     }
-    
+
     console.log('🔐 [PitchService] Authenticated endpoint response:', response.data);
 
     // Extract the pitch object from the response
-    const rawPitch = response.data?.pitch || response.data;
+    const rawPitch = response.data?.pitch ?? (response.data as unknown as RawPitchData);
     console.log('🔐 [PitchService] Extracted pitch object:', rawPitch);
 
     // Transform snake_case to camelCase and ensure proper types
     const pitch = transformPitchData(rawPitch);
-    return pitch;
+    if (pitch === null) {
+      throw new Error('Invalid pitch data received');
+    }
+    return pitch as Pitch;
   }
 
   // Get all pitches for current creator
   static async getMyPitches(): Promise<Pitch[]> {
-    const response = await apiClient.get<any>(
+    interface MyPitchesResponse {
+      data?: { pitches?: Pitch[] };
+      pitches?: Pitch[];
+    }
+    const response = await apiClient.get<MyPitchesResponse>(
       '/api/creator/pitches'
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch pitches');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch pitches');
     }
 
     // Handle nested response structure from backend
     // Backend returns: { data: { data: { pitches: [...] } } }
-    const pitches = response.data?.data?.pitches || response.data?.pitches || response.pitches || [];
-    
+    const pitches = response.data?.data?.pitches ?? response.data?.pitches ?? [];
+
     return Array.isArray(pitches) ? pitches : [];
   }
 
   // Get a single pitch
   static async getById(id: number): Promise<Pitch> {
     // Use the public endpoint which actually exists
-    const response = await apiClient.get<any>(
+    const response = await apiClient.get<RawPitchData>(
       `/api/pitches/public/${id}`
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Pitch not found');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Pitch not found');
     }
 
     // The public endpoint returns the pitch directly in data
     // Backend returns: { success: true, data: { ...pitchData } }
     const rawPitch = response.data;
 
-    if (!rawPitch) {
+    if (rawPitch === undefined || rawPitch === null) {
       throw new Error('Invalid response structure from server');
     }
 
     // Transform snake_case to camelCase and ensure proper types
-    return transformPitchData(rawPitch);
+    const pitch = transformPitchData(rawPitch);
+    if (pitch === null) {
+      throw new Error('Invalid pitch data');
+    }
+    return pitch as Pitch;
   }
 
   // Update a pitch
@@ -298,21 +356,25 @@ export class PitchService {
     // Map frontend values to backend expectations if needed
     const mappedData = {
       ...input,
-      genre: input.genre ? (genreMap[input.genre] || input.genre.toLowerCase()) : undefined,
-      format: input.format ? (formatMap[input.format] || input.format.toLowerCase()) : undefined,
+      genre: input.genre !== undefined ? (genreMap[input.genre] ?? input.genre.toLowerCase()) : undefined,
+      format: input.format !== undefined ? (formatMap[input.format] ?? input.format.toLowerCase()) : undefined,
     };
 
-    const response = await apiClient.put<any>(
+    interface UpdatePitchResponse {
+      pitch?: Pitch;
+    }
+    const response = await apiClient.put<UpdatePitchResponse>(
       `/api/creator/pitches/${id}`,
       mappedData
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to update pitch');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to update pitch');
     }
 
     const pitch = response.data?.pitch;
-    if (!pitch) {
+    if (pitch === undefined || pitch === null) {
       throw new Error('Invalid response structure from server');
     }
 
@@ -321,30 +383,23 @@ export class PitchService {
 
   // Delete a pitch
   static async delete(id: number): Promise<void> {
-    
     try {
       const response = await apiClient.delete<{ success: boolean; message?: string }>(
         `/api/creator/pitches/${id}`
       );
 
-      if (!response.success) {
+      if (response.success !== true) {
         console.error('❌ Delete failed:', response);
-        throw new Error(response.error?.message || 'Failed to delete pitch');
+        const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+        throw new Error(errorMessage ?? 'Failed to delete pitch');
       }
-      
-      
-      // Trigger a WebSocket event if connected
-      if ((window as any).websocketService?.isConnected()) {
-        (window as any).websocketService.send({
-          type: 'pitch_deleted',
-          data: { pitchId: id }
-        });
-      }
-      
-    } catch (error: any) {
+
+      // WebSocket notification for pitch deletion is handled by the calling component
+    } catch (error: unknown) {
       console.error('❌ Error deleting pitch:', error);
       // Re-throw with more context if needed
-      if (error.message?.includes('foreign key constraint')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('foreign key constraint')) {
         throw new Error('Cannot delete pitch: it has active investments or related records');
       }
       throw error;
@@ -353,17 +408,21 @@ export class PitchService {
 
   // Publish a pitch
   static async publish(id: number): Promise<Pitch> {
-    const response = await apiClient.post<any>(
+    interface PublishResponse {
+      pitch?: Pitch;
+    }
+    const response = await apiClient.post<PublishResponse>(
       `/api/creator/pitches/${id}/publish`,
       {}
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to publish pitch');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to publish pitch');
     }
 
     const pitch = response.data?.pitch;
-    if (!pitch) {
+    if (pitch === undefined || pitch === null) {
       throw new Error('Invalid response structure from server');
     }
 
@@ -372,17 +431,21 @@ export class PitchService {
 
   // Archive a pitch
   static async archive(id: number): Promise<Pitch> {
-    const response = await apiClient.post<any>(
+    interface ArchiveResponse {
+      pitch?: Pitch;
+    }
+    const response = await apiClient.post<ArchiveResponse>(
       `/api/creator/pitches/${id}/archive`,
       {}
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to archive pitch');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to archive pitch');
     }
 
     const pitch = response.data?.pitch;
-    if (!pitch) {
+    if (pitch === undefined || pitch === null) {
       throw new Error('Invalid response structure from server');
     }
 
@@ -399,19 +462,20 @@ export class PitchService {
   }): Promise<{ pitches: Pitch[]; total: number }> {
     try {
       const params = new URLSearchParams();
-      if (filters?.genre) params.append('genre', filters.genre);
-      if (filters?.format) params.append('format', filters.format);
-      if (filters?.search) params.append('search', filters.search);
-      if (filters?.page) params.append('page', filters.page.toString());
-      if (filters?.limit) params.append('limit', filters.limit.toString());
+      if (filters?.genre !== undefined && filters.genre !== '') params.append('genre', filters.genre);
+      if (filters?.format !== undefined && filters.format !== '') params.append('format', filters.format);
+      if (filters?.search !== undefined && filters.search !== '') params.append('search', filters.search);
+      if (filters?.page !== undefined) params.append('page', filters.page.toString());
+      if (filters?.limit !== undefined) params.append('limit', filters.limit.toString());
 
-      const response = await apiClient.get<{ 
-        success: boolean; 
-        items: Pitch[]; 
-        total: number 
-      }>(`/api/pitches/public?${params}`);
+      interface PublicPitchesResponse {
+        items?: Pitch[];
+        data?: Pitch[];
+        total?: number;
+      }
+      const response = await apiClient.get<PublicPitchesResponse>(`/api/pitches/public?${params}`);
 
-      if (!response.success) {
+      if (response.success !== true) {
         console.error('Failed to fetch public pitches:', response.error?.message);
         return { pitches: [], total: 0 };
       }
@@ -419,10 +483,10 @@ export class PitchService {
       // ApiClient returns { success: true, data: <full-api-response> }
       // API returns { success: true, data: [...], total: number, ... }
       // Handle both nested and direct response formats
-      const responseData = response.data as any;
-      const pitches = responseData?.data || responseData || [];
-      const total = responseData?.total || (Array.isArray(pitches) ? pitches.length : 0);
-      
+      const responseData = response.data;
+      const pitches = responseData?.data ?? responseData?.items ?? [];
+      const total = responseData?.total ?? (Array.isArray(pitches) ? pitches.length : 0);
+
       // Ensure we always return arrays and numbers
       return {
         pitches: Array.isArray(pitches) ? pitches : [],
@@ -437,22 +501,23 @@ export class PitchService {
   // Get trending pitches - use pitches endpoint sorted by view/like counts
   static async getTrendingPitches(limit: number = 10): Promise<Pitch[]> {
     try {
-      // Use /api/pitches endpoint since /api/browse returns empty
-      const response = await apiClient.get<{
-        success: boolean;
+      interface TrendingResponse {
         data?: Pitch[];
-        pagination?: any;
+        items?: Pitch[];
+        pagination?: { page: number; limit: number; total: number };
         message?: string;
-      }>(`/api/pitches?limit=${limit}&sortBy=like_count&sortOrder=desc`);
+      }
+      // Use /api/pitches endpoint since /api/browse returns empty
+      const response = await apiClient.get<TrendingResponse>(`/api/pitches?limit=${limit}&sortBy=like_count&sortOrder=desc`);
 
-      if (!response.success) {
+      if (response.success !== true) {
         console.error('Failed to fetch trending pitches:', response.error?.message);
         return [];
       }
 
       // Extract pitches from response
-      const responseData = response.data as any;
-      const pitches = Array.isArray(responseData) ? responseData : (responseData?.data || []);
+      const responseData = response.data;
+      const pitches = responseData?.data ?? responseData?.items ?? [];
 
       // Ensure we always return an array
       return Array.isArray(pitches) ? pitches : [];
@@ -465,23 +530,23 @@ export class PitchService {
   // Get popular pitches - use browse endpoint with tab parameter
   static async getPopularPitches(limit: number = 10): Promise<Pitch[]> {
     try {
-      const response = await apiClient.get<{ 
-        success: boolean; 
+      interface BrowseResponse {
         data?: Pitch[];
         items?: Pitch[];
-        pagination?: any;
+        pagination?: { page: number; limit: number; total: number };
         message?: string;
         tab?: string;
         total?: number;
-      }>(`/api/browse?tab=popular&limit=${limit}`);
+      }
+      const response = await apiClient.get<BrowseResponse>(`/api/browse?tab=popular&limit=${limit}`);
 
-      if (!response.success) {
+      if (response.success !== true) {
         console.error('Failed to fetch popular pitches:', response.error?.message);
         return [];
       }
 
       // The response should have items array with the pitches
-      const pitches = response.items || response.data || [];
+      const pitches = response.data?.items ?? response.data?.data ?? [];
       return Array.isArray(pitches) ? pitches : [];
     } catch (error) {
       console.error('Error fetching popular pitches:', error);
@@ -492,25 +557,25 @@ export class PitchService {
   // Get new releases - use browse endpoint with tab parameter
   static async getNewReleases(limit: number = 10): Promise<Pitch[]> {
     try {
-      const response = await apiClient.get<{ 
-        success: boolean; 
+      interface NewReleasesResponse {
         data?: Pitch[];
         items?: Pitch[];
-        pagination?: any;
+        pagination?: { page: number; limit: number; total: number };
         message?: string;
         tab?: string;
         total?: number;
-      }>(`/api/browse?tab=new&limit=${limit}`);
+      }
+      const response = await apiClient.get<NewReleasesResponse>(`/api/browse?tab=new&limit=${limit}`);
 
-      if (!response.success) {
+      if (response.success !== true) {
         console.error('Failed to fetch new releases:', response.error?.message);
         return [];
       }
 
       // The apiClient returns the whole response as data, so we need to check response.data.data
-      const responseData = response.data as any;
-      const pitches = responseData?.data || responseData?.items || responseData || [];
-      
+      const responseData = response.data;
+      const pitches = responseData?.data ?? responseData?.items ?? [];
+
       // Ensure we always return an array
       return Array.isArray(pitches) ? pitches : [];
     } catch (error) {
@@ -544,19 +609,35 @@ export class PitchService {
       format: string | null;
     };
   }> {
+    const defaultLimit = 20;
+    const defaultResult = {
+      pitches: [],
+      totalCount: 0,
+      pagination: {
+        limit: filters?.limit ?? defaultLimit,
+        offset: filters?.offset ?? 0,
+        totalPages: 0,
+        currentPage: 1
+      },
+      filters: {
+        sortBy: filters?.sort ?? 'date',
+        order: filters?.order ?? 'desc',
+        genre: filters?.genre ?? null,
+        format: filters?.format ?? null
+      }
+    };
+
     try {
       const params = new URLSearchParams();
-      if (filters?.sort) params.append('sort', filters.sort);
-      if (filters?.order) params.append('order', filters.order);
-      if (filters?.genre) params.append('genre', filters.genre);
-      if (filters?.format) params.append('format', filters.format);
-      if (filters?.search) params.append('q', filters.search);
-      if (filters?.limit) params.append('limit', filters.limit.toString());
-      if (filters?.offset) params.append('offset', filters.offset.toString());
+      if (filters?.sort !== undefined) params.append('sort', filters.sort);
+      if (filters?.order !== undefined) params.append('order', filters.order);
+      if (filters?.genre !== undefined && filters.genre !== '') params.append('genre', filters.genre);
+      if (filters?.format !== undefined && filters.format !== '') params.append('format', filters.format);
+      if (filters?.search !== undefined && filters.search !== '') params.append('q', filters.search);
+      if (filters?.limit !== undefined) params.append('limit', filters.limit.toString());
+      if (filters?.offset !== undefined) params.append('offset', filters.offset.toString());
 
-      // Use the /api/browse endpoint which is actually implemented
-      const response = await apiClient.get<{ 
-        success: boolean; 
+      interface GeneralBrowseResponse {
         pitches?: Pitch[];
         items?: Pitch[];
         totalCount?: number;
@@ -577,70 +658,41 @@ export class PitchService {
           genre: string | null;
           format: string | null;
         };
-      }>(`/api/browse?${params}`);
+      }
+      // Use the /api/browse endpoint which is actually implemented
+      const response = await apiClient.get<GeneralBrowseResponse>(`/api/browse?${params}`);
 
-      if (!response.success) {
+      if (response.success !== true) {
         console.error('Failed to fetch browse pitches:', response.error?.message);
-        // Return safe defaults on error
-        return {
-          pitches: [],
-          totalCount: 0,
-          pagination: {
-            limit: filters?.limit || 20,
-            offset: filters?.offset || 0,
-            totalPages: 0,
-            currentPage: 1
-          },
-          filters: {
-            sortBy: filters?.sort || 'date',
-            order: filters?.order || 'desc',
-            genre: filters?.genre || null,
-            format: filters?.format || null
-          }
-        };
+        return defaultResult;
       }
 
       // Worker API returns { success, items, total, ... }
-      const pitches = response.items || response.pitches || [];
-      const totalCount = response.total || response.totalCount || 0;
-      const limit = filters?.limit || 20;
-      const currentPage = response.page || Math.floor((filters?.offset || 0) / limit) + 1;
-      
+      const responseData = response.data;
+      const pitches = responseData?.items ?? responseData?.pitches ?? [];
+      const totalCount = responseData?.total ?? responseData?.totalCount ?? 0;
+      const limit = filters?.limit ?? defaultLimit;
+      const currentPage = responseData?.page ?? Math.floor((filters?.offset ?? 0) / limit) + 1;
+
       return {
         pitches: Array.isArray(pitches) ? pitches : [],
         totalCount: totalCount,
         pagination: {
           limit: limit,
-          offset: filters?.offset || 0,
+          offset: filters?.offset ?? 0,
           totalPages: Math.ceil(totalCount / limit),
           currentPage: currentPage
         },
         filters: {
-          sortBy: filters?.sort || 'date',
-          order: filters?.order || 'desc',
-          genre: filters?.genre || null,
-          format: filters?.format || null
+          sortBy: filters?.sort ?? 'date',
+          order: filters?.order ?? 'desc',
+          genre: filters?.genre ?? null,
+          format: filters?.format ?? null
         }
       };
     } catch (error) {
       console.error('Error fetching general browse:', error);
-      // Always return valid structure on error
-      return {
-        pitches: [],
-        totalCount: 0,
-        pagination: {
-          limit: filters?.limit || 20,
-          offset: filters?.offset || 0,
-          totalPages: 0,
-          currentPage: 1
-        },
-        filters: {
-          sortBy: filters?.sort || 'date',
-          order: filters?.order || 'desc',
-          genre: filters?.genre || null,
-          format: filters?.format || null
-        }
-      };
+      return defaultResult;
     }
   }
 
@@ -664,8 +716,9 @@ export class PitchService {
       {}
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to like pitch');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to like pitch');
     }
   }
 
@@ -676,8 +729,9 @@ export class PitchService {
       {}
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to unlike pitch');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to unlike pitch');
     }
   }
 
@@ -693,8 +747,9 @@ export class PitchService {
       data
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to request NDA');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to request NDA');
     }
   }
 
@@ -705,22 +760,27 @@ export class PitchService {
       { signature }
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to sign NDA');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to sign NDA');
     }
   }
 
   // Get pitch analytics
-  static async getAnalytics(pitchId: number): Promise<any> {
-    const response = await apiClient.get<{ success: boolean; analytics: any }>(
+  static async getAnalytics(pitchId: number): Promise<PitchAnalytics> {
+    interface AnalyticsResponse {
+      analytics?: PitchAnalytics;
+    }
+    const response = await apiClient.get<AnalyticsResponse>(
       `/api/creator/pitches/${pitchId}/analytics`
     );
 
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch analytics');
+    if (response.success !== true) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to fetch analytics');
     }
 
-    return response.data?.analytics;
+    return response.data?.analytics ?? { views: 0, likes: 0, ndaRequests: 0, investments: 0 };
   }
 
   // Upload media for pitch
@@ -729,13 +789,17 @@ export class PitchService {
     formData.append('file', file);
     formData.append('type', type);
 
-    const response = await apiClient.uploadFile<{ success: boolean; url: string }>(
+    interface UploadResponse {
+      url?: string;
+    }
+    const response = await apiClient.uploadFile<UploadResponse>(
       `/api/creator/pitches/${pitchId}/media`,
       formData
     );
 
-    if (!response.success || !response.data?.url) {
-      throw new Error(response.error?.message || 'Failed to upload media');
+    if (response.success !== true || response.data?.url === undefined) {
+      const errorMessage = typeof response.error === 'object' && response.error !== null ? response.error.message : response.error;
+      throw new Error(errorMessage ?? 'Failed to upload media');
     }
 
     return response.data.url;
@@ -758,8 +822,12 @@ export class PitchService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data.success ? (data.data?.pitches || []) : [];
+      interface PublicPitchesJson {
+        success?: boolean;
+        data?: { pitches?: Pitch[] };
+      }
+      const data = await response.json() as PublicPitchesJson;
+      return data.success === true ? (data.data?.pitches ?? []) : [];
     } catch (error) {
       console.error('Error fetching public trending pitches:', error);
       return [];
@@ -780,8 +848,12 @@ export class PitchService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data.success ? (data.data?.pitches || []) : [];
+      interface PublicPitchesJson {
+        success?: boolean;
+        data?: { pitches?: Pitch[] };
+      }
+      const data = await response.json() as PublicPitchesJson;
+      return data.success === true ? (data.data?.pitches ?? []) : [];
     } catch (error) {
       console.error('Error fetching public new pitches:', error);
       return [];
@@ -802,8 +874,12 @@ export class PitchService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data.success ? (data.data?.pitches || []) : [];
+      interface PublicPitchesJson {
+        success?: boolean;
+        data?: { pitches?: Pitch[] };
+      }
+      const data = await response.json() as PublicPitchesJson;
+      return data.success === true ? (data.data?.pitches ?? []) : [];
     } catch (error) {
       console.error('Error fetching public featured pitches:', error);
       return [];
@@ -823,11 +899,11 @@ export class PitchService {
     try {
       const params = new URLSearchParams();
       params.append('q', searchTerm);
-      
-      if (filters?.genre) params.append('genre', filters.genre);
-      if (filters?.format) params.append('format', filters.format);
-      if (filters?.page) params.append('page', filters.page.toString());
-      if (filters?.limit) params.append('limit', filters.limit.toString());
+
+      if (filters?.genre !== undefined && filters.genre !== '') params.append('genre', filters.genre);
+      if (filters?.format !== undefined && filters.format !== '') params.append('format', filters.format);
+      if (filters?.page !== undefined) params.append('page', filters.page.toString());
+      if (filters?.limit !== undefined) params.append('limit', filters.limit.toString());
 
       const response = await fetch(`${API_URL}/api/pitches/public/search?${params}`, {
         method: 'GET',
@@ -840,16 +916,20 @@ export class PitchService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      if (!data.success) {
+      interface SearchResultJson {
+        success?: boolean;
+        data?: { pitches?: Pitch[]; total?: number; page?: number; pageSize?: number };
+      }
+      const data = await response.json() as SearchResultJson;
+      if (data.success !== true) {
         return { pitches: [], total: 0, page: 1, pageSize: 20 };
       }
 
       return {
-        pitches: data.data?.pitches || [],
-        total: data.data?.total || 0,
-        page: data.data?.page || 1,
-        pageSize: data.data?.pageSize || 20
+        pitches: data.data?.pitches ?? [],
+        total: data.data?.total ?? 0,
+        page: data.data?.page ?? 1,
+        pageSize: data.data?.pageSize ?? 20
       };
     } catch (error) {
       console.error('Error searching public pitches:', error);
@@ -874,8 +954,12 @@ export class PitchService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data.success ? data.data?.pitch || null : null;
+      interface PitchByIdJson {
+        success?: boolean;
+        data?: { pitch?: Pitch };
+      }
+      const data = await response.json() as PitchByIdJson;
+      return data.success === true ? (data.data?.pitch ?? null) : null;
     } catch (error) {
       console.error('Error fetching public pitch by ID:', error);
       return null;
@@ -897,19 +981,19 @@ export class PitchService {
         const pitches = await this.getPublicTrendingPitches(filters.limit);
         return { pitches, total: pitches.length };
       }
-      
+
       if (filters?.tab === 'new') {
         const pitches = await this.getPublicNewPitches(filters.limit);
         return { pitches, total: pitches.length };
       }
-      
+
       if (filters?.tab === 'featured') {
         const pitches = await this.getPublicFeaturedPitches(filters.limit);
         return { pitches, total: pitches.length };
       }
 
       // For search or general browsing
-      if (filters?.search) {
+      if (filters?.search !== undefined && filters.search !== '') {
         return this.searchPublicPitches(filters.search, filters);
       }
 

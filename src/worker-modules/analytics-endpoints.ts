@@ -4,6 +4,22 @@
  */
 
 import type { Env, DatabaseService, User, ApiResponse, AuthPayload, SentryLogger } from '../types/worker-types';
+import {
+  getPitchViewsTimeSeries,
+  getUserViewsTimeSeries,
+  getEngagementTimeSeries,
+  getFundingTimeSeries,
+  getAudienceDemographics,
+  getTopPerformingPitchesForUser,
+  getMonthlyPerformance,
+  getUserAverageRating,
+  getUserResponseRate,
+  type ViewTimeSeriesPoint,
+  type EngagementTimeSeriesPoint,
+  type FundingTimeSeriesPoint,
+  type AudienceDemographic,
+  type TopPerformingPitch
+} from '../db/queries/analytics';
 
 export interface TimeRange {
   start: string;
@@ -100,11 +116,46 @@ export interface Activity {
 }
 
 export class AnalyticsEndpointsHandler {
+  private sqlClient: ((strings: TemplateStringsArray, ...values: any[]) => Promise<any[]>) | null = null;
+
   constructor(
     private env: Env,
     private db: DatabaseService,
     private sentry: SentryLogger
-  ) {}
+  ) {
+    // Try to get the raw SQL client for time-series queries
+    if (this.db.getSql) {
+      this.sqlClient = this.db.getSql();
+    } else if ((this.db as any).sql) {
+      this.sqlClient = (this.db as any).sql;
+    }
+  }
+
+  /**
+   * Public entry point - delegates to handleAnalyticsRequest
+   */
+  async handleRequest(request: Request, corsHeaders: Record<string, string>, userAuth?: AuthPayload): Promise<Response> {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+    return this.handleAnalyticsRequest(request, path, method, userAuth);
+  }
+
+  /**
+   * Get SQL client, creating a wrapper if necessary
+   */
+  private getSqlForQueries(): any {
+    if (this.sqlClient) {
+      return this.sqlClient;
+    }
+    // Fallback: create a wrapper that uses db.query
+    return async (strings: TemplateStringsArray, ...values: any[]) => {
+      const query = strings.reduce((acc, str, i) => {
+        return acc + str + (i < values.length ? `$${i + 1}` : '');
+      }, '');
+      return this.db.query(query, values);
+    };
+  }
 
   async handleAnalyticsRequest(request: Request, path: string, method: string, userAuth?: AuthPayload): Promise<Response> {
     const url = new URL(request.url);
@@ -303,155 +354,130 @@ export class AnalyticsEndpointsHandler {
   private async handleGetPitchAnalytics(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload, pitchId: number): Promise<Response> {
     try {
       const url = new URL(request.url);
-      const start = url.searchParams.get('start');
-      const end = url.searchParams.get('end');
-      const preset = url.searchParams.get('preset');
+      const days = parseInt(url.searchParams.get('days') || '30');
+      const pitchIdStr = pitchId.toString();
 
-      let analytics = null;
+      let analytics: any = null;
+      let source = 'database';
 
-      // Try database first
       try {
-        // Get basic pitch analytics
+        // Get basic pitch info
         const pitchResults = await this.db.query(
-          `SELECT p.id, p.title, p.view_count, p.like_count,
+          `SELECT p.id, p.title, p.view_count, p.like_count, p.save_count,
                   COUNT(DISTINCT pa.id) as nda_requests,
+                  COUNT(DISTINCT CASE WHEN pa.status = 'approved' THEN pa.id END) as nda_approved,
                   COUNT(DISTINCT m.id) as message_count
            FROM pitches p
            LEFT JOIN ndas pa ON p.id = pa.pitch_id
            LEFT JOIN messages m ON p.id = m.pitch_id
            WHERE p.id = $1
-           GROUP BY p.id, p.title, p.view_count, p.like_count`,
+           GROUP BY p.id, p.title, p.view_count, p.like_count, p.save_count`,
           [pitchId]
         );
 
         if (pitchResults.length > 0) {
           const pitch = pitchResults[0];
-          
-          // Get view analytics by date (simplified)
-          const viewsByDate = [];
-          for (let i = 6; i >= 0; i--) {
-            const date = new Date();
-            date.setDate(date.getDate() - i);
-            viewsByDate.push({
-              date: date.toISOString().split('T')[0],
-              count: Math.floor(Math.random() * 50) + 10
-            });
-          }
+          const viewCount = parseInt(pitch.view_count || '0');
+          const likeCount = parseInt(pitch.like_count || '0');
+          const saveCount = parseInt(pitch.save_count || '0');
+
+          // Get real time-series view data
+          const viewsTimeSeries = await getPitchViewsTimeSeries(this.getSqlForQueries(), pitchIdStr, days);
+
+          // Convert to expected format
+          const viewsByDate = viewsTimeSeries.map(point => ({
+            date: point.date,
+            count: point.views
+          }));
+
+          // Get views by source from pitch_views
+          const sourceResults = await this.db.query(
+            `SELECT COALESCE(source, 'direct') as source, SUM(view_count)::int as count
+             FROM pitch_views
+             WHERE pitch_id = $1
+             GROUP BY source
+             ORDER BY count DESC`,
+            [pitchId]
+          );
+
+          const viewsBySource = sourceResults.length > 0
+            ? sourceResults.map((r: any) => ({ source: r.source, count: r.count }))
+            : [];
+
+          // Calculate engagement rate
+          const engagementRate = viewCount > 0
+            ? ((likeCount + saveCount) / viewCount)
+            : 0;
 
           analytics = {
             pitchId: pitch.id,
             title: pitch.title,
-            views: parseInt(pitch.view_count || '0'),
-            uniqueViews: Math.floor(parseInt(pitch.view_count || '0') * 0.75),
-            likes: parseInt(pitch.like_count || '0'),
-            shares: Math.floor(parseInt(pitch.view_count || '0') * 0.15),
+            views: viewCount,
+            uniqueViews: Math.floor(viewCount * 0.75), // Estimate
+            likes: likeCount,
+            shares: 0, // No share tracking yet
             ndaRequests: parseInt(pitch.nda_requests || '0'),
-            ndaApproved: Math.floor(parseInt(pitch.nda_requests || '0') * 0.8),
+            ndaApproved: parseInt(pitch.nda_approved || '0'),
             messages: parseInt(pitch.message_count || '0'),
-            avgViewDuration: 125.3,
-            bounceRate: 0.32,
-            conversionRate: 0.08,
-            engagementRate: 0.24,
+            avgViewDuration: 0, // Requires duration tracking
+            bounceRate: 0,
+            conversionRate: 0,
+            engagementRate: Math.round(engagementRate * 100) / 100,
             viewsByDate,
-            viewsBySource: [
-              { source: 'Direct', count: Math.floor(parseInt(pitch.view_count || '0') * 0.4) },
-              { source: 'Search', count: Math.floor(parseInt(pitch.view_count || '0') * 0.3) },
-              { source: 'Social', count: Math.floor(parseInt(pitch.view_count || '0') * 0.2) },
-              { source: 'Referral', count: Math.floor(parseInt(pitch.view_count || '0') * 0.1) }
-            ],
-            viewsByLocation: [
-              { location: 'United States', count: Math.floor(parseInt(pitch.view_count || '0') * 0.5) },
-              { location: 'United Kingdom', count: Math.floor(parseInt(pitch.view_count || '0') * 0.2) },
-              { location: 'Canada', count: Math.floor(parseInt(pitch.view_count || '0') * 0.15) },
-              { location: 'Australia', count: Math.floor(parseInt(pitch.view_count || '0') * 0.1) }
-            ],
+            viewsBySource,
+            viewsByLocation: [], // Requires geo tracking
             viewerDemographics: {
-              userType: [
-                { type: 'Investor', count: Math.floor(parseInt(pitch.view_count || '0') * 0.4) },
-                { type: 'Production', count: Math.floor(parseInt(pitch.view_count || '0') * 0.3) },
-                { type: 'Creator', count: Math.floor(parseInt(pitch.view_count || '0') * 0.3) }
-              ],
-              industry: [
-                { industry: 'Film & TV', count: Math.floor(parseInt(pitch.view_count || '0') * 0.6) },
-                { industry: 'Media', count: Math.floor(parseInt(pitch.view_count || '0') * 0.25) },
-                { industry: 'Technology', count: Math.floor(parseInt(pitch.view_count || '0') * 0.15) }
-              ]
+              userType: [],
+              industry: []
             }
           };
         }
       } catch (dbError) {
+        console.error('[Analytics] Pitch analytics error:', dbError);
         await this.sentry.captureError(dbError as Error, { userId: userAuth.userId, pitchId });
       }
 
-      // Demo fallback
+      // Return empty data if no pitch found - no demo fallback
       if (!analytics) {
         analytics = {
           pitchId,
-          title: 'The Last Stand',
-          views: 1247,
-          uniqueViews: 932,
-          likes: 89,
-          shares: 23,
-          ndaRequests: 5,
-          ndaApproved: 4,
-          messages: 12,
-          avgViewDuration: 125.3,
-          bounceRate: 0.32,
-          conversionRate: 0.08,
-          engagementRate: 0.24,
-          viewsByDate: [
-            { date: '2024-01-09', count: 45 },
-            { date: '2024-01-10', count: 67 },
-            { date: '2024-01-11', count: 89 },
-            { date: '2024-01-12', count: 123 },
-            { date: '2024-01-13', count: 156 },
-            { date: '2024-01-14', count: 134 },
-            { date: '2024-01-15', count: 178 }
-          ],
-          viewsBySource: [
-            { source: 'Direct', count: 498 },
-            { source: 'Search', count: 374 },
-            { source: 'Social', count: 249 },
-            { source: 'Referral', count: 126 }
-          ],
-          viewsByLocation: [
-            { location: 'United States', count: 623 },
-            { location: 'United Kingdom', count: 249 },
-            { location: 'Canada', count: 187 },
-            { location: 'Australia', count: 125 }
-          ],
-          viewerDemographics: {
-            userType: [
-              { type: 'Investor', count: 498 },
-              { type: 'Production', count: 374 },
-              { type: 'Creator', count: 375 }
-            ],
-            industry: [
-              { industry: 'Film & TV', count: 748 },
-              { industry: 'Media', count: 312 },
-              { industry: 'Technology', count: 187 }
-            ]
-          }
+          title: 'Unknown',
+          views: 0,
+          uniqueViews: 0,
+          likes: 0,
+          shares: 0,
+          ndaRequests: 0,
+          ndaApproved: 0,
+          messages: 0,
+          avgViewDuration: 0,
+          bounceRate: 0,
+          conversionRate: 0,
+          engagementRate: 0,
+          viewsByDate: [],
+          viewsBySource: [],
+          viewsByLocation: [],
+          viewerDemographics: { userType: [], industry: [] }
         };
+        source = 'empty';
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
+      return new Response(JSON.stringify({
+        success: true,
         data: { analytics },
-        source: analytics.pitchId > 1000 ? 'database' : 'demo'
-      }), { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        source
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
       await this.sentry.captureError(error as Error, { userId: userAuth.userId, pitchId });
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: { message: 'Failed to fetch pitch analytics' } 
-      }), { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to fetch pitch analytics' }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
   }
@@ -459,147 +485,164 @@ export class AnalyticsEndpointsHandler {
   private async handleGetDashboardMetrics(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload): Promise<Response> {
     try {
       const url = new URL(request.url);
-      const start = url.searchParams.get('start');
-      const end = url.searchParams.get('end');
-      const preset = url.searchParams.get('preset');
+      const days = parseInt(url.searchParams.get('days') || '30');
+      const userIdStr = userAuth.userId.toString();
 
-      let metrics = null;
+      let metrics: any = null;
+      let source = 'database';
 
-      // Try database first
       try {
-        // Get user's pitch statistics
+        // Get user's pitch statistics - try both creator_id and created_by columns
         const userPitchResults = await this.db.query(
-          `SELECT 
+          `SELECT
              COUNT(*) as total_pitches,
-             SUM(view_count) as total_views,
-             SUM(like_count) as total_likes,
-             AVG(view_count) as avg_views
-           FROM pitches 
-           WHERE created_by = $1 AND status = 'published'`,
+             COALESCE(SUM(view_count), 0) as total_views,
+             COALESCE(SUM(like_count), 0) as total_likes,
+             COALESCE(SUM(save_count), 0) as total_saves
+           FROM pitches
+           WHERE (creator_id = $1 OR created_by = $1) AND status = 'published'`,
           [userAuth.userId]
         );
 
-        // Get follower count
+        // Get follower count - try both column names
         const followerResults = await this.db.query(
-          `SELECT COUNT(*) as follower_count 
-           FROM follows 
-           WHERE creator_id = $1`,
+          `SELECT COUNT(*) as follower_count
+           FROM follows
+           WHERE following_id = $1 OR creator_id = $1`,
           [userAuth.userId]
         );
 
-        if (userPitchResults.length > 0) {
-          const pitchStats = userPitchResults[0];
-          const followerCount = followerResults[0]?.follower_count || 0;
+        // Get real time-series data
+        const viewsTimeSeries = await getUserViewsTimeSeries(this.getSqlForQueries(), userIdStr, days);
+        const engagementTimeSeries = await getEngagementTimeSeries(this.getSqlForQueries(), userIdStr, days);
+        const topPitches = await getTopPerformingPitchesForUser(this.getSqlForQueries(), userIdStr, 5);
+        const avgRating = await getUserAverageRating(this.getSqlForQueries(), userIdStr);
+        const responseRate = await getUserResponseRate(this.getSqlForQueries(), userIdStr);
 
-          metrics = {
-            overview: {
-              totalViews: parseInt(pitchStats.total_views || '0'),
-              totalLikes: parseInt(pitchStats.total_likes || '0'),
-              totalFollowers: parseInt(followerCount || '0'),
-              totalPitches: parseInt(pitchStats.total_pitches || '0'),
-              viewsChange: 12.5,
-              likesChange: 8.3,
-              followersChange: 15.7,
-              pitchesChange: 0
-            },
-            performance: {
-              topPitches: [],
-              recentActivity: [],
-              engagementTrend: []
-            }
-          };
+        // Calculate change percentages based on first vs last half of period
+        const halfDays = Math.floor(days / 2);
+        const firstHalfViews = viewsTimeSeries.slice(0, halfDays).reduce((sum, p) => sum + p.views, 0);
+        const secondHalfViews = viewsTimeSeries.slice(halfDays).reduce((sum, p) => sum + p.views, 0);
+        const viewsChange = firstHalfViews > 0 ? ((secondHalfViews - firstHalfViews) / firstHalfViews) * 100 : 0;
 
-          // If production/investor account, add revenue metrics
-          if (userAuth.userType === 'production' || userAuth.userType === 'investor') {
-            metrics.revenue = {
-              total: 125000,
-              subscriptions: 85000,
-              transactions: 40000,
-              growth: 18.5
-            };
-          }
-        }
-      } catch (dbError) {
-        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
-      }
+        const pitchStats = userPitchResults[0] || {};
+        const followerCount = followerResults[0]?.follower_count || 0;
 
-      // Demo fallback
-      if (!metrics) {
+        // Format engagement trend for chart
+        const engagementTrend = engagementTimeSeries.map(point => ({
+          date: point.date,
+          rate: point.engagement_rate / 100 // Convert percentage to decimal
+        }));
+
+        // Format views by date for chart
+        const viewsByDate = viewsTimeSeries.map(point => ({
+          date: point.date,
+          count: point.views
+        }));
+
         metrics = {
           overview: {
-            totalViews: 8547,
-            totalLikes: 423,
-            totalFollowers: 67,
-            totalPitches: 5,
-            viewsChange: 12.5,
-            likesChange: 8.3,
-            followersChange: 15.7,
-            pitchesChange: 0
+            totalViews: parseInt(pitchStats.total_views || '0'),
+            totalLikes: parseInt(pitchStats.total_likes || '0'),
+            totalFollowers: parseInt(followerCount || '0'),
+            totalPitches: parseInt(pitchStats.total_pitches || '0'),
+            viewsChange: Math.round(viewsChange * 10) / 10,
+            likesChange: 0, // Calculate similarly if needed
+            followersChange: 0,
+            pitchesChange: 0,
+            avgRating: Math.round(avgRating * 10) / 10,
+            responseRate: Math.round(responseRate * 10) / 10
           },
           performance: {
-            topPitches: [],
-            recentActivity: [
-              {
-                id: 1,
-                type: 'view',
-                entityType: 'pitch',
-                entityId: 1,
-                entityName: 'The Last Stand',
-                userId: 2,
-                username: 'sarahinvestor',
-                timestamp: '2024-01-15T10:00:00Z'
-              },
-              {
-                id: 2,
-                type: 'like',
-                entityType: 'pitch',
-                entityId: 1,
-                entityName: 'The Last Stand',
-                userId: 3,
-                username: 'stellarproduction',
-                timestamp: '2024-01-15T09:45:00Z'
-              }
-            ],
-            engagementTrend: [
-              { date: '2024-01-09', rate: 0.18 },
-              { date: '2024-01-10', rate: 0.22 },
-              { date: '2024-01-11', rate: 0.25 },
-              { date: '2024-01-12', rate: 0.31 },
-              { date: '2024-01-13', rate: 0.28 },
-              { date: '2024-01-14', rate: 0.33 },
-              { date: '2024-01-15', rate: 0.36 }
-            ]
+            topPitches: topPitches.map(p => ({
+              id: parseInt(p.pitch_id),
+              title: p.title,
+              views: p.views,
+              engagement: p.engagement_rate
+            })),
+            recentActivity: [], // Requires activity log table
+            engagementTrend,
+            viewsByDate
           }
         };
 
-        // Add revenue for demo production/investor accounts
-        if (userAuth.userType === 'production' || userAuth.userType === 'investor') {
-          metrics.revenue = {
-            total: 125000,
-            subscriptions: 85000,
-            transactions: 40000,
-            growth: 18.5
+        // Add funding data for creator accounts
+        if (userAuth.userType === 'creator') {
+          const fundingTimeSeries = await getFundingTimeSeries(this.getSqlForQueries(), userIdStr, 365);
+          const lastPoint = fundingTimeSeries[fundingTimeSeries.length - 1];
+          metrics.funding = {
+            total: lastPoint?.cumulative || 0,
+            timeSeries: fundingTimeSeries.map(p => ({
+              date: p.date,
+              amount: Number(p.amount),
+              cumulative: Number(p.cumulative)
+            }))
           };
         }
+
+        // Add audience demographics
+        const demographics = await getAudienceDemographics(this.getSqlForQueries(), userIdStr);
+        metrics.audience = {
+          userTypes: demographics.userTypes,
+          categories: demographics.categories
+        };
+
+        // Add monthly performance
+        const monthlyPerf = await getMonthlyPerformance(this.getSqlForQueries(), userIdStr, 12);
+        metrics.monthlyPerformance = monthlyPerf;
+
+      } catch (dbError) {
+        console.error('[Analytics] Dashboard metrics error:', dbError);
+        await this.sentry.captureError(dbError as Error, { userId: userAuth.userId });
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
+      // Return empty data if query failed - no demo fallback
+      if (!metrics) {
+        metrics = {
+          overview: {
+            totalViews: 0,
+            totalLikes: 0,
+            totalFollowers: 0,
+            totalPitches: 0,
+            viewsChange: 0,
+            likesChange: 0,
+            followersChange: 0,
+            pitchesChange: 0,
+            avgRating: 0,
+            responseRate: 0
+          },
+          performance: {
+            topPitches: [],
+            recentActivity: [],
+            engagementTrend: [],
+            viewsByDate: []
+          },
+          audience: {
+            userTypes: [],
+            categories: []
+          },
+          monthlyPerformance: []
+        };
+        source = 'empty';
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
         data: { metrics },
-        source: metrics.overview.totalViews > 10000 ? 'database' : 'demo'
-      }), { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        source
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
 
     } catch (error) {
       await this.sentry.captureError(error as Error, { userId: userAuth.userId });
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: { message: 'Failed to fetch dashboard metrics' } 
-      }), { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to fetch dashboard metrics' }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
   }
@@ -676,17 +719,16 @@ export class AnalyticsEndpointsHandler {
           [new Date().toISOString(), body.pitchId]
         );
 
-        // Insert view tracking record
+        // Insert view tracking record into pitch_views table
+        // Note: Schema uses user_id, not viewer_id
         await this.db.query(
-          `INSERT INTO pitch_views (pitch_id, viewer_id, duration, source, metadata, viewed_at)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+          `INSERT INTO pitch_views (pitch_id, user_id, viewed_at, session_id)
+           VALUES ($1, $2, $3, $4)`,
           [
             body.pitchId,
             userAuth?.userId || null,
-            body.duration || 0,
-            body.source || 'direct',
-            body.metadata ? JSON.stringify(body.metadata) : null,
-            new Date().toISOString()
+            new Date().toISOString(),
+            crypto.randomUUID().substring(0, 100) // Generate a session ID for tracking
           ]
         );
         success = true;
@@ -719,32 +761,111 @@ export class AnalyticsEndpointsHandler {
     }
   }
 
-  // Placeholder implementations for remaining endpoints
+  // Real data implementations
   private async handleGetUserAnalytics(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload, userId?: number): Promise<Response> {
-    const analytics = {
-      userId: userId || userAuth.userId,
-      username: 'demo_user',
-      totalPitches: 5,
-      publishedPitches: 4,
-      totalViews: 8547,
-      totalLikes: 423,
-      totalFollowers: 67,
-      totalNDAs: 8,
-      avgEngagement: 0.32,
-      topPitches: [
-        { id: 1, title: 'The Last Stand', views: 1247, engagement: 0.36 },
-        { id: 2, title: 'Space Odyssey', views: 2156, engagement: 0.28 }
-      ],
-      growthMetrics: [],
-      audienceInsights: {
-        topLocations: [],
-        topUserTypes: [],
-        peakActivity: []
-      }
-    };
+    try {
+      const targetUserId = userId || userAuth.userId;
+      const userIdStr = targetUserId.toString();
+      const url = new URL(request.url);
+      const days = parseInt(url.searchParams.get('days') || '30');
 
-    return new Response(JSON.stringify({ success: true, data: { analytics }, source: 'demo' }), { 
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // Get user info
+      const userResults = await this.db.query(
+        `SELECT id, username, email FROM users WHERE id = $1`,
+        [targetUserId]
+      );
+      const user = userResults[0] || { username: 'unknown' };
+
+      // Get pitch statistics
+      const pitchStats = await this.db.query(
+        `SELECT
+           COUNT(*) as total_pitches,
+           COUNT(CASE WHEN status = 'published' THEN 1 END) as published_pitches,
+           COALESCE(SUM(view_count), 0) as total_views,
+           COALESCE(SUM(like_count), 0) as total_likes,
+           COALESCE(SUM(save_count), 0) as total_saves
+         FROM pitches
+         WHERE creator_id = $1 OR created_by = $1`,
+        [targetUserId]
+      );
+      const stats = pitchStats[0] || {};
+
+      // Get follower count
+      const followerResults = await this.db.query(
+        `SELECT COUNT(*) as count FROM follows WHERE following_id = $1 OR creator_id = $1`,
+        [targetUserId]
+      );
+
+      // Get NDA count
+      const ndaResults = await this.db.query(
+        `SELECT COUNT(*) as count FROM ndas n
+         JOIN pitches p ON n.pitch_id = p.id
+         WHERE p.creator_id = $1 OR p.created_by = $1`,
+        [targetUserId]
+      );
+
+      // Get real analytics data
+      const topPitches = await getTopPerformingPitchesForUser(this.getSqlForQueries(), userIdStr, 5);
+      const viewsTimeSeries = await getUserViewsTimeSeries(this.getSqlForQueries(), userIdStr, days);
+      const demographics = await getAudienceDemographics(this.getSqlForQueries(), userIdStr);
+      const avgRating = await getUserAverageRating(this.getSqlForQueries(), userIdStr);
+      const responseRate = await getUserResponseRate(this.getSqlForQueries(), userIdStr);
+
+      const totalViews = parseInt(stats.total_views || '0');
+      const totalLikes = parseInt(stats.total_likes || '0');
+      const totalSaves = parseInt(stats.total_saves || '0');
+      const avgEngagement = totalViews > 0 ? (totalLikes + totalSaves) / totalViews : 0;
+
+      const analytics = {
+        userId: targetUserId,
+        username: user.username,
+        totalPitches: parseInt(stats.total_pitches || '0'),
+        publishedPitches: parseInt(stats.published_pitches || '0'),
+        totalViews,
+        totalLikes,
+        totalFollowers: parseInt(followerResults[0]?.count || '0'),
+        totalNDAs: parseInt(ndaResults[0]?.count || '0'),
+        avgEngagement: Math.round(avgEngagement * 100) / 100,
+        avgRating: Math.round(avgRating * 10) / 10,
+        responseRate: Math.round(responseRate * 10) / 10,
+        topPitches: topPitches.map(p => ({
+          id: parseInt(p.pitch_id),
+          title: p.title,
+          views: p.views,
+          engagement: p.engagement_rate / 100
+        })),
+        growthMetrics: viewsTimeSeries.map(p => ({
+          date: p.date,
+          views: p.views
+        })),
+        audienceInsights: {
+          topUserTypes: demographics.userTypes.slice(0, 5),
+          topCategories: demographics.categories.slice(0, 5),
+          topLocations: [],
+          peakActivity: []
+        }
+      };
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: { analytics },
+        source: 'database'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } catch (error) {
+      console.error('[Analytics] User analytics error:', error);
+      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to fetch user analytics' }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   private async handleGetActivityFeed(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload): Promise<Response> {
@@ -784,18 +905,68 @@ export class AnalyticsEndpointsHandler {
   }
 
   private async handleGetEngagementMetrics(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload): Promise<Response> {
-    const metrics = {
-      engagementRate: 0.32,
-      averageTimeSpent: 125.3,
-      bounceRate: 0.28,
-      interactionRate: 0.15,
-      shareRate: 0.08,
-      conversionRate: 0.12,
-      trends: []
-    };
+    try {
+      const url = new URL(request.url);
+      const days = parseInt(url.searchParams.get('days') || '30');
+      const userIdStr = userAuth.userId.toString();
 
-    return new Response(JSON.stringify({ success: true, data: { metrics }, source: 'demo' }), { 
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // Get engagement time series
+      const engagementTimeSeries = await getEngagementTimeSeries(this.getSqlForQueries(), userIdStr, days);
+
+      // Calculate aggregate metrics
+      const totalEngagement = engagementTimeSeries.reduce((sum, p) => sum + p.engagement_rate, 0);
+      const avgEngagement = engagementTimeSeries.length > 0
+        ? totalEngagement / engagementTimeSeries.length
+        : 0;
+
+      const totalLikes = engagementTimeSeries.reduce((sum, p) => sum + p.likes, 0);
+      const totalSaves = engagementTimeSeries.reduce((sum, p) => sum + p.saves, 0);
+      const totalShares = engagementTimeSeries.reduce((sum, p) => sum + p.shares, 0);
+
+      // Get total views from pitch stats
+      const viewStats = await this.db.query(
+        `SELECT COALESCE(SUM(view_count), 0)::int as total_views
+         FROM pitches WHERE creator_id = $1 OR created_by = $1`,
+        [userAuth.userId]
+      );
+      const totalViews = viewStats[0]?.total_views || 0;
+
+      const metrics = {
+        engagementRate: Math.round(avgEngagement * 100) / 10000, // Convert to decimal
+        averageTimeSpent: 0, // Requires duration tracking
+        bounceRate: 0, // Requires bounce tracking
+        interactionRate: totalViews > 0 ? (totalLikes + totalSaves) / totalViews : 0,
+        shareRate: totalViews > 0 ? totalShares / totalViews : 0,
+        conversionRate: 0, // Requires conversion tracking
+        trends: engagementTimeSeries.map(p => ({
+          date: p.date,
+          engagement: p.engagement_rate,
+          likes: p.likes,
+          saves: p.saves,
+          shares: p.shares
+        }))
+      };
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: { metrics },
+        source: 'database'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } catch (error) {
+      console.error('[Analytics] Engagement metrics error:', error);
+      await this.sentry.captureError(error as Error, { userId: userAuth.userId });
+      return new Response(JSON.stringify({
+        success: false,
+        error: { message: 'Failed to fetch engagement metrics' }
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   private async handleGetFunnelAnalytics(request: Request, corsHeaders: Record<string, string>, userAuth: AuthPayload, pitchId: number): Promise<Response> {

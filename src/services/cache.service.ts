@@ -9,6 +9,16 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+// Helper to get environment variables across Deno/Node/Cloudflare
+function getEnv(key: string): string | undefined {
+  try {
+    return (globalThis as any).Deno?.env.get(key) || (globalThis as any).process?.env[key];
+  } catch {
+    return undefined;
+  }
+}
+
+
 interface CacheClient {
   set(key: string, value: string): Promise<void>;
   get(key: string): Promise<string | null>;
@@ -118,7 +128,7 @@ let cacheType = "in-memory";
 
 // Try to initialize Redis/Upstash based on environment
 async function initCache() {
-  const cacheEnabled = Deno.env.get("CACHE_ENABLED") === "true";
+  const cacheEnabled = getEnv("CACHE_ENABLED") === "true";
   
   if (!cacheEnabled) {
     console.log("📦 Cache disabled, using in-memory cache");
@@ -128,7 +138,7 @@ async function initCache() {
   }
 
   // Priority 1: Try Redis Cluster (for distributed production)
-  const clusterEnabled = Deno.env.get("REDIS_CLUSTER_ENABLED") === "true";
+  const clusterEnabled = getEnv("REDIS_CLUSTER_ENABLED") === "true";
   if (clusterEnabled) {
     try {
       // Use dynamic import to avoid circular dependencies
@@ -164,15 +174,15 @@ async function initCache() {
         console.log("✅ Using Redis Cluster for distributed caching");
         return;
       }
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       console.warn("⚠️ Redis cluster connection failed:", errorMessage);
     }
   }
   
   // Priority 2: Try native Redis (for local development)
-  const redisHost = Deno.env.get("REDIS_HOST");
-  const redisPort = Deno.env.get("REDIS_PORT");
+  const redisHost = getEnv("REDIS_HOST");
+  const redisPort = getEnv("REDIS_PORT");
   
   if (redisHost && redisPort) {
     try {
@@ -209,15 +219,15 @@ async function initCache() {
         console.log("✅ Using native Redis for cache service");
         return;
       }
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       console.warn("⚠️ Native Redis connection failed:", errorMessage);
     }
   }
   
   // Priority 3: Try Upstash Redis (for Deno Deploy/serverless)
-  const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
-  const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+  const upstashUrl = getEnv("UPSTASH_REDIS_REST_URL");
+  const upstashToken = getEnv("UPSTASH_REDIS_REST_TOKEN");
   
   if (upstashUrl && upstashToken) {
     try {
@@ -228,7 +238,7 @@ async function initCache() {
       cacheType = "upstash-redis";
       console.log("✅ Connected to Upstash Redis (serverless)");
       return;
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = getErrorMessage(error);
       console.warn("⚠️ Upstash Redis connection failed:", errorMessage);
     }
@@ -259,7 +269,7 @@ export class CacheService {
     try {
       await cacheClient.set(`pitch:${pitchId}`, JSON.stringify(data));
       await cacheClient.expire(`pitch:${pitchId}`, ttl);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -268,7 +278,7 @@ export class CacheService {
     try {
       const cached = await cacheClient.get(`pitch:${pitchId}`);
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
@@ -277,7 +287,7 @@ export class CacheService {
   static async invalidatePitch(pitchId: number) {
     try {
       await cacheClient.del(`pitch:${pitchId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -287,7 +297,7 @@ export class CacheService {
     try {
       await cacheClient.set(`session:user:${userId}`, JSON.stringify(data));
       await cacheClient.expire(`session:user:${userId}`, ttl);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -296,7 +306,7 @@ export class CacheService {
     try {
       const cached = await cacheClient.get(`session:user:${userId}`);
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
@@ -305,7 +315,7 @@ export class CacheService {
   static async invalidateUserSession(userId: number) {
     try {
       await cacheClient.del(`session:user:${userId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -323,7 +333,7 @@ export class CacheService {
       }
       
       return false; // Already viewed recently
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
       return true; // Default to counting views on error
     }
@@ -334,7 +344,7 @@ export class CacheService {
     try {
       await cacheClient.set("homepage:data", JSON.stringify(data));
       await cacheClient.expire("homepage:data", ttl);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -343,7 +353,7 @@ export class CacheService {
     try {
       const cached = await cacheClient.get("homepage:data");
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
@@ -352,7 +362,7 @@ export class CacheService {
   static async invalidateHomepage() {
     try {
       await cacheClient.del("homepage:data");
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -363,7 +373,7 @@ export class CacheService {
       const key = `search:${btoa(query)}`;
       await cacheClient.set(key, JSON.stringify(results));
       await cacheClient.expire(key, ttl);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -373,7 +383,7 @@ export class CacheService {
       const key = `search:${btoa(query)}`;
       const cached = await cacheClient.get(key);
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
@@ -386,7 +396,7 @@ export class CacheService {
       const key = `metrics:${metric}:${today}`;
       await cacheClient.incrby(key, value);
       await cacheClient.expire(key, 86400 * 7); // Keep for 7 days
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -397,7 +407,7 @@ export class CacheService {
       const key = `metrics:${metric}:${targetDate}`;
       const value = await cacheClient.get(key);
       return value ? parseInt(value) : 0;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
       return 0;
     }
@@ -408,7 +418,7 @@ export class CacheService {
     try {
       await cacheClient.set("pitches:public", JSON.stringify(data));
       await cacheClient.expire("pitches:public", ttl);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -417,7 +427,7 @@ export class CacheService {
     try {
       const cached = await cacheClient.get("pitches:public");
       return cached ? JSON.parse(cached) : null;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
       return null;
     }
@@ -428,7 +438,7 @@ export class CacheService {
       await cacheClient.del("pitches:public");
       await cacheClient.del("pitches:trending");
       await cacheClient.del("pitches:new");
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -464,11 +474,11 @@ export class CacheService {
       for (const key of commonBrowseKeys) {
         try {
           await cacheClient.del(key);
-        } catch (error) {
+        } catch (error: any) {
           console.warn(`Failed to clear browse cache key ${key}:`, getErrorMessage(error));
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Browse cache invalidation error:", getErrorMessage(error));
     }
   }
@@ -479,7 +489,7 @@ export class CacheService {
       await this.invalidatePublicPitches();
       await this.invalidateHomepage();
       await this.invalidateBrowseCache(); // Add browse cache invalidation
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Cache error:", getErrorMessage(error));
     }
   }
@@ -522,7 +532,7 @@ export class CacheService {
             nodes: clusterInfo.nodes
           }
         };
-      } catch (error) {
+      } catch (error: any) {
         return {
           ...baseHealth,
           cluster: {
@@ -556,7 +566,7 @@ export class CacheService {
             }
           }
         };
-      } catch (error) {
+      } catch (error: any) {
         return {
           ...baseHealth,
           redis: {
@@ -591,7 +601,7 @@ export class CacheService {
     try {
       const { redisClusterService } = await import("./redis-cluster.service.ts");
       return redisClusterService.getClusterInfo();
-    } catch (error) {
+    } catch (error: any) {
       return { error: getErrorMessage(error) };
     }
   }
@@ -604,8 +614,41 @@ export class CacheService {
     try {
       const { redisClusterService } = await import("./redis-cluster.service.ts");
       return redisClusterService.getStats();
-    } catch (error) {
+    } catch (error: any) {
       return { error: getErrorMessage(error) };
+    }
+  }
+  // Generic cache methods
+  async get<T = any>(key: string): Promise<T | null> {
+    try {
+      const cached = await cacheClient.get(key);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error: any) {
+      console.warn(`Cache get error for ${key}:`, getErrorMessage(error));
+      return null;
+    }
+  }
+
+  async set(key: string, value: any, ttl?: number): Promise<void> {
+    try {
+      await cacheClient.set(key, JSON.stringify(value));
+      if (ttl) {
+        await cacheClient.expire(key, ttl);
+      }
+    } catch (error: any) {
+      console.warn(`Cache set error for ${key}:`, getErrorMessage(error));
+    }
+  }
+
+  async setWithTTL(key: string, value: any, ttl: number): Promise<void> {
+    return this.set(key, value, ttl);
+  }
+
+  async delete(key: string): Promise<void> {
+    try {
+      await cacheClient.del(key);
+    } catch (error: any) {
+      console.warn(`Cache delete error for ${key}:`, getErrorMessage(error));
     }
   }
 }
@@ -780,7 +823,7 @@ export async function getRedisConnection(): Promise<any> {
         }
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     console.warn("Redis connection fallback to null:", error);
     return null;
   }

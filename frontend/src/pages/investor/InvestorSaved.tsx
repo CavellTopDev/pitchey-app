@@ -307,9 +307,12 @@ export default function InvestorSaved() {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
+                  id="saved-pitches-search"
+                  name="saved-pitches-search"
                   placeholder="Search saved pitches..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  autoComplete="off"
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
@@ -420,9 +423,11 @@ export default function InvestorSaved() {
           <p className="text-sm text-gray-600">
             Showing {filteredPitches.length} of {savedPitches.length} saved pitches
           </p>
-          <label className="flex items-center text-sm text-gray-600">
+          <label htmlFor="select-all-pitches" className="flex items-center text-sm text-gray-600">
             <input
               type="checkbox"
+              id="select-all-pitches"
+              name="select-all-pitches"
               checked={selectedPitches.length === filteredPitches.length && filteredPitches.length > 0}
               onChange={handleSelectAll}
               className="mr-2 rounded border-gray-300"
@@ -460,6 +465,8 @@ export default function InvestorSaved() {
                     <div className="flex items-start gap-3 flex-1">
                       <input
                         type="checkbox"
+                        id={`select-pitch-grid-${pitch.id}`}
+                        name={`select-pitch-grid-${pitch.id}`}
                         checked={selectedPitches.includes(pitch.id)}
                         onChange={() => handleSelectPitch(pitch.id)}
                         className="mt-1 rounded border-gray-300"
@@ -581,6 +588,8 @@ export default function InvestorSaved() {
                   <div className="flex items-center space-x-4">
                     <input
                       type="checkbox"
+                      id={`select-pitch-list-${pitch.id}`}
+                      name={`select-pitch-list-${pitch.id}`}
                       checked={selectedPitches.includes(pitch.id)}
                       onChange={() => handleSelectPitch(pitch.id)}
                       className="rounded border-gray-300"

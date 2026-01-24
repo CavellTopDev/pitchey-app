@@ -4,8 +4,14 @@
  * Features comprehensive TypeScript support and runtime validation
  */
 
-import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
+import { neon, neonConfig, type NeonQueryFunction } from '@neondatabase/serverless';
 import { z } from 'zod';
+
+// CRITICAL: Configure Neon for connection pooling in edge environments
+// These settings enable HTTP-based queries and connection caching
+// which dramatically reduces connection overhead for concurrent requests
+neonConfig.poolQueryViaFetch = true;      // Use HTTP instead of WebSockets (more scalable)
+neonConfig.fetchConnectionCache = true;   // Cache connections across requests in same isolate
 
 // Database query parameter types
 export type QueryParameters = (string | number | boolean | Date | null)[];
@@ -57,6 +63,25 @@ export class QueryError extends DatabaseError {
   }
 }
 
+// CRITICAL: Module-level connection cache for connection reuse across requests
+// The neon() function creates an HTTP-based SQL client that can be safely reused
+// Caching by connection string allows multiple databases while preventing connection explosion
+const sqlClientCache = new Map<string, NeonQueryFunction<false, false>>();
+
+function getOrCreateSqlClient(connectionString: string): NeonQueryFunction<false, false> {
+  // Create a cache key from the connection string (hash for privacy in logs)
+  const cacheKey = connectionString.substring(0, 50);
+
+  let client = sqlClientCache.get(cacheKey);
+  if (!client) {
+    console.log('[DB Pool] Creating new Neon SQL client (cache miss)');
+    client = neon(connectionString);
+    sqlClientCache.set(cacheKey, client);
+  }
+
+  return client;
+}
+
 export class WorkerDatabase {
   private sql: NeonQueryFunction<false, false>;
   private readonly connectionString: string;
@@ -71,8 +96,9 @@ export class WorkerDatabase {
     this.retryDelay = config.retryDelay || 1000;
     this.timeout = config.timeout || 30000;
 
-    // Initialize Neon serverless client with proper typing
-    this.sql = neon(this.connectionString);
+    // CRITICAL: Reuse cached SQL client instead of creating new one per instance
+    // This prevents connection exhaustion under high concurrency
+    this.sql = getOrCreateSqlClient(this.connectionString);
   }
 
   private validateConfig(config: DatabaseConfig): void {

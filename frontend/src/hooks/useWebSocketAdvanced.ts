@@ -749,10 +749,12 @@ export function useWebSocketAdvanced(options: UseWebSocketAdvancedOptions = {}) 
       let finalWsUrl = `${wsUrl}/ws`;
       
       // Check if this is a cross-origin connection
-      const apiOrigin = new URL(config.API_URL).origin;
+      // When API_URL is empty (same-origin setup), use current origin
+      const apiOrigin = config.API_URL ? new URL(config.API_URL).origin : window.location.origin;
       const currentOrigin = window.location.origin;
-      
-      if (apiOrigin !== currentOrigin) {
+      const isCrossOrigin = apiOrigin !== currentOrigin;
+
+      if (isCrossOrigin) {
         // Cross-origin: Need to fetch a WebSocket token
         try {
           const tokenResponse = await fetch(`${config.API_URL}/api/ws/token`, {

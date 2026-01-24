@@ -52,6 +52,7 @@ const InvestorWallet = lazy(() => import('../../pages/investor/InvestorWallet'))
 const PaymentMethods = lazy(() => import('../../pages/investor/PaymentMethods'));
 const InvestorSettings = lazy(() => import('../../pages/investor/InvestorSettings'));
 const NDARequests = lazy(() => import('../../pages/investor/NDARequests'));
+const InvestorDiscover = lazy(() => import('../../pages/investor/InvestorDiscover'));
 
 // Lazy load all Production pages
 const ProductionActivity = lazy(() => import('../../pages/production/ProductionActivity'));
@@ -75,6 +76,10 @@ const ProductionSaved = lazy(() => import('../../pages/production/ProductionSave
 const ProductionCollaborations = lazy(() => import('../../pages/production/ProductionCollaborations'));
 const TeamInvite = lazy(() => import('../../pages/production/TeamInvite'));
 const TeamRoles = lazy(() => import('../../pages/production/TeamRoles'));
+
+// Shared pages used across portals
+const Following = lazy(() => import('../../pages/Following'));
+const Settings = lazy(() => import('../../pages/Settings'));
 
 interface RoutesProps {
   isAuthenticated: boolean;
@@ -136,6 +141,12 @@ export function AllInvestorRoutes({ isAuthenticated, userType }: RoutesProps) {
       } />
       <Route path={getRelativePath(INVESTOR_ROUTES.analytics, '/investor')} element={
         isInvestor ? <InvestorAnalytics /> : <Navigate to="/login/investor" />
+      } />
+      <Route path={getRelativePath(INVESTOR_ROUTES.discover, '/investor')} element={
+        isInvestor ? <InvestorDiscover /> : <Navigate to="/login/investor" />
+      } />
+      <Route path="discover/genres" element={
+        isInvestor ? <InvestorDiscover /> : <Navigate to="/login/investor" />
       } />
       <Route path={getRelativePath(INVESTOR_ROUTES.activity, '/investor')} element={
         isInvestor ? <InvestorActivity /> : <Navigate to="/login/investor" />
@@ -301,6 +312,14 @@ export function AllProductionRoutes({ isAuthenticated, userType }: RoutesProps) 
       } />
       <Route path={getRelativePath(PRODUCTION_ROUTES.teamRoles, '/production')} element={
         isProduction ? <TeamRoles /> : <Navigate to="/login/production" />
+      } />
+
+      {/* Account */}
+      <Route path={getRelativePath(PRODUCTION_ROUTES.following, '/production')} element={
+        isProduction ? <Following /> : <Navigate to="/login/production" />
+      } />
+      <Route path={getRelativePath(PRODUCTION_ROUTES.settings, '/production')} element={
+        isProduction ? <Settings /> : <Navigate to="/login/production" />
       } />
     </>
   );

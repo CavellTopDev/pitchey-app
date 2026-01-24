@@ -16,13 +16,22 @@ export interface QueryCacheEntry<T = any> {
   queryHash: string;
 }
 
+// Helper to get environment variables across Deno/Node/Cloudflare
+function getEnv(key: string): string | undefined {
+  try {
+    return (globalThis as any).Deno?.env.get(key) || (globalThis as any).process?.env[key];
+  } catch {
+    return undefined;
+  }
+}
+
 class DatabaseCacheService {
   private enabled: boolean;
   private defaultTTL = 300; // 5 minutes default TTL
   private compressionThreshold = 1024 * 10; // 10KB compression threshold
   
   constructor() {
-    this.enabled = Deno.env.get("CACHE_ENABLED") === "true";
+    this.enabled = getEnv("CACHE_ENABLED") === "true";
   }
 
   private generateCacheKey(prefix: string, identifier: string): string {
@@ -87,7 +96,7 @@ class DatabaseCacheService {
       await nativeRedisService.set(cacheKey, serializedData, ttl);
       
       console.log(`📦 Cached query: ${prefix}:${identifier} (TTL: ${ttl}s)`);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Failed to cache query:", error.message);
     }
   }
@@ -117,7 +126,7 @@ class DatabaseCacheService {
 
       console.log(`🎯 Cache hit: ${prefix}:${identifier}`);
       return cacheEntry.data;
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Failed to get cached query:", error.message);
       return null;
     }
@@ -133,7 +142,7 @@ class DatabaseCacheService {
       const cacheKey = this.generateCacheKey(prefix, identifier);
       await nativeRedisService.del(cacheKey);
       console.log(`🗑️ Invalidated cache: ${prefix}:${identifier}`);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Failed to invalidate cache:", error.message);
     }
   }
@@ -148,7 +157,7 @@ class DatabaseCacheService {
       const fullPattern = `pitchey:db:${pattern}`;
       await nativeRedisService.deleteByPattern(fullPattern);
       console.log(`🗑️ Invalidated cache pattern: ${pattern}`);
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Failed to invalidate cache pattern:", error.message);
     }
   }
@@ -222,7 +231,7 @@ class DatabaseCacheService {
     try {
       await nativeRedisService.deleteByPattern("pitchey:db:*");
       console.log("🧹 Cleared all database cache");
-    } catch (error) {
+    } catch (error: any) {
       console.warn("Failed to clear cache:", error.message);
     }
   }

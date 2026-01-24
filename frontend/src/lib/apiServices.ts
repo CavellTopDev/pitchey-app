@@ -1,7 +1,9 @@
 import apiClient, { ndaAPI as newNdaAPI, authAPI, pitchAPI as newPitchAPI, savedPitchesAPI } from './api-client';
 import { config } from '../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+// Use same-origin in production (Pages Functions proxy), localhost in dev
+const isDev = import.meta.env.MODE === 'development';
+const API_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 // Helper function to get auth headers (for backwards compatibility)
 const getAuthHeaders = () => {

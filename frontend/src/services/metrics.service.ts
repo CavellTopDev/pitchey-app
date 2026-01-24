@@ -3,9 +3,10 @@
  * Fetches real-time metrics from the backend monitoring endpoints
  */
 
-import { API_URL } from '@/config';
+import { API_URL, getWsUrl } from '@/config';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 export interface MetricData {
   timestamp: string;
@@ -251,7 +252,8 @@ class MetricsService {
       return;
     }
 
-    const wsUrl = API_URL.replace('http', 'ws').replace('https', 'wss');
+    // Use getWsUrl() which properly handles production (where API_URL is empty)
+    const wsUrl = getWsUrl();
     this.ws = new WebSocket(`${wsUrl}/ws/metrics`);
 
     this.ws.onopen = () => {

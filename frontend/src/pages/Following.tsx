@@ -61,13 +61,10 @@ const Following: React.FC = () => {
   const fetchFollowingData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        navigate('/login/investor');
-        return;
-      }
+      // Note: Better Auth uses cookies, not localStorage tokens
+      // The route protection in App.tsx handles unauthenticated users
 
       let endpoint: string;
       

@@ -1,0 +1,337 @@
+src/auth/better-auth-neon-raw-sql.ts(113,41): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'NeonQueryFunction<boolean, boolean>'.
+  Types of property 'transaction' are incompatible.
+    Type '<ArrayModeOverride extends boolean = false, FullResultsOverride extends boolean = false>(queriesOrFn: NeonQueryPromise<false, false, any>[] | ((sql: NeonQueryFunctionInTransaction<ArrayModeOverride, FullResultsOverride>) => NeonQueryInTransaction[]), opts?: HTTPTransactionOptions<...> | undefined) => Promise<...>' is not assignable to type '<ArrayModeOverride extends boolean = boolean, FullResultsOverride extends boolean = boolean>(queriesOrFn: NeonQueryPromise<boolean, boolean, any>[] | ((sql: NeonQueryFunctionInTransaction<ArrayModeOverride, FullResultsOverride>) => NeonQueryInTransaction[]), opts?: HTTPTransactionOptions<...> | undefined) => Promise...'.
+      Types of parameters 'queriesOrFn' and 'queriesOrFn' are incompatible.
+        Type '((sql: NeonQueryFunctionInTransaction<any, any>) => NeonQueryInTransaction[]) | NeonQueryPromise<boolean, boolean, any>[]' is not assignable to type '((sql: NeonQueryFunctionInTransaction<any, any>) => NeonQueryInTransaction[]) | NeonQueryPromise<false, false, any>[]'.
+          Type 'NeonQueryPromise<boolean, boolean, any>[]' is not assignable to type '((sql: NeonQueryFunctionInTransaction<any, any>) => NeonQueryInTransaction[]) | NeonQueryPromise<false, false, any>[]'.
+            Type 'NeonQueryPromise<boolean, boolean, any>[]' is not assignable to type 'NeonQueryPromise<false, false, any>[]'.
+              Type 'NeonQueryPromise<boolean, boolean, any>' is not assignable to type 'NeonQueryPromise<false, false, any>'.
+                Types of property 'opts' are incompatible.
+                  Type 'HTTPQueryOptions<boolean, boolean> | undefined' is not assignable to type 'HTTPQueryOptions<false, false> | undefined'.
+                    Type 'HTTPQueryOptions<boolean, boolean>' is not assignable to type 'HTTPQueryOptions<false, false>'.
+                      Type 'boolean' is not assignable to type 'false'.
+src/auth/better-auth-session-handler.ts(85,19): error TS2488: Type 'any[][] | Record<string, any>[] | FullQueryResults<boolean>' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/auth/better-auth-session-handler.ts(171,15): error TS2339: Property 'email' does not exist on type 'unknown'.
+src/auth/better-auth-session-handler.ts(171,22): error TS2339: Property 'password' does not exist on type 'unknown'.
+src/db/optimized-connection.ts(98,19): error TS2740: Type '{}' is missing the following properties from type 'any[]': length, pop, push, concat, and 29 more.
+src/db/queries/analytics.ts(151,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/analytics.ts(222,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/documents.ts(187,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+  Type 'string' is not assignable to type 'TemplateStringsArray'.
+src/db/queries/documents.ts(208,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/documents.ts(286,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/documents.ts(456,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/investments.ts(165,27): error TS2339: Property 'pending' does not exist on type '{ committed: string; funded: string; cancelled: string; refunded: string; }'.
+src/db/queries/investments.ts(199,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/investments.ts(236,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/investments.ts(309,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/investments.ts(432,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/messaging.ts(113,7): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/messaging.ts(299,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/messaging.ts(575,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/notifications.ts(138,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/notifications.ts(182,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/notifications.ts(372,29): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/notifications.ts(383,33): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/notifications.ts(398,36): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/pitches.ts(157,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+  Type 'string' is not assignable to type 'TemplateStringsArray'.
+src/db/queries/pitches.ts(203,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/pitches.ts(384,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/pitches.ts(444,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/pitches.ts(624,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/pitches.ts(782,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/settings.ts(86,5): error TS2740: Type 'Row' is missing the following properties from type 'UserSettings': id, userId, emailNotifications, pushNotifications, and 15 more.
+src/db/queries/settings.ts(177,5): error TS2740: Type 'Row' is missing the following properties from type 'UserSettings': id, userId, emailNotifications, pushNotifications, and 15 more.
+src/db/queries/settings.ts(221,5): error TS2739: Type 'Row' is missing the following properties from type 'AuthSession': id, userId, createdAt, lastActivity
+src/db/queries/settings.ts(250,5): error TS2322: Type 'RowList<Row[]>' is not assignable to type 'AuthSession[]'.
+  The types returned by 'pop()' are incompatible between these types.
+    Type 'Row | undefined' is not assignable to type 'AuthSession | undefined'.
+      Type 'Row' is missing the following properties from type 'AuthSession': id, userId, createdAt, lastActivity
+src/db/queries/settings.ts(288,5): error TS2739: Type 'Row' is missing the following properties from type 'AccountAction': id, userId, actionType, createdAt
+src/db/queries/settings.ts(314,5): error TS2322: Type 'RowList<Row[]>' is not assignable to type 'AccountAction[]'.
+  The types returned by 'pop()' are incompatible between these types.
+    Type 'Row | undefined' is not assignable to type 'AccountAction | undefined'.
+      Type 'Row' is missing the following properties from type 'AccountAction': id, userId, actionType, createdAt
+src/db/queries/teams.ts(6,10): error TS2305: Module '"../connection"' has no exported member 'Sql'.
+src/db/queries/teams.ts(86,22): error TS7006: Parameter 'team' implicitly has an 'any' type.
+src/db/queries/teams.ts(409,27): error TS7006: Parameter 'sql' implicitly has an 'any' type.
+src/db/queries/users.ts(169,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/users.ts(232,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/db/queries/users.ts(278,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+src/handlers/legal-document-automation.ts(311,9): error TS2322: Type '{ type: "creator" | "investor" | "production_company" | "individual" | "legal_entity"; name: string; email?: string | undefined; id?: string | undefined; title?: string | undefined; address?: string | undefined; company?: string | undefined; }[]' is not assignable to type '{ id: string; name: string; type: "creator" | "investor" | "production_company" | "individual"; email?: string | undefined; address?: string | undefined; }[]'.
+  Type '{ type: "creator" | "investor" | "production_company" | "individual" | "legal_entity"; name: string; email?: string | undefined; id?: string | undefined; title?: string | undefined; address?: string | undefined; company?: string | undefined; }' is not assignable to type '{ id: string; name: string; type: "creator" | "investor" | "production_company" | "individual"; email?: string | undefined; address?: string | undefined; }'.
+    Types of property 'id' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/handlers/legal-document-automation.ts(451,69): error TS2304: Cannot find name 'htmlContent'.
+src/handlers/legal-document-automation.ts(523,34): error TS2352: Conversion of type '{ jurisdiction: "AU" | "CA" | "US" | "EU" | "UK"; document_type: string; conditional_clauses_applied: never[]; }' to type 'GeneratedDocument' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ jurisdiction: "AU" | "CA" | "US" | "EU" | "UK"; document_type: string; conditional_clauses_applied: never[]; }' is missing the following properties from type 'GeneratedDocument': id, template_id, document_name, status, and 4 more.
+src/handlers/legal-document-automation.ts(839,9): error TS2353: Object literal may only specify known properties, and 'format' does not exist in type '{ title?: string | undefined; author?: string | undefined; subject?: string | undefined; creator?: string | undefined; producer?: string | undefined; creationDate?: Date | undefined; modificationDate?: Date | undefined; }'.
+src/handlers/legal-document-automation.ts(847,41): error TS2339: Property 'r2Service' does not exist on type 'LegalDocumentHandler'.
+src/handlers/legal-document-automation.ts(952,64): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Record<string, any>'.
+src/handlers/legal-document-automation.ts(956,31): error TS2339: Property 'checkCompliance' does not exist on type 'typeof LegalDocumentEngine'.
+src/handlers/legal-document-automation.ts(997,9): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/legal-document-automation.ts(1037,9): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string'.
+src/handlers/legal-document-automation.ts(1074,9): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/legal-document-automation.ts(1111,28): error TS18046: 'signers' is of type 'unknown'.
+src/handlers/legal-document-automation.ts(1140,36): error TS18046: 'signers' is of type 'unknown'.
+src/handlers/media-access.ts(61,21): error TS18048: 'accessCheck.data' is possibly 'undefined'.
+src/handlers/media-access.ts(309,57): error TS18046: 'error' is of type 'unknown'.
+src/handlers/nda-rbac.ts(38,13): error TS2739: Type 'Record<string, unknown>' is missing the following properties from type 'NDAApprovalRequest': ndaId, action
+src/handlers/nda.ts(171,7): error TS2322: Type 'unknown' is not assignable to type 'string'.
+src/handlers/nda.ts(172,7): error TS2322: Type 'unknown' is not assignable to type 'string'.
+src/handlers/nda.ts(173,7): error TS2322: Type 'unknown' is not assignable to type '"custom" | "standard" | "mutual" | undefined'.
+src/handlers/nda.ts(174,7): error TS2322: Type 'unknown' is not assignable to type 'string | undefined'.
+src/handlers/nda.ts(220,69): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/nda.ts(271,68): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/notification-routes.ts(112,67): error TS2345: Argument of type '{ userId: any; expiresAt: Date | undefined; message: string; priority: "low" | "medium" | "high" | "critical"; type: "email" | "push" | "sms" | "in_app"; title: string; category: "system" | ... 3 more ... | "market"; ... 7 more ...; htmlContent?: string | undefined; }' is not assignable to parameter of type 'NotificationInput'.
+  Types of property 'type' are incompatible.
+    Type '"email" | "push" | "sms" | "in_app"' is not assignable to type '"message" | "system" | "nda_request" | "investment" | "nda_approval" | "nda_rejection" | "nda_expiration" | "nda_reminder" | "pitch_update" | "marketing"'.
+      Type '"email"' is not assignable to type '"message" | "system" | "nda_request" | "investment" | "nda_approval" | "nda_rejection" | "nda_expiration" | "nda_reminder" | "pitch_update" | "marketing"'.
+src/handlers/notification-routes.ts(146,9): error TS2353: Object literal may only specify known properties, and 'page' does not exist in type '{ limit?: number | undefined; offset?: number | undefined; includeRead?: boolean | undefined; type?: string | undefined; }'.
+src/handlers/notification-routes.ts(162,29): error TS2339: Property 'unreadCount' does not exist on type '{ notifications: NotificationRow[]; total: number; }'.
+src/handlers/notification-routes.ts(186,46): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'number'.
+src/handlers/notification-routes.ts(218,46): error TS2345: Argument of type 'any[]' is not assignable to parameter of type 'number'.
+src/handlers/notification-routes.ts(273,93): error TS2345: Argument of type '{ timezone?: string | undefined; digestFrequency?: "instant" | "daily" | "weekly" | "monthly" | undefined; quietHoursStart?: string | undefined; quietHoursEnd?: string | undefined; ... 8 more ...; marketIntelligence?: { ...; } | undefined; }' is not assignable to parameter of type 'Partial<NotificationPreferences>'.
+  Types of property 'digestFrequency' are incompatible.
+    Type '"instant" | "daily" | "weekly" | "monthly" | undefined' is not assignable to type '"never" | "instant" | "daily" | "weekly" | "hourly" | undefined'.
+      Type '"monthly"' is not assignable to type '"never" | "instant" | "daily" | "weekly" | "hourly" | undefined'.
+src/handlers/notification-routes.ts(473,35): error TS2551: Property 'sendDigestNotifications' does not exist on type 'NotificationService'. Did you mean 'sendNotification'?
+src/handlers/notification-routes.ts(546,50): error TS2339: Property 'processUnsubscribe' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(613,35): error TS2339: Property 'deleteNotification' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(639,51): error TS2551: Property 'sendBulkNotifications' does not exist on type 'NotificationService'. Did you mean 'sendNotification'?
+src/handlers/notification-routes.ts(679,27): error TS2339: Property 'testPush' does not exist on type 'PushNotificationService'.
+src/handlers/notification-routes.ts(703,52): error TS2339: Property 'createTemplate' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(729,52): error TS2339: Property 'updateTemplate' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(754,35): error TS2339: Property 'deleteTemplate' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(777,49): error TS2339: Property 'createUnsubscribeToken' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(801,51): error TS2339: Property 'getBatches' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(824,51): error TS2339: Property 'processBatches' does not exist on type 'NotificationService'.
+src/handlers/notification-routes.ts(848,40): error TS2339: Property 'analytics' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/notification-routes.ts(871,40): error TS2339: Property 'analytics' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/notification-routes.ts(894,40): error TS2339: Property 'analytics' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/notification-routes.ts(913,22): error TS2339: Property 'analytics' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/notification-routes.ts(936,36): error TS2339: Property 'abTesting' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/notification-routes.ts(960,35): error TS2339: Property 'abTesting' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/notification-routes.ts(986,35): error TS2339: Property 'abTesting' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/notification-routes.ts(1011,38): error TS2339: Property 'abTesting' does not exist on type '{ notification: NotificationService; emailTemplate: EmailTemplateService; push: PushNotificationService; intelligent: IntelligentNotificationService; }'.
+src/handlers/pitch-validation.ts(29,11): error TS2739: Type 'Record<string, unknown>' is missing the following properties from type 'ValidationAnalysisRequest': pitchData, options
+src/handlers/pitch-validation.ts(411,11): error TS2739: Type 'Record<string, unknown>' is missing the following properties from type 'BenchmarkRequest': pitchId, categories, comparison_pool
+src/handlers/pitch-validation.ts(719,11): error TS2322: Type 'ValidationScore | undefined' is not assignable to type 'ValidationScore'.
+  Type 'undefined' is not assignable to type 'ValidationScore'.
+src/handlers/pitch-validation.ts(720,11): error TS2322: Type 'ValidationProgress | undefined' is not assignable to type 'ValidationProgress'.
+  Type 'undefined' is not assignable to type 'ValidationProgress'.
+src/handlers/production-dashboard.ts(162,7): error TS2322: Type 'Record<string, any>[] | { total_talent: number; available: number; contracted: number; avg_rating: number; }[]' is not assignable to type '{ total_talent: number; available: number; contracted: number; avg_rating: number; }[]'.
+  Type 'Record<string, any>[]' is not assignable to type '{ total_talent: number; available: number; contracted: number; avg_rating: number; }[]'.
+    Type 'Record<string, any>' is missing the following properties from type '{ total_talent: number; available: number; contracted: number; avg_rating: number; }': total_talent, available, contracted, avg_rating
+src/handlers/production-dashboard.ts(520,56): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/production-dashboard.ts(524,9): error TS2322: Type 'unknown' is not assignable to type 'string | undefined'.
+src/handlers/secure-portal-endpoints.ts(468,7): error TS2322: Type 'string' is not assignable to type 'ProductionDealType'.
+src/handlers/secure-portal-endpoints.ts(470,7): error TS2322: Type 'number | undefined' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+src/handlers/settings.ts(35,44): error TS2345: Argument of type 'RawSQLDatabase' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'RawSQLDatabase' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 14 more.
+src/handlers/settings.ts(39,56): error TS2345: Argument of type 'RawSQLDatabase' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'RawSQLDatabase' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 14 more.
+src/handlers/settings.ts(132,43): error TS2339: Property 'emailNotifications' does not exist on type '{}'.
+src/handlers/settings.ts(133,42): error TS2339: Property 'pushNotifications' does not exist on type '{}'.
+src/handlers/settings.ts(134,35): error TS2339: Property 'pitchViews' does not exist on type '{}'.
+src/handlers/settings.ts(135,36): error TS2339: Property 'newMessages' does not exist on type '{}'.
+src/handlers/settings.ts(136,39): error TS2339: Property 'projectUpdates' does not exist on type '{}'.
+src/handlers/settings.ts(137,37): error TS2339: Property 'weeklyDigest' does not exist on type '{}'.
+src/handlers/settings.ts(138,40): error TS2339: Property 'marketingEmails' does not exist on type '{}'.
+src/handlers/settings.ts(144,36): error TS2339: Property 'profileVisibility' does not exist on type '{}'.
+src/handlers/settings.ts(145,28): error TS2339: Property 'showEmail' does not exist on type '{}'.
+src/handlers/settings.ts(146,28): error TS2339: Property 'showPhone' does not exist on type '{}'.
+src/handlers/settings.ts(147,38): error TS2339: Property 'allowDirectMessages' does not exist on type '{}'.
+src/handlers/settings.ts(148,37): error TS2339: Property 'allowPitchRequests' does not exist on type '{}'.
+src/handlers/settings.ts(154,36): error TS2339: Property 'twoFactorEnabled' does not exist on type '{}'.
+src/handlers/settings.ts(155,34): error TS2339: Property 'sessionTimeout' does not exist on type '{}'.
+src/handlers/settings.ts(156,38): error TS2339: Property 'loginNotifications' does not exist on type '{}'.
+src/handlers/settings.ts(161,20): error TS2341: Property 'sql' is private and only accessible within class 'RawSQLDatabase'.
+src/handlers/settings.ts(162,54): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(165,28): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(225,20): error TS2341: Property 'sql' is private and only accessible within class 'RawSQLDatabase'.
+src/handlers/settings.ts(226,44): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(256,20): error TS2341: Property 'sql' is private and only accessible within class 'RawSQLDatabase'.
+src/handlers/settings.ts(257,48): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(297,20): error TS2341: Property 'sql' is private and only accessible within class 'RawSQLDatabase'.
+src/handlers/settings.ts(298,43): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(302,30): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(343,20): error TS2341: Property 'sql' is private and only accessible within class 'RawSQLDatabase'.
+src/handlers/settings.ts(344,44): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(348,30): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(400,20): error TS2341: Property 'sql' is private and only accessible within class 'RawSQLDatabase'.
+src/handlers/settings.ts(403,28): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(410,45): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/settings.ts(447,20): error TS2341: Property 'sql' is private and only accessible within class 'RawSQLDatabase'.
+src/handlers/settings.ts(450,42): error TS2345: Argument of type 'NeonQueryFunction<false, false>' is not assignable to parameter of type 'Sql<{}>'.
+  Type 'NeonQueryFunction<false, false>' is missing the following properties from type 'Sql<{}>': CLOSE, END, PostgresError, options, and 13 more.
+src/handlers/status-dashboard.ts(145,52): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/status-dashboard.ts(146,50): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/status-dashboard.ts(147,65): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/status-dashboard.ts(148,65): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/status-dashboard.ts(157,48): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/status-dashboard.ts(347,43): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/handlers/stub-endpoints.ts(38,39): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(message?: string | undefined, options?: ErrorOptions | undefined): Error', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string'.
+  Overload 2 of 2, '(message?: string | undefined): Error', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string'.
+src/handlers/stub-endpoints.ts(38,72): error TS2345: Argument of type '{ tags: { source: string; type: {}; }; extra: Record<string, unknown>; }' is not assignable to parameter of type 'ExclusiveEventHintOrCaptureContext | undefined'.
+  Types of property 'tags' are incompatible.
+    Type '{ source: string; type: {}; }' is not assignable to type '{ [key: string]: Primitive; }'.
+      Property 'type' is incompatible with index signature.
+        Type '{}' is not assignable to type 'Primitive'.
+src/handlers/stub-endpoints.ts(76,39): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(message?: string | undefined, options?: ErrorOptions | undefined): Error', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string'.
+  Overload 2 of 2, '(message?: string | undefined): Error', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string'.
+src/handlers/stub-endpoints.ts(76,71): error TS2345: Argument of type '{ tags: { source: string; severity: {}; }; extra: { stack: unknown; url: unknown; line: unknown; column: unknown; }; }' is not assignable to parameter of type 'ExclusiveEventHintOrCaptureContext | undefined'.
+  Types of property 'tags' are incompatible.
+    Type '{ source: string; severity: {}; }' is not assignable to type '{ [key: string]: Primitive; }'.
+      Property 'severity' is incompatible with index signature.
+        Type '{}' is not assignable to type 'Primitive'.
+src/handlers/teams.ts(192,7): error TS2322: Type '{}' is not assignable to type 'string'.
+src/handlers/teams.ts(193,7): error TS2322: Type 'unknown' is not assignable to type 'string | undefined'.
+src/handlers/teams.ts(195,7): error TS2322: Type '{}' is not assignable to type '"public" | "private" | "team" | undefined'.
+src/handlers/teams.ts(431,9): error TS2322: Type '{}' is not assignable to type 'string'.
+src/handlers/teams.ts(432,9): error TS2322: Type '{}' is not assignable to type '"viewer" | "editor"'.
+src/handlers/teams.ts(433,9): error TS2322: Type 'unknown' is not assignable to type 'string | undefined'.
+src/handlers/teams.ts(726,7): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string'.
+src/handlers/validated-endpoints.ts(28,3): error TS2322: Type '({ body, request, env }: { body?: { email: string; password: string; userType?: "creator" | "investor" | "production" | undefined; rememberMe?: boolean | undefined; } | undefined; query?: any; request: Request<unknown, CfProperties<unknown>>; env: any; }) => Promise<...>' is not assignable to type '(params: { body?: { email: string; password: string; userType?: "creator" | "investor" | "production" | undefined; rememberMe?: boolean | undefined; } | undefined; query?: any; request: Request<unknown, CfProperties<unknown>>; env: any; }) => Promise<...>'.
+  Type 'Promise<{ id: number; email: string; name: string; userType: "creator" | "investor" | "production"; avatarUrl: null; bio: null; createdAt: string; updatedAt: string; verified: boolean; }>' is not assignable to type 'Promise<{ success: true; data: { email: string; id: number; name: string; userType: "creator" | "investor" | "production"; bio: string | null; avatarUrl: string | null; createdAt: string; updatedAt: string; verified?: boolean | undefined; }; meta?: Record<...> | undefined; }>'.
+    Type '{ id: number; email: string; name: string; userType: "creator" | "investor" | "production"; avatarUrl: null; bio: null; createdAt: string; updatedAt: string; verified: boolean; }' is missing the following properties from type '{ success: true; data: { email: string; id: number; name: string; userType: "creator" | "investor" | "production"; bio: string | null; avatarUrl: string | null; createdAt: string; updatedAt: string; verified?: boolean | undefined; }; meta?: Record<...> | undefined; }': success, data
+src/handlers/validated-endpoints.ts(94,3): error TS2322: Type '({ body, request, env }: { body?: { title: string; logline: string; genre: "Action" | "Comedy" | "Drama" | "Horror" | "Sci-Fi" | "Thriller" | "Romance" | "Documentary" | "Animation"; format?: "Documentary" | "Film" | "Series" | "Mini-Series" | undefined; ... 4 more ...; attachments?: { ...; }[] | undefined; } | unde...' is not assignable to type '(params: { body?: { title: string; logline: string; genre: "Action" | "Comedy" | "Drama" | "Horror" | "Sci-Fi" | "Thriller" | "Romance" | "Documentary" | "Animation"; format?: "Documentary" | "Film" | "Series" | "Mini-Series" | undefined; ... 4 more ...; attachments?: { ...; }[] | undefined; } | undefined; query?: a...'.
+  Type 'Promise<{ id: number; title: string; logline: string; synopsis: string | undefined; genre: "Action" | "Comedy" | "Drama" | "Horror" | "Sci-Fi" | "Thriller" | "Romance" | "Documentary" | "Animation"; ... 9 more ...; updatedAt: string; }>' is not assignable to type 'Promise<{ success: true; data: { id: number; creatorId: number; createdAt: string; updatedAt: string; title: string; logline: string; genre: "Action" | "Comedy" | "Drama" | "Horror" | "Sci-Fi" | "Thriller" | "Romance" | "Documentary" | "Animation"; ... 7 more ...; likeCount?: number | undefined; }; meta?: Record<......'.
+    Type '{ id: number; title: string; logline: string; synopsis: string | undefined; genre: "Action" | "Comedy" | "Drama" | "Horror" | "Sci-Fi" | "Thriller" | "Romance" | "Documentary" | "Animation"; ... 9 more ...; updatedAt: string; }' is missing the following properties from type '{ success: true; data: { id: number; creatorId: number; createdAt: string; updatedAt: string; title: string; logline: string; genre: "Action" | "Comedy" | "Drama" | "Horror" | "Sci-Fi" | "Thriller" | "Romance" | "Documentary" | "Animation"; ... 7 more ...; likeCount?: number | undefined; }; meta?: Record<...> | unde...': success, data
+src/handlers/validated-endpoints.ts(181,3): error TS2322: Type '({ body, request, env }: { body?: { pitchId: number; requesterId?: number | undefined; ndaType?: "custom" | "basic" | "enhanced" | undefined; requestMessage?: string | undefined; companyInfo?: { name: string; address: string; registrationNumber?: string | undefined; } | undefined; customTerms?: string | undefined; }...' is not assignable to type '(params: { body?: { pitchId: number; requesterId?: number | undefined; ndaType?: "custom" | "basic" | "enhanced" | undefined; requestMessage?: string | undefined; companyInfo?: { name: string; address: string; registrationNumber?: string | undefined; } | undefined; customTerms?: string | undefined; } | undefined; qu...'.
+  Type 'Promise<{ id: number; pitchId: number; requesterId: number; creatorId: number; status: "pending"; ndaType: "custom" | "basic" | "enhanced"; signedAt: null; expiresAt: string; documentUrl: null; rejectionReason: null; createdAt: string; updatedAt: string; }>' is not assignable to type 'Promise<{ success: true; data: { id: number; status: "pending" | "approved" | "rejected" | "expired" | "revoked"; creatorId: number; createdAt: string; updatedAt: string; pitchId: number; requesterId: number; ... 4 more ...; rejectionReason: string | null; }; meta?: Record<...> | undefined; }>'.
+    Type '{ id: number; pitchId: number; requesterId: number; creatorId: number; status: "pending"; ndaType: "custom" | "basic" | "enhanced"; signedAt: null; expiresAt: string; documentUrl: null; rejectionReason: null; createdAt: string; updatedAt: string; }' is missing the following properties from type '{ success: true; data: { id: number; status: "pending" | "approved" | "rejected" | "expired" | "revoked"; creatorId: number; createdAt: string; updatedAt: string; pitchId: number; requesterId: number; ... 4 more ...; rejectionReason: string | null; }; meta?: Record<...> | undefined; }': success, data
+src/middleware/free-tier-cache.ts(95,43): error TS2488: Type 'Headers' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/services/container-orchestrator.ts(631,39): error TS18046: 'message.body' is of type 'unknown'.
+src/services/email-template.service.ts(109,18): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email-template.service.ts(113,44): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email-template.service.ts(140,44): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email-template.service.ts(163,21): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email-template.service.ts(163,30): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/services/email-template.service.ts(216,21): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email-template.service.ts(307,18): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email-template.service.ts(311,44): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email-template.service.ts(325,21): error TS2339: Property 'rows' does not exist on type 'any[]'.
+src/services/email.service.ts(459,11): error TS2740: Type '{ welcome: { subject: string; html: string; text: string; }; ndaRequest: { subject: string; html: string; text: string; }; ndaApproval: { subject: string; html: string; text: string; }; ndaRejection: { subject: string; html: string; text: string; }; investmentConfirmation: { ...; }; newMessage: { ...; }; transaction...' is missing the following properties from type 'EmailTemplate': passwordReset, emailVerification, investmentUpdate, messageReply, and 20 more.
+src/services/enhanced-upload-r2.ts(96,27): error TS2339: Property 'name' does not exist on type 'R2Bucket'.
+src/services/enhanced-upload-r2.ts(164,47): error TS18046: 'error' is of type 'unknown'.
+src/services/enhanced-upload-r2.ts(232,53): error TS18046: 'error' is of type 'unknown'.
+src/services/enhanced-upload-r2.ts(349,38): error TS2339: Property 'uploadPart' does not exist on type 'R2Bucket'.
+src/services/enhanced-upload-r2.ts(366,25): error TS2551: Property 'completeMultipartUpload' does not exist on type 'R2Bucket'. Did you mean 'createMultipartUpload'?
+src/services/enhanced-upload-r2.ts(382,25): error TS2551: Property 'abortMultipartUpload' does not exist on type 'R2Bucket'. Did you mean 'createMultipartUpload'?
+src/services/mfa.service.ts(148,3): error TS2322: Type 'Promise<string>' is not assignable to type 'string'.
+src/services/mfa.service.ts(155,41): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(format: "jwk", keyData: JsonWebKey, algorithm: AlgorithmIdentifier | RsaHashedImportParams | EcKeyImportParams | HmacImportParams | AesKeyAlgorithm, extractable: boolean, keyUsages: readonly KeyUsage[]): Promise<...>', gave the following error.
+    Argument of type '"raw"' is not assignable to parameter of type '"jwk"'.
+  Overload 2 of 2, '(format: "raw" | "pkcs8" | "spki", keyData: BufferSource, algorithm: AlgorithmIdentifier | RsaHashedImportParams | EcKeyImportParams | HmacImportParams | AesKeyAlgorithm, extractable: boolean, keyUsages: KeyUsage[]): Promise<...>', gave the following error.
+    Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
+      Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+        Types of property 'buffer' are incompatible.
+          Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+            Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+              Types of property '[Symbol.toStringTag]' are incompatible.
+                Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+src/services/mfa.service.ts(163,65): error TS2345: Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
+  Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+    Types of property 'buffer' are incompatible.
+      Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+        Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+          Types of property '[Symbol.toStringTag]' are incompatible.
+            Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+src/services/notification-integration.service.ts(32,32): error TS2554: Expected 4 arguments, but got 2.
+src/services/notification-integration.service.ts(87,7): error TS2353: Object literal may only specify known properties, and 'contextType' does not exist in type 'NotificationData'.
+src/services/notification-integration.service.ts(159,7): error TS2353: Object literal may only specify known properties, and 'contextType' does not exist in type 'NotificationData'.
+src/services/notification-integration.service.ts(220,7): error TS2353: Object literal may only specify known properties, and 'contextType' does not exist in type 'NotificationData'.
+src/services/notification-integration.service.ts(251,7): error TS2353: Object literal may only specify known properties, and 'contextType' does not exist in type 'NotificationData'.
+src/services/notification-integration.service.ts(286,7): error TS2353: Object literal may only specify known properties, and 'contextType' does not exist in type 'NotificationData'.
+src/services/notification-integration.service.ts(317,7): error TS2353: Object literal may only specify known properties, and 'contextType' does not exist in type 'NotificationData'.
+src/services/notification-integration.service.ts(343,11): error TS2322: Type '{ userId: string; type: "system"; category: "system"; priority: "normal"; title: string; message: string; contextType: string; contextId: `${string}-${string}-${string}-${string}-${string}`; variables: { maintenance_date: string; start_time: string; end_time: string; duration: string; maintenance_details: string; };...' is not assignable to type 'NotificationData[]'.
+  Type '{ userId: string; type: "system"; category: "system"; priority: "normal"; title: string; message: string; contextType: string; contextId: `${string}-${string}-${string}-${string}-${string}`; variables: { maintenance_date: string; start_time: string; end_time: string; duration: string; maintenance_details: string; }; }' is not assignable to type 'NotificationData'.
+    Types of property 'userId' are incompatible.
+      Type 'string' is not assignable to type 'number'.
+src/services/notification-integration.service.ts(362,36): error TS2551: Property 'sendBulkNotifications' does not exist on type 'NotificationService'. Did you mean 'sendNotification'?
+src/services/pitch-validation.service.ts(2002,54): error TS7006: Parameter 'improvement' implicitly has an 'any' type.
+src/services/polling-service.ts(34,39): error TS2339: Property 'timestamp' does not exist on type '{}'.
+src/services/polling-service.ts(35,7): error TS2739: Type '{}' is missing the following properties from type 'PollResponse': timestamp, nextPollIn
+src/services/polling-service.ts(39,41): error TS2339: Property 'getNotifications' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(65,39): error TS2339: Property 'timestamp' does not exist on type '{}'.
+src/services/polling-service.ts(66,7): error TS2739: Type '{}' is missing the following properties from type 'PollResponse': timestamp, nextPollIn
+src/services/polling-service.ts(71,23): error TS2339: Property 'getConversationMessages' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(72,23): error TS2339: Property 'getRecentMessages' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(96,39): error TS2339: Property 'timestamp' does not exist on type '{}'.
+src/services/polling-service.ts(97,7): error TS2739: Type '{}' is missing the following properties from type 'PollResponse': timestamp, nextPollIn
+src/services/polling-service.ts(106,37): error TS2339: Property 'getTotalPitchViews' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(107,38): error TS2339: Property 'getPendingNDACount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(108,35): error TS2339: Property 'getUnreadMessageCount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(113,39): error TS2339: Property 'getSavedPitchesCount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(114,38): error TS2339: Property 'getInvestmentCount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(115,43): error TS2339: Property 'getFollowingCount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(120,41): error TS2339: Property 'getActiveProjectsCount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(121,36): error TS2339: Property 'getActiveNDACount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(122,39): error TS2339: Property 'getPartnershipsCount' does not exist on type 'WorkerDatabase'.
+src/services/polling-service.ts(190,38): error TS2345: Argument of type 'Request<unknown, CfProperties<unknown>>' is not assignable to parameter of type 'string'.
+src/services/polling-service.ts(197,25): error TS2345: Argument of type 'Request<unknown, CfProperties<unknown>>' is not assignable to parameter of type 'string'.
+src/services/trace-service.ts(6,26): error TS2307: Cannot find module '../types' or its corresponding type declarations.
+src/services/trace-service.ts(537,35): error TS18046: 'error' is of type 'unknown'.
+src/services/trace-service.ts(538,57): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | Error | undefined'.
+src/services/trace-service.ts(575,7): error TS2322: Type '"pending"' is not assignable to type '"success" | "failure" | "denied"'.
+src/services/trace-service.ts(595,37): error TS18046: 'error' is of type 'unknown'.
+src/services/trace-service.ts(596,57): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | Error | undefined'.
+src/services/worker-email.ts(67,18): error TS18046: 'data' is of type 'unknown'.
+src/services/worker-email.ts(73,13): error TS18046: 'data' is of type 'unknown'.
+src/services/worker-rbac.service.ts(232,21): error TS2339: Property 'length' does not exist on type 'any[][] | Record<string, any>[] | FullQueryResults<boolean>'.
+  Property 'length' does not exist on type 'FullQueryResults<boolean>'.
+src/services/worker-rbac.service.ts(233,40): error TS2339: Property 'map' does not exist on type 'any[][] | Record<string, any>[] | FullQueryResults<boolean>'.
+  Property 'map' does not exist on type 'FullQueryResults<boolean>'.
+src/services/worker-rbac.service.ts(233,44): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+src/services/worker-realtime.service.ts(42,11): error TS2564: Property 'sessionHandler' has no initializer and is not definitely assigned in the constructor.
+src/services/worker-realtime.service.ts(497,18): error TS2339: Property 'rows' does not exist on type 'DatabaseRow[]'.
+src/services/worker-realtime.service.ts(497,33): error TS2339: Property 'rows' does not exist on type 'DatabaseRow[]'.
+src/services/worker-realtime.service.ts(498,34): error TS2339: Property 'rows' does not exist on type 'DatabaseRow[]'.
+src/services/worker-realtime.service.ts(513,63): error TS2339: Property 'READY_STATE_OPEN' does not exist on type '{ new (url: string | URL, protocols?: string | string[] | undefined): WebSocket; prototype: WebSocket; readonly CONNECTING: 0; readonly OPEN: 1; readonly CLOSING: 2; readonly CLOSED: 3; }'.
+src/shared/contracts.ts(302,34): error TS2339: Property 'partial' does not exist on type 'ZodType<T, ZodTypeDef, T>'.
+src/workers/container-worker-integration.ts(68,52): error TS2345: Argument of type 'import("/home/supremeisbeing/pitcheymovie/pitchey_v0.2/src/db/connection").Env' is not assignable to parameter of type 'import("/home/supremeisbeing/pitcheymovie/pitchey_v0.2/src/worker-integrated").Env'.
+  Type 'Env' is missing the following properties from type 'Env': CACHE, RATE_LIMIT_KV, R2_BUCKET, FRONTEND_URL, ENVIRONMENT
+src/workers/container-worker-integration.ts(69,51): error TS2345: Argument of type 'import("/home/supremeisbeing/pitcheymovie/pitchey_v0.2/src/db/connection").Env' is not assignable to parameter of type 'import("/home/supremeisbeing/pitcheymovie/pitchey_v0.2/src/worker-integrated").Env'.
+  Type 'Env' is missing the following properties from type 'Env': CACHE, RATE_LIMIT_KV, R2_BUCKET, FRONTEND_URL, ENVIRONMENT
+src/workers/container-worker-integration.ts(71,72): error TS2554: Expected 1 arguments, but got 2.
+src/workers/container-worker-integration.ts(149,19): error TS2339: Property 'handleInstanceEndpoints' does not exist on type 'ContainerWorkerIntegration'.
+src/workers/container-worker-integration.ts(164,19): error TS2551: Property 'handleConfigEndpoints' does not exist on type 'ContainerWorkerIntegration'. Did you mean 'handleJobEndpoints'?
+src/workers/container-worker-integration.ts(201,23): error TS2339: Property 'cancelJob' does not exist on type 'ContainerWorkerIntegration'.
+src/workers/container-worker-integration.ts(274,21): error TS2339: Property 'getCostMetrics' does not exist on type 'ContainerWorkerIntegration'.
+src/workers/container-worker-integration.ts(277,21): error TS2339: Property 'getPerformanceMetrics' does not exist on type 'ContainerWorkerIntegration'.
+src/workers/container-worker-integration.ts(280,21): error TS2339: Property 'getHealthMetrics' does not exist on type 'ContainerWorkerIntegration'.
+src/workers/container-worker-integration.ts(325,10): error TS2559: Type '3600' has no properties in common with type 'KVCacheOptions'.
+src/workers/container-worker-integration.ts(350,53): error TS2559: Type '300' has no properties in common with type 'KVCacheOptions'.
+src/workers/container-worker-integration.ts(418,46): error TS2559: Type '60' has no properties in common with type 'KVCacheOptions'.
+src/workers/container-worker-integration.ts(456,49): error TS2559: Type '60' has no properties in common with type 'KVCacheOptions'.
+src/workers/container-worker-integration.ts(517,46): error TS2339: Property 'build' does not exist on type 'Response'.
+src/workers/container-worker-integration.ts(529,10): error TS2339: Property 'build' does not exist on type 'Response'.
+src/workers/container-worker-integration.ts(596,45): error TS2345: Argument of type 'Env' is not assignable to parameter of type 'AuthEnv'.
+  Types of property 'SESSIONS_KV' are incompatible.
+    Type 'KVNamespace<string> | undefined' is not assignable to type 'import("/home/supremeisbeing/pitcheymovie/pitchey_v0.2/node_modules/@cloudflare/workers-types/index").KVNamespace<string> | undefined'.
+      Type 'KVNamespace<string>' is not assignable to type 'import("/home/supremeisbeing/pitcheymovie/pitchey_v0.2/node_modules/@cloudflare/workers-types/index").KVNamespace<string>'.
+        Types of property 'get' are incompatible.
+          Type '{ (key: string, options?: Partial<KVNamespaceGetOptions<undefined>> | undefined): Promise<string | null>; (key: string, type: "text"): Promise<...>; <ExpectedValue = unknown>(key: string, type: "json"): Promise<...>; (key: string, type: "arrayBuffer"): Promise<...>; (key: string, type: "stream"): Promise<...>; (key:...' is not assignable to type '{ (key: string, options?: Partial<import("/home/supremeisbeing/pitcheymovie/pitchey_v0.2/node_modules/@cloudflare/workers-types/index").KVNamespaceGetOptions<undefined>> | undefined): Promise<...>; (key: string, type: "text"): Promise<...>; <ExpectedValue = unknown>(key: string, type: "json"): Promise<...>; (key: st...'.
+            Types of parameters 'options' and 'type' are incompatible.
+              Type '"stream"' has no properties in common with type 'Partial<KVNamespaceGetOptions<undefined>>'.
+src/workers/container-worker-integration.ts(606,34): error TS2339: Property 'getSession' does not exist on type '{ sql: NeonQueryFunction<false, false>; dbAdapter: { findUser(email: string): Promise<Record<string, unknown>>; findUserById(id: string): Promise<Record<...>>; createSession(userId: string, expiresAt: Date): Promise<...>; findSession(sessionId: string): Promise<...>; deleteSession(sessionId: string): Promise<...>; d...'.

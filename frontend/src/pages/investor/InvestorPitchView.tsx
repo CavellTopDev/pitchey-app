@@ -418,12 +418,14 @@ const InvestorPitchView: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">ROI Calculator</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="investment-amount" className="block text-sm font-medium text-gray-700 mb-1">
                         Investment Amount ($)
                       </label>
                       <div className="flex space-x-2">
                         <input
                           type="number"
+                          id="investment-amount"
+                          name="investment-amount"
                           value={investmentAmount}
                           onChange={(e) => setInvestmentAmount(e.target.value)}
                           placeholder="Enter amount"
@@ -502,11 +504,13 @@ const InvestorPitchView: React.FC = () => {
                     <div key={key} className="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100">
                       <input
                         type="checkbox"
+                        id={`diligence-${key}`}
+                        name={`diligence-${key}`}
                         checked={value}
                         onChange={() => handleDiligenceUpdate(key as keyof typeof diligenceChecklist)}
                         className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
                       />
-                      <label className="ml-3 flex-1 text-gray-700 capitalize">
+                      <label htmlFor={`diligence-${key}`} className="ml-3 flex-1 text-gray-700 capitalize">
                         {key.replace(/([A-Z])/g, ' $1').trim()}
                       </label>
                       {value && <CheckCircle className="h-5 w-5 text-green-600" />}

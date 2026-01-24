@@ -89,10 +89,12 @@ export class StubRoutes {
     }
     
     // Check pattern matches
+    // NOTE: Analytics routes are handled by the main router, don't stub them
     const patterns = [
       { pattern: /^\/api\/investment\//, response: { data: [], totalCount: 0 } },
-      { pattern: /^\/api\/ndas\//, response: { data: [], totalCount: 0 } },
-      { pattern: /^\/api\/analytics\//, response: { data: {}, charts: [] } }
+      { pattern: /^\/api\/ndas\//, response: { data: [], totalCount: 0 } }
+      // Removed: { pattern: /^\/api\/analytics\//, response: { data: {}, charts: [] } }
+      // Analytics routes should go through the registered handlers, not stubs
     ];
     
     for (const { pattern, response } of patterns) {
@@ -133,26 +135,41 @@ export class StubRoutes {
   static getFallbackAnalytics(preset?: string): any {
     const now = new Date();
     const period = preset || 'month';
-    
+
     return {
-      metrics: {
+      overview: {
         totalViews: 0,
+        uniqueVisitors: 0,
         totalPitches: 0,
-        totalUsers: 0,
-        activeUsers: 0,
-        conversion: 0,
-        engagement: 0,
-        growth: 0
+        totalInvestments: 0,
+        totalRevenue: 0,
+        averageRating: 0,
+        conversionRate: 0,
+        activeUsers: 0
       },
-      charts: {
-        views: this.generateEmptyChart(period),
-        users: this.generateEmptyChart(period),
-        revenue: this.generateEmptyChart(period)
+      trends: {
+        viewsOverTime: { labels: [], datasets: [] },
+        investmentsOverTime: { labels: [], datasets: [] },
+        userGrowth: { labels: [], datasets: [] },
+        revenueGrowth: { labels: [], datasets: [] }
       },
-      topPerformers: [],
-      recentActivity: [],
-      period: period,
-      lastUpdated: now.toISOString()
+      demographics: {
+        usersByRole: { labels: [], datasets: [] },
+        pitchesByGenre: { labels: [], datasets: [] },
+        pitchesByStatus: { labels: [], datasets: [] },
+        investmentsByRange: { labels: [], datasets: [] }
+      },
+      performance: {
+        topPitches: [],
+        topCreators: [],
+        topInvestors: []
+      },
+      engagement: {
+        averageSessionDuration: 0,
+        bounceRate: 0,
+        pageViewsPerSession: 0,
+        mostViewedPages: []
+      }
     };
   }
   

@@ -131,6 +131,14 @@ export class EnvironmentValidator {
  * Add comprehensive security headers to all responses
  */
 export function addSecurityHeaders(response: Response, environment?: string): Response {
+  // CRITICAL: WebSocket responses (status 101) must not be modified
+  // Creating a new Response strips the webSocket property which is required
+  // for Cloudflare Workers to handle WebSocket upgrades
+  if (response.status === 101 || (response as any).webSocket) {
+    console.log('[SecurityHeaders] Returning WebSocket response unchanged');
+    return response;
+  }
+
   const headers = new Headers(response.headers);
 
   // Content Security Policy

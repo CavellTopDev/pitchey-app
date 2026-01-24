@@ -3,7 +3,7 @@
  * Provides comprehensive observability with Trace Workers and Analytics Engine
  */
 
-import type { Env } from '../types';
+import type { UnifiedEnv as Env } from '../types/env.ts';
 
 export interface TraceSpan {
   traceId: string;
@@ -533,7 +533,7 @@ export async function queryWithTracing<T>(
     await traceService.finishSpan(span.spanId, 'success');
     
     return result.results as T[];
-  } catch (error) {
+  } catch (error: any) {
     span.attributes['db.error'] = error.message;
     await traceService.finishSpan(span.spanId, 'error', error);
     throw error;
@@ -572,7 +572,7 @@ export async function handleAPIRequestWithTracing(
       traceId: span.traceId,
       action: `${request.method} ${url.pathname}`,
       resource: url.pathname,
-      result: 'pending',
+      result: 'failure', // 'pending' not in success|failure|denied
       ip: request.headers.get('cf-connecting-ip') || undefined,
       userAgent: request.headers.get('user-agent') || undefined
     });
@@ -591,7 +591,7 @@ export async function handleAPIRequestWithTracing(
     
     // Inject trace context into response
     return traceService.injectTraceContext(response, span);
-  } catch (error) {
+  } catch (error: any) {
     span.attributes['http.error'] = error.message;
     await traceService.finishSpan(span.spanId, 'error', error);
     

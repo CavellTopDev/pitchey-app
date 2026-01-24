@@ -1,5 +1,5 @@
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? (isDev ? 'http://localhost:8001' : '');
 
 // Export UploadProgress interface
 export interface UploadProgress {
@@ -17,21 +17,110 @@ export interface UploadResult {
   type: string;
   id?: string;
   uploadedAt?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UploadOptions {
-  onProgress?: (progress: UploadProgress) => void;
+  onProgress?: (_progress: UploadProgress) => void;
   signal?: AbortSignal;
   timeout?: number;
   retryCount?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   chunkSize?: number;
   priority?: 'low' | 'normal' | 'high';
 }
 
+// Response types for API calls
+interface MultipleUploadResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    uploads?: Array<{
+      success: boolean;
+      result?: UploadResult;
+      error?: string;
+    }>;
+  };
+}
+
+interface MediaBatchResponse {
+  results?: UploadResult[];
+  errors?: Array<{ error: string }>;
+}
+
+interface DocumentDeleteResponse {
+  success?: boolean;
+  error?: string;
+}
+
+interface PresignedUrlResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    uploadUrl: string;
+    key: string;
+    expiresAt: string;
+    fields?: Record<string, string>;
+    url?: string;
+  };
+}
+
+interface StorageQuotaApiResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    currentUsage: number;
+    maxQuota: number;
+    remainingQuota: number;
+    usagePercentage: number;
+    formattedUsage: string;
+    formattedQuota: string;
+    formattedRemaining: string;
+  };
+}
+
+interface UploadInfoResponse {
+  maxFileSize: number;
+  allowedTypes: string[];
+  maxFiles: number;
+  totalStorage: number;
+  usedStorage: number;
+  remainingStorage: number;
+  uploadLimits: {
+    hourly: number;
+    daily: number;
+    monthly: number;
+  };
+  currentUsage: {
+    hourly: number;
+    daily: number;
+    monthly: number;
+  };
+  features: {
+    concurrentUploads: boolean;
+    chunkUpload: boolean;
+    deduplication: boolean;
+    previewGeneration: boolean;
+  };
+  provider?: string;
+}
+
+interface UploadAnalyticsResponse {
+  totalUploads: number;
+  totalSize: number;
+  averageFileSize: number;
+  successRate: number;
+  popularTypes: Array<{ type: string; count: number }>;
+  uploadTrends: Array<{ date: string; count: number; size: number }>;
+}
+
+interface FileCheckApiResponse {
+  exists: boolean;
+  url?: string;
+}
+
 class UploadService {
-  private baseUrl: string;
+  private readonly baseUrl: string;
 
   constructor() {
     this.baseUrl = API_BASE_URL;
@@ -41,7 +130,7 @@ class UploadService {
    * Upload a single document file using the new API
    */
   async uploadDocument(
-    file: File, 
+    file: File,
     documentType: string = 'document',
     options: UploadOptions & {
       pitchId?: number;
@@ -51,13 +140,13 @@ class UploadService {
     } = {}
   ): Promise<UploadResult> {
     const { pitchId, isPublic, requiresNda, folder, ...uploadOptions } = options;
-    
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('documentType', documentType);
-    formData.append('folder', folder || 'uploads');
-    
-    if (pitchId) {
+    formData.append('folder', folder ?? 'uploads');
+
+    if (pitchId !== undefined) {
       formData.append('pitchId', pitchId.toString());
     }
     if (isPublic !== undefined) {
@@ -95,21 +184,21 @@ class UploadService {
       requiresNda?: boolean;
       folder?: string;
     } = {}
-  ): Promise<{ results: UploadResult[]; errors: any[] }> {
+  ): Promise<{ results: UploadResult[]; errors: Array<{ error: string }> }> {
     const { pitchId, isPublic, requiresNda, folder, ...uploadOptions } = options;
-    
+
     const formData = new FormData();
-    
+
     // Add all files
     files.forEach((fileData) => {
       formData.append('files', fileData.file);
     });
-    
+
     // Add metadata
-    formData.append('documentType', files[0]?.documentType || 'supporting');
-    formData.append('folder', folder || 'uploads');
-    
-    if (pitchId) {
+    formData.append('documentType', files[0]?.documentType ?? 'supporting');
+    formData.append('folder', folder ?? 'uploads');
+
+    if (pitchId !== undefined) {
       formData.append('pitchId', pitchId.toString());
     }
     if (isPublic !== undefined) {
@@ -131,14 +220,15 @@ class UploadService {
       throw new Error(`Upload failed: ${response.status} ${errorText}`);
     }
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Upload failed');
+    const result = await response.json() as MultipleUploadResponse;
+    if (result.success !== true) {
+      throw new Error(result.error ?? 'Upload failed');
     }
-    
+
+    const uploads = result.data?.uploads ?? [];
     return {
-      results: result.data?.uploads?.filter(u => u.success).map(u => u.result) || [],
-      errors: result.data?.uploads?.filter(u => !u.success).map(u => ({ error: u.error })) || []
+      results: uploads.filter(u => u.success).map(u => u.result).filter((r): r is UploadResult => r !== undefined),
+      errors: uploads.filter(u => !u.success).map(u => ({ error: u.error ?? 'Unknown error' }))
     };
   }
 
@@ -150,17 +240,17 @@ class UploadService {
       file: File;
       title: string;
       description?: string;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>,
     options: UploadOptions = {}
-  ): Promise<{ results: UploadResult[]; errors: any[] }> {
+  ): Promise<{ results: UploadResult[]; errors: Array<{ error: string }> }> {
     const formData = new FormData();
-    
-    files.forEach((fileData, index) => {
+
+    files.forEach((fileData) => {
       formData.append('files', fileData.file);
       formData.append('titles', fileData.title);
-      formData.append('descriptions', fileData.description || '');
-      formData.append('metadata', JSON.stringify(fileData.metadata || {}));
+      formData.append('descriptions', fileData.description ?? '');
+      formData.append('metadata', JSON.stringify(fileData.metadata ?? {}));
     });
 
     const response = await fetch(`${this.baseUrl}/api/upload/media-batch`, {
@@ -175,10 +265,10 @@ class UploadService {
       throw new Error(`Upload failed: ${response.status} ${errorText}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as MediaBatchResponse;
     return {
-      results: result.results || [],
-      errors: result.errors || []
+      results: result.results ?? [],
+      errors: result.errors ?? []
     };
   }
 
@@ -209,7 +299,7 @@ class UploadService {
     // Use the new enhanced method for better performance
     const fileData = files.map((file, index) => ({
       file,
-      documentType: documentTypes[index] || 'document',
+      documentType: documentTypes[index] ?? 'document',
       title: file.name.replace(/\.[^/.]+$/, "")
     }));
     
@@ -240,7 +330,7 @@ class UploadService {
       while (queue.length > 0 && active.size < maxConcurrent) {
         const file = queue.shift()!;
         const index = files.indexOf(file);
-        const type = documentTypes[index] || 'document';
+        const type = documentTypes[index] ?? 'document';
         
         const uploadPromise = this.uploadDocument(file, type, uploadOptions)
           .then(result => {
@@ -322,19 +412,19 @@ class UploadService {
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
-            const response = JSON.parse(xhr.responseText);
+            const response = JSON.parse(xhr.responseText) as UploadResult;
             resolve({
               ...response,
               uploadedAt: new Date().toISOString(),
               metadata
             });
-          } catch (error) {
+          } catch {
             reject(new Error('Invalid response format'));
           }
         } else {
           try {
-            const errorResponse = JSON.parse(xhr.responseText);
-            const errorMessage = errorResponse.message || `Upload failed: ${xhr.status}`;
+            const errorResponse = JSON.parse(xhr.responseText) as { message?: string };
+            const errorMessage = errorResponse.message ?? `Upload failed: ${xhr.status}`;
             
             // Retry logic for certain error conditions
             if (retryCount > 0 && (xhr.status >= 500 || xhr.status === 429)) {
@@ -488,8 +578,8 @@ class UploadService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.error || 'Failed to delete document');
+      const errorData = await response.json().catch(() => null) as DocumentDeleteResponse | null;
+      throw new Error(errorData?.error ?? 'Failed to delete document');
     }
   }
 
@@ -504,7 +594,7 @@ class UploadService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(error || 'Failed to delete file');
+      throw new Error(error !== '' ? error : 'Failed to delete file');
     }
   }
 
@@ -513,24 +603,24 @@ class UploadService {
    */
   async getDocumentDownloadUrl(documentId: number, expiresIn?: number): Promise<string> {
     const url = `${this.baseUrl}/api/documents/${documentId}/url`;
-    const queryParams = expiresIn ? `?expires=${expiresIn}` : '';
-    
+    const queryParams = expiresIn !== undefined ? `?expires=${expiresIn}` : '';
+
     const response = await fetch(`${url}${queryParams}`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.error || 'Failed to get download URL');
+      const errorData = await response.json().catch(() => null) as PresignedUrlResponse | null;
+      throw new Error(errorData?.error ?? 'Failed to get download URL');
     }
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to get download URL');
+    const result = await response.json() as PresignedUrlResponse;
+    if (result.success !== true) {
+      throw new Error(result.error ?? 'Failed to get download URL');
     }
 
-    return result.data.url;
+    return result.data?.url ?? '';
   }
 
   /**
@@ -557,20 +647,24 @@ class UploadService {
       body: JSON.stringify({
         fileName,
         contentType,
-        folder: options.folder || 'uploads',
+        folder: options.folder ?? 'uploads',
         fileSize: options.fileSize
       }),
       credentials: 'include' // Send cookies for Better Auth session
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.error || 'Failed to get presigned URL');
+      const errorData = await response.json().catch(() => null) as PresignedUrlResponse | null;
+      throw new Error(errorData?.error ?? 'Failed to get presigned URL');
     }
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to get presigned URL');
+    const result = await response.json() as PresignedUrlResponse;
+    if (result.success !== true) {
+      throw new Error(result.error ?? 'Failed to get presigned URL');
+    }
+
+    if (result.data === undefined) {
+      throw new Error('Invalid response from server');
     }
 
     return result.data;
@@ -594,13 +688,17 @@ class UploadService {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.error || 'Failed to get storage quota');
+      const errorData = await response.json().catch(() => null) as StorageQuotaApiResponse | null;
+      throw new Error(errorData?.error ?? 'Failed to get storage quota');
     }
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to get storage quota');
+    const result = await response.json() as StorageQuotaApiResponse;
+    if (result.success !== true) {
+      throw new Error(result.error ?? 'Failed to get storage quota');
+    }
+
+    if (result.data === undefined) {
+      throw new Error('Invalid response from server');
     }
 
     return result.data;
@@ -615,7 +713,7 @@ class UploadService {
       uploadUrl: string;
       fields?: Record<string, string>;
     },
-    onProgress?: (progress: UploadProgress) => void
+    onProgress?: (_progress: UploadProgress) => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -732,20 +830,13 @@ class UploadService {
       throw new Error('Failed to get upload info');
     }
 
-    return response.json();
+    return response.json() as Promise<UploadInfoResponse>;
   }
 
   /**
    * Get upload analytics
    */
-  async getUploadAnalytics(timeframe: 'day' | 'week' | 'month' = 'week'): Promise<{
-    totalUploads: number;
-    totalSize: number;
-    averageFileSize: number;
-    successRate: number;
-    popularTypes: Array<{ type: string; count: number }>;
-    uploadTrends: Array<{ date: string; count: number; size: number }>;
-  }> {
+  async getUploadAnalytics(timeframe: 'day' | 'week' | 'month' = 'week'): Promise<UploadAnalyticsResponse> {
     const response = await fetch(`${this.baseUrl}/api/upload/analytics?timeframe=${timeframe}`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
@@ -755,7 +846,7 @@ class UploadService {
       throw new Error('Failed to get upload analytics');
     }
 
-    return response.json();
+    return response.json() as Promise<UploadAnalyticsResponse>;
   }
 
   /**
@@ -801,9 +892,9 @@ class UploadService {
       });
 
       if (response.ok) {
-        return await response.json();
+        return await response.json() as FileCheckApiResponse;
       }
-      
+
       return { exists: false };
     } catch {
       return { exists: false };
@@ -825,7 +916,7 @@ class UploadService {
       // Check if file already exists
       const existingFile = await this.checkFileExists(hash);
       
-      if (existingFile.exists && existingFile.url) {
+      if (existingFile.exists && existingFile.url !== undefined && existingFile.url !== '') {
         // File already exists, return existing URL
         return {
           url: existingFile.url,
@@ -853,12 +944,14 @@ class UploadService {
   /**
    * Pause/Resume upload (for future chunked upload implementation)
    */
-  pauseUpload(uploadId: string): void {
+  pauseUpload(_uploadId: string): void {
+    void _uploadId;
     // Implementation for pausing uploads
     // This would work with chunked uploads
   }
 
-  resumeUpload(uploadId: string): void {
+  resumeUpload(_uploadId: string): void {
+    void _uploadId;
     // Implementation for resuming uploads
     // This would work with chunked uploads
   }
@@ -873,15 +966,15 @@ class UploadService {
       documentType?: string;
       title: string;
       description?: string;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>,
-    onFileProgress?: (fileIndex: number, progress: UploadProgress) => void,
-    onFileComplete?: (fileIndex: number, result: UploadResult) => void,
-    onFileError?: (fileIndex: number, error: string) => void
+    _onFileProgress?: (_fileIndex: number, _progress: UploadProgress) => void,
+    onFileComplete?: (_fileIndex: number, _result: UploadResult) => void,
+    onFileError?: (_fileIndex: number, _error: string) => void
   ): Promise<{ results: UploadResult[]; errors: Array<{ index: number; error: string }> }> {
     const results: UploadResult[] = [];
     const errors: Array<{ index: number; error: string }> = [];
-    
+
     // Separate files by type
     const documentFiles = files
       .map((f, index) => ({ ...f, originalIndex: index }))
@@ -889,38 +982,39 @@ class UploadService {
     const mediaFiles = files
       .map((f, index) => ({ ...f, originalIndex: index }))
       .filter(f => f.type === 'media');
-    
+
     // Upload documents
     if (documentFiles.length > 0) {
       try {
         const docData = documentFiles.map(f => ({
           file: f.file,
-          documentType: f.documentType || 'document',
+          documentType: f.documentType ?? 'document',
           title: f.title,
           description: f.description
         }));
-        
+
         const docResult = await this.uploadMultipleDocumentsEnhanced(docData);
-        
+
         docResult.results.forEach((result, index) => {
           const originalIndex = documentFiles[index].originalIndex;
           results[originalIndex] = result;
           onFileComplete?.(originalIndex, result);
         });
-        
-        docResult.errors.forEach((error, index) => {
+
+        docResult.errors.forEach((err, index) => {
           const originalIndex = documentFiles[index].originalIndex;
-          errors.push({ index: originalIndex, error: error.error });
-          onFileError?.(originalIndex, error.error);
+          errors.push({ index: originalIndex, error: err.error });
+          onFileError?.(originalIndex, err.error);
         });
-      } catch (error) {
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Upload failed';
         documentFiles.forEach(f => {
-          errors.push({ index: f.originalIndex, error: error.message || 'Upload failed' });
-          onFileError?.(f.originalIndex, error.message || 'Upload failed');
+          errors.push({ index: f.originalIndex, error: errorMessage });
+          onFileError?.(f.originalIndex, errorMessage);
         });
       }
     }
-    
+
     // Upload media files
     if (mediaFiles.length > 0) {
       try {
@@ -930,24 +1024,25 @@ class UploadService {
           description: f.description,
           metadata: f.metadata
         }));
-        
+
         const mediaResult = await this.uploadMultipleMediaEnhanced(mediaData);
-        
+
         mediaResult.results.forEach((result, index) => {
           const originalIndex = mediaFiles[index].originalIndex;
           results[originalIndex] = result;
           onFileComplete?.(originalIndex, result);
         });
-        
-        mediaResult.errors.forEach((error, index) => {
+
+        mediaResult.errors.forEach((err, index) => {
           const originalIndex = mediaFiles[index].originalIndex;
-          errors.push({ index: originalIndex, error: error.error });
-          onFileError?.(originalIndex, error.error);
+          errors.push({ index: originalIndex, error: err.error });
+          onFileError?.(originalIndex, err.error);
         });
-      } catch (error) {
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Upload failed';
         mediaFiles.forEach(f => {
-          errors.push({ index: f.originalIndex, error: error.message || 'Upload failed' });
-          onFileError?.(f.originalIndex, error.message || 'Upload failed');
+          errors.push({ index: f.originalIndex, error: errorMessage });
+          onFileError?.(f.originalIndex, errorMessage);
         });
       }
     }

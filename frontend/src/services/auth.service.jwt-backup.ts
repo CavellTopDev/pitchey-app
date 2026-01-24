@@ -10,7 +10,8 @@ import type {
   ApiResponse 
 } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pitchey-api-prod.ndlovucavelle.workers.dev';
+const isDev = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (isDev ? 'http://localhost:8001' : '');
 
 // Export types from centralized types file
 export type { LoginCredentials, RegisterData, AuthResponse } from '../types/api';

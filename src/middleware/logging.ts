@@ -160,6 +160,13 @@ function endLogging(
  * Add trace headers to response
  */
 function addTraceHeaders(response: Response, context: LogContext): Response {
+  // CRITICAL: WebSocket responses (status 101) must be returned as-is
+  // Creating a new Response loses the webSocket property
+  if (response.status === 101 || (response as any).webSocket) {
+    console.log('[Logging] Returning WebSocket response unmodified');
+    return response;
+  }
+
   const headers = new Headers(response.headers);
 
   if (context.requestId) {

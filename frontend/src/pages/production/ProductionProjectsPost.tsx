@@ -81,7 +81,7 @@ export default function ProductionProjectsPost() {
   const fetchPostProductionProjects = async () => {
     try {
       setLoading(true);
-    const response = await fetch(`${API_URL}/api/production`, {
+    const response = await fetch(`${API_URL}/api/production/projects?status=post_production`, {
       method: 'GET',
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -91,7 +91,7 @@ export default function ProductionProjectsPost() {
       }
 
       const data = await response.json();
-      setProjects(data.projects || []);
+      setProjects(data.data?.projects || data.projects || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching post-production projects:', err);

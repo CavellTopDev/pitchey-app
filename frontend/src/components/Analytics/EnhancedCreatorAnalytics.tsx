@@ -104,7 +104,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
       // If user is not loaded yet, use mock data as fallback
       if (!user?.id) {
         console.log('User not loaded, using fallback analytics data');
-        setAnalyticsData(getMockData());
+        setAnalyticsData(getMockData(timeRange));
         setLoading(false);
         return;
       }
@@ -163,10 +163,10 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                 date: item?.date || new Date().toISOString(),
                 value: Math.floor(Math.random() * 200) + 100 + index * 10
               }))
-            : getMockData().charts.pitchViews,
+            : getMockData(timeRange).charts.pitchViews,
           engagementTrends: (performance.engagementTrend && performance.engagementTrend.length > 0) 
             ? performance.engagementTrend 
-            : getMockData().charts.engagementTrends,
+            : getMockData(timeRange).charts.engagementTrends,
           fundingProgress: Array.from({ length: 6 }, (_, i) => ({
             date: new Date(2024, i * 2, 1).toISOString().split('T')[0],
             value: Math.floor(Math.random() * 100000) + 50000 + i * 25000
@@ -191,7 +191,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
                 engagement: pitch.engagement,
                 funding: Math.floor(Math.random() * 50000) + 10000
               }))
-            : getMockData().charts.topPitches,
+            : getMockData(timeRange).charts.topPitches,
           monthlyMetrics: Array.from({ length: 12 }, (_, i) => ({
             month: new Date(2024, i, 1).toLocaleDateString('en-US', { month: 'short' }),
             pitches: Math.floor(Math.random() * 3) + 1,
@@ -204,7 +204,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
       setAnalyticsData(transformedData);
     } catch (error) {
       console.error('Error fetching analytics data:', error);
-      setAnalyticsData(getMockData());
+      setAnalyticsData(getMockData(timeRange));
     } finally {
       setLoading(false);
     }
@@ -213,7 +213,7 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
   useEffect(() => {
     if (disableRemoteFetch) {
       // Use mock data only and avoid network calls
-      setAnalyticsData(getMockData());
+      setAnalyticsData(getMockData(timeRange));
       setLoading(false);
       return;
     }
@@ -231,80 +231,104 @@ export const EnhancedCreatorAnalytics: React.FC<CreatorAnalyticsProps> = ({
     };
   }, [timeRange, autoRefresh, disableRemoteFetch, fetchAnalyticsData]);
 
-  const getMockData = (): CreatorAnalyticsData => ({
-    kpis: {
-      totalPitches: 12,
-      totalViews: 3420,
-      totalLikes: 892,
-      totalShares: 156,
-      engagementRate: 68,
-      fundingReceived: 250000,
-      averageRating: 4.2,
-      responseRate: 45,
-      totalFollowers: 1234,
-      ndaRequests: 45,
-    },
-    changes: {
-      pitchesChange: 20,
-      viewsChange: 15,
-      likesChange: 12,
-      sharesChange: 8,
-      engagementChange: 5,
-      fundingChange: 12,
-      ratingChange: 0.3,
-      responseChange: -2,
-      followersChange: 18,
-      ndaChange: 15,
-    },
-    charts: {
-      pitchViews: Array.from({ length: 30 }, (_, i) => ({
-        date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        value: Math.floor(Math.random() * 100) + 50 + i,
-      })),
-      engagementTrends: Array.from({ length: 12 }, (_, i) => ({
-        date: new Date(2024, i, 1).toISOString().split('T')[0],
-        value: Math.floor(Math.random() * 30) + 40 + i,
-      })),
-      fundingProgress: Array.from({ length: 6 }, (_, i) => ({
-        date: new Date(2024, i * 2, 1).toISOString().split('T')[0],
-        value: Math.floor(Math.random() * 50000) + 25000 + i * 20000,
-      })),
-      categoryPerformance: [
-        { category: 'Action', views: 1250, funding: 75000, pitches: 3 },
-        { category: 'Drama', views: 980, funding: 65000, pitches: 2 },
-        { category: 'Comedy', views: 1150, funding: 45000, pitches: 4 },
-        { category: 'Thriller', views: 890, funding: 55000, pitches: 2 },
-        { category: 'Sci-Fi', views: 1350, funding: 85000, pitches: 1 },
-      ],
-      viewerDemographics: [
-        { type: 'Investors', count: 45 },
-        { type: 'Producers', count: 30 },
-        { type: 'Directors', count: 15 },
-        { type: 'Creators', count: 10 },
-      ],
-      topPitches: [
-        { title: 'Time Traveler\'s Dilemma', views: 856, engagement: 85, funding: 45000 },
-        { title: 'The Last Symphony', views: 742, engagement: 78, funding: 38000 },
-        { title: 'Digital Rebellion', views: 623, engagement: 72, funding: 32000 },
-        { title: 'Ocean\'s Secret', views: 587, engagement: 69, funding: 28000 },
-        { title: 'The Forgotten City', views: 512, engagement: 65, funding: 25000 },
-      ],
-      monthlyMetrics: [
-        { month: 'Jan', pitches: 2, views: 450, funding: 25000 },
-        { month: 'Feb', pitches: 1, views: 320, funding: 15000 },
-        { month: 'Mar', pitches: 3, views: 680, funding: 45000 },
-        { month: 'Apr', pitches: 2, views: 520, funding: 35000 },
-        { month: 'May', pitches: 1, views: 380, funding: 22000 },
-        { month: 'Jun', pitches: 3, views: 720, funding: 55000 },
-        { month: 'Jul', pitches: 2, views: 490, funding: 38000 },
-        { month: 'Aug', pitches: 1, views: 340, funding: 18000 },
-        { month: 'Sep', pitches: 4, views: 820, funding: 65000 },
-        { month: 'Oct', pitches: 2, views: 610, funding: 42000 },
-        { month: 'Nov', pitches: 3, views: 750, funding: 58000 },
-        { month: 'Dec', pitches: 1, views: 420, funding: 28000 },
-      ]
-    }
-  });
+  // Helper function to generate time series data based on time range
+  const generateTimeSeriesData = (range: string, baseMin: number, baseMax: number) => {
+    const points = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 12 : 12;
+    const now = new Date();
+    return Array.from({ length: points }, (_, i) => {
+      const date = new Date(now);
+      if (range === '7d') {
+        date.setDate(date.getDate() - (points - 1 - i));
+      } else if (range === '30d') {
+        date.setDate(date.getDate() - (points - 1 - i));
+      } else {
+        date.setMonth(date.getMonth() - (points - 1 - i));
+      }
+      const variance = Math.random() * (baseMax - baseMin);
+      const trend = i * ((baseMax - baseMin) / points) * 0.3;
+      return {
+        date: date.toISOString().split('T')[0],
+        value: Math.round(baseMin + variance + trend),
+      };
+    });
+  };
+
+  // Helper function to generate monthly metrics based on time range
+  const generateMonthlyMetrics = (range: string) => {
+    const months = range === '7d' ? 1 : range === '30d' ? 3 : range === '90d' ? 6 : 12;
+    const now = new Date();
+    return Array.from({ length: months }, (_, i) => {
+      const date = new Date(now);
+      date.setMonth(date.getMonth() - (months - 1 - i));
+      const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 1.5 : 2;
+      return {
+        month: date.toLocaleDateString('en-US', { month: 'short' }),
+        pitches: Math.floor(Math.random() * 3 * multiplier) + 1,
+        views: Math.floor((Math.random() * 400 + 200) * multiplier),
+        funding: Math.floor((Math.random() * 25000 + 15000) * multiplier),
+      };
+    });
+  };
+
+  const getMockData = (range: string = '30d'): CreatorAnalyticsData => {
+    // Multiplier based on time range for cumulative metrics
+    const multiplier = range === '7d' ? 0.25 : range === '30d' ? 1 : range === '90d' ? 3 : 12;
+    // Change percentages vary by time range
+    const changeMultiplier = range === '7d' ? 0.5 : range === '30d' ? 1 : range === '90d' ? 1.5 : 2;
+
+    return {
+      kpis: {
+        totalPitches: Math.round(12 * (range === '7d' ? 0.8 : 1)),
+        totalViews: Math.round(3420 * multiplier),
+        totalLikes: Math.round(892 * multiplier),
+        totalShares: Math.round(156 * multiplier),
+        engagementRate: 68 + (range === '7d' ? -5 : range === '90d' ? 3 : range === '1y' ? 8 : 0),
+        fundingReceived: Math.round(250000 * multiplier),
+        averageRating: 4.2 + (range === '1y' ? 0.2 : 0),
+        responseRate: 45 + (range === '7d' ? 5 : range === '1y' ? -5 : 0),
+        totalFollowers: Math.round(1234 * (range === '7d' ? 0.95 : range === '1y' ? 1.3 : 1)),
+        ndaRequests: Math.round(45 * multiplier),
+      },
+      changes: {
+        pitchesChange: Math.round(20 * changeMultiplier),
+        viewsChange: Math.round(15 * changeMultiplier),
+        likesChange: Math.round(12 * changeMultiplier),
+        sharesChange: Math.round(8 * changeMultiplier),
+        engagementChange: Math.round(5 * changeMultiplier),
+        fundingChange: Math.round(12 * changeMultiplier),
+        ratingChange: 0.3 * changeMultiplier,
+        responseChange: Math.round(-2 * changeMultiplier),
+        followersChange: Math.round(18 * changeMultiplier),
+        ndaChange: Math.round(15 * changeMultiplier),
+      },
+      charts: {
+        pitchViews: generateTimeSeriesData(range, 50, 150),
+        engagementTrends: generateTimeSeriesData(range, 40, 75),
+        fundingProgress: generateTimeSeriesData(range, 25000, 125000),
+        categoryPerformance: [
+          { category: 'Action', views: Math.round(1250 * multiplier), funding: Math.round(75000 * multiplier), pitches: Math.round(3 * (range === '7d' ? 0.5 : 1)) },
+          { category: 'Drama', views: Math.round(980 * multiplier), funding: Math.round(65000 * multiplier), pitches: Math.round(2 * (range === '7d' ? 0.5 : 1)) },
+          { category: 'Comedy', views: Math.round(1150 * multiplier), funding: Math.round(45000 * multiplier), pitches: Math.round(4 * (range === '7d' ? 0.5 : 1)) },
+          { category: 'Thriller', views: Math.round(890 * multiplier), funding: Math.round(55000 * multiplier), pitches: Math.round(2 * (range === '7d' ? 0.5 : 1)) },
+          { category: 'Sci-Fi', views: Math.round(1350 * multiplier), funding: Math.round(85000 * multiplier), pitches: Math.round(1 * (range === '7d' ? 1 : 1)) },
+        ],
+        viewerDemographics: [
+          { type: 'Investors', count: Math.round(45 * multiplier) },
+          { type: 'Producers', count: Math.round(30 * multiplier) },
+          { type: 'Directors', count: Math.round(15 * multiplier) },
+          { type: 'Creators', count: Math.round(10 * multiplier) },
+        ],
+        topPitches: [
+          { title: 'Time Traveler\'s Dilemma', views: Math.round(856 * multiplier), engagement: 85, funding: Math.round(45000 * multiplier) },
+          { title: 'The Last Symphony', views: Math.round(742 * multiplier), engagement: 78, funding: Math.round(38000 * multiplier) },
+          { title: 'Digital Rebellion', views: Math.round(623 * multiplier), engagement: 72, funding: Math.round(32000 * multiplier) },
+          { title: 'Ocean\'s Secret', views: Math.round(587 * multiplier), engagement: 69, funding: Math.round(28000 * multiplier) },
+          { title: 'The Forgotten City', views: Math.round(512 * multiplier), engagement: 65, funding: Math.round(25000 * multiplier) },
+        ],
+        monthlyMetrics: generateMonthlyMetrics(range),
+      }
+    };
+  };
 
   if (loading) {
     return (

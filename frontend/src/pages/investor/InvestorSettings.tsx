@@ -76,16 +76,18 @@ const InvestorSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="email-alerts" className="flex items-center justify-between cursor-pointer">
                 <span className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
                   Email Alerts
                 </span>
                 <input
                   type="checkbox"
+                  id="email-alerts"
+                  name="email-alerts"
                   className="h-4 w-4"
                   checked={settings.notifications.emailAlerts}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       notifications: { ...prev.notifications, emailAlerts: e.target.checked }
@@ -94,16 +96,18 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="push-notifications" className="flex items-center justify-between cursor-pointer">
                 <span className="flex items-center gap-2">
                   <Smartphone className="h-4 w-4" />
                   Push Notifications
                 </span>
                 <input
                   type="checkbox"
+                  id="push-notifications"
+                  name="push-notifications"
                   className="h-4 w-4"
                   checked={settings.notifications.pushNotifications}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       notifications: { ...prev.notifications, pushNotifications: e.target.checked }
@@ -112,13 +116,15 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="weekly-digest" className="flex items-center justify-between cursor-pointer">
                 <span>Weekly Investment Digest</span>
                 <input
                   type="checkbox"
+                  id="weekly-digest"
+                  name="weekly-digest"
                   className="h-4 w-4"
                   checked={settings.notifications.weeklyDigest}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       notifications: { ...prev.notifications, weeklyDigest: e.target.checked }
@@ -127,13 +133,15 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="pitch-updates" className="flex items-center justify-between cursor-pointer">
                 <span>Pitch Updates</span>
                 <input
                   type="checkbox"
+                  id="pitch-updates"
+                  name="pitch-updates"
                   className="h-4 w-4"
                   checked={settings.notifications.pitchUpdates}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       notifications: { ...prev.notifications, pitchUpdates: e.target.checked }
@@ -165,13 +173,15 @@ const InvestorSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="public-profile" className="flex items-center justify-between cursor-pointer">
                 <span>Public Profile</span>
                 <input
                   type="checkbox"
+                  id="public-profile"
+                  name="public-profile"
                   className="h-4 w-4"
                   checked={settings.privacy.profileVisible}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       privacy: { ...prev.privacy, profileVisible: e.target.checked }
@@ -180,13 +190,15 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="show-investments" className="flex items-center justify-between cursor-pointer">
                 <span>Show Investment History</span>
                 <input
                   type="checkbox"
+                  id="show-investments"
+                  name="show-investments"
                   className="h-4 w-4"
                   checked={settings.privacy.showInvestments}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       privacy: { ...prev.privacy, showInvestments: e.target.checked }
@@ -195,13 +207,15 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="allow-messages" className="flex items-center justify-between cursor-pointer">
                 <span>Allow Direct Messages</span>
                 <input
                   type="checkbox"
+                  id="allow-messages"
+                  name="allow-messages"
                   className="h-4 w-4"
                   checked={settings.privacy.allowMessages}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       privacy: { ...prev.privacy, allowMessages: e.target.checked }
@@ -233,13 +247,15 @@ const InvestorSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="two-factor-auth" className="flex items-center justify-between cursor-pointer">
                 <span>Two-Factor Authentication</span>
                 <input
                   type="checkbox"
+                  id="two-factor-auth"
+                  name="two-factor-auth"
                   className="h-4 w-4"
                   checked={settings.security.twoFactorAuth}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       security: { ...prev.security, twoFactorAuth: e.target.checked }
@@ -248,13 +264,15 @@ const InvestorSettings = () => {
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
+              <label htmlFor="login-alerts" className="flex items-center justify-between cursor-pointer">
                 <span>Login Alerts</span>
                 <input
                   type="checkbox"
+                  id="login-alerts"
+                  name="login-alerts"
                   className="h-4 w-4"
                   checked={settings.security.loginAlerts}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     setSettings(prev => ({
                       ...prev,
                       security: { ...prev.security, loginAlerts: e.target.checked }

@@ -3047,10 +3047,10 @@ const workerHandler = {
       }
     }
 
-    // For all other API endpoints, proxy to the Deno backend
+    // For all other API endpoints, proxy to the Cloudflare Worker API
     if (url.pathname.startsWith('/api/')) {
       try {
-        const backendUrl = `https://pitchey-backend-fresh.deno.dev${url.pathname}${url.search}`;
+        const backendUrl = `https://pitchey-api-prod.ndlovucavelle.workers.dev${url.pathname}${url.search}`;
         
         // Clone the request to modify it
         const modifiedRequest = new Request(backendUrl, {

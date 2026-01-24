@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, Suspense } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { MinimalHeader } from './MinimalHeader';
 import { BreadcrumbNav } from './BreadcrumbNav';
 import { EnhancedCreatorNav } from '../navigation/EnhancedCreatorNav';
@@ -13,6 +13,7 @@ interface PortalLayoutProps {
 export function PortalLayout({ userType }: PortalLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default on mobile
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
+  const location = useLocation();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -74,9 +75,11 @@ export function PortalLayout({ userType }: PortalLayoutProps) {
           <div className="container mx-auto px-4 py-6 max-w-7xl">
             {/* Breadcrumb Navigation */}
             <BreadcrumbNav showBackButton={true} />
-            
-            {/* Page Content */}
-            <Outlet />
+
+            {/* Page Content - key forces re-render on route change */}
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div></div>}>
+              <Outlet key={location.pathname} />
+            </Suspense>
           </div>
         </main>
       </div>

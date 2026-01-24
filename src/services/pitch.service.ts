@@ -123,7 +123,7 @@ export class PitchService {
   
   static async update(pitchId: number, userId: number, data: Partial<z.infer<typeof CreatePitchSchema>>) {
     // Check ownership
-    const pitchResult = await db.query(
+    const pitchResult = await db.execute(
       'SELECT * FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
       [pitchId, userId]
     );
@@ -226,7 +226,7 @@ export class PitchService {
       }
       
       // Get pitch if user owns it
-      const result = await db.query(
+      const result = await db.execute(
         'SELECT * FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
         [pitchId, userId]
       );
@@ -255,7 +255,7 @@ export class PitchService {
       // First try to get pitch with relations
       let pitch;
       try {
-        const pitchResults = await db.query(`
+        const pitchResults = await db.execute(`
           SELECT 
             p.*,
             u.id as creator_id,
@@ -319,7 +319,7 @@ export class PitchService {
           
           // Get NDAs separately if viewerId provided
           if (viewerId) {
-            const ndaResults = await db.query(
+            const ndaResults = await db.execute(
               'SELECT * FROM ndas WHERE pitch_id = $1 AND signer_id = $2',
               [pitchId, viewerId]
             );
@@ -332,7 +332,7 @@ export class PitchService {
       } catch (relationError) {
         console.log("Relations not available, fetching pitch without relations");
         // Fallback: get pitch without relations
-        const fallbackResults = await db.query(
+        const fallbackResults = await db.execute(
           'SELECT * FROM pitches WHERE id = $1 LIMIT 1',
           [pitchId]
         );
@@ -424,7 +424,7 @@ export class PitchService {
   
   static async recordView(pitchId: number, viewerId: number) {
     // Increment view count
-    await db.query(
+    await db.execute(
       'UPDATE pitches SET view_count = view_count + 1 WHERE id = $1',
       [pitchId]
     );
@@ -440,7 +440,7 @@ export class PitchService {
   
   static async signNda(pitchId: number, signerId: number, ndaType: "basic" | "enhanced" = "basic") {
     // Check if already signed
-    const existingResult = await db.query(
+    const existingResult = await db.execute(
       'SELECT * FROM ndas WHERE pitch_id = $1 AND signer_id = $2 LIMIT 1',
       [pitchId, signerId]
     );
@@ -461,7 +461,7 @@ export class PitchService {
     });
     
     // Increment NDA count
-    await db.query(
+    await db.execute(
       'UPDATE pitches SET nda_count = nda_count + 1 WHERE id = $1',
       [pitchId]
     );
@@ -470,7 +470,7 @@ export class PitchService {
   }
   
   static async getTopPitches(limit = 10) {
-    const results = await db.query(`
+    const results = await db.execute(`
       SELECT 
         p.*,
         u.username as creator_username,
@@ -740,7 +740,7 @@ export class PitchService {
       console.log("getNewPitches v2.1: Starting query with userType fix...");
       
       // Query with joins to include proper creator info
-      const results = await db.query(`
+      const results = await db.execute(`
         SELECT 
           p.id,
           p.title,
@@ -854,7 +854,7 @@ export class PitchService {
     const offset = params.offset || 0;
     
     const [searchResults, totalCountResults] = await Promise.all([
-      db.query(`
+      db.execute(`
         SELECT 
           p.*,
           u.id as creator_id,
@@ -868,7 +868,7 @@ export class PitchService {
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
       `, [...queryParams, limit, offset]),
       
-      db.query(`
+      db.execute(`
         SELECT COUNT(*) as count
         FROM pitches p
         WHERE ${baseCondition}
@@ -936,7 +936,7 @@ export class PitchService {
       // Handle unique constraint violation (already following)
       if (error.message?.includes('unique') || error.code === '23505') {
         // Return existing follow record
-        const existing = await db.query(
+        const existing = await db.execute(
           'SELECT * FROM follows WHERE pitch_id = $1 AND follower_id = $2',
           [pitchId, userId]
         );
@@ -1085,7 +1085,7 @@ export class PitchService {
     console.log(`🗑️ Attempting to delete pitch ${pitchId} by user ${userId}`);
     
     // Check ownership
-    const pitchResult = await db.query(
+    const pitchResult = await db.execute(
       'SELECT * FROM pitches WHERE id = $1 AND user_id = $2 LIMIT 1',
       [pitchId, userId]
     );
@@ -1130,7 +1130,7 @@ export class PitchService {
           await DashboardCacheService.invalidateTrendingCache();
           
           // Get user type to invalidate dashboard cache properly
-          const userResult = await db.query('SELECT user_type FROM users WHERE id = $1', [userId]);
+          const userResult = await db.execute('SELECT user_type FROM users WHERE id = $1', [userId]);
           const userType = userResult[0]?.user_type || 'creator';
           
           // Invalidate user dashboard cache
@@ -1251,7 +1251,7 @@ export class PitchService {
       }
 
       // Simplified query without relations to avoid issues
-      const allPitches = await db.query(`
+      const allPitches = await db.execute(`
         SELECT 
           p.id,
           p.title,
@@ -1332,7 +1332,7 @@ export class PitchService {
     try {
       // Get all published pitches that production companies can view
       // This could include pitches that are looking for production
-      const productionPitches = await db.query(`
+      const productionPitches = await db.execute(`
         SELECT 
           p.*,
           u.id as creator_id,

@@ -4,7 +4,13 @@
  */
 
 import { neon } from '@neondatabase/serverless';
-import { getCORSHeaders, createCookieHeader, clearCookieHeader } from './cors-config';
+import { getCORSHeaders } from './cors-config';
+import {
+  SESSION_CONFIG,
+  parseSessionCookie,
+  createSessionCookie,
+  createClearSessionCookie
+} from '../config/session.config';
 
 export interface BetterAuthSession {
   id: string;
@@ -49,17 +55,11 @@ export class BetterAuthSessionHandler {
   }
 
   /**
-   * Parse session from cookie
+   * Parse session from cookie - uses centralized config
    */
-  private parseSessionCookie(cookieHeader: string | null): string | null {
-    if (!cookieHeader) return null;
-    
-    const cookies = cookieHeader.split(';').map(c => c.trim());
-    const sessionCookie = cookies.find(c => c.startsWith('better-auth-session='));
-    
-    if (!sessionCookie) return null;
-    
-    return sessionCookie.split('=')[1];
+  private parseSessionCookieFromHeader(cookieHeader: string | null): string | null {
+    // Use centralized function that checks both cookie names
+    return parseSessionCookie(cookieHeader);
   }
 
   /**
@@ -69,7 +69,7 @@ export class BetterAuthSessionHandler {
     try {
       // Get session ID from cookie
       const cookieHeader = request.headers.get('Cookie');
-      const sessionId = this.parseSessionCookie(cookieHeader);
+      const sessionId = this.parseSessionCookieFromHeader(cookieHeader);
       
       if (!sessionId) {
         return { valid: false };
@@ -229,12 +229,7 @@ export class BetterAuthSessionHandler {
       }
 
       // Create session cookie with centralized configuration
-      const sessionCookie = createCookieHeader('better-auth-session', sessionId, {
-        maxAge: 604800, // 7 days
-        sameSite: 'None',
-        secure: true,
-        httpOnly: true
-      });
+      const sessionCookie = createSessionCookie(sessionId);
 
       // Return response with session cookie
       return new Response(
@@ -286,32 +281,37 @@ export class BetterAuthSessionHandler {
     
     try {
       const cookieHeader = request.headers.get('Cookie');
-      const sessionId = this.parseSessionCookie(cookieHeader);
-      
+      const sessionId = this.parseSessionCookieFromHeader(cookieHeader);
+
       if (sessionId) {
         // Delete from database
         await this.sql`
           DELETE FROM sessions WHERE id = ${sessionId}
         `;
-        
+
         // Delete from KV cache
         if (this.sessionsKV) {
           await this.sessionsKV.delete(`session:${sessionId}`);
         }
       }
 
-      const logoutCookie = clearCookieHeader('better-auth-session');
-      
+      // Clear both cookie names for complete logout
+      const clearCookies = createClearSessionCookie();
+
+      // Create response with multiple Set-Cookie headers
+      const headers = new Headers({
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      });
+
+      // Add each clear cookie header
+      for (const cookie of clearCookies) {
+        headers.append('Set-Cookie', cookie);
+      }
+
       return new Response(
         JSON.stringify({ success: true, message: 'Logged out successfully' }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Set-Cookie': logoutCookie,
-            ...corsHeaders
-          }
-        }
+        { status: 200, headers }
       );
     } catch (error) {
       console.error('Logout error:', error);
@@ -334,18 +334,17 @@ export class BetterAuthSessionHandler {
   async getSession(request: Request): Promise<Response> {
     const origin = request.headers.get('Origin');
     const corsHeaders = getCORSHeaders(origin, true);
-    
+
     const result = await this.validateSession(request);
-    
+
     if (!result.valid) {
       return new Response(
         JSON.stringify({ error: 'Not authenticated' }),
-        { 
+        {
           status: 401,
           headers: {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': 'https://pitchey-5o8.pages.dev',
-            'Access-Control-Allow-Credentials': 'true'
+            ...corsHeaders  // FIX: Use dynamic CORS headers instead of hardcoded
           }
         }
       );
@@ -357,8 +356,7 @@ export class BetterAuthSessionHandler {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Credentials': 'true'
+          ...corsHeaders  // FIX: Use dynamic CORS headers with credentials support
         }
       }
     );

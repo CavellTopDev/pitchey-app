@@ -159,6 +159,25 @@ export class RawSQLDatabase {
 
     throw lastError || new Error('Query failed after retries');
   }
+  
+  /**
+   * Execute a query and return a QueryResult object with rows and rowCount
+   */
+  async execute<T = any>(
+    queryText: string | { text: string; values: any[] },
+    params?: any[]
+  ): Promise<QueryResult<T>> {
+    const text = typeof queryText === 'string' ? queryText : queryText.text;
+    const values = typeof queryText === 'string' ? params : queryText.values;
+    
+    const rows = await this.query<T>(text, values);
+    
+    return {
+      rows: rows || [],
+      rowCount: (rows || []).length
+    };
+  }
+
 
   /**
    * Execute a transaction

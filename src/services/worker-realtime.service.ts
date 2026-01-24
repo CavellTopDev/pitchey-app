@@ -39,7 +39,7 @@ export class WorkerRealtimeService {
   private db: WorkerDatabase;
   private config: WorkerRealtimeConfig;
   private env: any;
-  private sessionHandler: BetterAuthSessionHandler;
+  private sessionHandler: BetterAuthSessionHandler | null = null;
   private startTime: number = Date.now(); // Track service start time for uptime calculation
 
   constructor(env: any, db: WorkerDatabase) {
@@ -93,31 +93,54 @@ export class WorkerRealtimeService {
         return { valid: false };
       }
 
-      // Check if this is a valid session token - try both id and token fields
-      // Users table may have numeric or text IDs, so cast appropriately
-      const sessions = await this.db.query(`
-        SELECT s.*, u.id as user_id, u.email, u.username, u.user_type,
-               u.first_name, u.last_name, u.company_name, u.profile_image
-        FROM sessions s
-        JOIN users u ON s.user_id::text = u.id::text
-        WHERE (s.id = $1 OR s.token = $1)
-        AND s.expires_at > NOW()
-        LIMIT 1
-      `, [token]);
+      // Better Auth uses 'session' table (singular), try that first
+      // The token from /api/ws/token is stored as the session id
+      let sessions: any[] = [];
+
+      try {
+        // Try Better Auth session table first
+        sessions = await this.db.query(`
+          SELECT s.id, s."userId" as user_id, s."expiresAt" as expires_at,
+                 u.id as uid, u.email, u.name as username, u."userType" as user_type,
+                 u."createdAt", u.image as profile_image
+          FROM session s
+          JOIN "user" u ON s."userId" = u.id
+          WHERE s.id = $1
+          AND s."expiresAt" > NOW()
+          LIMIT 1
+        `, [token]);
+      } catch (betterAuthError) {
+        console.log('Better Auth session table query failed, trying legacy sessions table');
+
+        // Fallback to legacy sessions table
+        try {
+          sessions = await this.db.query(`
+            SELECT s.*, u.id as user_id, u.email, u.username, u.user_type,
+                   u.first_name, u.last_name, u.company_name, u.profile_image
+            FROM sessions s
+            JOIN users u ON s.user_id::text = u.id::text
+            WHERE (s.id = $1 OR s.token = $1)
+            AND s.expires_at > NOW()
+            LIMIT 1
+          `, [token]);
+        } catch (legacyError) {
+          console.error('Both session table queries failed:', legacyError);
+        }
+      }
 
       if (sessions && sessions.length > 0) {
         const session = sessions[0];
         return {
           valid: true,
           user: {
-            id: session.user_id,
+            id: session.user_id || session.uid,
             email: session.email,
-            username: session.username,
-            userType: session.user_type,
+            username: session.username || session.name,
+            userType: session.user_type || 'creator',
             firstName: session.first_name,
             lastName: session.last_name,
             companyName: session.company_name,
-            profileImage: session.profile_image
+            profileImage: session.profile_image || session.image
           }
         };
       }
@@ -137,115 +160,128 @@ export class WorkerRealtimeService {
   async handleWebSocketUpgrade(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
-    // Better Auth: Validate authentication via session cookies or token for cross-origin WebSocket
-    try {
-      let user: any = null;
-      let userId: string = `anonymous-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      let userType: string = 'anonymous';
+    // Initialize user variables with defaults for anonymous connection
+    let user: any = null;
+    let userId: string = `anonymous-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    let userType: string = 'anonymous';
 
-      // First, try cookie-based authentication (wrapped in try-catch to not fail WebSocket)
+    // Authentication phase - wrapped in try-catch to allow anonymous fallback
+    // Authentication failures should NOT prevent WebSocket connection
+    try {
+      // First, try cookie-based authentication
       try {
         const sessionResult = await this.validateSessionFromRequest(request);
-
         if (sessionResult.valid && sessionResult.user) {
           user = sessionResult.user;
           userId = user.id.toString();
           userType = user.userType || 'creator';
         }
       } catch (sessionError) {
-        console.warn('Session validation failed, trying token auth:', sessionError);
+        console.warn('[WS] Session validation failed, trying token auth:', sessionError);
       }
 
       // If no session, try token-based authentication as a fallback
       if (!user) {
         const token = url.searchParams.get('token');
-
         if (token) {
           try {
-            // Validate the token using database session lookup
             const tokenValidation = await this.validateTokenForWebSocket(token);
-
             if (tokenValidation.valid && tokenValidation.user) {
               user = tokenValidation.user;
               userId = user.id.toString();
               userType = user.userType || 'creator';
             }
           } catch (tokenError) {
-            console.warn('Token validation failed:', tokenError);
+            console.warn('[WS] Token validation failed:', tokenError);
           }
         }
       }
 
       // Log connection type
       if (user) {
-        console.log('Authenticated WebSocket connection for user:', userId);
+        console.log('[WS] Authenticated connection for user:', userId, 'type:', userType);
       } else {
-        console.log('Anonymous WebSocket connection:', userId);
+        console.log('[WS] Anonymous connection:', userId);
       }
-
-    // Create WebSocket pair
-    const webSocketPair = new WebSocketPair();
-    const [client, server] = Object.values(webSocketPair);
-
-    // Accept the WebSocket connection
-    server.accept();
-
-    // Create user session with proper authentication status
-    const isAuthenticated = user !== null && userType !== 'anonymous';
-    const session: UserSession = {
-      userId,
-      websocket: server,
-      userType: userType as 'creator' | 'investor' | 'production',
-      channels: new Set(),
-      lastActivity: new Date(),
-      authenticated: isAuthenticated
-    };
-
-    this.sessions.set(userId, session);
-
-    // Set up message handlers
-    server.addEventListener('message', (event) => {
-      this.handleMessage(userId, event.data as string);
-    });
-
-    server.addEventListener('close', () => {
-      this.handleDisconnect(userId);
-    });
-
-    server.addEventListener('error', (error) => {
-      console.error(`WebSocket error for user ${userId}:`, error);
-      this.handleDisconnect(userId);
-    });
-
-    // Send connection confirmation
-    this.sendToUser(userId, {
-      type: 'connection',
-      payload: {
-        status: 'connected',
-        userId,
-        timestamp: new Date().toISOString(),
-        serverTime: Date.now()
-      },
-      timestamp: new Date().toISOString()
-    });
-
-    // Update user presence (non-blocking - don't let errors affect WebSocket connection)
-    if (this.config.enablePresence) {
-      this.updateUserPresence(userId, 'online').catch(err => {
-        console.error('Failed to update user presence:', err);
-      });
+    } catch (authError) {
+      // Auth completely failed - continue with anonymous connection
+      console.warn('[WS] Auth phase failed, continuing as anonymous:', authError);
     }
 
-    // Return the WebSocket connection to the client
-    // Cloudflare Workers requires status 101 for WebSocket responses
-    return new Response(null, { status: 101, webSocket: client });
-    } catch (error) {
-      console.error('WebSocket upgrade error:', error);
-      
+    // WebSocket creation phase - this is the critical part that must succeed
+    try {
+      // Create WebSocket pair
+      console.log('[WS] Creating WebSocket pair...');
+      const webSocketPair = new WebSocketPair();
+      const [client, server] = Object.values(webSocketPair);
+      console.log('[WS] WebSocket pair created successfully');
+
+      // Accept the WebSocket connection
+      console.log('[WS] Accepting server WebSocket...');
+      server.accept();
+      console.log('[WS] Server WebSocket accepted');
+
+      // Create user session with proper authentication status
+      const isAuthenticated = user !== null && userType !== 'anonymous';
+      const session: UserSession = {
+        userId,
+        websocket: server,
+        userType: userType as 'creator' | 'investor' | 'production',
+        channels: new Set(),
+        lastActivity: new Date(),
+        authenticated: isAuthenticated
+      };
+
+      this.sessions.set(userId, session);
+
+      // Set up message handlers
+      server.addEventListener('message', (event) => {
+        this.handleMessage(userId, event.data as string);
+      });
+
+      server.addEventListener('close', () => {
+        this.handleDisconnect(userId);
+      });
+
+      server.addEventListener('error', (error) => {
+        console.error(`[WS] Error for user ${userId}:`, error);
+        this.handleDisconnect(userId);
+      });
+
+      // Send connection confirmation
+      this.sendToUser(userId, {
+        type: 'connection',
+        payload: {
+          status: 'connected',
+          userId,
+          authenticated: isAuthenticated,
+          timestamp: new Date().toISOString(),
+          serverTime: Date.now()
+        },
+        timestamp: new Date().toISOString()
+      });
+
+      // Update user presence (non-blocking - errors won't affect connection)
+      if (this.config.enablePresence && isAuthenticated) {
+        this.updateUserPresence(userId, 'online').catch(err => {
+          console.error('[WS] Failed to update user presence:', err);
+        });
+      }
+
+      // Return the WebSocket connection to the client
+      // Cloudflare Workers requires status 101 for WebSocket responses
+      console.log('[WS] Returning 101 response with client WebSocket...');
+      return new Response(null, { status: 101, webSocket: client });
+
+    } catch (wsError) {
+      // WebSocket creation failed - this is a real error
+      console.error('[WS] WebSocket creation error:', wsError, 'Stack:', wsError instanceof Error ? wsError.stack : 'N/A');
+
       return new Response(JSON.stringify({
         error: 'WebSocket upgrade failed',
-        message: 'Unable to establish WebSocket connection',
-        fallback: 'Use polling endpoints instead'
+        message: 'Unable to establish WebSocket connection. Please try again.',
+        fallback: 'Use polling endpoints instead',
+        timestamp: new Date().toISOString()
       }), {
         status: 500,
         headers: {
@@ -467,13 +503,13 @@ export class WorkerRealtimeService {
 
     // Get pitch owner and notify them
     try {
-      const result = await this.db.query(`
+      const result = await this.db.query<{ creator_id: number }>(`
         SELECT creator_id FROM pitches WHERE id = $1
       `, [pitchId]);
 
-      if (result.rows && result.rows.length > 0) {
-        const creatorId = result.rows[0].creator_id;
-        if (creatorId !== userId) { // Don't notify creator of their own actions
+      if (result && result.length > 0) {
+        const creatorId = result[0].creator_id;
+        if (creatorId.toString() !== userId) { // Don't notify creator of their own actions
           this.sendToUser(creatorId.toString(), updateMessage);
         }
       }
@@ -487,7 +523,7 @@ export class WorkerRealtimeService {
    */
   private sendToUser(userId: string, message: RealtimeMessage): boolean {
     const session = this.sessions.get(userId);
-    if (session && session.websocket.readyState === WebSocket.READY_STATE_OPEN) {
+    if (session && session.websocket.readyState === 1) { // 1 is OPEN
       try {
         session.websocket.send(JSON.stringify(message));
         return true;
