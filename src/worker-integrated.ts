@@ -4025,6 +4025,9 @@ pitchey_analytics_datapoints_per_minute 1250
       logline?: string;
       genre?: string;
       format?: string;
+      formatCategory?: string;
+      formatSubtype?: string;
+      customFormat?: string;
       budget_range?: string;
       budgetRange?: string;
       target_audience?: string;
@@ -4033,6 +4036,37 @@ pitchey_analytics_datapoints_per_minute 1250
       long_synopsis?: string;
       synopsis?: string;
       require_nda?: boolean;
+      
+      // Enhanced Story & Style Fields
+      toneAndStyle?: string;
+      comps?: string;
+      storyBreakdown?: string;
+      
+      // Market & Production Fields
+      whyNow?: string;
+      productionLocation?: string;
+      developmentStage?: string;
+      developmentStageOther?: string;
+      
+      // Creative Team
+      creativeAttachments?: Array<{
+        id?: string;
+        name: string;
+        role: string;
+        bio: string;
+        imdbLink?: string;
+        websiteLink?: string;
+      }>;
+      
+      // Video with Password
+      videoUrl?: string;
+      videoPassword?: string;
+      videoPlatform?: string;
+      
+      // Other existing fields
+      themes?: string;
+      worldDescription?: string;
+      characters?: any[];
     }
     const data = await request.json() as PitchCreateData;
 
@@ -4040,10 +4074,16 @@ pitchey_analytics_datapoints_per_minute 1250
       const [pitch] = await this.db.query(`
         INSERT INTO pitches (
           user_id, title, logline, genre, format,
+          format_category, format_subtype, custom_format,
           budget_range, target_audience, short_synopsis, long_synopsis,
-          status, created_at, updated_at, require_nda
+          status, created_at, updated_at, require_nda,
+          tone_and_style, comps, story_breakdown,
+          why_now, production_location, development_stage,
+          video_url, video_password, video_platform,
+          themes, world_description, characters
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', NOW(), NOW(), $10
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'draft', NOW(), NOW(), $13,
+          $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
         ) RETURNING *
       `, [
         authResult.user.id,
@@ -4051,12 +4091,50 @@ pitchey_analytics_datapoints_per_minute 1250
         data.logline ?? null,
         data.genre ?? null,
         data.format ?? null,
+        data.formatCategory ?? null,
+        data.formatSubtype ?? null,
+        data.customFormat ?? null,
         data.budget_range || data.budgetRange || null,
         data.target_audience || data.targetAudience || null,
         data.short_synopsis || data.synopsis || data.logline || null,
         data.long_synopsis || data.synopsis || data.logline || null,
-        data.require_nda ?? false
+        data.require_nda ?? false,
+        data.toneAndStyle ?? null,
+        data.comps ?? null,
+        data.storyBreakdown ?? null,
+        data.whyNow ?? null,
+        data.productionLocation ?? null,
+        data.developmentStage ?? null,
+        data.videoUrl ?? null,
+        data.videoPassword ?? null,
+        data.videoPlatform ?? null,
+        data.themes ?? null,
+        data.worldDescription ?? null,
+        JSON.stringify(data.characters || [])
       ]) as unknown as DatabaseRow[];
+
+      // Handle creative attachments if provided
+      if (data.creativeAttachments && data.creativeAttachments.length > 0 && pitch) {
+        try {
+          for (const attachment of data.creativeAttachments) {
+            await this.db.query(`
+              INSERT INTO pitch_creative_attachments (
+                pitch_id, name, role, bio, imdb_link, website_link, created_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            `, [
+              pitch.id,
+              attachment.name,
+              attachment.role,
+              attachment.bio,
+              attachment.imdbLink ?? null,
+              attachment.websiteLink ?? null
+            ]);
+          }
+        } catch (attachmentError) {
+          console.error('Error saving creative attachments:', attachmentError);
+          // Continue even if attachments fail to save
+        }
+      }
 
       return builder.success({ pitch });
     } catch (error) {
@@ -4420,9 +4498,42 @@ pitchey_analytics_datapoints_per_minute 1250
       logline?: string;
       genre?: string;
       format?: string;
+      formatCategory?: string;
+      formatSubtype?: string;
+      customFormat?: string;
       budgetRange?: string;
       targetAudience?: string;
       synopsis?: string;
+      shortSynopsis?: string;
+      longSynopsis?: string;
+      
+      // Enhanced Story & Style Fields
+      toneAndStyle?: string;
+      comps?: string;
+      storyBreakdown?: string;
+      
+      // Market & Production Fields
+      whyNow?: string;
+      productionLocation?: string;
+      developmentStage?: string;
+      
+      // Video with Password
+      videoUrl?: string;
+      videoPassword?: string;
+      videoPlatform?: string;
+      
+      // Other fields
+      themes?: string;
+      worldDescription?: string;
+      characters?: any[];
+      creativeAttachments?: Array<{
+        id?: string;
+        name: string;
+        role: string;
+        bio: string;
+        imdbLink?: string;
+        websiteLink?: string;
+      }>;
     };
 
     try {
@@ -4442,9 +4553,25 @@ pitchey_analytics_datapoints_per_minute 1250
           logline = COALESCE($3, logline),
           genre = COALESCE($4, genre),
           format = COALESCE($5, format),
-          budget_range = COALESCE($6, budget_range),
-          target_audience = COALESCE($7, target_audience),
-          synopsis = COALESCE($8, synopsis),
+          format_category = COALESCE($6, format_category),
+          format_subtype = COALESCE($7, format_subtype),
+          custom_format = COALESCE($8, custom_format),
+          budget_range = COALESCE($9, budget_range),
+          target_audience = COALESCE($10, target_audience),
+          short_synopsis = COALESCE($11, short_synopsis),
+          long_synopsis = COALESCE($12, long_synopsis),
+          tone_and_style = COALESCE($13, tone_and_style),
+          comps = COALESCE($14, comps),
+          story_breakdown = COALESCE($15, story_breakdown),
+          why_now = COALESCE($16, why_now),
+          production_location = COALESCE($17, production_location),
+          development_stage = COALESCE($18, development_stage),
+          video_url = COALESCE($19, video_url),
+          video_password = COALESCE($20, video_password),
+          video_platform = COALESCE($21, video_platform),
+          themes = COALESCE($22, themes),
+          world_description = COALESCE($23, world_description),
+          characters = COALESCE($24, characters),
           updated_at = NOW()
         WHERE id = $1
         RETURNING *
@@ -4454,10 +4581,55 @@ pitchey_analytics_datapoints_per_minute 1250
         data.logline,
         data.genre,
         data.format,
+        data.formatCategory,
+        data.formatSubtype,
+        data.customFormat,
         data.budgetRange,
         data.targetAudience,
-        data.synopsis
+        data.shortSynopsis || data.synopsis,
+        data.longSynopsis || data.synopsis,
+        data.toneAndStyle,
+        data.comps,
+        data.storyBreakdown,
+        data.whyNow,
+        data.productionLocation,
+        data.developmentStage,
+        data.videoUrl,
+        data.videoPassword,
+        data.videoPlatform,
+        data.themes,
+        data.worldDescription,
+        data.characters ? JSON.stringify(data.characters) : null
       ]);
+
+      // Handle creative attachments if provided
+      if (data.creativeAttachments !== undefined) {
+        try {
+          // Delete existing attachments
+          await this.db.query(`DELETE FROM pitch_creative_attachments WHERE pitch_id = $1`, [params.id]);
+          
+          // Insert new attachments
+          if (data.creativeAttachments && data.creativeAttachments.length > 0) {
+            for (const attachment of data.creativeAttachments) {
+              await this.db.query(`
+                INSERT INTO pitch_creative_attachments (
+                  pitch_id, name, role, bio, imdb_link, website_link, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+              `, [
+                params.id,
+                attachment.name,
+                attachment.role,
+                attachment.bio,
+                attachment.imdbLink ?? null,
+                attachment.websiteLink ?? null
+              ]);
+            }
+          }
+        } catch (attachmentError) {
+          console.error('Error updating creative attachments:', attachmentError);
+          // Continue even if attachments fail to update
+        }
+      }
 
       return builder.success({ pitch: updated });
     } catch (error) {

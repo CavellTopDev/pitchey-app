@@ -20,6 +20,17 @@ import DocumentUploadHub from '../components/FileUpload/DocumentUploadHub';
 import NDAUploadSection from '../components/FileUpload/NDAUploadSection';
 import type { NDADocument } from '../components/FileUpload/NDAUploadSection';
 import type { EnhancedUploadResult } from '../services/enhanced-upload.service';
+import {
+  ToneAndStyleSection,
+  CompsSection,
+  StoryBreakdownSection,
+  WhyNowSection,
+  ProductionLocationSection,
+  DevelopmentStageSelect,
+  CreativeAttachmentsManager,
+  VideoUrlSection,
+  type CreativeAttachment
+} from '../components/PitchForm/EnhancedPitchFormSections';
 
 // PitchFormData type is now imported from pitch.schema.ts
 
@@ -31,7 +42,7 @@ export default function CreatePitch() {
   const [genres, setGenres] = useState<string[]>(getGenresSync() || []);
   const [formats, setFormats] = useState<string[]>(getFormatsSync() || []);
   
-  // Initial form data
+  // Initial form data with enhanced fields
   const initialData: PitchFormData = {
     title: '',
     genre: '',
@@ -43,6 +54,19 @@ export default function CreatePitch() {
     shortSynopsis: '',
     themes: '',
     worldDescription: '',
+    // New enhanced fields
+    toneAndStyle: '',
+    comps: '',
+    storyBreakdown: '',
+    whyNow: '',
+    productionLocation: '',
+    developmentStage: '',
+    developmentStageOther: '',
+    creativeAttachments: [],
+    videoUrl: '',
+    videoPassword: '',
+    videoPlatform: '',
+    // Media fields
     image: null,
     video: null,
     documents: [],
@@ -719,6 +743,64 @@ export default function CreatePitch() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Enhanced Story & Style Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Story & Style Details</h2>
+            
+            <div className="space-y-6">
+              <ToneAndStyleSection
+                value={formData.toneAndStyle || ''}
+                onChange={(value) => setValue('toneAndStyle', value)}
+              />
+              
+              <CompsSection
+                value={formData.comps || ''}
+                onChange={(value) => setValue('comps', value)}
+              />
+              
+              <StoryBreakdownSection
+                value={formData.storyBreakdown || ''}
+                onChange={(value) => setValue('storyBreakdown', value)}
+              />
+            </div>
+          </div>
+
+          {/* Market & Production Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Market & Production</h2>
+            
+            <div className="space-y-6">
+              <WhyNowSection
+                value={formData.whyNow || ''}
+                onChange={(value) => setValue('whyNow', value)}
+              />
+              
+              <ProductionLocationSection
+                value={formData.productionLocation || ''}
+                onChange={(value) => setValue('productionLocation', value)}
+              />
+              
+              <DevelopmentStageSelect
+                value={formData.developmentStage || ''}
+                otherValue={formData.developmentStageOther}
+                onChange={(stage, other) => {
+                  setValue('developmentStage', stage);
+                  if (other !== undefined) setValue('developmentStageOther', other);
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Creative Team Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Creative Team</h2>
+            
+            <CreativeAttachmentsManager
+              attachments={formData.creativeAttachments || []}
+              onChange={(attachments) => setValue('creativeAttachments', attachments)}
+            />
           </div>
 
           {/* Funding & Budget Section */}

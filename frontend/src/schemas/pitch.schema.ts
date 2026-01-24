@@ -157,6 +157,52 @@ export const FormatSubtypeSchema = v.string();
 // Main Pitch Form Schema
 // ============================================
 
+// Enhanced Field Schemas
+export const ToneAndStyleSchema = v.optional(v.pipe(
+  v.string(),
+  v.maxLength(2400, 'Tone & Style must be less than 400 words')
+));
+
+export const CompsSchema = v.optional(v.pipe(
+  v.string(),
+  v.maxLength(2400, 'Comps must be less than 400 words')
+));
+
+export const StoryBreakdownSchema = v.optional(v.pipe(
+  v.string(),
+  v.maxLength(12000, 'Story breakdown must be less than 2000 words')
+));
+
+export const WhyNowSchema = v.optional(v.pipe(
+  v.string(),
+  v.maxLength(1800, 'Why Now must be less than 300 words')
+));
+
+export const ProductionLocationSchema = v.optional(v.pipe(
+  v.string(),
+  v.maxLength(600, 'Production location must be less than 100 words')
+));
+
+export const DevelopmentStageSchema = v.optional(v.picklist([
+  'pitch',
+  'treatment',
+  'script',
+  'semi_packaged',
+  'fully_packaged',
+  'semi_funded',
+  'fully_funded',
+  'other'
+]));
+
+export const CreativeAttachmentSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+  role: v.string(),
+  bio: v.pipe(v.string(), v.maxLength(2400, 'Bio must be less than 400 words')),
+  imdbLink: v.optional(v.string()),
+  websiteLink: v.optional(v.string())
+});
+
 export const PitchFormSchema = v.object({
   // Basic Information
   title: PitchTitleSchema,
@@ -172,6 +218,20 @@ export const PitchFormSchema = v.object({
   themes: v.optional(ThemesSchema),
   worldDescription: v.optional(WorldDescriptionSchema),
   
+  // Enhanced Story & Style Fields
+  toneAndStyle: ToneAndStyleSchema,
+  comps: CompsSchema,
+  storyBreakdown: StoryBreakdownSchema,
+  
+  // Market & Production Fields
+  whyNow: WhyNowSchema,
+  productionLocation: ProductionLocationSchema,
+  developmentStage: DevelopmentStageSchema,
+  developmentStageOther: v.optional(v.string()),
+  
+  // Creative Team
+  creativeAttachments: v.optional(v.array(CreativeAttachmentSchema)),
+  
   // Characters
   characters: v.optional(v.array(CharacterSchema)),
   
@@ -179,6 +239,11 @@ export const PitchFormSchema = v.object({
   image: v.optional(v.union([ImageFileSchema, v.null()])),
   video: v.optional(v.union([VideoFileSchema, v.null()])),
   documents: v.optional(v.array(DocumentFileSchema)),
+  
+  // Video with Password
+  videoUrl: v.optional(v.string()),
+  videoPassword: v.optional(v.string()),
+  videoPlatform: v.optional(v.string()),
   
   // NDA
   ndaConfig: NDAConfigSchema,

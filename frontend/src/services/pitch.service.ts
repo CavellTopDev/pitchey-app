@@ -64,6 +64,33 @@ export interface Pitch {
   ndaCount: number;
   aiUsed?: boolean;
   requireNDA?: boolean;
+  
+  // Enhanced Story & Style Fields
+  toneAndStyle?: string;
+  comps?: string;
+  storyBreakdown?: string;
+  
+  // Market & Production Fields
+  whyNow?: string;
+  productionLocation?: string;
+  developmentStage?: 'pitch' | 'treatment' | 'script' | 'semi_packaged' | 'fully_packaged' | 'semi_funded' | 'fully_funded' | 'other';
+  developmentStageOther?: string;
+  
+  // Creative Team
+  creativeAttachments?: Array<{
+    id?: string;
+    name: string;
+    role: string;
+    bio: string;
+    imdbLink?: string;
+    websiteLink?: string;
+  }>;
+  
+  // Video with Password
+  videoUrl?: string;
+  videoPassword?: string;
+  videoPlatform?: string;
+  
   createdAt: string;
   updatedAt: string;
   
@@ -119,6 +146,52 @@ interface RawPitchData {
   attachedTalent?: Array<{ name: string; role: string; confirmed?: boolean }>;
   financial_projections?: Record<string, number | string>;
   financialProjections?: Record<string, number | string>;
+  
+  // Enhanced Story & Style Fields (snake_case from API)
+  tone_and_style?: string;
+  toneAndStyle?: string;
+  comps?: string;
+  story_breakdown?: string;
+  storyBreakdown?: string;
+  
+  // Market & Production Fields (snake_case from API)
+  why_now?: string;
+  whyNow?: string;
+  production_location?: string;
+  productionLocation?: string;
+  development_stage?: string;
+  developmentStage?: string;
+  development_stage_other?: string;
+  developmentStageOther?: string;
+  
+  // Creative Team (snake_case from API)
+  creative_attachments?: Array<{
+    id?: string;
+    name: string;
+    role: string;
+    bio: string;
+    imdb_link?: string;
+    imdbLink?: string;
+    website_link?: string;
+    websiteLink?: string;
+  }>;
+  creativeAttachments?: Array<{
+    id?: string;
+    name: string;
+    role: string;
+    bio: string;
+    imdbLink?: string;
+    websiteLink?: string;
+  }>;
+  
+  // Video with Password (snake_case from API)
+  video_url?: string;
+  videoUrl?: string;
+  video_password?: string;
+  videoPassword?: string;
+  video_platform?: string;
+  videoPlatform?: string;
+  
   [key: string]: unknown;
 }
 
@@ -169,6 +242,32 @@ export interface CreatePitchInput {
   }>;
   aiUsed?: boolean;
   requireNDA?: boolean;
+  
+  // Enhanced Story & Style Fields
+  toneAndStyle?: string;
+  comps?: string;
+  storyBreakdown?: string;
+  
+  // Market & Production Fields
+  whyNow?: string;
+  productionLocation?: string;
+  developmentStage?: 'pitch' | 'treatment' | 'script' | 'semi_packaged' | 'fully_packaged' | 'semi_funded' | 'fully_funded' | 'other';
+  developmentStageOther?: string;
+  
+  // Creative Team
+  creativeAttachments?: Array<{
+    id?: string;
+    name: string;
+    role: string;
+    bio: string;
+    imdbLink?: string;
+    websiteLink?: string;
+  }>;
+  
+  // Video with Password
+  videoUrl?: string;
+  videoPassword?: string;
+  videoPlatform?: string;
 }
 
 export interface UpdatePitchInput extends Partial<CreatePitchInput> {
@@ -217,6 +316,18 @@ const formatMap: Record<string, string> = {
 // and ensure numeric values are properly typed
 function transformPitchData(pitch: RawPitchData | null | undefined): Partial<Pitch> | null {
   if (pitch === null || pitch === undefined) return null;
+  
+  // Transform creative attachments if present
+  const creativeAttachments = pitch.creative_attachments ?? pitch.creativeAttachments;
+  const transformedAttachments = creativeAttachments?.map(attachment => ({
+    id: attachment.id,
+    name: attachment.name,
+    role: attachment.role,
+    bio: attachment.bio,
+    imdbLink: attachment.imdb_link ?? attachment.imdbLink,
+    websiteLink: attachment.website_link ?? attachment.websiteLink,
+  }));
+  
   return {
     ...(pitch as unknown as Partial<Pitch>),
     // Map snake_case to camelCase for engagement metrics
@@ -228,6 +339,19 @@ function transformPitchData(pitch: RawPitchData | null | undefined): Partial<Pit
     updatedAt: pitch.updated_at ?? pitch.updatedAt,
     shortSynopsis: pitch.short_synopsis ?? pitch.shortSynopsis,
     longSynopsis: pitch.long_synopsis ?? pitch.longSynopsis,
+    
+    // Transform enhanced fields from snake_case
+    toneAndStyle: pitch.tone_and_style ?? pitch.toneAndStyle,
+    comps: pitch.comps,
+    storyBreakdown: pitch.story_breakdown ?? pitch.storyBreakdown,
+    whyNow: pitch.why_now ?? pitch.whyNow,
+    productionLocation: pitch.production_location ?? pitch.productionLocation,
+    developmentStage: pitch.development_stage ?? pitch.developmentStage,
+    developmentStageOther: pitch.development_stage_other ?? pitch.developmentStageOther,
+    creativeAttachments: transformedAttachments,
+    videoUrl: pitch.video_url ?? pitch.videoUrl,
+    videoPassword: pitch.video_password ?? pitch.videoPassword,
+    videoPlatform: pitch.video_platform ?? pitch.videoPlatform,
   };
 }
 
