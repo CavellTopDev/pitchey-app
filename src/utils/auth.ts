@@ -1,9 +1,20 @@
 /**
  * Authentication utilities for Worker handlers
+ *
+ * Session validation uses direct KV/database lookup for consistency
+ * with the login handler which stores sessions in KV and database.
  */
 
 import type { Env } from '../db/connection';
-import { createBetterAuthInstance } from '../auth/better-auth-neon-raw-sql';
+import { neon } from '@neondatabase/serverless';
+
+// Extended env type to support all KV bindings
+export interface AuthEnv extends Env {
+  SESSION_STORE?: KVNamespace;
+  SESSIONS_KV?: KVNamespace;
+  KV?: KVNamespace;
+  CACHE?: KVNamespace;
+}
 
 export interface AuthUser {
   id: number;
@@ -41,10 +52,10 @@ export function isPublicEndpoint(path: string, method: string): boolean {
 }
 
 /**
- * Verify authentication using Better Auth session or JWT token
- * Returns early success for public endpoints
+ * Verify authentication using direct session validation (KV + database)
+ * This matches the session storage used by the login handler
  */
-export async function verifyAuth(request: Request, env: Env): Promise<AuthResult> {
+export async function verifyAuth(request: Request, env: AuthEnv): Promise<AuthResult> {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -56,18 +67,19 @@ export async function verifyAuth(request: Request, env: Env): Promise<AuthResult
       user: undefined // No user for public access
     };
   }
+
   try {
     // First check for JWT token in Authorization header
     const authHeader = request.headers.get('Authorization');
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      
+
       // Import JWT verification
       const { verifyJWT } = await import('./worker-jwt');
-      
+
       try {
         const payload = await verifyJWT(token, env.JWT_SECRET || 'test-secret-key-for-development');
-        
+
         if (payload) {
           const p = payload as Record<string, any>;
           return {
@@ -81,11 +93,11 @@ export async function verifyAuth(request: Request, env: Env): Promise<AuthResult
           };
         }
       } catch (jwtError) {
-        console.error('JWT verification failed:', jwtError);
+        console.error('[Auth] JWT verification failed:', jwtError);
       }
     }
-    
-    // Fallback to Better Auth session cookie
+
+    // Fallback to session cookie validation
     const cookieHeader = request.headers.get('Cookie');
     if (!cookieHeader) {
       return { success: false, error: 'No authentication token or session' };
@@ -99,46 +111,94 @@ export async function verifyAuth(request: Request, env: Env): Promise<AuthResult
       })
     );
 
-    const sessionToken = cookies['better-auth-session'];
+    // Check both cookie names - pitchey-session is the current name, better-auth-session is legacy
+    const sessionToken = cookies['pitchey-session'] || cookies['better-auth-session'];
     if (!sessionToken) {
       return { success: false, error: 'No session token' };
     }
 
-    // Create Better Auth instance
-    const auth = await createBetterAuthInstance(env as any);
-    if (!auth) {
-      return { success: false, error: 'Auth service unavailable' };
+    // Try KV cache first (check all possible KV bindings)
+    const kv = env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE;
+    if (kv) {
+      try {
+        const cached = await kv.get(`session:${sessionToken}`, 'json') as any;
+        if (cached && new Date(cached.expiresAt) > new Date()) {
+          console.log(`[Auth] Session from KV: userId=${cached.userId}, userType=${cached.userType}`);
+          return {
+            success: true,
+            user: {
+              id: parseInt(String(cached.userId)),
+              email: String(cached.userEmail || ''),
+              username: String(cached.userName || cached.userEmail?.split('@')[0] || ''),
+              userType: String(cached.userType || 'creator')
+            }
+          };
+        }
+      } catch (kvError) {
+        console.error('[Auth] KV session lookup error:', kvError);
+      }
     }
 
-    // Create a mock request for Better Auth with the session cookie
-    const mockRequest = new Request(new URL(request.url).origin + '/api/auth/session', {
-      headers: {
-        'Cookie': `better-auth-session=${sessionToken}`
+    // Fallback to database lookup
+    if (env.DATABASE_URL) {
+      try {
+        const sql = neon(env.DATABASE_URL);
+        const result = await sql`
+          SELECT s.id, s.user_id, s.expires_at,
+                 u.id as uid, u.email, u.username, u.user_type,
+                 u.first_name, u.last_name, u.name as display_name
+          FROM sessions s
+          JOIN users u ON s.user_id::text = u.id::text
+          WHERE s.id = ${sessionToken}
+            AND s.expires_at > NOW()
+          LIMIT 1
+        `;
+
+        if (result && result.length > 0) {
+          const session = result[0];
+          const userName = session.display_name || session.username ||
+                         (session.first_name ? `${session.first_name} ${session.last_name || ''}`.trim() : null) ||
+                         session.email?.split('@')[0] || '';
+
+          console.log(`[Auth] Session from DB: userId=${session.user_id}, userType=${session.user_type}`);
+
+          // Cache the session in KV for future requests
+          if (kv) {
+            try {
+              await kv.put(
+                `session:${sessionToken}`,
+                JSON.stringify({
+                  userId: session.user_id,
+                  userEmail: session.email,
+                  userName: userName,
+                  userType: session.user_type,
+                  expiresAt: session.expires_at
+                }),
+                { expirationTtl: 3600 } // Cache for 1 hour
+              );
+            } catch (cacheError) {
+              console.warn('[Auth] Failed to cache session in KV:', cacheError);
+            }
+          }
+
+          return {
+            success: true,
+            user: {
+              id: parseInt(String(session.user_id)),
+              email: String(session.email || ''),
+              username: String(userName),
+              userType: String(session.user_type || 'creator')
+            }
+          };
+        }
+      } catch (dbError) {
+        console.error('[Auth] Database session lookup error:', dbError);
       }
-    });
-
-    // Get session using Better Auth
-    const authApi = (auth as any).api;
-    const sessionResponse = authApi?.getSession ? await authApi.getSession({
-      headers: mockRequest.headers,
-      query: {}
-    }) : null;
-
-    if (!sessionResponse?.user) {
-      return { success: false, error: 'Invalid session' };
     }
 
-    return {
-      success: true,
-      user: {
-        id: parseInt(sessionResponse.user.id),
-        email: sessionResponse.user.email,
-        username: sessionResponse.user.name || sessionResponse.user.username,
-        userType: sessionResponse.user.userType
-      }
-    };
+    return { success: false, error: 'Invalid session' };
   } catch (error) {
-    console.error('Auth verification error:', error);
+    console.error('[Auth] Auth verification error:', error);
     return { success: false, error: 'Authentication failed' };
   }
 }

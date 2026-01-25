@@ -1,9 +1,17 @@
 /**
  * Authentication Extraction Utility
  * Extracts user information from JWT tokens and session cookies
+ *
+ * Session validation priority:
+ * 1. JWT token (Authorization header)
+ * 2. Session cookie -> KV cache lookup
+ * 3. Session cookie -> Database fallback
  */
 
+/// <reference types="@cloudflare/workers-types" />
+
 import { verifyJWT, extractJWT, type JWTPayload } from './worker-jwt';
+import { neon } from '@neondatabase/serverless';
 
 export interface AuthenticatedUser {
   id: string;
@@ -18,13 +26,23 @@ export interface AuthResult {
   error?: string;
 }
 
+// Extended env type to support database fallback
+export interface AuthEnv {
+  JWT_SECRET?: string;
+  SESSION_STORE?: KVNamespace;
+  SESSIONS_KV?: KVNamespace;
+  KV?: KVNamespace;
+  CACHE?: KVNamespace;
+  DATABASE_URL?: string;
+}
+
 /**
  * Extract authenticated user from request
- * Checks both JWT Bearer token and session cookie
+ * Checks JWT Bearer token, then session cookie (KV + database fallback)
  */
 export async function getAuthenticatedUser(
   request: Request,
-  env: { JWT_SECRET?: string; SESSION_STORE?: KVNamespace }
+  env: AuthEnv
 ): Promise<AuthResult> {
   const jwtSecret = env.JWT_SECRET || 'test-secret-key-for-development';
 
@@ -51,28 +69,90 @@ export async function getAuthenticatedUser(
   const cookieHeader = request.headers.get('Cookie');
   if (cookieHeader) {
     const cookies = parseCookies(cookieHeader);
-    const sessionId = cookies['better-auth-session'] || cookies['pitchey-session'];
+    const sessionId = cookies['pitchey-session'] || cookies['better-auth-session'];
 
-    if (sessionId && env.SESSION_STORE) {
-      try {
-        const sessionData = await env.SESSION_STORE.get(`session:${sessionId}`);
-        if (sessionData) {
-          const session = JSON.parse(sessionData);
-          // Check if session is expired
-          if (new Date(session.expiresAt) > new Date()) {
+    if (sessionId) {
+      // Try KV cache first (check all possible KV bindings)
+      const kv = env.SESSION_STORE || env.SESSIONS_KV || env.KV || env.CACHE;
+      if (kv) {
+        try {
+          const sessionData = await kv.get(`session:${sessionId}`);
+          if (sessionData) {
+            const session = JSON.parse(sessionData);
+            // Check if session is expired
+            if (new Date(session.expiresAt) > new Date()) {
+              console.log(`[Auth] Session from KV: userId=${session.userId}, userType=${session.userType}`);
+              return {
+                authenticated: true,
+                user: {
+                  id: String(session.userId),
+                  email: session.userEmail || '',
+                  name: session.userName || session.userEmail?.split('@')[0] || '',
+                  userType: session.userType || 'creator'
+                }
+              };
+            }
+          }
+        } catch (error) {
+          console.error('[Auth] KV session lookup error:', error);
+        }
+      }
+
+      // Fallback to database lookup if KV miss and DATABASE_URL available
+      if (env.DATABASE_URL) {
+        try {
+          const sql = neon(env.DATABASE_URL);
+          const result = await sql`
+            SELECT s.id, s.user_id, s.expires_at,
+                   u.id as uid, u.email, u.username, u.user_type,
+                   u.first_name, u.last_name, u.name as display_name
+            FROM sessions s
+            JOIN users u ON s.user_id::text = u.id::text
+            WHERE s.id = ${sessionId}
+              AND s.expires_at > NOW()
+            LIMIT 1
+          `;
+
+          if (result && result.length > 0) {
+            const session = result[0];
+            const userName = session.display_name || session.username ||
+                           (session.first_name ? `${session.first_name} ${session.last_name || ''}`.trim() : null) ||
+                           session.email?.split('@')[0] || '';
+
+            console.log(`[Auth] Session from DB: userId=${session.user_id}, userType=${session.user_type}`);
+
+            // Cache the session in KV for future requests
+            if (kv) {
+              try {
+                await kv.put(
+                  `session:${sessionId}`,
+                  JSON.stringify({
+                    userId: session.user_id,
+                    userEmail: session.email,
+                    userName: userName,
+                    userType: session.user_type,
+                    expiresAt: session.expires_at
+                  }),
+                  { expirationTtl: 3600 } // Cache for 1 hour
+                );
+              } catch (cacheError) {
+                console.warn('[Auth] Failed to cache session in KV:', cacheError);
+              }
+            }
+
             return {
               authenticated: true,
               user: {
-                id: String(session.userId),
-                email: session.userEmail || '',
-                name: session.userName || session.userEmail?.split('@')[0] || '',
-                userType: session.userType || 'creator'
+                id: String(session.user_id),
+                email: session.email || '',
+                name: userName,
+                userType: session.user_type || 'creator'
               }
             };
           }
+        } catch (dbError) {
+          console.error('[Auth] Database session lookup error:', dbError);
         }
-      } catch (error) {
-        console.error('Session lookup error:', error);
       }
     }
   }
@@ -89,7 +169,7 @@ export async function getAuthenticatedUser(
  */
 export async function getUserId(
   request: Request,
-  env: { JWT_SECRET?: string; SESSION_STORE?: KVNamespace }
+  env: AuthEnv
 ): Promise<string | null> {
   // First try to get from auth
   const authResult = await getAuthenticatedUser(request, env);
@@ -113,7 +193,7 @@ export async function getUserId(
  */
 export async function requireAuth(
   request: Request,
-  env: { JWT_SECRET?: string; SESSION_STORE?: KVNamespace }
+  env: AuthEnv
 ): Promise<{ user: AuthenticatedUser } | { error: Response }> {
   const authResult = await getAuthenticatedUser(request, env);
 
@@ -148,7 +228,7 @@ export async function requireAuth(
  */
 export async function requireRole(
   request: Request,
-  env: { JWT_SECRET?: string; SESSION_STORE?: KVNamespace },
+  env: AuthEnv,
   allowedRoles: string | string[]
 ): Promise<{ user: AuthenticatedUser } | { error: Response }> {
   const authResult = await requireAuth(request, env);
