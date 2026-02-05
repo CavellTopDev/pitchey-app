@@ -32,6 +32,38 @@ export default defineConfig(() => {
     target: 'es2020',
     sourcemap: false,
     chunkSizeWarningLimit: 2000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Charts — only needed on analytics pages (~50KB+)
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-charts';
+            }
+            // Animation — heavy, not needed on every page
+            if (id.includes('framer-motion')) {
+              return 'vendor-motion';
+            }
+            // Radix UI primitives
+            if (id.includes('@radix-ui')) {
+              return 'vendor-radix';
+            }
+            // React core (cacheable across deploys)
+            if (
+              id.includes('/react-dom/') ||
+              id.includes('/react/') ||
+              id.includes('/scheduler/')
+            ) {
+              return 'vendor-react';
+            }
+            // Router
+            if (id.includes('react-router') || id.includes('@remix-run')) {
+              return 'vendor-router';
+            }
+          }
+        },
+      },
+    },
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],

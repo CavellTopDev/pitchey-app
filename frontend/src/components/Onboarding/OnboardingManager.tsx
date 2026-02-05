@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import './onboarding.css';
 import { useAuthStore } from '../../store/authStore';
 import { useOnboardingStore } from '../../store/onboardingStore';
 import { CreatorOnboarding } from './CreatorOnboarding';
