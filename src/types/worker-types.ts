@@ -27,6 +27,18 @@ export interface Env {
   SENTRY_DSN?: string;
   SENTRY_ENVIRONMENT?: string;
   SENTRY_RELEASE?: string;
+
+  // Video Processing & Webhooks
+  VIDEO_PROCESSING_QUEUE?: Queue;
+  N8N_WEBHOOK_URL?: string;
+  BACKEND_URL?: string;
+
+  // R2 Storage Buckets
+  MEDIA_STORAGE?: R2Bucket;
+  PITCH_STORAGE?: R2Bucket;
+  NDA_STORAGE?: R2Bucket;
+  PROCESSED_STORAGE?: R2Bucket;
+  TEMP_STORAGE?: R2Bucket;
 }
 
 export interface DatabaseService {

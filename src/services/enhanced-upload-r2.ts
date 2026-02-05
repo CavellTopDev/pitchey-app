@@ -37,14 +37,134 @@ export interface R2MultipartInfo {
 
 export class EnhancedR2UploadHandler {
   private bucket: R2Bucket;
-  private sessions: Map<string, ChunkedUploadSession> = new Map();
+  private kv: KVNamespace | null;
+  private localCache: Map<string, ChunkedUploadSession> = new Map();
   private multipartUploads: Map<string, R2MultipartInfo> = new Map();
 
-  constructor(bucket: R2Bucket) {
+  constructor(bucket: R2Bucket, kv?: KVNamespace) {
     this.bucket = bucket;
-    
+    this.kv = kv ?? null;
+
     // Start cleanup interval for expired sessions
     this.startCleanupInterval();
+  }
+
+  /**
+   * Save session to KV with local cache
+   */
+  private async saveSession(session: ChunkedUploadSession): Promise<void> {
+    const key = `upload:session:${session.sessionId}`;
+    const ttl = 24 * 60 * 60; // 24 hours
+
+    // Always update local cache
+    this.localCache.set(session.sessionId, session);
+
+    // Persist to KV if available
+    if (this.kv) {
+      try {
+        await this.kv.put(key, JSON.stringify(session), { expirationTtl: ttl });
+      } catch (error) {
+        console.warn('Failed to persist session to KV:', error);
+      }
+    }
+  }
+
+  /**
+   * Load session from KV or local cache
+   */
+  private async loadSession(sessionId: string): Promise<ChunkedUploadSession | null> {
+    // Check local cache first
+    if (this.localCache.has(sessionId)) {
+      return this.localCache.get(sessionId)!;
+    }
+
+    // Try KV if available
+    if (this.kv) {
+      try {
+        const key = `upload:session:${sessionId}`;
+        const data = await this.kv.get(key);
+        if (data) {
+          const session = JSON.parse(data) as ChunkedUploadSession;
+          this.localCache.set(sessionId, session); // Populate cache
+          return session;
+        }
+      } catch (error) {
+        console.warn('Failed to load session from KV:', error);
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Delete session from KV and local cache
+   */
+  private async deleteSession(sessionId: string): Promise<void> {
+    this.localCache.delete(sessionId);
+
+    if (this.kv) {
+      try {
+        await this.kv.delete(`upload:session:${sessionId}`);
+      } catch (error) {
+        console.warn('Failed to delete session from KV:', error);
+      }
+    }
+  }
+
+  /**
+   * Save multipart info to KV
+   */
+  private async saveMultipartInfo(uploadId: string, info: R2MultipartInfo): Promise<void> {
+    this.multipartUploads.set(uploadId, info);
+
+    if (this.kv) {
+      try {
+        const key = `upload:multipart:${uploadId}`;
+        await this.kv.put(key, JSON.stringify(info), { expirationTtl: 24 * 60 * 60 });
+      } catch (error) {
+        console.warn('Failed to persist multipart info to KV:', error);
+      }
+    }
+  }
+
+  /**
+   * Load multipart info from KV or local cache
+   */
+  private async loadMultipartInfo(uploadId: string): Promise<R2MultipartInfo | null> {
+    if (this.multipartUploads.has(uploadId)) {
+      return this.multipartUploads.get(uploadId)!;
+    }
+
+    if (this.kv) {
+      try {
+        const key = `upload:multipart:${uploadId}`;
+        const data = await this.kv.get(key);
+        if (data) {
+          const info = JSON.parse(data) as R2MultipartInfo;
+          this.multipartUploads.set(uploadId, info);
+          return info;
+        }
+      } catch (error) {
+        console.warn('Failed to load multipart info from KV:', error);
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Delete multipart info
+   */
+  private async deleteMultipartInfo(uploadId: string): Promise<void> {
+    this.multipartUploads.delete(uploadId);
+
+    if (this.kv) {
+      try {
+        await this.kv.delete(`upload:multipart:${uploadId}`);
+      } catch (error) {
+        console.warn('Failed to delete multipart info from KV:', error);
+      }
+    }
   }
 
   /**
@@ -88,9 +208,9 @@ export class EnhancedR2UploadHandler {
       expiresAt: expiresAt.toISOString()
     };
 
-    // Store session and multipart info
-    this.sessions.set(sessionId, session);
-    this.multipartUploads.set(uploadId, {
+    // Store session and multipart info with KV persistence
+    await this.saveSession(session);
+    await this.saveMultipartInfo(uploadId, {
       uploadId: r2UploadId,
       key: fileKey,
       bucket: this.bucket.name || 'pitchey-uploads'
@@ -108,7 +228,7 @@ export class EnhancedR2UploadHandler {
     chunkData: ArrayBuffer,
     expectedChecksum: string
   ): Promise<{ etag: string; checksum: string }> {
-    const session = this.sessions.get(sessionId);
+    const session = await this.loadSession(sessionId);
     if (!session) {
       throw new Error('Upload session not found or expired');
     }
@@ -124,7 +244,7 @@ export class EnhancedR2UploadHandler {
     }
 
     // Get multipart upload info
-    const multipartInfo = this.multipartUploads.get(session.uploadId);
+    const multipartInfo = await this.loadMultipartInfo(session.uploadId);
     if (!multipartInfo) {
       throw new Error('Multipart upload info not found');
     }
@@ -152,7 +272,7 @@ export class EnhancedR2UploadHandler {
       // Sort parts by part number to maintain order
       session.parts.sort((a, b) => a.partNumber - b.partNumber);
 
-      this.sessions.set(sessionId, session);
+      await this.saveSession(session);
 
       return {
         etag: uploadResult.etag,
@@ -168,7 +288,7 @@ export class EnhancedR2UploadHandler {
   /**
    * Complete the multipart upload
    */
-  async completeChunkedUpload(sessionId: string): Promise<{
+  async completeChunkedUpload(sessionId: string, _chunks?: Array<{ chunkIndex: number; size?: number; etag?: string }>): Promise<{
     fileKey: string;
     fileName: string;
     fileSize: number;
@@ -176,7 +296,7 @@ export class EnhancedR2UploadHandler {
     publicUrl?: string;
     metadata?: Record<string, any>;
   }> {
-    const session = this.sessions.get(sessionId);
+    const session = await this.loadSession(sessionId);
     if (!session) {
       throw new Error('Upload session not found or expired');
     }
@@ -192,13 +312,13 @@ export class EnhancedR2UploadHandler {
       }
     }
 
-    const multipartInfo = this.multipartUploads.get(session.uploadId);
+    const multipartInfo = await this.loadMultipartInfo(session.uploadId);
     if (!multipartInfo) {
       throw new Error('Multipart upload info not found');
     }
 
     session.status = 'completing';
-    this.sessions.set(sessionId, session);
+    await this.saveSession(session);
 
     try {
       // Complete the multipart upload
@@ -207,14 +327,14 @@ export class EnhancedR2UploadHandler {
       // Update session status
       session.status = 'completed';
       session.updatedAt = new Date().toISOString();
-      this.sessions.set(sessionId, session);
+      await this.saveSession(session);
 
       // Generate URLs
       const url = this.getPrivateFileUrl(session.fileKey);
       const publicUrl = this.getPublicFileUrl(session.fileKey);
 
-      // Clean up
-      this.multipartUploads.delete(session.uploadId);
+      // Clean up multipart info
+      await this.deleteMultipartInfo(session.uploadId);
 
       return {
         fileKey: session.fileKey,
@@ -227,60 +347,60 @@ export class EnhancedR2UploadHandler {
 
     } catch (error) {
       session.status = 'failed';
-      this.sessions.set(sessionId, session);
+      await this.saveSession(session);
       console.error('Failed to complete multipart upload:', error);
-      throw new Error(`Failed to complete upload: ${error.message}`);
+      throw new Error(`Failed to complete upload: ${(error as Error).message}`);
     }
   }
 
   /**
    * Abort a chunked upload
    */
-  async abortChunkedUpload(sessionId: string, reason?: string): Promise<void> {
-    const session = this.sessions.get(sessionId);
+  async abortChunkedUpload(sessionId: string, _reason?: string): Promise<void> {
+    const session = await this.loadSession(sessionId);
     if (!session) {
       return; // Already cleaned up
     }
 
-    const multipartInfo = this.multipartUploads.get(session.uploadId);
+    const multipartInfo = await this.loadMultipartInfo(session.uploadId);
     if (multipartInfo) {
       try {
         await this.abortMultipartUpload(multipartInfo);
       } catch (error) {
         console.warn('Failed to abort multipart upload:', error);
       }
-      this.multipartUploads.delete(session.uploadId);
+      await this.deleteMultipartInfo(session.uploadId);
     }
 
     session.status = 'aborted';
     session.updatedAt = new Date().toISOString();
-    this.sessions.set(sessionId, session);
+    await this.saveSession(session);
 
     // Schedule cleanup
-    setTimeout(() => {
-      this.sessions.delete(sessionId);
+    setTimeout(async () => {
+      await this.deleteSession(sessionId);
     }, 5000);
   }
 
   /**
    * Get upload session info
    */
-  getUploadSession(sessionId: string): ChunkedUploadSession | null {
-    return this.sessions.get(sessionId) || null;
+  async getSession(sessionId: string): Promise<ChunkedUploadSession | null> {
+    return this.loadSession(sessionId);
   }
 
   /**
    * Get resume information for a session
    */
-  getResumeInfo(sessionId: string): {
+  async getResumeInfo(sessionId: string): Promise<{
     canResume: boolean;
     uploadedChunks: number[];
     remainingChunks: number[];
     nextChunkIndex: number;
     reason?: string;
-  } {
-    const session = this.sessions.get(sessionId);
-    
+  }> {
+    const session = await this.loadSession(sessionId);
+
     if (!session) {
       return {
         canResume: false,
@@ -404,16 +524,17 @@ export class EnhancedR2UploadHandler {
 
   private startCleanupInterval(): void {
     // Clean up expired sessions every hour
+    // Note: KV sessions auto-expire via TTL, this cleans local cache
     const cleanupInterval = 60 * 60 * 1000; // 1 hour
-    
-    setInterval(() => {
+
+    setInterval(async () => {
       const now = Date.now();
       const expiredSessions: string[] = [];
 
-      this.sessions.forEach((session, sessionId) => {
+      this.localCache.forEach((session, sessionId) => {
         const expiresAt = new Date(session.expiresAt).getTime();
         const isCompleted = session.status === 'completed';
-        const completedMoreThanDay = isCompleted && 
+        const completedMoreThanDay = isCompleted &&
           (now - new Date(session.updatedAt).getTime()) > 24 * 60 * 60 * 1000;
 
         if (expiresAt < now || completedMoreThanDay) {
@@ -422,14 +543,14 @@ export class EnhancedR2UploadHandler {
       });
 
       // Clean up expired sessions
-      expiredSessions.forEach(sessionId => {
-        const session = this.sessions.get(sessionId);
+      for (const sessionId of expiredSessions) {
+        const session = this.localCache.get(sessionId);
         if (session && session.status !== 'completed' && session.status !== 'aborted') {
           // Abort incomplete uploads
-          this.abortChunkedUpload(sessionId, 'Session expired').catch(console.error);
+          await this.abortChunkedUpload(sessionId, 'Session expired').catch(console.error);
         }
-        this.sessions.delete(sessionId);
-      });
+        await this.deleteSession(sessionId);
+      }
 
       if (expiredSessions.length > 0) {
         console.log(`Cleaned up ${expiredSessions.length} expired upload sessions`);
@@ -438,7 +559,7 @@ export class EnhancedR2UploadHandler {
   }
 
   /**
-   * Get session statistics
+   * Get session statistics (from local cache only)
    */
   getSessionStats(): {
     totalSessions: number;
@@ -447,7 +568,7 @@ export class EnhancedR2UploadHandler {
     failedSessions: number;
     pendingCleanup: number;
   } {
-    const sessions = Array.from(this.sessions.values());
+    const sessions = Array.from(this.localCache.values());
     return {
       totalSessions: sessions.length,
       activeSessions: sessions.filter(s => ['initializing', 'uploading', 'completing'].includes(s.status)).length,
@@ -460,14 +581,14 @@ export class EnhancedR2UploadHandler {
   /**
    * Force cleanup of completed sessions
    */
-  forceCleanup(): number {
-    const completedSessions = Array.from(this.sessions.entries())
-      .filter(([_, session]) => session.status === 'completed')
-      .map(([sessionId, _]) => sessionId);
+  async forceCleanup(): Promise<number> {
+    const completedSessions = Array.from(this.localCache.entries())
+      .filter(([, session]) => session.status === 'completed')
+      .map(([sessionId]) => sessionId);
 
-    completedSessions.forEach(sessionId => {
-      this.sessions.delete(sessionId);
-    });
+    for (const sessionId of completedSessions) {
+      await this.deleteSession(sessionId);
+    }
 
     return completedSessions.length;
   }

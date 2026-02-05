@@ -203,6 +203,9 @@ ENABLE_EDGE_CACHING = "true"
 # Authentication Configuration
 BETTER_AUTH_URL = "https://pitchey-api-prod.ndlovucavelle.workers.dev"
 
+# n8n Video Processing Webhook
+N8N_WEBHOOK_URL = "http://localhost:5678/webhook/video-uploaded"
+
 # Distributed Tracing Configuration
 ENABLE_DISTRIBUTED_TRACING = "true"
 TRACE_SAMPLING_RATE = "0.1"

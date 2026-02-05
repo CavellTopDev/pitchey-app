@@ -119,15 +119,532 @@ interface FileCheckApiResponse {
   url?: string;
 }
 
+// Chunked upload types
+interface ChunkedUploadInitResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    uploadId: string;
+    key: string;
+    expiresAt?: string;
+  };
+}
+
+interface ChunkedUploadPartResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    etag: string;
+    partNumber: number;
+  };
+}
+
+interface ChunkedUploadCompleteResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    url: string;
+    key: string;
+    size: number;
+  };
+}
+
+interface ChunkedUploadStatusResponse {
+  success: boolean;
+  error?: string;
+  data?: {
+    uploadId: string;
+    key: string;
+    parts: Array<{ partNumber: number; etag: string; size: number }>;
+    status: 'in_progress' | 'completed' | 'aborted';
+    createdAt: string;
+    expiresAt?: string;
+  };
+}
+
+interface UploadedPart {
+  partNumber: number;
+  etag: string;
+  size: number;
+}
+
+interface ChunkedUploadState {
+  uploadId: string;
+  filename: string;
+  contentType: string;
+  fileSize: number;
+  folder: string;
+  chunkSize: number;
+  uploadedParts: UploadedPart[];
+  totalParts: number;
+  createdAt: string;
+}
+
+// Large file upload options
+interface LargeFileUploadOptions extends UploadOptions {
+  folder?: string;
+  chunkSize?: number;
+  resumeUploadId?: string;
+}
+
 class UploadService {
   private readonly baseUrl: string;
+  private readonly DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+  private readonly LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB
+  private readonly CHUNKED_UPLOAD_STORAGE_KEY = 'pitchey_chunked_uploads';
 
   constructor() {
     this.baseUrl = API_BASE_URL;
   }
 
   /**
+   * Get stored chunked upload states from localStorage
+   */
+  private getStoredUploadStates(): Record<string, ChunkedUploadState> {
+    try {
+      const stored = localStorage.getItem(this.CHUNKED_UPLOAD_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Save chunked upload state to localStorage
+   */
+  private saveUploadState(uploadId: string, state: ChunkedUploadState): void {
+    try {
+      const states = this.getStoredUploadStates();
+      states[uploadId] = state;
+      localStorage.setItem(this.CHUNKED_UPLOAD_STORAGE_KEY, JSON.stringify(states));
+    } catch (error) {
+      console.warn('Failed to save upload state to localStorage:', error);
+    }
+  }
+
+  /**
+   * Remove chunked upload state from localStorage
+   */
+  private removeUploadState(uploadId: string): void {
+    try {
+      const states = this.getStoredUploadStates();
+      delete states[uploadId];
+      localStorage.setItem(this.CHUNKED_UPLOAD_STORAGE_KEY, JSON.stringify(states));
+    } catch (error) {
+      console.warn('Failed to remove upload state from localStorage:', error);
+    }
+  }
+
+  /**
+   * Get stored upload state by uploadId
+   */
+  getStoredUploadState(uploadId: string): ChunkedUploadState | null {
+    const states = this.getStoredUploadStates();
+    return states[uploadId] ?? null;
+  }
+
+  /**
+   * Upload a large file using chunked upload if necessary
+   * Automatically uses chunked upload for files > 50MB
+   */
+  async uploadLargeFile(
+    file: File,
+    options: LargeFileUploadOptions = {}
+  ): Promise<UploadResult> {
+    const {
+      folder = 'uploads',
+      chunkSize = this.DEFAULT_CHUNK_SIZE,
+      resumeUploadId,
+      onProgress,
+      signal,
+      metadata
+    } = options;
+
+    // Check if we should use chunked upload
+    if (file.size <= this.LARGE_FILE_THRESHOLD && !resumeUploadId) {
+      // Use regular upload for smaller files
+      return this.uploadDocument(file, 'document', { ...options, folder });
+    }
+
+    let uploadId: string;
+    let uploadedParts: UploadedPart[] = [];
+    let startPartNumber = 1;
+
+    // Check for resume
+    if (resumeUploadId) {
+      const storedState = this.getStoredUploadState(resumeUploadId);
+      if (storedState) {
+        uploadId = resumeUploadId;
+        uploadedParts = storedState.uploadedParts;
+        startPartNumber = uploadedParts.length + 1;
+      } else {
+        // Stored state not found, start fresh
+        const initResult = await this.initiateChunkedUpload(
+          file.name,
+          file.type || 'application/octet-stream',
+          file.size,
+          folder
+        );
+        uploadId = initResult.uploadId;
+      }
+    } else {
+      // Initiate new chunked upload
+      const initResult = await this.initiateChunkedUpload(
+        file.name,
+        file.type || 'application/octet-stream',
+        file.size,
+        folder
+      );
+      uploadId = initResult.uploadId;
+    }
+
+    // Calculate total parts
+    const totalParts = Math.ceil(file.size / chunkSize);
+
+    // Save initial state
+    const uploadState: ChunkedUploadState = {
+      uploadId,
+      filename: file.name,
+      contentType: file.type || 'application/octet-stream',
+      fileSize: file.size,
+      folder,
+      chunkSize,
+      uploadedParts,
+      totalParts,
+      createdAt: new Date().toISOString()
+    };
+    this.saveUploadState(uploadId, uploadState);
+
+    // Track total progress
+    let totalUploaded = uploadedParts.reduce((sum, part) => sum + part.size, 0);
+
+    try {
+      // Upload remaining chunks
+      for (let partNumber = startPartNumber; partNumber <= totalParts; partNumber++) {
+        // Check for abort signal
+        if (signal?.aborted) {
+          throw new Error('Upload cancelled');
+        }
+
+        const start = (partNumber - 1) * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+
+        // Upload chunk with progress tracking
+        const partResult = await this.uploadChunk(
+          uploadId,
+          partNumber,
+          chunk,
+          (chunkProgress) => {
+            if (onProgress) {
+              const overallLoaded = totalUploaded + chunkProgress.loaded;
+              onProgress({
+                loaded: overallLoaded,
+                total: file.size,
+                percentage: Math.round((overallLoaded / file.size) * 100),
+                speed: chunkProgress.speed,
+                estimatedTimeRemaining: chunkProgress.speed
+                  ? (file.size - overallLoaded) / chunkProgress.speed
+                  : undefined
+              });
+            }
+          }
+        );
+
+        // Track uploaded part
+        const uploadedPart: UploadedPart = {
+          partNumber: partResult.partNumber,
+          etag: partResult.etag,
+          size: end - start
+        };
+        uploadedParts.push(uploadedPart);
+        totalUploaded += uploadedPart.size;
+
+        // Update stored state
+        uploadState.uploadedParts = uploadedParts;
+        this.saveUploadState(uploadId, uploadState);
+      }
+
+      // Complete the upload
+      const completeResult = await this.completeChunkedUpload(uploadId, uploadedParts);
+
+      // Remove stored state on success
+      this.removeUploadState(uploadId);
+
+      // Return the result
+      return {
+        url: completeResult.url,
+        filename: file.name,
+        size: file.size,
+        type: file.type || 'application/octet-stream',
+        id: uploadId,
+        uploadedAt: new Date().toISOString(),
+        metadata: {
+          ...metadata,
+          chunked: true,
+          totalParts,
+          key: completeResult.key
+        }
+      };
+    } catch (error) {
+      // Don't remove state on error so upload can be resumed
+      if (error instanceof Error && error.message !== 'Upload cancelled') {
+        console.error('Chunked upload failed:', error);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Initiate a chunked upload
+   * POST to /api/upload/multipart/initiate
+   */
+  async initiateChunkedUpload(
+    filename: string,
+    contentType: string,
+    fileSize: number,
+    folder: string = 'uploads'
+  ): Promise<{ uploadId: string; key: string; expiresAt?: string }> {
+    const response = await fetch(`${this.baseUrl}/api/upload/multipart/initiate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        filename,
+        contentType,
+        fileSize,
+        folder
+      }),
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null) as ChunkedUploadInitResponse | null;
+      throw new Error(errorData?.error ?? `Failed to initiate chunked upload: ${response.status}`);
+    }
+
+    const result = await response.json() as ChunkedUploadInitResponse;
+    if (!result.success || !result.data) {
+      throw new Error(result.error ?? 'Failed to initiate chunked upload');
+    }
+
+    return {
+      uploadId: result.data.uploadId,
+      key: result.data.key,
+      expiresAt: result.data.expiresAt
+    };
+  }
+
+  /**
+   * Upload a single chunk
+   * PUT to /api/upload/multipart/part with headers X-Upload-Id and X-Part-Number
+   */
+  async uploadChunk(
+    uploadId: string,
+    partNumber: number,
+    chunk: Blob,
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<{ partNumber: number; etag: string }> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const startTime = Date.now();
+      let lastLoaded = 0;
+      let lastTime = startTime;
+
+      // Progress tracking
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const now = Date.now();
+            const timeDiff = (now - lastTime) / 1000;
+            const loadedDiff = event.loaded - lastLoaded;
+
+            let speed = 0;
+            let estimatedTimeRemaining = 0;
+
+            if (timeDiff > 0.3 && loadedDiff > 0) {
+              speed = loadedDiff / timeDiff;
+              const remainingBytes = event.total - event.loaded;
+              estimatedTimeRemaining = remainingBytes / speed;
+
+              lastLoaded = event.loaded;
+              lastTime = now;
+            }
+
+            onProgress({
+              loaded: event.loaded,
+              total: event.total,
+              percentage: Math.round((event.loaded / event.total) * 100),
+              speed: speed > 0 ? speed : undefined,
+              estimatedTimeRemaining: estimatedTimeRemaining > 0 ? estimatedTimeRemaining : undefined
+            });
+          }
+        });
+      }
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText) as ChunkedUploadPartResponse;
+            if (!response.success || !response.data) {
+              reject(new Error(response.error ?? 'Failed to upload chunk'));
+              return;
+            }
+            resolve({
+              partNumber: response.data.partNumber,
+              etag: response.data.etag
+            });
+          } catch {
+            reject(new Error('Invalid response format'));
+          }
+        } else {
+          try {
+            const errorResponse = JSON.parse(xhr.responseText) as { error?: string };
+            reject(new Error(errorResponse.error ?? `Upload chunk failed: ${xhr.status}`));
+          } catch {
+            reject(new Error(`Upload chunk failed: ${xhr.status} ${xhr.statusText}`));
+          }
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Upload chunk failed: Network error'));
+      });
+
+      xhr.addEventListener('timeout', () => {
+        reject(new Error('Upload chunk failed: Request timeout'));
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload chunk cancelled'));
+      });
+
+      xhr.open('PUT', `${this.baseUrl}/api/upload/multipart/part`);
+      xhr.withCredentials = true;
+      xhr.timeout = 300000; // 5 minute timeout per chunk
+      xhr.setRequestHeader('X-Upload-Id', uploadId);
+      xhr.setRequestHeader('X-Part-Number', partNumber.toString());
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.send(chunk);
+    });
+  }
+
+  /**
+   * Complete a chunked upload
+   * POST to /api/upload/multipart/complete
+   */
+  async completeChunkedUpload(
+    uploadId: string,
+    parts: Array<{ partNumber: number; etag: string }>
+  ): Promise<{ url: string; key: string; size: number }> {
+    const response = await fetch(`${this.baseUrl}/api/upload/multipart/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        uploadId,
+        parts: parts.map(p => ({ partNumber: p.partNumber, etag: p.etag }))
+      }),
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null) as ChunkedUploadCompleteResponse | null;
+      throw new Error(errorData?.error ?? `Failed to complete chunked upload: ${response.status}`);
+    }
+
+    const result = await response.json() as ChunkedUploadCompleteResponse;
+    if (!result.success || !result.data) {
+      throw new Error(result.error ?? 'Failed to complete chunked upload');
+    }
+
+    return {
+      url: result.data.url,
+      key: result.data.key,
+      size: result.data.size
+    };
+  }
+
+  /**
+   * Abort a chunked upload
+   * POST to /api/upload/multipart/abort
+   */
+  async abortChunkedUpload(uploadId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/upload/multipart/abort`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ uploadId }),
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(errorData?.error ?? `Failed to abort chunked upload: ${response.status}`);
+    }
+
+    // Remove stored state
+    this.removeUploadState(uploadId);
+  }
+
+  /**
+   * Get the status of a chunked upload
+   * GET /api/upload/multipart/status?uploadId=xxx
+   */
+  async getChunkedUploadStatus(uploadId: string): Promise<{
+    uploadId: string;
+    key: string;
+    parts: Array<{ partNumber: number; etag: string; size: number }>;
+    status: 'in_progress' | 'completed' | 'aborted';
+    createdAt: string;
+    expiresAt?: string;
+  }> {
+    const response = await fetch(
+      `${this.baseUrl}/api/upload/multipart/status?uploadId=${encodeURIComponent(uploadId)}`,
+      {
+        method: 'GET',
+        credentials: 'include'
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null) as ChunkedUploadStatusResponse | null;
+      throw new Error(errorData?.error ?? `Failed to get chunked upload status: ${response.status}`);
+    }
+
+    const result = await response.json() as ChunkedUploadStatusResponse;
+    if (!result.success || !result.data) {
+      throw new Error(result.error ?? 'Failed to get chunked upload status');
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Get list of resumable uploads from localStorage
+   */
+  getResumableUploads(): ChunkedUploadState[] {
+    const states = this.getStoredUploadStates();
+    return Object.values(states);
+  }
+
+  /**
+   * Clear all stored upload states
+   */
+  clearStoredUploadStates(): void {
+    try {
+      localStorage.removeItem(this.CHUNKED_UPLOAD_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear stored upload states:', error);
+    }
+  }
+
+  /**
    * Upload a single document file using the new API
+   * Automatically uses chunked upload for files > 50MB
    */
   async uploadDocument(
     file: File,
@@ -140,6 +657,22 @@ class UploadService {
     } = {}
   ): Promise<UploadResult> {
     const { pitchId, isPublic, requiresNda, folder, ...uploadOptions } = options;
+
+    // Use chunked upload for large files (> 50MB)
+    if (file.size > this.LARGE_FILE_THRESHOLD) {
+      const result = await this.uploadLargeFile(file, {
+        ...uploadOptions,
+        folder: folder ?? 'uploads',
+        metadata: {
+          ...uploadOptions.metadata,
+          documentType,
+          pitchId,
+          isPublic,
+          requiresNda
+        }
+      });
+      return result;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -155,7 +688,7 @@ class UploadService {
     if (requiresNda !== undefined) {
       formData.append('requiresNda', requiresNda.toString());
     }
-    
+
     // For NDA uploads, use the specific NDA endpoint
     if (documentType === 'nda' || folder === 'nda-documents') {
       // Add metadata for NDA uploads
@@ -1061,7 +1594,10 @@ export { UploadService };
 export type {
   UploadProgress,
   UploadResult,
-  UploadOptions
+  UploadOptions,
+  ChunkedUploadState,
+  UploadedPart,
+  LargeFileUploadOptions
 };
 
 // Re-export enhanced upload result type for better integration

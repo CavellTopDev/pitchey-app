@@ -24,6 +24,10 @@ interface DocumentUploadHubProps {
   initialNDA?: NDADocument;
   disabled?: boolean;
   className?: string;
+  /** When true, files are collected but not uploaded - call onFilesSelected to get them */
+  deferUploads?: boolean;
+  /** Called when files are selected in deferred mode */
+  onFilesSelected?: (files: File[]) => void;
 }
 
 interface UploadSession {
@@ -45,7 +49,9 @@ export default function DocumentUploadHub({
   initialFiles = [],
   initialNDA,
   disabled = false,
-  className = ''
+  className = '',
+  deferUploads = false,
+  onFilesSelected
 }: DocumentUploadHubProps) {
   const [files, setFiles] = useState<EnhancedMediaFile[]>(initialFiles);
   const [ndaDocument, setNDADocument] = useState<NDADocument | undefined>(initialNDA);
@@ -76,7 +82,15 @@ export default function DocumentUploadHub({
   // Handle file changes
   const handleFilesChange = useCallback((updatedFiles: EnhancedMediaFile[]) => {
     setFiles(updatedFiles);
-  }, []);
+
+    // In deferred mode, notify parent about selected files
+    if (deferUploads && onFilesSelected) {
+      const newFiles = updatedFiles
+        .filter(f => f.uploadStatus === 'idle' || f.uploadStatus === 'queued')
+        .map(f => f.file);
+      onFilesSelected(newFiles);
+    }
+  }, [deferUploads, onFilesSelected]);
 
   // Start upload session
   const startUploadSession = useCallback(() => {
@@ -123,6 +137,20 @@ export default function DocumentUploadHub({
   const handleBulkUpload = useCallback(async () => {
     if (files.length === 0) {
       error('No Files', 'Please add files to upload');
+      return;
+    }
+
+    // In deferred mode, files will be uploaded with pitch creation
+    if (deferUploads) {
+      const pendingFiles = files
+        .filter(f => f.uploadStatus === 'idle' || f.uploadStatus === 'queued')
+        .map(f => f.file);
+
+      if (onFilesSelected) {
+        onFilesSelected(pendingFiles);
+      }
+
+      success('Files Ready', `${pendingFiles.length} files will be uploaded when you create the pitch`);
       return;
     }
 
@@ -178,7 +206,7 @@ export default function DocumentUploadHub({
         isActive: false
       } : null);
     }
-  }, [files, uploadOptions, pitchId, startUploadSession, completeUploadSession, error]);
+  }, [files, uploadOptions, pitchId, startUploadSession, completeUploadSession, error, success, deferUploads, onFilesSelected]);
 
   // Get upload summary
   const getUploadSummary = () => {

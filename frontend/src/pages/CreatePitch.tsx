@@ -8,6 +8,7 @@ import { pitchService } from '../services/pitch.service';
 import { uploadService } from '../services/upload.service';
 import { getGenresSync, getFormatsSync, FALLBACK_GENRES } from '../constants/pitchConstants';
 import { useFormValidation } from '../hooks/useFormValidation';
+import { usePitchUploadManager } from '../hooks/usePitchUploadManager';
 import { PitchFormSchema, type PitchFormData, getCharacterCountInfo } from '../schemas/pitch.schema';
 import { a11y } from '../utils/accessibility';
 import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from '../constants/messages';
@@ -39,8 +40,12 @@ export default function CreatePitch() {
   const { } = useBetterAuthStore();
   const { success, error } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'form' | 'creating' | 'uploading' | 'complete'>('form');
   const [genres, setGenres] = useState<string[]>(getGenresSync() || []);
   const [formats, setFormats] = useState<string[]>(getFormatsSync() || []);
+
+  // Upload manager for coordinating file uploads after pitch creation
+  const uploadManager = usePitchUploadManager();
   
   // Initial form data with enhanced fields
   const initialData: PitchFormData = {
@@ -214,7 +219,7 @@ export default function CreatePitch() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: 'image' | 'video') => {
     const file = e.target.files?.[0] || null;
-    
+
     if (file) {
       // Validate the file immediately
       validateField(fileType, file).then(errors => {
@@ -223,12 +228,19 @@ export default function CreatePitch() {
           a11y.validation.announceFieldError(fileType, errors[0]);
           return;
         }
-        
-        // Set the file if valid
-        setValue(fileType as keyof PitchFormData, file as any);
-        
+
+        // Add to upload manager for deferred upload after pitch creation
+        const uploadId = uploadManager.addUpload(file, fileType);
+
+        // Set the file with upload reference
+        setValue(fileType as keyof PitchFormData, {
+          file,
+          uploadId,
+          preview: URL.createObjectURL(file)
+        } as any);
+
         // Announce successful file selection
-        a11y.announcer.announce(`File ${file.name} selected`);
+        a11y.announcer.announce(`File ${file.name} selected for upload`);
       });
     } else {
       setValue(fileType as keyof PitchFormData, null as any);
@@ -236,8 +248,14 @@ export default function CreatePitch() {
   };
 
   const removeFile = (fileType: 'image' | 'video') => {
+    // Get current file data to remove from upload manager
+    const currentFile = formData[fileType] as { uploadId?: string } | null;
+    if (currentFile?.uploadId) {
+      uploadManager.removeUpload(currentFile.uploadId);
+    }
+
     setValue(fileType as keyof PitchFormData, null as any);
-    
+
     // Announce file removal
     a11y.announcer.announce('File removed');
   };
@@ -279,8 +297,9 @@ export default function CreatePitch() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setIsSubmitting(true);
+    setCurrentStep('form');
 
     // Validate NDA configuration
     if (ndaDocument?.ndaType === 'custom' && (!ndaDocument.file || ndaDocument.uploadStatus !== 'completed')) {
@@ -292,12 +311,14 @@ export default function CreatePitch() {
     // Use Valibot validation hook for form submission
     const isFormValid = await validateAndSubmit(async (validatedData) => {
       try {
+        setCurrentStep('creating');
+
         // Use the validated data from Valibot
-        const finalFormat = validatedData.formatSubtype === 'Custom Format (please specify)' 
-          ? validatedData.customFormat 
+        const finalFormat = validatedData.formatSubtype === 'Custom Format (please specify)'
+          ? validatedData.customFormat
           : validatedData.formatSubtype || validatedData.formatCategory;
-          
-        // Prepare pitch data with NDA information and documents
+
+        // Prepare pitch data with NDA information
         const pitchData: any = {
           title: validatedData.title,
           genre: validatedData.genre,
@@ -314,33 +335,91 @@ export default function CreatePitch() {
           worldDescription: validatedData.worldDescription,
           characters: serializeCharacters(validatedData.characters),
           aiUsed: false,
-          // Add documents from R2 storage
+          // Enhanced fields
+          toneAndStyle: validatedData.toneAndStyle,
+          comps: validatedData.comps,
+          storyBreakdown: validatedData.storyBreakdown,
+          whyNow: validatedData.whyNow,
+          productionLocation: validatedData.productionLocation,
+          developmentStage: validatedData.developmentStage,
+          // Video URL fields
+          videoUrl: validatedData.videoUrl,
+          videoPassword: validatedData.videoPassword,
+          videoPlatform: validatedData.videoPlatform,
+          // Documents will be uploaded separately
           documents: validatedData.documents || []
         };
-        
-        // Add custom NDA URL if available  
+
+        // Add custom NDA URL if available
         if (ndaDocument?.ndaType === 'custom' && ndaDocument.url) {
           pitchData.customNdaText = ndaDocument.url;
         }
-        
-        const pitch = await pitchService.create(pitchData);
 
-        
+        // PHASE 1: Create the pitch first to get the pitchId
+        const pitch = await pitchService.create(pitchData);
+        const pitchId = pitch.id;
+
+        // PHASE 2: Upload any pending media files with the actual pitchId
+        if (uploadManager.hasUploads) {
+          setCurrentStep('uploading');
+
+          const uploadResults = await uploadManager.executeUploads(pitchId);
+
+          // Check for upload errors
+          if (uploadResults.failed.length > 0) {
+            console.warn('Some uploads failed:', uploadResults.failed);
+            // Continue anyway - pitch is created, some files may have uploaded
+          }
+
+          // PHASE 3: Update pitch with media URLs if any uploads succeeded
+          if (uploadResults.successful.length > 0) {
+            const mediaUpdates: any = {};
+
+            // Find image and video URLs from successful uploads
+            const imageUpload = uploadResults.successful.find(r =>
+              r.type?.includes('image') || r.filename?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+            );
+            const videoUpload = uploadResults.successful.find(r =>
+              r.type?.includes('video') || r.filename?.match(/\.(mp4|mov|avi|webm)$/i)
+            );
+
+            if (imageUpload) {
+              mediaUpdates.titleImage = imageUpload.url;
+            }
+            if (videoUpload) {
+              mediaUpdates.trailerUrl = videoUpload.url;
+            }
+
+            // Update pitch with media URLs if we have any
+            if (Object.keys(mediaUpdates).length > 0) {
+              try {
+                await pitchService.update(pitchId, mediaUpdates);
+              } catch (updateErr) {
+                console.warn('Failed to update pitch with media URLs:', updateErr);
+                // Don't fail the whole operation - pitch and files are created
+              }
+            }
+          }
+        }
+
+        setCurrentStep('complete');
+
         // Announce success to screen readers
         a11y.validation.announceSuccess(SUCCESS_MESSAGES.PITCH_CREATED || 'Pitch created successfully');
-        
+
         success(SUCCESS_MESSAGES.PITCH_CREATED || 'Pitch created successfully', 'Your pitch has been created and is ready for review.');
-        
-        // Navigate to manage pitches or the created pitch
+
+        // PHASE 4: Navigate only after everything completes
         navigate('/creator/pitches');
       } catch (err: any) {
         console.error('Error creating pitch:', err);
         const errorMessage = err.message || ERROR_MESSAGES?.UNEXPECTED_ERROR || 'An unexpected error occurred';
-        
+
         // Announce error to screen readers
         a11y.announcer.announce(`Error: ${errorMessage}`, 'assertive');
-        
+
         error('Failed to create pitch', errorMessage);
+        setCurrentStep('form');
       } finally {
         setIsSubmitting(false);
       }
@@ -1080,8 +1159,15 @@ export default function CreatePitch() {
             </h3>
             <DocumentUploadHub
               pitchId={undefined} // Will be set after pitch creation
+              deferUploads={true} // Defer uploads until pitch is created
+              onFilesSelected={(files: File[]) => {
+                // Add document files to upload manager for deferred upload
+                files.forEach(file => {
+                  uploadManager.addUpload(file, 'document');
+                });
+              }}
               onUploadComplete={(results: EnhancedUploadResult[]) => {
-                // Store uploaded documents
+                // Store uploaded documents (for non-deferred mode)
                 const documentUrls = results.map(r => ({
                   url: r.cdnUrl,
                   filename: r.filename,
@@ -1140,10 +1226,17 @@ export default function CreatePitch() {
               {isSubmitting ? (
                 <>
                   <LoadingSpinner size="sm" color="white" aria-hidden="true" />
-                  <span aria-live="polite">Creating pitch...</span>
+                  <span aria-live="polite">
+                    {currentStep === 'creating' && 'Creating pitch...'}
+                    {currentStep === 'uploading' && `Uploading files (${uploadManager.overallProgress}%)...`}
+                    {currentStep === 'complete' && 'Finalizing...'}
+                    {currentStep === 'form' && 'Validating...'}
+                  </span>
                 </>
               ) : (
-                'Create Pitch'
+                uploadManager.hasUploads
+                  ? `Create Pitch (${uploadManager.pendingUploads.length} files to upload)`
+                  : 'Create Pitch'
               )}
             </button>
           </div>

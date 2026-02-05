@@ -256,6 +256,7 @@ import { SchemaAdapter } from './middleware/schema-adapter';
 // File upload handler (commented out for debugging)
 // import { R2UploadHandler } from './services/upload-r2';
 import { WorkerFileHandler, createFileResponse } from './services/worker-file-handler';
+import { MultipartUploadHandler } from './worker-modules/multipart-upload';
 import { getRateLimiter, createRateLimitMiddleware } from './services/worker-rate-limiter';
 
 // Import polling service for free tier
@@ -571,6 +572,10 @@ export interface Env {
   AUDIT_LOGS?: R2Bucket;
   TRACE_LOGS?: R2Bucket;
 
+  // Video Processing
+  VIDEO_PROCESSING_QUEUE?: Queue;
+  N8N_WEBHOOK_URL?: string;
+
   // Sentry Error Tracking
   SENTRY_DSN?: string;
   SENTRY_ENVIRONMENT?: string;
@@ -868,6 +873,13 @@ class RouteRegistry {
         userType: payload.userType
       }
     };
+  }
+
+  /**
+   * Public auth validation method for use by external handlers (e.g., multipart upload)
+   */
+  public async validateAuthPublic(request: Request): Promise<{ valid: boolean; user?: any }> {
+    return this.validateAuth(request);
   }
 
   private async requireAuth(request: Request, requiredPermission?: Permission): Promise<AuthCheckResult> {
@@ -4075,6 +4087,26 @@ pitchey_analytics_datapoints_per_minute 1250
     }
     const data = await request.json() as PitchCreateData;
 
+    // Validate required fields
+    const validationErrors: string[] = [];
+
+    if (!data.title || data.title.trim().length < 3) {
+      validationErrors.push('Title is required (minimum 3 characters)');
+    }
+    if (!data.logline || data.logline.trim().length < 10) {
+      validationErrors.push('Logline is required (minimum 10 characters)');
+    }
+    if (!data.genre || data.genre.trim().length === 0) {
+      validationErrors.push('Genre is required');
+    }
+
+    if (validationErrors.length > 0) {
+      return builder.error(
+        ErrorCode.VALIDATION_ERROR,
+        `Pitch validation failed: ${validationErrors.join('; ')}`
+      );
+    }
+
     try {
       const [pitch] = await this.db.query(`
         INSERT INTO pitches (
@@ -5291,7 +5323,7 @@ pitchey_analytics_datapoints_per_minute 1250
         if (this.env.R2_BUCKET) {
           const { EnhancedR2UploadHandler } = await import('./services/enhanced-upload-r2');
           if (!this.enhancedR2Handler) {
-            this.enhancedR2Handler = new EnhancedR2UploadHandler(this.env.R2_BUCKET);
+            this.enhancedR2Handler = new EnhancedR2UploadHandler(this.env.R2_BUCKET, this.env.CACHE);
           }
 
           session = await this.enhancedR2Handler.initializeChunkedUpload(
@@ -5313,27 +5345,21 @@ pitchey_analytics_datapoints_per_minute 1250
             chunkSize: session.chunkSize,
             maxConcurrentChunks: 3
           });
+        } else {
+          // R2 bucket not configured
+          console.error('R2_BUCKET not configured in environment');
+          return builder.error(
+            ErrorCode.SERVICE_UNAVAILABLE,
+            'File storage service is not available. Please contact support.'
+          );
         }
       } catch (error) {
-        console.warn('Enhanced R2 handler failed, falling back to mock:', error);
+        console.error('Chunked upload initialization failed:', error);
+        return builder.error(
+          ErrorCode.INTERNAL_ERROR,
+          'Failed to initialize file upload. Please try again.'
+        );
       }
-
-      // Fallback to mock implementation
-      const sessionId = crypto.randomUUID();
-      const uploadId = crypto.randomUUID();
-      const fileKey = `${category}/${authResult.user.id}/${Date.now()}-${fileName}`;
-      const totalChunks = Math.ceil(fileSize / chunkSize);
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      return builder.success({
-        sessionId,
-        uploadId: `mock-${uploadId}`,
-        fileKey,
-        totalChunks,
-        expiresAt: expiresAt.toISOString(),
-        chunkSize,
-        maxConcurrentChunks: 3
-      });
 
     } catch (error) {
       console.error('Init chunked upload error:', error);
@@ -5364,46 +5390,37 @@ pitchey_analytics_datapoints_per_minute 1250
         return builder.error(ErrorCode.VALIDATION_ERROR, 'Empty chunk data');
       }
 
-      // Use enhanced R2 handler if available
-      if (this.enhancedR2Handler) {
-        try {
-          const result = await this.enhancedR2Handler.uploadChunk(
-            sessionId,
-            chunkIndex,
-            chunkData,
-            checksum
-          );
-
-          return builder.success({
-            chunkIndex,
-            partNumber: chunkIndex + 1,
-            etag: result.etag,
-            checksum: result.checksum,
-            uploadedAt: new Date().toISOString()
-          });
-        } catch (error) {
-          console.error('Enhanced R2 chunk upload failed:', error);
-          // Fall through to mock implementation
-        }
+      // Use enhanced R2 handler - required for actual uploads
+      if (!this.enhancedR2Handler) {
+        console.error('R2 handler not initialized - cannot upload chunk');
+        return builder.error(
+          ErrorCode.SERVICE_UNAVAILABLE,
+          'File storage service is not available. Please try again.'
+        );
       }
 
-      // Fallback: validate checksum and simulate upload
-      const actualChecksum = await this.calculateChecksum(chunkData);
-      if (actualChecksum !== checksum) {
-        return builder.error(ErrorCode.VALIDATION_ERROR, 'Chunk checksum mismatch');
+      try {
+        const result = await this.enhancedR2Handler.uploadChunk(
+          sessionId,
+          chunkIndex,
+          chunkData,
+          checksum
+        );
+
+        return builder.success({
+          chunkIndex,
+          partNumber: chunkIndex + 1,
+          etag: result.etag,
+          checksum: result.checksum,
+          uploadedAt: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Chunk upload failed:', error);
+        return builder.error(
+          ErrorCode.INTERNAL_ERROR,
+          'Failed to upload file chunk. Please try again.'
+        );
       }
-
-      // Mock successful upload
-      const etag = `"${actualChecksum.substring(0, 16)}"`;
-      const partNumber = chunkIndex + 1;
-
-      return builder.success({
-        chunkIndex,
-        partNumber,
-        etag,
-        checksum: actualChecksum,
-        uploadedAt: new Date().toISOString()
-      });
 
     } catch (error) {
       console.error('Upload chunk error:', error);
@@ -5420,7 +5437,7 @@ pitchey_analytics_datapoints_per_minute 1250
     try {
       const body = await request.json() as {
         sessionId?: string;
-        chunks?: Array<{ chunkIndex: number; size?: number; [key: string]: unknown }>;
+        chunks?: Array<{ chunkIndex: number; size?: number; etag?: string; [key: string]: unknown }>;
       };
       const { sessionId, chunks } = body;
 
@@ -5428,8 +5445,14 @@ pitchey_analytics_datapoints_per_minute 1250
         return builder.error(ErrorCode.VALIDATION_ERROR, 'Missing sessionId or chunks');
       }
 
-      // Retrieve session info (would normally fetch from KV/database)
-      // For now, simulate a successful completion
+      // Require R2 handler for actual completion
+      if (!this.enhancedR2Handler) {
+        console.error('R2 handler not initialized - cannot complete upload');
+        return builder.error(
+          ErrorCode.SERVICE_UNAVAILABLE,
+          'File storage service is not available. Please try again.'
+        );
+      }
 
       // Sort chunks by index to ensure proper order
       const sortedChunks = chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
@@ -5441,27 +5464,91 @@ pitchey_analytics_datapoints_per_minute 1250
         }
       }
 
-      // Complete multipart upload (simulate R2 completion)
-      const fileKey = `uploads/${authResult.user.id}/${Date.now()}-completed-file`;
-      const fileUrl = `https://pitchey-api-prod.ndlovucavelle.workers.dev/api/files/${fileKey}`;
+      // Complete multipart upload via R2 handler
+      let completionResult;
+      try {
+        completionResult = await this.enhancedR2Handler.completeChunkedUpload(sessionId, sortedChunks);
+      } catch (r2Error) {
+        console.error('R2 multipart completion failed:', r2Error);
+        return builder.error(
+          ErrorCode.INTERNAL_ERROR,
+          'Failed to complete file upload. Please try again.'
+        );
+      }
 
-      // Calculate total size and generate metadata
+      // Get session metadata for database record
+      const session = await this.enhancedR2Handler.getSession(sessionId);
+      const category = session?.category || 'document';
+      const pitchId = session?.metadata?.pitchId || null;
+      const requireNDA = session?.metadata?.requireNDA || false;
       const totalSize = sortedChunks.reduce((sum, chunk) => sum + (chunk.size || 0), 0);
+
+      // Create database record for the uploaded file
+      try {
+        if (category === 'video' || category === 'image') {
+          // Insert into media_files table
+          await this.db.query(`
+            INSERT INTO media_files (
+              uploaded_by, pitch_id, file_name, file_size, mime_type,
+              storage_path, category, is_public, metadata, uploaded_at, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          `, [
+            authResult.user.id,
+            pitchId ? parseInt(pitchId, 10) : null,
+            session?.fileName || completionResult.fileName,
+            totalSize,
+            session?.mimeType || 'application/octet-stream',
+            completionResult.fileKey,
+            category,
+            false,
+            JSON.stringify({
+              uploadMethod: 'chunked',
+              sessionId,
+              chunks: sortedChunks.length,
+              completedAt: new Date().toISOString()
+            })
+          ]);
+        } else {
+          // Insert into documents table
+          await this.db.query(`
+            INSERT INTO documents (
+              pitch_id, uploaded_by_id, file_name, file_url,
+              file_size, mime_type, document_type,
+              is_public, requires_nda,
+              created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          `, [
+            pitchId ? parseInt(pitchId, 10) : null,
+            authResult.user.id,
+            session?.fileName || completionResult.fileName,
+            completionResult.url,
+            totalSize,
+            session?.mimeType || 'application/octet-stream',
+            category === 'nda' ? 'nda' : 'other',
+            false,
+            requireNDA
+          ]);
+        }
+      } catch (dbError) {
+        console.error('Failed to create database record for upload:', dbError);
+        // Don't fail the upload - file is in R2, just log the database issue
+      }
 
       const result = {
         sessionId,
-        fileKey,
-        fileName: `uploaded-file-${sessionId.substring(0, 8)}`,
+        fileKey: completionResult.fileKey,
+        fileName: session?.fileName || completionResult.fileName,
         fileSize: totalSize,
-        url: fileUrl,
-        publicUrl: fileUrl,
+        url: completionResult.url,
+        publicUrl: completionResult.url,
         uploadedAt: new Date().toISOString(),
-        mimeType: 'application/octet-stream',
-        category: 'document',
+        mimeType: session?.mimeType || 'application/octet-stream',
+        category,
         chunks: sortedChunks.length,
         metadata: {
           uploadMethod: 'chunked',
-          completedAt: new Date().toISOString()
+          completedAt: new Date().toISOString(),
+          pitchId
         }
       };
 
@@ -15012,10 +15099,45 @@ const workerHandler = {
         // Check for validated routes first
         const requestUrl = new URL(request.url);
         const validatedRoute = matchValidatedRoute(request.method, requestUrl.pathname);
-        
+
         let response: Response;
-        
-        if (validatedRoute) {
+
+        // Handle multipart upload routes before other upload routes
+        if (requestUrl.pathname.startsWith('/api/upload/multipart')) {
+          // Create Sentry logger wrapper for multipart handler
+          const sentryLogger = {
+            async captureError(error: Error, context?: Record<string, any>): Promise<void> {
+              if (typeof Sentry?.captureException === 'function') {
+                Sentry.captureException(error, { extra: context });
+              }
+              console.error('[Multipart Upload Error]', error.message, context);
+            },
+            async captureMessage(message: string, level?: 'info' | 'warning' | 'error', context?: Record<string, any>): Promise<void> {
+              if (typeof Sentry?.captureMessage === 'function') {
+                Sentry.captureMessage(message, { level: level || 'info', extra: context });
+              }
+              console.log(`[Multipart Upload ${level || 'info'}]`, message, context);
+            }
+          };
+
+          // Validate auth for multipart uploads
+          const authResult = await router.validateAuthPublic(request);
+          const userAuth = authResult.valid && authResult.user ? {
+            userId: authResult.user.id,
+            email: authResult.user.email,
+            userType: authResult.user.user_type || authResult.user.userType || 'creator',
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + 3600
+          } : undefined;
+
+          const multipartHandler = new MultipartUploadHandler(env, sentryLogger);
+          response = await multipartHandler.handleMultipartRequest(
+            request,
+            requestUrl.pathname,
+            request.method,
+            userAuth
+          );
+        } else if (validatedRoute) {
           // Handle validated route with contract enforcement
           response = await validatedRoute.handler(request, env);
         } else {
