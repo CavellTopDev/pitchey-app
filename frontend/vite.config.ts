@@ -32,28 +32,14 @@ export default defineConfig(() => {
     target: 'es2020',
     sourcemap: false,
     chunkSizeWarningLimit: 2000,
-    modulePreload: {
-      // Don't eagerly preload heavy vendor chunks only needed on specific pages
-      resolveDependencies: (_filename, deps) =>
-        deps.filter((d) => !d.includes('vendor-charts') && !d.includes('vendor-motion')),
-    },
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            // Charts — only needed on analytics pages (~50KB+)
-            if (id.includes('recharts') || id.includes('d3-')) {
-              return 'vendor-charts';
-            }
-            // Animation — heavy, not needed on every page
-            if (id.includes('framer-motion')) {
-              return 'vendor-motion';
-            }
-            // Radix UI primitives
-            if (id.includes('@radix-ui')) {
-              return 'vendor-radix';
-            }
-            // React core (cacheable across deploys)
+            // Only split foundational deps that have no circular risk.
+            // Heavy libs (recharts, framer-motion, radix) are already
+            // deferred by React.lazy() — Rollup creates async chunks
+            // for them automatically without cross-chunk TDZ issues.
             if (
               id.includes('/react-dom/') ||
               id.includes('/react/') ||
@@ -61,7 +47,6 @@ export default defineConfig(() => {
             ) {
               return 'vendor-react';
             }
-            // Router
             if (id.includes('react-router') || id.includes('@remix-run')) {
               return 'vendor-router';
             }
