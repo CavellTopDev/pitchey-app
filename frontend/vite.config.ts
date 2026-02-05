@@ -32,6 +32,11 @@ export default defineConfig(() => {
     target: 'es2020',
     sourcemap: false,
     chunkSizeWarningLimit: 2000,
+    modulePreload: {
+      // Don't eagerly preload heavy vendor chunks only needed on specific pages
+      resolveDependencies: (_filename, deps) =>
+        deps.filter((d) => !d.includes('vendor-charts') && !d.includes('vendor-motion')),
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {
