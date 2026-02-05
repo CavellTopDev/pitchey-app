@@ -717,8 +717,9 @@ class ABTestingService {
 
   private hashString(str: string): number {
     let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
+    const safeStr = str.slice(0, 1024);
+    for (let i = 0; i < safeStr.length; i++) {
+      const char = safeStr.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }

@@ -663,9 +663,9 @@ export class CDNService {
    * Apply cache rules to asset
    */
   private async applyCacheRules(url: string, type: string): Promise<void> {
-    const rule = this.cacheRules.find(r => 
-      url.includes(r.pattern.replace('*', '')) || 
-      type === r.pattern.replace('/', '').replace('*', '')
+    const rule = this.cacheRules.find(r =>
+      url.includes(r.pattern.replaceAll('*', '')) ||
+      type === r.pattern.replaceAll('/', '').replaceAll('*', '')
     );
 
     if (rule && !rule.bypassCache) {

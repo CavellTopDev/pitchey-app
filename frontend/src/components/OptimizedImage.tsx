@@ -17,6 +17,18 @@ interface OptimizedImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 
 }
 
 // Cloudflare Image Resizing API parameters
+const isAllowedImageHost = (url: string): { valid: boolean; hostname: string } => {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return { valid: false, hostname: '' }
+    }
+    return { valid: true, hostname: parsed.hostname.toLowerCase() }
+  } catch {
+    return { valid: false, hostname: '' }
+  }
+}
+
 const generateCloudflareUrl = (
   src: string,
   options: {
@@ -28,8 +40,11 @@ const generateCloudflareUrl = (
     blur?: number
   }
 ) => {
+  const { valid, hostname } = isAllowedImageHost(src)
+  if (!valid) return src
+
   // If already a Cloudflare Images URL, modify it
-  if (src.includes('imagedelivery.net')) {
+  if (hostname.endsWith('imagedelivery.net')) {
     const params = new URLSearchParams()
     if (options.width) params.append('w', options.width.toString())
     if (options.height) params.append('h', options.height.toString())
@@ -37,22 +52,22 @@ const generateCloudflareUrl = (
     if (options.format) params.append('f', options.format)
     if (options.fit) params.append('fit', options.fit)
     if (options.blur) params.append('blur', options.blur.toString())
-    
+
     return `${src}?${params.toString()}`
   }
-  
+
   // For R2 URLs, use Cloudflare Image Resizing
-  if (src.includes('r2.cloudflarestorage.com') || src.includes('pitchey')) {
+  if (hostname.endsWith('r2.cloudflarestorage.com') || hostname.includes('pitchey')) {
     const params: string[] = []
     if (options.width) params.push(`width=${options.width}`)
     if (options.height) params.push(`height=${options.height}`)
     if (options.quality) params.push(`quality=${options.quality}`)
     if (options.format) params.push(`format=${options.format}`)
     if (options.fit) params.push(`fit=${options.fit}`)
-    
-    return `/cdn-cgi/image/${params.join(',')}/${src}`
+
+    return `/cdn-cgi/image/${params.join(',')}/${encodeURI(src)}`
   }
-  
+
   return src
 }
 

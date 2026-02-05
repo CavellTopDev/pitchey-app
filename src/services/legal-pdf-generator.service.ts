@@ -410,7 +410,7 @@ export class LegalPDFGenerator {
     // This would be replaced with proper DOCX generation
     
     let docxContent = htmlContent;
-    
+
     // Remove HTML tags and convert to plain text with formatting indicators
     docxContent = docxContent
       .replace(/<title[^>]*>(.*?)<\/title>/gi, '[$1 - Document Title]\n\n')
@@ -423,8 +423,16 @@ export class LegalPDFGenerator {
       .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
       .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
       .replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, '') // Remove remaining HTML tags
+      .replace(/<br\s*\/?>/gi, '\n');
+
+    // Iteratively remove HTML tags to handle nested/malformed tags
+    let previous = '';
+    while (previous !== docxContent) {
+      previous = docxContent;
+      docxContent = docxContent.replace(/<[^>]*>/g, '');
+    }
+
+    docxContent = docxContent
       .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up extra newlines
       .trim();
     
@@ -532,7 +540,13 @@ export class LegalPDFGenerator {
   private static estimatePageCount(htmlContent: string): number {
     // Rough estimation based on content length
     // This would be more accurate with actual PDF generation
-    const textLength = htmlContent.replace(/<[^>]*>/g, '').length;
+    let stripped = htmlContent;
+    let previous = '';
+    while (previous !== stripped) {
+      previous = stripped;
+      stripped = stripped.replace(/<[^>]*>/g, '');
+    }
+    const textLength = stripped.length;
     const averageCharactersPerPage = 2500; // Estimated for 12pt Times New Roman
     return Math.max(1, Math.ceil(textLength / averageCharactersPerPage));
   }

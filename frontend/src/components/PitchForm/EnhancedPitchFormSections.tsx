@@ -380,8 +380,14 @@ export const VideoUrlSection: React.FC<VideoUrlSectionProps> = ({
 }) => {
   // Detect platform from URL
   const detectPlatform = (url: string): string => {
-    if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
-    if (url.includes('vimeo.com')) return 'vimeo';
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname.toLowerCase();
+      if (hostname === 'youtube.com' || hostname === 'www.youtube.com' || hostname === 'youtu.be') return 'youtube';
+      if (hostname === 'vimeo.com' || hostname === 'www.vimeo.com') return 'vimeo';
+    } catch {
+      // Invalid URL, fall through
+    }
     return 'other';
   };
 

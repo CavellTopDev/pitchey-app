@@ -82,7 +82,8 @@ class UpstashRedisClient implements CacheClient {
   }
 
   private async request(command: string[]) {
-    const response = await fetch(`${this.baseUrl}/${command.join('/')}`, {
+    const encodedCommand = command.map(part => encodeURIComponent(part));
+    const response = await fetch(`${this.baseUrl}/${encodedCommand.join('/')}`, {
       headers: {
         Authorization: `Bearer ${this.token}`,
       },
@@ -624,7 +625,7 @@ export class CacheService {
       const cached = await cacheClient.get(key);
       return cached ? JSON.parse(cached) : null;
     } catch (error: any) {
-      console.warn(`Cache get error for ${key}:`, getErrorMessage(error));
+      console.warn('Cache get error for key:', key, getErrorMessage(error));
       return null;
     }
   }
@@ -636,7 +637,7 @@ export class CacheService {
         await cacheClient.expire(key, ttl);
       }
     } catch (error: any) {
-      console.warn(`Cache set error for ${key}:`, getErrorMessage(error));
+      console.warn('Cache set error for key:', key, getErrorMessage(error));
     }
   }
 
@@ -648,7 +649,7 @@ export class CacheService {
     try {
       await cacheClient.del(key);
     } catch (error: any) {
-      console.warn(`Cache delete error for ${key}:`, getErrorMessage(error));
+      console.warn('Cache delete error for key:', key, getErrorMessage(error));
     }
   }
 }

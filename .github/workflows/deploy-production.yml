@@ -124,18 +124,18 @@ jobs:
       - name: Deploy Worker to Cloudflare
         run: |
           npm install -g wrangler
-          wrangler deploy --env production
+          wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           
       - name: Update Worker secrets
         run: |
-          echo "${{ secrets.NEON_DATABASE_URL }}" | wrangler secret put DATABASE_URL --env production
-          echo "${{ secrets.JWT_SECRET }}" | wrangler secret put JWT_SECRET --env production
-          echo "${{ secrets.UPSTASH_REDIS_REST_URL }}" | wrangler secret put UPSTASH_REDIS_REST_URL --env production
-          echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN --env production
-          echo "${{ secrets.SENTRY_DSN }}" | wrangler secret put SENTRY_DSN --env production
+          echo "${{ secrets.NEON_DATABASE_URL }}" | wrangler secret put DATABASE_URL
+          echo "${{ secrets.JWT_SECRET }}" | wrangler secret put JWT_SECRET
+          echo "${{ secrets.UPSTASH_REDIS_REST_URL }}" | wrangler secret put UPSTASH_REDIS_REST_URL
+          echo "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}" | wrangler secret put UPSTASH_REDIS_REST_TOKEN
+          echo "${{ secrets.SENTRY_DSN }}" | wrangler secret put SENTRY_DSN
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -193,7 +193,7 @@ jobs:
         
       - name: Health check - API
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-production.cavelltheleaddev.workers.dev/health)
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-api-prod.ndlovucavelle.workers.dev/health)
           if [ $response -ne 200 ]; then
             echo "API health check failed with status $response"
             exit 1
@@ -202,7 +202,7 @@ jobs:
           
       - name: Health check - Frontend
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey.pages.dev)
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://pitchey-5o8.pages.dev)
           if [ $response -ne 200 ]; then
             echo "Frontend health check failed with status $response"
             exit 1
@@ -211,7 +211,7 @@ jobs:
           
       - name: Database connectivity check
         run: |
-          curl -s https://pitchey-production.cavelltheleaddev.workers.dev/health/database | jq .status
+          curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/health/database | jq .status
           
       - name: Setup Deno for smoke tests
         uses: denoland/setup-deno@v2
@@ -222,8 +222,8 @@ jobs:
         run: |
           npm run test:e2e:smoke
         env:
-          BASE_URL: https://pitchey.pages.dev
-          API_URL: https://pitchey-production.cavelltheleaddev.workers.dev
+          BASE_URL: https://pitchey-5o8.pages.dev
+          API_URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
           
   # Notify deployment status
   notify:
@@ -260,7 +260,7 @@ jobs:
                 repo: context.repo.repo,
                 deployment_id: deployment.data.id,
                 state: '${{ needs.smoke-test.result }}' === 'success' ? 'success' : 'failure',
-                environment_url: 'https://pitchey.pages.dev',
+                environment_url: 'https://pitchey-5o8.pages.dev',
                 description: `Deployment ${status}`,
               });
             } catch (error) {
@@ -288,7 +288,7 @@ jobs:
                       {
                         type: 'button',
                         text: 'View Site',
-                        url: 'https://pitchey.pages.dev'
+                        url: 'https://pitchey-5o8.pages.dev'
                       },
                       {
                         type: 'button', 

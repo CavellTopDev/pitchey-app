@@ -39,6 +39,19 @@ import {
   Lock
 } from 'lucide-react';
 
+function sanitizeImageUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return parsed.href;
+    }
+  } catch {
+    // Invalid URL
+  }
+  return undefined;
+}
+
 export default function Marketplace() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1582,9 +1595,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
                           >
                             <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 relative overflow-hidden">
-                              {pitch.thumbnailUrl ? (
+                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
                                 <img
-                                  src={pitch.thumbnailUrl}
+                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -1634,9 +1647,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
                           >
                             <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100">
-                              {pitch.thumbnailUrl ? (
+                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
                                 <img
-                                  src={pitch.thumbnailUrl}
+                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -1671,9 +1684,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
                           >
                             <div className="aspect-video bg-gradient-to-br from-red-100 to-orange-100">
-                              {pitch.thumbnailUrl ? (
+                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
                                 <img
-                                  src={pitch.thumbnailUrl}
+                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -1714,9 +1727,9 @@ export default function Marketplace() {
                             className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer"
                           >
                             <div className="aspect-video bg-gradient-to-br from-green-100 to-teal-100">
-                              {pitch.thumbnailUrl ? (
+                              {sanitizeImageUrl(pitch.thumbnailUrl) ? (
                                 <img
-                                  src={pitch.thumbnailUrl}
+                                  src={sanitizeImageUrl(pitch.thumbnailUrl)}
                                   alt={pitch.title}
                                   className="w-full h-full object-cover"
                                 />

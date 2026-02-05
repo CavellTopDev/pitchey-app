@@ -101,6 +101,9 @@ test-results/
 playwright-report/
 
 
+# MCP configuration (contains API keys)
+.mcp.json
+
 # Local Cloudflare Pages folder
 .wrangler
 TWILIO_SETUP_GUIDE.md

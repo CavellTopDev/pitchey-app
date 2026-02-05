@@ -162,7 +162,7 @@ export class WorkerRealtimeService {
 
     // Initialize user variables with defaults for anonymous connection
     let user: any = null;
-    let userId: string = `anonymous-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    let userId: string = `anonymous-${crypto.randomUUID()}`;
     let userType: string = 'anonymous';
 
     // Authentication phase - wrapped in try-catch to allow anonymous fallback

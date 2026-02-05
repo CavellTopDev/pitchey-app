@@ -776,7 +776,9 @@ export class ContentDiscoveryService {
 
   private getRandomCreditRating(): string {
     const ratings = ['AAA', 'AA', 'A', 'BBB', 'BB', 'B'];
-    return ratings[Math.floor(Math.random() * ratings.length)];
+    const randomBytes = new Uint32Array(1);
+    crypto.getRandomValues(randomBytes);
+    return ratings[randomBytes[0] % ratings.length];
   }
 
   private calculateAverageBudget(projects: any[]): number {

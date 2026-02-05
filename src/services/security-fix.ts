@@ -285,9 +285,15 @@ export const rateLimiters = {
 export class Sanitizer {
   // Remove HTML tags and dangerous characters
   static text(input: string): string {
-    return input
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .replace(/[<>\"']/g, '') // Remove dangerous characters
+    let result = input;
+    // Iteratively remove HTML tags to handle nested/malformed markup
+    let previous = '';
+    while (previous !== result) {
+      previous = result;
+      result = result.replace(/<[^>]*>/g, '');
+    }
+    return result
+      .replace(/[<>\"'&]/g, '') // Remove dangerous characters
       .trim();
   }
 
