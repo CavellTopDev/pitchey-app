@@ -1,0 +1,104 @@
+name: Lighthouse CI
+
+on:
+  # Run after frontend deploys
+  workflow_run:
+    workflows: ["Deploy Frontend to Cloudflare Pages"]
+    types: [completed]
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    name: Lighthouse Audit
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Wait for deployment to propagate
+        run: sleep 30
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli
+
+      - name: Run Lighthouse (Desktop)
+        run: |
+          lhci collect \
+            --url="https://pitchey-5o8.pages.dev" \
+            --url="https://pitchey-5o8.pages.dev/marketplace" \
+            --url="https://pitchey-5o8.pages.dev/portals" \
+            --settings.preset=desktop \
+            --settings.chromeFlags="--no-sandbox --disable-gpu" \
+            --numberOfRuns=3
+        env:
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+
+      - name: Assert Lighthouse scores
+        run: |
+          lhci assert \
+            --preset=lighthouse:recommended \
+            --assert.assertions.categories:performance=off \
+            --assert.assertions.categories:accessibility=off \
+            --assert.assertions.categories:best-practices=off \
+            --assert.assertions.categories:seo=off \
+            --assert.assertions.first-contentful-paint="warn:maxNumericValue=3000" \
+            --assert.assertions.largest-contentful-paint="warn:maxNumericValue=4000" \
+            --assert.assertions.total-blocking-time="warn:maxNumericValue=500" \
+            --assert.assertions.cumulative-layout-shift="warn:maxNumericValue=0.1" \
+            --assert.assertions.unused-javascript="warn:maxLength=5" || true
+
+      - name: Upload Lighthouse results
+        run: |
+          lhci upload \
+            --target=temporary-public-storage || true
+
+      - name: Parse and display results
+        if: always()
+        run: |
+          echo "## Lighthouse Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          for file in .lighthouseci/lhr-*.json; do
+            [ -f "$file" ] || continue
+            url=$(python3 -c "import json; print(json.load(open('$file'))['finalUrl'])")
+            perf=$(python3 -c "import json; d=json.load(open('$file')); print(int(d['categories']['performance']['score']*100))" 2>/dev/null || echo "N/A")
+            a11y=$(python3 -c "import json; d=json.load(open('$file')); print(int(d['categories']['accessibility']['score']*100))" 2>/dev/null || echo "N/A")
+            bp=$(python3 -c "import json; d=json.load(open('$file')); print(int(d['categories']['best-practices']['score']*100))" 2>/dev/null || echo "N/A")
+            seo=$(python3 -c "import json; d=json.load(open('$file')); print(int(d['categories']['seo']['score']*100))" 2>/dev/null || echo "N/A")
+            fcp=$(python3 -c "import json; d=json.load(open('$file')); print(d['audits']['first-contentful-paint']['displayValue'])" 2>/dev/null || echo "N/A")
+            lcp=$(python3 -c "import json; d=json.load(open('$file')); print(d['audits']['largest-contentful-paint']['displayValue'])" 2>/dev/null || echo "N/A")
+            tbt=$(python3 -c "import json; d=json.load(open('$file')); print(d['audits']['total-blocking-time']['displayValue'])" 2>/dev/null || echo "N/A")
+            cls=$(python3 -c "import json; d=json.load(open('$file')); print(d['audits']['cumulative-layout-shift']['displayValue'])" 2>/dev/null || echo "N/A")
+
+            echo "### $url" >> $GITHUB_STEP_SUMMARY
+            echo "| Category | Score |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Performance | $perf |" >> $GITHUB_STEP_SUMMARY
+            echo "| Accessibility | $a11y |" >> $GITHUB_STEP_SUMMARY
+            echo "| Best Practices | $bp |" >> $GITHUB_STEP_SUMMARY
+            echo "| SEO | $seo |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| FCP | $fcp |" >> $GITHUB_STEP_SUMMARY
+            echo "| LCP | $lcp |" >> $GITHUB_STEP_SUMMARY
+            echo "| TBT | $tbt |" >> $GITHUB_STEP_SUMMARY
+            echo "| CLS | $cls |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 14
