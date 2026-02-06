@@ -73,7 +73,7 @@ jobs:
 
       - name: 🔧 Type checking
         run: npm run type-check
-        continue-on-error: true
+        continue-on-error: false
 
       - name: 🏗️ Build frontend
         run: npm run build
