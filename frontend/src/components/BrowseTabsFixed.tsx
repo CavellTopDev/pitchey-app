@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TrendingUp, Clock, Star, Award, Search, Filter, Eye, Heart, User } from 'lucide-react';
 import LoadingSpinner from './Loading/LoadingSpinner';
-import { pitchService } from '../services/pitch.service';
+import { PitchService } from '../services/pitch.service';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -147,22 +147,15 @@ const BrowseTabsFixed: React.FC = () => {
     try {
       const page = currentPage;
 
-      // Call the existing getTrendingPitches or getPublicPitches method
-      let response: any;
-      if (tab === 'trending') {
-        response = await pitchService.getTrendingPitches(12);
-        // Transform to expected format
-        response = { data: { pitches: response } };
-      } else {
-        // Use getPublicPitches for other tabs with parameters
-        const params: { page: number; limit: number; search?: string; genre?: string } = {
-          page,
-          limit: 12
-        };
-        if (currentSearch !== '') params.search = currentSearch;
-        if (currentGenre !== 'all') params.genre = currentGenre;
-        response = await pitchService.getPublicPitches(params);
-      }
+      // Use the enhanced public endpoints that route per tab
+      const params: { page: number; limit: number; tab: string; search?: string; genre?: string } = {
+        page,
+        limit: 12,
+        tab
+      };
+      if (currentSearch !== '') params.search = currentSearch;
+      if (currentGenre !== 'all') params.genre = currentGenre;
+      const response = await PitchService.getPublicPitchesEnhanced(params);
 
       // Check if this response is still valid (no newer request has been made)
       if (requestId !== fetchRequestIdRef.current[tab]) {
@@ -170,7 +163,7 @@ const BrowseTabsFixed: React.FC = () => {
         return;
       }
 
-      const newPitches = response.pitches || response.data?.pitches || [];
+      const newPitches = response?.pitches || [];
       const hasMore = newPitches.length === 12; // If we got full page, there might be more
 
       setTabStates(prev => ({

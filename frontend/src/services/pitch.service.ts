@@ -1097,7 +1097,7 @@ export class PitchService {
     search?: string;
     page?: number;
     limit?: number;
-    tab?: 'trending' | 'new' | 'featured' | 'all';
+    tab?: 'trending' | 'new' | 'featured' | 'topRated' | 'all';
   }): Promise<{ pitches: Pitch[]; total: number }> {
     try {
       // Route to specific endpoint based on tab
@@ -1113,6 +1113,11 @@ export class PitchService {
 
       if (filters?.tab === 'featured') {
         const pitches = await this.getPublicFeaturedPitches(filters.limit);
+        return { pitches, total: pitches.length };
+      }
+
+      if (filters?.tab === 'topRated') {
+        const pitches = await this.getPublicTrendingPitches(filters.limit);
         return { pitches, total: pitches.length };
       }
 
