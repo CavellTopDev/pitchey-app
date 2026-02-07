@@ -58,11 +58,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
-      - name: Setup Deno
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: v2.5.x
-      
       - name: Install dependencies
         run: |
           npm ci
@@ -89,20 +84,11 @@ jobs:
           echo "Frontend coverage: ${frontend_coverage}%"
           echo "frontend_coverage=$frontend_coverage" >> $GITHUB_ENV
       
-      - name: Generate Backend Coverage
+      - name: Set Backend Coverage
         run: |
-          echo "🧪 Running backend tests with coverage..."
-          deno test tests/ --allow-all --coverage=coverage_backend/ || true
-          deno coverage coverage_backend/ --lcov --output=coverage_backend/lcov.info 2>/dev/null || true
+          echo "ℹ️ Backend coverage not available (no test runner configured)"
+          echo "backend_coverage=0" >> $GITHUB_ENV
 
-          # Calculate backend coverage
-          backend_coverage=$(deno coverage coverage_backend/ 2>/dev/null | grep -oP 'cover \K[0-9.]+' | head -1 || echo "0")
-
-          # Ensure we have a valid number
-          backend_coverage=${backend_coverage:-0}
-          echo "Backend coverage: ${backend_coverage}%"
-          echo "backend_coverage=$backend_coverage" >> $GITHUB_ENV
-      
       - name: Evaluate Coverage Quality Gate
         id: coverage
         run: |

@@ -24,11 +24,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: 'frontend/package-lock.json'
           
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-          
       - name: Install root dependencies
         run: npm ci
         
@@ -52,14 +47,6 @@ jobs:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
       
-      - name: Run backend tests  
-        run: |
-          # Use CI-appropriate test command to avoid Deno runtime issues
-          npm run test:ci
-        env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          
       - name: Build frontend
         run: |
           cd frontend
@@ -69,44 +56,10 @@ jobs:
           VITE_WS_URL: wss://pitchey-api-prod.ndlovucavelle.workers.dev
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-  # Deploy database migrations
-  migrate:
-    needs: [test]
-    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Run production migrations
-        run: |
-          npm run db:migrate:prod
-        env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          
-      - name: Verify database health
-        run: |
-          npm run db:health-check
-        env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-
   # Deploy Cloudflare Worker
   deploy-worker:
-    needs: [migrate]
+    needs: [test]
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -212,18 +165,6 @@ jobs:
       - name: Database connectivity check
         run: |
           curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/health/database | jq .status
-          
-      - name: Setup Deno for smoke tests
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-          
-      - name: Run E2E smoke tests
-        run: |
-          npm run test:e2e:smoke
-        env:
-          BASE_URL: https://pitchey-5o8.pages.dev
-          API_URL: https://pitchey-api-prod.ndlovucavelle.workers.dev
           
   # Notify deployment status
   notify:

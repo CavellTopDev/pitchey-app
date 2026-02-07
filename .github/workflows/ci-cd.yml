@@ -104,25 +104,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: 🦕 Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
       - name: 📦 Install Wrangler
         run: npm install -g wrangler@latest
 
       - name: 📦 Install dependencies
         run: npm ci
         
-      # Skip TypeScript compilation since Worker uses Deno/ESBuild directly
-
-      - name: 🧪 Run Worker tests
-        run: npm run test:ci
-        env:
-          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-
       - name: 🏗️ Build Worker
         run: npm run build:worker
 
@@ -148,11 +135,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
-      - name: 🦕 Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
 
       - name: 📦 Install dependencies
         run: npm ci

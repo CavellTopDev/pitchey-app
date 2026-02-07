@@ -17,14 +17,13 @@ Pitchey is a comprehensive movie pitch platform that connects creators, investor
 ## Development Setup
 
 ### Local Development Configuration
-**IMPORTANT: Use proxy server on PORT 8001 for local development**
+**IMPORTANT: Use `wrangler dev` for local backend development**
 ```bash
-cd /home/supremeisbeing/pitcheymovie/pitchey_v0.2
-# Start proxy server (proxies to production Worker API)
-PORT=8001 deno run --allow-all working-server.ts
+# Start Worker locally with bindings
+wrangler dev
 ```
 
-This proxy server forwards all `/api/*` requests to the production Cloudflare Worker API, enabling local frontend development with production data.
+The Worker runs locally with `wrangler dev`, providing API access for frontend development.
 
 ### Frontend Configuration  
 **Frontend connects to backend on port 8001 (local) or Worker API (production)**
@@ -57,9 +56,8 @@ wrangler deploy
 ## Commands
 
 ### Local Development
-- Backend: `PORT=8001 deno run --allow-all working-server.ts`
-- Frontend: `npm run dev` 
-- Worker: `wrangler dev`
+- Backend: `wrangler dev`
+- Frontend: `npm run dev`
 
 ### Production Deployment
 - Deploy Frontend: `wrangler pages deploy frontend/dist --project-name=pitchey`
@@ -142,7 +140,6 @@ These endpoints still work but internally use Better Auth:
 - **WebSockets**: Implemented via Workers (free tier limitations prevent Durable Objects)
 
 ### Key Implementation Details
-- Local proxy server runs on port 8001 to forward requests to production Worker
 - Frontend environment variables require restart to take effect
 - Redis (Upstash) handles caching with memory fallback when unavailable
 - All API endpoints route through Worker (no direct backend access)
@@ -151,8 +148,8 @@ These endpoints still work but internally use Better Auth:
 ## Important Reminders
 
 ### Local Development
-1. **Use PORT=8001 for local proxy server**
-2. **Frontend .env must point to http://localhost:8001**
+1. **Use `wrangler dev` for local backend**
+2. **Frontend .env must point to http://localhost:8787 (wrangler dev port)**
 3. **Restart frontend after environment variable changes**
 4. **WebSocket types defined in `frontend/src/types/websocket.ts`**
 

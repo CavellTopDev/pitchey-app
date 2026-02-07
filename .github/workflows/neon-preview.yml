@@ -31,34 +31,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-          
       - name: Install dependencies
         run: npm ci
-
-      - name: Create Deno config for node_modules compatibility
-        run: |
-          echo '{"nodeModulesDir": "auto"}' > deno.json
-        
-      - name: Run database migrations
-        run: |
-          echo "Running migrations on preview branch..."
-          npm run db:migrate
-        env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
-          
-      - name: Seed preview data (optional)
-        run: |
-          # Only seed if this is a new branch
-          if [ "${{ steps.create-branch.outputs.branch_created }}" = "true" ]; then
-            echo "Seeding preview database..."
-            npm run db:seed:preview || true
-          fi
-        env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
 
       - name: Install frontend dependencies
         run: |

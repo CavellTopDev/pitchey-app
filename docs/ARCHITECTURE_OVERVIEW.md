@@ -340,7 +340,7 @@ Features: notifications, draft auto-sync (5s), presence tracking, typing indicat
 ## CI/CD Pipeline
 
 ```
-  git push -> ci-cd.yml -> Security Scan -> Frontend (lint+tsc+build) -> Worker (deno test+esbuild)
+  git push -> ci-cd.yml -> Security Scan -> Frontend (lint+tsc+build) -> Worker (esbuild)
            -> DB validation -> Deploy (CF Pages + CF Workers) -> Integration health checks
 
   simple-health-check.yml -> runs every 30 min (uptime monitoring)
@@ -365,7 +365,7 @@ Features: notifications, draft auto-sync (5s), presence tracking, typing indicat
 | **Real-time** | Durable Objects | WebSocket rooms + broadcast |
 | **Errors** | Sentry | Error tracking and alerting |
 | **CI/CD** | GitHub Actions | 12 workflows, auto-deploy |
-| **Testing** | Vitest + Playwright + Deno | Unit, E2E, backend tests |
+| **Testing** | Vitest + Playwright | Unit and E2E tests |
 
 ---
 
