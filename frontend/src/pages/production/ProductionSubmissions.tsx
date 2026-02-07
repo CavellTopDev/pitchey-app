@@ -42,87 +42,70 @@ export default function ProductionSubmissions() {
   const statusFilter = searchParams.get('status') || 'all';
 
   useEffect(() => {
-    // Simulate loading submissions
-    setTimeout(() => {
-      setSubmissions([
-        {
-          id: '1',
-          title: 'Quantum Dreams',
-          creator: 'Alex Thompson',
-          creatorEmail: 'alex@example.com',
-          submittedDate: '2024-12-01',
-          genre: 'Sci-Fi',
-          budget: 2500000,
-          status: 'new',
-          rating: 0,
-          synopsis: 'A scientist discovers how to enter people\'s dreams and must navigate the subconscious to save humanity.',
-          attachments: 3,
-          lastActivity: '2 hours ago'
-        },
-        {
-          id: '2',
-          title: 'The Last Echo',
-          creator: 'Sarah Mitchell',
-          creatorEmail: 'sarah@example.com',
-          submittedDate: '2024-11-28',
-          genre: 'Mystery',
-          budget: 1800000,
-          status: 'review',
-          rating: 4,
-          synopsis: 'A sound engineer discovers frequencies that can access memories from the past.',
-          attachments: 5,
-          lastActivity: '1 day ago',
-          reviewNotes: 'Interesting concept, needs more development on character arcs'
-        },
-        {
-          id: '3',
-          title: 'Digital Shadows',
-          creator: 'Marcus Chen',
-          creatorEmail: 'marcus@example.com',
-          submittedDate: '2024-11-25',
-          genre: 'Thriller',
-          budget: 3200000,
-          status: 'shortlisted',
-          rating: 5,
-          synopsis: 'In a world where memories can be digitized, a memory thief uncovers a conspiracy.',
-          attachments: 7,
-          lastActivity: '3 days ago',
-          reviewNotes: 'Excellent premise, strong market potential'
-        },
-        {
-          id: '4',
-          title: 'Ocean\'s Whisper',
-          creator: 'Emma Rodriguez',
-          creatorEmail: 'emma@example.com',
-          submittedDate: '2024-11-20',
-          genre: 'Drama',
-          budget: 1200000,
-          status: 'accepted',
-          rating: 5,
-          synopsis: 'A marine biologist discovers a way to communicate with ocean life.',
-          attachments: 4,
-          lastActivity: '5 days ago',
-          reviewNotes: 'Greenlit for production - excellent environmental message'
-        },
-        {
-          id: '5',
-          title: 'Time Loop Cafe',
-          creator: 'James Wilson',
-          creatorEmail: 'james@example.com',
-          submittedDate: '2024-11-15',
-          genre: 'Comedy',
-          budget: 800000,
-          status: 'rejected',
-          rating: 2,
-          synopsis: 'A barista gets stuck in a time loop at their coffee shop.',
-          attachments: 2,
-          lastActivity: '1 week ago',
-          reviewNotes: 'Too similar to existing projects in our pipeline'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
+    fetchSubmissions();
   }, []);
+
+  const fetchSubmissions = async () => {
+    try {
+      setLoading(true);
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${API_URL}/api/pitches?limit=50&sortBy=created_at&sortOrder=desc`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch submissions');
+
+      const data = await response.json();
+      const pitches = data.data?.pitches || data.pitches || [];
+
+      const mapped: Submission[] = pitches.map((p: any) => ({
+        id: p.id?.toString() || '',
+        title: p.title || 'Untitled',
+        creator: p.creator_name || p.username || 'Unknown Creator',
+        creatorEmail: p.creator_email || '',
+        submittedDate: p.created_at || new Date().toISOString(),
+        genre: p.genre || 'Unspecified',
+        budget: p.estimated_budget || p.budget || 0,
+        status: mapPitchStatus(p.status),
+        rating: 0,
+        synopsis: p.logline || p.short_synopsis || '',
+        attachments: 0,
+        lastActivity: p.updated_at ? getRelativeTime(p.updated_at) : 'Unknown'
+      }));
+
+      setSubmissions(mapped);
+    } catch (err) {
+      console.error('Failed to fetch submissions:', err);
+      setSubmissions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mapPitchStatus = (status: string): Submission['status'] => {
+    const mapping: Record<string, Submission['status']> = {
+      published: 'new',
+      draft: 'review',
+      review: 'review',
+      approved: 'shortlisted',
+      accepted: 'accepted',
+      rejected: 'rejected',
+      archived: 'archived'
+    };
+    return mapping[status] || 'new';
+  };
+
+  const getRelativeTime = (dateStr: string): string => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${hours} hours ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+    const weeks = Math.floor(days / 7);
+    return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+  };
 
   const filteredSubmissions = submissions.filter(submission => {
     const matchesStatus = statusFilter === 'all' || submission.status === statusFilter;

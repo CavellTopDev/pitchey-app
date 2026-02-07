@@ -430,51 +430,45 @@ export async function productionPipelineHandler(request: Request, env: Env) {
     const sql = neon(env.DATABASE_URL);
     
     if (request.method === 'GET') {
-      // Get pipeline projects - return empty array if tables don't exist
+      // Get published pitches as potential production projects
       try {
-        const stage = url.searchParams.get('stage');
-        const status = url.searchParams.get('status') || 'active';
+        const status = url.searchParams.get('status') || 'published';
+        const limit = parseInt(url.searchParams.get('limit') || '50');
 
-        const whereConditions = [`pp.production_company_id = $1`, `pp.status = $2`];
-        const params: unknown[] = [user.id, status];
-
-        if (stage) {
-          whereConditions.push(`pp.stage = $3`);
-          params.push(stage);
-        }
-
-        const pipeline = await sql.query(`
+        const projects = await sql`
           SELECT
-            pp.*,
-            p.title as pitch_title,
-            p.genre as pitch_genre,
+            p.id,
+            p.title,
+            p.genre,
             p.logline,
+            p.short_synopsis,
+            p.format,
+            p.estimated_budget,
+            p.budget_range,
+            p.status,
+            p.created_at,
+            p.updated_at,
+            p.view_count,
+            p.like_count,
             u.username as creator_username,
-            COUNT(DISTINCT ca.id) as crew_count,
-            COUNT(DISTINCT ls.id) as location_count,
-            SUM(be.amount) as total_expenses
-          FROM production_pipeline pp
-          JOIN pitches p ON pp.pitch_id = p.id
-          JOIN users u ON p.creator_id = u.id
-          LEFT JOIN crew_assignments ca ON pp.id = ca.project_id
-          LEFT JOIN location_scouts ls ON pp.id = ls.project_id
-          LEFT JOIN budget_expenses be ON pp.id = be.project_id
-          WHERE ${whereConditions.join(' AND ')}
-          GROUP BY pp.id, p.title, p.genre, p.logline, u.username
-          ORDER BY pp.priority DESC, pp.start_date ASC
-        `, params);
+            u.email as creator_email
+          FROM pitches p
+          JOIN users u ON p.user_id = u.id
+          WHERE p.status = ${status}
+          ORDER BY p.created_at DESC
+          LIMIT ${limit}
+        `;
 
         return new Response(JSON.stringify({
           success: true,
-          pipeline: pipeline || [],
-          projects: pipeline || []
+          pipeline: projects || [],
+          projects: projects || []
         }), {
           status: 200,
           headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' }
         });
       } catch (dbError) {
-        // Tables don't exist yet - return empty data
-        console.warn('Pipeline tables not found, returning empty data:', dbError);
+        console.warn('Failed to fetch projects:', dbError);
         return new Response(JSON.stringify({
           success: true,
           pipeline: [],

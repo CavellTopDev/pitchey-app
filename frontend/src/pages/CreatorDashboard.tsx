@@ -381,6 +381,17 @@ function CreatorDashboard() {
           />
         </div>
 
+        {/* Create New Pitch CTA */}
+        <div className="mb-8">
+          <button
+            onClick={() => navigate('/creator/pitch/new')}
+            className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-purple-600 text-white text-lg font-semibold rounded-xl hover:bg-purple-700 shadow-lg hover:shadow-xl transition-all"
+          >
+            <Plus className="w-6 h-6" />
+            Create New Pitch
+          </button>
+        </div>
+
         {/* Creator Milestones Section */}
         <div className="bg-white rounded-xl shadow-sm mb-8">
           <div className="px-6 py-4 border-b">

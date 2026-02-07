@@ -119,7 +119,7 @@ const About: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-              <Film className="w-8 h-8 text-purple-600" />
+              <img src="/pitcheylogo.png" alt="Pitchey" className="h-8 w-auto" />
               <span className="text-2xl font-bold text-gray-900">Pitchey</span>
             </div>
             <button 

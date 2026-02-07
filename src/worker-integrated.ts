@@ -1430,21 +1430,125 @@ class RouteRegistry {
 
   private async handleRegisterSimple(request: Request): Promise<Response> {
     const body = await request.json() as RegisterBody;
-    const { email } = body;
+    const { email, password, name, userType } = body;
+    const origin = request.headers.get('Origin');
+    const username = (body as any).username || email.split('@')[0];
+    const companyName = (body as any).companyName || null;
 
-    return new Response(JSON.stringify({
-      success: true,
-      data: {
-        message: 'Registration successful',
-        email
+    if (!email || !password) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Email and password are required' }
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) }
+      });
+    }
+
+    try {
+      // Check if email already exists
+      const [existing] = await this.db.query(
+        `SELECT id FROM users WHERE email = $1 LIMIT 1`,
+        [email]
+      ) as any[];
+
+      if (existing) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: { code: 'EMAIL_EXISTS', message: 'An account with this email already exists' }
+        }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) }
+        });
       }
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCorsHeaders(request.headers.get('Origin'))
+
+      // Check if username already exists, append random suffix if so
+      let finalUsername = username;
+      const [existingUsername] = await this.db.query(
+        `SELECT id FROM users WHERE username = $1 LIMIT 1`,
+        [finalUsername]
+      ) as any[];
+
+      if (existingUsername) {
+        finalUsername = `${username}_${Math.random().toString(36).slice(2, 8)}`;
       }
-    });
+
+      // Insert new user (password stored as-is, matching existing login pattern)
+      const portal = userType || 'creator';
+      const [newUser] = await this.db.query(
+        `INSERT INTO users (email, username, password, user_type, name, company_name, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+         RETURNING id, email, username, user_type, name, first_name, last_name, company_name`,
+        [email, finalUsername, password, portal, name || finalUsername, companyName]
+      ) as any[];
+
+      if (!newUser) {
+        throw new Error('Failed to create user');
+      }
+
+      // Create session (same pattern as handleLoginSimple)
+      const sessionId = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      await this.db.query(
+        `INSERT INTO sessions (id, user_id, token, expires_at, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [sessionId, newUser.id, sessionId, expiresAt]
+      );
+
+      // Cache session in KV
+      const kvStore = this.env.SESSION_STORE || this.env.SESSIONS_KV || this.env.KV || this.env.CACHE;
+      if (kvStore) {
+        await kvStore.put(
+          `session:${sessionId}`,
+          JSON.stringify({
+            id: sessionId,
+            userId: newUser.id,
+            userEmail: newUser.email,
+            userName: newUser.username || newUser.name || email.split('@')[0],
+            userType: newUser.user_type,
+            expiresAt: expiresAt.toISOString()
+          }),
+          { expirationTtl: 604800 }
+        );
+      }
+
+      console.log(`[Auth] User registered: userId=${newUser.id}, email=${newUser.email}, userType=${newUser.user_type}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          user: {
+            id: newUser.id.toString(),
+            email: newUser.email,
+            name: newUser.username || newUser.name || email.split('@')[0],
+            userType: newUser.user_type,
+            firstName: newUser.first_name,
+            lastName: newUser.last_name,
+            companyName: newUser.company_name
+          }
+        }
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': (await import('./config/session.config')).createSessionCookie(sessionId),
+          ...getCorsHeaders(origin)
+        }
+      });
+    } catch (error) {
+      console.error('[Auth] Registration error:', error);
+      return new Response(JSON.stringify({
+        success: false,
+        error: {
+          code: 'REGISTRATION_FAILED',
+          message: error instanceof Error ? error.message : 'Registration failed. Please try again.'
+        }
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) }
+      });
+    }
   }
 
   private async handleLogoutSimple(request: Request): Promise<Response> {

@@ -15,7 +15,7 @@ import { MESSAGES, VALIDATION_MESSAGES, SUCCESS_MESSAGES, ERROR_MESSAGES } from 
 import { CharacterManagement } from '../components/CharacterManagement';
 import type { Character } from '../types/character';
 import { serializeCharacters } from '../utils/characterUtils';
-import { DocumentUpload } from '../components/DocumentUpload';
+// DocumentUpload removed — using DocumentUploadHub instead (Karl feedback #6)
 import type { DocumentFile } from '../components/DocumentUpload';
 import DocumentUploadHub from '../components/FileUpload/DocumentUploadHub';
 import NDAUploadSection from '../components/FileUpload/NDAUploadSection';
@@ -65,7 +65,7 @@ export default function CreatePitch() {
     storyBreakdown: '',
     whyNow: '',
     productionLocation: '',
-    developmentStage: '',
+    developmentStage: undefined,
     developmentStageOther: '',
     creativeAttachments: [],
     videoUrl: '',
@@ -82,7 +82,7 @@ export default function CreatePitch() {
     },
     characters: [],
     seekingInvestment: false,
-    budgetRange: ''
+    budgetRange: undefined
   };
   
   // NDA document state
@@ -948,46 +948,6 @@ export default function CreatePitch() {
             />
           </div>
 
-          {/* Document Upload Section */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Upload Documents</h2>
-            
-            <DocumentUpload
-              documents={formData.documents}
-              onChange={handleDocumentChange}
-              maxFiles={15}
-              maxFileSize={10}
-              disabled={isSubmitting}
-              showProgress={true}
-              enableDragDrop={true}
-              showPreview={true}
-            />
-            
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-blue-900">Document Guidelines & Costs</h4>
-                  <ul className="text-sm text-blue-800 mt-1 space-y-1">
-                    <li>• Upload scripts, treatments, pitch decks, visual lookbooks, and supporting materials</li>
-                    <li>• Each file must be under 10MB (PDF, DOC, DOCX, PPT, PPTX, TXT)</li>
-                    <li>• Documents help investors understand your project better</li>
-                    <li>• NDA-protected content will only be visible after agreement signing</li>
-                  </ul>
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                    <h5 className="font-medium text-yellow-900 mb-2">📋 Upload Costs (This Costs Extra):</h5>
-                    <ul className="text-xs text-yellow-800 space-y-1">
-                      <li>• Word documents (scripts, treatments): <strong>3 credits each</strong></li>
-                      <li>• Picture documents (lookbooks, mood boards): <strong>5 credits each</strong></li>
-                      <li>• Extra images: <strong>1 credit each</strong></li>
-                      <li>• Video links: <strong>1 credit each</strong></li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
           {/* NDA Configuration */}
           <NDAUploadSection
             ndaDocument={ndaDocument}

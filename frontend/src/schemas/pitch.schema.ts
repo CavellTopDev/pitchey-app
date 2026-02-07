@@ -45,12 +45,7 @@ export const WorldDescriptionSchema = v.pipe(
   v.maxLength(1000, 'World description must be less than 1000 characters')
 );
 
-export const BudgetRangeSchema = v.optional(
-  v.pipe(
-    v.string(),
-    v.regex(/^\$[\d,]+[KMBkm]?(\s*-\s*\$[\d,]+[KMBkm]?)?$/, 'Invalid budget format (e.g., $1M - $5M)')
-  )
-);
+export const BudgetRangeSchema = v.optional(v.string());
 
 // ============================================
 // Character Schema

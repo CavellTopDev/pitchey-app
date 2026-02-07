@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Film, DollarSign, Building } from 'lucide-react';
 
 type PortalType = 'creator' | 'investor' | 'production';
@@ -113,6 +113,15 @@ export default function PortalSelect() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="text-center mt-10">
+            <p className="text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-purple-600 hover:text-purple-700 font-semibold">
+                Sign up
+              </Link>
+            </p>
           </div>
         </div>
       </div>

@@ -376,7 +376,7 @@ export class PitchService {
       data?: Pitch;
     }
     const response = await apiClient.post<CreatePitchResponse>(
-      '/api/creator/pitches',
+      '/api/pitches',
       mappedData
     );
 
