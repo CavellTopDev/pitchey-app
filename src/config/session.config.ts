@@ -13,12 +13,12 @@ export const SESSION_CONFIG = {
   // Check this as fallback when reading cookies
   LEGACY_COOKIE_NAME: 'better-auth-session',
 
-  // Cookie settings - NOW SAME-ORIGIN via Pages Functions proxy!
+  // Cookie settings for cross-origin auth
   // Frontend: https://pitchey-5o8.pages.dev
-  // API calls go to: https://pitchey-5o8.pages.dev/api/* (proxied to Worker)
-  // This means cookies are first-party and "just work"!
+  // Backend: https://pitchey-api-prod.ndlovucavelle.workers.dev
+  // SameSite=None is REQUIRED for cross-origin fetch with credentials: 'include'
   COOKIE_MAX_AGE: 7 * 24 * 60 * 60, // 7 days in seconds
-  COOKIE_SAME_SITE: 'Lax' as const, // Lax is secure and works for same-origin
+  COOKIE_SAME_SITE: 'None' as const, // None required for cross-origin cookies (Secure is also set)
   COOKIE_SECURE: true, // Always use Secure in production
   COOKIE_HTTP_ONLY: true, // Prevents XSS attacks
   COOKIE_PATH: '/',
