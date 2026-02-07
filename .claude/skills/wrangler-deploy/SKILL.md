@@ -14,7 +14,7 @@ triggers:
 # Pitchey Deployment Patterns
 
 ## Project Details
-- Frontend Project: `pitchey-5o8` (Cloudflare Pages)
+- Frontend Project: `pitchey` (Cloudflare Pages)
 - Worker Name: `pitchey-api-prod`
 - Production API: https://pitchey-api-prod.ndlovucavelle.workers.dev
 - Production Frontend: https://pitchey-5o8.pages.dev
@@ -27,20 +27,19 @@ triggers:
 cd frontend && npm run build
 
 # Preview deploy (get unique URL for testing)
-npx wrangler pages deploy dist --project-name pitchey-5o8
+npx wrangler pages deploy dist --project-name pitchey
 
 # Production deploy (main branch)
-npx wrangler pages deploy dist --project-name pitchey-5o8 --branch main
+npx wrangler pages deploy dist --project-name pitchey --branch main
 
 # Check deployment status
-npx wrangler pages deployment list --project-name pitchey-5o8
+npx wrangler pages deployment list --project-name pitchey
 ```
 
 ### Backend (Workers)
 ```bash
 cd worker
-npx wrangler deploy --env production
-
+npx wrangler deploy
 # Verify deployment
 curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 ```
@@ -51,10 +50,10 @@ curl -I https://pitchey-api-prod.ndlovucavelle.workers.dev/health
 cd frontend && npm run build
 
 # 2. Deploy frontend to production
-npx wrangler pages deploy dist --project-name pitchey-5o8 --branch main
+npx wrangler pages deploy dist --project-name pitchey --branch main
 
 # 3. Deploy Worker API
-cd ../worker && npx wrangler deploy --env production
+cd ../worker && npx wrangler deploy
 
 # 4. Verify both
 curl -s https://pitchey-api-prod.ndlovucavelle.workers.dev/health | jq
@@ -93,7 +92,7 @@ npx wrangler rollback --version VERSION_ID
 # Pages rollback: redeploy previous git commit
 git checkout PREVIOUS_COMMIT
 npm run build
-npx wrangler pages deploy dist --project-name pitchey-5o8 --branch main
+npx wrangler pages deploy dist --project-name pitchey --branch main
 ```
 
 ## Common Deployment Issues
