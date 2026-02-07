@@ -275,14 +275,13 @@ export const useBetterAuthStore = create<BetterAuthState>((set) => ({
         loading: false,
         error: null
       });
-    } catch (error) {
-      // Any error in session check should just clear the session
-      console.error('[BetterAuthStore] Error in checkSession:', error);
-      set({ 
-        user: null, 
+    } catch {
+      // Session check failed — treat as not authenticated (expected when not logged in)
+      set({
+        user: null,
         isAuthenticated: false,
         loading: false,
-        error: null // Don't set error for session checks - just treat as unauthenticated
+        error: null
       });
     }
   }

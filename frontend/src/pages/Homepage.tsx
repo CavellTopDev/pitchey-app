@@ -479,7 +479,7 @@ export default function Homepage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Film className="w-6 h-6 text-purple-600" />
+                <img src="/pitcheylogo.png" alt="Pitchey" className="h-6 w-auto" />
                 <span className="text-xl font-bold text-gray-900">Pitchey</span>
               </div>
               <p className="text-metadata">
