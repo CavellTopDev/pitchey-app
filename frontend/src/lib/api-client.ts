@@ -288,7 +288,7 @@ class ApiClient {
         return {
           success: false,
           error: {
-            message: data.error || data.message || `HTTP ${response?.status || 'unknown'}: ${response?.statusText || 'unknown'}`,
+            message: (typeof data.error === 'string' ? data.error : data.error?.message) || data.message || `HTTP ${response?.status || 'unknown'}: ${response?.statusText || 'unknown'}`,
             status: response?.status || 500,
             code: data.code,
             details: data.details

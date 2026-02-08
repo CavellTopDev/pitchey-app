@@ -4749,8 +4749,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async updatePitch(request: Request): Promise<Response> {
-    // RBAC: Requires creator portal access + pitch edit permission
-    const authResult = await this.requirePortalAuth(request, 'creator', Permission.PITCH_EDIT_OWN);
+    // RBAC: Requires creator/production portal access + pitch edit permission
+    const authResult = await this.requirePortalAuth(request, ['creator', 'production'], Permission.PITCH_EDIT_OWN);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -4805,7 +4805,7 @@ pitchey_analytics_datapoints_per_minute 1250
         [params.id]
       );
 
-      if (!existing || existing.creator_id !== authResult.user.id) {
+      if (!existing || existing.user_id !== authResult.user.id) {
         return builder.error(ErrorCode.FORBIDDEN, 'Not authorized to update this pitch');
       }
 
@@ -4900,8 +4900,8 @@ pitchey_analytics_datapoints_per_minute 1250
   }
 
   private async deletePitch(request: Request): Promise<Response> {
-    // RBAC: Requires creator portal access + pitch delete permission
-    const authResult = await this.requirePortalAuth(request, 'creator', Permission.PITCH_DELETE_OWN);
+    // RBAC: Requires creator/production portal access + pitch delete permission
+    const authResult = await this.requirePortalAuth(request, ['creator', 'production'], Permission.PITCH_DELETE_OWN);
     if (!authResult.authorized) return authResult.response!;
 
     const builder = new ApiResponseBuilder(request);
@@ -4909,7 +4909,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
     try {
       const result = await this.db.query(
-        `DELETE FROM pitches WHERE id = $1 AND creator_id = $2`,
+        `DELETE FROM pitches WHERE id = $1 AND user_id = $2`,
         [params.id, authResult.user.id]
       );
 
@@ -6107,7 +6107,7 @@ pitchey_analytics_datapoints_per_minute 1250
         JOIN pitches p ON n.pitch_id = p.id
         JOIN users u ON n.requester_id = u.id
         WHERE n.requester_id = $1 OR n.pitch_id IN (
-          SELECT id FROM pitches WHERE creator_id = $1
+          SELECT id FROM pitches WHERE user_id = $1
         )
         ORDER BY n.created_at DESC
       `, [authResult.user.id]);
@@ -6155,31 +6155,17 @@ pitchey_analytics_datapoints_per_minute 1250
       let pitch: DatabaseRow | null = null;
       let creatorId: number = 0;
 
-      try {
-        // First try with both columns
-        const result = await this.db.query(
-          `SELECT created_by, creator_id, user_id FROM pitches WHERE id = $1`,
-          [pitchId]
-        ) as DatabaseRow[];
-        pitch = result[0];
-      } catch (e) {
-        // Try with just user_id column
-        try {
-          const result = await this.db.query(
-            `SELECT user_id FROM pitches WHERE id = $1`,
-            [pitchId]
-          ) as DatabaseRow[];
-          pitch = result[0];
-        } catch (e2) {
-          console.error('Failed to query pitch:', e2);
-        }
-      }
+      const result = await this.db.query(
+        `SELECT user_id FROM pitches WHERE id = $1`,
+        [pitchId]
+      ) as DatabaseRow[];
+      pitch = result[0];
 
       if (!pitch) {
         return builder.error(ErrorCode.NOT_FOUND, 'Pitch not found');
       }
 
-      creatorId = this.safeParseInt(pitch.creator_id) || this.safeParseInt(pitch.created_by) || this.safeParseInt(pitch.user_id) || 1;
+      creatorId = this.safeParseInt(pitch.user_id) || 1;
 
       // Insert NDA request into nda_requests table (not ndas table)
       // nda_requests table uses requester_id instead of signer_id
@@ -7300,7 +7286,7 @@ pitchey_analytics_datapoints_per_minute 1250
           COALESCE(SUM(p.view_count), 0) as total_views,
           0 as total_investments
         FROM users u
-        LEFT JOIN pitches p ON p.creator_id = u.id AND p.status = 'published'
+        LEFT JOIN pitches p ON p.user_id = u.id AND p.status = 'published'
         WHERE u.user_type = 'creator'
         GROUP BY u.id, u.name
         ORDER BY total_views DESC NULLS LAST
@@ -7430,14 +7416,14 @@ pitchey_analytics_datapoints_per_minute 1250
            COALESCE(SUM(like_count), 0) as total_likes,
            COALESCE(SUM(save_count), 0) as total_saves
          FROM pitches
-         WHERE creator_id = $1 OR created_by = $1`,
+         WHERE user_id = $1 OR created_by = $1`,
         [userId]
       );
       const stats = pitchStats[0] || {};
 
       // Get follower count
       const followerResults = await this.db.query(
-        `SELECT COUNT(*) as count FROM follows WHERE following_id = $1 OR creator_id = $1`,
+        `SELECT COUNT(*) as count FROM follows WHERE following_id = $1`,
         [userId]
       );
 
@@ -7445,7 +7431,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const ndaResults = await this.db.query(
         `SELECT COUNT(*) as count FROM ndas n
          JOIN pitches p ON n.pitch_id = p.id
-         WHERE p.creator_id = $1 OR p.created_by = $1`,
+         WHERE p.user_id = $1 OR p.created_by = $1`,
         [userId]
       );
 
@@ -7454,7 +7440,7 @@ pitchey_analytics_datapoints_per_minute 1250
         `SELECT p.id, p.title, COALESCE(p.view_count, 0) as views,
                 COALESCE(p.like_count, 0) as likes, COALESCE(p.save_count, 0) as saves
          FROM pitches p
-         WHERE p.creator_id = $1 OR p.created_by = $1
+         WHERE p.user_id = $1 OR p.created_by = $1
          ORDER BY COALESCE(p.view_count, 0) DESC
          LIMIT 5`,
         [userId]
@@ -7465,7 +7451,7 @@ pitchey_analytics_datapoints_per_minute 1250
         `SELECT DATE(pv.viewed_at) as date, COUNT(*) as views
          FROM pitch_views pv
          JOIN pitches p ON pv.pitch_id = p.id
-         WHERE (p.creator_id = $1 OR p.created_by = $1)
+         WHERE (p.user_id = $1 OR p.created_by = $1)
            AND pv.viewed_at >= NOW() - INTERVAL '${days} days'
          GROUP BY DATE(pv.viewed_at)
          ORDER BY date ASC`,
@@ -9362,7 +9348,7 @@ pitchey_analytics_datapoints_per_minute 1250
           u.email as creator_email
         FROM investment_deals d
         JOIN pitches p ON d.pitch_id = p.id
-        LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         WHERE d.investor_id = $1
           AND d.status IN ('negotiating', 'pending', 'due_diligence')
         ORDER BY d.updated_at DESC
@@ -9851,7 +9837,7 @@ pitchey_analytics_datapoints_per_minute 1250
           COALESCE(v.view_count, 0) as view_count,
           COALESCE(s.save_count, 0) as save_count
         FROM pitches p
-        INNER JOIN users u ON p.creator_id = u.id
+        INNER JOIN users u ON p.user_id = u.id
         INNER JOIN follows f ON f.following_id = u.id
         LEFT JOIN (SELECT pitch_id, COUNT(*) as view_count FROM views GROUP BY pitch_id) v ON v.pitch_id = p.id
         LEFT JOIN (SELECT pitch_id, COUNT(*) as save_count FROM saved_pitches GROUP BY pitch_id) s ON s.pitch_id = p.id
@@ -9924,7 +9910,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       // Get additional profile stats - use separate queries to avoid subquery issues
       const pitchCountResult = await this.db.query(
-        `SELECT COUNT(*) as count FROM pitches WHERE creator_id = $1`,
+        `SELECT COUNT(*) as count FROM pitches WHERE user_id = $1`,
         [authResult.user.id]
       );
 
@@ -10863,7 +10849,7 @@ pitchey_analytics_datapoints_per_minute 1250
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         JOIN users u ON n.user_id = u.id
-        WHERE p.creator_id = ${authResult.user.id}
+        WHERE p.user_id = ${authResult.user.id}
           AND n.status = 'signed'
         ORDER BY n.signed_at DESC
       `;
@@ -10910,7 +10896,7 @@ pitchey_analytics_datapoints_per_minute 1250
           u.username as creator_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
-        JOIN users u ON p.creator_id = u.id
+        JOIN users u ON p.user_id = u.id
         WHERE n.user_id = ${authResult.user.id}
           AND n.status = 'signed'
         ORDER BY n.signed_at DESC
@@ -13023,15 +13009,15 @@ Signatures: [To be completed upon signing]
       try {
         // Get active NDAs where user is either requester (user_id) or pitch owner
         const activeNDAs = await this.db.query(`
-          SELECT n.*, p.title as pitch_title, p.creator_id,
+          SELECT n.*, p.title as pitch_title, p.user_id as creator_id,
                  requester.email as requester_email, requester.name as requester_name,
                  creator.email as creator_email, creator.name as creator_name
           FROM ndas n
           JOIN pitches p ON p.id = n.pitch_id
           JOIN users requester ON requester.id = n.user_id
-          JOIN users creator ON creator.id = p.creator_id
+          JOIN users creator ON creator.id = p.user_id
           WHERE n.status IN ('pending', 'approved')
-            AND (n.user_id = $1 OR p.creator_id = $1)
+            AND (n.user_id = $1 OR p.user_id = $1)
           ORDER BY n.created_at DESC
         `, [authCheck.user.id]);
 
@@ -13066,15 +13052,15 @@ Signatures: [To be completed upon signing]
       // Get signed NDAs where user is either signer or pitch owner
       // Note: The ndas table uses signer_id (not requester_id) based on actual schema
       const signedNDAs = await this.db.query(`
-        SELECT n.*, p.title as pitch_title, p.creator_id,
+        SELECT n.*, p.title as pitch_title, p.user_id as creator_id,
                signer.email as signer_email, signer.name as signer_name,
                creator.email as creator_email, creator.name as creator_name
         FROM ndas n
         JOIN pitches p ON p.id = n.pitch_id
         LEFT JOIN users signer ON signer.id = COALESCE(n.signer_id, n.user_id)
-        JOIN users creator ON creator.id = p.creator_id
+        JOIN users creator ON creator.id = p.user_id
         WHERE n.signed_at IS NOT NULL
-          AND (COALESCE(n.signer_id, n.user_id) = $1 OR p.creator_id = $1)
+          AND (COALESCE(n.signer_id, n.user_id) = $1 OR p.user_id = $1)
         ORDER BY n.signed_at DESC
       `, [authCheck.user.id]);
 
@@ -13134,7 +13120,7 @@ Signatures: [To be completed upon signing]
                  COALESCE(u.name, u.email) as creator_name
           FROM saved_pitches sp
           JOIN pitches p ON p.id = sp.pitch_id
-          LEFT JOIN "user" u ON p.creator_id::text = u.id::text OR p.user_id::text = u.id::text
+          LEFT JOIN "user" u ON p.user_id::text = u.id::text
           WHERE sp.user_id::text = $1::text
           ORDER BY sp.created_at DESC
         `, [authCheck.user.id]);
@@ -13146,7 +13132,7 @@ Signatures: [To be completed upon signing]
                  COALESCE(u.first_name || ' ' || u.last_name, u.company_name, u.email) as creator_name
           FROM saved_pitches sp
           JOIN pitches p ON p.id = sp.pitch_id
-          LEFT JOIN users u ON p.creator_id = u.id OR p.user_id = u.id
+          LEFT JOIN users u ON p.user_id = u.id
           WHERE sp.user_id::text = $1::text
           ORDER BY sp.created_at DESC
         `, [authCheck.user.id]);
@@ -13687,7 +13673,7 @@ Signatures: [To be completed upon signing]
             COALESCE(u.name, u.email) as creator_name
           FROM saved_pitches sp
           JOIN pitches p ON sp.pitch_id = p.id
-          LEFT JOIN "user" u ON p.user_id::text = u.id::text OR p.creator_id::text = u.id::text
+          LEFT JOIN "user" u ON p.user_id::text = u.id::text
           WHERE sp.user_id::text = $1::text
           ORDER BY sp.created_at DESC
           LIMIT $2 OFFSET $3
@@ -13709,7 +13695,7 @@ Signatures: [To be completed upon signing]
             COALESCE(u.first_name || ' ' || u.last_name, u.email) as creator_name
           FROM saved_pitches sp
           JOIN pitches p ON sp.pitch_id = p.id
-          LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+          LEFT JOIN users u ON p.user_id = u.id
           WHERE sp.user_id::text = $1::text
           ORDER BY sp.created_at DESC
           LIMIT $2 OFFSET $3
@@ -14118,7 +14104,7 @@ Signatures: [To be completed upon signing]
           COALESCE(SUM(p.like_count), 0) as total_likes,
           CASE WHEN COUNT(*) > 0 THEN COUNT(CASE WHEN p.status = 'completed' THEN 1 END)::float / COUNT(*) * 100 ELSE 0 END as avg_completion_rate
         FROM pitches p
-        WHERE p.creator_id = $1
+        WHERE p.user_id = $1
           AND p.created_at >= NOW() - INTERVAL '${days} days'
       `;
       const metricsResult = await this.db.query(metricsQuery, [authCheck.user.id]);
@@ -14132,7 +14118,7 @@ Signatures: [To be completed upon signing]
           COALESCE(SUM(p.budget), 0) as total_investment,
           COALESCE(SUM(p.view_count), 0) as total_views
         FROM pitches p
-        WHERE p.creator_id = $1 AND p.created_at >= NOW() - INTERVAL '${days} days'
+        WHERE p.user_id = $1 AND p.created_at >= NOW() - INTERVAL '${days} days'
         GROUP BY p.genre
         ORDER BY project_count DESC
         LIMIT 6
@@ -14158,7 +14144,7 @@ Signatures: [To be completed upon signing]
             END as stage,
             COALESCE(p.budget, 0) as budget
           FROM pitches p
-          WHERE p.creator_id = $1
+          WHERE p.user_id = $1
         ) sub
         GROUP BY stage
         ORDER BY
@@ -14179,7 +14165,7 @@ Signatures: [To be completed upon signing]
           COUNT(DISTINCT i.investor_id) as total_investors
         FROM investments i
         JOIN pitches p ON p.id = i.pitch_id
-        WHERE p.creator_id = $1
+        WHERE p.user_id = $1
           AND i.status = 'active'
           AND i.invested_at >= NOW() - INTERVAL '${days} days'
       `;
@@ -14199,7 +14185,7 @@ Signatures: [To be completed upon signing]
           ae.created_at as timestamp
         FROM analytics_events ae
         JOIN pitches p ON p.id = ae.pitch_id
-        WHERE p.creator_id = $1 AND ae.event_type = 'view'
+        WHERE p.user_id = $1 AND ae.event_type = 'view'
         ORDER BY ae.created_at DESC
         LIMIT 10
       `;
@@ -14219,7 +14205,7 @@ Signatures: [To be completed upon signing]
           COALESCE(SUM(p.budget), 0) as revenue,
           COALESCE(SUM(p.budget) * 0.7, 0) as costs
         FROM pitches p
-        WHERE p.creator_id = $1
+        WHERE p.user_id = $1
           AND p.created_at >= NOW() - INTERVAL '${days} days'
         GROUP BY TO_CHAR(p.created_at, 'Mon'), DATE_TRUNC('month', p.created_at)
         ORDER BY DATE_TRUNC('month', p.created_at) DESC
