@@ -2561,6 +2561,14 @@ class RouteRegistry {
       const { creatorFollowersHandler } = await import('./handlers/creator-sidebar');
       return creatorFollowersHandler(req, this.env);
     });
+    this.register('GET', '/api/creator/performance', async (req) => {
+      const { creatorPerformanceHandler } = await import('./handlers/creator-sidebar');
+      return creatorPerformanceHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/network', async (req) => {
+      const { creatorNetworkHandler } = await import('./handlers/creator-sidebar');
+      return creatorNetworkHandler(req, this.env);
+    });
 
     // User/Common Routes
     this.register('GET', '/api/user/following', async (req) => {

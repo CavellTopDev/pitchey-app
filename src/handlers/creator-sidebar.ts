@@ -558,3 +558,144 @@ export async function creatorFollowersHandler(
     return jsonResponse({ success: true, data: emptyData }, origin);
   }
 }
+
+// ---------------------------------------------------------------------------
+// 9. GET /api/creator/performance
+// ---------------------------------------------------------------------------
+
+export async function creatorPerformanceHandler(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  const emptyData = {
+    pitchPerformance: [],
+    genreBreakdown: [],
+    monthlyTrends: [],
+    overallStats: { totalViews: 0, totalLikes: 0, avgEngagement: 0 },
+  };
+
+  if (!sql || !userId) {
+    return jsonResponse({ success: true, data: emptyData }, origin);
+  }
+
+  try {
+    const pitchPerformance = await sql`
+      SELECT
+        p.id,
+        p.title,
+        p.genre,
+        p.status,
+        COALESCE(p.view_count, 0)::int AS views,
+        COALESCE(p.like_count, 0)::int AS likes,
+        CASE WHEN COALESCE(p.view_count, 0) > 0
+          THEN ROUND((COALESCE(p.like_count, 0)::numeric / p.view_count) * 100, 2)
+          ELSE 0
+        END AS engagement_rate,
+        p.created_at
+      FROM pitches p
+      WHERE p.creator_id = ${userId}
+      ORDER BY views DESC
+      LIMIT 50
+    `;
+
+    const genreBreakdown = await sql`
+      SELECT
+        p.genre,
+        COUNT(*)::int AS pitch_count,
+        COALESCE(SUM(p.view_count), 0)::int AS total_views,
+        COALESCE(SUM(p.like_count), 0)::int AS total_likes
+      FROM pitches p
+      WHERE p.creator_id = ${userId}
+      GROUP BY p.genre
+      ORDER BY total_views DESC
+    `;
+
+    const monthlyTrends = await sql`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', p.created_at), 'YYYY-MM') AS month,
+        COUNT(*)::int AS pitches_created,
+        COALESCE(SUM(p.view_count), 0)::int AS views,
+        COALESCE(SUM(p.like_count), 0)::int AS likes
+      FROM pitches p
+      WHERE p.creator_id = ${userId}
+        AND p.created_at >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', p.created_at)
+      ORDER BY month ASC
+    `;
+
+    let totalViews = 0;
+    let totalLikes = 0;
+    for (const row of pitchPerformance) {
+      totalViews += Number(row.views) || 0;
+      totalLikes += Number(row.likes) || 0;
+    }
+    const avgEngagement = totalViews > 0
+      ? Number(((totalLikes / totalViews) * 100).toFixed(2))
+      : 0;
+
+    return jsonResponse({
+      success: true,
+      data: {
+        pitchPerformance,
+        genreBreakdown,
+        monthlyTrends,
+        overallStats: { totalViews, totalLikes, avgEngagement },
+      },
+    }, origin);
+  } catch (error) {
+    console.error('creatorPerformanceHandler error:', error);
+    return jsonResponse({ success: true, data: emptyData }, origin);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 10. GET /api/creator/network
+// ---------------------------------------------------------------------------
+
+export async function creatorNetworkHandler(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  const emptyData = { connections: [], total: 0 };
+
+  if (!sql || !userId) {
+    return jsonResponse({ success: true, data: emptyData }, origin);
+  }
+
+  try {
+    const connections = await sql`
+      SELECT DISTINCT
+        u.id,
+        u.name,
+        u.email,
+        u.user_type,
+        u.avatar_url,
+        f.created_at AS connected_since
+      FROM follows f
+      JOIN users u ON (
+        (f.follower_id::text = ${userId} AND u.id::text = f.following_id::text)
+        OR
+        (f.following_id::text = ${userId} AND u.id::text = f.follower_id::text)
+      )
+      WHERE f.follower_id::text = ${userId}
+         OR f.following_id::text = ${userId}
+      ORDER BY f.created_at DESC
+    `;
+
+    return jsonResponse({
+      success: true,
+      data: { connections, total: connections.length },
+    }, origin);
+  } catch (error) {
+    console.error('creatorNetworkHandler error:', error);
+    return jsonResponse({ success: true, data: emptyData }, origin);
+  }
+}
