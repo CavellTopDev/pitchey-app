@@ -364,7 +364,7 @@ export async function productionTalentHandler(request: Request, env: Env) {
         COUNT(DISTINCT pr.id) as recommendations_count
       FROM users u
       LEFT JOIN talent_discovery td ON u.id = td.user_id
-      LEFT JOIN pitches p ON u.id = p.creator_id AND p.status = 'published'
+      LEFT JOIN pitches p ON u.id = p.user_id AND p.status = 'published'
       LEFT JOIN production_recommendations pr ON u.id = pr.talent_id
       WHERE u.user_type = 'creator' 
         AND u.is_active = true
@@ -511,7 +511,7 @@ export async function productionPipelineHandler(request: Request, env: Env) {
       
       // Create notification for creator
       await notificationQueries.createNotification(sql, {
-        user_id: (await pitchQueries.getPitchById(sql, pitch_id))!.creator_id,
+        user_id: (await pitchQueries.getPitchById(sql, pitch_id))!.user_id,
         type: 'project_greenlit',
         title: 'Your pitch has been greenlit!',
         message: 'A production company has added your pitch to their pipeline',

@@ -40,7 +40,7 @@ export class NDAWithRBACHandler {
 
       // Get NDA details
       const [nda] = await this.sql`
-        SELECT n.*, p.creator_id, p.id as pitch_id, p.title,
+        SELECT n.*, p.user_id, p.id as pitch_id, p.title,
                u.email as requester_email, u.name as requester_name
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
@@ -254,7 +254,7 @@ export class NDAWithRBACHandler {
 
       // Get NDA details
       const [nda] = await this.sql`
-        SELECT n.*, p.creator_id
+        SELECT n.*, p.user_id
         FROM ndas n
         JOIN pitches p ON n.pitch_id = p.id
         WHERE n.id = ${ndaId}

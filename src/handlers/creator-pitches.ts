@@ -71,7 +71,7 @@ export async function creatorPitchesHandler(request: Request, env: Env): Promise
           created_at,
           updated_at
         FROM pitches
-        WHERE creator_id = ${userId}
+        WHERE user_id = ${userId}
           AND status = ${status}
         ORDER BY updated_at DESC
         LIMIT ${limit} OFFSET ${offset}
@@ -80,7 +80,7 @@ export async function creatorPitchesHandler(request: Request, env: Env): Promise
       countResult = await sql`
         SELECT COUNT(*) as total
         FROM pitches
-        WHERE creator_id = ${userId}
+        WHERE user_id = ${userId}
           AND status = ${status}
       `;
     } else {
@@ -110,7 +110,7 @@ export async function creatorPitchesHandler(request: Request, env: Env): Promise
           created_at,
           updated_at
         FROM pitches
-        WHERE creator_id = ${userId}
+        WHERE user_id = ${userId}
         ORDER BY updated_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -118,7 +118,7 @@ export async function creatorPitchesHandler(request: Request, env: Env): Promise
       countResult = await sql`
         SELECT COUNT(*) as total
         FROM pitches
-        WHERE creator_id = ${userId}
+        WHERE user_id = ${userId}
       `;
     }
 
@@ -238,7 +238,7 @@ export async function creatorActivitiesHandler(request: Request, env: Env): Prom
           'status', status
         ) as metadata
       FROM pitches
-      WHERE creator_id = ${userId}
+      WHERE user_id = ${userId}
       ORDER BY COALESCE(published_at, created_at) DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
@@ -247,7 +247,7 @@ export async function creatorActivitiesHandler(request: Request, env: Env): Prom
     const countResult = await sql`
       SELECT COUNT(*) as total
       FROM pitches
-      WHERE creator_id = ${userId}
+      WHERE user_id = ${userId}
     `;
 
     const total = parseInt(countResult[0]?.total || '0');

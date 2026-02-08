@@ -29,7 +29,7 @@ export class SearchFiltersHandler {
             COUNT(DISTINCT s.id) as save_count,
             COUNT(DISTINCT v.id) as view_count
           FROM pitches p
-          LEFT JOIN users u ON u.id = p.creator_id
+          LEFT JOIN users u ON u.id = p.user_id
           LEFT JOIN saved_pitches s ON s.pitch_id = p.id
           LEFT JOIN pitch_views v ON v.pitch_id = p.id
           WHERE p.status = 'published'
@@ -68,7 +68,7 @@ export class SearchFiltersHandler {
             COUNT(DISTINCT p.id) as pitch_count,
             COUNT(DISTINCT f.id) as follower_count
           FROM users u
-          LEFT JOIN pitches p ON p.creator_id = u.id
+          LEFT JOIN pitches p ON p.user_id = u.id
           LEFT JOIN follows f ON f.following_id = u.id
           WHERE u.name ILIKE $1 OR u.email ILIKE $1
           GROUP BY u.id
@@ -138,7 +138,7 @@ export class SearchFiltersHandler {
           COUNT(DISTINCT i.id) as investment_count,
           COUNT(DISTINCT nr.id) as nda_count
         FROM pitches p
-        LEFT JOIN users u ON u.id = p.creator_id
+        LEFT JOIN users u ON u.id = p.user_id
         LEFT JOIN pitch_feedback pf ON pf.pitch_id = p.id
         LEFT JOIN pitch_views pv ON pv.pitch_id = p.id
         LEFT JOIN investments i ON i.pitch_id = p.id

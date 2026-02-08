@@ -69,7 +69,7 @@ export async function createCharacterHandler(request: Request, env: Env): Promis
 
     // Verify pitch ownership
     const [pitch] = await sql`
-      SELECT id FROM pitches WHERE id = ${pitchId} AND (user_id = ${userId} OR creator_id = ${userId})
+      SELECT id FROM pitches WHERE id = ${pitchId} AND user_id = ${userId}
     `;
     if (!pitch) {
       return jsonResponse({ success: false, error: { code: 'FORBIDDEN', message: 'You do not own this pitch' } }, 403, origin);
@@ -119,7 +119,7 @@ export async function updateCharacterHandler(request: Request, env: Env): Promis
 
     // Verify pitch ownership
     const [pitch] = await sql`
-      SELECT id FROM pitches WHERE id = ${pitchId} AND (user_id = ${userId} OR creator_id = ${userId})
+      SELECT id FROM pitches WHERE id = ${pitchId} AND user_id = ${userId}
     `;
     if (!pitch) {
       return jsonResponse({ success: false, error: { code: 'FORBIDDEN', message: 'You do not own this pitch' } }, 403, origin);
@@ -172,7 +172,7 @@ export async function deleteCharacterHandler(request: Request, env: Env): Promis
 
     // Verify pitch ownership
     const [pitch] = await sql`
-      SELECT id FROM pitches WHERE id = ${pitchId} AND (user_id = ${userId} OR creator_id = ${userId})
+      SELECT id FROM pitches WHERE id = ${pitchId} AND user_id = ${userId}
     `;
     if (!pitch) {
       return jsonResponse({ success: false, error: { code: 'FORBIDDEN', message: 'You do not own this pitch' } }, 403, origin);

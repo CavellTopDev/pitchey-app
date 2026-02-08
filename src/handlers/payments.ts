@@ -461,9 +461,9 @@ export class PaymentHandlers {
 
       // Get pitch and creator details
       const pitch = await c.env.DB.prepare(`
-        SELECT p.id, p.creator_id, p.title, u.stripe_connect_id
+        SELECT p.id, p.user_id, p.title, u.stripe_connect_id
         FROM pitches p
-        JOIN users u ON p.creator_id = u.id
+        JOIN users u ON p.user_id = u.id
         WHERE p.id = ?
       `).bind(validated.pitchId).first();
 
@@ -477,7 +477,7 @@ export class PaymentHandlers {
       // Process investment payment
       const paymentIntent = await this.connectService.processInvestmentPayment({
         investorId: userId,
-        creatorId: pitch.creator_id,
+        creatorId: pitch.user_id,
         pitchId: validated.pitchId,
         amountCents,
         platformFeeCents,

@@ -175,7 +175,7 @@ export async function getFollowListHandler(request: Request, env: Env): Promise<
         END as is_following,
         (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as follower_count,
         (SELECT COUNT(*) FROM follows WHERE follower_id = u.id) as following_count,
-        (SELECT COUNT(*) FROM pitches WHERE creator_id = u.id AND status = 'published') as pitch_count
+        (SELECT COUNT(*) FROM pitches WHERE user_id = u.id AND status = 'published') as pitch_count
       FROM follows f
       JOIN users u ON ${isFollowers 
         ? sql`u.id = f.follower_id` 
@@ -380,9 +380,9 @@ export async function getFollowSuggestionsHandler(request: Request, env: Env): P
           u.id as user_id,
           COUNT(*) as common_genres
         FROM users u
-        JOIN pitches p1 ON p1.creator_id = u.id
+        JOIN pitches p1 ON p1.user_id = u.id
         JOIN pitches p2 ON p2.genre = p1.genre
-        WHERE p2.creator_id = ${user.id}
+        WHERE p2.user_id = ${user.id}
         AND u.id != ${user.id}
         AND NOT EXISTS (
           SELECT 1 FROM follows 
@@ -418,7 +418,7 @@ export async function getFollowSuggestionsHandler(request: Request, env: Env): P
         COALESCE(fbf.mutual_connections, 0) as mutual_connections,
         COALESCE(gm.common_genres, 0) as common_genres,
         COALESCE(pu.follower_count, 0) as follower_count,
-        (SELECT COUNT(*) FROM pitches WHERE creator_id = u.id AND status = 'published') as pitch_count,
+        (SELECT COUNT(*) FROM pitches WHERE user_id = u.id AND status = 'published') as pitch_count,
         (
           COALESCE(fbf.mutual_connections, 0) * 3 + 
           COALESCE(gm.common_genres, 0) * 2 + 

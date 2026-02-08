@@ -466,7 +466,7 @@ export async function ndaStatsHandler(request: Request, env: Env): Promise<Respo
         COUNT(*) FILTER (WHERE status = 'expired') as expired
       FROM nda_requests n
       JOIN pitches p ON n.pitch_id = p.id
-      WHERE n.requester_id = ${userId} OR p.creator_id = ${userId}
+      WHERE n.requester_id = ${userId} OR p.user_id = ${userId}
     `;
     
     return new Response(JSON.stringify({

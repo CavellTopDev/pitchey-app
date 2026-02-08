@@ -204,7 +204,7 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
         i.status
       FROM investments i
       JOIN pitches p ON i.pitch_id = p.id
-      WHERE (p.creator_id::text = ${userId} OR p.user_id::text = ${userId})
+      WHERE p.user_id::text = ${userId}
         AND i.created_at BETWEEN ${startDate} AND ${endDate}
       GROUP BY DATE_TRUNC('day', i.created_at), i.status
       ORDER BY date DESC
@@ -221,7 +221,7 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
         COALESCE(MAX(i.amount), 0) as maximum
       FROM investments i
       JOIN pitches p ON i.pitch_id = p.id
-      WHERE (p.creator_id::text = ${userId} OR p.user_id::text = ${userId})
+      WHERE p.user_id::text = ${userId}
         AND i.created_at BETWEEN ${startDate} AND ${endDate}
       GROUP BY i.status
     `.catch(() => []);
@@ -236,7 +236,7 @@ export async function creatorRevenueHandler(request: Request, env: Env): Promise
       FROM investments i
       JOIN pitches p ON i.pitch_id = p.id
       JOIN users u ON i.investor_id::text = u.id::text
-      WHERE (p.creator_id::text = ${userId} OR p.user_id::text = ${userId})
+      WHERE p.user_id::text = ${userId}
         AND i.status IN ('committed', 'funded', 'active')
       GROUP BY u.location, u.company_name
       ORDER BY total_invested DESC
@@ -347,7 +347,7 @@ export async function creatorContractsHandler(request: Request, env: Env): Promi
       FROM investments i
       JOIN pitches p ON i.pitch_id = p.id
       LEFT JOIN users u ON i.investor_id::text = u.id::text
-      WHERE (p.creator_id::text = ${userId} OR p.user_id::text = ${userId})
+      WHERE p.user_id::text = ${userId}
         ${status ? sql`AND i.status = ${status}` : sql``}
       ORDER BY COALESCE(i.updated_at, i.created_at) DESC
       LIMIT 100
@@ -364,7 +364,7 @@ export async function creatorContractsHandler(request: Request, env: Env): Promi
         COALESCE(SUM(i.amount) FILTER (WHERE i.status IN ('committed', 'pending')), 0) as total_pipeline_value
       FROM investments i
       JOIN pitches p ON i.pitch_id = p.id
-      WHERE p.creator_id::text = ${userId} OR p.user_id::text = ${userId}
+      WHERE p.user_id::text = ${userId}
     `;
 
     return new Response(JSON.stringify({
@@ -475,7 +475,7 @@ export async function creatorPitchAnalyticsHandler(request: Request, env: Env): 
           FROM investments
           GROUP BY pitch_id
         ) inv_count ON p.id = inv_count.pitch_id
-        WHERE p.creator_id::text = ${userId} OR p.user_id::text = ${userId}
+        WHERE p.user_id::text = ${userId}
         ORDER BY p.created_at DESC
       `.catch(() => []);
 
@@ -490,7 +490,7 @@ export async function creatorPitchAnalyticsHandler(request: Request, env: Env): 
         LEFT JOIN pitch_views pv ON p.id = pv.pitch_id
         LEFT JOIN saved_pitches sp ON p.id = sp.pitch_id
         LEFT JOIN nda_requests nr ON p.id = nr.pitch_id
-        WHERE p.creator_id::text = ${userId} OR p.user_id::text = ${userId}
+        WHERE p.user_id::text = ${userId}
       `.catch(() => [{ total_views: 0, unique_viewers: 0, total_saves: 0, total_nda_requests: 0 }]);
 
       return new Response(JSON.stringify({
@@ -661,7 +661,7 @@ export async function creatorInvestorsHandler(request: Request, env: Env): Promi
       FROM users u
       JOIN investments i ON i.investor_id::text = u.id::text
       JOIN pitches p ON i.pitch_id = p.id
-      WHERE (p.creator_id::text = ${userId} OR p.user_id::text = ${userId})
+      WHERE p.user_id::text = ${userId}
         ${filter === 'active' ? sql`AND i.status IN ('committed', 'funded', 'active')` : sql``}
       GROUP BY u.id, u.name, u.first_name, u.last_name, u.email, u.company_name, u.profile_image, u.location, u.bio
       ORDER BY total_invested DESC
@@ -708,9 +708,9 @@ async function getRevenueMetrics(sql: any, userId: string) {
       AVG(CASE WHEN status = 'funded' THEN amount END) as avg_deal_size
     FROM investments i
     JOIN pitches p ON i.pitch_id = p.id
-    WHERE p.creator_id = ${userId}
+    WHERE p.user_id::text = ${userId}
   `;
-  
+
   return {
     totalRevenue: Number(result[0]?.total_revenue || 0),
     committedFunds: Number(result[0]?.committed_funds || 0),
@@ -727,7 +727,7 @@ async function getViewTrend(sql: any, userId: string) {
       COUNT(*) as views
     FROM view_events ve
     JOIN pitches p ON ve.pitch_id = p.id
-    WHERE p.creator_id = ${userId}
+    WHERE p.user_id::text = ${userId}
       AND ve.created_at >= NOW() - INTERVAL '30 days'
     GROUP BY DATE_TRUNC('day', ve.created_at)
     ORDER BY date ASC
@@ -746,7 +746,7 @@ async function getContractAlerts(sql: any, userId: string) {
       i.updated_at
     FROM investments i
     JOIN pitches p ON i.pitch_id = p.id
-    WHERE p.creator_id = ${userId}
+    WHERE p.user_id::text = ${userId}
       AND i.status = 'pending'
       AND i.created_at < NOW() - INTERVAL '30 days'
   `;
@@ -768,7 +768,7 @@ async function getContractAlerts(sql: any, userId: string) {
     FROM investments i
     JOIN pitches p ON i.pitch_id = p.id
     JOIN investment_documents id ON id.investment_id = i.id
-    WHERE p.creator_id = ${userId}
+    WHERE p.user_id::text = ${userId}
       AND i.status IN ('pending', 'committed')
       AND id.is_signed = false
     GROUP BY i.id, p.title

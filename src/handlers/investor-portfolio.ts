@@ -390,7 +390,7 @@ export class InvestorPortfolioHandler {
               COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as creator_name
              FROM saved_pitches sp
              JOIN pitches p ON sp.pitch_id = p.id
-             LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+             LEFT JOIN users u ON p.user_id = u.id
              WHERE sp.user_id = $1
              ORDER BY sp.created_at DESC`,
             [userId]
@@ -417,7 +417,7 @@ export class InvestorPortfolioHandler {
           COALESCE(u.name, CONCAT(u.first_name, ' ', u.last_name), u.email) as creator_name
          FROM investor_watchlist w
          JOIN pitches p ON w.pitch_id = p.id
-         LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+         LEFT JOIN users u ON p.user_id = u.id
          WHERE w.investor_id = $1
          ORDER BY w.priority DESC, w.added_at DESC`,
         [userId]

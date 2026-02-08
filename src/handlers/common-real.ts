@@ -178,7 +178,7 @@ export async function pitchesDiscoverRealHandler(request: Request, env: Env): Pr
                p.thumbnail_url, p.view_count, p.like_count, p.created_at, p.published_at,
                COALESCE(u.name, u.username) as creator_name, u.profile_image as creator_image
         FROM pitches p
-        LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         WHERE p.status = 'published' AND LOWER(p.genre) = LOWER(${genre})
         ORDER BY p.published_at DESC NULLS LAST
         LIMIT ${limit} OFFSET ${offset}
@@ -194,7 +194,7 @@ export async function pitchesDiscoverRealHandler(request: Request, env: Env): Pr
                p.thumbnail_url, p.view_count, p.like_count, p.created_at, p.published_at,
                COALESCE(u.name, u.username) as creator_name, u.profile_image as creator_image
         FROM pitches p
-        LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         WHERE p.status = 'published'
         ORDER BY p.published_at DESC NULLS LAST
         LIMIT ${limit} OFFSET ${offset}
@@ -212,7 +212,7 @@ export async function pitchesDiscoverRealHandler(request: Request, env: Env): Pr
              p.thumbnail_url, p.view_count, p.like_count, p.created_at, p.published_at,
              COALESCE(u.name, u.username) as creator_name, u.profile_image as creator_image
       FROM pitches p
-      LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+      LEFT JOIN users u ON p.user_id = u.id
       WHERE p.status = 'published'
       ORDER BY p.view_count DESC NULLS LAST
       LIMIT 5
@@ -224,7 +224,7 @@ export async function pitchesDiscoverRealHandler(request: Request, env: Env): Pr
              p.thumbnail_url, p.view_count, p.like_count, p.created_at, p.published_at,
              COALESCE(u.name, u.username) as creator_name, u.profile_image as creator_image
       FROM pitches p
-      LEFT JOIN users u ON p.user_id = u.id OR p.creator_id = u.id
+      LEFT JOIN users u ON p.user_id = u.id
       WHERE p.status = 'published'
       ORDER BY p.like_count DESC NULLS LAST
       LIMIT 5

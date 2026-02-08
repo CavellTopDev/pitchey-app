@@ -69,10 +69,10 @@ export class VideoHandlers {
 
       // Check pitch ownership
       const pitch = await c.env.DB.prepare(`
-        SELECT creator_id, title FROM pitches WHERE id = ?
+        SELECT user_id, title FROM pitches WHERE id = ?
       `).bind(validated.pitchId).first();
 
-      if (!pitch || pitch.creator_id !== userId) {
+      if (!pitch || pitch.user_id !== userId) {
         return c.json({ error: "Pitch not found or unauthorized" }, 404);
       }
 
@@ -145,10 +145,10 @@ export class VideoHandlers {
 
       // Verify ownership
       const video = await c.env.DB.prepare(`
-        SELECT v.*, p.creator_id 
+        SELECT v.*, p.user_id 
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
-        WHERE v.id = ? AND p.creator_id = ?
+        WHERE v.id = ? AND p.user_id = ?
       `).bind(validated.videoId, userId).first();
 
       if (!video) {
@@ -201,13 +201,13 @@ export class VideoHandlers {
         SELECT 
           v.*,
           p.title as pitch_title,
-          p.creator_id,
+          p.user_id,
           u.name as creator_name,
           COUNT(DISTINCT vv.id) as view_count,
           AVG(vv.watch_duration) as avg_watch_duration
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
-        JOIN users u ON p.creator_id = u.id
+        JOIN users u ON p.user_id = u.id
         LEFT JOIN video_views vv ON v.id = vv.video_id
         WHERE v.id = ?
         GROUP BY v.id
@@ -219,7 +219,7 @@ export class VideoHandlers {
 
       // Check access rights
       const hasAccess = video.visibility === 'public' ||
-                       video.creator_id === userId ||
+                       video.user_id === userId ||
                        await this.checkVideoAccess(videoId, userId, c.env.DB);
 
       if (!hasAccess) {
@@ -234,7 +234,7 @@ export class VideoHandlers {
       `).bind(videoId).all();
 
       // Record view
-      if (userId !== video.creator_id) {
+      if (userId !== video.user_id) {
         await this.videoService.recordView(videoId, userId, {
           referrer: c.req.header('Referer'),
           userAgent: c.req.header('User-Agent'),
@@ -265,7 +265,7 @@ export class VideoHandlers {
 
       // Check access
       const video = await c.env.DB.prepare(`
-        SELECT v.*, p.creator_id 
+        SELECT v.*, p.user_id 
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
         WHERE v.id = ?
@@ -276,7 +276,7 @@ export class VideoHandlers {
       }
 
       const hasAccess = video.visibility === 'public' ||
-                       video.creator_id === userId ||
+                       video.user_id === userId ||
                        await this.checkVideoAccess(videoId, userId, c.env.DB);
 
       if (!hasAccess) {
@@ -367,10 +367,10 @@ export class VideoHandlers {
 
       // Check ownership
       const video = await c.env.DB.prepare(`
-        SELECT v.*, p.creator_id 
+        SELECT v.*, p.user_id 
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
-        WHERE v.id = ? AND p.creator_id = ?
+        WHERE v.id = ? AND p.user_id = ?
       `).bind(videoId, userId).first();
 
       if (!video) {
@@ -436,10 +436,10 @@ export class VideoHandlers {
 
       // Check ownership
       const video = await c.env.DB.prepare(`
-        SELECT v.*, p.creator_id 
+        SELECT v.*, p.user_id 
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
-        WHERE v.id = ? AND p.creator_id = ?
+        WHERE v.id = ? AND p.user_id = ?
       `).bind(videoId, userId).first();
 
       if (!video) {
@@ -480,10 +480,10 @@ export class VideoHandlers {
 
       // Check ownership
       const video = await c.env.DB.prepare(`
-        SELECT v.*, p.creator_id 
+        SELECT v.*, p.user_id 
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
-        WHERE v.id = ? AND p.creator_id = ?
+        WHERE v.id = ? AND p.user_id = ?
       `).bind(videoId, userId).first();
 
       if (!video) {
@@ -523,7 +523,7 @@ export class VideoHandlers {
       const access = await c.env.DB.prepare(`
         SELECT 
           CASE 
-            WHEN p.creator_id = ? THEN 1
+            WHEN p.user_id = ? THEN 1
             WHEN i.status = 'completed' THEN 1
             ELSE 0
           END as has_access
@@ -582,7 +582,7 @@ export class VideoHandlers {
         WHERE v.pitch_id = ? 
           AND v.status != 'deleted'
           AND (v.visibility = 'public' OR ? = (
-            SELECT creator_id FROM pitches WHERE id = ?
+            SELECT user_id FROM pitches WHERE id = ?
           ))
         GROUP BY v.id
         ORDER BY v.order_index, v.created_at
@@ -630,7 +630,7 @@ export class VideoHandlers {
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
         LEFT JOIN video_views vv ON v.id = vv.video_id
-        WHERE p.creator_id = ?
+        WHERE p.user_id = ?
           AND v.status = 'ready'
           AND vv.viewed_at >= ?
       `).bind(userId, startDate).first();
@@ -646,7 +646,7 @@ export class VideoHandlers {
         FROM videos v
         JOIN pitches p ON v.pitch_id = p.id
         JOIN video_views vv ON v.id = vv.video_id
-        WHERE p.creator_id = ?
+        WHERE p.user_id = ?
           AND vv.viewed_at >= ?
         GROUP BY v.id
         ORDER BY view_count DESC

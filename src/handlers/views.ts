@@ -102,7 +102,7 @@ export async function getViewAnalyticsHandler(request: Request, env: Env): Promi
         COUNT(DISTINCT v.viewer_id)::int AS unique_viewers
       FROM views v
       JOIN pitches p ON p.id = v.pitch_id
-      WHERE p.creator_id::text = ${userId}
+      WHERE p.user_id::text = ${userId}
         ${pitchId ? sql`AND v.pitch_id = ${parseInt(pitchId)}` : sql``}
       GROUP BY period
       ORDER BY period DESC
@@ -120,7 +120,7 @@ export async function getViewAnalyticsHandler(request: Request, env: Env): Promi
       FROM views v
       JOIN pitches p ON p.id = v.pitch_id
       LEFT JOIN users u ON u.id = v.viewer_id
-      WHERE p.creator_id::text = ${userId}
+      WHERE p.user_id::text = ${userId}
         AND v.viewer_id IS NOT NULL
       GROUP BY u.id, u.name, u.user_type
       ORDER BY view_count DESC
@@ -172,7 +172,7 @@ export async function getPitchViewersHandler(request: Request, env: Env): Promis
 
     // Check ownership
     const [pitch] = await sql`
-      SELECT id, creator_id FROM pitches WHERE id = ${parseInt(pitchId)}
+      SELECT id, user_id FROM pitches WHERE id = ${parseInt(pitchId)}
     `;
 
     if (!pitch) {
@@ -181,7 +181,7 @@ export async function getPitchViewersHandler(request: Request, env: Env): Promis
       });
     }
 
-    const isOwner = String(pitch.creator_id) === userId;
+    const isOwner = String(pitch.user_id) === userId;
 
     const viewers = await sql`
       SELECT

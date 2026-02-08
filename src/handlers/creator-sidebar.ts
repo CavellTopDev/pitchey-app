@@ -72,7 +72,7 @@ export async function creatorStatsHandler(
         COALESCE(SUM(view_count), 0)::int AS total_views,
         COALESCE(SUM(like_count), 0)::int AS total_likes
       FROM pitches
-      WHERE creator_id = ${userId}
+      WHERE user_id = ${userId}
     `;
 
     // Follower count (people following this creator)
@@ -87,7 +87,7 @@ export async function creatorStatsHandler(
       SELECT
         COALESCE(SUM(amount), 0)::numeric AS total_revenue
       FROM investments
-      WHERE pitch_id IN (SELECT id FROM pitches WHERE creator_id = ${userId})
+      WHERE pitch_id IN (SELECT id FROM pitches WHERE user_id = ${userId})
         AND status IN ('completed', 'committed')
     `;
 
@@ -95,7 +95,7 @@ export async function creatorStatsHandler(
     const monthlyStats = await sql`
       SELECT COALESCE(SUM(amount), 0)::numeric AS monthly_revenue
       FROM investments
-      WHERE pitch_id IN (SELECT id FROM pitches WHERE creator_id = ${userId})
+      WHERE pitch_id IN (SELECT id FROM pitches WHERE user_id = ${userId})
         AND status IN ('completed', 'committed')
         AND created_at >= date_trunc('month', CURRENT_DATE)
     `;
@@ -206,7 +206,7 @@ export async function creatorPitchesAnalyticsHandler(
         COALESCE(p.like_count, 0)::int AS likes,
         (SELECT COUNT(*)::int FROM saved_pitches sp WHERE sp.pitch_id = p.id) AS saves
       FROM pitches p
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
       ORDER BY p.view_count DESC NULLS LAST
     `;
 
@@ -215,7 +215,7 @@ export async function creatorPitchesAnalyticsHandler(
         COALESCE(SUM(view_count), 0)::int AS total_views,
         COALESCE(SUM(like_count), 0)::int AS total_likes
       FROM pitches
-      WHERE creator_id = ${userId}
+      WHERE user_id = ${userId}
     `;
 
     const t = totals[0] || {};
@@ -274,7 +274,7 @@ export async function creatorPortfolioHandler(
         WHERE status IN ('completed', 'committed')
         GROUP BY pitch_id
       ) inv ON inv.pitch_id = p.id
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
       ORDER BY p.created_at DESC
     `;
 
@@ -282,7 +282,7 @@ export async function creatorPortfolioHandler(
       SELECT COALESCE(SUM(i.amount), 0)::numeric AS total
       FROM investments i
       JOIN pitches p ON p.id = i.pitch_id
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
         AND i.status IN ('completed', 'committed')
     `;
 
@@ -400,7 +400,7 @@ export async function creatorCalendarHandler(
         NULL AS end_date
       FROM investments i
       JOIN pitches p ON p.id = i.pitch_id
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
       ORDER BY i.created_at DESC
       LIMIT 50
     `;
@@ -444,7 +444,7 @@ export async function creatorEarningsHandler(
         COALESCE(SUM(CASE WHEN i.status IN ('completed', 'committed') THEN i.amount ELSE 0 END), 0)::numeric AS paid
       FROM investments i
       JOIN pitches p ON p.id = i.pitch_id
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
     `;
 
     // Also check investment_deals for additional earnings data
@@ -456,7 +456,7 @@ export async function creatorEarningsHandler(
           COALESCE(SUM(CASE WHEN deal_state = 'inquiry' THEN investment_amount ELSE 0 END), 0)::numeric AS pending,
           COALESCE(SUM(CASE WHEN deal_state IN ('funded', 'completed') THEN investment_amount ELSE 0 END), 0)::numeric AS paid
         FROM investment_deals
-        WHERE creator_id = ${userId}
+        WHERE user_id = ${userId}
       `;
       if (dealResult[0]) {
         dealEarnings = {
@@ -482,7 +482,7 @@ export async function creatorEarningsHandler(
       FROM investments i
       JOIN pitches p ON p.id = i.pitch_id
       LEFT JOIN users u ON u.id::text = i.investor_id::text
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
       ORDER BY i.created_at DESC
       LIMIT 50
     `;
@@ -597,7 +597,7 @@ export async function creatorPerformanceHandler(
         END AS engagement_rate,
         p.created_at
       FROM pitches p
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
       ORDER BY views DESC
       LIMIT 50
     `;
@@ -609,7 +609,7 @@ export async function creatorPerformanceHandler(
         COALESCE(SUM(p.view_count), 0)::int AS total_views,
         COALESCE(SUM(p.like_count), 0)::int AS total_likes
       FROM pitches p
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
       GROUP BY p.genre
       ORDER BY total_views DESC
     `;
@@ -621,7 +621,7 @@ export async function creatorPerformanceHandler(
         COALESCE(SUM(p.view_count), 0)::int AS views,
         COALESCE(SUM(p.like_count), 0)::int AS likes
       FROM pitches p
-      WHERE p.creator_id = ${userId}
+      WHERE p.user_id = ${userId}
         AND p.created_at >= NOW() - INTERVAL '12 months'
       GROUP BY DATE_TRUNC('month', p.created_at)
       ORDER BY month ASC
