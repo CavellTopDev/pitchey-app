@@ -119,10 +119,9 @@ export default function PitchEdit() {
 
   const fetchPitch = async (pitchId: number) => {
     try {
-      // Fetch all creator pitches and find the one with matching ID
-      const pitches = await pitchService.getMyPitches();
-      const pitch = pitches.find(p => p.id === pitchId);
-      
+      // Fetch the specific pitch by ID
+      const pitch = await pitchService.getById(pitchId);
+
       if (!pitch) {
         throw new Error('Pitch not found');
       }

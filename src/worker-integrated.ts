@@ -3056,6 +3056,7 @@ class RouteRegistry {
       '/api/teams/roles', // Team role definitions
       '/api/metrics/current', // Platform metrics
       '/api/metrics/historical', // Historical metrics
+      '/api/views/track', // View tracking (anonymous views allowed)
       '/ws'             // WebSocket endpoint handles its own auth
     ];
 
