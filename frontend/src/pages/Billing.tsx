@@ -170,7 +170,7 @@ export default function Billing() {
                 <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg">
                   <Coins className="w-4 h-4 text-purple-600" />
                   <span className="text-sm font-medium text-purple-900">
-                    {credits.balance} Credits
+                    {credits?.balance?.credits ?? credits?.credits ?? 0} Credits
                   </span>
                 </div>
               )}
@@ -324,11 +324,11 @@ function OverviewTab({ subscription, credits, paymentHistory, onRefresh }: any) 
             <Coins className="w-6 h-6 text-purple-600" />
           </div>
           <p className="text-2xl font-bold text-gray-900 mb-2">
-            {credits?.balance || 0}
+            {credits?.balance?.credits ?? credits?.credits ?? 0}
           </p>
           <p className="text-gray-500 text-sm">
-            Total purchased: {credits?.totalPurchased || 0} | 
-            Total used: {credits?.totalUsed || 0}
+            Total purchased: {credits?.balance?.totalPurchased ?? 0} |
+            Total used: {credits?.balance?.totalUsed ?? 0}
           </p>
         </div>
       </div>

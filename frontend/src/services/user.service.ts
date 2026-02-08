@@ -200,10 +200,10 @@ export class UserService {
   static async uploadProfileImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('image', file);
+    formData.append('type', 'profile');
 
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: formData,
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -220,10 +220,10 @@ export class UserService {
   static async uploadCoverImage(file: File): Promise<string> {
     const formData = new FormData();
     formData.append('image', file);
+    formData.append('type', 'cover');
 
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: formData,
       credentials: 'include' // Send cookies for Better Auth session
     });
@@ -372,9 +372,8 @@ export class UserService {
       formData.append(`document_${index}`, doc);
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload/documents/multiple`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: formData,
       credentials: 'include' // Send cookies for Better Auth session
     });

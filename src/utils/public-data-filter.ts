@@ -3,6 +3,8 @@
  * Ensures guest users only see appropriate public data
  */
 
+import { getCorsHeaders } from './response';
+
 export interface PublicPitch {
   id: string;
   title: string;
@@ -243,14 +245,14 @@ export function removeSensitiveFields(obj: any): any {
 /**
  * Create a public-safe error response
  */
-export function createPublicErrorResponse(message: string, status: number = 500): Response {
+export function createPublicErrorResponse(message: string, status: number = 500, origin?: string | null): Response {
   // Never expose internal error details to public
   const publicMessage = status === 404 ? message || 'Content not found' :
                        status === 429 ? message || 'Too many requests' :
                        status === 400 ? message || 'Invalid request' :
                        status === 503 ? message || 'Service temporarily unavailable' :
                        message || 'Service error';
-  
+
   return new Response(
     JSON.stringify({
       success: false,
@@ -260,6 +262,7 @@ export function createPublicErrorResponse(message: string, status: number = 500)
     {
       status,
       headers: {
+        ...getCorsHeaders(origin),
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache'
       }
@@ -289,22 +292,24 @@ export function createPublicResponse(
     status?: number;
     cache?: boolean;
     etag?: string;
+    origin?: string | null;
   } = {}
 ): Response {
-  const { status = 200, cache = true, etag } = options;
-  
-  const headers: HeadersInit = {
+  const { status = 200, cache = true, etag, origin } = options;
+
+  const headers: Record<string, string> = {
+    ...getCorsHeaders(origin),
     'Content-Type': 'application/json'
   };
-  
+
   if (cache) {
     Object.assign(headers, addPublicCacheHeaders());
   }
-  
+
   if (etag) {
     headers['ETag'] = etag;
   }
-  
+
   return new Response(JSON.stringify({
     success: true,
     data: removeSensitiveFields(data),

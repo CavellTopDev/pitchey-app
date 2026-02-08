@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, CircleUser, Coins, Menu, X, LogOut, Home, Store } from 'lucide-react';
 import { useBetterAuthStore } from '../../store/betterAuthStore';
+import { paymentsAPI } from '../../lib/apiServices';
 
 interface MinimalHeaderProps {
   onMenuToggle?: () => void;
@@ -14,6 +15,15 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
   const { user, logout } = useBetterAuthStore();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
+
+  useEffect(() => {
+    paymentsAPI.getCreditBalance().then((data) => {
+      if (data) {
+        setCreditBalance(data.balance?.credits ?? data.credits ?? 0);
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -76,7 +86,7 @@ export function MinimalHeader({ onMenuToggle, isSidebarOpen = true, userType }: 
         {/* Credits */}
         <button className={`flex items-center gap-2 px-3 py-1 bg-${color}-100 text-${color}-700 rounded-full text-sm hover:bg-${color}-200 transition`}>
           <Coins className="w-4 h-4" />
-          <span>0 Credits</span>
+          <span>{creditBalance} Credits</span>
         </button>
 
         {/* Notifications */}

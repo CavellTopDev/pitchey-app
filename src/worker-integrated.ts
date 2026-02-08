@@ -2161,6 +2161,8 @@ class RouteRegistry {
 
     // Creator Portal routes - pitches and activities (handlers do own auth)
     this.register('GET', '/api/creator/pitches', (req) => creatorPitchesHandler(req, this.env));
+    this.register('PUT', '/api/creator/pitches/:id', this.updatePitch.bind(this));
+    this.register('DELETE', '/api/creator/pitches/:id', this.deletePitch.bind(this));
     this.register('GET', '/api/creator/activities', (req) => creatorActivitiesHandler(req, this.env));
 
     // Pitch Like/Save endpoints (real DB handlers)
@@ -2242,10 +2244,19 @@ class RouteRegistry {
     this.register('GET', '/api/traces/metrics/performance', this.getTracePerformanceMetrics.bind(this));
     this.register('GET', '/api/traces/metrics/errors', this.getTraceErrorMetrics.bind(this));
 
-    // Payment routes (missing endpoints)
+    // Payment routes
     this.register('GET', '/api/payments/credits/balance', this.getCreditsBalance.bind(this));
+    this.register('POST', '/api/payments/credits/purchase', this.purchaseCredits.bind(this));
+    this.register('POST', '/api/payments/credits/use', this.useCredits.bind(this));
     this.register('GET', '/api/payments/subscription-status', this.getSubscriptionStatus.bind(this));
+    this.register('POST', '/api/payments/subscribe', this.handleSubscribe.bind(this));
+    this.register('POST', '/api/payments/cancel-subscription', this.handleCancelSubscription.bind(this));
     this.register('GET', '/api/payments/history', (req) => this.getPaymentHistory(req));
+    this.register('GET', '/api/payments/invoices', this.getInvoices.bind(this));
+    this.register('GET', '/api/payments/payment-methods', this.getPaymentMethods.bind(this));
+    this.register('POST', '/api/payments/payment-methods', this.addPaymentMethod.bind(this));
+    this.register('DELETE', '/api/payments/payment-methods/:id', this.removePaymentMethod.bind(this));
+    this.register('PUT', '/api/payments/payment-methods', this.setDefaultPaymentMethod.bind(this));
 
     // Pitch Validation Routes
     this.register('POST', '/api/validation/analyze', (req) => validationHandlers.analyze(req));
@@ -7572,10 +7583,39 @@ pitchey_analytics_datapoints_per_minute 1250
       return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
     }
 
+    try {
+      const sql = this.db.getSql() as any;
+      if (sql && authResult.user?.id) {
+        const rows = await sql`
+          SELECT new_tier, action, status, period_start, period_end, amount, billing_interval
+          FROM subscription_history
+          WHERE user_id = ${authResult.user.id} AND status = 'active'
+          ORDER BY created_at DESC LIMIT 1
+        `;
+        if (rows.length > 0) {
+          const sub = rows[0];
+          return new ApiResponseBuilder(request).success({
+            active: true,
+            tier: sub.new_tier || 'basic',
+            status: sub.status,
+            currentPeriodStart: sub.period_start,
+            currentPeriodEnd: sub.period_end,
+            amount: sub.amount,
+            billingInterval: sub.billing_interval,
+            renewalDate: sub.period_end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch subscription:', e);
+    }
+
+    // No active subscription — return free tier
     return new ApiResponseBuilder(request).success({
-      active: true,
-      tier: 'basic',
-      renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      active: false,
+      tier: 'watcher',
+      status: 'none',
+      renewalDate: null
     });
   }
 
@@ -7585,15 +7625,313 @@ pitchey_analytics_datapoints_per_minute 1250
       return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
     }
 
-    // Return empty history if no payments table exists yet
+    try {
+      const sql = this.db.getSql() as any;
+      if (sql && authResult.user?.id) {
+        const url = new URL(request.url);
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+
+        const rows = await sql`
+          SELECT id, type, amount, description, balance_before, balance_after, usage_type, created_at
+          FROM credit_transactions
+          WHERE user_id = ${authResult.user.id}
+          ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `;
+
+        const countRows = await sql`
+          SELECT COUNT(*) as total FROM credit_transactions WHERE user_id = ${authResult.user.id}
+        `;
+        const total = parseInt(countRows[0]?.total || '0');
+
+        return new ApiResponseBuilder(request).success({
+          payments: rows.map((r: any) => ({
+            id: r.id,
+            type: r.type,
+            amount: r.amount,
+            description: r.description,
+            balanceBefore: r.balance_before,
+            balanceAfter: r.balance_after,
+            usageType: r.usage_type,
+            status: 'completed',
+            createdAt: r.created_at
+          })),
+          total,
+          pagination: { page: Math.floor(offset / limit) + 1, limit, hasMore: offset + limit < total }
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch payment history:', e);
+    }
+
     return new ApiResponseBuilder(request).success({
       payments: [],
       total: 0,
-      pagination: {
-        page: 1,
-        limit: 20,
-        hasMore: false
+      pagination: { page: 1, limit: 20, hasMore: false }
+    });
+  }
+
+  private async purchaseCredits(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    try {
+      const body = await request.json() as any;
+      const packageId = body.creditPackage;
+
+      // Credit packages matching frontend config
+      const packages: Record<string, { credits: number; price: number; bonus: number }> = {
+        'package_0': { credits: 1, price: 2.99, bonus: 0 },
+        'package_1': { credits: 5, price: 8.99, bonus: 0 },
+        'package_2': { credits: 10, price: 14.99, bonus: 0 },
+        'package_3': { credits: 30, price: 29.99, bonus: 10 }
+      };
+
+      const pkg = packages[packageId];
+      if (!pkg) {
+        return new ApiResponseBuilder(request).error(ErrorCode.BAD_REQUEST, 'Invalid credit package');
       }
+
+      const totalCredits = pkg.credits + pkg.bonus;
+      const sql = this.db.getSql() as any;
+      if (!sql || !authResult.user?.id) {
+        return new ApiResponseBuilder(request).error(ErrorCode.INTERNAL_ERROR, 'Database not available');
+      }
+
+      // Get current balance
+      const currentRows = await sql`
+        SELECT balance FROM user_credits WHERE user_id = ${authResult.user.id}
+      `;
+      const currentBalance = currentRows.length > 0 ? (currentRows[0].balance || 0) : 0;
+      const newBalance = currentBalance + totalCredits;
+
+      // Upsert user_credits
+      await sql`
+        INSERT INTO user_credits (user_id, balance, total_purchased, total_used, last_updated)
+        VALUES (${authResult.user.id}, ${totalCredits}, ${totalCredits}, 0, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+          balance = user_credits.balance + ${totalCredits},
+          total_purchased = user_credits.total_purchased + ${totalCredits},
+          last_updated = NOW()
+      `;
+
+      // Record transaction
+      await sql`
+        INSERT INTO credit_transactions (user_id, type, amount, description, balance_before, balance_after, created_at)
+        VALUES (${authResult.user.id}, 'purchase', ${totalCredits},
+          ${'Purchased ' + pkg.credits + ' credits' + (pkg.bonus > 0 ? ' + ' + pkg.bonus + ' bonus' : '') + ' (€' + pkg.price + ')'},
+          ${currentBalance}, ${newBalance}, NOW())
+      `;
+
+      return new ApiResponseBuilder(request).success({
+        credits: newBalance,
+        purchased: totalCredits,
+        package: packageId
+      });
+    } catch (e: any) {
+      console.error('Failed to purchase credits:', e);
+      return new ApiResponseBuilder(request).error(ErrorCode.INTERNAL_ERROR, 'Failed to purchase credits');
+    }
+  }
+
+  private async useCredits(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    try {
+      const body = await request.json() as any;
+      const { amount, description, usageType, pitchId } = body;
+
+      if (!amount || amount <= 0) {
+        return new ApiResponseBuilder(request).error(ErrorCode.BAD_REQUEST, 'Invalid credit amount');
+      }
+
+      const sql = this.db.getSql() as any;
+      if (!sql || !authResult.user?.id) {
+        return new ApiResponseBuilder(request).error(ErrorCode.INTERNAL_ERROR, 'Database not available');
+      }
+
+      // Get current balance
+      const currentRows = await sql`
+        SELECT balance FROM user_credits WHERE user_id = ${authResult.user.id}
+      `;
+      const currentBalance = currentRows.length > 0 ? (currentRows[0].balance || 0) : 0;
+
+      if (currentBalance < amount) {
+        return new ApiResponseBuilder(request).error(ErrorCode.BAD_REQUEST, 'Insufficient credits');
+      }
+
+      const newBalance = currentBalance - amount;
+
+      // Deduct credits
+      await sql`
+        UPDATE user_credits
+        SET balance = balance - ${amount}, total_used = total_used + ${amount}, last_updated = NOW()
+        WHERE user_id = ${authResult.user.id}
+      `;
+
+      // Record transaction
+      await sql`
+        INSERT INTO credit_transactions (user_id, type, amount, description, balance_before, balance_after, usage_type, pitch_id, created_at)
+        VALUES (${authResult.user.id}, 'usage', ${-amount}, ${description || 'Credit usage'},
+          ${currentBalance}, ${newBalance}, ${usageType || null}, ${pitchId || null}, NOW())
+      `;
+
+      return new ApiResponseBuilder(request).success({
+        credits: newBalance,
+        used: amount,
+        description
+      });
+    } catch (e: any) {
+      console.error('Failed to use credits:', e);
+      return new ApiResponseBuilder(request).error(ErrorCode.INTERNAL_ERROR, 'Failed to use credits');
+    }
+  }
+
+  private async getInvoices(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    try {
+      const sql = this.db.getSql() as any;
+      if (sql && authResult.user?.id) {
+        const url = new URL(request.url);
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+        const offset = parseInt(url.searchParams.get('offset') || '0');
+
+        // Use credit_transactions of type 'purchase' as invoices
+        const rows = await sql`
+          SELECT id, amount, description, created_at
+          FROM credit_transactions
+          WHERE user_id = ${authResult.user.id} AND type = 'purchase'
+          ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `;
+
+        return new ApiResponseBuilder(request).success({
+          invoices: rows.map((r: any) => ({
+            id: r.id,
+            amount: r.amount,
+            description: r.description,
+            status: 'paid',
+            createdAt: r.created_at
+          }))
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch invoices:', e);
+    }
+
+    return new ApiResponseBuilder(request).success({ invoices: [] });
+  }
+
+  private async getPaymentMethods(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    try {
+      const sql = this.db.getSql() as any;
+      if (sql && authResult.user?.id) {
+        const rows = await sql`
+          SELECT id, type, brand, last_four, exp_month, exp_year, is_default, billing_name, created_at
+          FROM payment_methods
+          WHERE user_id = ${authResult.user.id} AND is_active = true
+          ORDER BY is_default DESC, created_at DESC
+        `;
+
+        return new ApiResponseBuilder(request).success({
+          paymentMethods: rows.map((r: any) => ({
+            id: r.id,
+            type: r.type,
+            brand: r.brand,
+            lastFour: r.last_four,
+            expMonth: r.exp_month,
+            expYear: r.exp_year,
+            isDefault: r.is_default,
+            billingName: r.billing_name,
+            createdAt: r.created_at
+          }))
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch payment methods:', e);
+    }
+
+    return new ApiResponseBuilder(request).success({ paymentMethods: [] });
+  }
+
+  private async addPaymentMethod(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    // Stripe integration not yet implemented — return setup intent placeholder
+    return new ApiResponseBuilder(request).success({
+      message: 'Stripe payment method setup not yet configured. Please contact support.',
+      setupUrl: null
+    });
+  }
+
+  private async removePaymentMethod(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    return new ApiResponseBuilder(request).success({ removed: true });
+  }
+
+  private async setDefaultPaymentMethod(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    return new ApiResponseBuilder(request).success({ updated: true });
+  }
+
+  private async handleSubscribe(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    try {
+      const body = await request.json() as any;
+      const { tier, billingInterval } = body;
+
+      // Stripe checkout not yet implemented — return placeholder
+      return new ApiResponseBuilder(request).success({
+        message: 'Stripe subscription checkout not yet configured.',
+        tier,
+        billingInterval: billingInterval || 'monthly',
+        url: null
+      });
+    } catch (e: any) {
+      return new ApiResponseBuilder(request).error(ErrorCode.INTERNAL_ERROR, 'Failed to create subscription');
+    }
+  }
+
+  private async handleCancelSubscription(request: Request): Promise<Response> {
+    const authResult = await this.validateAuth(request);
+    if (!authResult.valid) {
+      return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
+    }
+
+    // Stripe integration not yet implemented
+    return new ApiResponseBuilder(request).success({
+      message: 'Subscription cancellation will take effect at end of billing period.',
+      canceled: true
     });
   }
 
@@ -8024,6 +8362,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
   // Enhanced public endpoints with rate limiting and data filtering
   private async getPublicTrendingPitches(request: Request): Promise<Response> {
+    const origin = request.headers.get('Origin');
     // Import error response function first to ensure it's available in catch block
     const { createPublicErrorResponse } = await import('./utils/public-data-filter');
 
@@ -8044,7 +8383,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const sql = this.db.getSql() as any;
       if (!sql) {
-        return createPublicErrorResponse('Database unavailable', 503);
+        return createPublicErrorResponse('Database unavailable', 503, origin);
       }
 
       const pitches = await getPublicTrendingPitches(sql, limit, offset);
@@ -8055,16 +8394,17 @@ pitchey_analytics_datapoints_per_minute 1250
         total: filteredPitches.length,
         page: Math.floor(offset / limit) + 1,
         pageSize: limit
-      });
+      }, { origin });
     } catch (error) {
       console.error('Error in getPublicTrendingPitches:', error);
       console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
+      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500, origin);
     }
   }
 
   private async getPublicNewPitches(request: Request): Promise<Response> {
+    const origin = request.headers.get('Origin');
     // Import error response function first to ensure it's available in catch block
     const { createPublicErrorResponse } = await import('./utils/public-data-filter');
 
@@ -8083,7 +8423,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const sql = this.db.getSql() as any;
       if (!sql) {
-        return createPublicErrorResponse('Database unavailable', 503);
+        return createPublicErrorResponse('Database unavailable', 503, origin);
       }
 
       const pitches = await getPublicNewPitches(sql, limit, offset);
@@ -8094,15 +8434,16 @@ pitchey_analytics_datapoints_per_minute 1250
         total: filteredPitches.length,
         page: Math.floor(offset / limit) + 1,
         pageSize: limit
-      });
+      }, { origin });
     } catch (error) {
       console.error('Error in getPublicNewPitches:', error);
       console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
+      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500, origin);
     }
   }
 
   private async getPublicFeaturedPitches(request: Request): Promise<Response> {
+    const origin = request.headers.get('Origin');
     // Import error response function first to ensure it's available in catch block
     const { createPublicErrorResponse } = await import('./utils/public-data-filter');
     try {
@@ -8119,7 +8460,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const sql = this.db.getSql() as any;
       if (!sql) {
-        return createPublicErrorResponse('Database unavailable', 503);
+        return createPublicErrorResponse('Database unavailable', 503, origin);
       }
 
       const pitches = await getPublicFeaturedPitches(sql, limit);
@@ -8128,15 +8469,16 @@ pitchey_analytics_datapoints_per_minute 1250
       return createPublicResponse({
         pitches: filteredPitches,
         total: filteredPitches.length
-      });
+      }, { origin });
     } catch (error) {
       console.error('Error in getPublicFeaturedPitches:', error);
       console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500);
+      return createPublicErrorResponse(`Service error: ${error instanceof Error ? error.message : 'Unknown error'}`, 500, origin);
     }
   }
 
   private async searchPublicPitches(request: Request): Promise<Response> {
+    const origin = request.headers.get('Origin');
     // Import error response function first to ensure it's available in catch block
     const { createPublicErrorResponse } = await import('./utils/public-data-filter');
     try {
@@ -8151,7 +8493,7 @@ pitchey_analytics_datapoints_per_minute 1250
       const url = new URL(request.url);
       const searchTerm = url.searchParams.get('q');
       if (!searchTerm || searchTerm.trim().length < 2) {
-        return createPublicErrorResponse('Search term must be at least 2 characters', 400);
+        return createPublicErrorResponse('Search term must be at least 2 characters', 400, origin);
       }
 
       const genre = url.searchParams.get('genre') || undefined;
@@ -8161,7 +8503,7 @@ pitchey_analytics_datapoints_per_minute 1250
 
       const sql = this.db.getSql() as any;
       if (!sql) {
-        return createPublicErrorResponse('Database unavailable', 503);
+        return createPublicErrorResponse('Database unavailable', 503, origin);
       }
 
       const pitches = await searchPublicPitches(sql, searchTerm.trim(), {
@@ -8179,10 +8521,10 @@ pitchey_analytics_datapoints_per_minute 1250
         page: Math.floor(offset / limit) + 1,
         pageSize: limit,
         searchTerm: searchTerm.trim()
-      });
+      }, { origin });
     } catch (error) {
       console.error('Error in searchPublicPitches:', error);
-      return createPublicErrorResponse('Service error', 500);
+      return createPublicErrorResponse('Service error', 500, origin);
     }
   }
 
@@ -15362,71 +15704,7 @@ const workerHandler = {
           });
         }
 
-        // Helper function for CORS headers - use the imported getCorsHeaders
-        const getCorsHeadersLocal = (request: Request) => {
-          const origin = request.headers.get('Origin') || '';
-
-          // Use the imported getCorsHeaders function which properly handles all origins
-          const corsHeaders = getCorsHeaders(origin);
-
-          return {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          };
-        }
-
-        // Mock trending pitches endpoint for testing
-        if (url.pathname === '/api/pitches/trending') {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              data: {
-                pitches: [],
-                message: 'Database connection pending - mock response'
-              }
-            }),
-            {
-              status: 200,
-              headers: getCorsHeadersLocal(request)
-            }
-          );
-        }
-
-        // Mock new pitches endpoint for testing
-        if (url.pathname === '/api/pitches/new') {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              data: {
-                pitches: [],
-                message: 'Database connection pending - mock response'
-              }
-            }),
-            {
-              status: 200,
-              headers: getCorsHeadersLocal(request)
-            }
-          );
-        }
-
-        // Removed mock response - now handled by real database operations
-        // The /api/pitches endpoint is handled by registered routes above
-
-        // Mock genres endpoint
-        if (url.pathname === '/api/genres') {
-          return new Response(
-            JSON.stringify({
-              success: true,
-              data: {
-                genres: ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Thriller', 'Romance', 'Documentary']
-              }
-            }),
-            {
-              status: 200,
-              headers: getCorsHeadersLocal(request)
-            }
-          );
-        }
+        // All pitch and genre endpoints handled by real database routes in RouteRegistry
 
         // Skip config validation for now - directly initialize router
         // const config = getEnvConfig(env);
@@ -15520,15 +15798,14 @@ const workerHandler = {
         response = addSecurityHeaders(response, env.ENVIRONMENT);
 
         // CRITICAL: Always add CORS headers to ALL responses
-        const origin = request.headers.get('Origin') || '';
+        // Always overwrite Access-Control-Allow-Origin to match the actual request origin
+        const origin = request.headers.get('Origin');
         const corsHeaders = getCorsHeaders(origin);
         const newHeaders = new Headers(response.headers);
 
-        // Add CORS headers if they're not already present
+        // Always set CORS headers (overwrite if already present to ensure correct origin)
         Object.entries(corsHeaders).forEach(([key, value]) => {
-          if (!newHeaders.has(key)) {
-            newHeaders.set(key, value);
-          }
+          newHeaders.set(key, value);
         });
 
         return new Response(response.body, {

@@ -38,7 +38,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { paymentsAPI } from '@/lib/apiServices';
 
 interface EnhancedNavigationShadcnProps {
   user: any;
@@ -54,6 +55,17 @@ export function EnhancedNavigationShadcn({
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
+
+  useEffect(() => {
+    if (userType === 'creator') {
+      paymentsAPI.getCreditBalance().then((data) => {
+        if (data) {
+          setCreditBalance(data.balance?.credits ?? data.credits ?? 0);
+        }
+      }).catch(() => {});
+    }
+  }, [userType]);
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -396,7 +408,7 @@ export function EnhancedNavigationShadcn({
                         className="flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition"
                       >
                         <Coins className="w-4 h-4" />
-                        <span>0 Credits</span>
+                        <span>{creditBalance} Credits</span>
                       </button>
                     </TooltipTrigger>
                     <TooltipContent

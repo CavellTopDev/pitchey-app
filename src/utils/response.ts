@@ -69,23 +69,20 @@ function isOriginAllowed(origin: string | null): boolean {
   return false;
 }
 
-// Global context to store the current request origin
-let currentRequestOrigin: string | null = null;
-
 /**
  * Set the current request origin for CORS handling
- * This should be called at the start of each request
+ * @deprecated No-op. Pass origin directly to getCorsHeaders() instead.
  */
-export function setRequestOrigin(origin: string | null) {
-  currentRequestOrigin = origin;
+export function setRequestOrigin(_origin: string | null) {
+  // No-op: removed global state to fix race condition between concurrent requests
 }
 
 /**
  * Get CORS headers for a specific origin
  */
 export function getCorsHeaders(origin?: string | null): Record<string, string> {
-  // Use provided origin, or fall back to current request origin, or default
-  let requestOrigin = origin || currentRequestOrigin;
+  // Use provided origin or default to primary allowed origin
+  let requestOrigin = origin || null;
   
   // Remove trailing period if present (some browsers add it)
   if (requestOrigin && requestOrigin.endsWith('.')) {

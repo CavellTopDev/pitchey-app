@@ -103,12 +103,12 @@ export default function CreditPurchase({ credits, onRefresh }: CreditPurchasePro
           <div>
             <h3 className="text-lg font-semibold mb-2">Your Credit Balance</h3>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold">{credits?.balance || 0}</span>
+              <span className="text-3xl font-bold">{credits?.balance?.credits ?? credits?.credits ?? 0}</span>
               <span className="text-purple-100">credits</span>
             </div>
             <div className="mt-2 text-sm text-purple-100">
-              Total purchased: {credits?.totalPurchased || 0} | 
-              Total used: {credits?.totalUsed || 0}
+              Total purchased: {credits?.balance?.totalPurchased ?? 0} |
+              Total used: {credits?.balance?.totalUsed ?? 0}
             </div>
           </div>
           <Coins className="w-16 h-16 text-purple-200" />

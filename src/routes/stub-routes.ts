@@ -27,44 +27,8 @@ export class StubRoutes {
       totalCount: 0
     });
     
-    // NDA endpoints
-    stubs.set('/api/ndas/incoming-requests', {
-      requests: [],
-      totalCount: 0
-    });
-    
-    stubs.set('/api/ndas/outgoing-requests', {
-      requests: [],
-      totalCount: 0
-    });
-    
-    stubs.set('/api/ndas/incoming-signed', {
-      ndas: [],
-      totalCount: 0
-    });
-    
-    stubs.set('/api/ndas/outgoing-signed', {
-      ndas: [],
-      totalCount: 0
-    });
-    
-    // Analytics dashboard - return minimal data
-    stubs.set('/api/analytics/dashboard', {
-      metrics: {
-        totalViews: 0,
-        totalPitches: 0,
-        totalUsers: 0,
-        activeUsers: 0,
-        conversion: 0,
-        engagement: 0
-      },
-      charts: {
-        daily: [],
-        weekly: [],
-        monthly: []
-      },
-      period: 'month'
-    });
+    // NDA endpoints — all now registered as real routes (removed stubs)
+    // Analytics dashboard — registered as real route (removed stub)
     
     return stubs;
   }
@@ -88,27 +52,8 @@ export class StubRoutes {
       });
     }
     
-    // Check pattern matches
-    // NOTE: Analytics routes are handled by the main router, don't stub them
-    const patterns = [
-      { pattern: /^\/api\/investment\//, response: { data: [], totalCount: 0 } },
-      { pattern: /^\/api\/ndas\//, response: { data: [], totalCount: 0 } }
-      // Removed: { pattern: /^\/api\/analytics\//, response: { data: {}, charts: [] } }
-      // Analytics routes should go through the registered handlers, not stubs
-    ];
-    
-    for (const { pattern, response } of patterns) {
-      if (pattern.test(cleanPath)) {
-        return new Response(JSON.stringify(response), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCorsHeaders(request.headers.get('Origin'))
-          }
-        });
-      }
-    }
-    
+    // No catch-all patterns — all NDA, investment, and analytics routes are registered.
+    // Unmatched routes should return 404 so routing bugs are visible.
     return null;
   }
   
