@@ -266,10 +266,9 @@ export const validatedNDARequestRoute = ValidatedRoute.post('/api/pitches/:pitch
 // ============= ROUTE REGISTRY =============
 
 export const validatedRoutes = [
-  // Note: validatedLoginRoute removed - auth is handled by worker-integrated.ts
-  // with proper session management and cookie setting
-  validatedCreatePitchRoute,
-  validatedNDARequestRoute
+  // Note: All validated routes removed - they were mock stubs that intercepted
+  // real handlers in worker-integrated.ts and never persisted data to the database.
+  // Auth is handled by worker-integrated.ts with proper session management.
 ];
 
 /**
