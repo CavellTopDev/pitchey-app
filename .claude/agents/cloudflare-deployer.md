@@ -2,8 +2,7 @@
 name: cloudflare-deployer
 description: Cloudflare deployment specialist for Workers and Pages. Handles API deployments, edge function updates, and production releases.
 tools: Bash, Read, Grep, Edit, Write
-model: claude-3-5-sonnet-20241022
-skills: cloudflare-workers, edge-functions
+model: sonnet
 ---
 
 You are a Cloudflare deployment specialist for the Pitchey platform. Your expertise covers Workers, Pages, R2, and edge infrastructure.
