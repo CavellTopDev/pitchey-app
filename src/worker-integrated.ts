@@ -7540,8 +7540,28 @@ pitchey_analytics_datapoints_per_minute 1250
       return new ApiResponseBuilder(request).error(ErrorCode.UNAUTHORIZED, 'Authentication required');
     }
 
+    let credits = 0;
+    let totalPurchased = 0;
+    let totalUsed = 0;
+    try {
+      const sql = this.db.getSql() as any;
+      if (sql && authResult.user?.id) {
+        const rows = await sql`
+          SELECT balance, total_purchased, total_used FROM user_credits WHERE user_id = ${authResult.user.id}
+        `;
+        if (rows.length > 0) {
+          credits = rows[0].balance || 0;
+          totalPurchased = rows[0].total_purchased || 0;
+          totalUsed = rows[0].total_used || 0;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch credits:', e);
+    }
+
     return new ApiResponseBuilder(request).success({
-      credits: 100,
+      balance: { credits, totalPurchased, totalUsed },
+      credits,
       currency: 'USD'
     });
   }
