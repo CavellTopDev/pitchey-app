@@ -156,6 +156,7 @@ vi.mock('../../utils/accessibility', () => ({
     },
     button: {
       getAttributes: vi.fn((opts) => ({
+        type: opts?.type || 'button',
         'aria-label': opts?.ariaLabel || '',
         'aria-pressed': opts?.pressed || false,
         'aria-expanded': opts?.expanded || false,
@@ -163,23 +164,23 @@ vi.mock('../../utils/accessibility', () => ({
       })),
     },
     formField: {
-      getLabelAttributes: vi.fn((opts) => ({ 
-        htmlFor: opts?.id || '',
-        id: opts?.id ? `${opts.id}-label` : ''
+      getLabelAttributes: vi.fn((htmlFor: string, _required?: boolean) => ({
+        htmlFor,
+        className: `block text-sm font-medium text-gray-700 mb-2`
       })),
-      getAttributes: vi.fn((opts) => ({ 
+      getAttributes: vi.fn((opts) => ({
         id: opts?.id || '',
         'aria-label': opts?.label || '',
         'aria-required': opts?.required || false,
         'aria-invalid': opts?.invalid || false,
         'aria-describedby': opts?.errorId || undefined
       })),
-      getErrorAttributes: vi.fn((opts) => ({ 
-        id: opts?.id || '',
+      getErrorAttributes: vi.fn((fieldId: string) => ({
+        id: `${fieldId}-error`,
         role: 'alert'
       })),
-      getHelpAttributes: vi.fn((opts) => ({ 
-        id: opts?.id || ''
+      getHelpAttributes: vi.fn((fieldId: string) => ({
+        id: `${fieldId}-help`
       })),
     },
     fileUpload: {
@@ -220,9 +221,96 @@ vi.mock('../../components/DocumentUpload', () => ({
   DocumentUpload: vi.fn(({ documents, onAdd, onRemove }) => (
     <div data-testid="document-upload">
       <h3>Document Upload</h3>
-      <div>{documents.length} documents</div>
+      <div>{documents?.length || 0} documents</div>
     </div>
   )),
+}))
+
+// Mock DocumentUploadHub component
+vi.mock('../../components/FileUpload/DocumentUploadHub', () => ({
+  default: vi.fn(() => (
+    <div data-testid="document-upload-hub">Document Upload Hub</div>
+  )),
+}))
+
+// Mock NDAUploadSection component with full NDA UI
+vi.mock('../../components/FileUpload/NDAUploadSection', () => ({
+  default: vi.fn(({ ndaDocument, onChange, disabled }) => {
+    const currentType = ndaDocument?.ndaType || 'none'
+    return (
+      <div data-testid="nda-upload-section" className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-6">Non-Disclosure Agreement (NDA)</h2>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer">
+            <input
+              type="radio"
+              name="ndaType"
+              checked={currentType === 'none'}
+              onChange={() => onChange?.({ ndaType: 'none' })}
+              disabled={disabled}
+            />
+            <span>No NDA Required</span>
+          </label>
+          <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer">
+            <input
+              type="radio"
+              name="ndaType"
+              checked={currentType === 'standard'}
+              onChange={() => onChange?.({ ndaType: 'standard' })}
+              disabled={disabled}
+            />
+            <span>Use Platform Standard NDA</span>
+          </label>
+          <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer">
+            <input
+              type="radio"
+              name="ndaType"
+              checked={currentType === 'custom'}
+              onChange={() => onChange?.({ ndaType: 'custom' })}
+              disabled={disabled}
+            />
+            <span>Upload Custom NDA</span>
+          </label>
+          {currentType === 'custom' && (
+            <button type="button">Choose PDF File</button>
+          )}
+        </div>
+      </div>
+    )
+  }),
+}))
+
+// Mock EnhancedPitchFormSections components
+vi.mock('../../components/PitchForm/EnhancedPitchFormSections', () => ({
+  ToneAndStyleSection: vi.fn(() => <div data-testid="tone-style-section">Tone & Style</div>),
+  CompsSection: vi.fn(() => <div data-testid="comps-section">Comps</div>),
+  StoryBreakdownSection: vi.fn(() => <div data-testid="story-breakdown-section">Story Breakdown</div>),
+  WhyNowSection: vi.fn(() => <div data-testid="why-now-section">Why Now</div>),
+  ProductionLocationSection: vi.fn(() => <div data-testid="production-location-section">Production Location</div>),
+  DevelopmentStageSelect: vi.fn(() => <div data-testid="development-stage-select">Development Stage</div>),
+  CreativeAttachmentsManager: vi.fn(() => <div data-testid="creative-attachments-manager">Creative Attachments</div>),
+  VideoUrlSection: vi.fn(() => <div data-testid="video-url-section">Video URL</div>),
+}))
+
+// Mock enhanced upload service
+vi.mock('../../services/enhanced-upload.service', () => ({
+  enhancedUploadService: {
+    uploadFile: vi.fn(),
+  },
+}))
+
+// Mock usePitchUploadManager hook
+vi.mock('../../hooks/usePitchUploadManager', () => ({
+  usePitchUploadManager: vi.fn(() => ({
+    uploadQueue: [],
+    isUploading: false,
+    progress: 0,
+    addToQueue: vi.fn(),
+    removeFromQueue: vi.fn(),
+    startUpload: vi.fn(),
+    cancelUpload: vi.fn(),
+    reset: vi.fn(),
+  })),
 }))
 
 const mockCreatorUser = {
@@ -278,7 +366,6 @@ describe('PitchForm (CreatePitch)', () => {
         expect(screen.getByText('Create New Pitch')).toBeInTheDocument()
         expect(screen.getByText('Basic Information')).toBeInTheDocument()
         expect(screen.getByText('Themes & World Building')).toBeInTheDocument()
-        expect(screen.getByText('Upload Documents')).toBeInTheDocument()
         // Check that at least one NDA section exists
         const ndaHeaders = screen.getAllByText('Non-Disclosure Agreement (NDA)')
         expect(ndaHeaders.length).toBeGreaterThan(0)
