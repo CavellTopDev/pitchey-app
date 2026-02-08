@@ -1890,6 +1890,7 @@ class RouteRegistry {
     this.register('GET', '/api/pitches/search', this.searchPitches.bind(this));  // Add search BEFORE :id
     this.register('GET', '/api/pitches/browse', this.browsePitches.bind(this));  // Add browse BEFORE :id
     this.register('GET', '/api/pitches/trending', this.getTrending.bind(this));  // Add trending BEFORE :id
+    this.register('GET', '/api/pitches/featured', this.getPublicFeaturedPitches.bind(this));  // Alias for /api/pitches/public/featured
     this.register('GET', '/api/pitches/saved', this.getSavedPitches.bind(this));  // Alias for /api/saved-pitches
     this.register('GET', '/api/pitches/:id', this.getPitch.bind(this));
     this.register('GET', '/api/pitches/:id/attachments/:filename', this.getPitchAttachment.bind(this));
