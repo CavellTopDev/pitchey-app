@@ -156,7 +156,7 @@ export class InvestmentService {
       if (params?.stage) queryParams.append('stage', params.stage);
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
 
-      const response = await apiClient.get(`/api/investment/recommendations?${queryParams.toString()}`);
+      const response = await apiClient.get(`/api/investor/recommendations?${queryParams.toString()}`);
       return response;
     } catch (error) {
       console.error('Error fetching investment opportunities:', error);
@@ -254,7 +254,7 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.post('/api/investments/create', data);
+      const response = await apiClient.post('/api/investments', data);
       return response;
     } catch (error) {
       console.error('Error creating investment:', error);
@@ -276,7 +276,7 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.post(`/api/investments/${investmentId}/update`, data);
+      const response = await apiClient.put(`/api/investor/investments/${investmentId}`, data);
       return response;
     } catch (error) {
       console.error('Error updating investment:', error);
@@ -313,7 +313,7 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get(`/api/investments/${investmentId}/details`);
+      const response = await apiClient.get(`/api/investor/investments/${investmentId}`);
       return response;
     } catch (error) {
       console.error('Error fetching investment details:', error);
@@ -344,7 +344,7 @@ export class InvestmentService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.get('/api/investor/portfolio/analytics');
+      const response = await apiClient.get('/api/investor/portfolio/performance');
       return response;
     } catch (error) {
       console.error('Error fetching portfolio analytics:', error);

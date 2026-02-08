@@ -212,8 +212,9 @@ export class SearchService {
     if (filters.page !== undefined && filters.page !== 0) params.append('page', filters.page.toString());
     if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 
+    params.append('type', 'pitches');
     const response = await apiClient.get<PitchSearchResponseData>(
-      `/api/search/pitches?${params.toString()}`
+      `/api/search?${params.toString()}`
     );
 
     if (response.success !== true || response.data?.result === undefined) {
@@ -238,8 +239,9 @@ export class SearchService {
     if (filters.page !== undefined && filters.page !== 0) params.append('page', filters.page.toString());
     if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 
+    params.append('type', 'users');
     const response = await apiClient.get<UserSearchResponseData>(
-      `/api/search/users?${params.toString()}`
+      `/api/search?${params.toString()}`
     );
 
     if (response.success !== true || response.data?.result === undefined) {
@@ -256,8 +258,9 @@ export class SearchService {
     if (filters.types !== undefined && filters.types.length > 0) params.append('types', filters.types.join(','));
     if (filters.limit !== undefined && filters.limit !== 0) params.append('limit', filters.limit.toString());
 
+    params.append('type', 'all');
     const response = await apiClient.get<{ results: GlobalSearchResponseData }>(
-      `/api/search/global?${params.toString()}`
+      `/api/search?${params.toString()}`
     );
 
     if (response.success !== true || response.data?.results === undefined) {
@@ -273,7 +276,7 @@ export class SearchService {
     if (type !== undefined) params.append('type', type);
 
     const response = await apiClient.get<SuggestionResponseData>(
-      `/api/search/suggestions?${params.toString()}`
+      `/api/search/autocomplete?${params.toString()}`
     );
 
     if (response.success !== true) {
@@ -459,7 +462,7 @@ export class SearchService {
   // Get search filters metadata
   static async getFiltersMetadata(type: 'pitch' | 'user'): Promise<FiltersMetadata> {
     const response = await apiClient.get<FiltersMetadataResponseData>(
-      `/api/search/filters/${type}`
+      `/api/search/facets?type=${type}`
     );
 
     if (response.success !== true) {

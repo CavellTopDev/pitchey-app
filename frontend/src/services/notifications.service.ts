@@ -109,7 +109,7 @@ export class NotificationsService {
    */
   static async markAsRead(notificationId: number): Promise<boolean> {
     try {
-      const response = await apiClient.post(`/api/notifications/${notificationId}/read`);
+      const response = await apiClient.put(`/api/notifications/${notificationId}/read`);
       return response.success;
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
@@ -122,7 +122,7 @@ export class NotificationsService {
    */
   static async markMultipleAsRead(notificationIds: number[]): Promise<boolean> {
     try {
-      const response = await apiClient.post('/api/notifications/read', {
+      const response = await apiClient.put('/api/notifications/read-multiple', {
         notificationIds
       });
       return response.success;

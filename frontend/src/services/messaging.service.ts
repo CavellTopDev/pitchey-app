@@ -99,7 +99,7 @@ export class MessagingService {
       success: boolean; 
       conversations: Conversation[]; 
       total: number 
-    }>(`/api/messages/conversations?${params}`);
+    }>(`/api/conversations?${params}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch conversations');
@@ -114,7 +114,7 @@ export class MessagingService {
   // Get single conversation
   static async getConversation(conversationId: number): Promise<Conversation> {
     const response = await apiClient.get<{ success: boolean; conversation: Conversation }>(
-      `/api/messages/conversations/${conversationId}`
+      `/api/conversations/${conversationId}`
     );
 
     if (!response.success || !response.data?.conversation) {
@@ -127,7 +127,7 @@ export class MessagingService {
   // Create or get conversation
   static async createConversation(recipientId: number, pitchId?: number): Promise<Conversation> {
     const response = await apiClient.post<{ success: boolean; conversation: Conversation }>(
-      '/api/messages/conversations',
+      '/api/conversations',
       { recipientId, pitchId }
     );
 
@@ -153,7 +153,7 @@ export class MessagingService {
       success: boolean; 
       messages: Message[]; 
       hasMore: boolean 
-    }>(`/api/messages/conversations/${filters.conversationId}/messages?${params}`);
+    }>(`/api/conversations/${filters.conversationId}/messages?${params}`);
 
     if (!response.success) {
       throw new Error(response.error?.message || 'Failed to fetch messages');
@@ -241,7 +241,7 @@ export class MessagingService {
 
   // Mark message as read
   static async markAsRead(messageId: number): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
+    const response = await apiClient.put<{ success: boolean }>(
       `/api/messages/${messageId}/read`,
       {}
     );
@@ -254,7 +254,7 @@ export class MessagingService {
   // Mark all messages in conversation as read
   static async markConversationAsRead(conversationId: number): Promise<void> {
     const response = await apiClient.post<{ success: boolean }>(
-      `/api/messages/conversations/${conversationId}/read`,
+      `/api/conversations/${conversationId}/read`,
       {}
     );
 
@@ -266,7 +266,7 @@ export class MessagingService {
   // Archive conversation
   static async archiveConversation(conversationId: number): Promise<void> {
     const response = await apiClient.post<{ success: boolean }>(
-      `/api/messages/conversations/${conversationId}/archive`,
+      `/api/conversations/${conversationId}/archive`,
       {}
     );
 
@@ -278,7 +278,7 @@ export class MessagingService {
   // Unarchive conversation
   static async unarchiveConversation(conversationId: number): Promise<void> {
     const response = await apiClient.post<{ success: boolean }>(
-      `/api/messages/conversations/${conversationId}/unarchive`,
+      `/api/conversations/${conversationId}/unarchive`,
       {}
     );
 
@@ -290,7 +290,7 @@ export class MessagingService {
   // Mute conversation
   static async muteConversation(conversationId: number): Promise<void> {
     const response = await apiClient.post<{ success: boolean }>(
-      `/api/messages/conversations/${conversationId}/mute`,
+      `/api/conversations/${conversationId}/mute`,
       {}
     );
 
@@ -302,7 +302,7 @@ export class MessagingService {
   // Unmute conversation
   static async unmuteConversation(conversationId: number): Promise<void> {
     const response = await apiClient.post<{ success: boolean }>(
-      `/api/messages/conversations/${conversationId}/unmute`,
+      `/api/conversations/${conversationId}/unmute`,
       {}
     );
 
@@ -314,7 +314,7 @@ export class MessagingService {
   // Delete conversation
   static async deleteConversation(conversationId: number): Promise<void> {
     const response = await apiClient.delete<{ success: boolean }>(
-      `/api/messages/conversations/${conversationId}`
+      `/api/conversations/${conversationId}`
     );
 
     if (!response.success) {

@@ -823,7 +823,7 @@ export class PitchService {
   // Track view for a pitch
   static async trackView(pitchId: number): Promise<void> {
     try {
-      await apiClient.post('/api/analytics/track-view', { 
+      await apiClient.post('/api/views/track', {
         pitchId,
         timestamp: new Date().toISOString()
       });
@@ -848,9 +848,8 @@ export class PitchService {
 
   // Unlike a pitch
   static async unlikePitch(id: number): Promise<void> {
-    const response = await apiClient.post<{ success: boolean }>(
-      `/api/creator/pitches/${id}/unlike`,
-      {}
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/creator/pitches/${id}/like`
     );
 
     if (response.success !== true) {
@@ -867,8 +866,8 @@ export class PitchService {
     purpose: string;
   }): Promise<void> {
     const response = await apiClient.post<{ success: boolean }>(
-      `/api/pitches/${pitchId}/nda/request`,
-      data
+      `/api/ndas/request`,
+      { pitchId, ...data }
     );
 
     if (response.success !== true) {
@@ -878,9 +877,9 @@ export class PitchService {
   }
 
   // Sign NDA for a pitch
-  static async signNDA(pitchId: number, signature: string): Promise<void> {
+  static async signNDA(ndaId: number, signature: string): Promise<void> {
     const response = await apiClient.post<{ success: boolean }>(
-      `/api/pitches/${pitchId}/nda/sign`,
+      `/api/ndas/${ndaId}/sign`,
       { signature }
     );
 

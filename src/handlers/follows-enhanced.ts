@@ -2,7 +2,10 @@ import type { Env } from '../worker-integrated';
 import postgres from 'postgres';
 import { z } from 'zod';
 import { getAuthUser } from '../utils/auth';
-import { corsHeaders } from '../utils/response';
+import { corsHeaders, getCorsHeaders } from '../utils/response';
+import { getDb } from '../db/connection';
+import type { Env as DbEnv } from '../db/connection';
+import { getUserId } from '../utils/auth-extract';
 
 // Schema for follow/unfollow actions
 const FollowActionSchema = z.object({
@@ -448,5 +451,63 @@ export async function getFollowSuggestionsHandler(request: Request, env: Env): P
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+  }
+}
+
+/**
+ * GET /api/follows/mutual/:userId
+ * Returns users that BOTH the authenticated user AND the target userId follow.
+ */
+export async function mutualFollowersHandler(request: Request, env: DbEnv): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const authenticatedUserId = await getUserId(request, env);
+
+  const defaultResponse = new Response(JSON.stringify({
+    success: true,
+    data: { mutualFollowers: [], total: 0 }
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) }
+  });
+
+  if (!authenticatedUserId) {
+    return defaultResponse;
+  }
+
+  const sql = getDb(env);
+  if (!sql) {
+    return defaultResponse;
+  }
+
+  const url = new URL(request.url);
+  const pathSegments = url.pathname.split('/').filter(Boolean);
+  const targetUserId = pathSegments[pathSegments.length - 1];
+
+  if (!targetUserId) {
+    return defaultResponse;
+  }
+
+  try {
+    const rows = await sql`
+      SELECT u.id, u.username, u.name, u.user_type, u.profile_image, u.bio
+      FROM follows f1
+      JOIN follows f2 ON f1.creator_id = f2.creator_id
+      JOIN users u ON f1.creator_id = u.id
+      WHERE f1.follower_id = ${authenticatedUserId}
+        AND f2.follower_id = ${targetUserId}
+        AND u.is_active = true
+      ORDER BY u.name ASC
+    `;
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: { mutualFollowers: rows, total: rows.length }
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) }
+    });
+  } catch (error) {
+    console.error('Mutual followers query error:', error);
+    return defaultResponse;
   }
 }

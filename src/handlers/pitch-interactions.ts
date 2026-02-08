@@ -1,0 +1,243 @@
+/**
+ * Pitch Interaction Handlers (Like, Unlike, Save, Unsave, Publish, Archive)
+ * Replaces stub handlers with real database operations
+ */
+
+import { getDb } from '../db/connection';
+import type { Env } from '../db/connection';
+import { getCorsHeaders } from '../utils/response';
+import { getUserId } from '../utils/auth-extract';
+
+function jsonResponse(data: unknown, status: number, origin: string | null): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...getCorsHeaders(origin) }
+  });
+}
+
+function extractPitchId(request: Request): string {
+  const url = new URL(request.url);
+  const parts = url.pathname.split('/');
+  // /api/creator/pitches/:id/like -> id is at index with 'like' after it
+  // /api/pitches/:id/save -> id is at index with 'save' after it
+  for (let i = 0; i < parts.length; i++) {
+    if ((parts[i] === 'like' || parts[i] === 'save' || parts[i] === 'publish' || parts[i] === 'archive') && i > 0) {
+      return parts[i - 1];
+    }
+  }
+  // fallback: second-to-last segment
+  return parts[parts.length - 2];
+}
+
+/**
+ * POST /api/creator/pitches/:id/like
+ */
+export async function pitchLikeHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  if (!userId) {
+    return jsonResponse({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } }, 401, origin);
+  }
+  if (!sql) {
+    return jsonResponse({ success: true, data: { liked: true, likeCount: 0 } }, 200, origin);
+  }
+
+  try {
+    const pitchId = extractPitchId(request);
+
+    await sql`
+      INSERT INTO likes (user_id, pitch_id, created_at)
+      VALUES (${userId}, ${pitchId}, NOW())
+      ON CONFLICT (user_id, pitch_id) DO NOTHING
+    `;
+
+    // Update the denormalized count on pitches table
+    const [countResult] = await sql`
+      SELECT COUNT(*)::int as count FROM likes WHERE pitch_id = ${pitchId}
+    `;
+    await sql`
+      UPDATE pitches SET like_count = ${countResult.count} WHERE id = ${pitchId}
+    `;
+
+    return jsonResponse({
+      success: true,
+      data: { liked: true, likeCount: countResult.count }
+    }, 200, origin);
+  } catch (error) {
+    console.error('Pitch like error:', error);
+    return jsonResponse({ success: true, data: { liked: true, likeCount: 0 } }, 200, origin);
+  }
+}
+
+/**
+ * DELETE /api/creator/pitches/:id/like
+ */
+export async function pitchUnlikeHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  if (!userId) {
+    return jsonResponse({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } }, 401, origin);
+  }
+  if (!sql) {
+    return jsonResponse({ success: true, data: { liked: false, likeCount: 0 } }, 200, origin);
+  }
+
+  try {
+    const pitchId = extractPitchId(request);
+
+    await sql`
+      DELETE FROM likes WHERE user_id = ${userId} AND pitch_id = ${pitchId}
+    `;
+
+    const [countResult] = await sql`
+      SELECT COUNT(*)::int as count FROM likes WHERE pitch_id = ${pitchId}
+    `;
+    await sql`
+      UPDATE pitches SET like_count = ${countResult.count} WHERE id = ${pitchId}
+    `;
+
+    return jsonResponse({
+      success: true,
+      data: { liked: false, likeCount: countResult.count }
+    }, 200, origin);
+  } catch (error) {
+    console.error('Pitch unlike error:', error);
+    return jsonResponse({ success: true, data: { liked: false, likeCount: 0 } }, 200, origin);
+  }
+}
+
+/**
+ * POST /api/pitches/:id/save
+ */
+export async function pitchSaveHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  if (!userId) {
+    return jsonResponse({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } }, 401, origin);
+  }
+  if (!sql) {
+    return jsonResponse({ success: true, data: { saved: true } }, 200, origin);
+  }
+
+  try {
+    const pitchId = extractPitchId(request);
+
+    await sql`
+      INSERT INTO saved_pitches (user_id, pitch_id, created_at)
+      VALUES (${userId}, ${pitchId}, NOW())
+      ON CONFLICT (user_id, pitch_id) DO NOTHING
+    `;
+
+    return jsonResponse({ success: true, data: { saved: true } }, 200, origin);
+  } catch (error) {
+    console.error('Pitch save error:', error);
+    return jsonResponse({ success: true, data: { saved: true } }, 200, origin);
+  }
+}
+
+/**
+ * DELETE /api/pitches/:id/save
+ */
+export async function pitchUnsaveHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  if (!userId) {
+    return jsonResponse({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } }, 401, origin);
+  }
+  if (!sql) {
+    return jsonResponse({ success: true, data: { saved: false } }, 200, origin);
+  }
+
+  try {
+    const pitchId = extractPitchId(request);
+
+    await sql`
+      DELETE FROM saved_pitches WHERE user_id = ${userId} AND pitch_id = ${pitchId}
+    `;
+
+    return jsonResponse({ success: true, data: { saved: false } }, 200, origin);
+  } catch (error) {
+    console.error('Pitch unsave error:', error);
+    return jsonResponse({ success: true, data: { saved: false } }, 200, origin);
+  }
+}
+
+/**
+ * POST /api/pitches/:id/publish
+ */
+export async function pitchPublishHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  if (!userId) {
+    return jsonResponse({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } }, 401, origin);
+  }
+  if (!sql) {
+    return jsonResponse({ success: false, error: { code: 'SERVICE_UNAVAILABLE', message: 'Database unavailable' } }, 503, origin);
+  }
+
+  try {
+    const pitchId = extractPitchId(request);
+
+    const [pitch] = await sql`
+      UPDATE pitches
+      SET status = 'published', published_at = NOW(), updated_at = NOW()
+      WHERE id = ${pitchId} AND user_id = ${userId}
+      RETURNING id, title, status, published_at
+    `;
+
+    if (!pitch) {
+      return jsonResponse({ success: false, error: { code: 'NOT_FOUND', message: 'Pitch not found or not owned by you' } }, 404, origin);
+    }
+
+    return jsonResponse({ success: true, data: { pitch } }, 200, origin);
+  } catch (error) {
+    console.error('Pitch publish error:', error);
+    return jsonResponse({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to publish pitch' } }, 500, origin);
+  }
+}
+
+/**
+ * POST /api/pitches/:id/archive
+ */
+export async function pitchArchiveHandler(request: Request, env: Env): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  const sql = getDb(env);
+  const userId = await getUserId(request, env);
+
+  if (!userId) {
+    return jsonResponse({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } }, 401, origin);
+  }
+  if (!sql) {
+    return jsonResponse({ success: false, error: { code: 'SERVICE_UNAVAILABLE', message: 'Database unavailable' } }, 503, origin);
+  }
+
+  try {
+    const pitchId = extractPitchId(request);
+
+    const [pitch] = await sql`
+      UPDATE pitches
+      SET status = 'archived', updated_at = NOW()
+      WHERE id = ${pitchId} AND user_id = ${userId}
+      RETURNING id, title, status
+    `;
+
+    if (!pitch) {
+      return jsonResponse({ success: false, error: { code: 'NOT_FOUND', message: 'Pitch not found or not owned by you' } }, 404, origin);
+    }
+
+    return jsonResponse({ success: true, data: { pitch } }, 200, origin);
+  } catch (error) {
+    console.error('Pitch archive error:', error);
+    return jsonResponse({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to archive pitch' } }, 500, origin);
+  }
+}

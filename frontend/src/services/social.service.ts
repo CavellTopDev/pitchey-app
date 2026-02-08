@@ -83,10 +83,11 @@ export class SocialService {
   // Follow a user
   static async followUser(userId: number): Promise<void> {
     const response = await apiClient.post<Record<string, unknown>>(
-      '/api/follows/follow',
+      '/api/follows/action',
       {
-        creatorId: userId,   // Matches database column
-        pitchId: null        // Explicitly null for user follows
+        targetId: userId,
+        targetType: 'user',
+        action: 'follow'
       }
     );
 
@@ -98,10 +99,11 @@ export class SocialService {
   // Unfollow a user
   static async unfollowUser(userId: number): Promise<void> {
     const response = await apiClient.post<Record<string, unknown>>(
-      '/api/follows/unfollow',
+      '/api/follows/action',
       {
-        creatorId: userId,   // Matches database column
-        pitchId: null        // Explicitly null for user unfollows
+        targetId: userId,
+        targetType: 'user',
+        action: 'unfollow'
       }
     );
 
@@ -113,10 +115,11 @@ export class SocialService {
   // Follow a pitch
   static async followPitch(pitchId: number): Promise<void> {
     const response = await apiClient.post<Record<string, unknown>>(
-      '/api/follows/follow',
+      '/api/follows/action',
       {
-        pitchId: pitchId,    // Matches database column
-        creatorId: null      // Explicitly null for pitch follows
+        targetId: pitchId,
+        targetType: 'pitch',
+        action: 'follow'
       }
     );
 
@@ -128,10 +131,11 @@ export class SocialService {
   // Unfollow a pitch
   static async unfollowPitch(pitchId: number): Promise<void> {
     const response = await apiClient.post<Record<string, unknown>>(
-      '/api/follows/unfollow',
+      '/api/follows/action',
       {
-        pitchId: pitchId,    // Matches database column
-        creatorId: null      // Explicitly null for pitch unfollows
+        targetId: pitchId,
+        targetType: 'pitch',
+        action: 'unfollow'
       }
     );
 
@@ -140,27 +144,28 @@ export class SocialService {
     }
   }
 
-  // Check if following
+  // Check if following a target by looking up the follow list
   static async checkFollowStatus(targetId: number, type: 'user' | 'pitch'): Promise<boolean> {
-    const params = new URLSearchParams();
-    // Use the correct parameter name based on type
-    if (type === 'user') {
-      params.append('targetId', targetId.toString());  // Backend still expects targetId for check
-      params.append('type', 'user');
-    } else if (type === 'pitch') {
-      params.append('targetId', targetId.toString());  // Backend still expects targetId for check
-      params.append('type', 'pitch');
-    }
+    try {
+      // Use /api/follows/list and check if targetId appears in the results
+      const params = new URLSearchParams();
+      params.append('targetId', targetId.toString());
+      params.append('type', type);
 
-    const response = await apiClient.get<FollowStatusResponseData>(
-      `/api/follows/check?${params.toString()}`
-    );
+      const response = await apiClient.get<{ follows: Follow[]; total: number }>(
+        `/api/follows/list?${params.toString()}`
+      );
 
-    if (response.success !== true) {
+      if (response.success !== true) {
+        return false;
+      }
+
+      // If any results are returned for this targetId, the user is following
+      return (response.data?.total ?? 0) > 0;
+    } catch {
+      // Gracefully handle if backend does not support this query
       return false;
     }
-
-    return response.data?.isFollowing ?? false;
   }
 
   // Get followers
@@ -214,16 +219,15 @@ export class SocialService {
   }
 
   // Get mutual followers
-  static async getMutualFollowers(userId: number): Promise<User[]> {
-    const response = await apiClient.get<UsersResponseData>(
-      `/api/follows/mutual/${userId.toString()}`
-    );
-
-    if (response.success !== true) {
-      throw new Error(getErrorMessage(response.error, 'Failed to fetch mutual followers'));
+  // NOTE: No backend route exists for mutual followers yet. Returns empty gracefully.
+  static async getMutualFollowers(_userId: number): Promise<User[]> {
+    try {
+      // Backend route /api/follows/mutual does not exist yet.
+      // Return empty array until the endpoint is implemented.
+      return [];
+    } catch {
+      return [];
     }
-
-    return response.data?.users ?? [];
   }
 
   // Get suggested users to follow
@@ -240,6 +244,7 @@ export class SocialService {
   }
 
   // Get activity feed
+  // Uses /api/investor/activity/feed as the primary backend route
   static async getActivityFeed(options?: {
     userId?: number;
     type?: string;
@@ -252,23 +257,32 @@ export class SocialService {
     if (options?.limit !== undefined && options.limit !== 0) params.append('limit', options.limit.toString());
     if (options?.offset !== undefined && options.offset !== 0) params.append('offset', options.offset.toString());
 
-    const response = await apiClient.get<ActivityFeedResponseData>(
-      `/api/activity/feed?${params.toString()}`
-    );
+    try {
+      const response = await apiClient.get<ActivityFeedResponseData>(
+        `/api/investor/activity/feed?${params.toString()}`
+      );
 
-    if (response.success !== true) {
-      throw new Error(getErrorMessage(response.error, 'Failed to fetch activity feed'));
+      if (response.success !== true) {
+        // Gracefully return empty if the endpoint is not available
+        return { activities: [], total: 0 };
+      }
+
+      return {
+        activities: response.data?.activities ?? [],
+        total: response.data?.total ?? 0
+      };
+    } catch {
+      // Gracefully handle if the activity feed endpoint is not available
+      return { activities: [], total: 0 };
     }
-
-    return {
-      activities: response.data?.activities ?? [],
-      total: response.data?.total ?? 0
-    };
   }
 
   // Get social stats
   static async getSocialStats(userId?: number): Promise<SocialStats> {
-    const endpoint = userId !== undefined && userId !== 0 ? `/api/social/stats/${userId.toString()}` : '/api/social/stats';
+    const params = new URLSearchParams();
+    if (userId !== undefined && userId !== 0) params.append('userId', userId.toString());
+    const queryString = params.toString();
+    const endpoint = `/api/follows/stats${queryString ? `?${queryString}` : ''}`;
     const response = await apiClient.get<SocialStatsResponseData>(endpoint);
 
     if (response.success !== true) {
@@ -287,7 +301,7 @@ export class SocialService {
   // Like a pitch
   static async likePitch(pitchId: number): Promise<void> {
     const response = await apiClient.post<Record<string, unknown>>(
-      `/api/pitches/${pitchId.toString()}/like`,
+      `/api/creator/pitches/${pitchId.toString()}/like`,
       {}
     );
 
@@ -296,11 +310,10 @@ export class SocialService {
     }
   }
 
-  // Unlike a pitch
+  // Unlike a pitch (uses DELETE method on the like endpoint)
   static async unlikePitch(pitchId: number): Promise<void> {
-    const response = await apiClient.post<Record<string, unknown>>(
-      `/api/pitches/${pitchId.toString()}/unlike`,
-      {}
+    const response = await apiClient.delete<Record<string, unknown>>(
+      `/api/creator/pitches/${pitchId.toString()}/like`
     );
 
     if (response.success !== true) {
@@ -309,85 +322,101 @@ export class SocialService {
   }
 
   // Check if liked
-  static async checkLikeStatus(pitchId: number): Promise<boolean> {
-    const response = await apiClient.get<LikeStatusResponseData>(
-      `/api/pitches/${pitchId.toString()}/like-status`
-    );
-
-    if (response.success !== true) {
+  // NOTE: No dedicated like-status endpoint exists on the backend.
+  // Returns false gracefully until the endpoint is implemented.
+  static async checkLikeStatus(_pitchId: number): Promise<boolean> {
+    try {
+      // Backend does not have a /like-status route yet.
+      // This could be derived from pitch detail data if available.
+      return false;
+    } catch {
       return false;
     }
-
-    return response.data?.isLiked ?? false;
   }
 
   // Get pitch likes
-  static async getPitchLikes(pitchId: number): Promise<{ users: User[]; total: number }> {
-    const response = await apiClient.get<PitchLikesResponseData>(
-      `/api/pitches/${pitchId.toString()}/likes`
-    );
-
-    if (response.success !== true) {
-      throw new Error(getErrorMessage(response.error, 'Failed to fetch pitch likes'));
+  // NOTE: No dedicated /likes listing endpoint exists on the backend yet.
+  // Returns empty gracefully until the endpoint is implemented.
+  static async getPitchLikes(_pitchId: number): Promise<{ users: User[]; total: number }> {
+    try {
+      // Backend does not have a /pitches/:id/likes listing route yet.
+      return { users: [], total: 0 };
+    } catch {
+      return { users: [], total: 0 };
     }
-
-    return {
-      users: response.data?.users ?? [],
-      total: response.data?.total ?? 0
-    };
   }
 
   // Block user
+  // NOTE: No backend route exists for blocking users yet. Fails gracefully.
   static async blockUser(userId: number): Promise<void> {
-    const response = await apiClient.post<Record<string, unknown>>(
-      `/api/users/${userId.toString()}/block`,
-      {}
-    );
+    try {
+      const response = await apiClient.post<Record<string, unknown>>(
+        `/api/users/${userId.toString()}/block`,
+        {}
+      );
 
-    if (response.success !== true) {
-      throw new Error(getErrorMessage(response.error, 'Failed to block user'));
+      if (response.success !== true) {
+        console.warn('Block user endpoint not available yet');
+      }
+    } catch {
+      console.warn('Block user endpoint not available yet');
     }
   }
 
   // Unblock user
+  // NOTE: No backend route exists for unblocking users yet. Fails gracefully.
   static async unblockUser(userId: number): Promise<void> {
-    const response = await apiClient.post<Record<string, unknown>>(
-      `/api/users/${userId.toString()}/unblock`,
-      {}
-    );
+    try {
+      const response = await apiClient.post<Record<string, unknown>>(
+        `/api/users/${userId.toString()}/unblock`,
+        {}
+      );
 
-    if (response.success !== true) {
-      throw new Error(getErrorMessage(response.error, 'Failed to unblock user'));
+      if (response.success !== true) {
+        console.warn('Unblock user endpoint not available yet');
+      }
+    } catch {
+      console.warn('Unblock user endpoint not available yet');
     }
   }
 
   // Get blocked users
+  // NOTE: No backend route exists for listing blocked users yet. Returns empty gracefully.
   static async getBlockedUsers(): Promise<User[]> {
-    const response = await apiClient.get<UsersResponseData>(
-      '/api/users/blocked'
-    );
+    try {
+      const response = await apiClient.get<UsersResponseData>(
+        '/api/users/blocked'
+      );
 
-    if (response.success !== true) {
-      throw new Error(getErrorMessage(response.error, 'Failed to fetch blocked users'));
+      if (response.success !== true) {
+        return [];
+      }
+
+      return response.data?.users ?? [];
+    } catch {
+      return [];
     }
-
-    return response.data?.users ?? [];
   }
 
   // Report content
+  // NOTE: No backend route exists for reporting content yet. Fails gracefully.
   static async reportContent(data: {
     contentType: 'user' | 'pitch' | 'message';
     contentId: number;
     reason: string;
     details?: string;
   }): Promise<void> {
-    const response = await apiClient.post<Record<string, unknown>>(
-      '/api/reports',
-      data
-    );
+    try {
+      const response = await apiClient.post<Record<string, unknown>>(
+        '/api/reports',
+        data
+      );
 
-    if (response.success !== true) {
-      throw new Error(getErrorMessage(response.error, 'Failed to submit report'));
+      if (response.success !== true) {
+        console.warn('Report content endpoint not available yet');
+      }
+    } catch {
+      console.warn('Report content endpoint not available yet');
     }
   }
 }

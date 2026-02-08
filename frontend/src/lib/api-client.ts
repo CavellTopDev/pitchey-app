@@ -605,7 +605,7 @@ export const authAPI = {
       };
     }
 
-    const response = await apiClient.post<AuthResponse>('/api/auth/creator/register', data);
+    const response = await apiClient.post<AuthResponse>('/api/auth/register', data);
     if (response.success && response.data?.token) {
       localStorage.setItem('authToken', response.data.token);
     }
@@ -631,11 +631,11 @@ export const authAPI = {
   },
 
   async getProfile(): Promise<TypedApiResponse<User>> {
-    return apiClient.get<User>('/api/auth/profile');
+    return apiClient.get<User>('/api/user/profile');
   },
 
   async updateProfile(data: Partial<User>): Promise<TypedApiResponse<User>> {
-    return apiClient.put<User>('/api/auth/profile', data);
+    return apiClient.put<User>('/api/user/profile', data);
   },
 
   async getSession(): Promise<TypedApiResponse<{ user: User; session: any }>> {
@@ -706,15 +706,15 @@ export const pitchAPI = {
   },
 
   async recordView(pitchId: number): Promise<TypedApiResponse<{ viewCount: number }>> {
-    return apiClient.post<{ viewCount: number }>(`/api/pitches/${pitchId}/view`);
+    return apiClient.post<{ viewCount: number }>('/api/views/track', { pitchId });
   },
 
   async like(pitchId: number): Promise<TypedApiResponse<{ liked: boolean; likeCount: number }>> {
-    return apiClient.post<{ liked: boolean; likeCount: number }>(`/api/pitches/${pitchId}/like`);
+    return apiClient.post<{ liked: boolean; likeCount: number }>(`/api/creator/pitches/${pitchId}/like`);
   },
 
   async unlike(pitchId: number): Promise<TypedApiResponse<{ liked: boolean; likeCount: number }>> {
-    return apiClient.delete<{ liked: boolean; likeCount: number }>(`/api/pitches/${pitchId}/like`);
+    return apiClient.delete<{ liked: boolean; likeCount: number }>(`/api/creator/pitches/${pitchId}/like`);
   }
 };
 
@@ -744,15 +744,15 @@ export const infoRequestAPI = {
 // Dashboard API
 export const dashboardAPI = {
   async getInvestorStats(): Promise<TypedApiResponse<InvestorDashboardStats>> {
-    return apiClient.get<InvestorDashboardStats>('/api/dashboard/investor');
+    return apiClient.get<InvestorDashboardStats>('/api/investor/dashboard');
   },
 
   async getCreatorStats(): Promise<TypedApiResponse<CreatorDashboardStats>> {
-    return apiClient.get<CreatorDashboardStats>('/api/dashboard/creator');
+    return apiClient.get<CreatorDashboardStats>('/api/creator/dashboard');
   },
 
   async getProductionStats(): Promise<TypedApiResponse<ProductionDashboardStats>> {
-    return apiClient.get<ProductionDashboardStats>('/api/dashboard/production');
+    return apiClient.get<ProductionDashboardStats>('/api/production/dashboard');
   }
 };
 

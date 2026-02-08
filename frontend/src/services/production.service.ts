@@ -345,7 +345,7 @@ export class ProductionService {
     if (filters?.search !== undefined && filters.search !== '') params.append('search', filters.search);
 
     const response = await apiClient.get<TalentResponseData>(
-      `/api/production/talent?${params.toString()}`
+      `/api/production/talent/search?${params.toString()}`
     );
 
     if (response.success !== true) {
@@ -399,7 +399,7 @@ export class ProductionService {
   // Get budget breakdown
   static async getBudgetBreakdown(projectId: number): Promise<BudgetBreakdown> {
     const response = await apiClient.get<BudgetResponseData>(
-      `/api/production/projects/${projectId.toString()}/budget`
+      `/api/production/budget/${projectId.toString()}`
     );
 
     if (response.success !== true) {

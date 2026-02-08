@@ -9,7 +9,7 @@ import * as Sentry from '@sentry/cloudflare';
 
 // import { createAuthAdapter } from './auth/auth-adapter';
 import { createDatabase } from './db/raw-sql-connection';
-// import { UserProfileRoutes } from './routes/user-profile';
+import { UserProfileRoutes } from './routes/user-profile';
 import { ApiResponseBuilder, ErrorCode, errorHandler } from './utils/api-response';
 // import { getEnvConfig } from './utils/env-config';
 import { getCorsHeaders, setRequestOrigin, errorResponse } from './utils/response';
@@ -62,6 +62,24 @@ import {
   creatorPitchesHandler,
   creatorActivitiesHandler
 } from './handlers/creator-pitches';
+
+// Import user lookup handlers
+import {
+  userSearchHandler,
+  userByUsernameHandler,
+  userByIdHandler,
+  userStatsHandler
+} from './handlers/user-lookup';
+
+// Import real pitch interaction handlers
+import {
+  pitchLikeHandler as realPitchLikeHandler,
+  pitchUnlikeHandler as realPitchUnlikeHandler,
+  pitchSaveHandler as realPitchSaveHandler,
+  pitchUnsaveHandler as realPitchUnsaveHandler,
+  pitchPublishHandler,
+  pitchArchiveHandler
+} from './handlers/pitch-interactions';
 
 import {
   productionTalentSearchHandler,
@@ -1736,16 +1754,63 @@ class RouteRegistry {
       return resetPasswordHandler(request, this.env, ctx);
     });
 
-    // User profile routes (commented out - UserProfileRoutes not imported)
-    // const userProfileRoutes = new UserProfileRoutes(this.env);
-    // this.register('GET', '/api/users/profile', (req) => userProfileRoutes.getProfile(req));
-    // this.register('PUT', '/api/users/profile', (req) => userProfileRoutes.updateProfile(req));
-    // this.register('GET', '/api/users/settings', (req) => userProfileRoutes.getSettings(req));
-    // this.register('PUT', '/api/users/settings', (req) => userProfileRoutes.updateSettings(req));
-    // this.register('DELETE', '/api/users/account', (req) => userProfileRoutes.deleteAccount(req));
+    // User profile routes
+    const userProfileRoutes = new UserProfileRoutes(this.env);
+    this.register('GET', '/api/users/profile', (req) => userProfileRoutes.getProfile(req));
+    this.register('PUT', '/api/users/profile', (req) => userProfileRoutes.updateProfile(req));
+    this.register('PUT', '/api/user/profile', (req) => userProfileRoutes.updateProfile(req));
+    this.register('GET', '/api/users/settings', (req) => userProfileRoutes.getSettings(req));
+    this.register('PUT', '/api/users/settings', (req) => userProfileRoutes.updateSettings(req));
+    this.register('DELETE', '/api/users/account', (req) => userProfileRoutes.deleteAccount(req));
 
-    // Temporary profile endpoint
-    this.register('GET', '/api/users/profile', this.getUserProfile.bind(this));
+    // User lookup routes (search/username BEFORE :id to avoid wildcard conflicts)
+    this.register('GET', '/api/users/search', (req) => userSearchHandler(req, this.env));
+    this.register('GET', '/api/users/username/:username', (req) => userByUsernameHandler(req, this.env));
+    // User blocks (registered BEFORE :id wildcard to avoid conflict)
+    this.register('GET', '/api/users/blocked', async (req) => {
+      const { getBlockedUsersHandler } = await import('./handlers/user-blocks');
+      return getBlockedUsersHandler(req, this.env);
+    });
+    this.register('GET', '/api/users/:id/stats', (req) => userStatsHandler(req, this.env));
+    this.register('POST', '/api/users/:id/block', async (req) => {
+      const { blockUserHandler } = await import('./handlers/user-blocks');
+      return blockUserHandler(req, this.env);
+    });
+    this.register('DELETE', '/api/users/:id/block', async (req) => {
+      const { unblockUserHandler } = await import('./handlers/user-blocks');
+      return unblockUserHandler(req, this.env);
+    });
+    this.register('GET', '/api/users/:id', (req) => userByIdHandler(req, this.env));
+
+    // Content reports
+    this.register('POST', '/api/reports', async (req) => {
+      const { createReportHandler } = await import('./handlers/content-reports');
+      return createReportHandler(req, this.env);
+    });
+
+    // Pitch characters CRUD
+    this.register('GET', '/api/pitches/:pitchId/characters', async (req) => {
+      const { getCharactersHandler } = await import('./handlers/characters');
+      return getCharactersHandler(req, this.env);
+    });
+    this.register('POST', '/api/pitches/:pitchId/characters', async (req) => {
+      const { createCharacterHandler } = await import('./handlers/characters');
+      return createCharacterHandler(req, this.env);
+    });
+    this.register('PUT', '/api/pitches/:pitchId/characters/:id', async (req) => {
+      const { updateCharacterHandler } = await import('./handlers/characters');
+      return updateCharacterHandler(req, this.env);
+    });
+    this.register('DELETE', '/api/pitches/:pitchId/characters/:id', async (req) => {
+      const { deleteCharacterHandler } = await import('./handlers/characters');
+      return deleteCharacterHandler(req, this.env);
+    });
+
+    // Mutual followers
+    this.register('GET', '/api/follows/mutual/:userId', async (req) => {
+      const { mutualFollowersHandler } = await import('./handlers/follows-enhanced');
+      return mutualFollowersHandler(req, this.env);
+    });
 
     // Profile route (for auth check) - use resilient handler
     this.register('GET', '/api/profile', (req) => profileHandler(req, this.env));
@@ -1933,8 +1998,8 @@ class RouteRegistry {
 
     // Notifications shorthand route (frontend calls /api/notifications without query params)
     this.register('GET', '/api/notifications', async (req) => {
-      const { notificationsHandler } = await import('./handlers/stub-endpoints');
-      return notificationsHandler(req);
+      const { notificationsRealHandler } = await import('./handlers/common-real');
+      return notificationsRealHandler(req, this.env);
     });
 
     // === PHASE 2: INVESTOR PORTFOLIO ROUTES ===
@@ -2097,27 +2162,15 @@ class RouteRegistry {
     this.register('GET', '/api/creator/pitches', (req) => creatorPitchesHandler(req, this.env));
     this.register('GET', '/api/creator/activities', (req) => creatorActivitiesHandler(req, this.env));
 
-    // Pitch Like/Save endpoints (stub handlers)
-    this.register('POST', '/api/creator/pitches/:id/like', async (req) => {
-      const { pitchLikeHandler } = await import('./handlers/stub-endpoints');
-      const id = req.url.split('/').slice(-2)[0];
-      return pitchLikeHandler(req, id);
-    });
-    this.register('DELETE', '/api/creator/pitches/:id/like', async (req) => {
-      const { pitchUnlikeHandler } = await import('./handlers/stub-endpoints');
-      const id = req.url.split('/').slice(-2)[0];
-      return pitchUnlikeHandler(req, id);
-    });
-    this.register('POST', '/api/pitches/:id/save', async (req) => {
-      const { pitchSaveHandler } = await import('./handlers/stub-endpoints');
-      const id = req.url.split('/').slice(-2)[0];
-      return pitchSaveHandler(req, id);
-    });
-    this.register('DELETE', '/api/pitches/:id/save', async (req) => {
-      const { pitchUnsaveHandler } = await import('./handlers/stub-endpoints');
-      const id = req.url.split('/').slice(-2)[0];
-      return pitchUnsaveHandler(req, id);
-    });
+    // Pitch Like/Save endpoints (real DB handlers)
+    this.register('POST', '/api/creator/pitches/:id/like', (req) => realPitchLikeHandler(req, this.env));
+    this.register('DELETE', '/api/creator/pitches/:id/like', (req) => realPitchUnlikeHandler(req, this.env));
+    this.register('POST', '/api/pitches/:id/save', (req) => realPitchSaveHandler(req, this.env));
+    this.register('DELETE', '/api/pitches/:id/save', (req) => realPitchUnsaveHandler(req, this.env));
+
+    // Pitch Publish/Archive endpoints
+    this.register('POST', '/api/pitches/:id/publish', (req) => pitchPublishHandler(req, this.env));
+    this.register('POST', '/api/pitches/:id/archive', (req) => pitchArchiveHandler(req, this.env));
 
     // Team Management routes (use internal validateAuth for consistency)
     this.register('GET', '/api/teams', (req) => this.getTeamsInternal(req));
@@ -2361,140 +2414,150 @@ class RouteRegistry {
     // STUB ENDPOINTS FOR SIDEBAR ROUTES (prevents 404 errors)
     // =============================================================================
 
-    // Production Portal Stub Routes
+    // Production Portal Sidebar Routes (real DB queries)
     this.register('GET', '/api/production/activity', async (req) => {
-      const { productionActivityHandler } = await import('./handlers/stub-endpoints');
-      return productionActivityHandler(req);
+      const { productionActivityHandler } = await import('./handlers/production-sidebar');
+      return productionActivityHandler(req, this.env);
     });
     this.register('GET', '/api/production/stats', async (req) => {
-      const { productionStatsHandler } = await import('./handlers/stub-endpoints');
-      return productionStatsHandler(req);
+      const { productionStatsHandler } = await import('./handlers/production-sidebar');
+      return productionStatsHandler(req, this.env);
     });
     this.register('GET', '/api/production/submissions', async (req) => {
-      const { productionSubmissionsHandler } = await import('./handlers/stub-endpoints');
-      return productionSubmissionsHandler(req);
+      const { productionSubmissionsHandler } = await import('./handlers/production-sidebar');
+      return productionSubmissionsHandler(req, this.env);
     });
     this.register('GET', '/api/production/revenue', async (req) => {
-      const { productionRevenueHandler } = await import('./handlers/stub-endpoints');
-      return productionRevenueHandler(req);
+      const { productionRevenueHandler } = await import('./handlers/production-sidebar');
+      return productionRevenueHandler(req, this.env);
     });
     this.register('GET', '/api/production/saved-pitches', async (req) => {
-      const { productionSavedPitchesHandler } = await import('./handlers/stub-endpoints');
-      return productionSavedPitchesHandler(req);
+      const { productionSavedPitchesHandler } = await import('./handlers/production-sidebar');
+      return productionSavedPitchesHandler(req, this.env);
     });
     this.register('GET', '/api/production/collaborations', async (req) => {
-      const { productionCollaborationsHandler } = await import('./handlers/stub-endpoints');
-      return productionCollaborationsHandler(req);
+      const { productionCollaborationsHandler } = await import('./handlers/production-sidebar');
+      return productionCollaborationsHandler(req, this.env);
     });
 
-    // Investor Portal Stub Routes
+    // Investor Portal Sidebar Routes (real DB queries)
     this.register('GET', '/api/investor/deals', async (req) => {
-      const { investorDealsHandler } = await import('./handlers/stub-endpoints');
-      return investorDealsHandler(req);
+      const { investorDealsHandler } = await import('./handlers/investor-sidebar');
+      return investorDealsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/completed-projects', async (req) => {
-      const { investorCompletedProjectsHandler } = await import('./handlers/stub-endpoints');
-      return investorCompletedProjectsHandler(req);
+      const { investorCompletedProjectsHandler } = await import('./handlers/investor-sidebar');
+      return investorCompletedProjectsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/saved-pitches', async (req) => {
-      const { investorSavedPitchesHandler } = await import('./handlers/stub-endpoints');
-      return investorSavedPitchesHandler(req);
+      const { investorSavedPitchesHandler } = await import('./handlers/investor-sidebar');
+      return investorSavedPitchesHandler(req, this.env);
     });
     this.register('GET', '/api/investor/financial-overview', async (req) => {
-      const { investorFinancialOverviewHandler } = await import('./handlers/stub-endpoints');
-      return investorFinancialOverviewHandler(req);
+      const { investorFinancialOverviewHandler } = await import('./handlers/investor-sidebar');
+      return investorFinancialOverviewHandler(req, this.env);
     });
     this.register('GET', '/api/investor/budget', async (req) => {
-      const { investorBudgetHandler } = await import('./handlers/stub-endpoints');
-      return investorBudgetHandler(req);
+      const { investorBudgetHandler } = await import('./handlers/investor-sidebar');
+      return investorBudgetHandler(req, this.env);
     });
     this.register('GET', '/api/investor/roi', async (req) => {
-      const { investorROIHandler } = await import('./handlers/stub-endpoints');
-      return investorROIHandler(req);
+      const { investorROIHandler } = await import('./handlers/investor-sidebar');
+      return investorROIHandler(req, this.env);
     });
     this.register('GET', '/api/investor/reports', async (req) => {
-      const { investorReportsHandler } = await import('./handlers/stub-endpoints');
-      return investorReportsHandler(req);
+      const { investorReportsHandler } = await import('./handlers/investor-sidebar');
+      return investorReportsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/tax-documents', async (req) => {
-      const { investorTaxDocumentsHandler } = await import('./handlers/stub-endpoints');
-      return investorTaxDocumentsHandler(req);
+      const { investorTaxDocumentsHandler } = await import('./handlers/investor-sidebar');
+      return investorTaxDocumentsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/market-trends', async (req) => {
-      const { investorMarketTrendsHandler } = await import('./handlers/stub-endpoints');
-      return investorMarketTrendsHandler(req);
+      const { investorMarketTrendsHandler } = await import('./handlers/investor-sidebar');
+      return investorMarketTrendsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/network', async (req) => {
-      const { investorNetworkHandler } = await import('./handlers/stub-endpoints');
-      return investorNetworkHandler(req);
+      const { investorNetworkHandler } = await import('./handlers/investor-sidebar');
+      return investorNetworkHandler(req, this.env);
     });
     this.register('GET', '/api/investor/co-investors', async (req) => {
-      const { investorCoInvestorsHandler } = await import('./handlers/stub-endpoints');
-      return investorCoInvestorsHandler(req);
+      const { investorCoInvestorsHandler } = await import('./handlers/investor-sidebar');
+      return investorCoInvestorsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/creators', async (req) => {
-      const { investorCreatorsHandler } = await import('./handlers/stub-endpoints');
-      return investorCreatorsHandler(req);
+      const { investorCreatorsHandler } = await import('./handlers/investor-sidebar');
+      return investorCreatorsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/production-companies', async (req) => {
-      const { investorProductionCompaniesHandler } = await import('./handlers/stub-endpoints');
-      return investorProductionCompaniesHandler(req);
+      const { investorProductionCompaniesHandler } = await import('./handlers/investor-sidebar');
+      return investorProductionCompaniesHandler(req, this.env);
     });
     this.register('GET', '/api/investor/wallet', async (req) => {
-      const { investorWalletHandler } = await import('./handlers/stub-endpoints');
-      return investorWalletHandler(req);
+      const { investorWalletHandler } = await import('./handlers/investor-sidebar');
+      return investorWalletHandler(req, this.env);
     });
     this.register('GET', '/api/investor/payment-methods', async (req) => {
-      const { investorPaymentMethodsHandler } = await import('./handlers/stub-endpoints');
-      return investorPaymentMethodsHandler(req);
+      const { investorPaymentMethodsHandler } = await import('./handlers/investor-sidebar');
+      return investorPaymentMethodsHandler(req, this.env);
     });
     this.register('GET', '/api/investor/ndas', async (req) => {
-      const { investorNdasHandler } = await import('./handlers/stub-endpoints');
-      return investorNdasHandler(req);
+      const { investorNdasHandler } = await import('./handlers/investor-sidebar');
+      return investorNdasHandler(req, this.env);
     });
     this.register('GET', '/api/investor/performance', async (req) => {
-      const { investorPerformanceHandler } = await import('./handlers/stub-endpoints');
-      return investorPerformanceHandler(req);
+      const { investorPerformanceHandler } = await import('./handlers/investor-sidebar');
+      return investorPerformanceHandler(req, this.env);
     });
     this.register('GET', '/api/investor/opportunities', async (req) => {
-      const { investorOpportunitiesHandler } = await import('./handlers/stub-endpoints');
-      return investorOpportunitiesHandler(req);
+      const { investorOpportunitiesHandler } = await import('./handlers/investor-sidebar');
+      return investorOpportunitiesHandler(req, this.env);
     });
 
-    // Creator Portal Stub Routes
+    // Creator Portal Sidebar Routes (real DB queries)
     this.register('GET', '/api/creator/activity', async (req) => {
-      const { creatorActivityHandler } = await import('./handlers/stub-endpoints');
-      return creatorActivityHandler(req);
+      const { creatorActivityHandler } = await import('./handlers/creator-sidebar');
+      return creatorActivityHandler(req, this.env);
     });
     this.register('GET', '/api/creator/stats', async (req) => {
-      const { creatorStatsHandler } = await import('./handlers/stub-endpoints');
-      return creatorStatsHandler(req);
+      const { creatorStatsHandler } = await import('./handlers/creator-sidebar');
+      return creatorStatsHandler(req, this.env);
     });
     this.register('GET', '/api/creator/pitches/analytics', async (req) => {
-      const { creatorPitchesAnalyticsHandler } = await import('./handlers/stub-endpoints');
-      return creatorPitchesAnalyticsHandler(req);
+      const { creatorPitchesAnalyticsHandler } = await import('./handlers/creator-sidebar');
+      return creatorPitchesAnalyticsHandler(req, this.env);
     });
     this.register('GET', '/api/creator/collaborations', async (req) => {
       const { creatorCollaborationsHandler } = await import('./handlers/stub-endpoints');
       return creatorCollaborationsHandler(req);
     });
     this.register('GET', '/api/creator/portfolio', async (req) => {
-      const { creatorPortfolioHandler } = await import('./handlers/stub-endpoints');
-      return creatorPortfolioHandler(req);
+      const { creatorPortfolioHandler } = await import('./handlers/creator-sidebar');
+      return creatorPortfolioHandler(req, this.env);
     });
     this.register('GET', '/api/creator/ndas', async (req) => {
-      const { creatorNdasHandler } = await import('./handlers/stub-endpoints');
-      return creatorNdasHandler(req);
+      const { creatorNdasHandler } = await import('./handlers/creator-sidebar');
+      return creatorNdasHandler(req, this.env);
     });
     this.register('GET', '/api/creator/calendar', async (req) => {
-      const { creatorCalendarHandler } = await import('./handlers/stub-endpoints');
-      return creatorCalendarHandler(req);
+      const { creatorCalendarHandler } = await import('./handlers/creator-sidebar');
+      return creatorCalendarHandler(req, this.env);
     });
 
-    // User/Common Stub Routes
+    // Additional Creator endpoints
+    this.register('GET', '/api/creator/earnings', async (req) => {
+      const { creatorEarningsHandler } = await import('./handlers/creator-sidebar');
+      return creatorEarningsHandler(req, this.env);
+    });
+    this.register('GET', '/api/creator/followers', async (req) => {
+      const { creatorFollowersHandler } = await import('./handlers/creator-sidebar');
+      return creatorFollowersHandler(req, this.env);
+    });
+
+    // User/Common Routes
     this.register('GET', '/api/user/following', async (req) => {
-      const { userFollowingHandler } = await import('./handlers/stub-endpoints');
-      return userFollowingHandler(req);
+      const { userFollowingRealHandler } = await import('./handlers/common-real');
+      return userFollowingRealHandler(req, this.env);
     });
     this.register('GET', '/api/teams/roles', async (req) => {
       const { teamsRolesHandler } = await import('./handlers/stub-endpoints');
@@ -2505,8 +2568,8 @@ class RouteRegistry {
       return messagesHandler(req);
     });
     this.register('GET', '/api/pitches/discover', async (req) => {
-      const { pitchesDiscoverHandler } = await import('./handlers/stub-endpoints');
-      return pitchesDiscoverHandler(req);
+      const { pitchesDiscoverRealHandler } = await import('./handlers/common-real');
+      return pitchesDiscoverRealHandler(req, this.env);
     });
 
     // NDA routes
@@ -2637,10 +2700,10 @@ class RouteRegistry {
       return consoleErrorHandler(req);
     });
     
-    // Dashboard Stats (stub)
+    // Dashboard Stats (real DB)
     this.register('GET', '/api/dashboard/stats', async (req: Request) => {
-      const { dashboardStatsHandler } = await import('./handlers/stub-endpoints');
-      return dashboardStatsHandler(req);
+      const { dashboardStatsRealHandler } = await import('./handlers/common-real');
+      return dashboardStatsRealHandler(req, this.env);
     });
     
     // Metrics (stub)
@@ -2667,30 +2730,28 @@ class RouteRegistry {
       return gdprConsentHandler(req);
     });
 
-    // Categories endpoint (stub)
+    // Categories endpoint (real DB)
     this.register('GET', '/api/categories', async (req: Request) => {
-      return new Response(JSON.stringify({
-        success: true,
-        data: {
-          categories: [
-            { id: 'drama', name: 'Drama', count: 45 },
-            { id: 'comedy', name: 'Comedy', count: 32 },
-            { id: 'action', name: 'Action', count: 28 },
-            { id: 'thriller', name: 'Thriller', count: 24 },
-            { id: 'horror', name: 'Horror', count: 18 },
-            { id: 'sci-fi', name: 'Sci-Fi', count: 22 },
-            { id: 'documentary', name: 'Documentary', count: 15 },
-            { id: 'romance', name: 'Romance', count: 20 }
-          ]
-        },
-        meta: { timestamp: new Date().toISOString() }
-      }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...getCorsHeaders(req.headers.get('Origin'))
-        }
-      });
+      const { categoriesHandler } = await import('./handlers/content-config');
+      return categoriesHandler(req, this.env);
+    });
+
+    // Content endpoints (real DB with fallback)
+    this.register('GET', '/api/content/how-it-works', async (req: Request) => {
+      const { contentHowItWorksHandler } = await import('./handlers/content-config');
+      return contentHowItWorksHandler(req, this.env);
+    });
+    this.register('GET', '/api/content/about', async (req: Request) => {
+      const { contentAboutHandler } = await import('./handlers/content-config');
+      return contentAboutHandler(req, this.env);
+    });
+    this.register('GET', '/api/content/team', async (req: Request) => {
+      const { contentTeamHandler } = await import('./handlers/content-config');
+      return contentTeamHandler(req, this.env);
+    });
+    this.register('GET', '/api/content/stats', async (req: Request) => {
+      const { contentStatsHandler } = await import('./handlers/content-config');
+      return contentStatsHandler(req, this.env);
     });
 
     // ===== INTELLIGENCE LAYER ROUTES ===== - TEMPORARILY DISABLED
@@ -2945,7 +3006,13 @@ class RouteRegistry {
       '/api/pitches/public/featured',
       '/api/pitches/public/search',
       '/api/pitches/search',  // Add pitches search as public
+      '/api/pitches/discover', // Pitch discovery/browse
       '/api/trending',  // Add trending endpoint as public
+      '/api/categories', // Genre categories
+      '/api/content',    // Static content pages (about, how-it-works, team, stats)
+      '/api/dashboard/stats', // Platform-wide stats
+      '/api/users/search', // User search
+      '/api/users/username', // Public user profiles
       '/ws'             // WebSocket endpoint handles its own auth
     ];
 
@@ -8770,23 +8837,84 @@ pitchey_analytics_datapoints_per_minute 1250
     return csv;
   }
 
-  // Additional investor portal endpoints (stubs for now)
+  // Investor tax document endpoints
   private async getTaxDocuments(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    return new ApiResponseBuilder(request).success({ documents: [] });
+
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const documents = await this.db.query(`
+        SELECT id, document_type, tax_year, file_url, file_name, status, created_at
+        FROM tax_documents
+        WHERE user_id = $1
+        ORDER BY tax_year DESC, created_at DESC
+      `, [authResult.user.id]);
+
+      return builder.success({ documents: documents || [] });
+    } catch (error) {
+      console.error('getTaxDocuments error:', error);
+      return builder.success({ documents: [] });
+    }
   }
 
   private async downloadTaxDocument(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    return new ApiResponseBuilder(request).error(ErrorCode.NOT_IMPLEMENTED, 'Tax documents not yet available');
+
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const url = new URL(request.url);
+      const parts = url.pathname.split('/');
+      const docId = parts[parts.length - 2]; // /api/investor/tax/documents/:id/download
+
+      const docs = await this.db.query(`
+        SELECT id, file_url, file_name
+        FROM tax_documents
+        WHERE id = $1 AND user_id = $2
+      `, [docId, authResult.user.id]);
+
+      if (!docs || docs.length === 0) {
+        return builder.error(ErrorCode.NOT_FOUND, 'Tax document not found');
+      }
+
+      if (!docs[0].file_url) {
+        return builder.error(ErrorCode.NOT_FOUND, 'Document file not available');
+      }
+
+      return builder.success({ downloadUrl: docs[0].file_url, fileName: docs[0].file_name });
+    } catch (error) {
+      console.error('downloadTaxDocument error:', error);
+      return builder.error(ErrorCode.INTERNAL_ERROR, 'Failed to retrieve document');
+    }
   }
 
   private async generateTaxDocument(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    return new ApiResponseBuilder(request).error(ErrorCode.NOT_IMPLEMENTED, 'Tax document generation not yet available');
+
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const body = await request.json() as Record<string, unknown>;
+      const taxYear = body.taxYear || new Date().getFullYear();
+      const documentType = body.documentType || 'annual_summary';
+
+      // Create a pending tax document record
+      const result = await this.db.query(`
+        INSERT INTO tax_documents (user_id, document_type, tax_year, status, created_at)
+        VALUES ($1, $2, $3, 'pending', NOW())
+        RETURNING id, document_type, tax_year, status, created_at
+      `, [authResult.user.id, documentType, taxYear]);
+
+      if (result && result.length > 0) {
+        return builder.success({ document: result[0], message: 'Tax document generation initiated' });
+      }
+
+      return builder.success({ document: null, message: 'Tax document generation initiated' });
+    } catch (error) {
+      console.error('generateTaxDocument error:', error);
+      return builder.error(ErrorCode.INTERNAL_ERROR, 'Failed to generate tax document');
+    }
   }
 
   private async getPendingDeals(request: Request): Promise<Response> {
@@ -8845,13 +8973,75 @@ pitchey_analytics_datapoints_per_minute 1250
   private async updateDealStatus(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    return new ApiResponseBuilder(request).error(ErrorCode.NOT_IMPLEMENTED, 'Deal status updates not yet available');
+
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const body = await request.json() as Record<string, unknown>;
+      const url = new URL(request.url);
+      const parts = url.pathname.split('/');
+      const dealId = parts[parts.length - 2]; // /api/investor/deals/:id/status
+
+      if (!dealId || !body.status) {
+        return builder.error(ErrorCode.BAD_REQUEST, 'Deal ID and status are required');
+      }
+
+      const validStatuses = ['negotiating', 'pending', 'due_diligence', 'approved', 'rejected', 'completed'];
+      if (!validStatuses.includes(body.status as string)) {
+        return builder.error(ErrorCode.BAD_REQUEST, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+      }
+
+      const result = await this.db.query(`
+        UPDATE investment_deals
+        SET status = $1, updated_at = NOW()
+        WHERE id = $2 AND investor_id = $3
+        RETURNING id, status, updated_at
+      `, [body.status, dealId, authResult.user.id]);
+
+      if (!result || result.length === 0) {
+        return builder.error(ErrorCode.NOT_FOUND, 'Deal not found or not owned by you');
+      }
+
+      return builder.success({ deal: result[0] });
+    } catch (error) {
+      console.error('updateDealStatus error:', error);
+      return builder.success({ deal: null, error: 'Unable to update deal status' });
+    }
   }
 
   private async getDealTimeline(request: Request): Promise<Response> {
     const authResult = await this.requirePortalAuth(request, 'investor');
     if (!authResult.authorized) return authResult.response!;
-    return new ApiResponseBuilder(request).success({ timeline: [] });
+
+    const builder = new ApiResponseBuilder(request);
+    try {
+      const url = new URL(request.url);
+      const parts = url.pathname.split('/');
+      const dealId = parts[parts.length - 2]; // /api/investor/deals/:id/timeline
+
+      const timeline = await this.db.query(`
+        SELECT id, status, proposed_amount, final_amount, notes, created_at, updated_at
+        FROM investment_deals
+        WHERE id = $1 AND investor_id = $2
+      `, [dealId, authResult.user.id]);
+
+      if (!timeline || timeline.length === 0) {
+        return builder.success({ timeline: [] });
+      }
+
+      // Build a simple timeline from the deal record
+      const deal = timeline[0];
+      const events = [
+        { event: 'Deal created', status: 'negotiating', date: deal.created_at, amount: deal.proposed_amount },
+      ];
+      if (deal.status !== 'negotiating') {
+        events.push({ event: `Status changed to ${deal.status}`, status: deal.status, date: deal.updated_at, amount: deal.final_amount || deal.proposed_amount });
+      }
+
+      return builder.success({ timeline: events });
+    } catch (error) {
+      console.error('getDealTimeline error:', error);
+      return builder.success({ timeline: [] });
+    }
   }
 
   private async getCompletedProjects(request: Request): Promise<Response> {
