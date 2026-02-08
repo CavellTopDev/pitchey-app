@@ -18,7 +18,7 @@ import { createBetterAuthInstance, createPortalAuth, AuthEnv } from './auth/bett
 import { PortalAccessController, createPortalAccessMiddleware } from './middleware/portal-access-control';
 import { CreatorInvestorWorkflow } from './workflows/creator-investor-workflow';
 import { CreatorProductionWorkflow } from './workflows/creator-production-workflow';
-import { matchValidatedRoute } from './handlers/validated-endpoints';
+
 import { NDAStateMachine } from './workflows/nda-state-machine';
 import { SecurePortalEndpoints } from './handlers/secure-portal-endpoints';
 
@@ -15718,9 +15718,7 @@ const workerHandler = {
           // Ignore session extraction errors for logging
         }
 
-        // Check for validated routes first
         const requestUrl = new URL(request.url);
-        const validatedRoute = matchValidatedRoute(request.method, requestUrl.pathname);
 
         let response: Response;
 
@@ -15759,9 +15757,6 @@ const workerHandler = {
             request.method,
             userAuth
           );
-        } else if (validatedRoute) {
-          // Handle validated route with contract enforcement
-          response = await validatedRoute.handler(request, env);
         } else {
           // Handle request through regular router
           response = await router.handle(request);

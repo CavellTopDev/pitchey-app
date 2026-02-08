@@ -537,37 +537,3 @@ export async function batchOperationWithTracing<T>(
     throw error;
   }
 }
-
-/**
- * Analyze database performance metrics
- */
-export async function analyzeDatabasePerformance(env: Env): Promise<{
-  slowQueries: Array<{ operation: string; avgDuration: number; count: number }>;
-  errorPatterns: Array<{ operation: string; errorRate: number; commonError: string }>;
-  tableStats: Array<{ table: string; operations: number; avgDuration: number }>;
-  recommendations: string[];
-}> {
-  // This would typically query the trace storage for analysis
-  // For now, returning mock data structure
-  
-  return {
-    slowQueries: [
-      { operation: 'db.pitch.search', avgDuration: 145, count: 250 },
-      { operation: 'db.nda.list', avgDuration: 120, count: 180 }
-    ],
-    errorPatterns: [
-      { operation: 'db.nda.create', errorRate: 0.02, commonError: 'FK constraint violation' },
-      { operation: 'db.pitch.update', errorRate: 0.01, commonError: 'Concurrent modification' }
-    ],
-    tableStats: [
-      { table: 'pitches', operations: 1500, avgDuration: 45 },
-      { table: 'ndas', operations: 800, avgDuration: 38 },
-      { table: 'users', operations: 2100, avgDuration: 25 }
-    ],
-    recommendations: [
-      'Consider adding index on pitches.genre for faster search queries',
-      'Implement connection pooling for high-traffic periods',
-      'Cache frequently accessed pitch data to reduce database load'
-    ]
-  };
-}
