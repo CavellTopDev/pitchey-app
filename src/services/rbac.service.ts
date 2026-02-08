@@ -176,8 +176,12 @@ const rolePermissions: Record<UserRole, Permission[]> = {
 
   [UserRole.PRODUCTION]: [
     // Pitch permissions
+    Permission.PITCH_CREATE,
+    Permission.PITCH_EDIT_OWN,
+    Permission.PITCH_DELETE_OWN,
     Permission.PITCH_VIEW_PUBLIC,
     Permission.PITCH_VIEW_PRIVATE, // with NDA
+    Permission.PITCH_PUBLISH,
 
     // NDA permissions
     Permission.NDA_REQUEST,

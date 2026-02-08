@@ -4805,7 +4805,7 @@ pitchey_analytics_datapoints_per_minute 1250
         [params.id]
       );
 
-      if (!existing || existing.user_id !== authResult.user.id) {
+      if (!existing || String(existing.user_id) !== String(authResult.user.id)) {
         return builder.error(ErrorCode.FORBIDDEN, 'Not authorized to update this pitch');
       }
 
