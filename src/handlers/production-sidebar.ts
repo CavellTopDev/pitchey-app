@@ -547,15 +547,7 @@ export async function productionCollaborationsHandler(
   request: Request,
   env: Env,
 ): Promise<Response> {
-  const origin = request.headers.get('Origin');
-
-  return jsonResponse({
-    success: true,
-    data: {
-      collaborations: [],
-      active: 0,
-      pending: 0,
-      completed: 0,
-    },
-  }, origin);
+  // Delegate to the real collaborations handler
+  const { getProductionCollaborationsHandler } = await import('./collaborations-real');
+  return getProductionCollaborationsHandler(request, env);
 }

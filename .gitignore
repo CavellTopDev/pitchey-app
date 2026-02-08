@@ -1,3 +1,6 @@
+# Binary packages
+cloudflared.deb
+
 # Environment files
 .env
 .env.local

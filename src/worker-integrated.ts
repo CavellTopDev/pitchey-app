@@ -2528,8 +2528,16 @@ class RouteRegistry {
       return creatorPitchesAnalyticsHandler(req, this.env);
     });
     this.register('GET', '/api/creator/collaborations', async (req) => {
-      const { creatorCollaborationsHandler } = await import('./handlers/stub-endpoints');
-      return creatorCollaborationsHandler(req);
+      const { getCollaborationsHandler } = await import('./handlers/collaborations-real');
+      return getCollaborationsHandler(req, this.env);
+    });
+    this.register('POST', '/api/creator/collaborations', async (req) => {
+      const { createCollaborationHandler } = await import('./handlers/collaborations-real');
+      return createCollaborationHandler(req, this.env);
+    });
+    this.register('PUT', '/api/creator/collaborations/:id', async (req) => {
+      const { updateCollaborationHandler } = await import('./handlers/collaborations-real');
+      return updateCollaborationHandler(req, this.env);
     });
     this.register('GET', '/api/creator/portfolio', async (req) => {
       const { creatorPortfolioHandler } = await import('./handlers/creator-sidebar');
@@ -2560,12 +2568,28 @@ class RouteRegistry {
       return userFollowingRealHandler(req, this.env);
     });
     this.register('GET', '/api/teams/roles', async (req) => {
-      const { teamsRolesHandler } = await import('./handlers/stub-endpoints');
-      return teamsRolesHandler(req);
+      const { teamsRolesRealHandler } = await import('./handlers/admin-real');
+      return teamsRolesRealHandler(req, this.env);
+    });
+    this.register('GET', '/api/messages/unread-count', async (req) => {
+      const { getUnreadCountHandler } = await import('./handlers/messages-real');
+      return getUnreadCountHandler(req, this.env);
+    });
+    this.register('POST', '/api/messages/send', async (req) => {
+      const { sendMessageHandler } = await import('./handlers/messages-real');
+      return sendMessageHandler(req, this.env);
+    });
+    this.register('POST', '/api/messages/:messageId/read', async (req) => {
+      const { markMessageReadHandler } = await import('./handlers/messages-real');
+      return markMessageReadHandler(req, this.env);
+    });
+    this.register('GET', '/api/messages/:userId', async (req) => {
+      const { getThreadHandler } = await import('./handlers/messages-real');
+      return getThreadHandler(req, this.env);
     });
     this.register('GET', '/api/messages', async (req) => {
-      const { messagesHandler } = await import('./handlers/stub-endpoints');
-      return messagesHandler(req);
+      const { getConversationsHandler } = await import('./handlers/messages-real');
+      return getConversationsHandler(req, this.env);
     });
     this.register('GET', '/api/pitches/discover', async (req) => {
       const { pitchesDiscoverRealHandler } = await import('./handlers/common-real');
@@ -2684,20 +2708,20 @@ class RouteRegistry {
     // These are temporary implementations to prevent frontend crashes
     // TODO: Replace with full implementations
     
-    // CSRF Protection (stub)
+    // CSRF Protection (real)
     this.register('GET', '/api/csrf/token', async (req: Request) => {
-      const { csrfTokenHandler } = await import('./handlers/stub-endpoints');
-      return csrfTokenHandler(req);
+      const { csrfTokenRealHandler } = await import('./handlers/admin-real');
+      return csrfTokenRealHandler(req, this.env);
     });
-    
-    // Error Logging (stub)
+
+    // Error Logging (real DB)
     this.register('POST', '/api/errors/log', async (req: Request) => {
-      const { errorLogHandler } = await import('./handlers/stub-endpoints');
-      return errorLogHandler(req);
+      const { errorLogRealHandler } = await import('./handlers/admin-real');
+      return errorLogRealHandler(req, this.env);
     });
     this.register('POST', '/api/monitoring/console-error', async (req: Request) => {
-      const { consoleErrorHandler } = await import('./handlers/stub-endpoints');
-      return consoleErrorHandler(req);
+      const { consoleErrorRealHandler } = await import('./handlers/admin-real');
+      return consoleErrorRealHandler(req, this.env);
     });
     
     // Dashboard Stats (real DB)
@@ -2706,28 +2730,32 @@ class RouteRegistry {
       return dashboardStatsRealHandler(req, this.env);
     });
     
-    // Metrics (stub)
+    // Metrics (real DB)
     this.register('GET', '/api/metrics/current', async (req: Request) => {
-      const { currentMetricsHandler } = await import('./handlers/stub-endpoints');
-      return currentMetricsHandler(req);
+      const { currentMetricsRealHandler } = await import('./handlers/admin-real');
+      return currentMetricsRealHandler(req, this.env);
     });
     this.register('GET', '/api/metrics/historical', async (req: Request) => {
-      const { historicalMetricsHandler } = await import('./handlers/stub-endpoints');
-      return historicalMetricsHandler(req);
+      const { historicalMetricsRealHandler } = await import('./handlers/admin-real');
+      return historicalMetricsRealHandler(req, this.env);
     });
-    
-    // GDPR Compliance (stub)
+
+    // GDPR Compliance (real DB)
     this.register('GET', '/api/gdpr/metrics', async (req: Request) => {
-      const { gdprMetricsHandler } = await import('./handlers/stub-endpoints');
-      return gdprMetricsHandler(req);
+      const { gdprMetricsRealHandler } = await import('./handlers/admin-real');
+      return gdprMetricsRealHandler(req, this.env);
     });
     this.register('GET', '/api/gdpr/requests', async (req: Request) => {
-      const { gdprRequestsHandler } = await import('./handlers/stub-endpoints');
-      return gdprRequestsHandler(req);
+      const { gdprRequestsRealHandler } = await import('./handlers/admin-real');
+      return gdprRequestsRealHandler(req, this.env);
+    });
+    this.register('POST', '/api/gdpr/requests', async (req: Request) => {
+      const { createGdprRequestHandler } = await import('./handlers/admin-real');
+      return createGdprRequestHandler(req, this.env);
     });
     this.register('GET', '/api/gdpr/consent-metrics', async (req: Request) => {
-      const { gdprConsentHandler } = await import('./handlers/stub-endpoints');
-      return gdprConsentHandler(req);
+      const { gdprConsentRealHandler } = await import('./handlers/admin-real');
+      return gdprConsentRealHandler(req, this.env);
     });
 
     // Categories endpoint (real DB)
@@ -3013,6 +3041,12 @@ class RouteRegistry {
       '/api/dashboard/stats', // Platform-wide stats
       '/api/users/search', // User search
       '/api/users/username', // Public user profiles
+      '/api/csrf/token',  // CSRF token generation
+      '/api/errors/log',  // Client error logging
+      '/api/monitoring/console-error', // Console error logging
+      '/api/teams/roles', // Team role definitions
+      '/api/metrics/current', // Platform metrics
+      '/api/metrics/historical', // Historical metrics
       '/ws'             // WebSocket endpoint handles its own auth
     ];
 
