@@ -30,7 +30,7 @@ export default defineConfig(() => {
   },
   build: {
     target: 'es2020',
-    sourcemap: false,
+    sourcemap: 'hidden',
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {

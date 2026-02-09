@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Check Frontend
         run: |
-          if curl -f https://pitchey-5o8-66n.pages.dev/ > /dev/null 2>&1; then
+          if curl -f https://pitchey-5o8.pages.dev/ > /dev/null 2>&1; then
             echo "✅ Frontend is healthy"
           else
             echo "❌ Frontend is down"

@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-// import * as Sentry from '@sentry/react';
+import * as Sentry from '@sentry/react';
 import { AlertTriangle, RefreshCw, Home, MessageCircle } from 'lucide-react';
 
 interface PortalErrorBoundaryProps {
@@ -63,14 +63,15 @@ export class PortalErrorBoundary extends Component<PortalErrorBoundaryProps, Por
       context: errorContext
     });
 
-    // Send to Sentry with enhanced context - temporarily disabled
-    console.error('Portal Error Boundary:', {
-      portalType,
-      errorId,
-      retryCount: this.state.retryCount,
-      componentStack: errorInfo.componentStack,
-      userId,
-      userName
+    // Send to Sentry with enhanced context
+    Sentry.withScope((scope) => {
+      scope.setTag('portal', portalType);
+      scope.setTag('errorId', errorId);
+      scope.setExtra('retryCount', this.state.retryCount);
+      scope.setExtra('componentStack', errorInfo.componentStack);
+      scope.setExtra('userId', userId);
+      scope.setExtra('userName', userName);
+      Sentry.captureException(error);
     });
 
     this.setState({ errorInfo });
@@ -281,5 +282,5 @@ export function withPortalErrorBoundary<P extends object>(
   });
 }
 
-// Sentry-integrated error boundary - temporarily disabled
-export const SentryPortalErrorBoundary = ({ children }: { children: ReactNode }) => <>{children}</>;
+// Sentry-integrated error boundary
+export const SentryPortalErrorBoundary = Sentry.ErrorBoundary;

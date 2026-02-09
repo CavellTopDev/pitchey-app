@@ -24,31 +24,10 @@ import { createRoot } from 'react-dom/client';
 import './index.css'
 import './lib/fix-all-apis.ts' // Fix all API URLs globally
 import App from './App.tsx'
+import { initSentry } from './monitoring/sentry-config'
 
-
-// Sentry temporarily completely removed to resolve initialization errors
-// Enhanced console fallback for debugging
-window.addEventListener('error', (event) => {
-  console.warn('FRONTEND ERROR:', event.message, event.error)
-  console.warn('Error details:', {
-    filename: event.filename,
-    lineno: event.lineno,
-    colno: event.colno,
-    stack: event.error?.stack
-  })
-  // Store error for debugging
-  window.__lastError = event.error;
-})
-window.addEventListener('unhandledrejection', (event) => {
-  console.warn('UNHANDLED REJECTION:', event.reason)
-  console.warn('Rejection details:', {
-    type: typeof event.reason,
-    stack: event.reason?.stack,
-    message: event.reason?.message
-  })
-  // Store rejection for debugging
-  window.__lastRejection = event.reason;
-})
+// Initialize Sentry for production error tracking
+initSentry()
 
 const rootElement = document.getElementById('root');
 
