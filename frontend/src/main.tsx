@@ -29,8 +29,8 @@ import App from './App.tsx'
 // Sentry temporarily completely removed to resolve initialization errors
 // Enhanced console fallback for debugging
 window.addEventListener('error', (event) => {
-  console.error('FRONTEND ERROR:', event.message, event.error)
-  console.error('Error details:', {
+  console.warn('FRONTEND ERROR:', event.message, event.error)
+  console.warn('Error details:', {
     filename: event.filename,
     lineno: event.lineno,
     colno: event.colno,
@@ -40,8 +40,8 @@ window.addEventListener('error', (event) => {
   window.__lastError = event.error;
 })
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('UNHANDLED REJECTION:', event.reason)
-  console.error('Rejection details:', {
+  console.warn('UNHANDLED REJECTION:', event.reason)
+  console.warn('Rejection details:', {
     type: typeof event.reason,
     stack: event.reason?.stack,
     message: event.reason?.message
@@ -61,7 +61,7 @@ if (rootElement) {
       try {
         return React.createElement(App);
       } catch (error) {
-        console.error('App initialization error:', error);
+        console.warn('App initialization error:', error);
         window.__appInitError = error;
         throw error;
       }
@@ -71,7 +71,7 @@ if (rootElement) {
       React.createElement(AppWithErrorCapture)
     );
   } catch (error) {
-    console.error('main.tsx: Fatal error during app initialization:', error);
+    console.warn('main.tsx: Fatal error during app initialization:', error);
     window.__fatalInitError = error;
     // Display error on page
     rootElement.innerHTML = `
@@ -83,5 +83,5 @@ if (rootElement) {
     `;
   }
 } else {
-  console.error('main.tsx: Root element not found!');
+  console.warn('main.tsx: Root element not found!');
 }
