@@ -62,16 +62,13 @@ export default function Calendar() {
 
   const fetchEvents = async () => {
     try {
-      const token = localStorage.getItem('authToken');
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString();
-      
+
       const response = await fetch(
         `${API_URL}/api/creator/calendar/events?start=${startDate}&end=${endDate}`,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include'
         }
       );
       
@@ -163,7 +160,7 @@ export default function Calendar() {
     const response = await fetch(`${API_URL}/api/calendar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(eventData),
       credentials: 'include' // Send cookies for Better Auth session
     });
       
